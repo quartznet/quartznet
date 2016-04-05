@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Threading.Tasks;
 using Quartz.Logging;
 
 namespace Quartz.Examples.Example14
@@ -46,9 +47,10 @@ namespace Quartz.Examples.Example14
         /// 	<param name="context">The execution context.</param>
         /// </summary>
         /// <param name="context"></param>
-        public void Execute(IJobExecutionContext context)
+        public Task Execute(IJobExecutionContext context)
         {
             log.Info("TRIGGER: " + context.Trigger.Key);
+            return Task.FromResult(0);
         }
     }
 }

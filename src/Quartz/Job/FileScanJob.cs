@@ -19,7 +19,7 @@
 
 using System;
 using System.IO;
-
+using System.Threading.Tasks;
 using Quartz.Logging;
 
 namespace Quartz.Job
@@ -98,7 +98,7 @@ namespace Quartz.Job
 		/// <param name="context">The execution context.</param>
 		/// <seealso cref="IJob">
 		/// </seealso>
-		public virtual void Execute(IJobExecutionContext context)
+		public virtual Task Execute(IJobExecutionContext context)
 		{
 			JobDataMap mergedJobDataMap = context.MergedJobDataMap;
 			SchedulerContext schedCtxt;
@@ -149,7 +149,7 @@ namespace Quartz.Job
 			if (newDate == DateTime.MinValue)
 			{
 				Log.Warn($"File '{fileName}' does not exist.");
-				return;
+				return Task.FromResult(0);
 			}
 
             if (lastDate != DateTime.MinValue && (newDate != lastDate && newDate < maxAgeDate))
@@ -164,7 +164,8 @@ namespace Quartz.Job
 			}
 
 			context.JobDetail.JobDataMap.Put(LastModifiedTime, newDate);
-		}
+            return Task.FromResult(0);
+        }
 
 		/// <summary>
 		/// Gets the last modified date.

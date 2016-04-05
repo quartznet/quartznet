@@ -86,7 +86,7 @@ namespace Quartz.Core
         {
             qs = sched;
 
-            IQuartzJob job;
+            IJob job;
             IJobDetail jobDetail = firedTriggerBundle.JobDetail;
 
             try
@@ -130,7 +130,7 @@ namespace Quartz.Core
                 do
                 {
                     JobExecutionException jobExEx = null;
-                    IQuartzJob job = jec.JobInstance;
+                    IJob job = jec.JobInstance;
 
                     try
                     {
@@ -185,13 +185,7 @@ namespace Quartz.Core
                             log.Debug("Calling Execute on job " + jobDetail.Key);
                         }
 
-                        var syncJob = job as IJob;
-                        syncJob?.Execute(jec);
-                        if (syncJob == null)
-                        {
-                            var asyncJob = job as IAsyncJob;
-                            await asyncJob.ExecuteAsync(jec);
-                        }
+                        await job.Execute(jec).ConfigureAwait(false);
 
                         endTime = SystemTime.UtcNow();
                     }

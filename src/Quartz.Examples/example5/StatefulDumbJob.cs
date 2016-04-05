@@ -21,6 +21,7 @@
 
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Quartz.Examples.Example5
 {
@@ -40,7 +41,7 @@ namespace Quartz.Examples.Example5
         /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
         /// fires that is associated with the <see cref="IJob" />.
         /// </summary>
-        public virtual void Execute(IJobExecutionContext context)
+        public virtual async Task Execute(IJobExecutionContext context)
         {
             Console.Error.WriteLine("---{0} executing.[{1}]", context.JobDetail.Key, DateTime.Now.ToString("r"));
 
@@ -62,7 +63,7 @@ namespace Quartz.Examples.Example5
                 delay = map.GetInt(ExecutionDelay);
             }
 
-            Thread.Sleep(delay);
+            await Task.Delay(delay);
 
             Console.Error.WriteLine("  -{0} complete ({1}).", context.JobDetail.Key, executeCount);
         }

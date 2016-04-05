@@ -19,6 +19,8 @@
 
 #endregion
 
+using System.Threading.Tasks;
+
 namespace Quartz.Tests.Integration
 {
     /// <author>Marko Lahma (.NET)</author>
@@ -39,9 +41,10 @@ namespace Quartz.Tests.Integration
         /// execution.
         /// </remarks>
         /// <param name="context">The execution context.</param>
-        public void Execute(IJobExecutionContext context)
+        public Task Execute(IJobExecutionContext context)
         {
             JobHasFired = true;
+            return Task.FromResult(0);
         }
 
         /// <summary>
