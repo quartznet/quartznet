@@ -548,6 +548,10 @@ namespace Quartz.Impl
             {
                 return await GetRemoteScheduler().Interrupt(jobKey).ConfigureAwait(false);
             }
+            catch (SchedulerException se)
+            {
+                throw new UnableToInterruptJobException(se);
+            }
 #if REMOTING
             catch (RemotingException re)
 #else // REMOTING
@@ -555,10 +559,6 @@ namespace Quartz.Impl
 #endif // REMOTING
             {
                 throw new UnableToInterruptJobException(InvalidateHandleCreateException("Error communicating with remote scheduler.", re));
-            }
-            catch (SchedulerException se)
-            {
-                throw new UnableToInterruptJobException(se);
             }
         }
 
@@ -568,6 +568,10 @@ namespace Quartz.Impl
             {
                 return await GetRemoteScheduler().Interrupt(fireInstanceId).ConfigureAwait(false);
             }
+            catch (SchedulerException se)
+            {
+                throw new UnableToInterruptJobException(se);
+            }
 #if REMOTING
             catch (RemotingException re)
 #else // REMOTING
@@ -575,10 +579,6 @@ namespace Quartz.Impl
 #endif // REMOTING
             {
                 throw new UnableToInterruptJobException(InvalidateHandleCreateException("Error communicating with remote scheduler.", re));
-            }
-            catch (SchedulerException se)
-            {
-                throw new UnableToInterruptJobException(se);
             }
         }
 

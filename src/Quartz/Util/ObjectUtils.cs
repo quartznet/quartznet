@@ -21,6 +21,7 @@ using System;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Globalization;
+using System.Linq;
 using System.Reflection;
 
 namespace Quartz.Util
@@ -68,7 +69,7 @@ namespace Quartz.Util
 
                 throw new NotSupportedException(newValue + " is no a supported value for a target of type " + requiredType);
             }
-	        if (requiredType.IsValueType)
+	        if (requiredType.GetTypeInfo().IsValueType)
 	        {
 	            return Activator.CreateInstance(requiredType);
 	        }
@@ -117,7 +118,7 @@ namespace Quartz.Util
 			for (int i = 0; i < propertyNames.Length; i++)
 			{
 				string name = propertyNames[i];
-				string propertyName = name.Substring(0, 1).ToUpper(CultureInfo.InvariantCulture) + name.Substring(1);
+				string propertyName = CultureInfo.InvariantCulture.TextInfo.ToUpper(name.Substring(0, 1)) + name.Substring(1);
 
 				try
 				{
@@ -142,7 +143,7 @@ namespace Quartz.Util
 
             foreach (string name in props.Keys)
 			{
-				string propertyName = name.Substring(0, 1).ToUpper(CultureInfo.InvariantCulture) + name.Substring(1);
+				string propertyName = CultureInfo.InvariantCulture.TextInfo.ToUpper(name.Substring(0, 1)) + name.Substring(1);
 
 				try
 				{
@@ -204,7 +205,7 @@ namespace Quartz.Util
 
 	    public static TimeSpan GetTimeSpanValueForProperty(PropertyInfo pi, object value)
 	    {
-            object[] attributes = pi.GetCustomAttributes(typeof(TimeSpanParseRuleAttribute), false);
+            object[] attributes = pi.GetCustomAttributes(typeof(TimeSpanParseRuleAttribute), false).ToArray();
 
             if (attributes.Length == 0)
             {
@@ -230,7 +231,7 @@ namespace Quartz.Util
 
 	    public static bool IsAttributePresent(Type typeToExamine, Type attributeType)
 	    {
-	        return typeToExamine.GetCustomAttributes(attributeType, true).Length > 0;
+	        return typeToExamine.GetTypeInfo().GetCustomAttributes(attributeType, true).Length > 0;
 	    }
 	}
 

@@ -3485,7 +3485,11 @@ namespace Quartz.Impl.AdoJobStore
 
             if (cth.Transaction != null && cth.Transaction.Connection == null)
             {
-                throw new DataException("Transaction not connected, or was disconnected");
+                // TODO (NetCore Port): I think keeping the exception type consistent between desktop and Core versions of Quartz
+                //                      is more important than keeping the desktop one consistent between the previous version and this one.
+                //                      It's not an obvious call, though, so may be worth discussing.
+                // throw new DataException("Transaction not connected, or was disconnected");
+                throw new InvalidOperationException("Transaction not connected, or was disconnected");
             }
         }
     }

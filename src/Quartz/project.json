@@ -27,6 +27,7 @@
     "net45": {
       "compilationOptions": {
         "define": [
+          "ADVANCED_PROCESS",
           "BINARY_SERIALIZATION",
           "CONFIGURATION",
           "DESIGNER",
@@ -52,6 +53,7 @@
     "dnx451": {
       "compilationOptions": {
         "define": [
+          "ADVANCED_PROCESS",
           "BINARY_SERIALIZATION",
           "CONFIGURATION",
           "DESIGNER",
@@ -84,12 +86,16 @@
         "NETStandard.Library": "1.0.0-rc3-*",
         "System.Collections.NonGeneric": "4.0.1-rc3-*",
         "System.Collections.Specialized": "4.0.1-rc3-*",
+        "System.ComponentModel.TypeConverter": "4.0.1-rc3-*",
         "System.Data.Common": "4.0.1-rc3-*",
         "System.Data.SqlClient": "4.1.0-rc3-*",
+        "System.Diagnostics.Process": "4.1.0-rc3-*",
         "System.Diagnostics.StackTrace": "4.0.1-rc3-*",
         "System.Net.NameResolution": "4.0.0-rc3-*",
+        "System.Net.Requests": "4.0.11-rc3-*",
         "System.Runtime.Serialization.Primitives": "4.1.1-rc3-*",
         "System.Runtime.Serialization.Xml": "4.1.1-rc3-*",
+        "System.Threading.Tasks.Parallel": "4.0.1-rc3-*",
         "System.Threading.Thread": "4.0.0-rc3-*",
         "System.Threading.ThreadPool": "4.0.10-rc3-*",
         "System.Xml.XmlDocument": "4.0.1-rc3-*",

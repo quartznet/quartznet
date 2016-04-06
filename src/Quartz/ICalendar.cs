@@ -73,5 +73,9 @@ namespace Quartz
 		/// Calendar after the given UTC time.
 		/// </summary>
         DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc);
-	}
+
+#if !ICLONEABLE
+        object Clone();
+#endif // !ICLONEABLE      
+    }
 }

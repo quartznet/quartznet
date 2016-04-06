@@ -157,7 +157,7 @@ namespace Quartz.Util
 
         /// <summary>Initializes the scheduler.</summary>
         /// <param name="threadCount">The number of threads to create and use for processing work items.</param>
-        public QueuedTaskScheduler(int threadCount) : this(threadCount, string.Empty, false, ThreadPriority.Normal, ApartmentState.MTA, 0, null, null)
+        public QueuedTaskScheduler(int threadCount) : this(threadCount, string.Empty, false, ThreadPriority.Normal, ApartmentState.MTA, null, null)
         {
         }
 
@@ -178,7 +178,6 @@ namespace Quartz.Util
 #if THREAD_APARTMENTSTATE
             ApartmentState threadApartmentState = ApartmentState.MTA,
 #endif // THREAD_APARTMENTSTATE
-            int threadMaxStackSize = 0,
             Action threadInit = null,
             Action threadFinally = null)
         {
@@ -204,7 +203,7 @@ namespace Quartz.Util
             _threads = new Thread[threadCount];
             for (int i = 0; i < threadCount; i++)
             {
-                _threads[i] = new Thread(() => ThreadBasedDispatchLoop(threadInit, threadFinally), threadMaxStackSize)
+                _threads[i] = new Thread(() => ThreadBasedDispatchLoop(threadInit, threadFinally))
                 {
                     Priority = threadPriority,
                     IsBackground = !useForegroundThreads,

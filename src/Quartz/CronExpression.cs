@@ -431,7 +431,7 @@ namespace Quartz
                 throw new ArgumentException("cronExpression cannot be null");
             }
 
-            cronExpressionString = cronExpression.ToUpper(CultureInfo.InvariantCulture);
+            cronExpressionString = CultureInfo.InvariantCulture.TextInfo.ToUpper(cronExpression);
             BuildExpression(cronExpressionString);
         }
 
@@ -923,7 +923,7 @@ namespace Quartz
             }
             else if (c >= '0' && c <= '9')
             {
-                int val = Convert.ToInt32(c.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
+                int val = Convert.ToInt32(c.ToString(), CultureInfo.InvariantCulture);
                 i++;
                 if (i >= s.Length)
                 {
@@ -1064,7 +1064,7 @@ namespace Quartz
             {
                 i++;
                 c = s[i];
-                int v = Convert.ToInt32(c.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
+                int v = Convert.ToInt32(c.ToString(), CultureInfo.InvariantCulture);
                 end = v;
                 i++;
                 if (i >= s.Length)
@@ -1084,7 +1084,7 @@ namespace Quartz
                 {
                     i++;
                     c = s[i];
-                    int v2 = Convert.ToInt32(c.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
+                    int v2 = Convert.ToInt32(c.ToString(), CultureInfo.InvariantCulture);
                     i++;
                     if (i >= s.Length)
                     {
@@ -1117,7 +1117,7 @@ namespace Quartz
             {
                 i++;
                 c = s[i];
-                int v2 = Convert.ToInt32(c.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
+                int v2 = Convert.ToInt32(c.ToString(), CultureInfo.InvariantCulture);
                 i++;
                 if (i >= s.Length)
                 {

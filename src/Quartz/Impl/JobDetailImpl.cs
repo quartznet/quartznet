@@ -21,6 +21,7 @@
 
 using System;
 using System.Globalization;
+using System.Reflection;
 using System.Runtime.Serialization;
 
 using Quartz.Util;
@@ -255,7 +256,7 @@ namespace Quartz.Impl
                     throw new ArgumentException("Job class cannot be null.");
                 }
 
-                if (!typeof (IJob).IsAssignableFrom(value))
+                if (!typeof (IJob).GetTypeInfo().IsAssignableFrom(value.GetTypeInfo()))
                 {
                     throw new ArgumentException("Job class must implement the Job interface.");
                 }

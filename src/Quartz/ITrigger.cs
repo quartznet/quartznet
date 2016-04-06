@@ -199,5 +199,8 @@ namespace Quartz
 
         bool HasMillisecondPrecision { get; }
 
+#if !ICLONEABLE
+        object Clone();
+#endif // !ICLONEABLE        
     }
 }

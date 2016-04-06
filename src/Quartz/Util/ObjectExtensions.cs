@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Reflection;
 #if BINARY_SERIALIZATION
 using System.Runtime.Serialization.Formatters.Binary;
 #endif // BINARY_SERIALIZATION
@@ -35,7 +36,7 @@ namespace Quartz.Util
 
         public static string AssemblyQualifiedNameWithoutVersion(this Type type)
         {
-            string retValue = type.FullName + ", " + type.Assembly.GetName().Name;
+            string retValue = type.FullName + ", " + type.GetTypeInfo().Assembly.GetName().Name;
             return retValue;
         }
     }

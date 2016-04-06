@@ -36,6 +36,7 @@ using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
+using System.Globalization;
 
 namespace Quartz.Impl
 {
@@ -333,7 +334,7 @@ Please add configuration to your application config file to correctly initialize
                 bool isMatch = false;
                 foreach (string supportedKey in supportedKeys)
                 {
-                    if (configurationKey.StartsWith(supportedKey, StringComparison.InvariantCulture))
+                    if (configurationKey.StartsWith(supportedKey, false, CultureInfo.InvariantCulture))
                     {
                         isMatch = true;
                         break;

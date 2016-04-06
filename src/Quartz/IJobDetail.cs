@@ -113,5 +113,9 @@ namespace Quartz
         /// <see cref="IJobDetail" /> identical to this one.
         /// </summary>
         JobBuilder GetJobBuilder();
+
+#if !ICLONEABLE
+        object Clone();
+#endif // !ICLONEABLE
     }
 }

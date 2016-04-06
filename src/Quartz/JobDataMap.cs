@@ -116,7 +116,7 @@ namespace Quartz
         /// </summary>
         public virtual void PutAsString(string key, char value)
         {
-            string strValue = value.ToString(CultureInfo.InvariantCulture);
+            string strValue = value.ToString();
             base.Put(key, strValue);
         }
 
@@ -224,7 +224,7 @@ namespace Quartz
         {
             object obj = Get(key);
 
-            return ((string) obj).ToUpper(CultureInfo.InvariantCulture).Equals("TRUE");
+            return CultureInfo.InvariantCulture.TextInfo.ToUpper((string) obj).Equals("TRUE");
         }
 
         /// <summary>
