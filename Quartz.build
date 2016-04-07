@@ -74,7 +74,7 @@
     
   </target>
 
-  <target name="build">
+  <target name="build" depends="generate-assembly-info">
 
   <call target="restore-nuget-packages" />
 	<exec
