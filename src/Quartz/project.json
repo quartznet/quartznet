@@ -21,8 +21,11 @@
     ]
   },
   "runtimes": {
-    "win": {}
+    "win": { }
   },
+  "resource": [
+    "**/*.config"
+  ],
   "frameworks": {
     "net45": {
       "compilationOptions": {
@@ -105,6 +108,7 @@
         "System.Runtime.Loader": "4.0.0-rc3-*",
         "System.Runtime.Serialization.Primitives": "4.1.1-rc3-*",
         "System.Runtime.Serialization.Xml": "4.1.1-rc3-*",
+        "System.Threading.Tasks": "4.0.11-rc3-*",
         "System.Threading.Tasks.Parallel": "4.0.1-rc3-*",
         "System.Threading.Thread": "4.0.0-rc3-*",
         "System.Threading.ThreadPool": "4.0.10-rc3-*",
