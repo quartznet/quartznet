@@ -68,7 +68,7 @@ namespace Quartz.Impl
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class JobExecutionContextImpl : IJobExecutionContext
+    public class JobExecutionContextImpl : ICancellableJobExecutionContext
     {
         [NonSerialized] private readonly IScheduler scheduler;
         private readonly ITrigger trigger;
@@ -107,6 +107,7 @@ namespace Quartz.Impl
             jobDataMap.PutAll(jobDetail.JobDataMap);
             jobDataMap.PutAll(trigger.JobDataMap);
             cancellationTokenSource = new CancellationTokenSource();
+            CancellationToken = cancellationTokenSource.Token;
         }
 
         /// <summary>
@@ -321,21 +322,16 @@ namespace Quartz.Impl
             return retValue;
         }
 
+        public virtual void Cancel()
+        {
+            cancellationTokenSource.Cancel();
+        }
+
         /// <summary>
         /// Returns the fire instance id.
         /// </summary>
         public string FireInstanceId => ((IOperableTrigger) trigger).FireInstanceId;
 
-        public bool IsCancellationRequested => cancellationTokenSource.Token.IsCancellationRequested;
-
-        public void ThrowIfCancellationRequested()
-        {
-            cancellationTokenSource.Token.ThrowIfCancellationRequested();
-        }
-
-        public void Cancel()
-        {
-            cancellationTokenSource.Cancel();
-        }
+        public CancellationToken CancellationToken { get; }
     }
 }

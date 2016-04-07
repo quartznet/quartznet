@@ -87,6 +87,7 @@
     <Compile Include="Collection\ReadOnlySet.cs" />
     <Compile Include="Core\ErrorLogger.cs" />
     <Compile Include="Core\ExecutingJobsManager.cs" />
+    <Compile Include="ICancellableJobExecutionContext.cs" />
     <Compile Include="IInterruptableJob.cs" />
     <Compile Include="Impl\AdoJobStore\RecoverMisfiredJobsResult.cs" />
     <Compile Include="Impl\AdoJobStore\ClusterManager.cs" />
