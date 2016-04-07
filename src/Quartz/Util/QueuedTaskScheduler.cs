@@ -167,7 +167,6 @@ namespace Quartz.Util
         /// <param name="useForegroundThreads">A Boolean value that indicates whether to use foreground threads instead of background.</param>
         /// <param name="threadPriority">The priority to assign to each thread.</param>
         /// <param name="threadApartmentState">The apartment state to use for each thread.</param>
-        /// <param name="threadMaxStackSize">The stack size to use for each thread.</param>
         /// <param name="threadInit">An initialization routine to run on each thread.</param>
         /// <param name="threadFinally">A finalization routine to run on each thread.</param>
         public QueuedTaskScheduler(
