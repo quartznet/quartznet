@@ -157,7 +157,15 @@ namespace Quartz.Util
 
         /// <summary>Initializes the scheduler.</summary>
         /// <param name="threadCount">The number of threads to create and use for processing work items.</param>
-        public QueuedTaskScheduler(int threadCount) : this(threadCount, string.Empty, false, ThreadPriority.Normal, ApartmentState.MTA, null, null)
+        public QueuedTaskScheduler(int threadCount) : this(
+            threadCount, 
+            string.Empty, 
+            false, 
+            ThreadPriority.Normal,
+#if THREAD_APARTMENTSTATE
+            ApartmentState.MTA,
+#endif // THREAD_APARTMENTSTATE
+            null, null)
         {
         }
 
@@ -204,7 +212,9 @@ namespace Quartz.Util
             {
                 _threads[i] = new Thread(() => ThreadBasedDispatchLoop(threadInit, threadFinally))
                 {
+#if THREAD_PRIORITY
                     Priority = threadPriority,
+#endif // THREAD_PRIORITY
                     IsBackground = !useForegroundThreads,
                 };
                 if (threadName != null)
@@ -242,8 +252,10 @@ namespace Quartz.Util
                     // If a thread abort occurs, we'll try to reset it and continue running.
                     while (true)
                     {
+#if THREAD_INTERRUPTION
                         try
                         {
+#endif // THREAD_INTERRUPTION
                             // For each task queued to the scheduler, try to execute it.
                             foreach (var task in _blockingTaskQueue.GetConsumingEnumerable(_disposeCancellation.Token))
                             {
@@ -270,6 +282,7 @@ namespace Quartz.Util
                                     }
                                 }
                             }
+#if THREAD_INTERRUPTION
                         }
                         catch (ThreadAbortException)
                         {
@@ -281,6 +294,7 @@ namespace Quartz.Util
                                 Thread.ResetAbort();
                             }
                         }
+#endif // THREAD_INTERRUPTION
                     }
                 }
                 catch (OperationCanceledException)

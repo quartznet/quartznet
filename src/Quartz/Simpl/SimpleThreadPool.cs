@@ -236,7 +236,9 @@ namespace Quartz.Simpl
                     {
                         if (interrupted)
                         {
+#if THREAD_INTERRUPTION
                             Thread.CurrentThread.Interrupt();
+#endif // THREAD_INTERRUPTION
                         }
                     }
 
@@ -466,8 +468,10 @@ namespace Quartz.Simpl
                         {
                             runnable = null;
                         }
+#if THREAD_PRIORITY
                         // repair the thread in case the runnable mucked it up...
                         Priority = tp.ThreadPriority;
+#endif // THREAD_PRIORITY
 
                         if (runOnce)
                         {
