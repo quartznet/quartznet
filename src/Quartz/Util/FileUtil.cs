@@ -57,7 +57,7 @@ namespace Quartz.Util
 #else // HTTPCONTEXT
                 // TODO (NetCore Port): Use Microsoft.AspNet.Http.Abstractions.HttpContext as a substitute?
 #endif // HTTPCONTEXT
-#endif
+#endif // !ClientProfile
 
                 fName = fName.Substring(1);
                 if (fName.StartsWith("/") || fName.StartsWith("\\"))

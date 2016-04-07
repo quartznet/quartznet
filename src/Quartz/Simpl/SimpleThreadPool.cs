@@ -408,7 +408,9 @@ namespace Quartz.Simpl
                 {
                     runOnce = true;
                 }
+#if THREAD_PRIORITY
                 Priority = prio;
+#endif // THREAD_PRIORITY
                 IsBackground = isDaemon;
             }
 

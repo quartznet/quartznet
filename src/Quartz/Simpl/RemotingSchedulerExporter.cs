@@ -25,8 +25,8 @@ using System.Runtime.Remoting;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Http;
 using System.Runtime.Remoting.Channels.Tcp;
-using System.Runtime.Serialization.Formatters;
 #endif // REMOTING
+using System.Runtime.Serialization.Formatters;
 using System.Security;
 
 using Quartz.Logging;
@@ -96,7 +96,6 @@ namespace Quartz.Simpl
 #endif // REMOTING
         }
 
-#if REMOTING
         /// <summary>
         /// Registers remoting channel if needed. This is determined
         /// by checking whether there is a positive value for port.
@@ -157,7 +156,6 @@ namespace Quartz.Simpl
                 log.Error("Cannot register remoting if port or channel type not specified");
             }
         }
-#endif // REMOTING
 
         protected virtual IDictionary CreateConfiguration()
         {
@@ -233,15 +231,13 @@ namespace Quartz.Simpl
         /// Sets the channel type when registering remoting.
         /// </summary>
         public virtual string ChannelType { get; set; }
-
-#if REMOTING
+        
         /// <summary>
         /// Sets the <see cref="TypeFilterLevel" /> used when
         /// exporting to remoting context. Defaults to
         /// <see cref="System.Runtime.Serialization.Formatters.TypeFilterLevel.Full" />.
         /// </summary>
         public virtual TypeFilterLevel TypeFilterLevel { get; set; }
-#endif // REMOTING
 
         /// <summary>
         /// A Boolean value (true or false) that specifies whether to refuse requests from other computers. 
