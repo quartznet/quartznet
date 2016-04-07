@@ -492,7 +492,7 @@ namespace Quartz.Logging
             return GetLogger(typeof(T));
         }
 
-#if !LIBLOG_PORTABLE
+#if STACKTRACE && !LIBLOG_PORTABLE
         /// <summary>
         /// Gets a logger for the current class.
         /// </summary>
@@ -1151,7 +1151,7 @@ namespace Quartz.Logging.LogProviders
                 {
                     lock (GetType())
                     {
-#if !LIBLOG_PORTABLE
+#if STACKTRACE && !LIBLOG_PORTABLE
                         StackTrace stack = new StackTrace();
                         Type thisType = GetType();
                         _callerStackBoundaryType = Type.GetType("LoggerExecutionWrapper");

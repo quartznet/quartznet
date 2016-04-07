@@ -83,8 +83,6 @@ namespace Quartz.Impl.AdoJobStore
         {
             lock (this)
             {
-                lockName = string.Intern(lockName);
-
                 if (log.IsDebugEnabled())
                 {
                     log.Debug($"Lock '{lockName}' is desired by: {Thread.CurrentThread.Name}");
@@ -135,8 +133,6 @@ namespace Quartz.Impl.AdoJobStore
         {
             lock (this)
             {
-                lockName = string.Intern(lockName);
-
                 if (IsLockOwner(lockName))
                 {
                     if (log.IsDebugEnabled())
@@ -163,7 +159,6 @@ namespace Quartz.Impl.AdoJobStore
         {
             lock (this)
             {
-                lockName = string.Intern(lockName);
                 return GetThreadLocks().Contains(lockName);
             }
         }

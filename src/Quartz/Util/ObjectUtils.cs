@@ -57,7 +57,7 @@ namespace Quartz.Util
                 {
                     return typeConverter.ConvertFrom(null, CultureInfo.InvariantCulture, newValue);
                 }
-                typeConverter = TypeDescriptor.GetConverter(newValue);
+                typeConverter = TypeDescriptor.GetConverter(newValue.GetType());
                 if (typeConverter.CanConvertTo(requiredType))
                 {
                     return typeConverter.ConvertTo(null, CultureInfo.InvariantCulture, newValue, requiredType);
@@ -231,7 +231,7 @@ namespace Quartz.Util
 
 	    public static bool IsAttributePresent(Type typeToExamine, Type attributeType)
 	    {
-	        return typeToExamine.GetTypeInfo().GetCustomAttributes(attributeType, true).Length > 0;
+	        return typeToExamine.GetTypeInfo().GetCustomAttributes(attributeType, true).Count() > 0;
 	    }
 	}
 

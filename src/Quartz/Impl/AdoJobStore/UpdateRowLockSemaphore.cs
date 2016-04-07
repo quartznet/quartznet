@@ -129,7 +129,11 @@ namespace Quartz.Impl.AdoJobStore
 
                 if (await cmd.ExecuteNonQueryAsync().ConfigureAwait(false) != 1)
                 {
-                    throw new DataException(
+                    // TODO (NetCore Port): I think keeping the exception type consistent between desktop and Core versions of Quartz
+                    //                      is more important than keeping the desktop one consistent between the previous version and this one.
+                    //                      It's not an obvious call, though, so may be worth discussing.
+                    // throw new DataException(
+                    throw new InvalidOperationException(    // Maybe SqlException instead?
                         AdoJobStoreUtil.ReplaceTablePrefix("No row exists, and one could not be inserted in table " + TablePrefixSubst + TableLocks + " for lock named: " + lockName, TablePrefix, SchedulerNameLiteral));
                 }
             }

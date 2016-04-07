@@ -34,22 +34,14 @@ namespace Quartz.Collection
     [DataContract]  // TODO (NetCore Port): Confirm that data contract serialization works as expected here
     internal class TreeSet<T> : SortedSet<T>
     {
-        protected
+        // No non-binary-formatter alternative is needed since this will not be deserialized by new .NET Core versions of Quartz.Net
 #if BINARY_SERIALIZATION
-        override
-#else // BINARY_SERIALIZATION
-        virtual
-#endif // BINARY_SERIALIZATION
-        void OnDeserialization(object sender)
+        protected override void OnDeserialization(object sender)
         {
             base.OnDeserialization(sender);
         }
+#endif // BINARY_SERIALIZATION
 
-        [OnDeserialized]
-        internal void OnDeserializedCallback(StreamingContext context)
-        {
-            OnDeserialization(null);
-        }
     }
 
     /// <summary>

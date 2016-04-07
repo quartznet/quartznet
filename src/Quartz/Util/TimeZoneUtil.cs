@@ -55,7 +55,7 @@ namespace Quartz.Util
         {
             if (QuartzEnvironment.IsRunningOnMono)
             {
-                return TimeZoneInfo.ConvertTimeFromUtc(dateTimeOffset.UtcDateTime, timeZoneInfo);
+                return TimeZoneInfo.ConvertTime(dateTimeOffset.UtcDateTime, TimeZoneInfo.Utc, timeZoneInfo);
             }
 
             return TimeZoneInfo.ConvertTime(dateTimeOffset, timeZoneInfo);
@@ -89,7 +89,11 @@ namespace Quartz.Util
             {
                 info = TimeZoneInfo.FindSystemTimeZoneById(id);
             }
+#if !BUG_7552 // https://github.com/dotnet/corefx/issues/7552
             catch (TimeZoneNotFoundException)
+#else // !BUG_7552
+            catch (Exception)
+#endif // !BUG_7552
             {
                 string aliasedId;
                 if (timeZoneIdAliases.TryGetValue(id, out aliasedId))

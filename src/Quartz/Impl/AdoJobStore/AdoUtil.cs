@@ -67,7 +67,7 @@ namespace Quartz.Impl.AdoJobStore
 
         private void SetDataTypeToCommandParameter(IDbDataParameter param, object parameterType)
         {
-            dbProvider.Metadata.ParameterDbTypeProperty.GetSetMethod().Invoke(param, new object[] { parameterType });
+            dbProvider.Metadata.ParameterDbTypeProperty.SetMethod.Invoke(param, new object[] { parameterType });
         }
 
         public DbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText)

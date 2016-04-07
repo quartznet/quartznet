@@ -66,7 +66,11 @@ namespace Quartz.Util
                 }
                 try
                 {
+#if APPDOMAINS
                     fName = Path.Combine(AppDomain.CurrentDomain.SetupInformation.ApplicationBase, fName);
+#else // APPDOMAINS
+                    fName = Path.Combine(AppContext.BaseDirectory, fName);
+#endif // APPDOMAINS
                 }
                 catch (SecurityException)
                 {

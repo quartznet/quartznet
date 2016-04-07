@@ -351,7 +351,7 @@ namespace Quartz.Plugin.Xml
                             file = new FileInfo(furl);
                             try
                             {
-                                f = WebRequest.Create(url).GetResponse().GetResponseStream();
+                                f = WebRequest.Create(url).GetResponseAsync().Result.GetResponseStream();
                             }
                             catch (IOException)
                             {

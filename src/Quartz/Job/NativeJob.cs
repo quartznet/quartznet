@@ -199,9 +199,9 @@ namespace Quartz.Job
 			    
                 proc.StartInfo.FileName = cmd[0];
                 proc.StartInfo.Arguments = temp;
-#if ADVANCED_PROCESS
+#if WINDOWS_PROCESS
                 proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-#endif // ADVANCED_PROCESS
+#endif // WINDOWS_PROCESS
                 proc.StartInfo.CreateNoWindow = true;
 			    proc.StartInfo.UseShellExecute = false;
 			    proc.StartInfo.RedirectStandardError = true;
