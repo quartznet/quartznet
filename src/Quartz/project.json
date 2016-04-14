@@ -57,9 +57,10 @@
         "System.Xml": "4.0.0.0"
       }
     },
-    "dnx451": {
+    "dnx46": {
       "compilationOptions": {
         "define": [
+          "APPCONTEXT",
           "APPDOMAINS",
           "BINARY_SERIALIZATION",
           "CONFIGURATION",
@@ -90,6 +91,7 @@
       "compilationOptions": {
         "debugType": "portable",
         "define": [
+          "APPCONTEXT",
           "BUG_7552"
         ]
       },
