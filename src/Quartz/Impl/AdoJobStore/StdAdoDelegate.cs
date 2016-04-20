@@ -285,7 +285,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>Whether there are more misfired triggers left to find beyond the given count.</returns>
         public virtual bool HasMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state1, DateTimeOffset ts, int count, IList<TriggerKey> resultList)
         {
-            using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectHasMisfiredTriggersInState)))
+            using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(GetSelectNextMisfiredTriggersInStateToAcquireSql(count))))
             {
                 AddCommandParameter(cmd, "nextFireTime", GetDbDateTimeValue(ts));
                 AddCommandParameter(cmd, "state1", state1);
@@ -309,6 +309,12 @@ namespace Quartz.Impl.AdoJobStore
                     return hasReachedLimit;
                 }
             }
+        }
+
+        protected virtual string GetSelectNextMisfiredTriggersInStateToAcquireSql(int maxCount)
+        {
+            // by default we don't support limits, this is db specific
+            return SqlSelectHasMisfiredTriggersInState;
         }
 
         /// <summary>

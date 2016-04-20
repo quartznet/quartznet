@@ -34,5 +34,10 @@ namespace Quartz.Impl.AdoJobStore
         {
             return SqlSelectNextTriggerToAcquire + " LIMIT " + maxCount;
         }
+
+        protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int maxCount)
+        {
+            return SqlSelectHasMisfiredTriggersInState + " LIMIT " + maxCount;
+        }
     }
 }
