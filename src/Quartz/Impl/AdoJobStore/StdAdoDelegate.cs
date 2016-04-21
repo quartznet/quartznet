@@ -311,7 +311,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        protected virtual string GetSelectNextMisfiredTriggersInStateToAcquireSql(int maxCount)
+        protected virtual string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
         {
             // by default we don't support limits, this is db specific
             return SqlSelectHasMisfiredTriggersInState;
