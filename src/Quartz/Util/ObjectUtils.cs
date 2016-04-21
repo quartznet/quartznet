@@ -66,6 +66,11 @@ namespace Quartz.Util
                 {
                     return Type.GetType(newValue.ToString(), true);
                 }
+                if (newValue.GetType().GetTypeInfo().IsEnum)
+                {
+                    // If we couldn't convert the type, but it's an enum type, try convert it as an int
+                    return ConvertValueIfNecessary(requiredType, Convert.ChangeType(newValue, Convert.GetTypeCode(newValue), null));
+                }
 
                 throw new NotSupportedException(newValue + " is no a supported value for a target of type " + requiredType);
             }

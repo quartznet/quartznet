@@ -43,7 +43,11 @@ namespace Quartz.Impl.AdoJobStore
     /// <author>Marko Lahma (.NET)</author>
     public class SimpleSemaphore : ISemaphore
     {
+#if REMOTING
         private const string KeyThreadLockOwners = "quartz_semaphore_lock_owners";
+#else // REMOTING
+        private static readonly AsyncLocal<HashSet<string>> asyncThreadLocks = new AsyncLocal<HashSet<string>>();
+#endif // REMOTING
 
         private readonly ILog log;
         private readonly HashSet<string> locks = new HashSet<string>();
@@ -69,8 +73,11 @@ namespace Quartz.Impl.AdoJobStore
             }
             return threadLocks;
 #else // REMOTING
-            // TODO (NetCore Port): Use System.Threading.AsyncLocal<T>
-            return null;
+            if (asyncThreadLocks.Value == null)
+            {
+                asyncThreadLocks.Value = new HashSet<string>();
+            }
+            return asyncThreadLocks.Value;
 #endif // REMOTING
         }
 
