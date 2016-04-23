@@ -37,3 +37,5 @@ This release corresponds to Java Quartz version 2.2.
 For API documentation, please refer to Quartz.NET site: 
 
    http://apidoc.quartz-scheduler.net/
+
+Join the chat at https://gitter.im/quartznet/quartznet
