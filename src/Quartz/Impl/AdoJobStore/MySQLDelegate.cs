@@ -38,9 +38,10 @@ namespace Quartz.Impl.AdoJobStore
         protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
         {
             if (count != -1)
+            {
                 return SqlSelectHasMisfiredTriggersInState + " LIMIT " + count;
-            else
-                return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
+            }
+            return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
         }
     }
 }

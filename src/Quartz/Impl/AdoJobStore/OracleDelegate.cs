@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * Copyright 2009- Marko Lahma
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
@@ -34,12 +36,28 @@ namespace Quartz.Impl.AdoJobStore
         {
             string sqlSelectNextTriggerToAcquire = SqlSelectNextTriggerToAcquire;
 
-            int whereEndIdx = sqlSelectNextTriggerToAcquire.IndexOf("WHERE") + 6;
+            int whereEndIdx = sqlSelectNextTriggerToAcquire.IndexOf("WHERE", StringComparison.OrdinalIgnoreCase) + 6;
             string beginningAndWhere = sqlSelectNextTriggerToAcquire.Substring(0, whereEndIdx);
             string theRest = sqlSelectNextTriggerToAcquire.Substring(whereEndIdx);
 
             // add limit clause to correct place
             return beginningAndWhere + " rownum <= " + maxCount + " AND " + theRest;
+        }
+
+        protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
+        {
+            if (count != -1)
+            {
+                var sqlSelectHasMisfiredTriggersInState = SqlSelectHasMisfiredTriggersInState;
+
+                int whereEndIdx = sqlSelectHasMisfiredTriggersInState.IndexOf("WHERE", StringComparison.OrdinalIgnoreCase) + 6;
+                string beginningAndWhere = sqlSelectHasMisfiredTriggersInState.Substring(0, whereEndIdx);
+                string theRest = sqlSelectHasMisfiredTriggersInState.Substring(whereEndIdx);
+
+                // add limit clause to correct place
+                return beginningAndWhere + " rownum <= " + count + " AND " + theRest;
+            }
+            return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
         }
 
         /// <summary>

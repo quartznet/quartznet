@@ -14,5 +14,14 @@
         {
             return SqlSelectNextTriggerToAcquire + " ROWS " + maxCount;
         }
+
+        protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
+        {
+            if (count != -1)
+            {
+                return SqlSelectHasMisfiredTriggersInState + " ROWS " + count;
+            }
+            return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
+        }
     }
 }
