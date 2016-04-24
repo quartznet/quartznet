@@ -40,7 +40,7 @@ namespace Quartz.Examples.Example4
             get { return GetType().Name; }
         }
 
-        public virtual async Task RunAsync()
+        public virtual async Task Run()
         {
             ILog log = LogProvider.GetLogger(typeof (JobStateExample));
 
@@ -73,7 +73,7 @@ namespace Quartz.Examples.Example4
             job1.JobDataMap.Put(ColorJob.ExecutionCount, 1);
 
             // schedule the job to run
-            DateTimeOffset scheduleTime1 = await sched.ScheduleJobAsync(job1, trigger1);
+            DateTimeOffset scheduleTime1 = await sched.ScheduleJob(job1, trigger1);
             log.Info($"{job1.Key} will run at: {scheduleTime1.ToString("r")} and repeat: {trigger1.RepeatCount} times, every {trigger1.RepeatInterval.TotalSeconds} seconds");
 
             // job2 will also run 5 times, every 10 seconds
@@ -94,14 +94,14 @@ namespace Quartz.Examples.Example4
             job2.JobDataMap.Put(ColorJob.ExecutionCount, 1);
 
             // schedule the job to run
-            DateTimeOffset scheduleTime2 = await sched.ScheduleJobAsync(job2, trigger2);
+            DateTimeOffset scheduleTime2 = await sched.ScheduleJob(job2, trigger2);
             log.Info($"{job2.Key} will run at: {scheduleTime2.ToString("r")} and repeat: {trigger2.RepeatCount} times, every {trigger2.RepeatInterval.TotalSeconds} seconds");
 
             log.Info("------- Starting Scheduler ----------------");
 
             // All of the jobs have been added to the scheduler, but none of the jobs
             // will run until the scheduler has been started
-            await sched.StartAsync();
+            await sched.Start();
 
             log.Info("------- Started Scheduler -----------------");
 
@@ -113,11 +113,11 @@ namespace Quartz.Examples.Example4
 
             log.Info("------- Shutting Down ---------------------");
 
-            await sched.ShutdownAsync(true);
+            await sched.Shutdown(true);
 
             log.Info("------- Shutdown Complete -----------------");
 
-            SchedulerMetaData metaData = await sched.GetMetaDataAsync();
+            SchedulerMetaData metaData = await sched.GetMetaData();
             log.Info($"Executed {metaData.NumberOfJobsExecuted} jobs.");
         }
     }

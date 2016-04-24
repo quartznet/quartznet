@@ -42,17 +42,17 @@ namespace Quartz.Xml
     /// </para>
     /// 
     /// <para>
-    /// After creating an instance of this class, you should call one of the <see cref="ProcessFileAsync()" />
+    /// After creating an instance of this class, you should call one of the <see cref="ProcessFile()" />
     /// functions, after which you may call the ScheduledJobs()
     /// function to get a handle to the defined Jobs and Triggers, which can then be
     /// scheduled with the <see cref="IScheduler" />. Alternatively, you could call
-    /// the <see cref="ProcessFileAndScheduleJobsAsync(Quartz.IScheduler)" /> function to do all of this
+    /// the <see cref="ProcessFileAndScheduleJobs(Quartz.IScheduler)" /> function to do all of this
     /// in one step.
     /// </para>
     /// 
     /// <para>
     /// The same instance can be used again and again, with the list of defined Jobs
-    /// being cleared each time you call a <see cref="ProcessFileAsync()" /> method,
+    /// being cleared each time you call a <see cref="ProcessFile()" /> method,
     /// however a single instance is not thread-safe.
     /// </para>
     /// </remarks>
@@ -151,18 +151,18 @@ namespace Quartz.Xml
         /// Process the xml file in the default location (a file named
         /// "quartz_jobs.xml" in the current working directory).
         /// </summary>
-        public virtual Task ProcessFileAsync()
+        public virtual Task ProcessFile()
         {
-            return ProcessFileAsync(QuartzXmlFileName);
+            return ProcessFile(QuartzXmlFileName);
         }
 
         /// <summary>
         /// Process the xml file named <see param="fileName" />.
         /// </summary>
         /// <param name="fileName">meta data file name.</param>
-        public virtual Task ProcessFileAsync(string fileName)
+        public virtual Task ProcessFile(string fileName)
         {
-            return ProcessFileAsync(fileName, fileName);
+            return ProcessFile(fileName, fileName);
         }
 
         /// <summary>
@@ -171,7 +171,7 @@ namespace Quartz.Xml
         /// </summary>
         /// <param name="fileName">Name of the file.</param>
         /// <param name="systemId">The system id.</param>
-        public virtual async Task ProcessFileAsync(string fileName, string systemId)
+        public virtual async Task ProcessFile(string fileName, string systemId)
         {
             // resolve file name first
             fileName = FileUtil.ResolveFile(fileName);
@@ -190,7 +190,7 @@ namespace Quartz.Xml
         /// </summary>
         /// <param name="stream">The stream.</param>
         /// <param name="systemId">The system id.</param>
-        public virtual async Task ProcessStreamAsync(Stream stream, string systemId)
+        public virtual async Task ProcessStream(Stream stream, string systemId)
         {
             Log.InfoFormat("Parsing XML from stream with systemId: {0}", systemId);
             using (StreamReader sr = new StreamReader(stream))
@@ -627,23 +627,23 @@ namespace Quartz.Xml
         /// <remarks>Note that we will set overWriteExistingJobs after the default xml is parsed.</remarks>
         /// <param name="sched"></param>
         /// <param name="overWriteExistingJobs"></param>
-        public async Task ProcessFileAndScheduleJobsAsync(IScheduler sched, bool overWriteExistingJobs)
+        public async Task ProcessFileAndScheduleJobs(IScheduler sched, bool overWriteExistingJobs)
         {
-            await ProcessFileAsync(QuartzXmlFileName, QuartzXmlFileName).ConfigureAwait(false);
+            await ProcessFile(QuartzXmlFileName, QuartzXmlFileName).ConfigureAwait(false);
             // The overWriteExistingJobs flag was set by processFile() -> prepForProcessing(), then by xml parsing, and then now
             // we need to reset it again here by this method parameter to override it.
             OverWriteExistingData = overWriteExistingJobs;
-            await ExecutePreProcessCommandsAsync(sched).ConfigureAwait(false);
-            await ScheduleJobsAsync(sched).ConfigureAwait(false);
+            await ExecutePreProcessCommands(sched).ConfigureAwait(false);
+            await ScheduleJobs(sched).ConfigureAwait(false);
         }
 
         /// <summary> 
         /// Process the xml file in the default location, and schedule all of the
         /// jobs defined within it.
         /// </summary>
-        public virtual void ProcessFileAndScheduleJobsAsync(IScheduler sched)
+        public virtual void ProcessFileAndScheduleJobs(IScheduler sched)
         {
-            ProcessFileAndScheduleJobsAsync(QuartzXmlFileName, sched);
+            ProcessFileAndScheduleJobs(QuartzXmlFileName, sched);
         }
 
         /// <summary>
@@ -652,9 +652,9 @@ namespace Quartz.Xml
         /// </summary>
         /// <param name="fileName">meta data file name.</param>
         /// <param name="sched">The scheduler.</param>
-        public virtual Task ProcessFileAndScheduleJobsAsync(string fileName, IScheduler sched)
+        public virtual Task ProcessFileAndScheduleJobs(string fileName, IScheduler sched)
         {
-            return ProcessFileAndScheduleJobsAsync(fileName, fileName, sched);
+            return ProcessFileAndScheduleJobs(fileName, fileName, sched);
         }
 
         /// <summary>
@@ -664,14 +664,14 @@ namespace Quartz.Xml
         /// <param name="fileName">Name of the file.</param>
         /// <param name="systemId">The system id.</param>
         /// <param name="sched">The sched.</param>
-        public virtual async Task ProcessFileAndScheduleJobsAsync(string fileName, string systemId, IScheduler sched)
+        public virtual async Task ProcessFileAndScheduleJobs(string fileName, string systemId, IScheduler sched)
         {
             LogicalThreadContext.SetData(ThreadLocalKeyScheduler, sched);
             try
             {
-                await ProcessFileAsync(fileName, systemId).ConfigureAwait(false);
-                await ExecutePreProcessCommandsAsync(sched).ConfigureAwait(false);
-                await ScheduleJobsAsync(sched).ConfigureAwait(false);
+                await ProcessFile(fileName, systemId).ConfigureAwait(false);
+                await ExecutePreProcessCommands(sched).ConfigureAwait(false);
+                await ScheduleJobs(sched).ConfigureAwait(false);
             }
             finally
             {
@@ -685,7 +685,7 @@ namespace Quartz.Xml
         /// </summary>
         /// <param name="stream">stream to read XML data from.</param>
         /// <param name="sched">The sched.</param>
-        public virtual async Task ProcessStreamAndScheduleJobsAsync(Stream stream, IScheduler sched)
+        public virtual async Task ProcessStreamAndScheduleJobs(Stream stream, IScheduler sched)
         {
             LogicalThreadContext.SetData(ThreadLocalKeyScheduler, sched);
             try
@@ -694,8 +694,8 @@ namespace Quartz.Xml
                 {
                     ProcessInternal(sr.ReadToEnd());
                 }
-                await ExecutePreProcessCommandsAsync(sched).ConfigureAwait(false);
-                await ScheduleJobsAsync(sched).ConfigureAwait(false);
+                await ExecutePreProcessCommands(sched).ConfigureAwait(false);
+                await ScheduleJobs(sched).ConfigureAwait(false);
             }
             finally
             {
@@ -707,7 +707,7 @@ namespace Quartz.Xml
         /// Schedules the given sets of jobs and triggers.
         /// </summary>
         /// <param name="sched">The sched.</param>
-        public virtual async Task ScheduleJobsAsync(IScheduler sched)
+        public virtual async Task ScheduleJobs(IScheduler sched)
         {
             List<IJobDetail> jobs = new List<IJobDetail>(LoadedJobs);
             List<ITrigger> triggers = new List<ITrigger>(LoadedTriggers);
@@ -728,7 +728,7 @@ namespace Quartz.Xml
                 {
                     // The existing job could have been deleted, and Quartz API doesn't allow us to query this without
                     // loading the job class, so use try/catch to handle it.
-                    dupeJ = await sched.GetJobDetailAsync(detail.Key).ConfigureAwait(false);
+                    dupeJ = await sched.GetJobDetail(detail.Key).ConfigureAwait(false);
                 }
                 catch (JobPersistenceException e)
                 {
@@ -736,7 +736,7 @@ namespace Quartz.Xml
                     {
                         // We are going to replace jobDetail anyway, so just delete it first.
                         log.Info("Removing job: " + detail.Key);
-                        await sched.DeleteJobAsync(detail.Key).ConfigureAwait(false);
+                        await sched.DeleteJob(detail.Key).ConfigureAwait(false);
                     }
                     else
                     {
@@ -778,7 +778,7 @@ namespace Quartz.Xml
                             detail.Key);
                     }
 
-                    if ((dupeJ.Durable && (await sched.GetTriggersOfJobAsync(detail.Key).ConfigureAwait(false)).Count == 0))
+                    if ((dupeJ.Durable && (await sched.GetTriggersOfJob(detail.Key).ConfigureAwait(false)).Count == 0))
                     {
                         throw new SchedulerException(
                             "Can't change existing durable job without triggers to non-durable: " +
@@ -791,11 +791,11 @@ namespace Quartz.Xml
                 {
                     if (triggersOfJob != null && triggersOfJob.Count > 0)
                     {
-                        await sched.AddJobAsync(detail, true, true).ConfigureAwait(false); // add the job regardless is durable or not b/c we have trigger to add
+                        await sched.AddJob(detail, true, true).ConfigureAwait(false); // add the job regardless is durable or not b/c we have trigger to add
                     }
                     else
                     {
-                        await sched.AddJobAsync(detail, true, false).ConfigureAwait(false); // add the job only if a replacement or durable, else exception will throw!
+                        await sched.AddJob(detail, true, false).ConfigureAwait(false); // add the job only if a replacement or durable, else exception will throw!
                     }
                 }
                 else
@@ -809,7 +809,7 @@ namespace Quartz.Xml
                         // remove triggers as we handle them...
                         triggersOfJob.Remove(trigger);
 
-                        ITrigger dupeT = await sched.GetTriggerAsync(trigger.Key).ConfigureAwait(false);
+                        ITrigger dupeT = await sched.GetTrigger(trigger.Key).ConfigureAwait(false);
                         if (dupeT != null)
                         {
                             if (OverWriteExistingData)
@@ -834,7 +834,7 @@ namespace Quartz.Xml
                                 log.WarnFormat("Possibly duplicately named ({0}) triggers in jobs xml file! ", trigger.Key);
                             }
 
-                            await DoRescheduleJobAsync(sched, trigger, dupeT).ConfigureAwait(false);
+                            await DoRescheduleJob(sched, trigger, dupeT).ConfigureAwait(false);
                         }
                         else
                         {
@@ -847,12 +847,12 @@ namespace Quartz.Xml
                             {
                                 if (addJobWithFirstSchedule)
                                 {
-                                    await sched.ScheduleJobAsync(detail, trigger).ConfigureAwait(false); // add the job if it's not in yet...
+                                    await sched.ScheduleJob(detail, trigger).ConfigureAwait(false); // add the job if it's not in yet...
                                     addJobWithFirstSchedule = false;
                                 }
                                 else
                                 {
-                                    await sched.ScheduleJobAsync(trigger).ConfigureAwait(false);
+                                    await sched.ScheduleJob(trigger).ConfigureAwait(false);
                                 }
                             }
                             catch (ObjectAlreadyExistsException)
@@ -864,8 +864,8 @@ namespace Quartz.Xml
                                         + "in the cluster.  Will try to reschedule instead.", trigger.Key, detail.Key);
                                 }
                                 // Let's try one more time as reschedule.
-                                var oldTrigger = await sched.GetTriggerAsync(trigger.Key).ConfigureAwait(false);
-                                await DoRescheduleJobAsync(sched, trigger, oldTrigger).ConfigureAwait(false);
+                                var oldTrigger = await sched.GetTrigger(trigger.Key).ConfigureAwait(false);
+                                await DoRescheduleJob(sched, trigger, oldTrigger).ConfigureAwait(false);
                             }
                         }
                     }
@@ -875,7 +875,7 @@ namespace Quartz.Xml
             // add triggers that weren't associated with a new job... (those we already handled were removed above)
             foreach (IMutableTrigger trigger in triggers)
             {
-                ITrigger dupeT = await sched.GetTriggerAsync(trigger.Key).ConfigureAwait(false);
+                ITrigger dupeT = await sched.GetTrigger(trigger.Key).ConfigureAwait(false);
                 if (dupeT != null)
                 {
                     if (OverWriteExistingData)
@@ -900,7 +900,7 @@ namespace Quartz.Xml
                         log.WarnFormat("Possibly duplicately named ({0}) triggers in jobs xml file! ", trigger.Key);
                     }
 
-                    await DoRescheduleJobAsync(sched, trigger, dupeT).ConfigureAwait(false);
+                    await DoRescheduleJob(sched, trigger, dupeT).ConfigureAwait(false);
                 }
                 else
                 {
@@ -911,7 +911,7 @@ namespace Quartz.Xml
 
                     try
                     {
-                        await sched.ScheduleJobAsync(trigger).ConfigureAwait(false);
+                        await sched.ScheduleJob(trigger).ConfigureAwait(false);
                     }
                     catch (ObjectAlreadyExistsException)
                     {
@@ -924,14 +924,14 @@ namespace Quartz.Xml
                                 "in the cluster.  Will try to reschedule instead.");
                         }
                         // Let's rescheduleJob one more time.
-                        var oldTrigger = await sched.GetTriggerAsync(trigger.Key).ConfigureAwait(false);
-                        await DoRescheduleJobAsync(sched, trigger, oldTrigger).ConfigureAwait(false);
+                        var oldTrigger = await sched.GetTrigger(trigger.Key).ConfigureAwait(false);
+                        await DoRescheduleJob(sched, trigger, oldTrigger).ConfigureAwait(false);
                     }
                 }
             }
         }
 
-        private Task DoRescheduleJobAsync(IScheduler sched, IMutableTrigger trigger, ITrigger oldTrigger)
+        private Task DoRescheduleJob(IScheduler sched, IMutableTrigger trigger, ITrigger oldTrigger)
         {
             // if this is a trigger with default start time we can consider relative scheduling
             if (oldTrigger != null && trigger.StartTimeUtc - SystemTime.UtcNow() < TimeSpan.FromSeconds(5) && ScheduleTriggerRelativeToReplacedTrigger)
@@ -944,7 +944,7 @@ namespace Quartz.Xml
                 ((IOperableTrigger)trigger).SetNextFireTimeUtc(trigger.GetFireTimeAfter(oldTriggerPreviousFireTime));
             }
 
-            return sched.RescheduleJobAsync(trigger.Key, trigger);
+            return sched.RescheduleJob(trigger.Key, trigger);
         }
 
         protected virtual IDictionary<JobKey, List<IMutableTrigger>> BuildTriggersByFQJobNameMap(List<ITrigger> triggers)
@@ -965,20 +965,20 @@ namespace Quartz.Xml
             return triggersByFQJobName;
         }
 
-        protected async Task ExecutePreProcessCommandsAsync(IScheduler scheduler)
+        protected async Task ExecutePreProcessCommands(IScheduler scheduler)
         {
             foreach (string group in jobGroupsToDelete)
             {
                 if (group.Equals("*"))
                 {
                     log.Info("Deleting all jobs in ALL groups.");
-                    foreach (string groupName in await scheduler.GetJobGroupNamesAsync().ConfigureAwait(false))
+                    foreach (string groupName in await scheduler.GetJobGroupNames().ConfigureAwait(false))
                     {
                         if (!jobGroupsToNeverDelete.Contains(groupName))
                         {
-                            foreach (JobKey key in await scheduler.GetJobKeysAsync(GroupMatcher<JobKey>.GroupEquals(groupName)).ConfigureAwait(false))
+                            foreach (JobKey key in await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(groupName)).ConfigureAwait(false))
                             {
-                                await scheduler.DeleteJobAsync(key).ConfigureAwait(false);
+                                await scheduler.DeleteJob(key).ConfigureAwait(false);
                             }
                         }
                     }
@@ -988,9 +988,9 @@ namespace Quartz.Xml
                     if (!jobGroupsToNeverDelete.Contains(group))
                     {
                         log.InfoFormat("Deleting all jobs in group: {0}", group);
-                        foreach (JobKey key in await scheduler.GetJobKeysAsync(GroupMatcher<JobKey>.GroupEquals(@group)).ConfigureAwait(false))
+                        foreach (JobKey key in await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(@group)).ConfigureAwait(false))
                         {
-                            await scheduler.DeleteJobAsync(key).ConfigureAwait(false);
+                            await scheduler.DeleteJob(key).ConfigureAwait(false);
                         }
                     }
                 }
@@ -1001,13 +1001,13 @@ namespace Quartz.Xml
                 if (group.Equals("*"))
                 {
                     log.Info("Deleting all triggers in ALL groups.");
-                    foreach (string groupName in await scheduler.GetTriggerGroupNamesAsync().ConfigureAwait(false))
+                    foreach (string groupName in await scheduler.GetTriggerGroupNames().ConfigureAwait(false))
                     {
                         if (!triggerGroupsToNeverDelete.Contains(groupName))
                         {
-                            foreach (TriggerKey key in await scheduler.GetTriggerKeysAsync(GroupMatcher<TriggerKey>.GroupEquals(groupName)).ConfigureAwait(false))
+                            foreach (TriggerKey key in await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(groupName)).ConfigureAwait(false))
                             {
-                                await scheduler.UnscheduleJobAsync(key).ConfigureAwait(false);
+                                await scheduler.UnscheduleJob(key).ConfigureAwait(false);
                             }
                         }
                     }
@@ -1017,9 +1017,9 @@ namespace Quartz.Xml
                     if (!triggerGroupsToNeverDelete.Contains(group))
                     {
                         log.InfoFormat("Deleting all triggers in group: {0}", group);
-                        foreach (TriggerKey key in await scheduler.GetTriggerKeysAsync(GroupMatcher<TriggerKey>.GroupEquals(@group)).ConfigureAwait(false))
+                        foreach (TriggerKey key in await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(@group)).ConfigureAwait(false))
                         {
-                            await scheduler.UnscheduleJobAsync(key).ConfigureAwait(false);
+                            await scheduler.UnscheduleJob(key).ConfigureAwait(false);
                         }
                     }
                 }
@@ -1030,7 +1030,7 @@ namespace Quartz.Xml
                 if (!jobGroupsToNeverDelete.Contains(key.Group))
                 {
                     log.InfoFormat("Deleting job: {0}", key);
-                    await scheduler.DeleteJobAsync(key).ConfigureAwait(false);
+                    await scheduler.DeleteJob(key).ConfigureAwait(false);
                 }
             }
 
@@ -1039,7 +1039,7 @@ namespace Quartz.Xml
                 if (!triggerGroupsToNeverDelete.Contains(key.Group))
                 {
                     log.InfoFormat("Deleting trigger: {0}", key);
-                    await scheduler.UnscheduleJobAsync(key).ConfigureAwait(false);
+                    await scheduler.UnscheduleJob(key).ConfigureAwait(false);
                 }
             }
         }

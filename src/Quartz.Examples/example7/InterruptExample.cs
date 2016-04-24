@@ -38,7 +38,7 @@ namespace Quartz.Examples.Example7
 
         public string Name => GetType().Name;
 
-        public virtual async Task RunAsync()
+        public virtual async Task Run()
         {
             log.Info("------- Initializing ----------------------");
 
@@ -64,12 +64,12 @@ namespace Quartz.Examples.Example7
                                                           .WithSimpleSchedule(x => x.WithIntervalInSeconds(5).RepeatForever())
                                                           .Build();
 
-            DateTimeOffset ft = await sched.ScheduleJobAsync(job, trigger);
+            DateTimeOffset ft = await sched.ScheduleJob(job, trigger);
             log.Info($"{job.Key} will run at: {ft.ToString("r")} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
 
             // start up the scheduler (jobs do not start to fire until
             // the scheduler has been started)
-            await sched.StartAsync();
+            await sched.Start();
             log.Info("------- Started Scheduler -----------------");
 
 
@@ -80,7 +80,7 @@ namespace Quartz.Examples.Example7
                 {
                     await Task.Delay(TimeSpan.FromSeconds(7));
                     // tell the scheduler to interrupt our job
-                    await sched.InterruptAsync(job.Key);
+                    await sched.Interrupt(job.Key);
                 }
                 catch (Exception ex)
                 {
@@ -90,10 +90,10 @@ namespace Quartz.Examples.Example7
 
             log.Info("------- Shutting Down ---------------------");
 
-            await sched.ShutdownAsync(true);
+            await sched.Shutdown(true);
 
             log.Info("------- Shutdown Complete -----------------");
-            SchedulerMetaData metaData = await sched.GetMetaDataAsync();
+            SchedulerMetaData metaData = await sched.GetMetaData();
             log.Info($"Executed {metaData.NumberOfJobsExecuted} jobs.");
         }
     }

@@ -25,15 +25,15 @@ namespace Quartz.Web
             scheduler.ListenerManager.AddSchedulerListener(liveLogPlugin);
 
             // TODO REMOVE
-            scheduler.AddCalendarAsync(typeof (AnnualCalendar).Name, new AnnualCalendar(), false, false);
-            scheduler.AddCalendarAsync(typeof (CronCalendar).Name, new CronCalendar("0 0/5 * * * ?"), false, false);
-            scheduler.AddCalendarAsync(typeof (DailyCalendar).Name, new DailyCalendar("12:01", "13:04"), false, false);
-            scheduler.AddCalendarAsync(typeof (HolidayCalendar).Name, new HolidayCalendar(), false, false);
-            scheduler.AddCalendarAsync(typeof (MonthlyCalendar).Name, new MonthlyCalendar(), false, false);
-            scheduler.AddCalendarAsync(typeof (WeeklyCalendar).Name, new WeeklyCalendar(), false, false);
+            scheduler.AddCalendar(typeof (AnnualCalendar).Name, new AnnualCalendar(), false, false);
+            scheduler.AddCalendar(typeof (CronCalendar).Name, new CronCalendar("0 0/5 * * * ?"), false, false);
+            scheduler.AddCalendar(typeof (DailyCalendar).Name, new DailyCalendar("12:01", "13:04"), false, false);
+            scheduler.AddCalendar(typeof (HolidayCalendar).Name, new HolidayCalendar(), false, false);
+            scheduler.AddCalendar(typeof (MonthlyCalendar).Name, new MonthlyCalendar(), false, false);
+            scheduler.AddCalendar(typeof (WeeklyCalendar).Name, new WeeklyCalendar(), false, false);
         }
 
-        public Task StartAsync()
+        public Task Start()
         {
             string baseAddress = $"http://{HostName ?? "localhost"}:{Port ?? 28682}/";
 
@@ -42,7 +42,7 @@ namespace Quartz.Web
             return TaskUtil.CompletedTask;
         }
 
-        public Task ShutdownAsync()
+        public Task Shutdown()
         {
             host?.Dispose();
             return TaskUtil.CompletedTask;

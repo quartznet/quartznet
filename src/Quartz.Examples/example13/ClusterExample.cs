@@ -74,7 +74,7 @@ namespace Quartz.Examples.Example13
 
         public string Name => GetType().Name;
 
-        public virtual async Task RunAsync(bool inClearJobs, bool inScheduleJobs)
+        public virtual async Task Run(bool inClearJobs, bool inScheduleJobs)
         {
             NameValueCollection properties = new NameValueCollection();
 
@@ -103,7 +103,7 @@ namespace Quartz.Examples.Example13
             if (inClearJobs)
             {
                 log.Warn("***** Deleting existing jobs/triggers *****");
-                await sched.ClearAsync();
+                await sched.Clear();
             }
 
             log.Info("------- Initialization Complete -----------");
@@ -143,7 +143,7 @@ namespace Quartz.Examples.Example13
                     .Build();
 
                 log.Info($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
-                await sched.ScheduleJobAsync(job, trigger);
+                await sched.ScheduleJob(job, trigger);
 
                 count++;
 
@@ -159,7 +159,7 @@ namespace Quartz.Examples.Example13
                     .Build();
 
                 log.Info($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
-                await sched.ScheduleJobAsync(job, trigger);
+                await sched.ScheduleJob(job, trigger);
 
                 count++;
 
@@ -175,7 +175,7 @@ namespace Quartz.Examples.Example13
                     .Build();
 
                 log.Info($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} & repeat: {trigger.RepeatCount}/{trigger.RepeatInterval}");
-                await sched.ScheduleJobAsync(job, trigger);
+                await sched.ScheduleJob(job, trigger);
 
                 count++;
 
@@ -191,12 +191,12 @@ namespace Quartz.Examples.Example13
                     .Build();
 
                 log.Info($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} & repeat: {trigger.RepeatCount}/{trigger.RepeatInterval}");
-                await sched.ScheduleJobAsync(job, trigger);
+                await sched.ScheduleJob(job, trigger);
             }
 
             // jobs don't start firing until start() has been called...
             log.Info("------- Starting Scheduler ---------------");
-            await sched.StartAsync();
+            await sched.Start();
             log.Info("------- Started Scheduler ----------------");
 
             log.Info("------- Waiting for one hour... ----------");
@@ -204,11 +204,11 @@ namespace Quartz.Examples.Example13
             await Task.Delay(TimeSpan.FromHours(1));
 
             log.Info("------- Shutting Down --------------------");
-            await sched.ShutdownAsync();
+            await sched.Shutdown();
             log.Info("------- Shutdown Complete ----------------");
         }
 
-        public Task RunAsync()
+        public Task Run()
         {
             bool clearJobs = true;
             bool scheduleJobs = true;
@@ -226,7 +226,7 @@ namespace Quartz.Examples.Example13
 			}
 			*/
             ClusterExample example = new ClusterExample();
-            return example.RunAsync(clearJobs, scheduleJobs);
+            return example.Run(clearJobs, scheduleJobs);
         }
     }
 }

@@ -71,104 +71,104 @@ namespace Quartz.Listener
             return listeners;
         }
 
-        public Task JobAddedAsync(IJobDetail jobDetail)
+        public Task JobAdded(IJobDetail jobDetail)
         {
-            return Task.WhenAll(listeners.Select(l => l.JobAddedAsync(jobDetail)));
+            return Task.WhenAll(listeners.Select(l => l.JobAdded(jobDetail)));
         }
 
-        public Task JobDeletedAsync(JobKey jobKey)
+        public Task JobDeleted(JobKey jobKey)
         {
-            return Task.WhenAll(listeners.Select(l => l.JobDeletedAsync(jobKey)));
+            return Task.WhenAll(listeners.Select(l => l.JobDeleted(jobKey)));
         }
 
-        public Task JobScheduledAsync(ITrigger trigger)
+        public Task JobScheduled(ITrigger trigger)
         {
-            return Task.WhenAll(listeners.Select(l => l.JobScheduledAsync(trigger)));
+            return Task.WhenAll(listeners.Select(l => l.JobScheduled(trigger)));
         }
 
-        public Task JobUnscheduledAsync(TriggerKey triggerKey)
+        public Task JobUnscheduled(TriggerKey triggerKey)
         {
-            return Task.WhenAll(listeners.Select(l => l.JobUnscheduledAsync(triggerKey)));
+            return Task.WhenAll(listeners.Select(l => l.JobUnscheduled(triggerKey)));
         }
 
-        public Task TriggerFinalizedAsync(ITrigger trigger)
+        public Task TriggerFinalized(ITrigger trigger)
         {
-            return Task.WhenAll(listeners.Select(l => l.TriggerFinalizedAsync(trigger)));
+            return Task.WhenAll(listeners.Select(l => l.TriggerFinalized(trigger)));
         }
 
-        public Task TriggersPausedAsync(string triggerGroup)
+        public Task TriggersPaused(string triggerGroup)
         {
-            return Task.WhenAll(listeners.Select(l => l.TriggersPausedAsync(triggerGroup)));
+            return Task.WhenAll(listeners.Select(l => l.TriggersPaused(triggerGroup)));
         }
 
-        public Task TriggerPausedAsync(TriggerKey triggerKey)
+        public Task TriggerPaused(TriggerKey triggerKey)
         {
-            return Task.WhenAll(listeners.Select(l => l.TriggerPausedAsync(triggerKey)));
+            return Task.WhenAll(listeners.Select(l => l.TriggerPaused(triggerKey)));
         }
 
-        public Task TriggersResumedAsync(string triggerGroup)
+        public Task TriggersResumed(string triggerGroup)
         {
-            return Task.WhenAll(listeners.Select(l => l.TriggersResumedAsync(triggerGroup)));
+            return Task.WhenAll(listeners.Select(l => l.TriggersResumed(triggerGroup)));
         }
 
-        public Task SchedulingDataClearedAsync()
+        public Task SchedulingDataCleared()
         {
-            return Task.WhenAll(listeners.Select(l => l.SchedulingDataClearedAsync()));
+            return Task.WhenAll(listeners.Select(l => l.SchedulingDataCleared()));
         }
 
-        public Task TriggerResumedAsync(TriggerKey triggerKey)
+        public Task TriggerResumed(TriggerKey triggerKey)
         {
-            return Task.WhenAll(listeners.Select(l => l.TriggerResumedAsync(triggerKey)));
+            return Task.WhenAll(listeners.Select(l => l.TriggerResumed(triggerKey)));
         }
 
-        public Task JobsPausedAsync(string jobGroup)
+        public Task JobsPaused(string jobGroup)
         {
-            return Task.WhenAll(listeners.Select(l => l.JobsPausedAsync(jobGroup)));
+            return Task.WhenAll(listeners.Select(l => l.JobsPaused(jobGroup)));
         }
 
-        public Task JobPausedAsync(JobKey jobKey)
+        public Task JobPaused(JobKey jobKey)
         {
-            return Task.WhenAll(listeners.Select(l => l.JobPausedAsync(jobKey)));
+            return Task.WhenAll(listeners.Select(l => l.JobPaused(jobKey)));
         }
 
-        public Task JobsResumedAsync(string jobGroup)
+        public Task JobsResumed(string jobGroup)
         {
-            return Task.WhenAll(listeners.Select(l => l.JobsResumedAsync(jobGroup)));
+            return Task.WhenAll(listeners.Select(l => l.JobsResumed(jobGroup)));
         }
 
-        public Task JobResumedAsync(JobKey jobKey)
+        public Task JobResumed(JobKey jobKey)
         {
-            return Task.WhenAll(listeners.Select(l => l.JobResumedAsync(jobKey)));
+            return Task.WhenAll(listeners.Select(l => l.JobResumed(jobKey)));
         }
 
-        public Task SchedulerErrorAsync(string msg, SchedulerException cause)
+        public Task SchedulerError(string msg, SchedulerException cause)
         {
-            return Task.WhenAll(listeners.Select(l => l.SchedulerErrorAsync(msg, cause)));
+            return Task.WhenAll(listeners.Select(l => l.SchedulerError(msg, cause)));
         }
 
-        public Task SchedulerStartedAsync()
+        public Task SchedulerStarted()
         {
-            return Task.WhenAll(listeners.Select(l => l.SchedulerStartedAsync()));
+            return Task.WhenAll(listeners.Select(l => l.SchedulerStarted()));
         }
 
-        public Task SchedulerStartingAsync()
+        public Task SchedulerStarting()
         {
-            return Task.WhenAll(listeners.Select(l => l.SchedulerStartingAsync()));
+            return Task.WhenAll(listeners.Select(l => l.SchedulerStarting()));
         }
 
-        public Task SchedulerInStandbyModeAsync()
+        public Task SchedulerInStandbyMode()
         {
-            return Task.WhenAll(listeners.Select(l => l.SchedulerInStandbyModeAsync()));
+            return Task.WhenAll(listeners.Select(l => l.SchedulerInStandbyMode()));
         }
 
-        public Task SchedulerShutdownAsync()
+        public Task SchedulerShutdown()
         {
-            return Task.WhenAll(listeners.Select(l => l.SchedulerShutdownAsync()));
+            return Task.WhenAll(listeners.Select(l => l.SchedulerShutdown()));
         }
 
-        public Task SchedulerShuttingdownAsync()
+        public Task SchedulerShuttingdown()
         {
-            return Task.WhenAll(listeners.Select(l => l.SchedulerShuttingdownAsync()));
+            return Task.WhenAll(listeners.Select(l => l.SchedulerShuttingdown()));
         }
     }
 }

@@ -125,7 +125,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             A.CallTo(() => dataReader.Read()).Returns(false);
             A.CallTo(() => dataReader[AdoConstants.ColumnTriggerType]).Returns(AdoConstants.TriggerTypeBlob);
 
-            IOperableTrigger trigger = await adoDelegate.SelectTriggerAsync(conn, new TriggerKey("test"));
+            IOperableTrigger trigger = await adoDelegate.SelectTrigger(conn, new TriggerKey("test"));
             Assert.That(trigger, Is.Null);
         }
 
@@ -174,7 +174,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             try
             {
                 var conn = new ConnectionAndTransactionHolder(connection, transaction);
-                await adoDelegate.SelectTriggerAsync(conn, new TriggerKey("test"));
+                await adoDelegate.SelectTrigger(conn, new TriggerKey("test"));
                 Assert.Fail("Trigger selection should result in exception");
             }
             catch (InvalidOperationException e)
@@ -229,7 +229,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             A.CallTo(() => dataReader[AdoConstants.ColumnTriggerType]).Returns(AdoConstants.TriggerTypeSimple);
 
             var conn = new ConnectionAndTransactionHolder(connection, transaction);
-            IOperableTrigger trigger = await adoDelegate.SelectTriggerAsync(conn, new TriggerKey("test"));
+            IOperableTrigger trigger = await adoDelegate.SelectTrigger(conn, new TriggerKey("test"));
             Assert.That(trigger, Is.Null);
 
             A.CallTo(()=> persistenceDelegate.LoadExtendedTriggerProperties(A<ConnectionAndTransactionHolder>.Ignored, A<TriggerKey>.Ignored)).MustHaveHappened();

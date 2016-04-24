@@ -34,6 +34,6 @@ namespace Quartz.Job
 	    /// Informs that certain file has been updated.
 	    /// </summary>
 	    /// <param name="fileName">Name of the file.</param>
-	    Task FileUpdatedAsync(string fileName);
+	    Task FileUpdated(string fileName);
 	}
 }

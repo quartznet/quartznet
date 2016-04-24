@@ -54,7 +54,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="loadHelper"></param>
         /// <param name="signaler"></param>
-        public override Task InitializeAsync(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler)
+        public override Task Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler)
         {
             if (LockHandler == null)
             {
@@ -63,7 +63,7 @@ namespace Quartz.Impl.AdoJobStore
                 UseDBLocks = true;
             }
 
-            base.InitializeAsync(loadHelper, signaler);
+            base.Initialize(loadHelper, signaler);
 
             Log.Info("JobStoreCMT initialized.");
             return TaskUtil.CompletedTask;
@@ -74,10 +74,10 @@ namespace Quartz.Impl.AdoJobStore
         /// it should free up all of it's resources because the scheduler is
         /// shutting down.
         /// </summary>
-        public override async Task ShutdownAsync()
+        public override async Task Shutdown()
         {
 
-            await base.ShutdownAsync().ConfigureAwait(false);
+            await base.Shutdown().ConfigureAwait(false);
 
             try
             {
@@ -130,8 +130,8 @@ namespace Quartz.Impl.AdoJobStore
         /// transaction, it does not attempt to commit or rollback the 
         /// enclosing transaction.
         /// </summary>
-        /// <seealso cref="JobStoreSupport.ExecuteInNonManagedTXLockAsync" />
-        /// <seealso cref="JobStoreSupport.ExecuteInLockAsync" />
+        /// <seealso cref="JobStoreSupport.ExecuteInNonManagedTXLock" />
+        /// <seealso cref="JobStoreSupport.ExecuteInLock" />
         /// <seealso cref="JobStoreSupport.GetNonManagedTXConnection()" />
         /// <seealso cref="JobStoreSupport.GetConnection()" />
         /// <param name="lockName">
@@ -140,7 +140,7 @@ namespace Quartz.Impl.AdoJobStore
         /// txCallback is still executed in a transaction.
         /// </param>
         /// <param name="txCallback">Callback to execute.</param>
-        protected override async Task<T> ExecuteInLockAsync<T>(
+        protected override async Task<T> ExecuteInLock<T>(
                 string lockName,
                 Func<ConnectionAndTransactionHolder, Task<T>> txCallback)
         {
@@ -157,7 +157,7 @@ namespace Quartz.Impl.AdoJobStore
                         conn = GetNonManagedTXConnection();
                     }
 
-                    transOwner = await LockHandler.ObtainLockAsync(DbMetadata, conn, lockName).ConfigureAwait(false);
+                    transOwner = await LockHandler.ObtainLock(DbMetadata, conn, lockName).ConfigureAwait(false);
                 }
 
                 if (conn == null)
@@ -171,7 +171,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    await ReleaseLockAsync(LockTriggerAccess, transOwner).ConfigureAwait(false);
+                    await ReleaseLock(LockTriggerAccess, transOwner).ConfigureAwait(false);
                 }
                 finally
                 {

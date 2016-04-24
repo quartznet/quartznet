@@ -29,7 +29,7 @@ namespace Quartz.Server
         /// <summary>
         /// Initializes the instance of the <see cref="QuartzServer"/> class.
         /// </summary>
-        public virtual async Task InitializeAsync()
+        public virtual async Task Initialize()
         {
             try
             {
@@ -53,7 +53,7 @@ namespace Quartz.Server
 	    }
 
         /// <summary>
-        /// Returns the current scheduler instance (usually created in <see cref="InitializeAsync" />
+        /// Returns the current scheduler instance (usually created in <see cref="Initialize" />
         /// using the <see cref="GetScheduler" /> method).
         /// </summary>
 	    protected virtual IScheduler Scheduler
@@ -78,7 +78,7 @@ namespace Quartz.Server
 		{
 	        try
 	        {
-	            scheduler.StartAsync();
+	            scheduler.Start();
 	        }
 	        catch (Exception ex)
 	        {
@@ -96,7 +96,7 @@ namespace Quartz.Server
 		{
             try
             {
-                scheduler.ShutdownAsync(true);
+                scheduler.Shutdown(true);
             }
             catch (Exception ex)
             {
@@ -120,7 +120,7 @@ namespace Quartz.Server
         /// </summary>
 	    public virtual void Pause()
 	    {
-	        scheduler.PauseAllAsync();
+	        scheduler.PauseAll();
 	    }
 
         /// <summary>
@@ -128,7 +128,7 @@ namespace Quartz.Server
         /// </summary>
 	    public void Resume()
 	    {
-	        scheduler.ResumeAllAsync();
+	        scheduler.ResumeAll();
 	    }
 
 	    /// <summary>

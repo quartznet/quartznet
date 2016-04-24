@@ -12,9 +12,9 @@ namespace Quartz.Tests.Unit.Core
     /// </summary>
     public class SlowRAMJobStore : RAMJobStore
     {
-        public override async Task<IReadOnlyList<IOperableTrigger>> AcquireNextTriggersAsync(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow)
+        public override async Task<IReadOnlyList<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow)
         {
-            var nextTriggers = await base.AcquireNextTriggersAsync(noLaterThan, maxCount, timeWindow);
+            var nextTriggers = await base.AcquireNextTriggers(noLaterThan, maxCount, timeWindow);
 
             // Wait just a bit for hopefully having a context switch leading to the race condition
             await Task.Delay(10);

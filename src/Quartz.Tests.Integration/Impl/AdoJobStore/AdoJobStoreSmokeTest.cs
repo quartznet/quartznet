@@ -326,7 +326,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
             IScheduler sched = await sf.GetScheduler();
-            await sched.ClearAsync();
+            await sched.Clear();
 
             JobDetailImpl jobWithData = new JobDetailImpl("datajob", "jobgroup", typeof (NoOpJob));
             jobWithData.JobDataMap["testkey"] = "testvalue";
@@ -334,30 +334,30 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             triggerWithData.JobDataMap.Add("testkey", "testvalue");
             triggerWithData.EndTimeUtc = DateTime.UtcNow.AddYears(10);
             triggerWithData.StartTimeUtc = DateTime.Now.AddMilliseconds(1000L);
-            await sched.ScheduleJobAsync(jobWithData, triggerWithData);
-            await sched.ShutdownAsync();
+            await sched.ScheduleJob(jobWithData, triggerWithData);
+            await sched.Shutdown();
 
             // try again with changing the useproperties against same set of data
             properties["quartz.jobStore.useProperties"] = true.ToString();
             sf = new StdSchedulerFactory(properties);
             sched = await sf.GetScheduler();
 
-            var triggerWithDataFromDb = await sched.GetTriggerAsync(new TriggerKey("datatrigger", "triggergroup"));
-            var jobWithDataFromDb = await sched.GetJobDetailAsync(new JobKey("datajob", "jobgroup"));
+            var triggerWithDataFromDb = await sched.GetTrigger(new TriggerKey("datatrigger", "triggergroup"));
+            var jobWithDataFromDb = await sched.GetJobDetail(new JobKey("datajob", "jobgroup"));
             Assert.That(triggerWithDataFromDb.JobDataMap["testkey"], Is.EqualTo("testvalue"));
             Assert.That(jobWithDataFromDb.JobDataMap["testkey"], Is.EqualTo("testvalue"));
 
             // once more
-            await sched.DeleteJobAsync(jobWithData.Key);
-            await sched.ScheduleJobAsync(jobWithData, triggerWithData);
-            await sched.ShutdownAsync();
+            await sched.DeleteJob(jobWithData.Key);
+            await sched.ScheduleJob(jobWithData, triggerWithData);
+            await sched.Shutdown();
 
             properties["quartz.jobStore.useProperties"] = false.ToString();
             sf = new StdSchedulerFactory(properties);
             sched = await sf.GetScheduler();
 
-            triggerWithDataFromDb = await sched.GetTriggerAsync(new TriggerKey("datatrigger", "triggergroup"));
-            jobWithDataFromDb = await sched.GetJobDetailAsync(new JobKey("datajob", "jobgroup"));
+            triggerWithDataFromDb = await sched.GetTrigger(new TriggerKey("datatrigger", "triggergroup"));
+            jobWithDataFromDb = await sched.GetJobDetail(new JobKey("datajob", "jobgroup"));
             Assert.That(triggerWithDataFromDb.JobDataMap["testkey"], Is.EqualTo("testvalue"));
             Assert.That(jobWithDataFromDb.JobDataMap["testkey"], Is.EqualTo("testvalue"));
         }
@@ -398,7 +398,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
             try
             {
-                await sched.ClearAsync();
+                await sched.Clear();
 
                 if (scheduleJobs)
                 {
@@ -409,15 +409,15 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     {
                         ITrigger trigger = new SimpleTriggerImpl("calendarsTrigger", "test", SimpleTriggerImpl.RepeatIndefinitely, TimeSpan.FromSeconds(1));
                         JobDetailImpl jd = new JobDetailImpl("testJob", "test", typeof (NoOpJob));
-                        await sched.ScheduleJobAsync(jd, trigger);
+                        await sched.ScheduleJob(jd, trigger);
                     }
                 }
-                await sched.StartAsync();
+                await sched.Start();
                 await Task.Delay(TimeSpan.FromSeconds(30));
             }
             finally
             {
-                await sched.ShutdownAsync(false);
+                await sched.Shutdown(false);
             }
         }
 
@@ -426,7 +426,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         {
             var sched = await CreateScheduler(null);
 
-            await sched.GetTriggerKeysAsync(GroupMatcher<TriggerKey>.GroupStartsWith("foo"));
+            await sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupStartsWith("foo"));
         }
 
         [Test]
@@ -434,7 +434,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         {
             var sched = await CreateScheduler(null);
 
-            await sched.GetTriggerKeysAsync(GroupMatcher<TriggerKey>.GroupEquals("bar"));
+            await sched.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("bar"));
         }
 
         [Test]
@@ -442,7 +442,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         {
             var sched = await CreateScheduler(null);
 
-            await sched.GetJobKeysAsync(GroupMatcher<JobKey>.GroupStartsWith("foo"));
+            await sched.GetJobKeys(GroupMatcher<JobKey>.GroupStartsWith("foo"));
         }
 
         [Test]
@@ -450,7 +450,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         {
             var sched = await CreateScheduler(null);
 
-            await sched.GetJobKeysAsync(GroupMatcher<JobKey>.GroupEquals("bar"));
+            await sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("bar"));
         }
 
         [Test]
@@ -460,9 +460,9 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties.Add(StdSchedulerFactory.PropertySchedulerTypeLoadHelperType, typeof (SpecialClassLoadHelper).AssemblyQualifiedName);
             var scheduler = await CreateScheduler(properties);
 
-            await scheduler.DeleteJobsAsync(new[] {JobKey.Create("bad"), JobKey.Create("good")});
+            await scheduler.DeleteJobs(new[] {JobKey.Create("bad"), JobKey.Create("good")});
 
-            await scheduler.StartAsync();
+            await scheduler.Start();
 
             var manualResetEvent = new ManualResetEventSlim(false);
             scheduler.Context.Put(KeyResetEvent, manualResetEvent);
@@ -488,11 +488,11 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             {
                 goodTrigger
             });
-            await scheduler.ScheduleJobsAsync(toSchedule, true);
+            await scheduler.ScheduleJobs(toSchedule, true);
 
             manualResetEvent.Wait(TimeSpan.FromSeconds(20));
 
-            Assert.That(scheduler.GetTriggerStateAsync(badTrigger.Key), Is.EqualTo(TriggerState.Error));
+            Assert.That(scheduler.GetTriggerState(badTrigger.Key), Is.EqualTo(TriggerState.Error));
         }
 
         private static async Task<IScheduler> CreateScheduler(NameValueCollection properties)
@@ -553,13 +553,13 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
             try
             {
-                await sched.ClearAsync();
+                await sched.Clear();
 
                 JobDetailImpl lonelyJob = new JobDetailImpl("lonelyJob", "lonelyGroup", typeof (SimpleRecoveryJob));
                 lonelyJob.Durable = true;
                 lonelyJob.RequestsRecovery = true;
-                await sched.AddJobAsync(lonelyJob, false);
-                await sched.AddJobAsync(lonelyJob, true);
+                await sched.AddJob(lonelyJob, false);
+                await sched.AddJob(lonelyJob, true);
 
                 string schedId = sched.SchedulerInstanceId;
 
@@ -569,26 +569,26 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                 {
                     IOperableTrigger trigger = new SimpleTriggerImpl("stressing_simple", SimpleTriggerImpl.RepeatIndefinitely, TimeSpan.FromSeconds(1));
                     trigger.StartTimeUtc = DateTime.Now.AddMilliseconds(i);
-                    await sched.ScheduleJobAsync(job, trigger);
+                    await sched.ScheduleJob(job, trigger);
                 }
 
                 for (int i = 0; i < 100000; ++i)
                 {
                     IOperableTrigger ct = new CronTriggerImpl("stressing_cron", "0/1 * * * * ?");
                     ct.StartTimeUtc = DateTime.Now.AddMilliseconds(i);
-                    await sched.ScheduleJobAsync(job, ct);
+                    await sched.ScheduleJob(job, ct);
                 }
 
                 Stopwatch stopwatch = new Stopwatch();
                 stopwatch.Start();
-                await sched.StartAsync();
+                await sched.Start();
                 await Task.Delay(TimeSpan.FromMinutes(3));
                 stopwatch.Stop();
                 Console.WriteLine("Took: " + stopwatch.Elapsed);
             }
             finally
             {
-                await sched.ShutdownAsync(false);
+                await sched.Shutdown(false);
             }
         }
 
@@ -641,22 +641,22 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
     {
         public string Name => GetType().FullName;
 
-        public Task TriggerFiredAsync(ITrigger trigger, IJobExecutionContext context)
+        public Task TriggerFired(ITrigger trigger, IJobExecutionContext context)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public Task<bool> VetoJobExecutionAsync(ITrigger trigger, IJobExecutionContext context)
+        public Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context)
         {
             return Task.FromResult(false);
         }
 
-        public Task TriggerMisfiredAsync(ITrigger trigger)
+        public Task TriggerMisfired(ITrigger trigger)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public Task TriggerCompleteAsync(ITrigger trigger, IJobExecutionContext context,
+        public Task TriggerComplete(ITrigger trigger, IJobExecutionContext context,
             SchedulerInstruction triggerInstructionCode)
         {
             return TaskUtil.CompletedTask;
@@ -667,17 +667,17 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
     {
         public string Name => GetType().FullName;
 
-        public Task JobToBeExecutedAsync(IJobExecutionContext context)
+        public Task JobToBeExecuted(IJobExecutionContext context)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public Task JobExecutionVetoedAsync(IJobExecutionContext context)
+        public Task JobExecutionVetoed(IJobExecutionContext context)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public Task JobWasExecutedAsync(IJobExecutionContext context, JobExecutionException jobException)
+        public Task JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
         {
             return TaskUtil.CompletedTask;
         }

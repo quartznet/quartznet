@@ -69,7 +69,7 @@ namespace Quartz.Tests.Unit.Core
 
             try
             {
-                await sched.ScheduleJobAsync(job, trigger);
+                await sched.ScheduleJob(job, trigger);
                 Assert.Fail("No error for non-existing calendar");
             }
             catch (SchedulerException ex)
@@ -79,7 +79,7 @@ namespace Quartz.Tests.Unit.Core
 
             try
             {
-                await sched.ScheduleJobAsync(trigger);
+                await sched.ScheduleJob(trigger);
                 Assert.Fail("No error for non-existing calendar");
             }
             catch (SchedulerException ex)
@@ -87,7 +87,7 @@ namespace Quartz.Tests.Unit.Core
                 Assert.AreEqual(ExpectedError, ex.Message);
             }
             
-            await sched.ShutdownAsync(false);
+            await sched.Shutdown(false);
         }
 
         [Test]
@@ -95,7 +95,7 @@ namespace Quartz.Tests.Unit.Core
         {
             ISchedulerFactory sf = new StdSchedulerFactory();
             IScheduler sched = await sf.GetScheduler();
-            var task = sched.StartDelayedAsync(TimeSpan.FromSeconds(2));
+            var task = sched.StartDelayed(TimeSpan.FromSeconds(2));
             Assert.IsFalse(sched.IsStarted);
             await Task.Delay(TimeSpan.FromSeconds(3));
             Assert.IsTrue(sched.IsStarted);
@@ -117,17 +117,17 @@ namespace Quartz.Tests.Unit.Core
 
             ISchedulerListener listener = A.Fake<ISchedulerListener>();
 
-            await scheduler.ScheduleJobAsync(jobDetail, jobTrigger);
+            await scheduler.ScheduleJob(jobDetail, jobTrigger);
             // add listener after scheduled
             scheduler.ListenerManager.AddSchedulerListener(listener);
 
             // act
-            await scheduler.RescheduleJobAsync(new TriggerKey(TriggerName, TriggerGroup), jobTrigger);
+            await scheduler.RescheduleJob(new TriggerKey(TriggerName, TriggerGroup), jobTrigger);
 
             // assert
             // expect unschedule and schedule
-            A.CallTo(() => listener.JobUnscheduledAsync(new TriggerKey(TriggerName, TriggerGroup))).MustHaveHappened();
-            A.CallTo(() => listener.JobScheduledAsync(jobTrigger)).MustHaveHappened();
+            A.CallTo(() => listener.JobUnscheduled(new TriggerKey(TriggerName, TriggerGroup))).MustHaveHappened();
+            A.CallTo(() => listener.JobScheduled(jobTrigger)).MustHaveHappened();
 
         }
     }

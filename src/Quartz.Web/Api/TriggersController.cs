@@ -17,7 +17,7 @@ namespace Quartz.Web.Api
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
             var matcher = (groupMatcher ?? new GroupMatcherDto()).GetTriggerGroupMatcher();
-            var jobKeys = await scheduler.GetTriggerKeysAsync(matcher).ConfigureAwait(false);
+            var jobKeys = await scheduler.GetTriggerKeys(matcher).ConfigureAwait(false);
 
             return jobKeys.Select(x => new KeyDto(x)).ToList();
         }
@@ -27,9 +27,9 @@ namespace Quartz.Web.Api
         public async Task<TriggerDetailDto> TriggerDetails(string schedulerName, string triggerGroup, string triggerName)
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
-            var trigger = await scheduler.GetTriggerAsync(new TriggerKey(triggerName, triggerGroup)).ConfigureAwait(false);
+            var trigger = await scheduler.GetTrigger(new TriggerKey(triggerName, triggerGroup)).ConfigureAwait(false);
             var calendar = trigger.CalendarName != null
-                ? await scheduler.GetCalendarAsync(trigger.CalendarName).ConfigureAwait(false)
+                ? await scheduler.GetCalendar(trigger.CalendarName).ConfigureAwait(false)
                 : null;
             return TriggerDetailDto.Create(trigger, calendar);
         }
@@ -39,7 +39,7 @@ namespace Quartz.Web.Api
         public async Task PauseTrigger(string schedulerName, string triggerGroup, string triggerName)
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
-            await scheduler.PauseTriggerAsync(new TriggerKey(triggerName, triggerGroup)).ConfigureAwait(false);
+            await scheduler.PauseTrigger(new TriggerKey(triggerName, triggerGroup)).ConfigureAwait(false);
         }
 
         [HttpPost]
@@ -48,7 +48,7 @@ namespace Quartz.Web.Api
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
             var matcher = (groupMatcher ?? new GroupMatcherDto()).GetTriggerGroupMatcher();
-            await scheduler.PauseTriggersAsync(matcher).ConfigureAwait(false);
+            await scheduler.PauseTriggers(matcher).ConfigureAwait(false);
         }
 
         [HttpPost]
@@ -56,7 +56,7 @@ namespace Quartz.Web.Api
         public async Task ResumeTrigger(string schedulerName, string triggerGroup, string triggerName)
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
-            await scheduler.ResumeTriggerAsync(new TriggerKey(triggerName, triggerGroup)).ConfigureAwait(false);
+            await scheduler.ResumeTrigger(new TriggerKey(triggerName, triggerGroup)).ConfigureAwait(false);
         }
 
         [HttpPost]
@@ -65,7 +65,7 @@ namespace Quartz.Web.Api
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
             var matcher = (groupMatcher ?? new GroupMatcherDto()).GetTriggerGroupMatcher();
-            await scheduler.ResumeTriggersAsync(matcher).ConfigureAwait(false);
+            await scheduler.ResumeTriggers(matcher).ConfigureAwait(false);
         }
 
         private static async Task<IScheduler> GetScheduler(string schedulerName)

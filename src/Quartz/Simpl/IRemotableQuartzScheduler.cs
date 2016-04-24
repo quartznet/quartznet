@@ -52,28 +52,28 @@ namespace Quartz.Simpl
 
         int ThreadPoolSize { get; }
 
-        Task ClearAsync();
+        Task Clear();
 
         IReadOnlyList<IJobExecutionContext> CurrentlyExecutingJobs { get; }
 
         /// <summary>
         /// Starts this instance.
         /// </summary>
-        Task StartAsync();
+        Task Start();
 
-        Task StartDelayedAsync(TimeSpan delay);
+        Task StartDelayed(TimeSpan delay);
 
         /// <summary>
         /// Standbies this instance.
         /// </summary>
-        Task StandbyAsync();
+        Task Standby();
 
         /// <summary>
         /// Shutdowns this instance.
         /// </summary>
-        Task ShutdownAsync();
+        Task Shutdown();
 
-        Task ShutdownAsync(bool waitForJobsToComplete);
+        Task Shutdown(bool waitForJobsToComplete);
 
         DateTimeOffset? RunningSince { get; }
 
@@ -83,13 +83,13 @@ namespace Quartz.Simpl
 
         bool Clustered { get; }
 
-        Task<DateTimeOffset> ScheduleJobAsync(IJobDetail jobDetail, ITrigger trigger);
+        Task<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger);
 
-        Task<DateTimeOffset> ScheduleJobAsync(ITrigger trigger);
+        Task<DateTimeOffset> ScheduleJob(ITrigger trigger);
 
-        Task AddJobAsync(IJobDetail jobDetail, bool replace);
+        Task AddJob(IJobDetail jobDetail, bool replace);
 
-        Task AddJobAsync(IJobDetail jobDetail, bool replace, bool storeNonDurableWhileAwaitingScheduling);
+        Task AddJob(IJobDetail jobDetail, bool replace, bool storeNonDurableWhileAwaitingScheduling);
 
         /// <summary>
         /// returns true if the given JobGroup
@@ -97,7 +97,7 @@ namespace Quartz.Simpl
         /// </summary>
         /// <param name="groupName"></param>
         /// <returns></returns>
-        Task<bool> IsJobGroupPausedAsync(string groupName);
+        Task<bool> IsJobGroupPaused(string groupName);
 
         /// <summary>
         /// returns true if the given TriggerGroup
@@ -105,78 +105,78 @@ namespace Quartz.Simpl
         /// </summary>
         /// <param name="groupName"></param>
         /// <returns></returns>
-        Task<bool> IsTriggerGroupPausedAsync(string groupName);
+        Task<bool> IsTriggerGroupPaused(string groupName);
 
-        Task<bool> DeleteJobAsync(JobKey jobKey);
+        Task<bool> DeleteJob(JobKey jobKey);
 
-        Task<bool> UnscheduleJobAsync(TriggerKey triggerKey);
+        Task<bool> UnscheduleJob(TriggerKey triggerKey);
 
-        Task<DateTimeOffset?> RescheduleJobAsync(TriggerKey triggerKey, ITrigger newTrigger);
+        Task<DateTimeOffset?> RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger);
 
-        Task TriggerJobAsync(JobKey jobKey, JobDataMap data);
+        Task TriggerJob(JobKey jobKey, JobDataMap data);
 
-        Task TriggerJobAsync(IOperableTrigger trig);
+        Task TriggerJob(IOperableTrigger trig);
 
-        Task PauseTriggerAsync(TriggerKey triggerKey);
+        Task PauseTrigger(TriggerKey triggerKey);
 
-        Task PauseTriggersAsync(GroupMatcher<TriggerKey> matcher);
+        Task PauseTriggers(GroupMatcher<TriggerKey> matcher);
 
-        Task PauseJobAsync(JobKey jobKey);
+        Task PauseJob(JobKey jobKey);
 
-        Task PauseJobsAsync(GroupMatcher<JobKey> matcher);
+        Task PauseJobs(GroupMatcher<JobKey> matcher);
 
-        Task ResumeTriggerAsync(TriggerKey triggerKey);
+        Task ResumeTrigger(TriggerKey triggerKey);
 
-        Task ResumeTriggersAsync(GroupMatcher<TriggerKey> matcher);
+        Task ResumeTriggers(GroupMatcher<TriggerKey> matcher);
 
-        Task<ISet<string>> GetPausedTriggerGroupsAsync();
+        Task<ISet<string>> GetPausedTriggerGroups();
 
-        Task ResumeJobAsync(JobKey jobKey);
+        Task ResumeJob(JobKey jobKey);
 
-        Task ResumeJobsAsync(GroupMatcher<JobKey> matcher);
+        Task ResumeJobs(GroupMatcher<JobKey> matcher);
 
-        Task PauseAllAsync();
+        Task PauseAll();
 
-        Task ResumeAllAsync();
+        Task ResumeAll();
 
-        Task<IReadOnlyList<string>> GetJobGroupNamesAsync();
+        Task<IReadOnlyList<string>> GetJobGroupNames();
 
-        Task<ISet<JobKey>> GetJobKeysAsync(GroupMatcher<JobKey> matcher);
+        Task<ISet<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher);
 
-        Task<IReadOnlyList<ITrigger>> GetTriggersOfJobAsync(JobKey jobKey);
+        Task<IReadOnlyList<ITrigger>> GetTriggersOfJob(JobKey jobKey);
 
-        Task<IReadOnlyList<string>> GetTriggerGroupNamesAsync();
+        Task<IReadOnlyList<string>> GetTriggerGroupNames();
 
-        Task<ISet<TriggerKey>> GetTriggerKeysAsync(GroupMatcher<TriggerKey> matcher);
+        Task<ISet<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher);
 
-        Task<IJobDetail> GetJobDetailAsync(JobKey jobKey);
+        Task<IJobDetail> GetJobDetail(JobKey jobKey);
 
-        Task<ITrigger> GetTriggerAsync(TriggerKey triggerKey);
+        Task<ITrigger> GetTrigger(TriggerKey triggerKey);
 
-        Task<TriggerState> GetTriggerStateAsync(TriggerKey triggerKey);
+        Task<TriggerState> GetTriggerState(TriggerKey triggerKey);
 
-        Task AddCalendarAsync(string calName, ICalendar calendar, bool replace, bool updateTriggers);
+        Task AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers);
 
-        Task<bool> DeleteCalendarAsync(string calName);
+        Task<bool> DeleteCalendar(string calName);
 
-        Task<ICalendar> GetCalendarAsync(string calName);
+        Task<ICalendar> GetCalendar(string calName);
 
-        Task<IReadOnlyList<string>> GetCalendarNamesAsync();
+        Task<IReadOnlyList<string>> GetCalendarNames();
 
-        Task<bool> InterruptAsync(JobKey jobKey);
+        Task<bool> Interrupt(JobKey jobKey);
 
-        Task<bool> InterruptAsync(string fireInstanceId);
+        Task<bool> Interrupt(string fireInstanceId);
 
-        Task<bool> CheckExistsAsync(JobKey jobKey);
+        Task<bool> CheckExists(JobKey jobKey);
 
-        Task<bool> CheckExistsAsync(TriggerKey triggerKey);
+        Task<bool> CheckExists(TriggerKey triggerKey);
 
-        Task<bool> DeleteJobsAsync(IList<JobKey> jobKeys);
+        Task<bool> DeleteJobs(IList<JobKey> jobKeys);
 
-        Task ScheduleJobsAsync(IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, bool replace);
+        Task ScheduleJobs(IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, bool replace);
         
-        Task ScheduleJobAsync(IJobDetail jobDetail, ISet<ITrigger> triggersForJob, bool replace);
+        Task ScheduleJob(IJobDetail jobDetail, ISet<ITrigger> triggersForJob, bool replace);
 
-        Task<bool> UnscheduleJobsAsync(IList<TriggerKey> triggerKeys);
+        Task<bool> UnscheduleJobs(IList<TriggerKey> triggerKeys);
     }
 }

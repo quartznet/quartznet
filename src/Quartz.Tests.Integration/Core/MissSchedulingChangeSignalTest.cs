@@ -40,11 +40,11 @@ namespace Quartz.Tests.Integration.Core
                     .WithMisfireHandlingInstructionIgnoreMisfires())
                 .Build();
 
-            await sched.ScheduleJobAsync(job, trigger);
+            await sched.ScheduleJob(job, trigger);
 
             // Start up the scheduler (nothing can actually run until the
             // scheduler has been started)
-            await sched.StartAsync();
+            await sched.Start();
 
             log.Info("------- Scheduler Started -----------------");
 
@@ -97,9 +97,9 @@ namespace Quartz.Tests.Integration.Core
     /// </summary>
     public class SlowRAMJobStore : RAMJobStore
     {
-        public override async Task<IReadOnlyList<IOperableTrigger>> AcquireNextTriggersAsync(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow)
+        public override async Task<IReadOnlyList<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow)
         {
-            var nextTriggers = await base.AcquireNextTriggersAsync(noLaterThan, maxCount, timeWindow);
+            var nextTriggers = await base.AcquireNextTriggers(noLaterThan, maxCount, timeWindow);
 
             // Wait just a bit for hopefully having a context switch leading to the race condition
             await Task.Delay(10);

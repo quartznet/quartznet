@@ -51,8 +51,8 @@ namespace Quartz.Tests.Unit.Impl
             
 
 			IScheduler scheduler = await DirectSchedulerFactory.Instance.GetScheduler("MyScheduler");
-			await scheduler.StartAsync();
-			await scheduler.ShutdownAsync();
+			await scheduler.Start();
+			await scheduler.Shutdown();
 
 			Assert.AreEqual("TestPlugin|MyScheduler|Start|Shutdown", result.ToString());
 		}
@@ -71,13 +71,13 @@ namespace Quartz.Tests.Unit.Impl
 				result.Append(name).Append("|").Append(scheduler.SchedulerName);
 			}
 
-		    Task ISchedulerPlugin.StartAsync()
+		    Task ISchedulerPlugin.Start()
 		    {
 		        result.Append("|Start");
                 return TaskUtil.CompletedTask;
 		    }
 
-			public Task ShutdownAsync()
+			public Task Shutdown()
 			{
 				result.Append("|Shutdown");
                 return TaskUtil.CompletedTask;

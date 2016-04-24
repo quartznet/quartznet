@@ -306,7 +306,7 @@ namespace Quartz.Plugin.History
         /// to let the plug-in know it can now make calls into the scheduler if it
         /// needs to.
         /// </summary>
-        public virtual Task StartAsync()
+        public virtual Task Start()
         {
             // do nothing...
             return TaskUtil.CompletedTask;
@@ -317,7 +317,7 @@ namespace Quartz.Plugin.History
         /// should free up all of it's resources because the scheduler is shutting
         /// down.
         /// </summary>
-        public virtual Task ShutdownAsync()
+        public virtual Task Shutdown()
         {
             // nothing to do...
             return TaskUtil.CompletedTask;
@@ -331,8 +331,8 @@ namespace Quartz.Plugin.History
         ///         <see cref="ITriggerListener"/>.
         ///     </para>
         /// </summary>
-        /// <seealso cref="JobExecutionVetoedAsync"/>
-        public virtual Task JobToBeExecutedAsync(IJobExecutionContext context)
+        /// <seealso cref="JobExecutionVetoed(IJobExecutionContext)"/>
+        public virtual Task JobToBeExecuted(IJobExecutionContext context)
         {
             if (!Log.IsInfoEnabled())
             {
@@ -364,7 +364,7 @@ namespace Quartz.Plugin.History
         /// </summary>
         /// <param name="context"></param>
         /// <param name="jobException"></param>
-        public virtual Task JobWasExecutedAsync(IJobExecutionContext context, JobExecutionException jobException)
+        public virtual Task JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
         {
             ITrigger trigger = context.Trigger;
 
@@ -414,8 +414,8 @@ namespace Quartz.Plugin.History
         /// execution.
         /// </summary>
         /// <param name="context"></param>
-        /// <seealso cref="JobToBeExecutedAsync"/>
-        public virtual Task JobExecutionVetoedAsync(IJobExecutionContext context)
+        /// <seealso cref="JobToBeExecuted(IJobExecutionContext)"/>
+        public virtual Task JobExecutionVetoed(IJobExecutionContext context)
         {
             if (!Log.IsInfoEnabled())
             {

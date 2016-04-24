@@ -73,8 +73,8 @@ namespace Quartz.Listener
         /// </para>
         /// </summary>
         /// <param name="context"></param>
-        /// <seealso cref="JobExecutionVetoedAsync"/>
-        public virtual Task JobToBeExecutedAsync(IJobExecutionContext context)
+        /// <seealso cref="JobExecutionVetoed(IJobExecutionContext)"/>
+        public virtual Task JobToBeExecuted(IJobExecutionContext context)
         {
             return TaskUtil.CompletedTask;
         }
@@ -86,8 +86,8 @@ namespace Quartz.Listener
         /// execution.
         /// </summary>
         /// <param name="context"></param>
-        /// <seealso cref="JobToBeExecutedAsync"/>
-        public virtual Task JobExecutionVetoedAsync(IJobExecutionContext context)
+        /// <seealso cref="JobToBeExecuted(IJobExecutionContext)"/>
+        public virtual Task JobExecutionVetoed(IJobExecutionContext context)
         {
             return TaskUtil.CompletedTask;
         }
@@ -99,7 +99,7 @@ namespace Quartz.Listener
         /// </summary>
         /// <param name="context"></param>
         /// <param name="jobException"></param>
-        public virtual Task JobWasExecutedAsync(IJobExecutionContext context, JobExecutionException jobException)
+        public virtual Task JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
         {
             return TaskUtil.CompletedTask;
         }

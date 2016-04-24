@@ -50,7 +50,7 @@ namespace Quartz.Impl
     /// 
     /// <para>
     /// <see cref="IJobExecutionContext" /> s are also returned from the 
-    /// <see cref="IScheduler.GetCurrentlyExecutingJobsAsync" />
+    /// <see cref="IScheduler.GetCurrentlyExecutingJobs()" />
     /// method. These are the same instances as those past into the jobs that are
     /// currently executing within the scheduler. The exception to this is when your
     /// application is using Quartz remotely (i.e. via remoting or WCF) - in which case you get

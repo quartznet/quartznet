@@ -62,9 +62,9 @@ namespace Quartz.Impl
         /// </summary>
         /// <param name="groupName"></param>
         /// <returns></returns>
-        public virtual Task<bool> IsJobGroupPausedAsync(string groupName)
+        public virtual Task<bool> IsJobGroupPaused(string groupName)
         {
-            return CallInGuardAsync(x => x.IsJobGroupPausedAsync(groupName));
+            return CallInGuard(x => x.IsJobGroupPaused(groupName));
         }
 
         /// <summary>
@@ -73,9 +73,9 @@ namespace Quartz.Impl
         /// </summary>
         /// <param name="groupName"></param>
         /// <returns></returns>
-        public virtual Task<bool> IsTriggerGroupPausedAsync(string groupName)
+        public virtual Task<bool> IsTriggerGroupPaused(string groupName)
         {
-            return CallInGuardAsync(x => x.IsTriggerGroupPausedAsync(groupName));
+            return CallInGuard(x => x.IsTriggerGroupPaused(groupName));
         }
 
         /// <summary>
@@ -103,9 +103,9 @@ namespace Quartz.Impl
         /// </para>
         /// </summary>
         /// <returns></returns>
-        public virtual Task<SchedulerMetaData> GetMetaDataAsync()
+        public virtual Task<SchedulerMetaData> GetMetaData()
         {
-            return CallInGuardAsync(x => Task.FromResult(new SchedulerMetaData(SchedulerName, SchedulerInstanceId, GetType(), true, IsStarted, InStandbyMode,
+            return CallInGuard(x => Task.FromResult(new SchedulerMetaData(SchedulerName, SchedulerInstanceId, GetType(), true, IsStarted, InStandbyMode,
                                                           IsShutdown, x.RunningSince, x.NumJobsExecuted, x.JobStoreClass,
                                                           x.SupportsPersistence, x.Clustered, x.ThreadPoolClass, x.ThreadPoolSize, x.Version)));
         }
@@ -137,7 +137,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<IReadOnlyList<IJobExecutionContext>> GetCurrentlyExecutingJobsAsync()
+        public virtual Task<IReadOnlyList<IJobExecutionContext>> GetCurrentlyExecutingJobs()
         {
             return Task.FromResult(ReadPropertyInGuard(x => x.CurrentlyExecutingJobs));
         }
@@ -145,26 +145,26 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<IReadOnlyList<string>> GetJobGroupNamesAsync()
+        public virtual Task<IReadOnlyList<string>> GetJobGroupNames()
         {
-            return CallInGuardAsync(x => x.GetJobGroupNamesAsync());
+            return CallInGuard(x => x.GetJobGroupNames());
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<IReadOnlyList<string>> GetTriggerGroupNamesAsync()
+        public virtual Task<IReadOnlyList<string>> GetTriggerGroupNames()
         {
-            return CallInGuardAsync(x => x.GetTriggerGroupNamesAsync());
+            return CallInGuard(x => x.GetTriggerGroupNames());
         }
 
         /// <summary>
         /// Get the names of all <see cref="ITrigger" /> groups that are paused.
         /// </summary>
         /// <value></value>
-        public virtual Task<ISet<string>> GetPausedTriggerGroupsAsync()
+        public virtual Task<ISet<string>> GetPausedTriggerGroups()
         {
-            return CallInGuardAsync(x => x.GetPausedTriggerGroupsAsync());
+            return CallInGuard(x => x.GetPausedTriggerGroups());
         }
 
         /// <summary>
@@ -187,17 +187,17 @@ namespace Quartz.Impl
         /// <summary> 
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task StartAsync()
+        public virtual Task Start()
         {
-            return CallInGuardAsync(x => x.StartAsync());
+            return CallInGuard(x => x.Start());
         }
 
         /// <summary> 
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public Task StartDelayedAsync(TimeSpan delay)
+        public Task StartDelayed(TimeSpan delay)
         {
-            return CallInGuardAsync(x => x.StartDelayedAsync(delay));
+            return CallInGuard(x => x.StartDelayed(delay));
         }
 
         /// <summary>
@@ -205,12 +205,12 @@ namespace Quartz.Impl
         /// </summary>
         /// <value></value>
         /// <remarks>
-        /// Note: This only reflects whether <see cref="StartAsync"/> has ever
+        /// Note: This only reflects whether <see cref="Start"/> has ever
         /// been called on this Scheduler, so it will return <see langword="true" /> even
         /// if the <see cref="IScheduler" /> is currently in standby mode or has been
         /// since shutdown.
         /// </remarks>
-        /// <seealso cref="StartAsync"/>
+        /// <seealso cref="Start"/>
         /// <seealso cref="IsShutdown"/>
         /// <seealso cref="InStandbyMode"/>
         public virtual bool IsStarted
@@ -221,20 +221,20 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task StandbyAsync()
+        public virtual Task Standby()
         {
-            return CallInGuardAsync(x => x.StandbyAsync());
+            return CallInGuard(x => x.Standby());
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual async Task ShutdownAsync()
+        public virtual async Task Shutdown()
         {
             try
             {
                 string schedulerName = SchedulerName;
-                await GetRemoteScheduler().ShutdownAsync().ConfigureAwait(false);
+                await GetRemoteScheduler().Shutdown().ConfigureAwait(false);
                 SchedulerRepository.Instance.Remove(schedulerName);
             }
             catch (RemotingException re)
@@ -246,286 +246,286 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task ShutdownAsync(bool waitForJobsToComplete)
+        public virtual Task Shutdown(bool waitForJobsToComplete)
         {
-            return CallInGuardAsync(x => x.ShutdownAsync(waitForJobsToComplete));
+            return CallInGuard(x => x.Shutdown(waitForJobsToComplete));
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<DateTimeOffset> ScheduleJobAsync(IJobDetail jobDetail, ITrigger trigger)
+        public virtual Task<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger)
         {
-            return CallInGuardAsync(x => x.ScheduleJobAsync(jobDetail, trigger));
+            return CallInGuard(x => x.ScheduleJob(jobDetail, trigger));
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<DateTimeOffset> ScheduleJobAsync(ITrigger trigger)
+        public virtual Task<DateTimeOffset> ScheduleJob(ITrigger trigger)
         {
-            return CallInGuardAsync(x => x.ScheduleJobAsync(trigger));
+            return CallInGuard(x => x.ScheduleJob(trigger));
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task AddJobAsync(IJobDetail jobDetail, bool replace)
+        public virtual Task AddJob(IJobDetail jobDetail, bool replace)
         {
-            return CallInGuardAsync(x => x.AddJobAsync(jobDetail, replace));
+            return CallInGuard(x => x.AddJob(jobDetail, replace));
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task AddJobAsync(IJobDetail jobDetail, bool replace, bool storeNonDurableWhileAwaitingScheduling)
+        public virtual Task AddJob(IJobDetail jobDetail, bool replace, bool storeNonDurableWhileAwaitingScheduling)
         {
-            return CallInGuardAsync(x => x.AddJobAsync(jobDetail, replace, storeNonDurableWhileAwaitingScheduling));
+            return CallInGuard(x => x.AddJob(jobDetail, replace, storeNonDurableWhileAwaitingScheduling));
         }
 
-        public virtual Task<bool> DeleteJobsAsync(IList<JobKey> jobKeys)
+        public virtual Task<bool> DeleteJobs(IList<JobKey> jobKeys)
         {
-            return CallInGuardAsync(x => x.DeleteJobsAsync(jobKeys));
+            return CallInGuard(x => x.DeleteJobs(jobKeys));
         }
 
-        public virtual Task ScheduleJobsAsync(IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, bool replace)
+        public virtual Task ScheduleJobs(IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, bool replace)
         {
-            return CallInGuardAsync(x => x.ScheduleJobsAsync(triggersAndJobs, replace));
+            return CallInGuard(x => x.ScheduleJobs(triggersAndJobs, replace));
         }
 
-        public Task ScheduleJobAsync(IJobDetail jobDetail, ISet<ITrigger> triggersForJob, bool replace)
+        public Task ScheduleJob(IJobDetail jobDetail, ISet<ITrigger> triggersForJob, bool replace)
         {
-            return CallInGuardAsync(x => x.ScheduleJobAsync(jobDetail, triggersForJob, replace));
+            return CallInGuard(x => x.ScheduleJob(jobDetail, triggersForJob, replace));
         }
 
-        public virtual Task<bool> UnscheduleJobsAsync(IList<TriggerKey> triggerKeys)
+        public virtual Task<bool> UnscheduleJobs(IList<TriggerKey> triggerKeys)
         {
-            return CallInGuardAsync(x => x.UnscheduleJobsAsync(triggerKeys));
-        }
-
-        /// <summary>
-        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-        /// </summary>
-        public virtual Task<bool> DeleteJobAsync(JobKey jobKey)
-        {
-            return CallInGuardAsync(x => x.DeleteJobAsync(jobKey));
+            return CallInGuard(x => x.UnscheduleJobs(triggerKeys));
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<bool> UnscheduleJobAsync(TriggerKey triggerKey)
+        public virtual Task<bool> DeleteJob(JobKey jobKey)
         {
-            return CallInGuardAsync(x => x.UnscheduleJobAsync(triggerKey));
+            return CallInGuard(x => x.DeleteJob(jobKey));
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<DateTimeOffset?> RescheduleJobAsync(TriggerKey triggerKey, ITrigger newTrigger)
+        public virtual Task<bool> UnscheduleJob(TriggerKey triggerKey)
         {
-            return CallInGuardAsync(x => x.RescheduleJobAsync(triggerKey, newTrigger));
+            return CallInGuard(x => x.UnscheduleJob(triggerKey));
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task TriggerJobAsync(JobKey jobKey)
+        public virtual Task<DateTimeOffset?> RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger)
         {
-            return TriggerJobAsync(jobKey, null);
+            return CallInGuard(x => x.RescheduleJob(triggerKey, newTrigger));
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task TriggerJobAsync(JobKey jobKey, JobDataMap data)
+        public virtual Task TriggerJob(JobKey jobKey)
         {
-            return CallInGuardAsync(x => x.TriggerJobAsync(jobKey, data));
+            return TriggerJob(jobKey, null);
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task PauseTriggerAsync(TriggerKey triggerKey)
+        public virtual Task TriggerJob(JobKey jobKey, JobDataMap data)
         {
-            return CallInGuardAsync(x => x.PauseTriggerAsync(triggerKey));
+            return CallInGuard(x => x.TriggerJob(jobKey, data));
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task PauseTriggersAsync(GroupMatcher<TriggerKey> matcher)
+        public virtual Task PauseTrigger(TriggerKey triggerKey)
         {
-            return CallInGuardAsync(x => x.PauseTriggersAsync(matcher));
+            return CallInGuard(x => x.PauseTrigger(triggerKey));
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task PauseJobAsync(JobKey jobKey)
+        public virtual Task PauseTriggers(GroupMatcher<TriggerKey> matcher)
         {
-            return CallInGuardAsync(x => x.PauseJobAsync(jobKey));
+            return CallInGuard(x => x.PauseTriggers(matcher));
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task PauseJobsAsync(GroupMatcher<JobKey> matcher)
+        public virtual Task PauseJob(JobKey jobKey)
         {
-            return CallInGuardAsync(x => x.PauseJobsAsync(matcher));
+            return CallInGuard(x => x.PauseJob(jobKey));
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task ResumeTriggerAsync(TriggerKey triggerKey)
+        public virtual Task PauseJobs(GroupMatcher<JobKey> matcher)
         {
-            return CallInGuardAsync(x => x.ResumeTriggerAsync(triggerKey));
+            return CallInGuard(x => x.PauseJobs(matcher));
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task ResumeTriggersAsync(GroupMatcher<TriggerKey> matcher)
+        public virtual Task ResumeTrigger(TriggerKey triggerKey)
         {
-            return CallInGuardAsync(x => x.ResumeTriggersAsync(matcher));
+            return CallInGuard(x => x.ResumeTrigger(triggerKey));
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task ResumeJobAsync(JobKey jobKey)
+        public virtual Task ResumeTriggers(GroupMatcher<TriggerKey> matcher)
         {
-            return CallInGuardAsync(x => x.ResumeJobAsync(jobKey));
+            return CallInGuard(x => x.ResumeTriggers(matcher));
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task ResumeJobsAsync(GroupMatcher<JobKey> matcher)
+        public virtual Task ResumeJob(JobKey jobKey)
         {
-            return CallInGuardAsync(x => x.ResumeJobsAsync(matcher));
+            return CallInGuard(x => x.ResumeJob(jobKey));
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task PauseAllAsync()
+        public virtual Task ResumeJobs(GroupMatcher<JobKey> matcher)
         {
-            return CallInGuardAsync(x => x.PauseAllAsync());
+            return CallInGuard(x => x.ResumeJobs(matcher));
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task ResumeAllAsync()
+        public virtual Task PauseAll()
         {
-            return CallInGuardAsync(x => x.ResumeAllAsync());
+            return CallInGuard(x => x.PauseAll());
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<ISet<JobKey>> GetJobKeysAsync(GroupMatcher<JobKey> matcher)
+        public virtual Task ResumeAll()
         {
-            return CallInGuardAsync(x => x.GetJobKeysAsync(matcher));
+            return CallInGuard(x => x.ResumeAll());
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<IReadOnlyList<ITrigger>> GetTriggersOfJobAsync(JobKey jobKey)
+        public virtual Task<ISet<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher)
         {
-            return CallInGuardAsync(x => x.GetTriggersOfJobAsync(jobKey));
+            return CallInGuard(x => x.GetJobKeys(matcher));
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<ISet<TriggerKey>> GetTriggerKeysAsync(GroupMatcher<TriggerKey> matcher)
+        public virtual Task<IReadOnlyList<ITrigger>> GetTriggersOfJob(JobKey jobKey)
         {
-            return CallInGuardAsync(x => x.GetTriggerKeysAsync(matcher));
+            return CallInGuard(x => x.GetTriggersOfJob(jobKey));
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<IJobDetail> GetJobDetailAsync(JobKey jobKey)
+        public virtual Task<ISet<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher)
         {
-            return CallInGuardAsync(x => x.GetJobDetailAsync(jobKey));
+            return CallInGuard(x => x.GetTriggerKeys(matcher));
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<bool> CheckExistsAsync(JobKey jobKey)
+        public virtual Task<IJobDetail> GetJobDetail(JobKey jobKey)
         {
-            return CallInGuardAsync(x => x.CheckExistsAsync(jobKey));
+            return CallInGuard(x => x.GetJobDetail(jobKey));
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<bool> CheckExistsAsync(TriggerKey triggerKey)
+        public virtual Task<bool> CheckExists(JobKey jobKey)
         {
-            return CallInGuardAsync(x => x.CheckExistsAsync(triggerKey));
+            return CallInGuard(x => x.CheckExists(jobKey));
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task ClearAsync()
+        public virtual Task<bool> CheckExists(TriggerKey triggerKey)
         {
-            return CallInGuardAsync(x => x.ClearAsync());
+            return CallInGuard(x => x.CheckExists(triggerKey));
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<ITrigger> GetTriggerAsync(TriggerKey triggerKey)
+        public virtual Task Clear()
         {
-            return CallInGuardAsync(x => x.GetTriggerAsync(triggerKey));
+            return CallInGuard(x => x.Clear());
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<TriggerState> GetTriggerStateAsync(TriggerKey triggerKey)
+        public virtual Task<ITrigger> GetTrigger(TriggerKey triggerKey)
         {
-            return CallInGuardAsync(x => x.GetTriggerStateAsync(triggerKey));
+            return CallInGuard(x => x.GetTrigger(triggerKey));
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task AddCalendarAsync(string calName, ICalendar calendar, bool replace, bool updateTriggers)
+        public virtual Task<TriggerState> GetTriggerState(TriggerKey triggerKey)
         {
-            return CallInGuardAsync(x => x.AddCalendarAsync(calName, calendar, replace, updateTriggers));
+            return CallInGuard(x => x.GetTriggerState(triggerKey));
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<bool> DeleteCalendarAsync(string calName)
+        public virtual Task AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers)
         {
-            return CallInGuardAsync(x => x.DeleteCalendarAsync(calName));
+            return CallInGuard(x => x.AddCalendar(calName, calendar, replace, updateTriggers));
         }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<ICalendar> GetCalendarAsync(string calName)
+        public virtual Task<bool> DeleteCalendar(string calName)
         {
-            return CallInGuardAsync(x => x.GetCalendarAsync(calName));
+            return CallInGuard(x => x.DeleteCalendar(calName));
+        }
+
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
+        public virtual Task<ICalendar> GetCalendar(string calName)
+        {
+            return CallInGuard(x => x.GetCalendar(calName));
         }
 
         /// <summary>
         /// Get the names of all registered <see cref="ICalendar"/>.
         /// </summary>
         /// <returns></returns>
-        public Task<IReadOnlyList<string>> GetCalendarNamesAsync()
+        public Task<IReadOnlyList<string>> GetCalendarNames()
         {
-            return CallInGuardAsync(x => x.GetCalendarNamesAsync());
+            return CallInGuard(x => x.GetCalendarNames());
         }
 
         public IListenerManager ListenerManager
@@ -536,11 +536,11 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual async Task<bool> InterruptAsync(JobKey jobKey)
+        public virtual async Task<bool> Interrupt(JobKey jobKey)
         {
             try
             {
-                return await GetRemoteScheduler().InterruptAsync(jobKey).ConfigureAwait(false);
+                return await GetRemoteScheduler().Interrupt(jobKey).ConfigureAwait(false);
             }
             catch (RemotingException re)
             {
@@ -552,11 +552,11 @@ namespace Quartz.Impl
             }
         }
 
-        public async Task<bool> InterruptAsync(string fireInstanceId)
+        public async Task<bool> Interrupt(string fireInstanceId)
         {
             try
             {
-                return await GetRemoteScheduler().InterruptAsync(fireInstanceId).ConfigureAwait(false);
+                return await GetRemoteScheduler().Interrupt(fireInstanceId).ConfigureAwait(false);
             }
             catch (RemotingException re)
             {
@@ -568,7 +568,7 @@ namespace Quartz.Impl
             }
         }
 
-        protected virtual async Task CallInGuardAsync(Func<IRemotableQuartzScheduler, Task> action)
+        protected virtual async Task CallInGuard(Func<IRemotableQuartzScheduler, Task> action)
         {
             try
             {
@@ -580,7 +580,7 @@ namespace Quartz.Impl
             }
         }
 
-        protected virtual async Task<T> CallInGuardAsync<T>(Func<IRemotableQuartzScheduler, Task<T>> func)
+        protected virtual async Task<T> CallInGuard<T>(Func<IRemotableQuartzScheduler, Task<T>> func)
         {
             try
             {

@@ -132,7 +132,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             cronTriggerImpl.JobDataMap = jobDataMap;
 
             //Act
-            await adoDelegate.UpdateTriggerAsync(conn, cronTriggerImpl, "state", jobDetail);
+            await adoDelegate.UpdateTrigger(conn, cronTriggerImpl, "state", jobDetail);
 
             //Assert
             var resultDataParameters = dataParameterCollectionOutputs.Select(x => x as IDataParameter).Where(x => x.ParameterName == "triggerType").FirstOrDefault();

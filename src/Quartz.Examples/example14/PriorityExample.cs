@@ -36,7 +36,7 @@ namespace Quartz.Examples.Example14
     {
         public string Name => GetType().Name;
 
-        public async Task RunAsync()
+        public async Task Run()
         {
             ILog log = LogProvider.GetLogger(typeof (PriorityExample));
 
@@ -103,13 +103,13 @@ namespace Quartz.Examples.Example14
                 .Build();
 
             // Tell quartz to schedule the job using our trigger
-            await sched.ScheduleJobAsync(job, trigger1);
-            await sched.ScheduleJobAsync(trigger2);
-            await sched.ScheduleJobAsync(trigger3);
+            await sched.ScheduleJob(job, trigger1);
+            await sched.ScheduleJob(trigger2);
+            await sched.ScheduleJob(trigger3);
 
             // Start up the scheduler (nothing can actually run until the 
             // scheduler has been started)
-            await sched.StartAsync();
+            await sched.Start();
             log.Info("------- Started Scheduler -----------------");
 
             // wait long enough so that the scheduler as an opportunity to 
@@ -120,7 +120,7 @@ namespace Quartz.Examples.Example14
 
             // shut down the scheduler
             log.Info("------- Shutting Down ---------------------");
-            await sched.ShutdownAsync(true);
+            await sched.Shutdown(true);
             log.Info("------- Shutdown Complete -----------------");
         }
     }

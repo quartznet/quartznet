@@ -63,7 +63,7 @@ namespace Quartz.Tests.Unit.Plugin.History
                 null);
 
             // act
-            await plugin.TriggerFiredAsync(t, ctx);
+            await plugin.TriggerFired(t, ctx);
 
             // assert
             A.CallTo(() => mockLog.Log(A<LogLevel>.That.IsEqualTo(LogLevel.Info), A<Func<string>>.That.Not.IsNull(), A<Exception>.That.IsNull(), A<object[]>.That.Not.IsNull())).MustHaveHappened();
@@ -82,7 +82,7 @@ namespace Quartz.Tests.Unit.Plugin.History
             t.JobKey = new JobKey("name", "group");
             
             // act
-            await plugin.TriggerMisfiredAsync(t);
+            await plugin.TriggerMisfired(t);
 
             // assert
             A.CallTo(() => mockLog.Log(A<LogLevel>.That.IsEqualTo(LogLevel.Info), A<Func<string>>.That.Not.IsNull(), A<Exception>.That.IsNull(), A<object[]>.That.Not.IsNull())).MustHaveHappened();
@@ -104,7 +104,7 @@ namespace Quartz.Tests.Unit.Plugin.History
                 null);
 
             // act
-            await plugin.TriggerCompleteAsync(t, ctx, SchedulerInstruction.ReExecuteJob);
+            await plugin.TriggerComplete(t, ctx, SchedulerInstruction.ReExecuteJob);
 
             // assert
             A.CallTo(() => mockLog.Log(A<LogLevel>.That.IsEqualTo(LogLevel.Info), A<Func<string>>.That.Not.IsNull(), A<Exception>.That.IsNull(), A<object[]>.That.Not.IsNull())).MustHaveHappened();

@@ -37,7 +37,7 @@ namespace Quartz.Examples.Example15
     {
         public string Name => GetType().Name;
 
-        public async Task RunAsync()
+        public async Task Run()
         {
             ILog log = LogProvider.GetLogger(typeof (XmlConfigurationExample));
 
@@ -62,7 +62,7 @@ namespace Quartz.Examples.Example15
             // we need to add calendars manually, lets create a silly sample calendar
             var dailyCalendar = new DailyCalendar("00:01", "23:59");
             dailyCalendar.InvertTimeRange = true;
-            await sched.AddCalendarAsync("cal1", dailyCalendar, false, false);
+            await sched.AddCalendar("cal1", dailyCalendar, false, false);
 
             log.Info("------- Initialization Complete -----------");
 
@@ -70,7 +70,7 @@ namespace Quartz.Examples.Example15
 
             // Start up the scheduler (nothing can actually run until the 
             // scheduler has been started)
-            await sched.StartAsync();
+            await sched.Start();
             log.Info("------- Started Scheduler -----------------");
 
             // wait long enough so that the scheduler as an opportunity to 
@@ -81,7 +81,7 @@ namespace Quartz.Examples.Example15
 
             // shut down the scheduler
             log.Info("------- Shutting Down ---------------------");
-            await sched.ShutdownAsync(true);
+            await sched.Shutdown(true);
             log.Info("------- Shutdown Complete -----------------");
         }
     }

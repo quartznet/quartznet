@@ -11,7 +11,7 @@ namespace Quartz.Core
     /// </summary>
     internal class ErrorLogger : SchedulerListenerSupport
     {
-        public override Task SchedulerErrorAsync(string msg, SchedulerException cause)
+        public override Task SchedulerError(string msg, SchedulerException cause)
         {
             Log.ErrorException(msg, cause);
             return TaskUtil.CompletedTask;

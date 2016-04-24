@@ -11,7 +11,7 @@ namespace Quartz.Server
         /// Initializes the instance of <see cref="IQuartzServer"/>.
         /// Initialization will only be called once in server's lifetime.
         /// </summary>
-        Task InitializeAsync();
+        Task Initialize();
 
         /// <summary>
         /// Starts this instance.

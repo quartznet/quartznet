@@ -37,19 +37,19 @@ namespace Quartz.Impl.AdoJobStore
 		/// </summary>
 		/// <returns> true if the lock was obtained.
 		/// </returns>
-		Task<bool> ObtainLockAsync(DbMetadata metadata, ConnectionAndTransactionHolder conn, string lockName);
+		Task<bool> ObtainLock(DbMetadata metadata, ConnectionAndTransactionHolder conn, string lockName);
 
 		/// <summary> Release the lock on the identified resource if it is held by the calling
 		/// thread.
 		/// </summary>
-		Task ReleaseLockAsync(string lockName);
+		Task ReleaseLock(string lockName);
 
         /// <summary>
         /// Whether this Semaphore implementation requires a database connection for
         /// its lock management operations.
         /// </summary>
-        /// <seealso cref="ObtainLockAsync" />
-        /// <seealso cref="ReleaseLockAsync" />
+        /// <seealso cref="ObtainLock" />
+        /// <seealso cref="ReleaseLock" />
         bool RequiresConnection {  get; }
 	}
 }

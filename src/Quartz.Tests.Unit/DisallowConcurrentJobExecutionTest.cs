@@ -47,7 +47,7 @@ namespace Quartz.Tests.Unit
 
             public override string Name => "TestJobListener";
 
-            public override Task JobWasExecutedAsync(IJobExecutionContext context, JobExecutionException jobException)
+            public override Task JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
             {
                 if (Interlocked.Increment(ref jobExCount) == jobExecutionCountToSyncAfter)
                 {
@@ -86,13 +86,13 @@ namespace Quartz.Tests.Unit
             props["quartz.threadPool.threadCount"] = "2";
             IScheduler scheduler = await new StdSchedulerFactory(props).GetScheduler();
             scheduler.ListenerManager.AddJobListener(new TestJobListener(2));
-            await scheduler.ScheduleJobAsync(job1, trigger1);
-            await scheduler.ScheduleJobAsync(trigger2);
+            await scheduler.ScheduleJob(job1, trigger1);
+            await scheduler.ScheduleJob(trigger2);
 
-            await scheduler.StartAsync();
+            await scheduler.Start();
 
             barrier.WaitOne();
-            await scheduler.ShutdownAsync(true);
+            await scheduler.Shutdown(true);
 
             Assert.AreEqual(2, jobExecDates.Count);
             Assert.Greater(jobExecDates[1] - jobExecDates[0], jobBlockTime);
@@ -116,12 +116,12 @@ namespace Quartz.Tests.Unit
             props["quartz.threadPool.threadCount"] = "2";
             IScheduler scheduler = await new StdSchedulerFactory(props).GetScheduler();
             scheduler.ListenerManager.AddJobListener(new TestJobListener(2));
-            await scheduler.ScheduleJobAsync(job1, trigger1);
-            await scheduler.ScheduleJobAsync(trigger2);
+            await scheduler.ScheduleJob(job1, trigger1);
+            await scheduler.ScheduleJob(trigger2);
 
-            await scheduler.StartAsync();
+            await scheduler.Start();
             barrier.WaitOne();
-            await scheduler.ShutdownAsync(true);
+            await scheduler.Shutdown(true);
 
             Assert.AreEqual(2, jobExecDates.Count);
             Assert.Greater(jobExecDates[1] - jobExecDates[0], jobBlockTime);

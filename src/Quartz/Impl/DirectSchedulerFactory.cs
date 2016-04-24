@@ -317,7 +317,7 @@ namespace Quartz.Impl
             cch.Initialize();
 
             SchedulerDetailsSetter.SetDetails(jobStore, schedulerName, schedulerInstanceId);
-            jobStore.InitializeAsync(cch, qs.SchedulerSignaler);
+            jobStore.Initialize(cch, qs.SchedulerSignaler);
 
             IScheduler scheduler = new StdScheduler(qs);
 

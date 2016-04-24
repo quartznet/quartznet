@@ -152,7 +152,7 @@ namespace Quartz.Core
         /// <summary>
         /// Signals the main processing loop to pause at the next possible point.
         /// </summary>
-        internal virtual async Task HaltAsync(bool wait)
+        internal virtual async Task Halt(bool wait)
         {
             lock (sigLock)
             {
@@ -229,7 +229,7 @@ namespace Quartz.Core
         /// The main processing loop of the <see cref="QuartzSchedulerThread" />.
         /// </summary>
         /// <param name="token"></param>
-        public async Task RunAsync(CancellationToken token)
+        public async Task Run(CancellationToken token)
         {
             bool lastAcquireFailed = false;
 
@@ -272,7 +272,7 @@ namespace Quartz.Core
                         {
                             var noLaterThan = now + idleWaitTime;
                             var maxCount = Math.Min(availThreadCount, qsRsrcs.MaxBatchSize);
-                            triggers = new List<IOperableTrigger>(await qsRsrcs.JobStore.AcquireNextTriggersAsync(noLaterThan, maxCount, qsRsrcs.BatchTimeWindow).ConfigureAwait(false));
+                            triggers = new List<IOperableTrigger>(await qsRsrcs.JobStore.AcquireNextTriggers(noLaterThan, maxCount, qsRsrcs.BatchTimeWindow).ConfigureAwait(false));
                             lastAcquireFailed = false;
                             if (Log.IsDebugEnabled())
                             {
@@ -284,7 +284,7 @@ namespace Quartz.Core
                             if (!lastAcquireFailed)
                             {
                                 var msg = "An error occurred while scanning for the next trigger to fire.";
-                                await qs.NotifySchedulerListenersErrorAsync(msg, jpe).ConfigureAwait(false);
+                                await qs.NotifySchedulerListenersError(msg, jpe).ConfigureAwait(false);
                             }
                             lastAcquireFailed = true;
                             continue;
@@ -362,7 +362,7 @@ namespace Quartz.Core
                             {
                                 try
                                 {
-                                    var res = await qsRsrcs.JobStore.TriggersFiredAsync(triggers).ConfigureAwait(false);
+                                    var res = await qsRsrcs.JobStore.TriggersFired(triggers).ConfigureAwait(false);
                                     if (res != null)
                                     {
                                         bndles = res;
@@ -371,12 +371,12 @@ namespace Quartz.Core
                                 catch (SchedulerException se)
                                 {
                                     var msg = "An error occurred while firing triggers '" + triggers + "'";
-                                    await qs.NotifySchedulerListenersErrorAsync(msg, se).ConfigureAwait(false);
+                                    await qs.NotifySchedulerListenersError(msg, se).ConfigureAwait(false);
                                     // QTZ-179 : a problem occurred interacting with the triggers from the db
                                     // we release them and loop again
                                     foreach (IOperableTrigger t in triggers)
                                     {
-                                        await qsRsrcs.JobStore.ReleaseAcquiredTriggerAsync(t).ConfigureAwait(false);
+                                        await qsRsrcs.JobStore.ReleaseAcquiredTrigger(t).ConfigureAwait(false);
                                     }
                                     continue;
                                 }
@@ -393,7 +393,7 @@ namespace Quartz.Core
                                 if (exception != null && (exception is DbException || exception.InnerException is DbException))
                                 {
                                     Log.ErrorException("DbException while firing trigger " + trigger, exception);
-                                    await qsRsrcs.JobStore.ReleaseAcquiredTriggerAsync(trigger).ConfigureAwait(false);
+                                    await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger).ConfigureAwait(false);
                                     continue;
                                 }
 
@@ -402,7 +402,7 @@ namespace Quartz.Core
                                 // fired at this time...  or if the scheduler was shutdown (halted)
                                 if (bndle == null)
                                 {
-                                    await qsRsrcs.JobStore.ReleaseAcquiredTriggerAsync(trigger).ConfigureAwait(false);
+                                    await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger).ConfigureAwait(false);
                                     continue;
                                 }
 
@@ -417,15 +417,15 @@ namespace Quartz.Core
                                 try
                                 {
                                     shell = qsRsrcs.JobRunShellFactory.CreateJobRunShell(bndle);
-                                    await shell.InitializeAsync(qs).ConfigureAwait(false);
+                                    await shell.Initialize(qs).ConfigureAwait(false);
                                 }
                                 catch (SchedulerException)
                                 {
-                                    await qsRsrcs.JobStore.TriggeredJobCompleteAsync(trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError).ConfigureAwait(false);
+                                    await qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError).ConfigureAwait(false);
                                     continue;
                                 }
 
-                                var threadPoolRunResult = qsRsrcs.ThreadPool.RunInThread(() => shell.RunAsync());
+                                var threadPoolRunResult = qsRsrcs.ThreadPool.RunInThread(() => shell.Run());
                                 if (threadPoolRunResult == false)
                                 {
                                     // this case should never happen, as it is indicative of the
@@ -433,7 +433,7 @@ namespace Quartz.Core
                                     // a thread pool being used concurrently - which the docs
                                     // say not to do...
                                     Log.Error("ThreadPool.RunInThread() returned false!");
-                                    await qsRsrcs.JobStore.TriggeredJobCompleteAsync(trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError).ConfigureAwait(false);
+                                    await qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError).ConfigureAwait(false);
                                 }
                             }
 
@@ -484,7 +484,7 @@ namespace Quartz.Core
                 foreach (IOperableTrigger trigger in triggers)
                 {
                     // above call does a clearSignaledSchedulingChange()
-                    await qsRsrcs.JobStore.ReleaseAcquiredTriggerAsync(trigger).ConfigureAwait(false);
+                    await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger).ConfigureAwait(false);
                 }
                 triggers.Clear();
                 return true;
@@ -553,10 +553,10 @@ namespace Quartz.Core
         public void Start()
         {
             cancellationTokenSource = new CancellationTokenSource();
-            task = Task.Run(() => RunAsync(cancellationTokenSource.Token));
+            task = Task.Run(() => Run(cancellationTokenSource.Token));
         }
 
-        public async Task ShutdownAsync()
+        public async Task Shutdown()
         {
             cancellationTokenSource.Cancel();
             try

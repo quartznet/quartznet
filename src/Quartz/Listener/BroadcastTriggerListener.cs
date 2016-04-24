@@ -102,16 +102,16 @@ namespace Quartz.Listener
 
         public IReadOnlyList<ITriggerListener> Listeners => listeners;
 
-        public Task TriggerFiredAsync(ITrigger trigger, IJobExecutionContext context)
+        public Task TriggerFired(ITrigger trigger, IJobExecutionContext context)
         {
-            return Task.WhenAll(listeners.Select(l => l.TriggerFiredAsync(trigger, context)));
+            return Task.WhenAll(listeners.Select(l => l.TriggerFired(trigger, context)));
         }
 
-        public async Task<bool> VetoJobExecutionAsync(ITrigger trigger, IJobExecutionContext context)
+        public async Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context)
         {
             foreach (var listener in listeners)
             {
-                if (await listener.VetoJobExecutionAsync(trigger, context).ConfigureAwait(false))
+                if (await listener.VetoJobExecution(trigger, context).ConfigureAwait(false))
                 {
                     return true;
                 }
@@ -120,14 +120,14 @@ namespace Quartz.Listener
             return false;
         }
 
-        public Task TriggerMisfiredAsync(ITrigger trigger)
+        public Task TriggerMisfired(ITrigger trigger)
         {
-            return Task.WhenAll(listeners.Select(l => l.TriggerMisfiredAsync(trigger)));
+            return Task.WhenAll(listeners.Select(l => l.TriggerMisfired(trigger)));
         }
 
-        public Task TriggerCompleteAsync(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode)
+        public Task TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode)
         {
-            return Task.WhenAll(listeners.Select(l => l.TriggerCompleteAsync(trigger, context, triggerInstructionCode)));
+            return Task.WhenAll(listeners.Select(l => l.TriggerComplete(trigger, context, triggerInstructionCode)));
         }
     }
 }

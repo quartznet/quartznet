@@ -44,14 +44,14 @@ namespace Quartz.Tests.Unit
                 get { return "Qtz205TriggerListener"; }
             }
 
-            public Task TriggerFiredAsync(ITrigger trigger, IJobExecutionContext context)
+            public Task TriggerFired(ITrigger trigger, IJobExecutionContext context)
             {
                 fireCount++;
                 logger.Info("Trigger fired. count " + fireCount);
                 return TaskUtil.CompletedTask;
             }
 
-            public Task<bool> VetoJobExecutionAsync(ITrigger trigger, IJobExecutionContext context)
+            public Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context)
             {
                 if (fireCount >= 3)
                 {
@@ -60,12 +60,12 @@ namespace Quartz.Tests.Unit
                 return Task.FromResult(false);
             }
 
-            public Task TriggerMisfiredAsync(ITrigger trigger)
+            public Task TriggerMisfired(ITrigger trigger)
             {
                 return TaskUtil.CompletedTask;
             }
 
-            public Task TriggerCompleteAsync(ITrigger trigger,
+            public Task TriggerComplete(ITrigger trigger,
                                         IJobExecutionContext context,
                                         SchedulerInstruction triggerInstructionCode)
             {
@@ -79,104 +79,104 @@ namespace Quartz.Tests.Unit
 
             public int TriggerFinalizedCount => triggerFinalizedCount;
 
-            public Task JobScheduledAsync(ITrigger trigger)
+            public Task JobScheduled(ITrigger trigger)
             {
                 return TaskUtil.CompletedTask;
             }
 
-            public Task JobUnscheduledAsync(TriggerKey triggerKey)
+            public Task JobUnscheduled(TriggerKey triggerKey)
             {
                 return TaskUtil.CompletedTask;
             }
 
-            public Task TriggerFinalizedAsync(ITrigger trigger)
+            public Task TriggerFinalized(ITrigger trigger)
             {
                 triggerFinalizedCount ++;
                 logger.Info("triggerFinalized " + trigger);
                 return TaskUtil.CompletedTask;
             }
 
-            public Task TriggerPausedAsync(TriggerKey triggerKey)
+            public Task TriggerPaused(TriggerKey triggerKey)
             {
                 return TaskUtil.CompletedTask;
             }
 
-            public Task TriggersPausedAsync(string triggerGroup)
+            public Task TriggersPaused(string triggerGroup)
             {
                 return TaskUtil.CompletedTask;
             }
 
-            public Task TriggerResumedAsync(TriggerKey triggerKey)
+            public Task TriggerResumed(TriggerKey triggerKey)
             {
                 return TaskUtil.CompletedTask;
             }
 
-            public Task TriggersResumedAsync(string triggerGroup)
+            public Task TriggersResumed(string triggerGroup)
             {
                 return TaskUtil.CompletedTask;
             }
 
-            public Task JobAddedAsync(IJobDetail jobDetail)
+            public Task JobAdded(IJobDetail jobDetail)
             {
                 return TaskUtil.CompletedTask;
             }
 
-            public Task JobDeletedAsync(JobKey jobKey)
+            public Task JobDeleted(JobKey jobKey)
             {
                 return TaskUtil.CompletedTask;
             }
 
-            public Task JobPausedAsync(JobKey jobKey)
+            public Task JobPaused(JobKey jobKey)
             {
                 return TaskUtil.CompletedTask;
             }
 
-            public Task JobsPausedAsync(string jobGroup)
+            public Task JobsPaused(string jobGroup)
             {
                 return TaskUtil.CompletedTask;
             }
 
-            public Task JobResumedAsync(JobKey jobKey)
+            public Task JobResumed(JobKey jobKey)
             {
                 return TaskUtil.CompletedTask;
             }
 
-            public Task JobsResumedAsync(string jobGroup)
+            public Task JobsResumed(string jobGroup)
             {
                 return TaskUtil.CompletedTask;
             }
 
-            public Task SchedulerErrorAsync(string msg, SchedulerException cause)
+            public Task SchedulerError(string msg, SchedulerException cause)
             {
                 return TaskUtil.CompletedTask;
             }
 
-            public Task SchedulerInStandbyModeAsync()
+            public Task SchedulerInStandbyMode()
             {
                 return TaskUtil.CompletedTask;
             }
 
-            public Task SchedulerStartedAsync()
+            public Task SchedulerStarted()
             {
                 return TaskUtil.CompletedTask;
             }
 
-            public Task SchedulerStartingAsync()
+            public Task SchedulerStarting()
             {
                 return TaskUtil.CompletedTask;
             }
 
-            public Task SchedulerShutdownAsync()
+            public Task SchedulerShutdown()
             {
                 return TaskUtil.CompletedTask;
             }
 
-            public Task SchedulerShuttingdownAsync()
+            public Task SchedulerShuttingdown()
             {
                 return TaskUtil.CompletedTask;
             }
 
-            public Task SchedulingDataClearedAsync()
+            public Task SchedulingDataCleared()
             {
                 return TaskUtil.CompletedTask;
             }
@@ -200,11 +200,11 @@ namespace Quartz.Tests.Unit
                 .WithSchedule(SimpleScheduleBuilder.RepeatSecondlyForTotalCount(3))
                 .Build();
 
-            await scheduler.ScheduleJobAsync(job, trigger);
-            await scheduler.StartAsync();
+            await scheduler.ScheduleJob(job, trigger);
+            await scheduler.Start();
             await Task.Delay(5000);
 
-            await scheduler.ShutdownAsync(true);
+            await scheduler.Shutdown(true);
 
             Assert.AreEqual(2, jobExecutionCount);
             Assert.AreEqual(3, triggerListener.FireCount);

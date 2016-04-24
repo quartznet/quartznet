@@ -73,32 +73,32 @@ namespace Quartz.Tests.Unit.Xml
         public async Task TestScheduling_RichConfiguration()
         {
             Stream s = ReadJobXmlFromEmbeddedResource("RichConfiguration_20.xml");
-            await processor.ProcessStreamAsync(s, null);
+            await processor.ProcessStream(s, null);
             Assert.IsFalse(processor.OverWriteExistingData);
             Assert.IsTrue(processor.IgnoreDuplicates);
 
-            await processor.ScheduleJobsAsync(mockScheduler);
+            await processor.ScheduleJobs(mockScheduler);
 
-            A.CallTo(() => mockScheduler.ScheduleJobAsync(A<ITrigger>.That.Not.IsNull())).MustHaveHappened(Repeated.Exactly.Times(5));
+            A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Not.IsNull())).MustHaveHappened(Repeated.Exactly.Times(5));
         }
 
         [Test]
         public async Task TestScheduling_MinimalConfiguration()
         {
             Stream s = ReadJobXmlFromEmbeddedResource("MinimalConfiguration_20.xml");
-            await processor.ProcessStreamAsync(s, null);
+            await processor.ProcessStream(s, null);
             Assert.IsFalse(processor.OverWriteExistingData);
 
-            await processor.ScheduleJobsAsync(mockScheduler);
+            await processor.ScheduleJobs(mockScheduler);
         }
 
         [Test]
         public async Task TestScheduling_QuartzNet250()
         {
             Stream s = ReadJobXmlFromEmbeddedResource("QRTZNET250.xml");
-            await processor.ProcessStreamAndScheduleJobsAsync(s, mockScheduler);
-            A.CallTo(() => mockScheduler.AddJobAsync(A<IJobDetail>.That.Not.IsNull(), A<bool>.Ignored, A<bool>.That.IsEqualTo(true))).MustHaveHappened(Repeated.Exactly.Twice);
-            A.CallTo(() => mockScheduler.ScheduleJobAsync(A<ITrigger>.That.Not.IsNull())).MustHaveHappened(Repeated.Exactly.Twice); ;
+            await processor.ProcessStreamAndScheduleJobs(s, mockScheduler);
+            A.CallTo(() => mockScheduler.AddJob(A<IJobDetail>.That.Not.IsNull(), A<bool>.Ignored, A<bool>.That.IsEqualTo(true))).MustHaveHappened(Repeated.Exactly.Twice);
+            A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Not.IsNull())).MustHaveHappened(Repeated.Exactly.Twice); ;
         }
 
         [Test]
@@ -111,14 +111,14 @@ namespace Quartz.Tests.Unit.Xml
             existing.SetPreviousFireTimeUtc(previousFireTime);
             existing.GetNextFireTimeUtc();
 
-            A.CallTo(() => mockScheduler.GetTriggerAsync(existing.Key)).Returns(existing);
+            A.CallTo(() => mockScheduler.GetTrigger(existing.Key)).Returns(existing);
 
             Stream s = ReadJobXmlFromEmbeddedResource("ScheduleRelativeToOldTrigger.xml");
-            await processor.ProcessStreamAsync(s, null);
-            await processor.ScheduleJobsAsync(mockScheduler);
+            await processor.ProcessStream(s, null);
+            await processor.ScheduleJobs(mockScheduler);
 
             // check that last fire time was taken from existing trigger
-            A.CallTo(() => mockScheduler.RescheduleJobAsync(null, null)).WhenArgumentsMatch(args =>
+            A.CallTo(() => mockScheduler.RescheduleJob(null, null)).WhenArgumentsMatch(args =>
             {
                 ITrigger argumentTrigger = (ITrigger)args[1];
 
@@ -164,12 +164,12 @@ namespace Quartz.Tests.Unit.Xml
                 IJobDetail job = JobBuilder.Create<NoOpJob>()
                     .WithIdentity("job1").UsingJobData("foo", "dont_chg_me").Build();
                 ITrigger trigger = TriggerBuilder.Create().WithIdentity("job1").WithSchedule(SimpleScheduleBuilder.RepeatHourlyForever()).Build();
-                await scheduler.ScheduleJobAsync(job, trigger);
+                await scheduler.ScheduleJob(job, trigger);
 
                 XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(new SimpleTypeLoadHelper());
                 try
                 {
-                    await processor.ProcessFileAndScheduleJobsAsync(scheduler, false);
+                    await processor.ProcessFileAndScheduleJobs(scheduler, false);
                     Assert.Fail("OverWriteExisting flag didn't work. We should get Exception when overwrite is set to false.");
                 }
                 catch (ObjectAlreadyExistsException)
@@ -178,12 +178,12 @@ namespace Quartz.Tests.Unit.Xml
                 }
 
                 // We should still have what we start with.
-                var jobKeys = await scheduler.GetJobKeysAsync(GroupMatcher<JobKey>.GroupEquals("DEFAULT"));
+                var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("DEFAULT"));
                 Assert.AreEqual(1, jobKeys.Count);
-                var triggerKeys = await scheduler.GetTriggerKeysAsync(GroupMatcher<TriggerKey>.GroupEquals("DEFAULT"));
+                var triggerKeys = await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("DEFAULT"));
                 Assert.AreEqual(1, triggerKeys.Count);
 
-                job = await scheduler.GetJobDetailAsync(JobKey.Create("job1"));
+                job = await scheduler.GetJobDetail(JobKey.Create("job1"));
                 string fooValue = job.JobDataMap.GetString("foo");
                 Assert.AreEqual("dont_chg_me", fooValue);
             }
@@ -197,7 +197,7 @@ namespace Quartz.Tests.Unit.Xml
                 // shutdown scheduler
                 if (scheduler != null)
                 {
-                    await scheduler.ShutdownAsync();
+                    await scheduler.Shutdown();
                 }
             }
         }
@@ -234,30 +234,30 @@ namespace Quartz.Tests.Unit.Xml
                     .WithIdentity("job1")
                     .WithSchedule(SimpleScheduleBuilder.RepeatHourlyForever()).Build();
 
-                await scheduler.ScheduleJobAsync(job, trigger);
+                await scheduler.ScheduleJob(job, trigger);
 
                 job = JobBuilder.Create<NoOpJob>()
                     .WithIdentity("job2")
                     .Build();
 
                 trigger = TriggerBuilder.Create().WithIdentity("job2").WithSchedule(SimpleScheduleBuilder.RepeatHourlyForever()).Build();
-                await scheduler.ScheduleJobAsync(job, trigger);
+                await scheduler.ScheduleJob(job, trigger);
 
                 // Now load the xml data with directives: overwrite-existing-data=false, ignore-duplicates=true
                 ITypeLoadHelper loadHelper = new SimpleTypeLoadHelper();
                 loadHelper.Initialize();
                 XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(loadHelper);
-                await processor.ProcessFileAndScheduleJobsAsync(tempFileName, scheduler);
-                var jobKeys = await scheduler.GetJobKeysAsync(GroupMatcher<JobKey>.GroupEquals("DEFAULT"));
+                await processor.ProcessFileAndScheduleJobs(tempFileName, scheduler);
+                var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("DEFAULT"));
                 Assert.AreEqual(2, jobKeys.Count);
-                var triggerKeys = await scheduler.GetTriggerKeysAsync(GroupMatcher<TriggerKey>.GroupEquals("DEFAULT"));
+                var triggerKeys = await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("DEFAULT"));
                 Assert.AreEqual(2, triggerKeys.Count);
             }
             finally
             {
                 if (scheduler != null)
                 {
-                    await scheduler.ShutdownAsync();
+                    await scheduler.Shutdown();
                 }
             }
         }
@@ -266,12 +266,12 @@ namespace Quartz.Tests.Unit.Xml
         public async Task MultipleScheduleElementsShouldBeSupported()
         {
             Stream s = ReadJobXmlFromEmbeddedResource("RichConfiguration_20.xml");
-            await processor.ProcessStreamAsync(s, null);
+            await processor.ProcessStream(s, null);
 
-            await processor.ScheduleJobsAsync(mockScheduler);
+            await processor.ScheduleJobs(mockScheduler);
 
-            A.CallTo(() => mockScheduler.ScheduleJobAsync(A<IJobDetail>.That.Matches(p => p.Key.Name == "sched2_job"), A<ITrigger>.Ignored));
-            A.CallTo(() => mockScheduler.ScheduleJobAsync(A<ITrigger>.That.Matches(p => p.Key.Name == "sched2_trig"))).MustHaveHappened();
+            A.CallTo(() => mockScheduler.ScheduleJob(A<IJobDetail>.That.Matches(p => p.Key.Name == "sched2_job"), A<ITrigger>.Ignored));
+            A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Matches(p => p.Key.Name == "sched2_trig"))).MustHaveHappened();
         }
 
         [Test]
@@ -280,17 +280,17 @@ namespace Quartz.Tests.Unit.Xml
             IScheduler scheduler = await CreateDbBackedScheduler();
             try
             {
-                await processor.ProcessStreamAndScheduleJobsAsync(ReadJobXmlFromEmbeddedResource("SimpleTriggerNoRepeat.xml"), scheduler);
-                var jobKeys = await scheduler.GetJobKeysAsync(GroupMatcher<JobKey>.GroupEquals("DEFAULT"));
+                await processor.ProcessStreamAndScheduleJobs(ReadJobXmlFromEmbeddedResource("SimpleTriggerNoRepeat.xml"), scheduler);
+                var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("DEFAULT"));
                 Assert.That(jobKeys.Count, Is.EqualTo(1));
-                var triggerKeys = await scheduler.GetTriggerKeysAsync(GroupMatcher<TriggerKey>.GroupEquals("DEFAULT"));
+                var triggerKeys = await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("DEFAULT"));
                 Assert.That(triggerKeys.Count, Is.EqualTo(1));
             }
             finally
             {
                 if (scheduler != null)
                 {
-                    await scheduler.ShutdownAsync();
+                    await scheduler.Shutdown();
                 }
             }
         }
@@ -320,10 +320,10 @@ namespace Quartz.Tests.Unit.Xml
                     .WithSchedule(CronScheduleBuilder.CronSchedule("* * * * * ?"))
                     .Build();
 
-                await scheduler.ScheduleJobAsync(jobDetail, trigger);
+                await scheduler.ScheduleJob(jobDetail, trigger);
 
-                IJobDetail jobDetail2 = await scheduler.GetJobDetailAsync(jobDetail.Key);
-                ITrigger trigger2 = await scheduler.GetTriggerAsync(trigger.Key);
+                IJobDetail jobDetail2 = await scheduler.GetJobDetail(jobDetail.Key);
+                ITrigger trigger2 = await scheduler.GetTrigger(trigger.Key);
                 Assert.That(jobDetail2.JobDataMap.GetString("foo"), Is.EqualTo("foo"));
                 Assert.That(trigger2, Is.InstanceOf<ICronTrigger>());
 
@@ -332,21 +332,21 @@ namespace Quartz.Tests.Unit.Xml
                 XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(new SimpleTypeLoadHelper());
 
                 // when
-                await processor.ProcessStreamAndScheduleJobsAsync(ReadJobXmlFromEmbeddedResource("delete-no-job-class.xml"), scheduler);
+                await processor.ProcessStreamAndScheduleJobs(ReadJobXmlFromEmbeddedResource("delete-no-job-class.xml"), scheduler);
 
-                jobDetail2 = await scheduler.GetJobDetailAsync(jobDetail.Key);
-                trigger2 = await scheduler.GetTriggerAsync(trigger.Key);
+                jobDetail2 = await scheduler.GetJobDetail(jobDetail.Key);
+                trigger2 = await scheduler.GetTrigger(trigger.Key);
                 Assert.That(trigger2, Is.Null);
                 Assert.That(jobDetail2, Is.Null);
 
-                jobDetail2 = await scheduler.GetJobDetailAsync(new JobKey("job1", "DEFAULT"));
-                trigger2 = await scheduler.GetTriggerAsync(new TriggerKey("job1", "DEFAULT"));
+                jobDetail2 = await scheduler.GetJobDetail(new JobKey("job1", "DEFAULT"));
+                trigger2 = await scheduler.GetTrigger(new TriggerKey("job1", "DEFAULT"));
                 Assert.That(jobDetail2.JobDataMap.GetString("foo"), Is.EqualTo("bar"));
                 Assert.That(trigger2, Is.InstanceOf<ISimpleTrigger>());
             }
             finally
             {
-                await scheduler.ShutdownAsync(false);
+                await scheduler.Shutdown(false);
             }
         }
 
@@ -366,7 +366,7 @@ namespace Quartz.Tests.Unit.Xml
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
             IScheduler scheduler = await sf.GetScheduler();
 
-            await scheduler.ClearAsync();
+            await scheduler.Clear();
 
             return scheduler;
         }
@@ -387,10 +387,10 @@ namespace Quartz.Tests.Unit.Xml
                     .WithSchedule(CronScheduleBuilder.CronSchedule("* * * * * ?"))
                     .Build();
 
-                await scheduler.ScheduleJobAsync(jobDetail, trigger);
+                await scheduler.ScheduleJob(jobDetail, trigger);
 
-                IJobDetail jobDetail2 = await scheduler.GetJobDetailAsync(jobDetail.Key);
-                ITrigger trigger2 = await scheduler.GetTriggerAsync(trigger.Key);
+                IJobDetail jobDetail2 = await scheduler.GetJobDetail(jobDetail.Key);
+                ITrigger trigger2 = await scheduler.GetTrigger(trigger.Key);
                 Assert.That(jobDetail2.JobDataMap.GetString("foo"), Is.EqualTo("foo"));
                 Assert.That(trigger2, Is.InstanceOf<ICronTrigger>());
 
@@ -398,16 +398,16 @@ namespace Quartz.Tests.Unit.Xml
 
                 XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(new SimpleTypeLoadHelper());
 
-                await processor.ProcessStreamAndScheduleJobsAsync(ReadJobXmlFromEmbeddedResource("overwrite-no-jobclass.xml"), scheduler);
+                await processor.ProcessStreamAndScheduleJobs(ReadJobXmlFromEmbeddedResource("overwrite-no-jobclass.xml"), scheduler);
 
-                jobDetail2 = await scheduler.GetJobDetailAsync(jobDetail.Key);
-                trigger2 = await scheduler.GetTriggerAsync(trigger.Key);
+                jobDetail2 = await scheduler.GetJobDetail(jobDetail.Key);
+                trigger2 = await scheduler.GetTrigger(trigger.Key);
                 Assert.That(jobDetail2.JobDataMap.GetString("foo"), Is.EqualTo("bar"));
                 Assert.That(trigger2, Is.InstanceOf<ISimpleTrigger>());
             }
             finally
             {
-                await scheduler.ShutdownAsync(false);
+                await scheduler.Shutdown(false);
             }
         }
 
@@ -439,26 +439,26 @@ namespace Quartz.Tests.Unit.Xml
                 string job1 = Guid.NewGuid().ToString();
                 IJobDetail job = JobBuilder.Create<NoOpJob>().WithIdentity(job1).Build();
                 ITrigger trigger = TriggerBuilder.Create().WithIdentity(job1).WithSchedule(SimpleScheduleBuilder.RepeatHourlyForever()).Build();
-                await scheduler.ScheduleJobAsync(job, trigger);
+                await scheduler.ScheduleJob(job, trigger);
 
                 string job2 = Guid.NewGuid().ToString();
                 job = JobBuilder.Create<NoOpJob>().WithIdentity(job2).Build();
                 trigger = TriggerBuilder.Create().WithIdentity(job2).WithSchedule(SimpleScheduleBuilder.RepeatHourlyForever()).Build();
-                await scheduler.ScheduleJobAsync(job, trigger);
+                await scheduler.ScheduleJob(job, trigger);
 
                 // Now load the xml data with directives: overwrite-existing-data=false, ignore-duplicates=true
                 XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(new SimpleTypeLoadHelper());
-                await processor.ProcessStreamAsync(ReadJobXmlFromEmbeddedResource("directives_overwrite_no-ignoredups.xml"), "temp");
-                var jobKeys = await scheduler.GetJobKeysAsync(GroupMatcher<JobKey>.GroupEquals("DEFAULT"));
+                await processor.ProcessStream(ReadJobXmlFromEmbeddedResource("directives_overwrite_no-ignoredups.xml"), "temp");
+                var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("DEFAULT"));
                 Assert.That(jobKeys.Count, Is.EqualTo(2));
-                var triggerKeys = await scheduler.GetTriggerKeysAsync(GroupMatcher<TriggerKey>.GroupEquals("DEFAULT"));
+                var triggerKeys = await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("DEFAULT"));
                 Assert.That(triggerKeys.Count, Is.EqualTo(2));
             }
             finally
             {
                 if (scheduler != null)
                 {
-                    await scheduler.ShutdownAsync();
+                    await scheduler.Shutdown();
                 }
             }
         }

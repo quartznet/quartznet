@@ -18,7 +18,7 @@ namespace Quartz.Web.Api
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
             var matcher = (groupMatcher ?? new GroupMatcherDto()).GetJobGroupMatcher();
-            var jobKeys = await scheduler.GetJobKeysAsync(matcher).ConfigureAwait(false);
+            var jobKeys = await scheduler.GetJobKeys(matcher).ConfigureAwait(false);
             return jobKeys.Select(x => new KeyDto(x)).ToList();
         }
 
@@ -27,7 +27,7 @@ namespace Quartz.Web.Api
         public async Task<JobDetailDto> JobDetails(string schedulerName, string jobGroup, string jobName)
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
-            var jobDetail = await scheduler.GetJobDetailAsync(new JobKey(jobName, jobGroup)).ConfigureAwait(false);
+            var jobDetail = await scheduler.GetJobDetail(new JobKey(jobName, jobGroup)).ConfigureAwait(false);
             return new JobDetailDto(jobDetail);
         }
 
@@ -36,7 +36,7 @@ namespace Quartz.Web.Api
         public async Task<IReadOnlyList<CurrentlyExecutingJobDto>> CurrentlyExecutingJobs(string schedulerName)
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
-            var currentlyExecutingJobs = await scheduler.GetCurrentlyExecutingJobsAsync().ConfigureAwait(false);
+            var currentlyExecutingJobs = await scheduler.GetCurrentlyExecutingJobs().ConfigureAwait(false);
             return currentlyExecutingJobs.Select(x => new CurrentlyExecutingJobDto(x)).ToList();
         }
 
@@ -45,7 +45,7 @@ namespace Quartz.Web.Api
         public async Task PauseJobs(string schedulerName, string jobGroup, string jobName)
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
-            await scheduler.PauseJobAsync(new JobKey(jobName, jobGroup)).ConfigureAwait(false);
+            await scheduler.PauseJob(new JobKey(jobName, jobGroup)).ConfigureAwait(false);
         }
 
         [HttpPost]
@@ -54,7 +54,7 @@ namespace Quartz.Web.Api
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
             var matcher = (groupMatcher ?? new GroupMatcherDto()).GetJobGroupMatcher();
-            await scheduler.PauseJobsAsync(matcher).ConfigureAwait(false);
+            await scheduler.PauseJobs(matcher).ConfigureAwait(false);
         }
 
         [HttpPost]
@@ -62,7 +62,7 @@ namespace Quartz.Web.Api
         public async Task ResumeJob(string schedulerName, string jobGroup, string jobName)
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
-            await scheduler.ResumeJobAsync(new JobKey(jobName, jobGroup)).ConfigureAwait(false);
+            await scheduler.ResumeJob(new JobKey(jobName, jobGroup)).ConfigureAwait(false);
         }
 
         [HttpPost]
@@ -71,7 +71,7 @@ namespace Quartz.Web.Api
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
             var matcher = (groupMatcher ?? new GroupMatcherDto()).GetJobGroupMatcher();
-            await scheduler.ResumeJobsAsync(matcher).ConfigureAwait(false);
+            await scheduler.ResumeJobs(matcher).ConfigureAwait(false);
         }
 
         [HttpPost]
@@ -79,7 +79,7 @@ namespace Quartz.Web.Api
         public async Task TriggerJob(string schedulerName, string jobGroup, string jobName)
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
-            await scheduler.TriggerJobAsync(new JobKey(jobName, jobGroup)).ConfigureAwait(false);
+            await scheduler.TriggerJob(new JobKey(jobName, jobGroup)).ConfigureAwait(false);
         }
 
         [HttpDelete]
@@ -87,7 +87,7 @@ namespace Quartz.Web.Api
         public async Task DeleteJob(string schedulerName, string jobGroup, string jobName)
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
-            await scheduler.DeleteJobAsync(new JobKey(jobName, jobGroup)).ConfigureAwait(false);
+            await scheduler.DeleteJob(new JobKey(jobName, jobGroup)).ConfigureAwait(false);
         }
 
         [HttpPost]
@@ -95,7 +95,7 @@ namespace Quartz.Web.Api
         public async Task InterruptJob(string schedulerName, string jobGroup, string jobName)
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
-            await scheduler.InterruptAsync(new JobKey(jobName, jobGroup)).ConfigureAwait(false);
+            await scheduler.Interrupt(new JobKey(jobName, jobGroup)).ConfigureAwait(false);
         }
 
         [HttpPut]
@@ -104,7 +104,7 @@ namespace Quartz.Web.Api
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
             var jobDetail = new JobDetailImpl(jobName, jobGroup, Type.GetType(jobType), durable, requestsRecovery);
-            await scheduler.AddJobAsync(jobDetail, replace).ConfigureAwait(false);
+            await scheduler.AddJob(jobDetail, replace).ConfigureAwait(false);
         }
 
         private static async Task<IScheduler> GetScheduler(string schedulerName)

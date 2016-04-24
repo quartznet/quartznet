@@ -156,7 +156,7 @@ namespace Quartz.Job
 			{
 				// notify call back...
 				Log.Info($"File '{fileName}' updated, notifying listener.");
-				listener.FileUpdatedAsync(fileName).ConfigureAwait(false).GetAwaiter().GetResult();
+				listener.FileUpdated(fileName).ConfigureAwait(false).GetAwaiter().GetResult();
 			}
 			else
 			{

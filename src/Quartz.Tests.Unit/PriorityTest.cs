@@ -66,18 +66,18 @@ namespace Quartz.Tests.Unit
 
             JobDetailImpl jobDetail = new JobDetailImpl("JD", null, typeof (TestJob));
 
-            await sched.ScheduleJobAsync(jobDetail, trig1);
+            await sched.ScheduleJob(jobDetail, trig1);
 
             trig2.JobKey = new JobKey(jobDetail.Key.Name);
-            await sched.ScheduleJobAsync(trig2);
+            await sched.ScheduleJob(trig2);
 
-            await sched.StartAsync();
+            await sched.Start();
 
             await Task.Delay(2000);
 
             Assert.AreEqual("T1T2", result.ToString());
 
-            await sched.ShutdownAsync();
+            await sched.Shutdown();
         }
 
         [Test]
@@ -100,18 +100,18 @@ namespace Quartz.Tests.Unit
 
             JobDetailImpl jobDetail = new JobDetailImpl("JD", null, typeof (TestJob));
 
-            await sched.ScheduleJobAsync(jobDetail, trig1);
+            await sched.ScheduleJob(jobDetail, trig1);
 
             trig2.JobKey = new JobKey(jobDetail.Key.Name);
-            await sched.ScheduleJobAsync(trig2);
+            await sched.ScheduleJob(trig2);
 
-            await sched.StartAsync();
+            await sched.Start();
 
             await Task.Delay(2000);
 
             Assert.AreEqual("T2T1", result.ToString());
 
-            await sched.ShutdownAsync();
+            await sched.Shutdown();
         }
 
         [DisallowConcurrentExecution]

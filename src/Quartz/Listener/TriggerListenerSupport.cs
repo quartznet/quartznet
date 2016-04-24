@@ -68,22 +68,22 @@ namespace Quartz.Listener
         /// <value></value>
         public abstract string Name { get; }
 
-        public virtual Task TriggerFiredAsync(ITrigger trigger, IJobExecutionContext context)
+        public virtual Task TriggerFired(ITrigger trigger, IJobExecutionContext context)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task<bool> VetoJobExecutionAsync(ITrigger trigger, IJobExecutionContext context)
+        public virtual Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context)
         {
             return Task.FromResult(false);
         }
 
-        public virtual Task TriggerMisfiredAsync(ITrigger trigger)
+        public virtual Task TriggerMisfired(ITrigger trigger)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task TriggerCompleteAsync(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode)
+        public virtual Task TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode)
         {
             return TaskUtil.CompletedTask;
         }

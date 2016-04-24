@@ -38,11 +38,11 @@ namespace Quartz.Tests.Unit.Core
                     .WithMisfireHandlingInstructionIgnoreMisfires())
                 .Build();
 
-            await sched.ScheduleJobAsync(job, trigger);
+            await sched.ScheduleJob(job, trigger);
 
             // Start up the scheduler (nothing can actually run until the
             // scheduler has been started)
-            await sched.StartAsync();
+            await sched.Start();
 
             log.Info("------- Scheduler Started -----------------");
 

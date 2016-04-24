@@ -40,7 +40,7 @@ namespace Quartz.Examples.Example10
             get { throw new NotImplementedException(); }
         }
 
-        public virtual async Task RunAsync()
+        public virtual async Task Run()
         {
             ILog log = LogProvider.GetLogger(typeof (PlugInExample));
 
@@ -65,7 +65,7 @@ namespace Quartz.Examples.Example10
             log.Info("------- Starting Scheduler ----------------");
 
             // start the schedule 
-            await sched.StartAsync();
+            await sched.Start();
 
             log.Info("------- Started Scheduler -----------------");
 
@@ -76,10 +76,10 @@ namespace Quartz.Examples.Example10
 
             // shut down the scheduler
             log.Info("------- Shutting Down ---------------------");
-            await sched.ShutdownAsync(true);
+            await sched.Shutdown(true);
             log.Info("------- Shutdown Complete -----------------");
 
-            SchedulerMetaData metaData = await sched.GetMetaDataAsync();
+            SchedulerMetaData metaData = await sched.GetMetaData();
             log.Info("Executed " + metaData.NumberOfJobsExecuted + " jobs.");
         }
     }

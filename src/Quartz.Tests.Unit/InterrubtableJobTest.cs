@@ -90,7 +90,7 @@ namespace Quartz.Tests.Unit
             config["quartz.threadPool.threadCount"] = "2";
             config["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool";
             IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();
-            await sched.StartAsync();
+            await sched.Start();
 
             // add a job with a trigger that will fire immediately
 
@@ -104,25 +104,25 @@ namespace Quartz.Tests.Unit
                 .StartNow()
                 .Build();
 
-            await sched.ScheduleJobAsync(job, trigger);
+            await sched.ScheduleJob(job, trigger);
 
             sync.WaitOne(); // make sure the job starts running...
 
-            var executingJobs = await sched.GetCurrentlyExecutingJobsAsync();
+            var executingJobs = await sched.GetCurrentlyExecutingJobs();
 
             Assert.AreEqual(1, executingJobs.Count, "Number of executing jobs should be 1 ");
 
             IJobExecutionContext jec = executingJobs[0];
 
-            bool interruptResult = await sched.InterruptAsync(jec.FireInstanceId);
+            bool interruptResult = await sched.Interrupt(jec.FireInstanceId);
 
             sync.WaitOne(); // wait for the job to terminate
 
             Assert.IsTrue(interruptResult, "Expected successful result from interruption of job ");
             Assert.IsTrue(TestInterruptableJob.interrupted, "Expected interrupted flag to be set on job class ");
 
-            await sched.ClearAsync();
-            await sched.ShutdownAsync();
+            await sched.Clear();
+            await sched.Shutdown();
         }
     }
 }

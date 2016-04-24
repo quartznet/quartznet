@@ -40,7 +40,7 @@ namespace Quartz.Examples.Example3
             get { throw new NotImplementedException(); }
         }
 
-        public virtual async Task RunAsync()
+        public virtual async Task Run()
         {
             ILog log = LogProvider.GetLogger(typeof (CronTriggerExample));
 
@@ -67,7 +67,7 @@ namespace Quartz.Examples.Example3
                 .WithCronSchedule("0/20 * * * * ?")
                 .Build();
 
-            DateTimeOffset ft = await sched.ScheduleJobAsync(job, trigger);
+            DateTimeOffset ft = await sched.ScheduleJob(job, trigger);
             log.Info(job.Key + " has been scheduled to run at: " + ft
                      + " and repeat based on expression: "
                      + trigger.CronExpressionString);
@@ -82,7 +82,7 @@ namespace Quartz.Examples.Example3
                 .WithCronSchedule("15 0/2 * * * ?")
                 .Build();
 
-            ft = await sched.ScheduleJobAsync(job, trigger);
+            ft = await sched.ScheduleJob(job, trigger);
             log.Info(job.Key + " has been scheduled to run at: " + ft
                      + " and repeat based on expression: "
                      + trigger.CronExpressionString);
@@ -97,7 +97,7 @@ namespace Quartz.Examples.Example3
                 .WithCronSchedule("0 0/2 8-17 * * ?")
                 .Build();
 
-            ft = await sched.ScheduleJobAsync(job, trigger);
+            ft = await sched.ScheduleJob(job, trigger);
             log.Info(job.Key + " has been scheduled to run at: " + ft
                      + " and repeat based on expression: "
                      + trigger.CronExpressionString);
@@ -112,7 +112,7 @@ namespace Quartz.Examples.Example3
                 .WithCronSchedule("0 0/3 17-23 * * ?")
                 .Build();
 
-            ft = await sched.ScheduleJobAsync(job, trigger);
+            ft = await sched.ScheduleJob(job, trigger);
             log.Info(job.Key + " has been scheduled to run at: " + ft
                      + " and repeat based on expression: "
                      + trigger.CronExpressionString);
@@ -127,7 +127,7 @@ namespace Quartz.Examples.Example3
                 .WithCronSchedule("0 0 10am 1,15 * ?")
                 .Build();
 
-            ft = await sched.ScheduleJobAsync(job, trigger);
+            ft = await sched.ScheduleJob(job, trigger);
             log.Info(job.Key + " has been scheduled to run at: " + ft
                      + " and repeat based on expression: "
                      + trigger.CronExpressionString);
@@ -142,7 +142,7 @@ namespace Quartz.Examples.Example3
                 .WithCronSchedule("0,30 * * ? * MON-FRI")
                 .Build();
 
-            ft = await sched.ScheduleJobAsync(job, trigger);
+            ft = await sched.ScheduleJob(job, trigger);
             log.Info(job.Key + " has been scheduled to run at: " + ft
                      + " and repeat based on expression: "
                      + trigger.CronExpressionString);
@@ -157,7 +157,7 @@ namespace Quartz.Examples.Example3
                 .WithCronSchedule("0,30 * * ? * SAT,SUN")
                 .Build();
 
-            ft = await sched.ScheduleJobAsync(job, trigger);
+            ft = await sched.ScheduleJob(job, trigger);
             log.Info(job.Key + " has been scheduled to run at: " + ft
                      + " and repeat based on expression: "
                      + trigger.CronExpressionString);
@@ -167,7 +167,7 @@ namespace Quartz.Examples.Example3
             // All of the jobs have been added to the scheduler, but none of the
             // jobs
             // will run until the scheduler has been started
-            await sched.StartAsync();
+            await sched.Start();
 
             log.Info("------- Started Scheduler -----------------");
 
@@ -179,11 +179,11 @@ namespace Quartz.Examples.Example3
 
             log.Info("------- Shutting Down ---------------------");
 
-            await sched.ShutdownAsync(true);
+            await sched.Shutdown(true);
 
             log.Info("------- Shutdown Complete -----------------");
 
-            SchedulerMetaData metaData = await sched.GetMetaDataAsync();
+            SchedulerMetaData metaData = await sched.GetMetaData();
             log.Info($"Executed {metaData.NumberOfJobsExecuted} jobs.");
         }
     }

@@ -36,15 +36,15 @@ namespace Quartz.Spi
 		/// Notifies the scheduler about misfired trigger.
 		/// </summary>
 		/// <param name="trigger">The trigger that misfired.</param>
-        Task NotifyTriggerListenersMisfiredAsync(ITrigger trigger);
+        Task NotifyTriggerListenersMisfired(ITrigger trigger);
 
         /// <summary>
         /// Notifies the scheduler about finalized trigger.
         /// </summary>
         /// <param name="trigger">The trigger that has finalized.</param>
-        Task NotifySchedulerListenersFinalizedAsync(ITrigger trigger);
+        Task NotifySchedulerListenersFinalized(ITrigger trigger);
 
-        Task NotifySchedulerListenersJobDeletedAsync(JobKey jobKey);
+        Task NotifySchedulerListenersJobDeleted(JobKey jobKey);
 
         /// <summary>
         /// Signals the scheduling change.
@@ -54,6 +54,6 @@ namespace Quartz.Spi
         /// <summary>
         /// Informs scheduler listeners about an exception that has occurred.
         /// </summary>
-        Task NotifySchedulerListenersErrorAsync(string message, SchedulerException jpe);
+        Task NotifySchedulerListenersError(string message, SchedulerException jpe);
 	}
 }

@@ -91,7 +91,7 @@ namespace Quartz.Listener
             chainLinks.Add(firstJob, secondJob);
         }
 
-        public override async Task JobWasExecutedAsync(IJobExecutionContext context, JobExecutionException jobException)
+        public override async Task JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
         {
             JobKey sj;
             chainLinks.TryGetValue(context.JobDetail.Key, out sj);
@@ -105,7 +105,7 @@ namespace Quartz.Listener
 
             try
             {
-                await context.Scheduler.TriggerJobAsync(sj).ConfigureAwait(false);
+                await context.Scheduler.TriggerJob(sj).ConfigureAwait(false);
             }
             catch (SchedulerException se)
             {

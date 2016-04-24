@@ -49,7 +49,7 @@ namespace Quartz
         /// has fired, and it's associated <see cref="IJobDetail" />
         /// is about to be executed.
         /// <para>
-        /// It is called before the <see cref="VetoJobExecutionAsync" /> method of this
+        /// It is called before the <see cref="VetoJobExecution" /> method of this
         /// interface.
         /// </para>
         /// </summary>
@@ -57,14 +57,14 @@ namespace Quartz
         /// <param name="context">
         ///     The <see cref="IJobExecutionContext" /> that will be passed to the <see cref="IJob" />'s<see cref="IJob.Execute" /> method.
         /// </param>
-        Task TriggerFiredAsync(ITrigger trigger, IJobExecutionContext context);
+        Task TriggerFired(ITrigger trigger, IJobExecutionContext context);
 
         /// <summary>
         /// Called by the <see cref="IScheduler"/> when a <see cref="ITrigger"/>
         /// has fired, and it's associated <see cref="IJobDetail"/>
         /// is about to be executed.
         /// <para>
-        /// It is called after the <see cref="TriggerFiredAsync"/> method of this
+        /// It is called after the <see cref="TriggerFired"/> method of this
         /// interface.  If the implementation vetoes the execution (via
         /// returning <see langword="true" />), the job's execute method will not be called.
         /// </para>
@@ -73,7 +73,7 @@ namespace Quartz
         /// <param name="context">The <see cref="IJobExecutionContext"/> that will be passed to
         /// the <see cref="IJob"/>'s<see cref="IJob.Execute"/> method.</param>
         /// <returns>Returns true if job execution should be vetoed, false otherwise.</returns>
-        Task<bool> VetoJobExecutionAsync(ITrigger trigger, IJobExecutionContext context);
+        Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
@@ -86,7 +86,7 @@ namespace Quartz
         /// </para>
         /// </summary>
         /// <param name="trigger">The <see cref="ITrigger" /> that has misfired.</param>
-        Task TriggerMisfiredAsync(ITrigger trigger);
+        Task TriggerMisfired(ITrigger trigger);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
@@ -102,6 +102,6 @@ namespace Quartz
         /// <param name="triggerInstructionCode">
         /// The result of the call on the <see cref="ITrigger" />'s<see cref="IOperableTrigger.Triggered" />  method.
         /// </param>
-        Task TriggerCompleteAsync(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode);
+        Task TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode);
     }
 }

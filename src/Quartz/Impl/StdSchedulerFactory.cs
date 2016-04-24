@@ -981,7 +981,7 @@ Please add configuration to your application config file to correctly initialize
                 js.InstanceId = schedInstId;
                 js.InstanceName = schedName;
                 js.ThreadPoolSize = tp.PoolSize;
-                await js.InitializeAsync(loadHelper, qs.SchedulerSignaler).ConfigureAwait(false);
+                await js.Initialize(loadHelper, qs.SchedulerSignaler).ConfigureAwait(false);
 
                 jrsf.Initialize(sched);
                 qs.Initialize();
@@ -1004,23 +1004,23 @@ Please add configuration to your application config file to correctly initialize
             }
             catch (SchedulerException)
             {
-                await ShutdownFromInstantiateExceptionAsync(tp, qs, tpInited, qsInited).ConfigureAwait(false);
+                await ShutdownFromInstantiateException(tp, qs, tpInited, qsInited).ConfigureAwait(false);
                 throw;
             }
             catch
             {
-                await ShutdownFromInstantiateExceptionAsync(tp, qs, tpInited, qsInited).ConfigureAwait(false);
+                await ShutdownFromInstantiateException(tp, qs, tpInited, qsInited).ConfigureAwait(false);
                 throw;
             }
         }
 
-        private async Task ShutdownFromInstantiateExceptionAsync(IThreadPool tp, QuartzScheduler qs, bool tpInited, bool qsInited)
+        private async Task ShutdownFromInstantiateException(IThreadPool tp, QuartzScheduler qs, bool tpInited, bool qsInited)
         {
             try
             {
                 if (qsInited)
                 {
-                    await qs.ShutdownAsync(false).ConfigureAwait(false);
+                    await qs.Shutdown(false).ConfigureAwait(false);
                 }
                 else if (tpInited)
                 {

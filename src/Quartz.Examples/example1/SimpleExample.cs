@@ -40,7 +40,7 @@ namespace Quartz.Examples.Example1
             get { throw new NotImplementedException(); }
         }
 
-        public virtual async Task RunAsync()
+        public virtual async Task Run()
         {
             ILog log = LogProvider.GetLogger(typeof (SimpleExample));
 
@@ -70,12 +70,12 @@ namespace Quartz.Examples.Example1
                 .Build();
 
             // Tell quartz to schedule the job using our trigger
-            await sched.ScheduleJobAsync(job, trigger);
+            await sched.ScheduleJob(job, trigger);
             log.Info($"{job.Key} will run at: {runTime.ToString("r")}");
 
             // Start up the scheduler (nothing can actually run until the 
             // scheduler has been started)
-            await sched.StartAsync();
+            await sched.Start();
             log.Info("------- Started Scheduler -----------------");
 
             // wait long enough so that the scheduler as an opportunity to 
@@ -87,7 +87,7 @@ namespace Quartz.Examples.Example1
 
             // shut down the scheduler
             log.Info("------- Shutting Down ---------------------");
-            await sched.ShutdownAsync(true);
+            await sched.Shutdown(true);
             log.Info("------- Shutdown Complete -----------------");
         }
     }
