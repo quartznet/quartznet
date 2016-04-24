@@ -9,9 +9,10 @@
   ],
   "projectUrl": "",
   "licenseUrl": "",
-  "dependencies": {
-    "LibLog": "4.2.4"
-  },
+    "dependencies": {
+        "C5": "2.4.5947.17249",
+        "LibLog": "4.2.4"
+    },
   "compilationOptions": {
     "warningsAsErrors": true,
     "define": [

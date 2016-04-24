@@ -1,6 +1,5 @@
 using System;
-using System.Threading;
-
+using System.Threading.Tasks;
 using log4net;
 
 namespace Quartz.Server
@@ -25,10 +24,10 @@ namespace Quartz.Server
         /// execution.
         /// </remarks>
         /// <param name="context">The execution context.</param>
-        public void Execute(IJobExecutionContext context)
+        public async Task Execute(IJobExecutionContext context)
         {
             logger.Info("SampleJob running...");
-            Thread.Sleep(TimeSpan.FromSeconds(5));
+            await Task.Delay(TimeSpan.FromSeconds(5));
             logger.Info("SampleJob run finished.");
         }
     }
