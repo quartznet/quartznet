@@ -35,21 +35,6 @@ namespace Quartz.Spi
     [Serializable]
 #endif // BINARY_SERIALIZATION
     [DataContract]
-    // TODO (NetCore Port) :    Figure out how these types are serialized and if Quartz always controls the serialization,
-    //                          consider removing KnownType attributes from Quartz types and listing the types in the serializer.
-    [KnownType(typeof(Impl.Triggers.AbstractTrigger))]
-    [KnownType(typeof(Impl.Triggers.CalendarIntervalTriggerImpl))]
-    [KnownType(typeof(Impl.Triggers.CronTriggerImpl))]
-    [KnownType(typeof(Impl.Triggers.DailyTimeIntervalTriggerImpl))]
-    [KnownType(typeof(Impl.Triggers.SimpleTriggerImpl))]
-    [KnownType(typeof(Impl.JobDetailImpl))]
-    [KnownType(typeof(Impl.Calendar.AnnualCalendar))]
-    [KnownType(typeof(Impl.Calendar.BaseCalendar))]
-    [KnownType(typeof(Impl.Calendar.CronCalendar))]
-    [KnownType(typeof(Impl.Calendar.DailyCalendar))]
-    [KnownType(typeof(Impl.Calendar.HolidayCalendar))]
-    [KnownType(typeof(Impl.Calendar.MonthlyCalendar))]
-    [KnownType(typeof(Impl.Calendar.WeeklyCalendar))]
     public class TriggerFiredBundle
     {
         [DataMember] private readonly IJobDetail job;

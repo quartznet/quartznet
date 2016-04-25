@@ -35,13 +35,6 @@ namespace Quartz.Impl.Matchers
     [Serializable]
 #endif // BINARY_SERIALIZATION
     [DataContract]
-    [KnownType(typeof(AndMatcher<>))]
-    [KnownType(typeof(GroupMatcher<>))]
-    [KnownType(typeof(KeyMatcher<>))]
-    [KnownType(typeof(NameMatcher<>))]
-    [KnownType(typeof(NotMatcher<>))]
-    [KnownType(typeof(OrMatcher<>))]
-    [KnownType(typeof(StringMatcher<>))]
     public class OrMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
         [DataMember]

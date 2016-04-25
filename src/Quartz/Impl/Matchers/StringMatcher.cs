@@ -35,8 +35,6 @@ namespace Quartz.Impl.Matchers
     [Serializable]
 #endif // BINARY_SERIALIZATION
     [DataContract]
-    // TODO (NetCore Port): We may need [KnownType] attributes here for the implementations of StringOperator for some DCS serializers
-    //                      If so, those nested types may need to become internal.
     public abstract class StringMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
         [DataMember]

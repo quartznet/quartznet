@@ -54,6 +54,28 @@ namespace Quartz.Util
         {
         }
 
+        // TODO (NetCore Port) - When serialized in an object collection, Json.Net deserializes all integer types as longs and all real number types
+        //                       as doubles. If needed, we could do some 'fix-ups' here if a different default was preferable (return numeric types as the
+        //                       smallest type they fit in, for example). For now, let's use the default Json.Net behavior and re-evaluate later if any
+        //                       cleanup is needed here.
+        //[OnDeserialized]
+        //private void CleanupDeserializedMap(StreamingContext ctx)
+        //{
+        //    foreach (var key in GetKeys())
+        //    {
+        //        var val = this[key];
+        //        if (val is long)
+        //        {
+        //            long longVal = (long)val;
+        //            if (longVal <= int.MaxValue && longVal >= int.MinValue)
+        //            {
+        //                Put(key, (int)longVal);
+        //                continue;
+        //            }
+        //        }
+        //    }
+        //}
+
 #if BINARY_SERIALIZATION
         /// <summary>
         /// Serialization constructor.

@@ -35,9 +35,6 @@ namespace Quartz.Impl.Matchers
     [Serializable]
 #endif // BINARY_SERIALIZATION
     [DataContract]
-    [KnownType(typeof(JobKey))]
-    [KnownType(typeof(Key<>))]
-    [KnownType(typeof(TriggerKey))]
     public class KeyMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
         [DataMember]

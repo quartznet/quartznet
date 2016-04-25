@@ -72,21 +72,6 @@ namespace Quartz.Impl
     [Serializable]
 #endif // BINARY_SERIALIZATION
     [DataContract]
-    // TODO (NetCore Port) :    Figure out how these types are serialized and if Quartz always controls the serialization,
-    //                          consider removing KnownType attributes from Quartz types and listing the types in the serializer.
-    [KnownType(typeof(Triggers.AbstractTrigger))]
-    [KnownType(typeof(Triggers.CalendarIntervalTriggerImpl))]
-    [KnownType(typeof(Triggers.CronTriggerImpl))]
-    [KnownType(typeof(Triggers.DailyTimeIntervalTriggerImpl))]
-    [KnownType(typeof(Triggers.SimpleTriggerImpl))]
-    [KnownType(typeof(JobDetailImpl))]
-    [KnownType(typeof(Calendar.AnnualCalendar))]
-    [KnownType(typeof(Calendar.BaseCalendar))]
-    [KnownType(typeof(Calendar.CronCalendar))]
-    [KnownType(typeof(Calendar.DailyCalendar))]
-    [KnownType(typeof(Calendar.HolidayCalendar))]
-    [KnownType(typeof(Calendar.MonthlyCalendar))]
-    [KnownType(typeof(Calendar.WeeklyCalendar))]
     public class JobExecutionContextImpl : ICancellableJobExecutionContext
     {
 #if BINARY_SERIALIZATION
