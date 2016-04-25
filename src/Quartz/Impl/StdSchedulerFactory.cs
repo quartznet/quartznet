@@ -508,6 +508,12 @@ Please add configuration to your application config file to correctly initialize
 
             Type tpType = loadHelper.LoadType(cfg.GetStringProperty(PropertyThreadPoolType)) ?? typeof(SimpleThreadPool);
 
+            if (tpType == typeof(SimpleThreadPool))
+            {
+                // use as synonum for now
+                tpType = typeof(ClrThreadPool);
+            }
+
             try
             {
                 tp = ObjectUtils.InstantiateType<IThreadPool>(tpType);

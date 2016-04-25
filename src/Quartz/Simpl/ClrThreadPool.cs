@@ -8,7 +8,7 @@ namespace Quartz.Simpl
 {
     public class ClrThreadPool : IThreadPool
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof (ClrThreadPool));
+        private static readonly ILog log = LogProvider.GetLogger(typeof(ClrThreadPool));
 
         public bool RunInThread(Action runnable)
         {
@@ -52,6 +52,40 @@ namespace Quartz.Simpl
         public int? WorkerThreadCount { get; set; }
 
         public int? CompletionPortThreadCount { get; set; }
+
+        /// <summary>
+        /// Gets or sets the number of worker threads in the pool.
+        /// Set  has no effect after <see cref="Initialize()" /> has been called.
+        /// </summary>
+        public int ThreadCount
+        {
+            get
+            {
+                int workerThreads;
+                int completionPortThreads;
+
+                ThreadPool.GetMaxThreads(out workerThreads, out completionPortThreads);
+                return WorkerThreadCount.GetValueOrDefault(workerThreads);
+            }
+            set { WorkerThreadCount = value; }
+        }
+
+        /// <summary>
+        /// Get or set the thread priority of worker threads in the pool.
+        /// Set operation has no effect after <see cref="Initialize()" /> has been called.
+        /// </summary>
+        public ThreadPriority ThreadPriority { get; set; } = ThreadPriority.Normal;
+
+        /// <summary>
+        /// Gets or sets the thread name prefix.
+        /// </summary>
+        /// <value>The thread name prefix.</value>
+        public string ThreadNamePrefix { get; set; }
+
+        /// <summary> 
+        /// Gets or sets the value of makeThreadsDaemons.
+        /// </summary>
+        public bool MakeThreadsDaemons { get; set; }
 
         public void Shutdown(bool waitForJobsToComplete = true)
         {
