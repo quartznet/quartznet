@@ -37,7 +37,6 @@
           "ICLONEABLE",
           "MAIL",
           "REMOTING",
-          "STACKTRACE",
           "THREAD_APARTMENTSTATE",
           "THREAD_INTERRUPTION",
           "THREAD_PRIORITY",

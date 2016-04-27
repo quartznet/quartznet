@@ -492,7 +492,7 @@ namespace Quartz.Logging
             return GetLogger(typeof(T));
         }
 
-#if STACKTRACE && !LIBLOG_PORTABLE
+#if !LIBLOG_PORTABLE
         /// <summary>
         /// Gets a logger for the current class.
         /// </summary>
@@ -1151,7 +1151,7 @@ namespace Quartz.Logging.LogProviders
                 {
                     lock (GetType())
                     {
-#if STACKTRACE && !LIBLOG_PORTABLE
+#if !LIBLOG_PORTABLE
                         StackTrace stack = new StackTrace();
                         Type thisType = GetType();
                         _callerStackBoundaryType = Type.GetType("LoggerExecutionWrapper");
@@ -1932,7 +1932,11 @@ namespace Quartz.Logging.LogProviders
 
         internal static Type GetBaseTypePortable(this Type type)
         {
+#if LIBLOG_PORTABLE
             return type.GetTypeInfo().BaseType;
+#else
+            return type.BaseType;
+#endif
         }
 
 #if LIBLOG_PORTABLE
@@ -1947,9 +1951,20 @@ namespace Quartz.Logging.LogProviders
         }
 #endif
 
+#if !LIBLOG_PORTABLE
+        internal static object CreateDelegate(this MethodInfo methodInfo, Type delegateType)
+        {
+            return Delegate.CreateDelegate(delegateType, methodInfo);
+        }
+#endif
+
         internal static Assembly GetAssemblyPortable(this Type type)
         {
+#if LIBLOG_PORTABLE
             return type.GetTypeInfo().Assembly;
+#else
+            return type.GetAssembly;
+#endif
         }
     }
 
