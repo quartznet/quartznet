@@ -292,7 +292,7 @@ namespace Quartz
         private string timeZoneInfoId
         {
             get { return timeZone?.Id; }
-            set { timeZone = (value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value)); }
+            set { timeZone = (value == null ? null : TimeZoneUtil.FindTimeZoneById(value)); }
         }
 
         /// <summary>
