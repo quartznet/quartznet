@@ -1963,7 +1963,7 @@ namespace Quartz.Logging.LogProviders
 #if LIBLOG_PORTABLE
             return type.GetTypeInfo().Assembly;
 #else
-            return type.GetAssembly;
+            return type.Assembly;
 #endif
         }
     }
