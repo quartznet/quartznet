@@ -516,11 +516,14 @@ Please add configuration to your application config file to correctly initialize
 
             Type tpType = loadHelper.LoadType(cfg.GetStringProperty(PropertyThreadPoolType)) ?? typeof(SimpleThreadPool);
 
+#if WINDOWS_THREADPOOL  // TODO (NetCore Port) - We can't use the ClrThreadPool on .NET Core because cross-plat threadpool implementations don't expose all the APIs we need
+                        // Use the SimpleThreadPool there for now and in the future create a new async-friendly threadpool that will work cross-plat.
             if (tpType == typeof(SimpleThreadPool))
             {
                 // use as synonum for now
                 tpType = typeof(ClrThreadPool);
             }
+#endif // WINDOWS_THREADPOOL
 
             try
             {
