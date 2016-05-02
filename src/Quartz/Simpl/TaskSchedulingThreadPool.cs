@@ -13,7 +13,7 @@ namespace Quartz.Simpl
     /// </summary>
     public abstract class TaskSchedulingThreadPool : IThreadPool
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof(SimpleThreadPool));
+        private static readonly ILog log = LogProvider.GetLogger(typeof(TaskSchedulingThreadPool));
 
         // The token source used to cancel thread pool execution at shutdown
         // Note that cancellation is not propagated to the user-scheduled tasks currently executing,
