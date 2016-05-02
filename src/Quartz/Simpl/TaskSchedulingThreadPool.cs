@@ -118,7 +118,7 @@ namespace Quartz.Simpl
         /// Determines the number of threads that are currently available in
         /// the pool; blocks until at least one is avaialble
         /// </summary>
-        /// <returns>the number of currently available threads</returns>
+        /// <returns>The number of currently available threads</returns>
         public int BlockForAvailableThreads()
         {
             if (isInitialized && !shutdownCancellation.IsCancellationRequested)
@@ -170,6 +170,14 @@ namespace Quartz.Simpl
             var task = new Task(runnable);
             lock (taskListLock)
             {
+                // Now that the taskListLock is held, shutdown can't proceed,
+                // so double-check that no shutdown has started since the initial check.
+                if (shutdownCancellation.IsCancellationRequested)
+                {
+                    concurrencySemaphore.Release();
+                    return false;
+                }
+
                 // Record the task as running
                 runningTasks.Add(task);
             }
@@ -207,6 +215,14 @@ namespace Quartz.Simpl
             var unwrappedTask = task.Unwrap();
             lock (taskListLock)
             {
+                // Now that the taskListLock is held, shutdown can't proceed,
+                // so double-check that no shutdown has started since the initial check.
+                if (shutdownCancellation.IsCancellationRequested)
+                {
+                    concurrencySemaphore.Release();
+                    return false;
+                }
+
                 // Record the underlying task as running
                 runningTasks.Add(unwrappedTask);
             }
@@ -226,13 +242,13 @@ namespace Quartz.Simpl
         /// <param name="completedTask">The task which has completed</param>
         private void RemoveTaskFromRunningList(Task completedTask)
         {
+            concurrencySemaphore.Release();
             lock (taskListLock)
             {
                 if (completedTask != null && runningTasks.Contains(completedTask))
                 {
                     runningTasks.Remove(completedTask);
                 }
-                concurrencySemaphore.Release();
             }
         }
 
@@ -251,7 +267,15 @@ namespace Quartz.Simpl
             if (waitForJobsToComplete)
             {
                 log.DebugFormat($"Waiting for {runningTasks.Count} threads to complete.");
-                Task.WaitAll(runningTasks.ToArray());
+
+                Task[] tasksArray = new Task[0];
+                lock (taskListLock)
+                {
+                    // Cancellation has been signaled, so no new tasks will begin once
+                    // shutdown has acquired this lock
+                    tasksArray = runningTasks.ToArray();
+                }
+                Task.WaitAll(tasksArray);
                 log.Debug("No executing jobs remaining, all threads stopped.");
             }
             log.Debug("Shutdown of threadpool complete.");
