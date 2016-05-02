@@ -8,7 +8,7 @@ using Quartz.Spi;
 
 namespace Quartz.Simpl
 {
-    public class TaskSchedulingThreadPool : IThreadPool
+    public abstract class TaskSchedulingThreadPool : IThreadPool
     {
         private static readonly ILog log = LogProvider.GetLogger(typeof(SimpleThreadPool));
         private readonly CancellationTokenSource shutdownCancellation = new CancellationTokenSource();
@@ -16,7 +16,6 @@ namespace Quartz.Simpl
         private readonly object taskListLock = new object();
 
         protected const int DefaultMaxConcurrency = 10;
-        protected TaskScheduler DefaultScheduler => TaskScheduler.Default;
 
         private SemaphoreSlim concurrencySemaphore;
         private bool isInitialized = false;
@@ -29,10 +28,17 @@ namespace Quartz.Simpl
             set { if (!isInitialized) scheduler = value; }
         }
 
+        protected abstract TaskScheduler GetDefaultScheduler();
+
         public int MaxConcurency
         {
             get { return maxConcurrency; }
             set { if (!isInitialized) maxConcurrency = value; }
+        }
+
+        public int ThreadCount {
+            get { return MaxConcurency; }
+            set { MaxConcurency = value; }
         }
 
         public int PoolSize => MaxConcurency;
@@ -41,16 +47,16 @@ namespace Quartz.Simpl
 
         public string InstanceName { get; set; }
 
-        public TaskSchedulingThreadPool() : this(DefaultMaxConcurrency, null) { }
+        public TaskSchedulingThreadPool() : this(DefaultMaxConcurrency) { }
 
-        public TaskSchedulingThreadPool(int maxConcurrency, TaskScheduler sched)
+        public TaskSchedulingThreadPool(int maxConcurrency)
         {
             MaxConcurency = maxConcurrency;
-            Scheduler = sched ?? DefaultScheduler;
         }
 
         public virtual void Initialize()
         {
+            scheduler = GetDefaultScheduler();
             concurrencySemaphore = new SemaphoreSlim(MaxConcurency);
             isInitialized = true;
             log.Debug($"TaskSchedulingThreadPool configured with max concurrency of {MaxConcurency} and TaskScheduler {Scheduler.GetType().Name}.");
