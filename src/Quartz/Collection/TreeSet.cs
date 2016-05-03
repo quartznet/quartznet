@@ -20,6 +20,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 
 namespace Quartz.Collection
 {
@@ -27,19 +28,29 @@ namespace Quartz.Collection
     /// Only for backwards compatibility with serialization!
     /// </summary>
     /// <typeparam name="T"></typeparam>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
+    [DataContract]  // TODO (NetCore Port): Confirm that data contract serialization works as expected here
     internal class TreeSet<T> : SortedSet<T>
     {
+        // No non-binary-formatter alternative is needed since this will not be deserialized by new .NET Core versions of Quartz.Net
+#if BINARY_SERIALIZATION
         protected override void OnDeserialization(object sender)
         {
             base.OnDeserialization(sender);
         }
+#endif // BINARY_SERIALIZATION
+
     }
 
     /// <summary>
     /// Only for backwards compatibility with serialization!
     /// </summary>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
+    [DataContract]
     internal class TreeSet : ArrayList
     {
     }

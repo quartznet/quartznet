@@ -74,6 +74,7 @@ namespace Quartz.Impl.AdoJobStore
             cancellationTokenSource.Cancel();
             try
             {
+                taskScheduler.Dispose();
                 await task.ConfigureAwait(false);
             }
             catch (OperationCanceledException)

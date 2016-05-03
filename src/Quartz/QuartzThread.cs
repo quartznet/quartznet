@@ -66,6 +66,7 @@ namespace Quartz
             thread.Start();
         }
 
+#if THREAD_INTERRUPTION
         /// <summary>
         /// Interrupts a thread that is in the WaitSleepJoin thread state
         /// </summary>
@@ -73,6 +74,7 @@ namespace Quartz
         {
             thread.Interrupt();
         }
+#endif // THREAD_INTERRUPTION
 
         /// <summary>
         /// Gets or sets the name of the thread
@@ -83,6 +85,7 @@ namespace Quartz
             protected set { thread.Name = value; }
         }
 
+#if THREAD_PRIORITY
         /// <summary>
         /// Gets or sets a value indicating the scheduling priority of a thread
         /// </summary>
@@ -91,6 +94,7 @@ namespace Quartz
             get { return thread.Priority; }
             set { thread.Priority = value; }
         }
+#endif // THREAD_PRIORITY
 
         /// <summary>
         /// Gets or sets a value indicating whether or not a thread is a background thread.
@@ -114,7 +118,11 @@ namespace Quartz
         /// <returns>A string that represents the current object</returns>
         public override string ToString()
         {
+#if THREAD_PRIORITY
             return $"Thread[{Name},{Priority},]";
+#else // THREAD_PRIORITY
+            return $"Thread[{Name}]";
+#endif // THREAD_PRIORITY
         }
     }
 }

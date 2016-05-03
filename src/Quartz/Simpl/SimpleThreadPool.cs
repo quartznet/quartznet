@@ -236,7 +236,9 @@ namespace Quartz.Simpl
                     {
                         if (interrupted)
                         {
+#if THREAD_INTERRUPTION
                             Thread.CurrentThread.Interrupt();
+#endif // THREAD_INTERRUPTION
                         }
                     }
 
@@ -302,7 +304,10 @@ namespace Quartz.Simpl
 
         public bool RunInThread(Func<Task> runnable)
         {
-            throw new NotSupportedException("This ThreadPool should not be used for running async jobs");
+            // TODO (NetCore Port): We probably ought to create a new task-based "thread pool" but just jury-rigging this in for the moment
+            //                      so that it doesn't block testing other scenarios.
+            return RunInThread(new Action(runnable().Wait));
+            // throw new NotSupportedException("This ThreadPool should not be used for running async jobs");
         }
 
         public int BlockForAvailableThreads()
@@ -406,7 +411,9 @@ namespace Quartz.Simpl
                 {
                     runOnce = true;
                 }
+#if THREAD_PRIORITY
                 Priority = prio;
+#endif // THREAD_PRIORITY
                 IsBackground = isDaemon;
             }
 
@@ -466,8 +473,10 @@ namespace Quartz.Simpl
                         {
                             runnable = null;
                         }
+#if THREAD_PRIORITY
                         // repair the thread in case the runnable mucked it up...
                         Priority = tp.ThreadPriority;
+#endif // THREAD_PRIORITY
 
                         if (runOnce)
                         {

@@ -22,7 +22,9 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
+#if REMOTING
 using System.Runtime.Remoting.Messaging;
+#endif // REMOTING
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -41,7 +43,11 @@ namespace Quartz.Impl.AdoJobStore
     /// <author>Marko Lahma (.NET)</author>
     public class SimpleSemaphore : ISemaphore
     {
+#if REMOTING
         private const string KeyThreadLockOwners = "quartz_semaphore_lock_owners";
+#else // REMOTING
+        private static readonly AsyncLocal<HashSet<string>> asyncThreadLocks = new AsyncLocal<HashSet<string>>();
+#endif // REMOTING
 
         private readonly ILog log;
         private readonly HashSet<string> locks = new HashSet<string>();
@@ -58,6 +64,7 @@ namespace Quartz.Impl.AdoJobStore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static HashSet<string> GetThreadLocks()
         {
+#if REMOTING
             HashSet<string> threadLocks = (HashSet<string>) CallContext.LogicalGetData(KeyThreadLockOwners);
             if (threadLocks == null)
             {
@@ -65,6 +72,13 @@ namespace Quartz.Impl.AdoJobStore
                 CallContext.LogicalSetData(KeyThreadLockOwners, threadLocks);
             }
             return threadLocks;
+#else // REMOTING
+            if (asyncThreadLocks.Value == null)
+            {
+                asyncThreadLocks.Value = new HashSet<string>();
+            }
+            return asyncThreadLocks.Value;
+#endif // REMOTING
         }
 
         /// <summary> 
@@ -76,8 +90,6 @@ namespace Quartz.Impl.AdoJobStore
         {
             lock (this)
             {
-                lockName = string.Intern(lockName);
-
                 if (log.IsDebugEnabled())
                 {
                     log.Debug($"Lock '{lockName}' is desired by: {Thread.CurrentThread.Name}");
@@ -128,8 +140,6 @@ namespace Quartz.Impl.AdoJobStore
         {
             lock (this)
             {
-                lockName = string.Intern(lockName);
-
                 if (IsLockOwner(lockName))
                 {
                     if (log.IsDebugEnabled())
@@ -156,7 +166,6 @@ namespace Quartz.Impl.AdoJobStore
         {
             lock (this)
             {
-                lockName = string.Intern(lockName);
                 return GetThreadLocks().Contains(lockName);
             }
         }

@@ -1600,7 +1600,7 @@ namespace Quartz.Impl.AdoJobStore
                         DateTimeOffset? endTimeUtc = GetDateTimeFromDbValue(rs[ColumnEndTime]);
 
                         // done reading
-                        rs.Close();
+                        rs.Dispose();
 
                         if (triggerType.Equals(TriggerTypeBlob))
                         {
@@ -1746,7 +1746,7 @@ namespace Quartz.Impl.AdoJobStore
                         state = StateDeleted;
                     }
                 }
-                return string.Intern(state);
+                return state;
             }
         }
 

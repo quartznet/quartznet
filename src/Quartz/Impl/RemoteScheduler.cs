@@ -21,7 +21,9 @@
 
 using System;
 using System.Collections.Generic;
+#if REMOTING
 using System.Runtime.Remoting;
+#endif // REMOTING
 using System.Threading.Tasks;
 
 using Quartz.Core;
@@ -237,7 +239,11 @@ namespace Quartz.Impl
                 await GetRemoteScheduler().Shutdown().ConfigureAwait(false);
                 SchedulerRepository.Instance.Remove(schedulerName);
             }
+#if REMOTING
             catch (RemotingException re)
+#else // REMOTING
+            catch (Exception re) // TODO (NetCore Port): Determine the correct exception type
+#endif // REMOTING
             {
                 throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
             }
@@ -542,13 +548,17 @@ namespace Quartz.Impl
             {
                 return await GetRemoteScheduler().Interrupt(jobKey).ConfigureAwait(false);
             }
-            catch (RemotingException re)
-            {
-                throw new UnableToInterruptJobException(InvalidateHandleCreateException("Error communicating with remote scheduler.", re));
-            }
             catch (SchedulerException se)
             {
                 throw new UnableToInterruptJobException(se);
+            }
+#if REMOTING
+            catch (RemotingException re)
+#else // REMOTING
+            catch (Exception re) // TODO (NetCore Port): Determine the correct exception type
+#endif // REMOTING
+            {
+                throw new UnableToInterruptJobException(InvalidateHandleCreateException("Error communicating with remote scheduler.", re));
             }
         }
 
@@ -558,13 +568,17 @@ namespace Quartz.Impl
             {
                 return await GetRemoteScheduler().Interrupt(fireInstanceId).ConfigureAwait(false);
             }
-            catch (RemotingException re)
-            {
-                throw new UnableToInterruptJobException(InvalidateHandleCreateException("Error communicating with remote scheduler.", re));
-            }
             catch (SchedulerException se)
             {
                 throw new UnableToInterruptJobException(se);
+            }
+#if REMOTING
+            catch (RemotingException re)
+#else // REMOTING
+            catch (Exception re) // TODO (NetCore Port): Determine the correct exception type
+#endif // REMOTING
+            {
+                throw new UnableToInterruptJobException(InvalidateHandleCreateException("Error communicating with remote scheduler.", re));
             }
         }
 
@@ -574,7 +588,11 @@ namespace Quartz.Impl
             {
                 await action(GetRemoteScheduler()).ConfigureAwait(false);
             }
+#if REMOTING
             catch (RemotingException re)
+#else // REMOTING
+            catch (Exception re) // TODO (NetCore Port): Determine the correct exception type
+#endif // REMOTING
             {
                 throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
             }
@@ -586,7 +604,11 @@ namespace Quartz.Impl
             {
                 return await func(GetRemoteScheduler()).ConfigureAwait(false);
             }
+#if REMOTING
             catch (RemotingException re)
+#else // REMOTING
+            catch (Exception re) // TODO (NetCore Port): Determine the correct exception type
+#endif // REMOTING
             {
                 throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
             }
@@ -598,7 +620,11 @@ namespace Quartz.Impl
             {
                 return action(GetRemoteScheduler());
             }
+#if REMOTING
             catch (RemotingException re)
+#else // REMOTING
+            catch (Exception re) // TODO (NetCore Port): Determine the correct exception type
+#endif // REMOTING
             {
                 throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
             }

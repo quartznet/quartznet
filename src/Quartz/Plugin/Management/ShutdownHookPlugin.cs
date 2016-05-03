@@ -18,6 +18,10 @@
 #endregion
 
 using System;
+#if !APPDOMAINS
+using System.Runtime.Loader;
+#endif // !APPDOMAINS
+using System.Reflection;
 using System.Threading.Tasks;
 
 using Quartz.Logging;
@@ -59,8 +63,11 @@ namespace Quartz.Plugin.Management
         public virtual void Initialize(string pluginName, IScheduler scheduler)
         {
             log.InfoFormat("Registering Quartz Shutdown hook '{0}.", pluginName);
-
+#if APPDOMAINS
             AppDomain.CurrentDomain.ProcessExit += (sender, ea) =>
+#else // APPDOMAINS
+            AssemblyLoadContext.GetLoadContext(typeof(IScheduler).GetTypeInfo().Assembly).Unloading += (ctx) =>
+#endif // APPDOMAINS
                                             {
                                                 log.Info("Shutting down Quartz...");
                                                 try

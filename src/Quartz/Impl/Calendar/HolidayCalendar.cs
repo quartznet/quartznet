@@ -42,7 +42,10 @@ namespace Quartz.Impl.Calendar
     /// <author>Sharada Jambula</author>
     /// <author>Juergen Donnerstag</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
+    [DataContract]
     public class HolidayCalendar : BaseCalendar
     {
         /// <summary>
@@ -53,6 +56,7 @@ namespace Quartz.Impl.Calendar
         public virtual ISet<DateTime> ExcludedDates => new SortedSet<DateTime>(dates);
 
         // A sorted set to store the holidays
+        [DataMember]
         private SortedSet<DateTime> dates = new SortedSet<DateTime>();
 
         /// <summary>
@@ -71,6 +75,8 @@ namespace Quartz.Impl.Calendar
             CalendarBase = baseCalendar;
         }
 
+#if BINARY_SERIALIZATION // NetCore versions of Quartz can't use old serialized data. 
+                         // Make sure that future calendar version changes are done in a DCS-friendly way (with [OnSerializing] and [OnDeserialized] methods).
         /// <summary>
         /// Serialization constructor.
         /// </summary>
@@ -124,6 +130,7 @@ namespace Quartz.Impl.Calendar
             info.AddValue("version", 2);
             info.AddValue("dates", dates.ToArray());
         }
+#endif // BINARY_SERIALIZATION
 
         /// <summary>
         /// Determine whether the given time (in milliseconds) is 'included' by the

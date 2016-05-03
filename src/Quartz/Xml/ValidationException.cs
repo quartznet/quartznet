@@ -29,8 +29,10 @@ namespace Quartz.Xml
 	/// </summary>
 	/// <author> <a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
-	public class ValidationException : Exception
+#endif // BINARY_SERIALIZATION
+    public class ValidationException : Exception
 	{
 		private readonly ICollection<Exception> validationExceptions = new List<Exception>();
 
@@ -90,7 +92,8 @@ namespace Quartz.Xml
 			validationExceptions = new List<Exception>(errors).AsReadOnly();
 		}
 
-                /// <summary>
+#if BINARY_SERIALIZATION
+        /// <summary>
         /// Initializes a new instance of the <see cref="SchedulerException"/> class.
         /// </summary>
         /// <param name="info">The <see cref="T:System.Runtime.Serialization.SerializationInfo"></see> that holds the serialized object data about the exception being thrown.</param>
@@ -100,5 +103,6 @@ namespace Quartz.Xml
         protected ValidationException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
-	}
+#endif // BINARY_SERIALIZATION
+    }
 }

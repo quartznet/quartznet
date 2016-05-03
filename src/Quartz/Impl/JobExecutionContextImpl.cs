@@ -23,6 +23,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using Quartz.Spi;
+using System.Runtime.Serialization;
 
 namespace Quartz.Impl
 {
@@ -67,24 +68,35 @@ namespace Quartz.Impl
     /// <seealso cref="JobDataMap" />
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
+    [DataContract]
     public class JobExecutionContextImpl : ICancellableJobExecutionContext
     {
-        [NonSerialized] private readonly IScheduler scheduler;
-        private readonly ITrigger trigger;
-        private readonly IJobDetail jobDetail;
-        private readonly JobDataMap jobDataMap;
-        [NonSerialized] private readonly IJob job;
+#if BINARY_SERIALIZATION
+        [NonSerialized]
+#endif // BINARY_SERIALIZATION
+        private readonly IScheduler scheduler;
 
-        private readonly ICalendar calendar;
-        private readonly bool recovering;
-        private int numRefires;
-        private readonly DateTimeOffset? prevFireTimeUtc;
-        private readonly DateTimeOffset? nextFireTimeUtc;
-        private TimeSpan jobRunTime = TimeSpan.MinValue;
-        private object result;
+#if BINARY_SERIALIZATION
+        [NonSerialized]
+#endif // BINARY_SERIALIZATION
+        private readonly IJob job;
 
-        private readonly IDictionary<object, object> data = new Dictionary<object, object>();
+        [DataMember] private readonly ITrigger trigger;
+        [DataMember] private readonly IJobDetail jobDetail;
+        [DataMember] private readonly JobDataMap jobDataMap;
+
+        [DataMember] private readonly ICalendar calendar;
+        [DataMember] private readonly bool recovering;
+        [DataMember] private int numRefires;
+        [DataMember] private readonly DateTimeOffset? prevFireTimeUtc;
+        [DataMember] private readonly DateTimeOffset? nextFireTimeUtc;
+        [DataMember] private TimeSpan jobRunTime = TimeSpan.MinValue;
+        [DataMember] private object result; // Note that DCS will limit what sorts of results can be serialized
+
+        [DataMember] private readonly IDictionary<object, object> data = new Dictionary<object, object>();
         private readonly CancellationTokenSource cancellationTokenSource;
 
         /// <summary>

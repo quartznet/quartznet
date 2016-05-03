@@ -3485,7 +3485,7 @@ namespace Quartz.Impl.AdoJobStore
 
             if (cth.Transaction != null && cth.Transaction.Connection == null)
             {
-                throw new DataException("Transaction not connected, or was disconnected");
+                throw new InvalidOperationException("Transaction not connected, or was disconnected");
             }
         }
     }

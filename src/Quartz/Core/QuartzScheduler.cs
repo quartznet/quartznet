@@ -25,7 +25,9 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Reflection;
+#if REMOTING
 using System.Runtime.Remoting;
+#endif // REMOTING
 using System.Security;
 using System.Text;
 using System.Threading.Tasks;
@@ -51,7 +53,11 @@ namespace Quartz.Core
     /// <seealso cref="IThreadPool" />
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-    public class QuartzScheduler : MarshalByRefObject, IRemotableQuartzScheduler
+    public class QuartzScheduler : 
+#if REMOTING
+        MarshalByRefObject,
+#endif // REMOTING
+        IRemotableQuartzScheduler
     {
         private readonly ILog log;
         private static readonly Version version;
@@ -78,7 +84,7 @@ namespace Quartz.Core
         /// </summary>
         static QuartzScheduler()
         {
-            var asm = Assembly.GetAssembly(typeof (QuartzScheduler));
+            var asm = typeof (QuartzScheduler).GetTypeInfo().Assembly;
 
             if (asm != null)
             {
@@ -510,7 +516,11 @@ namespace Quartz.Core
                 {
                     UnBind();
                 }
+#if REMOTING
                 catch (RemotingException)
+#else // REMOTING
+                catch (Exception) // TODO (NetCore Port): Determine the correct exception type
+#endif // REMOTING
                 {
                 }
             }
@@ -2079,7 +2089,13 @@ namespace Quartz.Core
         ///Obtains a lifetime service object to control the lifetime policy for this instance.
         ///</summary>
         [SecurityCritical]
-        public override object InitializeLifetimeService()
+        public
+#if REMOTING
+            override
+#else // REMOTING
+            virtual
+#endif // REMOTING
+            object InitializeLifetimeService()
         {
             // overridden to initialize null life time service,
             // this basically means that remoting object will live as long

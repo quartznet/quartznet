@@ -20,7 +20,9 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+#if CONFIGURATION
 using System.Configuration;
+#endif // CONFIGURATION
 using System.IO;
 using System.Reflection;
 using System.Security;
@@ -34,6 +36,7 @@ using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
+using System.Globalization;
 
 namespace Quartz.Impl
 {
@@ -205,7 +208,12 @@ namespace Quartz.Impl
                 throw initException;
             }
 
-            NameValueCollection props = (NameValueCollection) ConfigurationManager.GetSection(ConfigurationSectionName);
+            NameValueCollection props =
+#if CONFIGURATION
+                (NameValueCollection) ConfigurationManager.GetSection(ConfigurationSectionName);
+#else // CONFIGURATION
+            null;
+#endif // CONFIGURATION
 
             string requestedFile = QuartzEnvironment.GetEnvironmentVariable(PropertiesFile);
 
@@ -326,7 +334,7 @@ Please add configuration to your application config file to correctly initialize
                 bool isMatch = false;
                 foreach (string supportedKey in supportedKeys)
                 {
-                    if (configurationKey.StartsWith(supportedKey, StringComparison.InvariantCulture))
+                    if (CultureInfo.InvariantCulture.CompareInfo.IsPrefix(configurationKey, supportedKey, CompareOptions.None))
                     {
                         isMatch = true;
                         break;
@@ -506,13 +514,13 @@ Please add configuration to your application config file to correctly initialize
             // Get ThreadPool Properties
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-            Type tpType = loadHelper.LoadType(cfg.GetStringProperty(PropertyThreadPoolType)) ?? typeof(SimpleThreadPool);
-
-            if (tpType == typeof(SimpleThreadPool))
-            {
-                // use as synonum for now
-                tpType = typeof(ClrThreadPool);
-            }
+            Type tpType = loadHelper.LoadType(cfg.GetStringProperty(PropertyThreadPoolType)) ??
+// DefaultThreadPool (or DedicatedThreadPool) should work in either case, but this is #if'd until the new thread pools can be more thoroughly tested
+#if WINDOWS_THREADPOOL
+                typeof(SimpleThreadPool);
+#else // WINDOWS_THREADPOOL
+                typeof(DefaultThreadPool);
+#endif // WINDOWS_THREADPOOL
 
             try
             {
@@ -583,9 +591,9 @@ Please add configuration to your application config file to correctly initialize
                     string dsConnectionString = pp.GetStringProperty(PropertyDataSourceConnectionString, null);
                     string dsConnectionStringName = pp.GetStringProperty(PropertyDataSourceConnectionStringName, null);
 
+#if CONFIGURATION
                     if (dsConnectionString == null && !string.IsNullOrEmpty(dsConnectionStringName))
                     {
-
                         ConnectionStringSettings connectionStringSettings = ConfigurationManager.ConnectionStrings[dsConnectionStringName];
                         if (connectionStringSettings == null)
                         {
@@ -594,6 +602,7 @@ Please add configuration to your application config file to correctly initialize
                         }
                         dsConnectionString = connectionStringSettings.ConnectionString;
                     }
+#endif // CONFIGURATION
 
                     if (dsProvider == null)
                     {
@@ -909,7 +918,11 @@ Please add configuration to your application config file to correctly initialize
                     catch (Exception e)
                     {
                         Log.ErrorException("Couldn't generate instance Id!", e);
-                        throw new SystemException("Cannot run without an instance id.");
+                        // TODO (NetCore Port): I think keeping the exception type consistent between desktop and Core versions of Quartz
+                        //                      is more important than keeping the desktop one consistent between the previous version and this one.
+                        //                      It's not an obvious call, though, so may be worth discussing.
+                        // throw new SystemException("Cannot run without an instance id.");
+                        throw new InvalidOperationException("Cannot run without an instance id.");
                     }
                 }
 

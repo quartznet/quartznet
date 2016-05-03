@@ -19,6 +19,7 @@
 
 #endregion
 
+#if MAIL
 using System;
 using System.Linq;
 using System.Net;
@@ -220,3 +221,4 @@ namespace Quartz.Job
         }
     }
 }
+#endif // MAIL

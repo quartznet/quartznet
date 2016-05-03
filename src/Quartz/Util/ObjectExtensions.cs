@@ -1,6 +1,11 @@
 using System;
 using System.IO;
+using System.Reflection;
+#if BINARY_SERIALIZATION
 using System.Runtime.Serialization.Formatters.Binary;
+#else // BINARY_SERIALIZATION
+using System.Runtime.Serialization;
+#endif // BINARY_SERIALIZATION
 
 namespace Quartz.Util
 {
@@ -20,18 +25,25 @@ namespace Quartz.Util
                 return null;
             }
 
-            BinaryFormatter bf = new BinaryFormatter();
             using (MemoryStream ms = new MemoryStream())
             {
+#if BINARY_SERIALIZATION
+                BinaryFormatter bf = new BinaryFormatter();
                 bf.Serialize(ms, obj);
                 ms.Seek(0, SeekOrigin.Begin);
-                return (T) bf.Deserialize(ms);
+                return (T)bf.Deserialize(ms);
+#else // BINARY_SERIALIZATION
+                DataContractSerializer dcs = new DataContractSerializer(typeof(T));
+                dcs.WriteObject(ms, obj);
+                ms.Seek(0, SeekOrigin.Begin);
+                return (T)dcs.ReadObject(ms);
+#endif // BINARY_SERIALIZATION
             }
         }
 
         public static string AssemblyQualifiedNameWithoutVersion(this Type type)
         {
-            string retValue = type.FullName + ", " + type.Assembly.GetName().Name;
+            string retValue = type.FullName + ", " + type.GetTypeInfo().Assembly.GetName().Name;
             return retValue;
         }
     }

@@ -36,14 +36,19 @@ namespace Quartz.Impl.Calendar
     /// <seealso cref="BaseCalendar" />
     /// <author>Juergen Donnerstag</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
+    [DataContract]
     public class WeeklyCalendar : BaseCalendar
     {
         // An array to store the week days which are to be excluded.
         // DayOfWeek enumeration values are used as index.
+        [DataMember]
         private bool[] excludeDays = new bool[7];
 
         // Will be set to true, if all week days are excluded
+        [DataMember]
         private bool excludeAll;
 
         /// <summary>
@@ -63,6 +68,7 @@ namespace Quartz.Impl.Calendar
             Init();
         }
 
+#if BINARY_SERIALIZATION // If this functionality is needed in the future with DCS serialization, it can ne added with [OnSerializing] and [OnDeserialized] methods
         /// <summary>
         /// Serialization constructor.
         /// </summary>
@@ -100,6 +106,7 @@ namespace Quartz.Impl.Calendar
             info.AddValue("excludeDays", excludeDays);
             info.AddValue("excludeAll", excludeAll);
         }
+#endif // BINARY_SERIALIZATION
 
         /// <summary>
         /// Initialize internal variables

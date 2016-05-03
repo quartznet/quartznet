@@ -157,7 +157,7 @@ namespace Quartz.Util
 
         /// <summary>Initializes the scheduler.</summary>
         /// <param name="threadCount">The number of threads to create and use for processing work items.</param>
-        public QueuedTaskScheduler(int threadCount) : this(threadCount, string.Empty, false, ThreadPriority.Normal, ApartmentState.MTA, 0, null, null)
+        public QueuedTaskScheduler(int threadCount) : this(threadCount, string.Empty, false, ThreadPriority.Normal, ApartmentState.MTA, null, null)
         {
         }
 
@@ -167,7 +167,6 @@ namespace Quartz.Util
         /// <param name="useForegroundThreads">A Boolean value that indicates whether to use foreground threads instead of background.</param>
         /// <param name="threadPriority">The priority to assign to each thread.</param>
         /// <param name="threadApartmentState">The apartment state to use for each thread.</param>
-        /// <param name="threadMaxStackSize">The stack size to use for each thread.</param>
         /// <param name="threadInit">An initialization routine to run on each thread.</param>
         /// <param name="threadFinally">A finalization routine to run on each thread.</param>
         public QueuedTaskScheduler(
@@ -176,7 +175,6 @@ namespace Quartz.Util
             bool useForegroundThreads = false,
             ThreadPriority threadPriority = ThreadPriority.Normal,
             ApartmentState threadApartmentState = ApartmentState.MTA,
-            int threadMaxStackSize = 0,
             Action threadInit = null,
             Action threadFinally = null)
         {
@@ -202,16 +200,20 @@ namespace Quartz.Util
             _threads = new Thread[threadCount];
             for (int i = 0; i < threadCount; i++)
             {
-                _threads[i] = new Thread(() => ThreadBasedDispatchLoop(threadInit, threadFinally), threadMaxStackSize)
+                _threads[i] = new Thread(() => ThreadBasedDispatchLoop(threadInit, threadFinally))
                 {
+#if THREAD_PRIORITY
                     Priority = threadPriority,
+#endif // THREAD_PRIORITY
                     IsBackground = !useForegroundThreads,
                 };
                 if (threadName != null)
                 {
                     _threads[i].Name = threadName + " (" + i + ")";
                 }
+#if THREAD_APARTMENTSTATE
                 _threads[i].SetApartmentState(threadApartmentState);
+#endif // THREAD_APARTMENTSTATE
             }
 
             // Start all of the threads
@@ -240,8 +242,10 @@ namespace Quartz.Util
                     // If a thread abort occurs, we'll try to reset it and continue running.
                     while (true)
                     {
+#if THREAD_INTERRUPTION
                         try
                         {
+#endif // THREAD_INTERRUPTION
                             // For each task queued to the scheduler, try to execute it.
                             foreach (var task in _blockingTaskQueue.GetConsumingEnumerable(_disposeCancellation.Token))
                             {
@@ -268,6 +272,7 @@ namespace Quartz.Util
                                     }
                                 }
                             }
+#if THREAD_INTERRUPTION
                         }
                         catch (ThreadAbortException)
                         {
@@ -279,6 +284,7 @@ namespace Quartz.Util
                                 Thread.ResetAbort();
                             }
                         }
+#endif // THREAD_INTERRUPTION
                     }
                 }
                 catch (OperationCanceledException)

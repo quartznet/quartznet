@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Runtime.Serialization;
 
 using Quartz.Util;
 
@@ -53,21 +54,36 @@ namespace Quartz.Impl.Triggers
     /// <since>2.0</since>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
+    [DataContract]
     public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTrigger
     {
         private static readonly int YearToGiveupSchedulingAt = DateTime.Now.AddYears(100).Year;
 
-        private DateTimeOffset startTime;
-        private DateTimeOffset? endTime;
-        private DateTimeOffset? nextFireTimeUtc;
-        private DateTimeOffset? previousFireTimeUtc;
-        private int repeatInterval;
-        private IntervalUnit repeatIntervalUnit = IntervalUnit.Day;
+        [DataMember] private DateTimeOffset startTime;
+        [DataMember] private DateTimeOffset? endTime;
+        [DataMember] private DateTimeOffset? nextFireTimeUtc;
+        [DataMember] private DateTimeOffset? previousFireTimeUtc;
+        [DataMember] private int repeatInterval;
+        [DataMember] private IntervalUnit repeatIntervalUnit = IntervalUnit.Day;
+        [DataMember] private bool preserveHourOfDayAcrossDaylightSavings; // false is backward-compatible with behavior
+        [DataMember] private bool skipDayIfHourDoesNotExist;
+        [DataMember] private int timesTriggered;
         private TimeZoneInfo timeZone;
-        private bool preserveHourOfDayAcrossDaylightSavings; // false is backward-compatible with behavior
-        private bool skipDayIfHourDoesNotExist;
-        private int timesTriggered;
+
+        // Serializing TimeZones is tricky in .NET Core. This helper will ensure that we get the same timezone on a given platform,
+        // but there's not yet a good method of serializing/deserializing timezones cross-platform since Windows timezone IDs don't
+        // match IANA tz IDs (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). This feature is coming, but depending
+        // on timelines, it may be worth doign the mapping here.
+        // More info: https://github.com/dotnet/corefx/issues/7757
+        [DataMember]
+        private string timeZoneInfoId
+        {
+            get { return timeZone?.Id; }
+            set { timeZone = (value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value)); }
+        }
 
         /// <summary>
         /// Create a <see cref="ICalendarIntervalTrigger" /> with no settings.

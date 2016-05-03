@@ -23,29 +23,49 @@ using System.Security;
 
 namespace Quartz.Impl.Calendar
 {
-	/// <summary>
-	/// This implementation of the Calendar may be used (you don't have to) as a
-	/// base class for more sophisticated one's. It merely implements the base
-	/// functionality required by each Calendar.
-	/// </summary>
-	/// <remarks>
-	/// Regarded as base functionality is the treatment of base calendars. Base
-	/// calendar allow you to chain (stack) as much calendars as you may need. For
-	/// example to exclude weekends you may use WeeklyCalendar. In order to exclude
-	/// holidays as well you may define a WeeklyCalendar instance to be the base
-	/// calendar for HolidayCalendar instance.
-	/// </remarks>
-	/// <seealso cref="ICalendar" /> 
-	/// <author>Juergen Donnerstag</author>
-	/// <author>James House</author>
-	/// <author>Marko Lahma (.NET)</author>
-	[Serializable]
-	public class BaseCalendar : ICalendar, ISerializable
-	{
+    /// <summary>
+    /// This implementation of the Calendar may be used (you don't have to) as a
+    /// base class for more sophisticated one's. It merely implements the base
+    /// functionality required by each Calendar.
+    /// </summary>
+    /// <remarks>
+    /// Regarded as base functionality is the treatment of base calendars. Base
+    /// calendar allow you to chain (stack) as much calendars as you may need. For
+    /// example to exclude weekends you may use WeeklyCalendar. In order to exclude
+    /// holidays as well you may define a WeeklyCalendar instance to be the base
+    /// calendar for HolidayCalendar instance.
+    /// </remarks>
+    /// <seealso cref="ICalendar" /> 
+    /// <author>Juergen Donnerstag</author>
+    /// <author>James House</author>
+    /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
+    [Serializable]
+#endif // BINARY_SERIALIZATION
+    [DataContract]
+    public class BaseCalendar : ICalendar
+#if BINARY_SERIALIZATION
+        , ISerializable
+#endif // BINARY_SERIALIZATION
+    {
         // A optional base calendar.
+        [DataMember]
         private ICalendar baseCalendar;
+        [DataMember]
         private string description;
         private TimeZoneInfo timeZone;
+
+        // Serializing TimeZones is tricky in .NET Core. This helper will ensure that we get the same timezone on a given platform,
+        // but there's not yet a good method of serializing/deserializing timezones cross-platform since Windows timezone IDs don't
+        // match IANA tz IDs (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). This feature is coming, but depending
+        // on timelines, it may be worth doign the mapping here.
+        // More info: https://github.com/dotnet/corefx/issues/7757
+        [DataMember]
+        private string timeZoneInfoId
+        {
+            get { return timeZone?.Id; }
+            set { timeZone = (value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value)); }
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="BaseCalendar"/> class.
@@ -84,6 +104,7 @@ namespace Quartz.Impl.Calendar
 	        this.timeZone = timeZone;
 	    }
 
+#if BINARY_SERIALIZATION
         /// <summary>
         /// Serialization constructor.
         /// </summary>
@@ -114,6 +135,7 @@ namespace Quartz.Impl.Calendar
             info.AddValue("description", description);
             info.AddValue("timeZone", timeZone);
         }
+#endif // BINARY_SERIALIZATION
 
         /// <summary>
         /// Gets or sets the time zone.

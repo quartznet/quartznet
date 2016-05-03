@@ -1,4 +1,5 @@
-﻿using System;
+﻿#if WINDOWS_THREADPOOL
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Quartz.Logging;
@@ -108,3 +109,4 @@ namespace Quartz.Simpl
         public string InstanceName { get; set; }
     }
 }
+#endif // WINDOWS_THREADPOOL

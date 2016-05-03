@@ -30,8 +30,10 @@ namespace Quartz
 	/// </summary>
 	/// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
-	public class ObjectAlreadyExistsException : JobPersistenceException
+#endif // BINARY_SERIALIZATION
+    public class ObjectAlreadyExistsException : JobPersistenceException
 	{
 		/// <summary> <para>
 		/// Create a <see cref="ObjectAlreadyExistsException" /> with the given
@@ -42,6 +44,7 @@ namespace Quartz
 		{
 		}
 
+#if BINARY_SERIALIZATION
         /// <summary>
         /// Initializes a new instance of the <see cref="ObjectAlreadyExistsException"/> class.
         /// </summary>
@@ -52,6 +55,7 @@ namespace Quartz
         protected ObjectAlreadyExistsException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
+#endif // BINARY_SERIALIZATION
 
 		/// <summary> <para>
 		/// Create a <see cref="ObjectAlreadyExistsException" /> and auto-generate a

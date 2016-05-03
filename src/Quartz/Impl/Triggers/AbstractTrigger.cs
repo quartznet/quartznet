@@ -19,6 +19,7 @@
 
 using System;
 using System.Globalization;
+using System.Runtime.Serialization;
 
 using Quartz.Spi;
 
@@ -52,25 +53,30 @@ namespace Quartz.Impl.Triggers
 	/// <author>James House</author>
 	/// <author>Sharada Jambula</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
+    [DataContract]
     public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTrigger>
 	{
-        private string name;
-        private string group = SchedulerConstants.DefaultGroup;
-        private string jobName;
-        private string jobGroup = SchedulerConstants.DefaultGroup;
-        private string description;
-        private JobDataMap jobDataMap;
-        private string calendarName;
-        private string fireInstanceId;
+        [DataMember] private string name;
+        [DataMember] private string group = SchedulerConstants.DefaultGroup;
+        [DataMember] private string jobName;
+        [DataMember] private string jobGroup = SchedulerConstants.DefaultGroup;
+        [DataMember] private string description;
+        [DataMember] private JobDataMap jobDataMap;
+        [DataMember] private string calendarName;
+        [DataMember] private string fireInstanceId;
 
-        private int misfireInstruction = Quartz.MisfireInstruction.InstructionNotSet;
+        [DataMember] private int misfireInstruction = Quartz.MisfireInstruction.InstructionNotSet;
 
-        private DateTimeOffset? endTimeUtc;
-        private DateTimeOffset startTimeUtc;
-		private int priority = TriggerConstants.DefaultPriority;
-		
+        [DataMember] private DateTimeOffset? endTimeUtc;
+        [DataMember] private DateTimeOffset startTimeUtc;
+		[DataMember] private int priority = TriggerConstants.DefaultPriority;
+
+#if BINARY_SERIALIZATION
         [NonSerialized] // we have the key in string fields
+#endif // BINARY_SERIALIZATION
         private TriggerKey key;
 
 		/// <summary>

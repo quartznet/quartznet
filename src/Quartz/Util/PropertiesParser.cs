@@ -23,6 +23,7 @@ using System.Collections.Specialized;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 
 namespace Quartz.Util
 {
@@ -140,7 +141,7 @@ namespace Quartz.Util
 				return false;
 			}
 
-			return val.ToUpper(CultureInfo.InvariantCulture).Equals("TRUE");
+			return CultureInfo.InvariantCulture.TextInfo.ToUpper(val).Equals("TRUE");
 		}
 
         /// <summary>
@@ -157,8 +158,8 @@ namespace Quartz.Util
 				return defaultValue;
 			}
 
-            return val.ToUpper(CultureInfo.InvariantCulture).Equals("TRUE");
-		}
+            return CultureInfo.InvariantCulture.TextInfo.ToUpper(val).Equals("TRUE");
+        }
 
         /// <summary>
         /// Gets the byte property.
@@ -665,7 +666,7 @@ namespace Quartz.Util
         /// <returns></returns>
         public static PropertiesParser ReadFromEmbeddedAssemblyResource(string resourceName)
         {
-            return ReadFromStream(typeof(IScheduler).Assembly.GetManifestResourceStream(resourceName));
+            return ReadFromStream(typeof(IScheduler).GetTypeInfo().Assembly.GetManifestResourceStream(resourceName));
         }
 
         /// <summary>

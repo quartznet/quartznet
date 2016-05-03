@@ -12,6 +12,8 @@
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">../../</SolutionDir>
     <TargetFrameworkProfile />
+    <DefineConstants>TRACE;DEBUG;LIBLOG_PORTABLE;LIBLOG_PUBLIC;APPDOMAINS;BINARY_SERIALIZATION;CONFIGURATION;DESIGNER;HTTPCONTEXT;ICLONEABLE;MAIL;REMOTING;THREAD_APARTMENTSTATE;THREAD_INTERRUPTION;THREAD_PRIORITY;WINDOWS_PROCESS;WINDOWS_THREADPOOL;XML_SCHEMA</DefineConstants>
+    <CopyNuGetImplementations>false</CopyNuGetImplementations>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <OutputPath>../../build/4.5/Debug/Quartz/</OutputPath>
@@ -20,7 +22,6 @@
     <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
     <ConfigurationOverrideFile>
     </ConfigurationOverrideFile>
-    <DefineConstants>TRACE;DEBUG;LIBLOG_PUBLIC</DefineConstants>
     <DocumentationFile>Quartz.xml</DocumentationFile>
     <DebugSymbols>true</DebugSymbols>
     <FileAlignment>4096</FileAlignment>
@@ -43,7 +44,6 @@
     <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
     <ConfigurationOverrideFile>
     </ConfigurationOverrideFile>
-    <DefineConstants>TRACE;LIBLOG_PUBLIC</DefineConstants>
     <DocumentationFile>Quartz.xml</DocumentationFile>
     <DebugSymbols>true</DebugSymbols>
     <FileAlignment>4096</FileAlignment>
@@ -72,6 +72,7 @@
       <Name>System.Data</Name>
     </Reference>
     <Reference Include="System.Runtime.Remoting" />
+    <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Web" />
     <Reference Include="System.Xml">
       <Name>System.Xml</Name>

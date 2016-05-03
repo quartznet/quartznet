@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Runtime.Serialization;
 
 using Quartz.Util;
 
@@ -30,7 +31,10 @@ namespace Quartz.Impl.Matchers
     /// </summary>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
+    [DataContract]
     public class GroupMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TKey>
     {
         protected GroupMatcher(string compareTo, StringOperator compareWith) : base(compareTo, compareWith)

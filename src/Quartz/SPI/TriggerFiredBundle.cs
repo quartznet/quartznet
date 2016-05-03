@@ -18,6 +18,7 @@
 #endregion
 
 using System;
+using System.Runtime.Serialization;
 
 using Quartz.Core;
 
@@ -30,17 +31,20 @@ namespace Quartz.Spi
     /// <seealso cref="QuartzScheduler" />
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
+    [DataContract]
     public class TriggerFiredBundle
     {
-        private readonly IJobDetail job;
-        private readonly IOperableTrigger trigger;
-        private readonly ICalendar cal;
-        private readonly bool jobIsRecovering;
-        private readonly DateTimeOffset? fireTimeUtc;
-        private readonly DateTimeOffset? scheduledFireTimeUtc;
-        private readonly DateTimeOffset? prevFireTimeUtc;
-        private readonly DateTimeOffset? nextFireTimeUtc;
+        [DataMember] private readonly IJobDetail job;
+        [DataMember] private readonly IOperableTrigger trigger;
+        [DataMember] private readonly ICalendar cal;
+        [DataMember] private readonly bool jobIsRecovering;
+        [DataMember] private readonly DateTimeOffset? fireTimeUtc;
+        [DataMember] private readonly DateTimeOffset? scheduledFireTimeUtc;
+        [DataMember] private readonly DateTimeOffset? prevFireTimeUtc;
+        [DataMember] private readonly DateTimeOffset? nextFireTimeUtc;
 
         /// <summary>
         /// Gets the job detail.

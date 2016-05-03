@@ -208,12 +208,21 @@ namespace Quartz
     /// <author>Contributions from Mads Henderson</author>
     /// <author>Refactoring from CronTrigger to CronExpression by Aaron Craven</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
-    public class CronExpression : ICloneable, IDeserializationCallback
+#endif // BINARY_SERIALIZATION
+    [DataContract]
+    public class CronExpression : object
+#if ICLONEABLE
+        , ICloneable
+#endif // ICLONEABLE
+#if BINARY_SERIALIZATION
+        , IDeserializationCallback
+#endif // BINARY_SERIALIZATION
     {
-		/// <summary>
-		/// Field specification for second.
-		/// </summary>
+        /// <summary>
+        /// Field specification for second.
+        /// </summary>
         protected const int Second = 0;
 
 		/// <summary>
@@ -269,84 +278,127 @@ namespace Quartz
         private static readonly Dictionary<string, int> monthMap = new Dictionary<string, int>(20);
         private static readonly Dictionary<string, int> dayMap = new Dictionary<string, int>(60);
 
+        [DataMember]
         private readonly string cronExpressionString;
 
         private TimeZoneInfo timeZone;
 
+        // Serializing TimeZones is tricky in .NET Core. This helper will ensure that we get the same timezone on a given platform,
+        // but there's not yet a good method of serializing/deserializing timezones cross-platform since Windows timezone IDs don't
+        // match IANA tz IDs (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). This feature is coming, but depending
+        // on timelines, it may be worth doign the mapping here.
+        // More info: https://github.com/dotnet/corefx/issues/7757
+        [DataMember]
+        private string timeZoneInfoId
+        {
+            get { return timeZone?.Id; }
+            set { timeZone = (value == null ? null : TimeZoneUtil.FindTimeZoneById(value)); }
+        }
+
         /// <summary>
         /// Seconds.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected SortedSet<int> seconds;
         /// <summary>
         /// minutes.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected SortedSet<int> minutes;
         /// <summary>
         /// Hours.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected SortedSet<int> hours;
         /// <summary>
         /// Days of month.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected SortedSet<int> daysOfMonth;
         /// <summary>
         /// Months.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected SortedSet<int> months;
         /// <summary>
         /// Days of week.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected SortedSet<int> daysOfWeek;
         /// <summary>
         /// Years.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected SortedSet<int> years;
 
         /// <summary>
         /// Last day of week.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected bool lastdayOfWeek;
         /// <summary>
         /// Nth day of week.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected int nthdayOfWeek;
         /// <summary>
         /// Last day of month.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected bool lastdayOfMonth;
         /// <summary>
         /// Nearest weekday.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected bool nearestWeekday;
 
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected int lastdayOffset = 0;
 
         /// <summary>
         /// Calendar day of week.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected bool calendardayOfWeek;
         /// <summary>
         /// Calendar day of month.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected bool calendardayOfMonth;
         /// <summary>
         /// Expression parsed.
         /// </summary>
+#if BINARY_SERIALIZATION
         [NonSerialized]
+#endif // BINARY_SERIALIZATION
         protected bool expressionParsed;
 
         public static readonly int MaxYear = DateTime.Now.Year + 100;
@@ -390,7 +442,7 @@ namespace Quartz
                 throw new ArgumentException("cronExpression cannot be null");
             }
 
-            cronExpressionString = cronExpression.ToUpper(CultureInfo.InvariantCulture);
+            cronExpressionString = CultureInfo.InvariantCulture.TextInfo.ToUpper(cronExpression);
             BuildExpression(cronExpressionString);
         }
 
@@ -882,7 +934,7 @@ namespace Quartz
             }
             else if (c >= '0' && c <= '9')
             {
-                int val = Convert.ToInt32(c.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
+                int val = Convert.ToInt32(c.ToString(), CultureInfo.InvariantCulture);
                 i++;
                 if (i >= s.Length)
                 {
@@ -1023,7 +1075,7 @@ namespace Quartz
             {
                 i++;
                 c = s[i];
-                int v = Convert.ToInt32(c.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
+                int v = Convert.ToInt32(c.ToString(), CultureInfo.InvariantCulture);
                 end = v;
                 i++;
                 if (i >= s.Length)
@@ -1043,7 +1095,7 @@ namespace Quartz
                 {
                     i++;
                     c = s[i];
-                    int v2 = Convert.ToInt32(c.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
+                    int v2 = Convert.ToInt32(c.ToString(), CultureInfo.InvariantCulture);
                     i++;
                     if (i >= s.Length)
                     {
@@ -1076,7 +1128,7 @@ namespace Quartz
             {
                 i++;
                 c = s[i];
-                int v2 = Convert.ToInt32(c.ToString(CultureInfo.InvariantCulture), CultureInfo.InvariantCulture);
+                int v2 = Convert.ToInt32(c.ToString(), CultureInfo.InvariantCulture);
                 i++;
                 if (i >= s.Length)
                 {
@@ -2121,6 +2173,12 @@ namespace Quartz
         public void OnDeserialization(object sender)
         {
             BuildExpression(cronExpressionString);
+        }
+
+        [OnDeserialized]
+        internal void OnDeserializedCallback(StreamingContext context)
+        {
+            OnDeserialization(null);
         }
 
         /// <summary>

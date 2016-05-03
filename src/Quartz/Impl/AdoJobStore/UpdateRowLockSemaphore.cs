@@ -129,7 +129,8 @@ namespace Quartz.Impl.AdoJobStore
 
                 if (await cmd.ExecuteNonQueryAsync().ConfigureAwait(false) != 1)
                 {
-                    throw new DataException(
+
+                    throw new InvalidOperationException(   
                         AdoJobStoreUtil.ReplaceTablePrefix("No row exists, and one could not be inserted in table " + TablePrefixSubst + TableLocks + " for lock named: " + lockName, TablePrefix, SchedulerNameLiteral));
                 }
             }

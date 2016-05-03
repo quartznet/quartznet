@@ -114,7 +114,7 @@ namespace Quartz.Simpl
 
 			foreach (string name in data.Keys)
 			{
-				string c = name.Substring(0, 1).ToUpper(CultureInfo.InvariantCulture);
+				string c = CultureInfo.InvariantCulture.TextInfo.ToUpper(name.Substring(0, 1));
 				string propName = c + name.Substring(1);
 
 				object o = data[name];
@@ -130,7 +130,7 @@ namespace Quartz.Simpl
 
 					paramType = prop.PropertyType;
 
-					if (o == null && (paramType.IsPrimitive || paramType.IsEnum))
+					if (o == null && (paramType.GetTypeInfo().IsPrimitive || paramType.GetTypeInfo().IsEnum))
 					{
 						// cannot set null to these
 						HandleError($"Cannot set null to property on Job class {obj.GetType()} for property '{name}'");

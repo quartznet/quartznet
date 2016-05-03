@@ -51,7 +51,10 @@ namespace Quartz.Impl.Calendar
     /// <author>Mike Funk</author>
     /// <author>Aaron Craven</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
+    [DataContract]
     public class DailyCalendar : BaseCalendar
     {
         private const string InvalidHourOfDay = "Invalid hour of day: ";
@@ -63,16 +66,16 @@ namespace Quartz.Impl.Calendar
         private const long OneMillis = 1;
         private const char Colon = ':';
 
-        private int rangeStartingHourOfDay;
-        private int rangeStartingMinute;
-        private int rangeStartingSecond;
-        private int rangeStartingMillis;
-        private int rangeEndingHourOfDay;
-        private int rangeEndingMinute;
-        private int rangeEndingSecond;
-        private int rangeEndingMillis;
+        [DataMember] private int rangeStartingHourOfDay;
+        [DataMember] private int rangeStartingMinute;
+        [DataMember] private int rangeStartingSecond;
+        [DataMember] private int rangeStartingMillis;
+        [DataMember] private int rangeEndingHourOfDay;
+        [DataMember] private int rangeEndingMinute;
+        [DataMember] private int rangeEndingSecond;
+        [DataMember] private int rangeEndingMillis;
 
-        private bool invertTimeRange;
+        [DataMember] private bool invertTimeRange;
 
 
         /// <summary>
@@ -365,6 +368,7 @@ namespace Quartz.Impl.Calendar
                          rangeEndingTimeInMillis);
         }
 
+#if BINARY_SERIALIZATION // If this functionality is needed in the future with DCS serialization, it can ne added with [OnSerializing] and [OnDeserialized] methods
         /// <summary>
         /// Serialization constructor.
         /// </summary>
@@ -422,6 +426,7 @@ namespace Quartz.Impl.Calendar
 
             info.AddValue("invertTimeRange", invertTimeRange);
         }
+#endif // BINARY_SERIALIZATION
 
         /// <summary>
         /// Determine whether the given time  is 'included' by the

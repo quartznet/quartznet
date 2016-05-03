@@ -22,14 +22,17 @@ using System.Runtime.Serialization;
 
 namespace Quartz.Impl.AdoJobStore
 {
-	/// <summary>
-	/// Exception class for when a driver delegate cannot be found for a given
-	/// configuration, or lack thereof.
-	/// </summary>
-	/// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
-	/// <author>Marko Lahma (.NET)</author>
-	[Serializable]
-	public class NoSuchDelegateException : JobPersistenceException
+    /// <summary>
+    /// Exception class for when a driver delegate cannot be found for a given
+    /// configuration, or lack thereof.
+    /// </summary>
+    /// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
+    /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
+    [Serializable]
+#endif // BINARY_SERIALIZATION
+    // TODO (NetCore Port): Is this actually persisted anywhere or is it only serializable for remoting?
+    public class NoSuchDelegateException : JobPersistenceException
 	{
 		public NoSuchDelegateException(string msg, Exception cause) : base(msg, cause)
 		{
@@ -39,6 +42,7 @@ namespace Quartz.Impl.AdoJobStore
 		{
 		}
 
+#if BINARY_SERIALIZATION
         /// <summary>
         /// Initializes a new instance of the <see cref="NoSuchDelegateException"/> class.
         /// </summary>
@@ -49,6 +53,6 @@ namespace Quartz.Impl.AdoJobStore
         protected NoSuchDelegateException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
-
-	}
+#endif // BINARY_SERIALIZATION
+    }
 }

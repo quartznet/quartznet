@@ -21,6 +21,8 @@
 
 using System;
 using System.Globalization;
+using System.Reflection;
+using System.Runtime.Serialization;
 
 using Quartz.Util;
 
@@ -49,18 +51,32 @@ namespace Quartz.Impl
     /// <seealso cref="ITrigger"/>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
+    [DataContract]
     public class JobDetailImpl : IJobDetail
     {
-        private string name;
-        private string group = SchedulerConstants.DefaultGroup;
-        private string description;
-        private Type jobType;
-        private JobDataMap jobDataMap;
-        private bool durability;
-        private bool shouldRecover;
+        [DataMember] private string name;
+        [DataMember] private string group = SchedulerConstants.DefaultGroup;
+        [DataMember] private string description;
+        [DataMember] private JobDataMap jobDataMap;
+        [DataMember] private bool durability;
+        [DataMember] private bool shouldRecover;
 
+        private Type jobType;
+
+        // TODO (NetCore Port): Verify that this works for serializing System.Type
+        [DataMember]
+        private string jobTypeName
+        {
+            get { return jobType?.FullName; }
+            set { jobType = Type.GetType(value); }
+        }
+
+#if BINARY_SERIALIZATION
         [NonSerialized] // we have the key in string fields
+#endif // BINARY_SERIALIZATION
         private JobKey key;
 
         /// <summary>
@@ -240,7 +256,7 @@ namespace Quartz.Impl
                     throw new ArgumentException("Job class cannot be null.");
                 }
 
-                if (!typeof (IJob).IsAssignableFrom(value))
+                if (!typeof (IJob).GetTypeInfo().IsAssignableFrom(value.GetTypeInfo()))
                 {
                     throw new ArgumentException("Job class must implement the Job interface.");
                 }

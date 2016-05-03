@@ -27,6 +27,7 @@ using System.Threading.Tasks;
 
 using Quartz.Logging;
 using Quartz.Spi;
+using System.Reflection;
 
 namespace Quartz.Core
 {

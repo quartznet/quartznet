@@ -18,6 +18,7 @@
 #endregion
 
 using System;
+using System.Runtime.Serialization;
 
 using Quartz.Spi;
 using Quartz.Util;
@@ -172,16 +173,23 @@ namespace Quartz.Impl.Triggers
 	/// <author>James House</author>
 	/// <author>Contributions from Mads Henderson</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
+    [DataContract]
     public class CronTriggerImpl : AbstractTrigger, ICronTrigger
 	{
         protected const int YearToGiveupSchedulingAt = 2299;
-		private CronExpression cronEx;
-        private DateTimeOffset startTimeUtc = DateTimeOffset.MinValue;
-        private DateTimeOffset? endTimeUtc;
-        private DateTimeOffset? nextFireTimeUtc;
-        private DateTimeOffset? previousFireTimeUtc;
-        [NonSerialized] private TimeZoneInfo timeZone;
+		[DataMember] private CronExpression cronEx;
+        [DataMember] private DateTimeOffset startTimeUtc = DateTimeOffset.MinValue;
+        [DataMember] private DateTimeOffset? endTimeUtc;
+        [DataMember] private DateTimeOffset? nextFireTimeUtc;
+        [DataMember] private DateTimeOffset? previousFireTimeUtc;
+
+#if BINARY_SERIALIZATION
+        [NonSerialized]
+#endif // BINARY_SERIALIZATION
+        private TimeZoneInfo timeZone;
 
 		/// <summary>
         /// Create a <see cref="CronTriggerImpl" /> with no settings.

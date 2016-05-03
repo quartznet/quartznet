@@ -26,7 +26,6 @@ namespace Quartz.Impl.Matchers
     /// <summary>
     /// Operators available for comparing string values.
     /// </summary>
-    [Serializable]
     public abstract class StringOperator : IEquatable<StringOperator>
     {
         public static readonly StringOperator Equality = new EqualityOperator();
@@ -37,7 +36,6 @@ namespace Quartz.Impl.Matchers
 
         public abstract bool Evaluate(string value, string compareTo);
 
-        [Serializable]
         private class EqualityOperator : StringOperator
         {
             public override bool Evaluate(string value, string compareTo) {
@@ -45,7 +43,6 @@ namespace Quartz.Impl.Matchers
             }
         }
 
-        [Serializable]
         private class StartsWithOperator : StringOperator
         {
             public override bool Evaluate(string value, string compareTo) {
@@ -53,7 +50,6 @@ namespace Quartz.Impl.Matchers
             }
         }
 
-        [Serializable]
         private class EndsWithOperator : StringOperator
         {
              public override bool Evaluate(string value, string compareTo) {
@@ -61,7 +57,6 @@ namespace Quartz.Impl.Matchers
             }
         }
 
-        [Serializable]
         private class ContainsOperator : StringOperator
         {
             public override bool Evaluate(string value, string compareTo) {
@@ -69,7 +64,6 @@ namespace Quartz.Impl.Matchers
             }
         }
 
-        [Serializable]
         private class AnythingOperator : StringOperator
         {
             public override bool Evaluate(string value, string compareTo)
