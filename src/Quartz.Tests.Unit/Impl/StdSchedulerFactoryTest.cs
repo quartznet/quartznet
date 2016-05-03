@@ -114,6 +114,20 @@ namespace Quartz.Tests.Unit.Impl
             StdSchedulerFactory factory = new TestStdSchedulerFactory(collection);
         }
 
+        [Test]
+        public void ShouldInitializeNamedScheduler()
+        {
+            NameValueCollection collection = new NameValueCollection();
+            var schedulerName = "namedScheduler";
+            collection["quartz.scheduler.instanceName"] = schedulerName;
+
+            var factory = new StdSchedulerFactory(collection);
+            var scheduler = factory.GetScheduler(schedulerName);
+
+            Assert.IsNotNull(scheduler);
+            Assert.AreEqual(schedulerName, scheduler.SchedulerName);
+        }
+
         private class TestStdSchedulerFactory : StdSchedulerFactory
         {
             public const string PropertyTest = "quartz.scheduler.test";

@@ -1130,6 +1130,9 @@ Please add configuration to your application config file to correctly initialize
         /// </summary>
         public virtual IScheduler GetScheduler(string schedName)
         {
+            if (SchedulerName.Equals(schedName))
+                return GetScheduler();
+
             return SchedulerRepository.Instance.Lookup(schedName);
         }
     }
