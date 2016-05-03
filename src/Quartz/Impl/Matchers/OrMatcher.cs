@@ -19,8 +19,8 @@
 
 #endregion
 
+using Newtonsoft.Json;
 using System;
-using System.Runtime.Serialization;
 
 using Quartz.Util;
 
@@ -34,12 +34,11 @@ namespace Quartz.Impl.Matchers
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
     public class OrMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
-        [DataMember]
+        [JsonProperty]
         private readonly IMatcher<TKey> leftOperand;
-        [DataMember]
+        [JsonProperty]
         private readonly IMatcher<TKey> rightOperand;
 
         protected OrMatcher(IMatcher<TKey> leftOperand, IMatcher<TKey> rightOperand)

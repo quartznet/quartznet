@@ -17,8 +17,8 @@
  */
 #endregion
 
+using Newtonsoft.Json;
 using System;
-using System.Runtime.Serialization;
 
 using Quartz.Core;
 
@@ -34,17 +34,17 @@ namespace Quartz.Spi
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
     public class TriggerFiredBundle
     {
-        [DataMember] private readonly IJobDetail job;
-        [DataMember] private readonly IOperableTrigger trigger;
-        [DataMember] private readonly ICalendar cal;
-        [DataMember] private readonly bool jobIsRecovering;
-        [DataMember] private readonly DateTimeOffset? fireTimeUtc;
-        [DataMember] private readonly DateTimeOffset? scheduledFireTimeUtc;
-        [DataMember] private readonly DateTimeOffset? prevFireTimeUtc;
-        [DataMember] private readonly DateTimeOffset? nextFireTimeUtc;
+        // JsonProperty attributes are used since Json.Net's default behavior is to serialize public members and the properties wrapping these fields are read-only
+        [JsonProperty] private readonly IJobDetail job;
+        [JsonProperty] private readonly IOperableTrigger trigger;
+        [JsonProperty] private readonly ICalendar cal;
+        [JsonProperty] private readonly bool jobIsRecovering;
+        [JsonProperty] private readonly DateTimeOffset? fireTimeUtc;
+        [JsonProperty] private readonly DateTimeOffset? scheduledFireTimeUtc;
+        [JsonProperty] private readonly DateTimeOffset? prevFireTimeUtc;
+        [JsonProperty] private readonly DateTimeOffset? nextFireTimeUtc;
 
         /// <summary>
         /// Gets the job detail.

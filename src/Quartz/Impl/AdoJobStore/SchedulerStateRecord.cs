@@ -18,7 +18,6 @@
 #endregion
 
 using System;
-using System.Runtime.Serialization;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -30,28 +29,24 @@ namespace Quartz.Impl.AdoJobStore
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
     public class SchedulerStateRecord
 	{
 	    /// <summary>
 	    /// Gets or sets the checkin interval.
 	    /// </summary>
 	    /// <value>The checkin interval.</value>
-	    [DataMember]
         public virtual TimeSpan CheckinInterval { get; set; }
 
 	    /// <summary>
 	    /// Gets or sets the checkin timestamp.
 	    /// </summary>
 	    /// <value>The checkin timestamp.</value>
-	    [DataMember]
         public virtual DateTimeOffset CheckinTimestamp { get; set; }
 
 	    /// <summary>
 	    /// Gets or sets the scheduler instance id.
 	    /// </summary>
 	    /// <value>The scheduler instance id.</value>
-	    [DataMember]
         public virtual string SchedulerInstanceId { get; set; }
 	}
 

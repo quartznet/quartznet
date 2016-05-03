@@ -19,8 +19,8 @@
 
 #endregion
 
+using Newtonsoft.Json;
 using System;
-using System.Runtime.Serialization;
 
 using Quartz.Util;
 
@@ -34,12 +34,13 @@ namespace Quartz.Impl.Matchers
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
     public class AndMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
-        [DataMember]
+        // Need the JsonProperty attribute to serialize these non-public members. If the Operand properties had setters, we could skip
+        // the json attributes since public fields/properties are serialized automatically.
+        [JsonProperty]
         private readonly IMatcher<TKey> leftOperand;
-        [DataMember]
+        [JsonProperty]
         private readonly IMatcher<TKey> rightOperand;
 
         protected AndMatcher(IMatcher<TKey> leftOperand, IMatcher<TKey> rightOperand)

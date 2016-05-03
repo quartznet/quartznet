@@ -19,8 +19,8 @@
 
 #endregion
 
+using Newtonsoft.Json;
 using System;
-using System.Runtime.Serialization;
 
 using Quartz.Util;
 
@@ -57,20 +57,19 @@ namespace Quartz.Impl.Triggers
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
     public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTrigger
     {
         private static readonly int YearToGiveupSchedulingAt = DateTime.Now.AddYears(100).Year;
 
-        [DataMember] private DateTimeOffset startTime;
-        [DataMember] private DateTimeOffset? endTime;
-        [DataMember] private DateTimeOffset? nextFireTimeUtc;
-        [DataMember] private DateTimeOffset? previousFireTimeUtc;
-        [DataMember] private int repeatInterval;
-        [DataMember] private IntervalUnit repeatIntervalUnit = IntervalUnit.Day;
-        [DataMember] private bool preserveHourOfDayAcrossDaylightSavings; // false is backward-compatible with behavior
-        [DataMember] private bool skipDayIfHourDoesNotExist;
-        [DataMember] private int timesTriggered;
+        private DateTimeOffset startTime;
+        private DateTimeOffset? endTime;
+        [JsonProperty] private DateTimeOffset? nextFireTimeUtc; // Making a public property which called GetNextFireTime/SetNextFireTime would make the json attribute unnecessary
+        [JsonProperty] private DateTimeOffset? previousFireTimeUtc; // Making a public property which called GetPreviousFireTime/SetPreviousFireTime would make the json attribute unnecessary
+        private int repeatInterval;
+        private IntervalUnit repeatIntervalUnit = IntervalUnit.Day;
+        private bool preserveHourOfDayAcrossDaylightSavings; // false is backward-compatible with behavior
+        private bool skipDayIfHourDoesNotExist;
+        private int timesTriggered;
         private TimeZoneInfo timeZone;
 
         // Serializing TimeZones is tricky in .NET Core. This helper will ensure that we get the same timezone on a given platform,
@@ -78,7 +77,7 @@ namespace Quartz.Impl.Triggers
         // match IANA tz IDs (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). This feature is coming, but depending
         // on timelines, it may be worth doign the mapping here.
         // More info: https://github.com/dotnet/corefx/issues/7757
-        [DataMember]
+        [JsonProperty]
         private string timeZoneInfoId
         {
             get { return timeZone?.Id; }
@@ -262,6 +261,7 @@ namespace Quartz.Impl.Triggers
             }
         }
 
+        [JsonIgnore]
         public TimeZoneInfo TimeZone
         {
             get

@@ -19,11 +19,11 @@
 
 #endregion
 
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using Quartz.Spi;
-using System.Runtime.Serialization;
 
 namespace Quartz.Impl
 {
@@ -71,7 +71,6 @@ namespace Quartz.Impl
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
     public class JobExecutionContextImpl : ICancellableJobExecutionContext
     {
 #if BINARY_SERIALIZATION
@@ -84,19 +83,19 @@ namespace Quartz.Impl
 #endif // BINARY_SERIALIZATION
         private readonly IJob job;
 
-        [DataMember] private readonly ITrigger trigger;
-        [DataMember] private readonly IJobDetail jobDetail;
-        [DataMember] private readonly JobDataMap jobDataMap;
+        [JsonProperty] private readonly ITrigger trigger;
+        [JsonProperty] private readonly IJobDetail jobDetail;
+        [JsonProperty] private readonly JobDataMap jobDataMap;
 
-        [DataMember] private readonly ICalendar calendar;
-        [DataMember] private readonly bool recovering;
-        [DataMember] private int numRefires;
-        [DataMember] private readonly DateTimeOffset? prevFireTimeUtc;
-        [DataMember] private readonly DateTimeOffset? nextFireTimeUtc;
-        [DataMember] private TimeSpan jobRunTime = TimeSpan.MinValue;
-        [DataMember] private object result; // Note that DCS will limit what sorts of results can be serialized
+        [JsonProperty] private readonly ICalendar calendar;
+        [JsonProperty] private readonly bool recovering;
+        [JsonProperty] private int numRefires;
+        [JsonProperty] private readonly DateTimeOffset? prevFireTimeUtc;
+        [JsonProperty] private readonly DateTimeOffset? nextFireTimeUtc;
+        private TimeSpan jobRunTime = TimeSpan.MinValue;
+        private object result; 
 
-        [DataMember] private readonly IDictionary<object, object> data = new Dictionary<object, object>();
+        [JsonProperty] private readonly IDictionary<object, object> data = new Dictionary<object, object>();
         private readonly CancellationTokenSource cancellationTokenSource;
 
         /// <summary>

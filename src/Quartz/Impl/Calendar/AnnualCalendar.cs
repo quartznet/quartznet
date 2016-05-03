@@ -40,10 +40,8 @@ namespace Quartz.Impl.Calendar
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
     public class AnnualCalendar : BaseCalendar
     {
-        [DataMember]
         private List<DateTimeOffset> excludeDays = new List<DateTimeOffset>();
 
         // true, if excludeDays is sorted

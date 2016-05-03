@@ -18,10 +18,10 @@
 #endregion
 
 using System;
-using System.Runtime.Serialization;
 
 using Quartz.Spi;
 using Quartz.Util;
+using Newtonsoft.Json;
 
 namespace Quartz.Impl.Triggers
 {
@@ -176,29 +176,44 @@ namespace Quartz.Impl.Triggers
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
     public class CronTriggerImpl : AbstractTrigger, ICronTrigger
 	{
         protected const int YearToGiveupSchedulingAt = 2299;
-		[DataMember] private CronExpression cronEx;
-        [DataMember] private DateTimeOffset startTimeUtc = DateTimeOffset.MinValue;
-        [DataMember] private DateTimeOffset? endTimeUtc;
-        [DataMember] private DateTimeOffset? nextFireTimeUtc;
-        [DataMember] private DateTimeOffset? previousFireTimeUtc;
+		private CronExpression cronEx;
+        private DateTimeOffset startTimeUtc = DateTimeOffset.MinValue;
+        private DateTimeOffset? endTimeUtc;
+        [JsonProperty] private DateTimeOffset? nextFireTimeUtc; // Making a public property which called GetNextFireTime/SetNextFireTime would make the json attribute unnecessary
+        [JsonProperty] private DateTimeOffset? previousFireTimeUtc; // Making a public property which called GetPreviousFireTime/SetPreviousFireTime would make the json attribute unnecessary
 
 #if BINARY_SERIALIZATION
         [NonSerialized]
 #endif // BINARY_SERIALIZATION
         private TimeZoneInfo timeZone;
 
-		/// <summary>
+        // With binary serialization, the timeZone doesn't need serialized since it is part of the CronExpression.
+        // With json serialization, however, the cron expression is only serialized as a string (CronExpressionString),
+        // so the TimeZone needs serialized separately. 
+        //
+        // Serializing TimeZones is tricky in .NET Core. This helper will ensure that we get the same timezone on a given platform,
+        // but there's not yet a good method of serializing/deserializing timezones cross-platform since Windows timezone IDs don't
+        // match IANA tz IDs (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). This feature is coming, but depending
+        // on timelines, it may be worth doign the mapping here.
+        // More info: https://github.com/dotnet/corefx/issues/7757
+        [JsonProperty]
+        private string timeZoneInfoId
+        {
+            get { return timeZone?.Id; }
+            set { timeZone = (value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value)); }
+        }
+
+        /// <summary>
         /// Create a <see cref="CronTriggerImpl" /> with no settings.
-		/// </summary>
-		/// <remarks>
-		/// The start-time will also be set to the current time, and the time zone
-		/// will be set to the system's default time zone.
+        /// </summary>
+        /// <remarks>
+        /// The start-time will also be set to the current time, and the time zone
+        /// will be set to the system's default time zone.
         /// </remarks>
-		public CronTriggerImpl()
+        public CronTriggerImpl()
 		{
 			StartTimeUtc = SystemTime.UtcNow();
             TimeZone = TimeZoneInfo.Local;
@@ -545,6 +560,7 @@ namespace Quartz.Impl.Triggers
         /// string cron expression does not carry a time zone!
         /// </remarks>
 		/// <value>The time zone.</value>
+        [JsonIgnore]
         public TimeZoneInfo TimeZone
 		{
 			get

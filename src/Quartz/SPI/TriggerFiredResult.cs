@@ -1,5 +1,5 @@
+using Newtonsoft.Json;
 using System;
-using System.Runtime.Serialization;
 
 namespace Quartz.Spi
 {
@@ -9,11 +9,11 @@ namespace Quartz.Spi
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
     public class TriggerFiredResult
     {
-        [DataMember] private readonly TriggerFiredBundle triggerFiredBundle;
-        [DataMember] private readonly Exception exception;
+        // JsonProperty attributes are used since Json.Net's default behavior is to serialize public members and the properties wrapping these fields are read-only
+        [JsonProperty] private readonly TriggerFiredBundle triggerFiredBundle;
+        [JsonProperty] private readonly Exception exception;
 
         ///<summary>
         /// Constructor.

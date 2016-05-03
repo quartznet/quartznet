@@ -32,7 +32,6 @@ namespace Quartz.Impl.AdoJobStore
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    // TODO (NetCore Port): Is this actually persisted anywhere or is it only serializable for remoting?
     public class LockException : JobPersistenceException
 	{
 		public LockException(string msg) : base(msg)

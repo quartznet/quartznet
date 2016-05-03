@@ -17,6 +17,7 @@
  */
 #endregion
 
+using Newtonsoft.Json;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -34,7 +35,7 @@ namespace Quartz.Util
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
+    [JsonObject]
     public class DirtyFlagMap<TKey, TValue> : 
         IDictionary<TKey, TValue>, 
         IDictionary
@@ -45,8 +46,9 @@ namespace Quartz.Util
         ,ISerializable
 #endif // BINARY_SERIALIZATION
     {
-        [DataMember] private bool dirty;
-        [DataMember] private Dictionary<TKey, TValue> map;
+        // JsonProperty attributes are used since Json.Net's default behavior is to serialize public members and the properties wrapping these fields are read-only
+        [JsonProperty] private bool dirty;
+        [JsonProperty] private Dictionary<TKey, TValue> map;
         private readonly object syncRoot = new object();
 
         /// <summary>

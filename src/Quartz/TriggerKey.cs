@@ -1,7 +1,6 @@
 using System;
 
 using Quartz.Util;
-using System.Runtime.Serialization;
 
 namespace Quartz
 {
@@ -43,7 +42,6 @@ namespace Quartz
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
     public sealed class TriggerKey : Key<TriggerKey>
     {
         public TriggerKey(string name) : base(name, null)

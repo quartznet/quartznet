@@ -17,6 +17,7 @@
  */
 #endregion
 
+using Newtonsoft.Json;
 using System;
 using System.Runtime.Serialization;
 using System.Security;
@@ -42,16 +43,13 @@ namespace Quartz.Impl.Calendar
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
     public class BaseCalendar : ICalendar
 #if BINARY_SERIALIZATION
         , ISerializable
 #endif // BINARY_SERIALIZATION
     {
         // A optional base calendar.
-        [DataMember]
         private ICalendar baseCalendar;
-        [DataMember]
         private string description;
         private TimeZoneInfo timeZone;
 
@@ -60,7 +58,7 @@ namespace Quartz.Impl.Calendar
         // match IANA tz IDs (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). This feature is coming, but depending
         // on timelines, it may be worth doign the mapping here.
         // More info: https://github.com/dotnet/corefx/issues/7757
-        [DataMember]
+        [JsonProperty]
         private string timeZoneInfoId
         {
             get { return timeZone?.Id; }
@@ -141,6 +139,7 @@ namespace Quartz.Impl.Calendar
         /// Gets or sets the time zone.
         /// </summary>
         /// <value>The time zone.</value>
+        [JsonIgnore]
         public virtual TimeZoneInfo TimeZone
 	    {
 	        get

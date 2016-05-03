@@ -20,7 +20,6 @@
 #endregion
 
 using System;
-using System.Runtime.Serialization;
 
 using Quartz.Util;
 
@@ -34,7 +33,6 @@ namespace Quartz.Impl.Matchers
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
     public class NameMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TKey>
     {
         protected NameMatcher(string compareTo, StringOperator compareWith) : base(compareTo, compareWith)

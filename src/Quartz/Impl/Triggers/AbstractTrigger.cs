@@ -17,9 +17,9 @@
  */
 #endregion
 
+using Newtonsoft.Json;
 using System;
 using System.Globalization;
-using System.Runtime.Serialization;
 
 using Quartz.Spi;
 
@@ -56,23 +56,22 @@ namespace Quartz.Impl.Triggers
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
     public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTrigger>
 	{
-        [DataMember] private string name;
-        [DataMember] private string group = SchedulerConstants.DefaultGroup;
-        [DataMember] private string jobName;
-        [DataMember] private string jobGroup = SchedulerConstants.DefaultGroup;
-        [DataMember] private string description;
-        [DataMember] private JobDataMap jobDataMap;
-        [DataMember] private string calendarName;
-        [DataMember] private string fireInstanceId;
+        private string name;
+        private string group = SchedulerConstants.DefaultGroup;
+        private string jobName;
+        private string jobGroup = SchedulerConstants.DefaultGroup;
+        private string description;
+        private JobDataMap jobDataMap;
+        private string calendarName;
+        private string fireInstanceId;
 
-        [DataMember] private int misfireInstruction = Quartz.MisfireInstruction.InstructionNotSet;
+        private int misfireInstruction = Quartz.MisfireInstruction.InstructionNotSet;
 
-        [DataMember] private DateTimeOffset? endTimeUtc;
-        [DataMember] private DateTimeOffset startTimeUtc;
-		[DataMember] private int priority = TriggerConstants.DefaultPriority;
+        private DateTimeOffset? endTimeUtc;
+        private DateTimeOffset startTimeUtc;
+		private int priority = TriggerConstants.DefaultPriority;
 
 #if BINARY_SERIALIZATION
         [NonSerialized] // we have the key in string fields
@@ -187,6 +186,7 @@ namespace Quartz.Impl.Triggers
 		/// Gets the key.
 		/// </summary>
 		/// <value>The key.</value>
+        [JsonIgnore] // Captured in string properties
         public virtual TriggerKey Key
 		{
 		    get

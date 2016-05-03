@@ -19,10 +19,10 @@
 
 #endregion
 
+using Newtonsoft.Json;
 using System;
 using System.Globalization;
 using System.Reflection;
-using System.Runtime.Serialization;
 
 using Quartz.Util;
 
@@ -54,25 +54,15 @@ namespace Quartz.Impl
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
     public class JobDetailImpl : IJobDetail
     {
-        [DataMember] private string name;
-        [DataMember] private string group = SchedulerConstants.DefaultGroup;
-        [DataMember] private string description;
-        [DataMember] private JobDataMap jobDataMap;
-        [DataMember] private bool durability;
-        [DataMember] private bool shouldRecover;
-
+        private string name;
+        private string group = SchedulerConstants.DefaultGroup;
+        private string description;
+        private JobDataMap jobDataMap;
+        private bool durability;
+        private bool shouldRecover;
         private Type jobType;
-
-        // TODO (NetCore Port): Verify that this works for serializing System.Type
-        [DataMember]
-        private string jobTypeName
-        {
-            get { return jobType?.FullName; }
-            set { jobType = Type.GetType(value); }
-        }
 
 #if BINARY_SERIALIZATION
         [NonSerialized] // we have the key in string fields
@@ -202,6 +192,7 @@ namespace Quartz.Impl
         /// Gets the key.
         /// </summary>
         /// <value>The key.</value>
+        [JsonIgnore] // The key is already captured from string properties
         public virtual JobKey Key
         {
             get
