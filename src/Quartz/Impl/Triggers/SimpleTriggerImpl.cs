@@ -17,8 +17,8 @@
  */
 #endregion
 
+using Newtonsoft.Json;
 using System;
-using System.Runtime.Serialization;
 
 namespace Quartz.Impl.Triggers
 {
@@ -34,7 +34,6 @@ namespace Quartz.Impl.Triggers
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
     public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
 	{
         /// <summary>
@@ -45,12 +44,12 @@ namespace Quartz.Impl.Triggers
         public const int RepeatIndefinitely = -1;
         private const int YearToGiveupSchedulingAt = 2299;
 
-        [DataMember] private DateTimeOffset? nextFireTimeUtc;
-		[DataMember] private DateTimeOffset? previousFireTimeUtc;
+        [JsonProperty] private DateTimeOffset? nextFireTimeUtc; // Making a public property which called GetNextFireTime/SetNextFireTime would make the json attribute unnecessary
+        [JsonProperty] private DateTimeOffset? previousFireTimeUtc; // Making a public property which called GetPreviousFireTime/SetPreviousFireTime would make the json attribute unnecessary
 
-        [DataMember] private int repeatCount;
-        [DataMember] private TimeSpan repeatInterval = TimeSpan.Zero;
-        [DataMember] private int timesTriggered;
+        private int repeatCount;
+        private TimeSpan repeatInterval = TimeSpan.Zero;
+        private int timesTriggered;
 
         /// <summary>
         /// Create a <see cref="SimpleTriggerImpl" /> with no settings.

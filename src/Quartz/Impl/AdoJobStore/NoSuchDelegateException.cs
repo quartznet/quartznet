@@ -31,7 +31,6 @@ namespace Quartz.Impl.AdoJobStore
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    // TODO (NetCore Port): Is this actually persisted anywhere or is it only serializable for remoting?
     public class NoSuchDelegateException : JobPersistenceException
 	{
 		public NoSuchDelegateException(string msg, Exception cause) : base(msg, cause)

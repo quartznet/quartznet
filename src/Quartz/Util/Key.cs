@@ -19,8 +19,8 @@
 
 #endregion
 
+using Newtonsoft.Json;
 using System;
-using System.Runtime.Serialization;
 
 namespace Quartz.Util
 {
@@ -32,7 +32,6 @@ namespace Quartz.Util
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
     public class Key<T> : IComparable<Key<T>>
     {
         /// <summary>
@@ -40,9 +39,9 @@ namespace Quartz.Util
         /// </summary>
         public const string DefaultGroup = "DEFAULT";
 
-        [DataMember]
+        [JsonProperty]
         private readonly string name;
-        [DataMember]
+        [JsonProperty]
         private readonly string group;
 
         /// <summary> 

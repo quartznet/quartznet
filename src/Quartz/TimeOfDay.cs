@@ -19,8 +19,8 @@
 
 #endregion
 
+using Newtonsoft.Json;
 using System;
-using System.Runtime.Serialization;
 
 namespace Quartz
 {
@@ -39,12 +39,12 @@ namespace Quartz
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
     public class TimeOfDay
     {
-        [DataMember] private readonly int hour;
-        [DataMember] private readonly int minute;
-        [DataMember] private readonly int second;
+        // JsonProperty attributes needed since the public properties wrapping these fields are read-only
+        [JsonProperty] private readonly int hour;
+        [JsonProperty] private readonly int minute;
+        [JsonProperty] private readonly int second;
 
         /// <summary>
         /// Create a TimeOfDay instance for the given hour, minute and second.

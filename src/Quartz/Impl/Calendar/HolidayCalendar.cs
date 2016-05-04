@@ -19,6 +19,7 @@
 
 #endregion
 
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -45,7 +46,6 @@ namespace Quartz.Impl.Calendar
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
     public class HolidayCalendar : BaseCalendar
     {
         /// <summary>
@@ -56,7 +56,7 @@ namespace Quartz.Impl.Calendar
         public virtual ISet<DateTime> ExcludedDates => new SortedSet<DateTime>(dates);
 
         // A sorted set to store the holidays
-        [DataMember]
+        [JsonProperty]
         private SortedSet<DateTime> dates = new SortedSet<DateTime>();
 
         /// <summary>

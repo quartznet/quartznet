@@ -40,7 +40,6 @@ namespace Quartz
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
     public class SchedulerContext : StringKeyDirtyFlagMap
 	{
 

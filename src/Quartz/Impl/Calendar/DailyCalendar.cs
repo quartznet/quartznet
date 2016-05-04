@@ -17,6 +17,7 @@
  */
 #endregion
 
+using Newtonsoft.Json;
 using System;
 using System.Globalization;
 using System.Runtime.Serialization;
@@ -54,7 +55,6 @@ namespace Quartz.Impl.Calendar
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
     public class DailyCalendar : BaseCalendar
     {
         private const string InvalidHourOfDay = "Invalid hour of day: ";
@@ -66,16 +66,19 @@ namespace Quartz.Impl.Calendar
         private const long OneMillis = 1;
         private const char Colon = ':';
 
-        [DataMember] private int rangeStartingHourOfDay;
-        [DataMember] private int rangeStartingMinute;
-        [DataMember] private int rangeStartingSecond;
-        [DataMember] private int rangeStartingMillis;
-        [DataMember] private int rangeEndingHourOfDay;
-        [DataMember] private int rangeEndingMinute;
-        [DataMember] private int rangeEndingSecond;
-        [DataMember] private int rangeEndingMillis;
+        // JsonProperty attributes are necessary because no public field/property exposes these directly
+        // Adding RangeStartingTimeUTC and RangeEndingTimeUTC properties with getters/setters to control
+        // these would remove the need for the attribute.
+        [JsonProperty] private int rangeStartingHourOfDay;
+        [JsonProperty] private int rangeStartingMinute;
+        [JsonProperty] private int rangeStartingSecond;
+        [JsonProperty] private int rangeStartingMillis;
+        [JsonProperty] private int rangeEndingHourOfDay;
+        [JsonProperty] private int rangeEndingMinute;
+        [JsonProperty] private int rangeEndingSecond;
+        [JsonProperty] private int rangeEndingMillis;
 
-        [DataMember] private bool invertTimeRange;
+        private bool invertTimeRange;
 
 
         /// <summary>

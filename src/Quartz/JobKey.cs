@@ -22,7 +22,6 @@
 using System;
 
 using Quartz.Util;
-using System.Runtime.Serialization;
 
 namespace Quartz
 {
@@ -61,7 +60,6 @@ namespace Quartz
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
     public sealed class JobKey : Key<JobKey>
     {
         public JobKey(string name) : base(name, null)

@@ -17,10 +17,10 @@
  */
 #endregion
 
+using Newtonsoft.Json;
 using System;
 using System.Text;
 using System.Threading;
-using System.Runtime.Serialization;
 
 using Quartz.Spi;
 
@@ -35,46 +35,24 @@ namespace Quartz
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
     public class SchedulerMetaData
 	{
-		[DataMember] private readonly string schedName;
-		[DataMember] private readonly string schedInst;
-		private Type schedType;
-		[DataMember] private readonly bool isRemote;
-		[DataMember] private readonly bool started;
-		[DataMember] private readonly bool isInStandbyMode;
-		[DataMember] private readonly bool shutdown;
-        [DataMember] private readonly DateTimeOffset? startTime;
-        [DataMember] private readonly int numberOfJobsExec;
-		private Type jsType;
-		[DataMember] private readonly bool jsPersistent;
-	    [DataMember] private readonly bool jsClustered;
-		private Type tpType;
-		[DataMember] private readonly int tpSize;
-		[DataMember] private readonly string version;
-
-        [DataMember]
-        private string schedTypeName
-        {
-            get { return schedType.FullName; }
-            set { schedType = Type.GetType(value); }
-        }
-
-        [DataMember]
-        private string jsTypeName
-        {
-            get { return jsType.FullName; }
-            set { jsType = Type.GetType(value); }
-        }
-
-        [DataMember]
-        private string tpTypeName
-        {
-            get { return tpType.FullName; }
-            set { tpType = Type.GetType(value); }
-        }
-
+		[JsonProperty] private readonly string schedName;
+		[JsonProperty] private readonly string schedInst;
+		[JsonProperty] private Type schedType;
+		[JsonProperty] private readonly bool isRemote;
+		[JsonProperty] private readonly bool started;
+		[JsonProperty] private readonly bool isInStandbyMode;
+		[JsonProperty] private readonly bool shutdown;
+        [JsonProperty] private readonly DateTimeOffset? startTime;
+        [JsonProperty] private readonly int numberOfJobsExec;
+		[JsonProperty] private Type jsType;
+		[JsonProperty] private readonly bool jsPersistent;
+	    [JsonProperty] private readonly bool jsClustered;
+		[JsonProperty] private Type tpType;
+		[JsonProperty] private readonly int tpSize;
+		[JsonProperty] private readonly string version;
+        
         /// <summary>
         /// Initializes a new instance of the <see cref="SchedulerMetaData"/> class.
         /// </summary>

@@ -19,9 +19,9 @@
 
 #endregion
 
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
-using System.Runtime.Serialization;
 
 using Quartz.Util;
 
@@ -76,7 +76,6 @@ namespace Quartz.Impl.Triggers
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
     public class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalTrigger
     {
         /// <summary>
@@ -88,18 +87,18 @@ namespace Quartz.Impl.Triggers
 
         private static readonly int YearToGiveupSchedulingAt = DateTime.Now.Year + 100;
 
-        [DataMember] private DateTimeOffset startTimeUtc;
-        [DataMember] private DateTimeOffset? endTimeUtc;
-        [DataMember] private DateTimeOffset? nextFireTimeUtc;
-        [DataMember] private DateTimeOffset? previousFireTimeUtc;
-        [DataMember] private int repeatInterval = 1;
-        [DataMember] private IntervalUnit repeatIntervalUnit = IntervalUnit.Minute;
-        [DataMember] private ISet<DayOfWeek> daysOfWeek;
-        [DataMember] private TimeOfDay startTimeOfDay;
-        [DataMember] private TimeOfDay endTimeOfDay;
-        [DataMember] private int timesTriggered;
-        [DataMember] private bool complete;
-        [DataMember] private int repeatCount = RepeatIndefinitely;
+        private DateTimeOffset startTimeUtc;
+        private DateTimeOffset? endTimeUtc;
+        [JsonProperty] private DateTimeOffset? nextFireTimeUtc; // Making a public property which called GetNextFireTime/SetNextFireTime would make the json attribute unnecessary
+        [JsonProperty] private DateTimeOffset? previousFireTimeUtc; // Making a public property which called GetPreviousFireTime/SetPreviousFireTime would make the json attribute unnecessary
+        private int repeatInterval = 1;
+        private IntervalUnit repeatIntervalUnit = IntervalUnit.Minute;
+        private ISet<DayOfWeek> daysOfWeek;
+        private TimeOfDay startTimeOfDay;
+        private TimeOfDay endTimeOfDay;
+        private int timesTriggered;
+        private bool complete;
+        private int repeatCount = RepeatIndefinitely;
         private TimeZoneInfo timeZone;
 
         // Serializing TimeZones is tricky in .NET Core. This helper will ensure that we get the same timezone on a given platform,
@@ -107,7 +106,7 @@ namespace Quartz.Impl.Triggers
         // match IANA tz IDs (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). This feature is coming, but depending
         // on timelines, it may be worth doign the mapping here.
         // More info: https://github.com/dotnet/corefx/issues/7757
-        [DataMember]
+        [JsonProperty]
         private string timeZoneInfoId
         {
             get { return timeZone?.Id; }
@@ -349,6 +348,7 @@ namespace Quartz.Impl.Triggers
             set { timesTriggered = value; }
         }
 
+        [JsonIgnore]
         public TimeZoneInfo TimeZone
         {
             get

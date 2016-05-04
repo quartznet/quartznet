@@ -39,16 +39,13 @@ namespace Quartz.Impl.Calendar
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
     public class WeeklyCalendar : BaseCalendar
     {
         // An array to store the week days which are to be excluded.
         // DayOfWeek enumeration values are used as index.
-        [DataMember]
         private bool[] excludeDays = new bool[7];
 
         // Will be set to true, if all week days are excluded
-        [DataMember]
         private bool excludeAll;
 
         /// <summary>

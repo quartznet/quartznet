@@ -39,18 +39,15 @@ namespace Quartz.Impl.Calendar
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
     public class MonthlyCalendar : BaseCalendar
     {
         private const int MaxDaysInMonth = 31;
 
         // An array to store a months days which are to be excluded.
         // Day as index.
-        [DataMember]
         private bool[] excludeDays = new bool[MaxDaysInMonth];
 
         // Will be set to true, if all week days are excluded
-        [DataMember]
         private bool excludeAll;
 
         /// <summary>

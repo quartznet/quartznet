@@ -4,7 +4,7 @@ using System.Reflection;
 #if BINARY_SERIALIZATION
 using System.Runtime.Serialization.Formatters.Binary;
 #else // BINARY_SERIALIZATION
-using System.Runtime.Serialization;
+using Newtonsoft.Json;
 #endif // BINARY_SERIALIZATION
 
 namespace Quartz.Util
@@ -33,10 +33,20 @@ namespace Quartz.Util
                 ms.Seek(0, SeekOrigin.Begin);
                 return (T)bf.Deserialize(ms);
 #else // BINARY_SERIALIZATION
-                DataContractSerializer dcs = new DataContractSerializer(typeof(T));
-                dcs.WriteObject(ms, obj);
-                ms.Seek(0, SeekOrigin.Begin);
-                return (T)dcs.ReadObject(ms);
+                using (var sw = new StreamWriter(ms))
+                {
+                    var js = new JsonSerializer();
+                    js.TypeNameHandling = TypeNameHandling.All;
+                    js.PreserveReferencesHandling = PreserveReferencesHandling.All;
+                    js.ContractResolver = new WritablePropertiesOnlyResolver();
+                    js.Serialize(sw, obj);
+                    sw.Flush();
+                    ms.Seek(0, SeekOrigin.Begin);
+                    using (var sr = new StreamReader(ms))
+                    {
+                        return (T)js.Deserialize(sr, typeof(T));
+                    }
+                }
 #endif // BINARY_SERIALIZATION
             }
         }

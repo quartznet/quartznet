@@ -19,6 +19,7 @@
 
 #endregion
 
+using Newtonsoft.Json;
 using System;
 using System.Runtime.Serialization;
 using System.Security;
@@ -48,10 +49,8 @@ namespace Quartz.Impl.Calendar
 #if BINARY_SERIALIZATION
     [Serializable]
 #endif // BINARY_SERIALIZATION
-    [DataContract]
     public class CronCalendar : BaseCalendar
     {
-        [DataMember]
         private CronExpression cronExpression;
 
         /// <summary>
@@ -132,6 +131,7 @@ namespace Quartz.Impl.Calendar
         }
 #endif // BINARY_SERIALIZATION
 
+        [JsonIgnore]
         public override TimeZoneInfo TimeZone
         {
             get { return cronExpression.TimeZone; }
