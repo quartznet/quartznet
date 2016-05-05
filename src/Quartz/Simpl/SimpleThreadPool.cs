@@ -304,10 +304,7 @@ namespace Quartz.Simpl
 
         public bool RunInThread(Func<Task> runnable)
         {
-            // TODO (NetCore Port): We probably ought to create a new task-based "thread pool" but just jury-rigging this in for the moment
-            //                      so that it doesn't block testing other scenarios.
-            return RunInThread(new Action(runnable().Wait));
-            // throw new NotSupportedException("This ThreadPool should not be used for running async jobs");
+            throw new NotSupportedException("This ThreadPool should not be used for running async jobs");
         }
 
         public int BlockForAvailableThreads()
