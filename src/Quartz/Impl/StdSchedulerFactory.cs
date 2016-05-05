@@ -517,9 +517,21 @@ Please add configuration to your application config file to correctly initialize
             Type tpType = loadHelper.LoadType(cfg.GetStringProperty(PropertyThreadPoolType)) ??
 // DefaultThreadPool (or DedicatedThreadPool) should work in either case, but this is #if'd until the new thread pools can be more thoroughly tested
 #if WINDOWS_THREADPOOL
-                typeof(SimpleThreadPool);
+                typeof(ClrThreadPool);
+
+                if (tpType == typeof(SimpleThreadPool))
+                {
+                    // use as synonym for now
+                    tpType = typeof(ClrThreadPool);
+                }
 #else // WINDOWS_THREADPOOL
                 typeof(DefaultThreadPool);
+
+                if (tpType == typeof(SimpleThreadPool))
+                {
+                    // use as synonym for now
+                    tpType = typeof(DefaultThreadPool);
+                }
 #endif // WINDOWS_THREADPOOL
 
             try
