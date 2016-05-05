@@ -918,10 +918,6 @@ Please add configuration to your application config file to correctly initialize
                     catch (Exception e)
                     {
                         Log.ErrorException("Couldn't generate instance Id!", e);
-                        // TODO (NetCore Port): I think keeping the exception type consistent between desktop and Core versions of Quartz
-                        //                      is more important than keeping the desktop one consistent between the previous version and this one.
-                        //                      It's not an obvious call, though, so may be worth discussing.
-                        // throw new SystemException("Cannot run without an instance id.");
                         throw new InvalidOperationException("Cannot run without an instance id.");
                     }
                 }

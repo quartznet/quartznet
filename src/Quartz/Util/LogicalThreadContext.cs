@@ -19,6 +19,10 @@
 
 #if REMOTING
 using System.Runtime.Remoting.Messaging;
+#else
+using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 #endif // REMOTING
 using System.Security;
 #if !ClientProfile && HTTPCONTEXT
@@ -36,11 +40,27 @@ namespace Quartz.Util
 	[SecurityCritical]
 	public static class LogicalThreadContext
 	{
-		/// <summary>
-		/// Retrieves an object with the specified name.
-		/// </summary>
-		/// <param name="name">The name of the item.</param>
-		/// <returns>The object in the call context associated with the specified name or null if no object has been stored previously</returns>
+#if !REMOTING
+        // Async local dictionary can be used as a .NET Core-compliant substitute for CallContext
+        static AsyncLocal<Dictionary<string, object>> AsyncLocalObjects = new AsyncLocal<Dictionary<string, object>>();
+        static Dictionary<string, object> Data
+        {
+            get
+            {
+                if (AsyncLocalObjects.Value == null)
+                {
+                    AsyncLocalObjects.Value = new Dictionary<string, object>();
+                }
+                return AsyncLocalObjects.Value;
+            }
+        }        
+#endif // !REMOTING
+
+        /// <summary>
+        /// Retrieves an object with the specified name.
+        /// </summary>
+        /// <param name="name">The name of the item.</param>
+        /// <returns>The object in the call context associated with the specified name or null if no object has been stored previously</returns>
         public static T GetData<T>(string name)
 		{
 #if !ClientProfile && HTTPCONTEXT
@@ -53,8 +73,7 @@ namespace Quartz.Util
 #if REMOTING
             return (T)CallContext.LogicalGetData(name);
 #else // REMOTING
-            // TODO (NetCore Port): Replace with AsyncLocal<T>
-            return default(T);
+            return (T)Data.TryGetAndReturn(name);
 #endif // REMOTING
         }
 
@@ -76,7 +95,7 @@ namespace Quartz.Util
 #if REMOTING
                 CallContext.LogicalSetData(name, value);
 #else // REMOTING
-                // TODO (NetCore Port): Replace with AsyncLocal<T>
+                Data[name] = value;
 #endif // REMOTING
             }
 		}
@@ -98,7 +117,7 @@ namespace Quartz.Util
 #if REMOTING
                 CallContext.FreeNamedDataSlot(name);
 #else // REMOTING
-                // TODO (NetCore Port): Replace with AsyncLocal<T>
+                if (Data.ContainsKey(name)) Data.Remove(name);
 #endif // REMOTING
             }
         }
