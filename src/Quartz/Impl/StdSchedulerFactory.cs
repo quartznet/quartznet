@@ -517,9 +517,21 @@ Please add configuration to your application config file to correctly initialize
             Type tpType = loadHelper.LoadType(cfg.GetStringProperty(PropertyThreadPoolType)) ??
 // DefaultThreadPool (or DedicatedThreadPool) should work in either case, but this is #if'd until the new thread pools can be more thoroughly tested
 #if WINDOWS_THREADPOOL
-                typeof(SimpleThreadPool);
+                typeof(ClrThreadPool);
+
+                if (tpType == typeof(SimpleThreadPool))
+                {
+                    // use as synonym for now
+                    tpType = typeof(ClrThreadPool);
+                }
 #else // WINDOWS_THREADPOOL
                 typeof(DefaultThreadPool);
+
+                if (tpType == typeof(SimpleThreadPool))
+                {
+                    // use as synonym for now
+                    tpType = typeof(DefaultThreadPool);
+                }
 #endif // WINDOWS_THREADPOOL
 
             try
@@ -918,10 +930,6 @@ Please add configuration to your application config file to correctly initialize
                     catch (Exception e)
                     {
                         Log.ErrorException("Couldn't generate instance Id!", e);
-                        // TODO (NetCore Port): I think keeping the exception type consistent between desktop and Core versions of Quartz
-                        //                      is more important than keeping the desktop one consistent between the previous version and this one.
-                        //                      It's not an obvious call, though, so may be worth discussing.
-                        // throw new SystemException("Cannot run without an instance id.");
                         throw new InvalidOperationException("Cannot run without an instance id.");
                     }
                 }
