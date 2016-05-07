@@ -1177,11 +1177,11 @@ namespace Quartz.Core
         /// <summary>
         /// Get the names of all known <see cref="IJob" /> groups.
         /// </summary>
-        public virtual async Task<IReadOnlyList<string>> GetJobGroupNames()
+        public virtual Task<IReadOnlyList<string>> GetJobGroupNames()
         {
             ValidateState();
 
-            return await resources.JobStore.GetJobGroupNames().ConfigureAwait(false);
+            return resources.JobStore.GetJobGroupNames();
         }
 
         /// <summary>
@@ -1222,10 +1222,10 @@ namespace Quartz.Core
         /// Get the names of all known <see cref="ITrigger" />
         /// groups.
         /// </summary>
-        public virtual async Task<IReadOnlyList<string>> GetTriggerGroupNames()
+        public virtual Task<IReadOnlyList<string>> GetTriggerGroupNames()
         {
             ValidateState();
-            return await resources.JobStore.GetTriggerGroupNames().ConfigureAwait(false);
+            return resources.JobStore.GetTriggerGroupNames();
         }
 
         /// <summary>
@@ -1255,6 +1255,7 @@ namespace Quartz.Core
             return resources.JobStore.RetrieveJob(jobKey);
         }
 
+#pragma warning disable AsyncFixer01 // Unnecessary async/await usage
         /// <summary>
         /// Get the <see cref="ITrigger" /> instance with the given name and
         /// group.
@@ -1265,6 +1266,7 @@ namespace Quartz.Core
 
             return await resources.JobStore.RetrieveTrigger(triggerKey).ConfigureAwait(false);
         }
+#pragma warning restore AsyncFixer01 // Unnecessary async/await usage
 
         /// <summary>
         /// Determine whether a <see cref="IJob"/> with the given identifier already
@@ -1289,11 +1291,11 @@ namespace Quartz.Core
         /// </remarks>
         /// <param name="triggerKey">the identifier to check for</param>
         /// <returns>true if a Trigger exists with the given identifier</returns>
-        public virtual async Task<bool> CheckExists(TriggerKey triggerKey)
+        public virtual Task<bool> CheckExists(TriggerKey triggerKey)
         {
             ValidateState();
 
-            return await resources.JobStore.CheckExists(triggerKey).ConfigureAwait(false);
+            return resources.JobStore.CheckExists(triggerKey);
         }
 
         /// <summary>

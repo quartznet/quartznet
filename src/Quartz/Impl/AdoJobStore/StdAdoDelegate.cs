@@ -2308,7 +2308,7 @@ namespace Quartz.Impl.AdoJobStore
         /// the trigger
         /// the state that the trigger should be stored in
         /// <returns>the number of rows inserted</returns>
-        public virtual async Task<int> UpdateFiredTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail job)
+        public virtual Task<int> UpdateFiredTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail job)
         {
             var ps = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateFiredTrigger));
             AddCommandParameter(ps, "instanceName", instanceId);
@@ -2333,7 +2333,7 @@ namespace Quartz.Impl.AdoJobStore
 
             AddCommandParameter(ps, "entryId", trigger.FireInstanceId);
 
-            return await ps.ExecuteNonQueryAsync().ConfigureAwait(false);
+            return ps.ExecuteNonQueryAsync();
         }
 
         /// <summary>

@@ -696,7 +696,7 @@ namespace Quartz.Xml
             {
                 using (var sr = new StreamReader(stream))
                 {
-                    ProcessInternal(sr.ReadToEnd());
+                    ProcessInternal(await sr.ReadToEndAsync().ConfigureAwait(false));
                 }
                 await ExecutePreProcessCommands(sched).ConfigureAwait(false);
                 await ScheduleJobs(sched).ConfigureAwait(false);

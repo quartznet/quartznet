@@ -14,7 +14,7 @@ namespace Quartz.Impl.AdoJobStore
 
         private QueuedTaskScheduler taskScheduler;
         private readonly CancellationTokenSource cancellationTokenSource;
-        private Task<Task> task;
+        private Task task;
 
         private int numFails;
 
@@ -30,7 +30,7 @@ namespace Quartz.Impl.AdoJobStore
             string threadName = $"QuartzScheduler_{jobStoreSupport.InstanceName}-{jobStoreSupport.InstanceId}_ClusterManager";
 
             taskScheduler = new QueuedTaskScheduler(threadCount: 1, threadPriority: ThreadPriority.AboveNormal, threadName: threadName, useForegroundThreads: !jobStoreSupport.MakeThreadsDaemons);
-            task = Task.Factory.StartNew(() => Run(cancellationTokenSource.Token), cancellationTokenSource.Token, TaskCreationOptions.HideScheduler, taskScheduler);
+            task = Task.Factory.StartNew(() => Run(cancellationTokenSource.Token), cancellationTokenSource.Token, TaskCreationOptions.HideScheduler, taskScheduler).Unwrap();
         }
 
         public async Task Shutdown()
