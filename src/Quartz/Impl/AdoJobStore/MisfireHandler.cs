@@ -15,7 +15,7 @@ namespace Quartz.Impl.AdoJobStore
 
         private readonly CancellationTokenSource cancellationTokenSource;
         private readonly QueuedTaskScheduler taskScheduler;
-        private Task<Task> task;
+        private Task task;
 
         internal MisfireHandler(JobStoreSupport jobStoreSupport)
         {
@@ -28,13 +28,13 @@ namespace Quartz.Impl.AdoJobStore
 
         public virtual void Initialize()
         {
-            task = Task.Factory.StartNew(() => Run(), CancellationToken.None, TaskCreationOptions.HideScheduler, taskScheduler);
+            task = Task.Factory.StartNew(Run, CancellationToken.None, TaskCreationOptions.HideScheduler, taskScheduler).Unwrap();
         }
 
         private async Task Run()
         {
             CancellationToken token = cancellationTokenSource.Token;
-            while (true)
+            while (!token.IsCancellationRequested)
             {
                 token.ThrowIfCancellationRequested();
 
@@ -66,7 +66,6 @@ namespace Quartz.Impl.AdoJobStore
 
                 await Task.Delay(timeToSleep, token).ConfigureAwait(false);
             }
-            // ReSharper disable once FunctionNeverReturns
         }
 
         public virtual async Task Shutdown()
