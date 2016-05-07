@@ -68,9 +68,9 @@ namespace Quartz.Core
         /// Notifies the scheduler about finalized trigger.
         /// </summary>
         /// <param name="trigger">The trigger that has finalized.</param>
-        public async Task NotifySchedulerListenersFinalized(ITrigger trigger)
+        public Task NotifySchedulerListenersFinalized(ITrigger trigger)
         {
-            await sched.NotifySchedulerListenersFinalized(trigger).ConfigureAwait(false);
+            return sched.NotifySchedulerListenersFinalized(trigger);
         }
 
         /// <summary>
@@ -81,14 +81,14 @@ namespace Quartz.Core
             schedThread.SignalSchedulingChange(candidateNewNextFireTime);
         }
 
-        public async Task NotifySchedulerListenersJobDeleted(JobKey jobKey)
+        public Task NotifySchedulerListenersJobDeleted(JobKey jobKey)
         {
-            await sched.NotifySchedulerListenersJobDeleted(jobKey).ConfigureAwait(false);
+            return sched.NotifySchedulerListenersJobDeleted(jobKey);
         }
 
-        public async Task NotifySchedulerListenersError(string message, SchedulerException jpe)
+        public Task NotifySchedulerListenersError(string message, SchedulerException jpe)
         {
-            await sched.NotifySchedulerListenersError(message, jpe).ConfigureAwait(false);
+            return sched.NotifySchedulerListenersError(message, jpe);
         }
     }
 }

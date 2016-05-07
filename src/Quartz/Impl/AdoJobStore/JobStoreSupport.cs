@@ -849,11 +849,11 @@ namespace Quartz.Impl.AdoJobStore
         /// If <see langword="true" />, any <see cref="IJob" /> existing in the
         /// <see cref="IJobStore" /> with the same name &amp; group should be over-written.
         /// </param>
-        public async Task StoreJob(IJobDetail newJob, bool replaceExisting)
+        public Task StoreJob(IJobDetail newJob, bool replaceExisting)
         {
-            await ExecuteInLock(
+            return ExecuteInLock(
                 (LockOnInsert || replaceExisting) ? LockTriggerAccess : null,
-                conn => StoreJob(conn, newJob, replaceExisting)).ConfigureAwait(false);
+                conn => StoreJob(conn, newJob, replaceExisting));
         }
 
         /// <summary> <para>
@@ -919,11 +919,11 @@ namespace Quartz.Impl.AdoJobStore
         /// if a <see cref="ITrigger" /> with the same name/group already
         /// exists, and replaceExisting is set to false.
         /// </exception>
-        public async Task StoreTrigger(IOperableTrigger newTrigger, bool replaceExisting)
+        public Task StoreTrigger(IOperableTrigger newTrigger, bool replaceExisting)
         {
-            await ExecuteInLock(
+            return ExecuteInLock(
                 (LockOnInsert || replaceExisting) ? LockTriggerAccess : null,
-                conn => StoreTrigger(conn, newTrigger, null, replaceExisting, StateWaiting, false, false)).ConfigureAwait(false);
+                conn => StoreTrigger(conn, newTrigger, null, replaceExisting, StateWaiting, false, false));
         }
 
         /// <summary>
@@ -1021,9 +1021,9 @@ namespace Quartz.Impl.AdoJobStore
         /// <see langword="true" /> if a <see cref="IJob" /> with the given name &amp;
         /// group was found and removed from the store.
         /// </returns>
-        public async Task<bool> RemoveJob(JobKey jobKey)
+        public Task<bool> RemoveJob(JobKey jobKey)
         {
-            return await ExecuteInLock(LockTriggerAccess, conn => RemoveJob(conn, jobKey, true)).ConfigureAwait(false);
+            return ExecuteInLock(LockTriggerAccess, conn => RemoveJob(conn, jobKey, true));
         }
 
         protected virtual async Task<bool> RemoveJob(ConnectionAndTransactionHolder conn,
@@ -1123,10 +1123,10 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="jobKey">The key identifying the job.</param>
         /// <returns>The desired <see cref="IJob" />, or null if there is no match.</returns>
-        public async Task<IJobDetail> RetrieveJob(JobKey jobKey)
+        public Task<IJobDetail> RetrieveJob(JobKey jobKey)
         {
             // no locks necessary for read...
-            return await ExecuteWithoutLock(conn => RetrieveJob(conn, jobKey)).ConfigureAwait(false);
+            return ExecuteWithoutLock(conn => RetrieveJob(conn, jobKey));
         }
 
         protected virtual async Task<IJobDetail> RetrieveJob(ConnectionAndTransactionHolder conn, JobKey jobKey)
@@ -1173,14 +1173,14 @@ namespace Quartz.Impl.AdoJobStore
         /// <see langword="true" /> if a <see cref="ITrigger" /> with the given
         /// name &amp; group was found and removed from the store.
         ///</returns>
-        public async Task<bool> RemoveTrigger(TriggerKey triggerKey)
+        public Task<bool> RemoveTrigger(TriggerKey triggerKey)
         {
-            return await ExecuteInLock(LockTriggerAccess, conn => RemoveTrigger(conn, triggerKey)).ConfigureAwait(false);
+            return ExecuteInLock(LockTriggerAccess, conn => RemoveTrigger(conn, triggerKey));
         }
 
-        protected virtual async Task<bool> RemoveTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
+        protected virtual Task<bool> RemoveTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
-            return await RemoveTrigger(conn, triggerKey, null).ConfigureAwait(false);
+            return RemoveTrigger(conn, triggerKey, null);
         }
 
         protected virtual async Task<bool> RemoveTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey, IJobDetail job)
@@ -1242,9 +1242,9 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <see cref="IJobStore.ReplaceTrigger(TriggerKey, IOperableTrigger)" />
-        public async Task<bool> ReplaceTrigger(TriggerKey triggerKey, IOperableTrigger newTrigger)
+        public Task<bool> ReplaceTrigger(TriggerKey triggerKey, IOperableTrigger newTrigger)
         {
-            return await ExecuteInLock(LockTriggerAccess, conn => ReplaceTrigger(conn, triggerKey, newTrigger)).ConfigureAwait(false);
+            return ExecuteInLock(LockTriggerAccess, conn => ReplaceTrigger(conn, triggerKey, newTrigger));
         }
 
         protected virtual async Task<bool> ReplaceTrigger(ConnectionAndTransactionHolder conn,
@@ -1282,10 +1282,10 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="triggerKey">The key identifying the trigger.</param>
         /// <returns>The desired <see cref="ITrigger" />, or null if there is no match.</returns>
-        public async Task<IOperableTrigger> RetrieveTrigger(TriggerKey triggerKey)
+        public Task<IOperableTrigger> RetrieveTrigger(TriggerKey triggerKey)
         {
-            return await ExecuteWithoutLock( // no locks necessary for read...
-                conn => RetrieveTrigger(conn, triggerKey)).ConfigureAwait(false);
+            return ExecuteWithoutLock( // no locks necessary for read...
+                conn => RetrieveTrigger(conn, triggerKey));
         }
 
         protected virtual async Task<IOperableTrigger> RetrieveTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
@@ -1309,10 +1309,10 @@ namespace Quartz.Impl.AdoJobStore
         /// <seealso cref="TriggerState.Complete" />
         /// <seealso cref="TriggerState.Error" />
         /// <seealso cref="TriggerState.None" />
-        public async Task<TriggerState> GetTriggerState(TriggerKey triggerKey)
+        public Task<TriggerState> GetTriggerState(TriggerKey triggerKey)
         {
             // no locks necessary for read...
-            return await ExecuteWithoutLock(conn => GetTriggerState(conn, triggerKey)).ConfigureAwait(false);
+            return ExecuteWithoutLock(conn => GetTriggerState(conn, triggerKey));
         }
 
         /// <summary>
@@ -1386,12 +1386,12 @@ namespace Quartz.Impl.AdoJobStore
         ///           if a <see cref="ICalendar" /> with the same name already
         ///           exists, and replaceExisting is set to false.
         /// </exception>
-        public async Task StoreCalendar(string calName, ICalendar calendar, bool replaceExisting,
+        public Task StoreCalendar(string calName, ICalendar calendar, bool replaceExisting,
             bool updateTriggers)
         {
-            await ExecuteInLock(
+            return ExecuteInLock(
                 (LockOnInsert || updateTriggers) ? LockTriggerAccess : null,
-                conn => StoreCalendar(conn, calName, calendar, replaceExisting, updateTriggers)).ConfigureAwait(false);
+                conn => StoreCalendar(conn, calName, calendar, replaceExisting, updateTriggers));
         }
 
         protected virtual async Task StoreCalendar(ConnectionAndTransactionHolder conn,
@@ -1474,9 +1474,9 @@ namespace Quartz.Impl.AdoJobStore
         /// <see langword="true" /> if a <see cref="ICalendar" /> with the given name
         /// was found and removed from the store.
         ///</returns>
-        public async Task<bool> RemoveCalendar(string calName)
+        public Task<bool> RemoveCalendar(string calName)
         {
-            return await ExecuteInLock(LockTriggerAccess, conn => RemoveCalendar(conn, calName)).ConfigureAwait(false);
+            return ExecuteInLock(LockTriggerAccess, conn => RemoveCalendar(conn, calName));
         }
 
         protected virtual async Task<bool> RemoveCalendar(ConnectionAndTransactionHolder conn,
@@ -1507,10 +1507,10 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="calName">The name of the <see cref="ICalendar" /> to be retrieved.</param>
         /// <returns>The desired <see cref="ICalendar" />, or null if there is no match.</returns>
-        public async Task<ICalendar> RetrieveCalendar(string calName)
+        public Task<ICalendar> RetrieveCalendar(string calName)
         {
-            return await ExecuteWithoutLock( // no locks necessary for read...
-                conn => RetrieveCalendar(conn, calName)).ConfigureAwait(false);
+            return ExecuteWithoutLock( // no locks necessary for read...
+                conn => RetrieveCalendar(conn, calName));
         }
 
         protected virtual async Task<ICalendar> RetrieveCalendar(ConnectionAndTransactionHolder conn, string calName)
@@ -1551,10 +1551,10 @@ namespace Quartz.Impl.AdoJobStore
         /// Get the number of <see cref="IJob" /> s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
-        public async Task<int> GetNumberOfJobs()
+        public Task<int> GetNumberOfJobs()
         {
             // no locks necessary for read...
-            return await ExecuteWithoutLock(GetNumberOfJobs).ConfigureAwait(false);
+            return ExecuteWithoutLock(GetNumberOfJobs);
         }
 
         protected virtual async Task<int> GetNumberOfJobs(ConnectionAndTransactionHolder conn)
@@ -1573,10 +1573,10 @@ namespace Quartz.Impl.AdoJobStore
         /// Get the number of <see cref="ITrigger" /> s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
-        public async Task<int> GetNumberOfTriggers()
+        public Task<int> GetNumberOfTriggers()
         {
-            return await ExecuteWithoutLock( // no locks necessary for read...
-                conn => GetNumberOfTriggers(conn)).ConfigureAwait(false);
+            return ExecuteWithoutLock( // no locks necessary for read...
+                conn => GetNumberOfTriggers(conn));
         }
 
         protected virtual async Task<int> GetNumberOfTriggers(ConnectionAndTransactionHolder conn)
@@ -1595,10 +1595,10 @@ namespace Quartz.Impl.AdoJobStore
         /// Get the number of <see cref="ICalendar" /> s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
-        public async Task<int> GetNumberOfCalendars()
+        public Task<int> GetNumberOfCalendars()
         {
             // no locks necessary for read...
-            return await ExecuteWithoutLock(GetNumberOfCalendars).ConfigureAwait(false);
+            return ExecuteWithoutLock(GetNumberOfCalendars);
         }
 
         protected virtual async Task<int> GetNumberOfCalendars(ConnectionAndTransactionHolder conn)
@@ -1621,10 +1621,10 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no jobs in the given group name, the result should be a
         /// zero-length array (not <see langword="null" />).
         /// </remarks>
-        public async Task<ISet<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher)
+        public Task<ISet<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher)
         {
             // no locks necessary for read...
-            return await ExecuteWithoutLock(conn => GetJobNames(conn, matcher)).ConfigureAwait(false);
+            return ExecuteWithoutLock(conn => GetJobNames(conn, matcher));
         }
 
         protected virtual async Task<ISet<JobKey>> GetJobNames(ConnectionAndTransactionHolder conn, GroupMatcher<JobKey> matcher)
@@ -1651,10 +1651,10 @@ namespace Quartz.Impl.AdoJobStore
         /// </remarks>
         /// <param name="calName">the identifier to check for</param>
         /// <returns>true if a calendar exists with the given identifier</returns>
-        public async Task<bool> CalendarExists(string calName)
+        public Task<bool> CalendarExists(string calName)
         {
-            return await ExecuteWithoutLock( // no locks necessary for read...
-                conn => CheckExists(conn, calName)).ConfigureAwait(false);
+            return ExecuteWithoutLock( // no locks necessary for read...
+                conn => CheckExists(conn, calName));
         }
 
         protected async Task<bool> CheckExists(ConnectionAndTransactionHolder conn, string calName)
@@ -1677,10 +1677,10 @@ namespace Quartz.Impl.AdoJobStore
         /// </remarks>
         /// <param name="jobKey">the identifier to check for</param>
         /// <returns>true if a Job exists with the given identifier</returns>
-        public async Task<bool> CheckExists(JobKey jobKey)
+        public Task<bool> CheckExists(JobKey jobKey)
         {
-            return await ExecuteWithoutLock( // no locks necessary for read...
-                conn => CheckExists(conn, jobKey)).ConfigureAwait(false);
+            return ExecuteWithoutLock( // no locks necessary for read...
+                conn => CheckExists(conn, jobKey));
         }
 
         protected async Task<bool> CheckExists(ConnectionAndTransactionHolder conn, JobKey jobKey)
@@ -1703,10 +1703,10 @@ namespace Quartz.Impl.AdoJobStore
         /// </remarks>
         /// <param name="triggerKey">the identifier to check for</param>
         /// <returns>true if a Trigger exists with the given identifier</returns>
-        public async Task<bool> CheckExists(TriggerKey triggerKey)
+        public Task<bool> CheckExists(TriggerKey triggerKey)
         {
-            return await ExecuteWithoutLock( // no locks necessary for read...
-                conn => CheckExists(conn, triggerKey)).ConfigureAwait(false);
+            return ExecuteWithoutLock( // no locks necessary for read...
+                conn => CheckExists(conn, triggerKey));
         }
 
         protected async Task<bool> CheckExists(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
@@ -1727,9 +1727,9 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <remarks>
         /// </remarks>
-        public async Task ClearAllSchedulingData()
+        public Task ClearAllSchedulingData()
         {
-            await ExecuteInLock(LockTriggerAccess, ClearAllSchedulingData).ConfigureAwait(false);
+            return ExecuteInLock(LockTriggerAccess, ClearAllSchedulingData);
         }
 
         protected async Task ClearAllSchedulingData(ConnectionAndTransactionHolder conn)
@@ -1752,10 +1752,10 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no triggers in the given group name, the result should be a
         /// zero-length array (not <see langword="null" />).
         /// </remarks>
-        public async Task<ISet<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher)
+        public Task<ISet<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher)
         {
             // no locks necessary for read...
-            return await ExecuteWithoutLock(conn => GetTriggerNames(conn, matcher)).ConfigureAwait(false);
+            return ExecuteWithoutLock(conn => GetTriggerNames(conn, matcher));
         }
 
         protected virtual async Task<ISet<TriggerKey>> GetTriggerNames(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher)
@@ -1814,10 +1814,10 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no known group names, the result should be a zero-length
         /// array (not <see langword="null" />).
         /// </remarks>
-        public async Task<IReadOnlyList<string>> GetTriggerGroupNames()
+        public Task<IReadOnlyList<string>> GetTriggerGroupNames()
         {
             // no locks necessary for read...
-            return await ExecuteWithoutLock(GetTriggerGroupNames).ConfigureAwait(false);
+            return ExecuteWithoutLock(GetTriggerGroupNames);
         }
 
         protected virtual async Task<IReadOnlyList<string>> GetTriggerGroupNames(ConnectionAndTransactionHolder conn)
@@ -1844,10 +1844,10 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no Calendars in the given group name, the result should be
         /// a zero-length array (not <see langword="null" />).
         /// </remarks>
-        public async Task<IReadOnlyList<string>> GetCalendarNames()
+        public Task<IReadOnlyList<string>> GetCalendarNames()
         {
             // no locks necessary for read...
-            return await ExecuteWithoutLock(GetCalendarNames).ConfigureAwait(false);
+            return ExecuteWithoutLock(GetCalendarNames);
         }
 
         protected virtual async Task<IReadOnlyList<string>> GetCalendarNames(ConnectionAndTransactionHolder conn)
@@ -1868,10 +1868,10 @@ namespace Quartz.Impl.AdoJobStore
         /// <remarks>
         /// If there are no matches, a zero-length array should be returned.
         /// </remarks>
-        public async Task<IReadOnlyList<IOperableTrigger>> GetTriggersForJob(JobKey jobKey)
+        public Task<IReadOnlyList<IOperableTrigger>> GetTriggersForJob(JobKey jobKey)
         {
             // no locks necessary for read...
-            return await ExecuteWithoutLock(conn => GetTriggersForJob(conn, jobKey)).ConfigureAwait(false);
+            return ExecuteWithoutLock(conn => GetTriggersForJob(conn, jobKey));
         }
 
         protected virtual async Task<IReadOnlyList<IOperableTrigger>> GetTriggersForJob(ConnectionAndTransactionHolder conn, JobKey jobKey)
@@ -1893,9 +1893,9 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Pause the <see cref="ITrigger" /> with the given name.
         /// </summary>
-        public async Task PauseTrigger(TriggerKey triggerKey)
+        public Task PauseTrigger(TriggerKey triggerKey)
         {
-            await ExecuteInLock(LockTriggerAccess, conn => PauseTrigger(conn, triggerKey)).ConfigureAwait(false);
+            return ExecuteInLock(LockTriggerAccess, conn => PauseTrigger(conn, triggerKey));
         }
 
         /// <summary>
@@ -2003,9 +2003,9 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public virtual async Task ResumeTrigger(TriggerKey triggerKey)
+        public virtual Task ResumeTrigger(TriggerKey triggerKey)
         {
-            await ExecuteInLock(LockTriggerAccess, conn => ResumeTrigger(conn, triggerKey)).ConfigureAwait(false);
+            return ExecuteInLock(LockTriggerAccess, conn => ResumeTrigger(conn, triggerKey));
         }
 
         /// <summary>
@@ -2112,9 +2112,9 @@ namespace Quartz.Impl.AdoJobStore
         /// Pause all of the <see cref="ITrigger" />s in the given group.
         /// </summary>
         /// <seealso cref="ResumeTriggers(Quartz.Impl.Matchers.GroupMatcher{Quartz.TriggerKey})" />
-        public virtual async Task<ISet<string>> PauseTriggers(GroupMatcher<TriggerKey> matcher)
+        public virtual Task<ISet<string>> PauseTriggers(GroupMatcher<TriggerKey> matcher)
         {
-            return await ExecuteInLock(LockTriggerAccess, conn => PauseTriggerGroup(conn, matcher)).ConfigureAwait(false);
+            return ExecuteInLock(LockTriggerAccess, conn => PauseTriggerGroup(conn, matcher));
         }
 
         /// <summary>
@@ -2156,10 +2156,10 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public async Task<ISet<string>> GetPausedTriggerGroups()
+        public Task<ISet<string>> GetPausedTriggerGroups()
         {
             // no locks necessary for read...
-            return await ExecuteWithoutLock(GetPausedTriggerGroups).ConfigureAwait(false);
+            return ExecuteWithoutLock(GetPausedTriggerGroups);
         }
 
         /// <summary> 
@@ -2178,9 +2178,9 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public virtual async Task<IReadOnlyList<string>> ResumeTriggers(GroupMatcher<TriggerKey> matcher)
+        public virtual Task<IReadOnlyList<string>> ResumeTriggers(GroupMatcher<TriggerKey> matcher)
         {
-            return await ExecuteInLock(LockTriggerAccess, conn => ResumeTriggers(conn, matcher)).ConfigureAwait(false);
+            return ExecuteInLock(LockTriggerAccess, conn => ResumeTriggers(conn, matcher));
         }
 
         /// <summary>
@@ -2247,9 +2247,9 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public virtual async Task PauseAll()
+        public virtual Task PauseAll()
         {
-            await ExecuteInLock(LockTriggerAccess, PauseAll).ConfigureAwait(false);
+            return ExecuteInLock(LockTriggerAccess, PauseAll);
         }
 
         /// <summary>
@@ -2293,9 +2293,9 @@ namespace Quartz.Impl.AdoJobStore
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </remarks>
         /// <seealso cref="PauseAll()" />
-        public virtual async Task ResumeAll()
+        public virtual Task ResumeAll()
         {
-            await ExecuteInLock(LockTriggerAccess, ResumeAll).ConfigureAwait(false);
+            return ExecuteInLock(LockTriggerAccess, ResumeAll);
         }
 
         /// <summary>
@@ -3316,9 +3316,9 @@ namespace Quartz.Impl.AdoJobStore
         /// <remarks>
         /// This method just forwards to ExecuteInLock() with a null lockName.
         /// </remarks>
-        protected async Task<T> ExecuteWithoutLock<T>(Func<ConnectionAndTransactionHolder, Task<T>> txCallback)
+        protected Task<T> ExecuteWithoutLock<T>(Func<ConnectionAndTransactionHolder, Task<T>> txCallback)
         {
-            return await ExecuteInLock(null, txCallback).ConfigureAwait(false);
+            return ExecuteInLock(null, txCallback);
         }
 
         protected async Task ExecuteInLock(string lockName, Func<ConnectionAndTransactionHolder, Task> txCallback)
@@ -3390,9 +3390,9 @@ namespace Quartz.Impl.AdoJobStore
             }).ConfigureAwait(false);
         }
 
-        protected async Task<T> ExecuteInNonManagedTXLock<T>(string lockName, Func<ConnectionAndTransactionHolder, Task<T>> txCallback)
+        protected Task<T> ExecuteInNonManagedTXLock<T>(string lockName, Func<ConnectionAndTransactionHolder, Task<T>> txCallback)
         {
-            return await ExecuteInNonManagedTXLock<T>(lockName, txCallback, null).ConfigureAwait(false);
+            return ExecuteInNonManagedTXLock<T>(lockName, txCallback, null);
         }
 
         /// <summary>
