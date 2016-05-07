@@ -35,7 +35,6 @@ using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Logging;
-using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
 
@@ -178,7 +177,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         public int RetryableActionErrorLogThreshold { get; set; }
 
-        public IObjectSerializer ObjectSerializer { get; set; } = new DefaultObjectSerializer();
+        public IObjectSerializer ObjectSerializer { get; set; }
 
         public virtual long EstimatedTimeToReleaseAndAcquireTrigger { get; } = 70;
 

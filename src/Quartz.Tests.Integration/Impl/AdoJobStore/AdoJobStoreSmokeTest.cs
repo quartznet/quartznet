@@ -44,7 +44,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             dbConnectionStrings["Firebird"] = "User=SYSDBA;Password=masterkey;Database=C:/Temp/quartznet/quartznet.fdb;DataSource=localhost;Port=3050;Dialect=3;Charset=NONE;Role=;Connection lifetime=15;Pooling=true;MinPoolSize=0;MaxPoolSize=50;Packet Size=8192;ServerType=0;";
         }
 
-        [TestFixtureSetUp]
+        [OneTimeSetUp]
         public void FixtureSetUp()
         {
             // set Adapter to report problems
@@ -52,7 +52,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             LogProvider.SetCurrentLogProvider(new FailFastLoggerFactoryAdapter());
         }
 
-        [TestFixtureTearDown]
+        [OneTimeTearDown]
         public void FixtureTearDown()
         {
             // default back to old
@@ -60,11 +60,11 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        public async Task TestFirebird()
+        public Task TestFirebird()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.FirebirdDelegate, Quartz";
-            await RunAdoJobStoreTest("Firebird-450", "Firebird", properties);
+            return RunAdoJobStoreTest("Firebird-450", "Firebird", properties);
         }
 
         [Test]
@@ -86,10 +86,10 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        public async Task TestPostgreSQL20()
+        public Task TestPostgreSQL20()
         {
             NameValueCollection properties = new NameValueCollection();
-            await RunAdoJobStoreTest("Npgsql-20", "PostgreSQL", properties);
+            return RunAdoJobStoreTest("Npgsql-20", "PostgreSQL", properties);
         }
 
         [Test]
@@ -111,11 +111,11 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        public async Task TestSqlServer20()
+        public Task TestSqlServer20()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
-            await RunAdoJobStoreTest("SqlServer-20", "SQLServer", properties);
+            return RunAdoJobStoreTest("SqlServer-20", "SQLServer", properties);
         }
 
         [Test]
@@ -170,75 +170,75 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        public async Task TestOracleODPManaged4011()
+        public Task TestOracleODPManaged4011()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.OracleDelegate, Quartz";
-            await RunAdoJobStoreTest("OracleODPManaged-1123-40", "Oracle", properties);
+            return RunAdoJobStoreTest("OracleODPManaged-1123-40", "Oracle", properties);
         }
 
         [Test]
-        public async Task TestOracleODPManaged4012()
+        public Task TestOracleODPManaged4012()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.OracleDelegate, Quartz";
-            await RunAdoJobStoreTest("OracleODPManaged-1211-40", "Oracle", properties);
+            return RunAdoJobStoreTest("OracleODPManaged-1211-40", "Oracle", properties);
         }
 
         [Test]
-        public async Task TestOracleODP20()
+        public Task TestOracleODP20()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.OracleDelegate, Quartz";
-            await RunAdoJobStoreTest("OracleODP-20", "Oracle", properties);
+            return RunAdoJobStoreTest("OracleODP-20", "Oracle", properties);
         }
 
         [Test]
-        public async Task TestMySql50()
+        public Task TestMySql50()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MySQLDelegate, Quartz";
-            await RunAdoJobStoreTest("MySql-50", "MySQL", properties);
+            return RunAdoJobStoreTest("MySql-50", "MySQL", properties);
         }
 
         [Test]
-        public async Task TestMySql51()
+        public Task TestMySql51()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MySQLDelegate, Quartz";
-            await RunAdoJobStoreTest("MySql-51", "MySQL", properties);
+            return RunAdoJobStoreTest("MySql-51", "MySQL", properties);
         }
 
         [Test]
-        public async Task TestMySql65()
+        public Task TestMySql65()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MySQLDelegate, Quartz";
-            await RunAdoJobStoreTest("MySql-65", "MySQL", properties);
+            return RunAdoJobStoreTest("MySql-65", "MySQL", properties);
         }
 
         [Test]
-        public async Task TestMySql10()
+        public Task TestMySql10()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MySQLDelegate, Quartz";
-            await RunAdoJobStoreTest("MySql-10", "MySQL", properties);
+            return RunAdoJobStoreTest("MySql-10", "MySQL", properties);
         }
 
         [Test]
-        public async Task TestMySql109()
+        public Task TestMySql109()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MySQLDelegate, Quartz";
-            await RunAdoJobStoreTest("MySql-109", "MySQL", properties);
+            return RunAdoJobStoreTest("MySql-109", "MySQL", properties);
         }
 
         [Test]
-        public async Task TestSQLite10()
+        public Task TestSQLite10()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SQLiteDelegate, Quartz";
-            await RunAdoJobStoreTest("SQLite-10", "SQLite", properties);
+            return RunAdoJobStoreTest("SQLite-10", "SQLite", properties);
         }
 
         [Test]
@@ -255,9 +255,9 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             }
         }
 
-        private async Task RunAdoJobStoreTest(string dbProvider, string connectionStringId)
+        private Task RunAdoJobStoreTest(string dbProvider, string connectionStringId)
         {
-            await RunAdoJobStoreTest(dbProvider, connectionStringId, null);
+            return RunAdoJobStoreTest(dbProvider, connectionStringId, null);
         }
 
         private async Task RunAdoJobStoreTest(string dbProvider, string connectionStringId,
@@ -502,6 +502,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.scheduler.instanceName"] = "TestScheduler";
             properties["quartz.scheduler.instanceId"] = "instance_one";
             properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
+            properties["quartz.serializer.type"] = "binary";
             properties["quartz.threadPool.threadCount"] = "10";
             properties["quartz.threadPool.threadPriority"] = "Normal";
             properties["quartz.jobStore.misfireThreshold"] = "60000";

@@ -19,9 +19,9 @@
 
 using System;
 #if !APPDOMAINS
+using System.Reflection;
 using System.Runtime.Loader;
 #endif // !APPDOMAINS
-using System.Reflection;
 using System.Threading.Tasks;
 
 using Quartz.Logging;

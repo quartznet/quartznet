@@ -94,7 +94,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             A.CallTo(() => dbProvider.CreateCommand()).Returns(dbCommand);
             Func<DbParameter> dataParam = () => new SqlParameter();
             A.CallTo(() => dbProvider.CreateParameter()).ReturnsLazily(dataParam);
-            A.CallTo(() => dbCommand.CreateParameter()).ReturnsLazily(dataParam);
+             A.CallTo(() => dbCommand.CreateParameter()).ReturnsLazily(dataParam);
 
             var dataParameterCollectionOutputs = new List<object>();
 

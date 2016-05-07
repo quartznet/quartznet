@@ -124,6 +124,7 @@
     <Compile Include="ITrigger.cs" />
     <Compile Include="Simpl\DefaultDirectoryProvider.cs" />
     <Compile Include="Job\DirectoryScanJob.cs" />
+    <Compile Include="Simpl\JsonObjectSerializer.cs" />
     <Compile Include="SPI\IDirectoryProvider.cs" />
     <Compile Include="Job\DirectoryScanJobModel.cs" />
     <Compile Include="Job\IDirectoryScanListener.cs" />
@@ -289,7 +290,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Simpl\ClrThreadPool.cs" />
-    <Compile Include="Simpl\DefaultObjectSerializer.cs" />
+    <Compile Include="Simpl\BinaryObjectSerializer.cs" />
     <Compile Include="Simpl\HostNameBasedIdGenerator.cs" />
     <Compile Include="Simpl\InternalTriggerState.cs" />
     <Compile Include="Simpl\JobWrapper.cs" />
@@ -436,6 +437,7 @@
     <Compile Include="Util\StringKeyDirtyFlagMap.cs" />
     <Compile Include="Util\TaskUtil.cs" />
     <Compile Include="Util\TimeZoneUtil.cs" />
+    <Compile Include="Util\WritablePropertiesOnlyResolver.cs" />
     <Compile Include="Xml\job_scheduling_data_2_0.cs">
       <DependentUpon>job_scheduling_data_2_0.xsd</DependentUpon>
     </Compile>

@@ -37,39 +37,35 @@ namespace Quartz.Tests.Unit.Impl
     public class StdSchedulerFactoryTest
     {
         [Test]
-        public async Task TestFactoryCanBeUsedWithNoProperties()
+        public Task TestFactoryCanBeUsedWithNoProperties()
         {
             StdSchedulerFactory factory = new StdSchedulerFactory();
-            await factory.GetScheduler();
+            return factory.GetScheduler();
         }
 
         [Test]
-        public async Task TestFactoryCanBeUsedWithEmptyProperties()
+        public Task TestFactoryCanBeUsedWithEmptyProperties()
         {
-            StdSchedulerFactory factory = new StdSchedulerFactory(new NameValueCollection());
-            await factory.GetScheduler();
+            var props = new NameValueCollection();
+            props["quartz.serializer.type"] = "binary";
+            StdSchedulerFactory factory = new StdSchedulerFactory(props);
+            return factory.GetScheduler();
         }
 
         [Test]
-        [ExpectedException(
-            ExpectedException = typeof (SchedulerConfigException),
-            ExpectedMessage = "Unknown configuration property 'quartz.unknown.property'")]
         public void TestFactoryShouldThrowConfigurationErrorIfUnknownQuartzSetting()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.unknown.property"] = "1";
-            new StdSchedulerFactory(properties);
+            Assert.Throws<SchedulerConfigException>(() => new StdSchedulerFactory(properties), "Unknown configuration property 'quartz.unknown.property'");
         }
 
         [Test]
-        [ExpectedException(
-            ExpectedException = typeof (SchedulerConfigException),
-            ExpectedMessage = "Unknown configuration property 'quartz.jobstore.type'")]
         public void TestFactoryShouldThrowConfigurationErrorIfCaseErrorInQuartzSetting()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobstore.type"] = "";
-            new StdSchedulerFactory(properties);
+            Assert.Throws<SchedulerConfigException>(() => new StdSchedulerFactory(properties), "Unknown configuration property 'quartz.jobstore.type'");
         }
 
         [Test]
@@ -92,7 +88,6 @@ namespace Quartz.Tests.Unit.Impl
         [Test]
         public async Task TestFactoryShouldOverrideConfigurationWithSysProperties()
         {
-            NameValueCollection properties = new NameValueCollection();
             var factory = new StdSchedulerFactory();
             factory.Initialize();
             var scheduler = await factory.GetScheduler();

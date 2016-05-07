@@ -2,7 +2,7 @@
   "dependencies": {
     "FakeItEasy": "1.25.3",
     "FirebirdSql.Data.FirebirdClient": "4.10.0",
-    "NUnit": "2.6.3",
+    "NUnit": "3.2.1",
     "Oracle.ManagedDataAccess": "12.1.2400"
   },
   "frameworks": {

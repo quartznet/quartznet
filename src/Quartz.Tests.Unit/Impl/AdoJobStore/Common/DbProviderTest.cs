@@ -39,7 +39,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore.Common
             }
             catch (Exception ex)
             {
-                Assert.That(ex.Message, Is.StringContaining("There is no metadata information for provider 'FooBar'"));
+                Assert.That(ex.Message, Does.Contain("There is no metadata information for provider 'FooBar'"));
             }
         }
 

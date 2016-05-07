@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
@@ -27,7 +29,6 @@ using System.IO;
 using System.Reflection;
 using System.Security;
 using System.Threading.Tasks;
-
 using Quartz.Core;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
@@ -126,7 +127,7 @@ namespace Quartz.Impl
         public const string PropertyCheckConfiguration = "quartz.checkConfiguration";
         public const string AutoGenerateInstanceId = "AUTO";
         public const string PropertyThreadExecutor = "quartz.threadExecutor";
-        public const string PropertyThreadExecutorType= "quartz.threadExecutor.type";
+        public const string PropertyThreadExecutorType = "quartz.threadExecutor.type";
         public const string PropertyObjectSerializer = "quartz.serializer";
 
         public const string SystemPropertyAsInstanceId = "SYS_PROP";
@@ -135,7 +136,7 @@ namespace Quartz.Impl
 
         private PropertiesParser cfg;
 
-        private static readonly ILog log = LogProvider.GetLogger(typeof (StdSchedulerFactory));
+        private static readonly ILog log = LogProvider.GetLogger(typeof(StdSchedulerFactory));
 
         private string SchedulerName
         {
@@ -243,7 +244,6 @@ namespace Quartz.Impl
                 {
                     Log.ErrorException("Could not load properties for Quartz from file {0}: {1}".FormatInvariant(propFileName, ex.Message), ex);
                 }
-
             }
             if (props == null)
             {
@@ -310,7 +310,7 @@ Please add configuration to your application config file to correctly initialize
             List<string> supportedKeys = new List<string>();
             List<FieldInfo> fields = new List<FieldInfo>(GetType().GetFields(BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy));
             // choose constant string fields
-            fields = fields.FindAll(field => field.FieldType == typeof (string));
+            fields = fields.FindAll(field => field.FieldType == typeof(string));
 
             // read value from each field
             foreach (FieldInfo field in fields)
@@ -345,7 +345,6 @@ Please add configuration to your application config file to correctly initialize
                     throw new SchedulerConfigException("Unknown configuration property '" + configurationKey + "'");
                 }
             }
-
         }
 
         /// <summary>  </summary>
@@ -430,8 +429,8 @@ Please add configuration to your application config file to correctly initialize
                 throw new SchedulerConfigException("Unable to instantiate type load helper: {0}".FormatInvariant(e.Message), e);
             }
             loadHelper.Initialize();
-            
-            
+
+
             // If Proxying to remote scheduler, short-circuit here...
             // ~~~~~~~~~~~~~~~~~~
             if (proxyScheduler)
@@ -457,7 +456,7 @@ Please add configuration to your application config file to correctly initialize
                 string uid = QuartzSchedulerResources.GetUniqueIdentifier(schedName, schedInstId);
 
                 RemoteScheduler remoteScheduler = new RemoteScheduler(uid, factory);
-                
+
                 schedRep.Bind(remoteScheduler);
 
                 return remoteScheduler;
@@ -519,11 +518,11 @@ Please add configuration to your application config file to correctly initialize
 #if WINDOWS_THREADPOOL
                 typeof(ClrThreadPool);
 
-                if (tpType == typeof(SimpleThreadPool))
-                {
-                    // use as synonym for now
-                    tpType = typeof(ClrThreadPool);
-                }
+            if (tpType == typeof(SimpleThreadPool))
+            {
+                // use as synonym for now
+                tpType = typeof(ClrThreadPool);
+            }
 #else // WINDOWS_THREADPOOL
                 typeof(DefaultThreadPool);
 
@@ -641,7 +640,7 @@ Please add configuration to your application config file to correctly initialize
                     }
                 }
             }
-            
+
             // Get object serializer properties
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -649,6 +648,20 @@ Please add configuration to your application config file to correctly initialize
             string objectSerializerType = cfg.GetStringProperty("quartz.serializer.type");
             if (objectSerializerType != null)
             {
+                // some aliases
+                if (objectSerializerType.Equals("json", StringComparison.OrdinalIgnoreCase))
+                {
+                    objectSerializerType = typeof(JsonObjectSerializer).AssemblyQualifiedNameWithoutVersion();
+                }
+                if (objectSerializerType.Equals("binary", StringComparison.OrdinalIgnoreCase))
+                {
+#if BINARY_SERIALIZATION
+                    objectSerializerType = typeof(BinaryObjectSerializer).AssemblyQualifiedNameWithoutVersion();
+#else
+                    initException = new SchedulerException("Binary serialization is not supported");
+#endif
+                }
+
                 tProps = cfg.GetPropertyGroup(PropertyObjectSerializer, true);
                 try
                 {
@@ -665,8 +678,8 @@ Please add configuration to your application config file to correctly initialize
             }
             else
             {
-                log.Info("Using default implementation for object serializer");
-                objectSerializer = new DefaultObjectSerializer();
+                initException = new SchedulerException("Must define object serializer");
+                throw initException;
             }
 
             // Get JobStore Properties
@@ -687,7 +700,7 @@ Please add configuration to your application config file to correctly initialize
             SchedulerDetailsSetter.SetDetails(js, schedName, schedInstId);
 
             tProps = cfg.GetPropertyGroup(PropertyJobStorePrefix, true, new string[] {PropertyJobStoreLockHandlerPrefix});
-            
+
             try
             {
                 ObjectUtils.SetObjectProperties(js, tProps);
@@ -708,13 +721,13 @@ Please add configuration to your application config file to correctly initialize
                     try
                     {
                         ISemaphore lockHandler;
-                        ConstructorInfo cWithDbProvider = lockHandlerType.GetConstructor(new Type[] {typeof (DbProvider)});
+                        ConstructorInfo cWithDbProvider = lockHandlerType.GetConstructor(new Type[] {typeof(DbProvider)});
 
                         if (cWithDbProvider != null)
                         {
                             // takes db provider
                             IDbProvider dbProvider = DBConnectionManager.Instance.GetDbProvider(jobStoreSupport.DataSource);
-                            lockHandler = (ISemaphore) cWithDbProvider.Invoke(new object[] { dbProvider });
+                            lockHandler = (ISemaphore) cWithDbProvider.Invoke(new object[] {dbProvider});
                         }
                         else
                         {
@@ -915,7 +928,7 @@ Please add configuration to your application config file to correctly initialize
             try
             {
                 IJobRunShellFactory jrsf = new StdJobRunShellFactory();
-            
+
                 if (autoId)
                 {
                     try
@@ -938,7 +951,7 @@ Please add configuration to your application config file to correctly initialize
                 if (jobStoreSupport != null)
                 {
                     jobStoreSupport.DbRetryInterval = dbFailureRetry;
-                    jobStoreSupport.ObjectSerializer = objectSerializer; 
+                    jobStoreSupport.ObjectSerializer = objectSerializer;
                 }
 
                 QuartzSchedulerResources rsrcs = new QuartzSchedulerResources();

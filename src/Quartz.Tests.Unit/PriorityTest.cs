@@ -55,6 +55,7 @@ namespace Quartz.Tests.Unit
             NameValueCollection config = new NameValueCollection();
             config["quartz.threadPool.threadCount"] = "1";
             config["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool";
+            config["quartz.serializer.type"] = "binary";
 
             IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();
 

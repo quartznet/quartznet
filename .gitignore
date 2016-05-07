@@ -65,7 +65,9 @@ project.lock.json
 /.idea
 /.fake
 /*.iml
-jspm_packagesnode_modules
+jspm_packages
+node_modules
+*.nuget.targets
 
 
 /src/Quartz.Web/App/views/*.map

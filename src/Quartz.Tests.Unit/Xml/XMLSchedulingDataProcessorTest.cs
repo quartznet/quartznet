@@ -362,7 +362,8 @@ namespace Quartz.Tests.Unit.Xml
             properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
             properties["quartz.dataSource.default.connectionString"] = "Server=(local);Database=quartz;Trusted_Connection=True;";
             properties["quartz.dataSource.default.provider"] = "SqlServer-20";
-
+            properties["quartz.serializer.type"] = "binary";
+            
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
             IScheduler scheduler = await sf.GetScheduler();
 
