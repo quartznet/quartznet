@@ -23,7 +23,8 @@ namespace Quartz.Tests.Integration
                                    DataSource = "default",
                                    TablePrefix = "QRTZ_",
                                    InstanceId = "AUTO",
-                                   DriverDelegateType = typeof(SqlServerDelegate).AssemblyQualifiedName
+                                   DriverDelegateType = typeof(SqlServerDelegate).AssemblyQualifiedName,
+                                   ObjectSerializer = new BinaryObjectSerializer()
                                };
            
             DirectSchedulerFactory.Instance.CreateScheduler(name + "Scheduler", "AUTO", new SimpleThreadPool(threadPoolSize, ThreadPriority.Normal), jobStore);
