@@ -19,7 +19,8 @@ namespace Quartz.Tests.Integration
         {
             if (logLevel == LogLevel.Error || logLevel == LogLevel.Fatal)
             {
-                errors.Add(messageFunc());
+                var message = messageFunc == null ? string.Empty : messageFunc();
+                errors.Add(message);
             }
 
             return true;

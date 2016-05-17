@@ -375,6 +375,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
             properties["quartz.threadPool.threadCount"] = "10";
             properties["quartz.threadPool.threadPriority"] = "Normal";
+            properties["quartz.serializer.type"] = "binary";
             properties["quartz.jobStore.misfireThreshold"] = "60000";
             properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz";
@@ -494,7 +495,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
             manualResetEvent.Wait(TimeSpan.FromSeconds(20));
 
-            Assert.That(scheduler.GetTriggerState(badTrigger.Key), Is.EqualTo(TriggerState.Error));
+            Assert.That(await scheduler.GetTriggerState(badTrigger.Key), Is.EqualTo(TriggerState.Error));
         }
 
         private static async Task<IScheduler> CreateScheduler(NameValueCollection properties)
