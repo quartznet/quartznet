@@ -48,7 +48,7 @@ namespace Quartz.Core
 
         private bool signaled;
         private DateTimeOffset? signaledNextFireTimeUtc;
-        private bool paused;
+        private AsyncManualResetEvent pauseEvent;
         private bool halted;
 
         private readonly Random random = new Random((int) DateTimeOffset.Now.Ticks);
@@ -95,10 +95,7 @@ namespace Quartz.Core
         /// Gets a value indicating whether this <see cref="QuartzSchedulerThread"/> is paused.
         /// </summary>
         /// <value><c>true</c> if paused; otherwise, <c>false</c>.</value>
-        internal virtual bool Paused
-        {
-            get { return paused; }
-        }
+        internal virtual bool Paused => pauseEvent.IsSet;
 
         /// <summary>
         /// Construct a new <see cref="QuartzSchedulerThread" /> for the given
@@ -126,7 +123,7 @@ namespace Quartz.Core
             // start the underlying thread, but put this object into the 'paused'
             // state
             // so processing doesn't start yet...
-            paused = true;
+            pauseEvent = new AsyncManualResetEvent(false);
             halted = false;
         }
 
@@ -137,9 +134,7 @@ namespace Quartz.Core
         {
             lock (sigLock)
             {
-                paused = pause;
-
-                if (paused)
+                if (Paused)
                 {
                     SignalSchedulingChange(SchedulerConstants.SchedulingSignalDateTime);
                 }
@@ -159,7 +154,7 @@ namespace Quartz.Core
             {
                 halted = true;
 
-                if (paused)
+                if (Paused)
                 {
                     Monitor.PulseAll(sigLock);
                 }
@@ -234,32 +229,12 @@ namespace Quartz.Core
         {
             bool lastAcquireFailed = false;
 
-            while (!halted)
+            while (!token.IsCancellationRequested)
             {
-                token.ThrowIfCancellationRequested();
                 try
                 {
                     // check if we're supposed to pause...
-                    lock (sigLock)
-                    {
-                        while (paused && !halted)
-                        {
-                            try
-                            {
-                                // wait until togglePause(false) is called...
-                                Monitor.Wait(sigLock, 1000);
-                            }
-                            catch (ThreadInterruptedException)
-                            {
-                            }
-                        }
-
-                        if (halted)
-                        {
-                            break;
-                        }
-                    }
-
+                    await pauseEvent.WaitAsync(token).ConfigureAwait(false);
                     token.ThrowIfCancellationRequested();
                     int availThreadCount = qsRsrcs.ThreadPool.BlockForAvailableThreads();
                     if (availThreadCount > 0)

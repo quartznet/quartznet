@@ -26,6 +26,11 @@ using Quartz.Core;
 
 namespace Quartz.Spi
 {
+    public interface IJobWorkerPool
+    {
+        Task<int> WaitAsync(CancellationToken token = default(CancellationToken));
+    }
+
     /// <summary>
     /// The interface to be implemented by classes that want to provide a thread
     /// pool for the <see cref="IScheduler" />'s use.
