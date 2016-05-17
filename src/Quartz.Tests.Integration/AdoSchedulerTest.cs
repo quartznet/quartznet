@@ -27,7 +27,7 @@ namespace Quartz.Tests.Integration
                                    ObjectSerializer = new BinaryObjectSerializer()
                                };
            
-            DirectSchedulerFactory.Instance.CreateScheduler(name + "Scheduler", "AUTO", new SimpleThreadPool(threadPoolSize, ThreadPriority.Normal), jobStore);
+            DirectSchedulerFactory.Instance.CreateScheduler(name + "Scheduler", "AUTO", new DefaultThreadPool(), jobStore);
             return SchedulerRepository.Instance.Lookup(name + "Scheduler");
         }
     }

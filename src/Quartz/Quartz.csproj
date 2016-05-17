@@ -122,9 +122,12 @@
     <Compile Include="IScheduleBuilder.cs" />
     <Compile Include="ISimpleTrigger.cs" />
     <Compile Include="ITrigger.cs" />
+    <Compile Include="Simpl\DedicatedThreadPool.cs" />
     <Compile Include="Simpl\DefaultDirectoryProvider.cs" />
     <Compile Include="Job\DirectoryScanJob.cs" />
+    <Compile Include="Simpl\DefaultThreadPool.cs" />
     <Compile Include="Simpl\JsonObjectSerializer.cs" />
+    <Compile Include="Simpl\TaskSchedulingThreadPool.cs" />
     <Compile Include="SPI\IDirectoryProvider.cs" />
     <Compile Include="Job\DirectoryScanJobModel.cs" />
     <Compile Include="Job\IDirectoryScanListener.cs" />
