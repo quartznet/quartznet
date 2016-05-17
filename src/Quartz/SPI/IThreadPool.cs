@@ -29,6 +29,8 @@ namespace Quartz.Spi
     public interface IJobWorkerPool
     {
         Task<int> WaitAsync(CancellationToken token = default(CancellationToken));
+
+        Task Run(Func<Task> runnable, CancellationToken token = default(CancellationToken));
     }
 
     /// <summary>

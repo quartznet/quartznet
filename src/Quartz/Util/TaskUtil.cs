@@ -20,5 +20,10 @@ namespace Quartz.Util
             {
             }
         }
+
+        public static void Ignore(this Task task)
+        {
+            // Intentionally left blank
+        }
     }
 }

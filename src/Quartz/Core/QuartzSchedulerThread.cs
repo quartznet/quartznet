@@ -166,13 +166,7 @@ namespace Quartz.Core
 
             if (wait)
             {
-                try
-                {
-                    await task.ConfigureAwait(false);
-                }
-                catch (OperationCanceledException)
-                {
-                }
+                await task.IgnoreCancellation().ConfigureAwait(false);
             }
         }
 
@@ -236,8 +230,9 @@ namespace Quartz.Core
                     // check if we're supposed to pause...
                     await pauseEvent.WaitAsync(token).ConfigureAwait(false);
                     token.ThrowIfCancellationRequested();
-                    int availThreadCount = qsRsrcs.ThreadPool.BlockForAvailableThreads();
-                    if (availThreadCount > 0)
+
+                    int availableworkCount = await qsRsrcs.WorkerPool.WaitAsync(token).ConfigureAwait(false);
+                    if (availableworkCount > 0)
                     {
                         List<IOperableTrigger> triggers;
 
@@ -247,12 +242,12 @@ namespace Quartz.Core
                         try
                         {
                             var noLaterThan = now + idleWaitTime;
-                            var maxCount = Math.Min(availThreadCount, qsRsrcs.MaxBatchSize);
+                            var maxCount = Math.Min(availableworkCount, qsRsrcs.MaxBatchSize);
                             triggers = new List<IOperableTrigger>(await qsRsrcs.JobStore.AcquireNextTriggers(noLaterThan, maxCount, qsRsrcs.BatchTimeWindow).ConfigureAwait(false));
                             lastAcquireFailed = false;
                             if (Log.IsDebugEnabled())
                             {
-                                Log.DebugFormat("Batch acquisition of {0} triggers", (triggers == null ? 0 : triggers.Count));
+                                Log.DebugFormat("Batch acquisition of {0} triggers", triggers?.Count ?? 0);
                             }
                         }
                         catch (JobPersistenceException jpe)
