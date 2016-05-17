@@ -28,7 +28,7 @@
     "**/*.properties"
   ],
   "frameworks": {
-    "net45": {
+    "net461": {
       "buildOptions": {
         "define": [
           "APPDOMAINS",
