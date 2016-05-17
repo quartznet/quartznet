@@ -27,6 +27,7 @@ using System.Threading.Tasks;
 
 using Quartz.Logging;
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz.Core
 {
@@ -556,16 +557,10 @@ namespace Quartz.Core
             task = Task.Run(() => Run(cancellationTokenSource.Token));
         }
 
-        public async Task Shutdown()
+        public Task Shutdown()
         {
             cancellationTokenSource.Cancel();
-            try
-            {
-                await task.ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-            }
+            return task.IgnoreCancellation();
         }
     }
 }
