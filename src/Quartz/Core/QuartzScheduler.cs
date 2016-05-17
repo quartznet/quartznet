@@ -386,26 +386,24 @@ namespace Quartz.Core
             await NotifySchedulerListenersStarted().ConfigureAwait(false);
         }
 
-        public virtual Task StartDelayed(TimeSpan delay)
+        public virtual async Task StartDelayed(TimeSpan delay)
         {
             if (shuttingDown || closed)
             {
                 throw new SchedulerException(
                     "The Scheduler cannot be restarted after Shutdown() has been called.");
             }
-            return Task.Run(async () =>
-            {
-                await Task.Delay(delay).ConfigureAwait(false);
 
-                try
-                {
-                    await Start().ConfigureAwait(false);
-                }
-                catch (SchedulerException se)
-                {
-                    log.ErrorException("Unable to start scheduler after startup delay.", se);
-                }
-            });
+            await Task.Delay(delay).ConfigureAwait(false);
+
+            try
+            {
+                await Start().ConfigureAwait(false);
+            }
+            catch (SchedulerException se)
+            {
+                log.ErrorException("Unable to start scheduler after startup delay.", se);
+            }
         }
 
         /// <summary>
