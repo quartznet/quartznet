@@ -2,10 +2,21 @@
   "dependencies": {
     "FakeItEasy": "1.25.3",
     "NUnit": "3.2.1",
-    "Oracle.ManagedDataAccess": "12.1.2400"
+    "Oracle.ManagedDataAccess": "12.1.2400",
+    "Quartz": "3.0.0-*"
   },
   "frameworks": {
-    "net45": {}
+    "net45": {
+      "buildOptions": {
+        "define": [
+          "TRANSACTIONS"
+        ]
+      },
+      "frameworkAssemblies": {
+        "System.Transactions": "4.0.0.0"
+      }
+
+    }
   },
   "runtimes": {
     "win": {}

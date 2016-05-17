@@ -24,7 +24,10 @@ using System.Collections.Specialized;
 using System.Data;
 using System.IO;
 using System.Threading.Tasks;
+
+#if TRANSACTIONS
 using System.Transactions;
+#endif
 
 using FakeItEasy;
 
@@ -50,23 +53,28 @@ namespace Quartz.Tests.Unit.Xml
     {
         private XMLSchedulingDataProcessor processor;
         private IScheduler mockScheduler;
+#if TRANSACTIONS
         private TransactionScope scope;
-
+#endif
         [SetUp]
         public void SetUp()
         {
             processor = new XMLSchedulingDataProcessor(new SimpleTypeLoadHelper());
             mockScheduler = A.Fake<IScheduler>();
+#if TRANSACTIONS
             scope = new TransactionScope();
+#endif
         }
 
         [TearDown]
         public void TearDown()
         {
+#if TRANSACTIONS
             if (scope != null)
             {
                 scope.Dispose();
             }
+#endif
         }
 
         [Test]
@@ -148,8 +156,8 @@ namespace Quartz.Tests.Unit.Xml
             {
                 using (StreamReader reader = new StreamReader(ReadJobXmlFromEmbeddedResource("SimpleJobTrigger.xml")))
                 {
-                    writer.Write(reader.ReadToEnd());
-                    writer.Flush();
+                    await writer.WriteAsync(await reader.ReadToEndAsync());
+                    await writer.FlushAsync();
                     writer.Close();
                 }
             }
@@ -213,8 +221,8 @@ namespace Quartz.Tests.Unit.Xml
             {
                 using (StreamReader reader = new StreamReader(ReadJobXmlFromEmbeddedResource("directives_overwrite_no-ignoredups.xml")))
                 {
-                    writer.Write(reader.ReadToEnd());
-                    writer.Flush();
+                    await writer.WriteAsync(await reader.ReadToEndAsync());
+                    await writer.FlushAsync();
                     writer.Close();
                 }
             }

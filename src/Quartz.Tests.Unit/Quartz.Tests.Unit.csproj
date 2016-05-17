@@ -84,6 +84,7 @@
     <Compile Include="Simpl\SimpleInstanceIdGeneratorTest.cs" />
     <Compile Include="Simpl\SimpleJobFactoryTest.cs" />
     <Compile Include="Simpl\SystemPropertyInstanceIdGeneratorTest.cs" />
+    <Compile Include="TestAssemblySetup.cs" />
     <Compile Include="TestUtil.cs" />
     <Compile Include="Core\QuartzSchedulerTest.cs" />
     <Compile Include="CronExpressionTest.cs" />
@@ -125,6 +126,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
+    <None Include="quartz.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="Serialized\AnnualCalendar_10.ser">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

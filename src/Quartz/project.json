@@ -1,20 +1,20 @@
 ﻿{
-  "version": "1.0.0-*",
+  "version": "3.0.0-*",
   "description": "Quartz.NET",
   "authors": [
-    "marko.lahma"
+    "Marko Lahma"
   ],
   "packOptions": {
     "tags": [
       ""
     ],
-    "projectUrl": "",
-    "licenseUrl": ""
+    "projectUrl": "http://www.quartz-scheduler.net/",
+    "licenseUrl": "http://www.apache.org/licenses/LICENSE-2.0"
   },
   "dependencies": {
     "C5": "2.4.5947.17249",
     "LibLog": "4.2.5",
-    "Newtonsoft.Json": "8.0.2"
+    "Newtonsoft.Json": "8.0.3"
   },
   "buildOptions": {
     "warningsAsErrors": true,
@@ -50,6 +50,7 @@
       "frameworkAssemblies": {
         "System.Configuration": "4.0.0.0",
         "System.Data": "4.0.0.0",
+        "System.Net.Http": "4.0.0.0",
         "System.Runtime.Remoting": "4.0.0.0",
         "System.Runtime.Serialization": "4.0.0.0",
         "System.Web": "4.0.0.0",
@@ -84,6 +85,7 @@
         "System.Dynamic.Runtime": "4.0.11-rc2-*",
         "System.Net.NameResolution": "4.0.0-rc2-*",
         "System.Net.Requests": "4.0.11-rc2-*",
+        "System.Net.Http": "4.0.1-rc2-*",
         "System.Runtime.Loader": "4.0.0-rc2-*",
         "System.Runtime.Serialization.Primitives": "4.1.1-rc2-*",
         "System.Runtime.Serialization.Xml": "4.1.1-rc2-*",

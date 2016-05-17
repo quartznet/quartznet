@@ -1,11 +1,13 @@
 ﻿{
+  "version": "3.0.0-*",
   "dependencies": {
-    "log4net": "2.0.5"
+    "log4net": "2.0.5",
+    "Quartz": "3.0.0-*"
   },
   "frameworks": {
-    "net45": {}
+    "net45": { }
   },
   "runtimes": {
-    "win": {}
+    "win": { }
   }
 }

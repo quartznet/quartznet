@@ -95,6 +95,9 @@
   <ItemGroup>
     <None Include="app.config" />
     <None Include="project.json" />
+    <None Include="quartz.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Impl\AdoJobStore\Common\" />

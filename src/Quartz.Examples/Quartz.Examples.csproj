@@ -162,6 +162,9 @@
       <SubType>Code</SubType>
     </Compile>
     <None Include="project.json" />
+    <None Include="quartz.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Compile Include="example15\XmlConfigurationExample.cs" />
