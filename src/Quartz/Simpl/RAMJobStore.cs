@@ -1501,7 +1501,7 @@ namespace Quartz.Simpl
 
                 while (true)
                 {
-                    var tw = timeTriggers.First();
+                    var tw = timeTriggers.FirstOrDefault();
                     if (tw == null)
                     {
                         break;

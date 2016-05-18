@@ -48,7 +48,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         public void FixtureSetUp()
         {
             // set Adapter to report problems
-            oldProvider = (ILogProvider) typeof (LogProvider).GetField("_currentLogProvider", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null);
+            oldProvider = (ILogProvider) typeof (LogProvider).GetField("s_currentLogProvider", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null);
             LogProvider.SetCurrentLogProvider(new FailFastLoggerFactoryAdapter());
         }
 
@@ -278,6 +278,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
             properties["quartz.jobStore.clustered"] = clustered.ToString();
             properties["quartz.jobStore.clusterCheckinInterval"] = 1000.ToString();
+            properties["quartz.serializer.type"] = "binary";
 
             if (extraProperties != null)
             {
@@ -318,6 +319,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz";
             properties["quartz.jobStore.dataSource"] = "default";
             properties["quartz.jobStore.useProperties"] = false.ToString();
+            properties["quartz.serializer.type"] = "binary";
 
             string connectionString;
             dbConnectionStrings.TryGetValue("SQLServer", out connectionString);
@@ -373,6 +375,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
             properties["quartz.threadPool.threadCount"] = "10";
             properties["quartz.threadPool.threadPriority"] = "Normal";
+            properties["quartz.serializer.type"] = "binary";
             properties["quartz.jobStore.misfireThreshold"] = "60000";
             properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz";
@@ -492,7 +495,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
             manualResetEvent.Wait(TimeSpan.FromSeconds(20));
 
-            Assert.That(scheduler.GetTriggerState(badTrigger.Key), Is.EqualTo(TriggerState.Error));
+            Assert.That(await scheduler.GetTriggerState(badTrigger.Key), Is.EqualTo(TriggerState.Error));
         }
 
         private static async Task<IScheduler> CreateScheduler(NameValueCollection properties)
@@ -535,6 +538,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
             properties["quartz.threadPool.threadCount"] = "10";
             properties["quartz.threadPool.threadPriority"] = "Normal";
+            properties["quartz.serializer.type"] = "binary";
             properties["quartz.jobStore.misfireThreshold"] = "60000";
             properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz";

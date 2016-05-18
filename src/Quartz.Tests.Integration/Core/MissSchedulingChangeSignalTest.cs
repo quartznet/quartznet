@@ -23,6 +23,7 @@ namespace Quartz.Tests.Integration.Core
             NameValueCollection properties = new NameValueCollection();
             // Use a custom RAMJobStore to produce context switches leading to the race condition
             properties["quartz.jobStore.type"] = typeof (SlowRAMJobStore).AssemblyQualifiedName;
+            properties["quartz.serializer.type"] = "binary";
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
             IScheduler sched = await sf.GetScheduler();
             log.Info("------- Initialization Complete -----------");

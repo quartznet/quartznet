@@ -60,7 +60,7 @@ namespace Quartz.Tests.Unit
             IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();
 
             DateTime n = DateTime.UtcNow;
-            DateTime cal = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond);
+            DateTime cal = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond, DateTimeKind.Utc);
 
             IMutableTrigger trig1 = new SimpleTriggerImpl("T1", null, cal);
             IMutableTrigger trig2 = new SimpleTriggerImpl("T2", null, cal);
@@ -87,11 +87,12 @@ namespace Quartz.Tests.Unit
             NameValueCollection config = new NameValueCollection();
             config["quartz.threadPool.threadCount"] = "1";
             config["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool";
+            config["quartz.serializer.type"] = "binary";
 
             IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();
 
             DateTime n = DateTime.UtcNow.AddSeconds(1);
-            DateTime cal = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond);
+            DateTime cal = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond, DateTimeKind.Utc);
 
             IOperableTrigger trig1 = new SimpleTriggerImpl("T1", null, cal);
             trig1.Priority = 5;
