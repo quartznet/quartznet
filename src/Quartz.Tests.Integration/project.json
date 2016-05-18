@@ -7,7 +7,7 @@
     "Quartz": "3.0.0-*"
   },
   "frameworks": {
-    "net45": {}
+    "net461": { }
   },
   "runtimes": {
     "win": {}

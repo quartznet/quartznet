@@ -9,7 +9,7 @@
     <DelaySign>false</DelaySign>
     <OutputType>Library</OutputType>
     <RootNamespace>Quartz</RootNamespace>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">../../</SolutionDir>
     <TargetFrameworkProfile />
     <DefineConstants>TRACE;DEBUG;LIBLOG_PORTABLE;LIBLOG_PUBLIC;APPDOMAINS;BINARY_SERIALIZATION;CONFIGURATION;DESIGNER;HTTPCONTEXT;ICLONEABLE;MAIL;REMOTING;THREAD_APARTMENTSTATE;THREAD_INTERRUPTION;THREAD_PRIORITY;WINDOWS_PROCESS;WINDOWS_THREADPOOL;XML_SCHEMA</DefineConstants>
@@ -366,6 +366,7 @@
     <Compile Include="UnableToInterruptJobException.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Util\AsyncManualResetEvent.cs" />
     <Compile Include="Util\QueuedTaskScheduler.cs" />
     <Compile Include="Util\CollectionExtensions.cs" />
     <Compile Include="Util\DataReaderExtensions.cs" />

@@ -4,9 +4,36 @@ using System.Threading;
 using System.Threading.Tasks;
 using Quartz.Logging;
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz.Simpl
 {
+    public class DumbJobWorkerPool : IJobWorkerPool
+    {
+        private SemaphoreSlim concurrencyLimitter = new SemaphoreSlim(10);
+
+        public async Task<int> WaitAsync(CancellationToken token = new CancellationToken())
+        {
+            try
+            {
+                // Try acquire a slot, will async block if full
+                await concurrencyLimitter.WaitAsync(token).ConfigureAwait(false);
+            }
+            finally
+            {
+                concurrencyLimitter.Release();
+            }
+            return concurrencyLimitter.CurrentCount;
+        }
+
+        public async Task Run(Func<Task> runnable, CancellationToken token = default(CancellationToken))
+        {
+            // Try acquire a slot, will async block if full
+            await concurrencyLimitter.WaitAsync(token).ConfigureAwait(false);
+            // we could also track stuff for shutdown purposes
+            runnable().ContinueWith(t => { concurrencyLimitter.Release(); } ,TaskContinuationOptions.ExecuteSynchronously).Ignore();
+        }
+    }
     public class ClrThreadPool : IThreadPool
     {
         private static readonly ILog log = LogProvider.GetLogger(typeof(ClrThreadPool));

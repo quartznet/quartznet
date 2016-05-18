@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Threading.Tasks;
 
 namespace Quartz.Util
 {
@@ -8,5 +9,21 @@ namespace Quartz.Util
     public static class TaskUtil
     {
         public static readonly Task CompletedTask = Task.FromResult(true);
+
+        public static async Task IgnoreCancellation(this Task task)
+        {
+            try
+            {
+                await task.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
+
+        public static void Ignore(this Task task)
+        {
+            // Intentionally left blank
+        }
     }
 }
