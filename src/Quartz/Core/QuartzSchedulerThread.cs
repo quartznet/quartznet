@@ -27,7 +27,6 @@ using System.Threading.Tasks;
 
 using Quartz.Logging;
 using Quartz.Spi;
-using Quartz.Util;
 
 namespace Quartz.Core
 {
@@ -48,7 +47,7 @@ namespace Quartz.Core
 
         private bool signaled;
         private DateTimeOffset? signaledNextFireTimeUtc;
-        private AsyncManualResetEvent pauseEvent;
+        private bool paused;
         private bool halted;
 
         private readonly Random random = new Random((int) DateTimeOffset.Now.Ticks);
@@ -95,7 +94,10 @@ namespace Quartz.Core
         /// Gets a value indicating whether this <see cref="QuartzSchedulerThread"/> is paused.
         /// </summary>
         /// <value><c>true</c> if paused; otherwise, <c>false</c>.</value>
-        internal virtual bool Paused => pauseEvent.IsSet;
+        internal virtual bool Paused
+        {
+            get { return paused; }
+        }
 
         /// <summary>
         /// Construct a new <see cref="QuartzSchedulerThread" /> for the given
@@ -123,7 +125,7 @@ namespace Quartz.Core
             // start the underlying thread, but put this object into the 'paused'
             // state
             // so processing doesn't start yet...
-            pauseEvent = new AsyncManualResetEvent(false);
+            paused = true;
             halted = false;
         }
 
@@ -134,7 +136,9 @@ namespace Quartz.Core
         {
             lock (sigLock)
             {
-                if (Paused)
+                paused = pause;
+
+                if (paused)
                 {
                     SignalSchedulingChange(SchedulerConstants.SchedulingSignalDateTime);
                 }
@@ -154,7 +158,7 @@ namespace Quartz.Core
             {
                 halted = true;
 
-                if (Paused)
+                if (paused)
                 {
                     Monitor.PulseAll(sigLock);
                 }
@@ -166,7 +170,13 @@ namespace Quartz.Core
 
             if (wait)
             {
-                await task.IgnoreCancellation().ConfigureAwait(false);
+                try
+                {
+                    await task.ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                }
             }
         }
 
@@ -223,16 +233,35 @@ namespace Quartz.Core
         {
             bool lastAcquireFailed = false;
 
-            while (!token.IsCancellationRequested)
+            while (!halted)
             {
+                token.ThrowIfCancellationRequested();
                 try
                 {
                     // check if we're supposed to pause...
-                    await pauseEvent.WaitAsync(token).ConfigureAwait(false);
-                    token.ThrowIfCancellationRequested();
+                    lock (sigLock)
+                    {
+                        while (paused && !halted)
+                        {
+                            try
+                            {
+                                // wait until togglePause(false) is called...
+                                Monitor.Wait(sigLock, 1000);
+                            }
+                            catch (ThreadInterruptedException)
+                            {
+                            }
+                        }
 
-                    int availableworkCount = await qsRsrcs.WorkerPool.WaitAsync(token).ConfigureAwait(false);
-                    if (availableworkCount > 0)
+                        if (halted)
+                        {
+                            break;
+                        }
+                    }
+
+                    token.ThrowIfCancellationRequested();
+                    int availThreadCount = qsRsrcs.ThreadPool.BlockForAvailableThreads();
+                    if (availThreadCount > 0)
                     {
                         List<IOperableTrigger> triggers;
 
@@ -242,12 +271,12 @@ namespace Quartz.Core
                         try
                         {
                             var noLaterThan = now + idleWaitTime;
-                            var maxCount = Math.Min(availableworkCount, qsRsrcs.MaxBatchSize);
+                            var maxCount = Math.Min(availThreadCount, qsRsrcs.MaxBatchSize);
                             triggers = new List<IOperableTrigger>(await qsRsrcs.JobStore.AcquireNextTriggers(noLaterThan, maxCount, qsRsrcs.BatchTimeWindow).ConfigureAwait(false));
                             lastAcquireFailed = false;
                             if (Log.IsDebugEnabled())
                             {
-                                Log.DebugFormat("Batch acquisition of {0} triggers", triggers?.Count ?? 0);
+                                Log.DebugFormat("Batch acquisition of {0} triggers", (triggers == null ? 0 : triggers.Count));
                             }
                         }
                         catch (JobPersistenceException jpe)
@@ -527,10 +556,16 @@ namespace Quartz.Core
             task = Task.Run(() => Run(cancellationTokenSource.Token));
         }
 
-        public Task Shutdown()
+        public async Task Shutdown()
         {
             cancellationTokenSource.Cancel();
-            return task.IgnoreCancellation();
+            try
+            {
+                await task.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
         }
     }
 }

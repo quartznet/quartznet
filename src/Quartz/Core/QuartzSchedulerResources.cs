@@ -40,7 +40,6 @@ namespace Quartz.Core
         private IJobStore jobStore;
         private IJobRunShellFactory jobRunShellFactory;
         private readonly IList<ISchedulerPlugin> schedulerPlugins = new List<ISchedulerPlugin>(10);
-	    private IJobWorkerPool workerPool;
 
 	    public QuartzSchedulerResources()
 	    {
@@ -140,29 +139,14 @@ namespace Quartz.Core
 			}
 		}
 
-        public virtual IJobWorkerPool WorkerPool
-        {
-            get { return workerPool; }
-
-            set
-            {
-                if (value == null)
-                {
-                    throw new ArgumentException("WorkerPool cannot be null.");
-                }
-
-                workerPool = value;
-            }
-        }
-
-        /// <summary>
-        /// Get or set the <see cref="IJobStore" /> for the <see cref="QuartzScheduler" />
-        /// to use.
-        /// </summary>
-        /// <exception cref="ArgumentException"> 
-        /// if jobStore is null.
-        /// </exception>
-        public virtual IJobStore JobStore
+		/// <summary>
+		/// Get or set the <see cref="IJobStore" /> for the <see cref="QuartzScheduler" />
+		/// to use.
+		/// </summary>
+		/// <exception cref="ArgumentException"> 
+		/// if jobStore is null.
+		/// </exception>
+		public virtual IJobStore JobStore
 		{
 			get { return jobStore; }
 
