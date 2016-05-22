@@ -4,7 +4,6 @@ using System.Collections.Specialized;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading.Tasks;
 
 using NUnit.Framework;
@@ -51,7 +50,12 @@ namespace Quartz.Tests.Unit
         protected void SetUp()
         {
             string input = "0 0 03-07 ? * MON-FRI | 0 35/15 07 ? * MON-FRI | 0 05/15 08-14 ? * MON-FRI | 0 0/10 15-16 ? * MON-FRI | 0 05/15 17-23 ? * MON-FRI";
-            IScheduler scheduler = new StdSchedulerFactory().GetScheduler().GetAwaiter().GetResult();
+
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
+            ISchedulerFactory factory = new StdSchedulerFactory(properties);
+
+            IScheduler scheduler = factory.GetScheduler().GetAwaiter().GetResult();
             var job = JobBuilder.Create<NoOpJob>().Build();
             var crontTriggers = input.Split('|').Select(x => x.Trim()).Select(cronExpression => TriggerBuilder.Create().WithCronSchedule(cronExpression).Build());
             scheduler.ScheduleJob(job, new HashSet<ITrigger>(crontTriggers), replace: false);
@@ -65,7 +69,7 @@ namespace Quartz.Tests.Unit
             config["quartz.scheduler.instanceId"] = "AUTO";
             config["quartz.threadPool.threadCount"] = "2";
             config["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
-            config["quartz.serializer.type"] = "binary";
+            config["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
             IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();
 
             // test basic storage functions of scheduler...
@@ -249,6 +253,7 @@ namespace Quartz.Tests.Unit
             Assert.True(Process.GetCurrentProcess().Threads.Count <= activeThreads);
         }
 
+#if BINARY_SERIALIZATION
         [Test]
         public void SerializationExceptionTest()
         {
@@ -273,7 +278,7 @@ namespace Quartz.Tests.Unit
 
             using (var stream = new MemoryStream())
             {
-                var formatter = new BinaryFormatter();
+                var formatter = new System.Runtime.Serialization.Formatters.Binary.BinaryFormatter();
                 formatter.Serialize(stream, before);
                 stream.Seek(0, SeekOrigin.Begin);
                 after = (SchedulerException) formatter.Deserialize(stream);
@@ -283,11 +288,14 @@ namespace Quartz.Tests.Unit
             Assert.NotNull(after.InnerException);
             Assert.AreEqual(before.ToString(), after.ToString());
         }
+#endif
 
         [Test]
         public async Task ReschedulingTriggerShouldKeepOriginalNextFireTime()
         {
-            ISchedulerFactory factory = new StdSchedulerFactory();
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
+            ISchedulerFactory factory = new StdSchedulerFactory(properties);
             IScheduler scheduler = await factory.GetScheduler();
             await scheduler.Start();
 

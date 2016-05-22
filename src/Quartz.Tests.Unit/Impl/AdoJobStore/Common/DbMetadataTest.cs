@@ -19,7 +19,9 @@
 
 using NUnit.Framework;
 
+#if !NETCORE
 using Oracle.ManagedDataAccess.Client;
+#endif
 
 using Quartz.Impl.AdoJobStore.Common;
 
@@ -84,6 +86,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore.Common
             TestDbMetadata("MySql-109");
         }
 
+#if !NETCORE
         [Test]
         public void TestDbMetadataOracleODPManaged4012()
         {
@@ -91,6 +94,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore.Common
             var command = (OracleCommand) provider.CreateCommand();
             Assert.That(command.BindByName, Is.True, "bind by name should default to true");
         }
+#endif
 
         private static DbProvider TestDbMetadata(string dbname)
         {

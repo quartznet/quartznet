@@ -19,7 +19,9 @@
 
 using System;
 
+#if FAKE_IT_EASY
 using FakeItEasy;
+#endif
 
 using NUnit.Framework;
 
@@ -229,7 +231,8 @@ namespace Quartz.Tests.Unit
                 }
             }
         }
-        
+
+#if FAKE_IT_EASY
         [Test]
         public void ShouldRemoveTriggerIfNotGoingToFireAgain()
         {
@@ -242,5 +245,6 @@ namespace Quartz.Tests.Unit
             var instruction = trigger.ExecutionComplete(A.Fake<IJobExecutionContext>(), new JobExecutionException());
             Assert.That(instruction, Is.EqualTo(SchedulerInstruction.DeleteTrigger));
         }
-	}
+#endif
+    }
 }

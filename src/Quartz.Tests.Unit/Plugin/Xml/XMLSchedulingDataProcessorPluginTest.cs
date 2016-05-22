@@ -1,7 +1,9 @@
 using System.IO;
 using System.Linq;
 
+#if FAKE_IT_EASY
 using FakeItEasy;
+#endif
 
 using NUnit.Framework;
 
@@ -13,6 +15,7 @@ namespace Quartz.Tests.Unit.Plugin.Xml
     [TestFixture]
     public class XMLSchedulingDataProcessorPluginTest
     {
+#if FAKE_IT_EASY
         [Test]
         public void WhenFullPathFilesAreSeparatedByCommaSpaceThenPurgeSpaces()
         {
@@ -57,5 +60,6 @@ namespace Quartz.Tests.Unit.Plugin.Xml
             Assert.That(dataProcessor.JobFiles.Count(), Is.EqualTo(2));
             Assert.That(dataProcessor.JobFiles.Select(x => x.Key).ToArray(), Is.EqualTo(new[] {expectedPathFile1, expectedPathFile2}));
         }
+#endif
     }
 }

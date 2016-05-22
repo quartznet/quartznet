@@ -22,7 +22,9 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+
 using NUnit.Framework;
+
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit
@@ -473,7 +475,7 @@ namespace Quartz.Tests.Unit
             while (++i < 26)
             {
                 DateTimeOffset? date = trigger.GetFireTimeAfter(pdate);
-                Console.WriteLine("fireTime: " + date + ", previousFireTime: " + pdate);
+                // Console.WriteLine("fireTime: " + date + ", previousFireTime: " + pdate);
                 Assert.False(pdate.Equals(date), "Next fire time is the same as previous fire time!");
                 pdate = date;
             }
@@ -492,12 +494,13 @@ namespace Quartz.Tests.Unit
             while (++i < 26)
             {
                 DateTimeOffset? date = trigger.GetFireTimeAfter(pdate);
-                Console.WriteLine("fireTime: " + date + ", previousFireTime: " + pdate);
+                // Console.WriteLine("fireTime: " + date + ", previousFireTime: " + pdate);
                 Assert.False(pdate.Equals(date), "Next fire time is the same as previous fire time!");
                 pdate = date;
             }
         }
 
+#if !NETCORE
         [Test]
         public void TestDaylightSaving_QRTZNETZ186()
         {
@@ -513,6 +516,7 @@ namespace Quartz.Tests.Unit
             DateTimeOffset expected = daylightChange.Start.Add(daylightChange.Delta).AddMinutes(15).ToUniversalTime();
             Assert.AreEqual(expected, after.Value);
         }
+#endif
 
         [Test]
         public void TestDaylightSavingsDoesNotMatchAnHourBefore()

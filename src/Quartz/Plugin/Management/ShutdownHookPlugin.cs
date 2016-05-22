@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,13 +16,11 @@
  * under the License.
  * 
  */
+
 #endregion
 
+#if APPDOMAINS
 using System;
-#if !APPDOMAINS
-using System.Reflection;
-using System.Runtime.Loader;
-#endif // !APPDOMAINS
 using System.Threading.Tasks;
 
 using Quartz.Logging;
@@ -39,7 +38,7 @@ namespace Quartz.Plugin.Management
     /// <author>Marko Lahma (.NET)</author>
     public class ShutdownHookPlugin : ISchedulerPlugin
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof (ShutdownHookPlugin));
+        private static readonly ILog log = LogProvider.GetLogger(typeof(ShutdownHookPlugin));
 
         public ShutdownHookPlugin()
         {
@@ -63,22 +62,18 @@ namespace Quartz.Plugin.Management
         public virtual void Initialize(string pluginName, IScheduler scheduler)
         {
             log.InfoFormat("Registering Quartz Shutdown hook '{0}.", pluginName);
-#if APPDOMAINS
             AppDomain.CurrentDomain.ProcessExit += (sender, ea) =>
-#else // APPDOMAINS
-            AssemblyLoadContext.GetLoadContext(typeof(IScheduler).GetTypeInfo().Assembly).Unloading += (ctx) =>
-#endif // APPDOMAINS
-                                            {
-                                                log.Info("Shutting down Quartz...");
-                                                try
-                                                {
-                                                    scheduler.Shutdown(CleanShutdown);
-                                                }
-                                                catch (SchedulerException e)
-                                                {
-                                                    log.InfoException("Error shutting down Quartz: " + e.Message, e);
-                                                }
-                                            };
+            {
+                log.Info("Shutting down Quartz...");
+                try
+                {
+                    scheduler.Shutdown(CleanShutdown);
+                }
+                catch (SchedulerException e)
+                {
+                    log.InfoException("Error shutting down Quartz: " + e.Message, e);
+                }
+            };
         }
 
         /// <summary>
@@ -105,3 +100,4 @@ namespace Quartz.Plugin.Management
         }
     }
 }
+#endif

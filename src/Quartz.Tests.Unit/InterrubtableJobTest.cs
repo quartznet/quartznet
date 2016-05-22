@@ -17,7 +17,6 @@
  */
 #endregion
 
-using System;
 using System.Collections.Specialized;
 using System.Threading;
 using System.Threading.Tasks;
@@ -44,7 +43,7 @@ namespace Quartz.Tests.Unit
 
             public async Task Execute(IJobExecutionContext context)
             {
-                Console.WriteLine("TestInterruptableJob is executing.");
+                // Console.WriteLine("TestInterruptableJob is executing.");
                 try
                 {
                     sync.Set(); // wait for test thread to notice the job is now running
@@ -56,26 +55,21 @@ namespace Quartz.Tests.Unit
                 interrupted = false;
                 for (int i = 0; i < 100; i++)
                 {
-                    if (interrupted)
+                    if (context.CancellationToken.IsCancellationRequested)
                     {
+                        interrupted = true;
                         break;
                     }
                     await Task.Delay(50); // simulate being busy for a while, then checking interrupted flag...
                 }
                 try
                 {
-                    Console.WriteLine("TestInterruptableJob exiting with interrupted = " + interrupted);
+                    // Console.WriteLine("TestInterruptableJob exiting with interrupted = " + interrupted);
                     sync.WaitOne();
                 }
                 catch (ThreadInterruptedException)
                 {
                 }
-            }
-
-            public void Interrupt()
-            {
-                interrupted = true;
-                Console.WriteLine("TestInterruptableJob.interrupt() called.");
             }
         }
 
@@ -89,7 +83,7 @@ namespace Quartz.Tests.Unit
             config["quartz.scheduler.instanceId"] = "AUTO";
             config["quartz.threadPool.threadCount"] = "2";
             config["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool";
-            config["quartz.serializer.type"] = "binary";
+            config["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
             IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();
             await sched.Start();
 

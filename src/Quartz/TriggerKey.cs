@@ -44,6 +44,10 @@ namespace Quartz
 #endif // BINARY_SERIALIZATION
     public sealed class TriggerKey : Key<TriggerKey>
     {
+        private TriggerKey()
+        {
+        }
+
         public TriggerKey(string name) : base(name, null)
         {
         }

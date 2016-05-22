@@ -48,7 +48,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         public void FixtureSetUp()
         {
             // set Adapter to report problems
-            oldProvider = (ILogProvider) typeof (LogProvider).GetField("s_currentLogProvider", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null);
+            oldProvider = (ILogProvider) typeof(LogProvider).GetField("s_currentLogProvider", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null);
             LogProvider.SetCurrentLogProvider(new FailFastLoggerFactoryAdapter());
         }
 
@@ -59,6 +59,8 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             LogProvider.SetCurrentLogProvider(oldProvider);
         }
 
+#if !NETSTANDARD15_DBPROVIDERS
+
         [Test]
         public Task TestFirebird()
         {
@@ -67,23 +69,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             return RunAdoJobStoreTest("Firebird-450", "Firebird", properties);
         }
 
-        [Test]
-        public async Task TestPostgreSQL10()
-        {
-            // we don't support Npgsql-10 anymore
-            NameValueCollection properties = new NameValueCollection();
-            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.PostgreSQLDelegate, Quartz";
-            try
-            {
-                await RunAdoJobStoreTest("Npgsql-10", "PostgreSQL", properties);
-                Assert.Fail("No error from using Npgsql-10");
-            }
-            catch (SchedulerException ex)
-            {
-                Assert.IsNotNull(ex.InnerException);
-                Assert.AreEqual("Npgsql-10 provider is no longer supported.", ex.InnerException.Message);
-            }
-        }
 
         [Test]
         public Task TestPostgreSQL20()
@@ -93,29 +78,11 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        public async Task TestSqlServer11()
-        {
-            // we don't support SQL Server 1.1
-            NameValueCollection properties = new NameValueCollection();
-            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
-            try
-            {
-                await RunAdoJobStoreTest("SqlServer-11", "SQLServer", properties);
-                Assert.Fail("No error from using SqlServer-11");
-            }
-            catch (SchedulerException ex)
-            {
-                Assert.IsNotNull(ex.InnerException);
-                Assert.AreEqual("SqlServer-11 provider is no longer supported.", ex.InnerException.Message);
-            }
-        }
-
-        [Test]
         public Task TestSqlServer20()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
-            return RunAdoJobStoreTest("SqlServer-20", "SQLServer", properties);
+            return RunAdoJobStoreTest(TestConstants.DefaultSqlServerProvider, "SQLServer", properties);
         }
 
         [Test]
@@ -255,6 +222,8 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             }
         }
 
+#endif // NETSTANDARD15_DBPROVIDERS
+
         private Task RunAdoJobStoreTest(string dbProvider, string connectionStringId)
         {
             return RunAdoJobStoreTest(dbProvider, connectionStringId, null);
@@ -278,7 +247,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
             properties["quartz.jobStore.clustered"] = clustered.ToString();
             properties["quartz.jobStore.clusterCheckinInterval"] = 1000.ToString();
-            properties["quartz.serializer.type"] = "binary";
+            properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
 
             if (extraProperties != null)
             {
@@ -319,7 +288,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz";
             properties["quartz.jobStore.dataSource"] = "default";
             properties["quartz.jobStore.useProperties"] = false.ToString();
-            properties["quartz.serializer.type"] = "binary";
+            properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
 
             string connectionString;
             dbConnectionStrings.TryGetValue("SQLServer", out connectionString);
@@ -330,7 +299,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             IScheduler sched = await sf.GetScheduler();
             await sched.Clear();
 
-            JobDetailImpl jobWithData = new JobDetailImpl("datajob", "jobgroup", typeof (NoOpJob));
+            JobDetailImpl jobWithData = new JobDetailImpl("datajob", "jobgroup", typeof(NoOpJob));
             jobWithData.JobDataMap["testkey"] = "testvalue";
             IOperableTrigger triggerWithData = new SimpleTriggerImpl("datatrigger", "triggergroup", 20, TimeSpan.FromSeconds(5));
             triggerWithData.JobDataMap.Add("testkey", "testvalue");
@@ -375,7 +344,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
             properties["quartz.threadPool.threadCount"] = "10";
             properties["quartz.threadPool.threadPriority"] = "Normal";
-            properties["quartz.serializer.type"] = "binary";
+            properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
             properties["quartz.jobStore.misfireThreshold"] = "60000";
             properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz";
@@ -385,7 +354,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.clustered"] = clustered.ToString();
 
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
-            await RunAdoJobStoreTest("SqlServer-20", "SQLServer", properties);
+            await RunAdoJobStoreTest(TestConstants.DefaultSqlServerProvider, "SQLServer", properties);
 
             string connectionString;
             if (!dbConnectionStrings.TryGetValue("SQLServer", out connectionString))
@@ -393,7 +362,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                 throw new Exception("Unknown connection string id: " + "SQLServer");
             }
             properties["quartz.dataSource.default.connectionString"] = connectionString;
-            properties["quartz.dataSource.default.provider"] = "SqlServer-20";
+            properties["quartz.dataSource.default.provider"] = TestConstants.DefaultSqlServerProvider;
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
@@ -411,7 +380,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     for (int i = 0; i < 100000; ++i)
                     {
                         ITrigger trigger = new SimpleTriggerImpl("calendarsTrigger", "test", SimpleTriggerImpl.RepeatIndefinitely, TimeSpan.FromSeconds(1));
-                        JobDetailImpl jd = new JobDetailImpl("testJob", "test", typeof (NoOpJob));
+                        JobDetailImpl jd = new JobDetailImpl("testJob", "test", typeof(NoOpJob));
                         await sched.ScheduleJob(jd, trigger);
                     }
                 }
@@ -460,7 +429,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         public async Task JobTypeNotFoundShouldNotBlock()
         {
             NameValueCollection properties = new NameValueCollection();
-            properties.Add(StdSchedulerFactory.PropertySchedulerTypeLoadHelperType, typeof (SpecialClassLoadHelper).AssemblyQualifiedName);
+            properties.Add(StdSchedulerFactory.PropertySchedulerTypeLoadHelperType, typeof(SpecialClassLoadHelper).AssemblyQualifiedName);
             var scheduler = await CreateScheduler(properties);
 
             await scheduler.DeleteJobs(new[] {JobKey.Create("bad"), JobKey.Create("good")});
@@ -505,7 +474,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.scheduler.instanceName"] = "TestScheduler";
             properties["quartz.scheduler.instanceId"] = "instance_one";
             properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
-            properties["quartz.serializer.type"] = "binary";
+            properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
             properties["quartz.threadPool.threadCount"] = "10";
             properties["quartz.threadPool.threadPriority"] = "Normal";
             properties["quartz.jobStore.misfireThreshold"] = "60000";
@@ -538,7 +507,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
             properties["quartz.threadPool.threadCount"] = "10";
             properties["quartz.threadPool.threadPriority"] = "Normal";
-            properties["quartz.serializer.type"] = "binary";
+            properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
             properties["quartz.jobStore.misfireThreshold"] = "60000";
             properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz";
@@ -560,7 +529,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             {
                 await sched.Clear();
 
-                JobDetailImpl lonelyJob = new JobDetailImpl("lonelyJob", "lonelyGroup", typeof (SimpleRecoveryJob));
+                JobDetailImpl lonelyJob = new JobDetailImpl("lonelyJob", "lonelyGroup", typeof(SimpleRecoveryJob));
                 lonelyJob.Durable = true;
                 lonelyJob.RequestsRecovery = true;
                 await sched.AddJob(lonelyJob, false);
@@ -568,7 +537,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
                 string schedId = sched.SchedulerInstanceId;
 
-                JobDetailImpl job = new JobDetailImpl("job_to_use", schedId, typeof (SimpleRecoveryJob));
+                JobDetailImpl job = new JobDetailImpl("job_to_use", schedId, typeof(SimpleRecoveryJob));
 
                 for (int i = 0; i < 100000; ++i)
                 {
@@ -633,7 +602,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         {
             public override Type LoadType(string name)
             {
-                if (!string.IsNullOrEmpty(name) && typeof (BadJob) == Type.GetType(name))
+                if (!string.IsNullOrEmpty(name) && typeof(BadJob) == Type.GetType(name))
                 {
                     throw new TypeLoadException();
                 }

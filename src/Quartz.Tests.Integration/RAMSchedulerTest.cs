@@ -19,7 +19,7 @@ namespace Quartz.Tests.Integration
             config["quartz.scheduler.instanceId"] = "AUTO";
             config["quartz.threadPool.threadCount"] = threadPoolSize.ToString(CultureInfo.InvariantCulture);
             config["quartz.threadPool.type"] = typeof (DefaultThreadPool).AssemblyQualifiedName;
-            config["quartz.serializer.type"] = "binary";
+            config["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
             return new StdSchedulerFactory(config).GetScheduler();
         }
     }

@@ -500,6 +500,7 @@
     <Compile Include="Impl\Matchers\OrMatcher.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Impl\AdoJobStore\Common\dbproviders.netstandard15.properties" />
     <None Include="project.json" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />

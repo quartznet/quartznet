@@ -190,7 +190,7 @@ namespace Quartz.Tests.Unit
             NameValueCollection props = new NameValueCollection();
             props["quartz.scheduler.idleWaitTime"] = "1500";
             props["quartz.threadPool.threadCount"] = "2";
-            props["quartz.serializer.type"] = "binary";
+            props["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
             IScheduler scheduler = await new StdSchedulerFactory(props).GetScheduler();
             scheduler.ListenerManager.AddSchedulerListener(schedulerListener);
             scheduler.ListenerManager.AddTriggerListener(triggerListener);

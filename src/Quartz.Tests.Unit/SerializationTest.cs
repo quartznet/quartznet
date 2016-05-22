@@ -1,10 +1,10 @@
+#if BINARY_SERIALIZATION
+
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
-
 using NUnit.Framework;
-
 using Quartz.Impl.Calendar;
 using Quartz.Util;
 
@@ -77,9 +77,9 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(14, timeRangeStartTimeUtc.Second);
             Assert.AreEqual(150, timeRangeStartTimeUtc.Millisecond);
 
-            
+
             DateTimeOffset timeRangeEndingTimeUtc = clone.GetTimeRangeEndingTimeUtc(DateTimeOffset.UtcNow);
-            
+
             Assert.AreEqual(13, timeRangeEndingTimeUtc.Hour);
             Assert.AreEqual(14, timeRangeEndingTimeUtc.Minute);
             Assert.AreEqual(0, timeRangeEndingTimeUtc.Second);
@@ -194,7 +194,7 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(123, clone["num"]);
         }
 
-        private static T Deserialize<T>() where T : class 
+        private static T Deserialize<T>() where T : class
         {
             BinaryFormatter formatter = new BinaryFormatter();
             object o = formatter.Deserialize(File.OpenRead(@"Serialized\" + typeof(T).Name + "_10.ser"));
@@ -202,3 +202,5 @@ namespace Quartz.Tests.Unit
         }
     }
 }
+
+#endif

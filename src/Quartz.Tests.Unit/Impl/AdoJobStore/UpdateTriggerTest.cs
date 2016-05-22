@@ -5,9 +5,9 @@ using System.Data.Common;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Threading.Tasks;
-
+#if FAKE_IT_EASY
 using FakeItEasy;
-
+#endif
 using NUnit.Framework;
 
 using Quartz.Impl.AdoJobStore;
@@ -75,6 +75,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
     [TestFixture]
     public class UpdateTriggerTest
     {
+#if FAKE_IT_EASY
         [Test]
         public async Task CronTrigger_AfterTriggerUpdate_Retains_Cron_Type()
         {
@@ -93,20 +94,31 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             var dataParameterCollection = A.Fake<DbParameterCollection>();
             A.CallTo(() => dbProvider.CreateCommand()).Returns(dbCommand);
             Func<DbParameter> dataParam = () => new SqlParameter();
-            A.CallTo(() => dbProvider.CreateParameter()).ReturnsLazily(dataParam);
-             A.CallTo(() => dbCommand.CreateParameter()).ReturnsLazily(dataParam);
+            A.CallTo(dbProvider)
+                .Where(x => x.Method.Name == "CreateDbParameter")
+                .WithReturnType<DbParameter>()
+                .ReturnsLazily(dataParam);
+
+            A.CallTo(dbCommand)
+                .Where(x => x.Method.Name == "CreateDbParameter")
+                .WithReturnType<DbParameter>()
+                .ReturnsLazily(dataParam);
 
             var dataParameterCollectionOutputs = new List<object>();
 
             Func<object, int> dataParameterFunc = x =>
-                                                      {
-                                                          dataParameterCollectionOutputs.Add(x);
-                                                          return 1;
-                                                      };
+            {
+                dataParameterCollectionOutputs.Add(x);
+                return 1;
+            };
 
             A.CallTo(() => dataParameterCollection.Add(A<object>.Ignored)).ReturnsLazily(dataParameterFunc);
 
-            A.CallTo(() => dbCommand.Parameters).Returns(dataParameterCollection);
+            A.CallTo(dbCommand)
+                .Where(x => x.Method.Name == "get_DbParameterCollection")
+                .WithReturnType<DbParameterCollection>()
+                .Returns(dataParameterCollection);
+
             var metaData = A.Fake<DbMetadata>();
             A.CallTo(() => dbProvider.Metadata).Returns(metaData);
 
@@ -138,5 +150,6 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             var resultDataParameters = dataParameterCollectionOutputs.Select(x => x as IDataParameter).Where(x => x.ParameterName == "triggerType").FirstOrDefault();
             Assert.AreEqual("CRON", resultDataParameters.Value);
         }
+#endif
     }
 }

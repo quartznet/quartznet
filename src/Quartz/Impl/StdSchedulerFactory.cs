@@ -49,7 +49,7 @@ namespace Quartz.Impl
     /// <remarks>
     /// <para>
     /// By default a properties are loaded from App.config's quartz section. 
-    /// If that fails, then the file is loaded "quartz.properties". If file does not exist,
+    /// If that fails, then the file is loaded "quartz.config". If file does not exist,
     /// default configuration located (as a embedded resource) in Quartz.dll is loaded. If you
     /// wish to use a file other than these defaults, you must define the system
     /// property 'quartz.properties' to point to the file you want.
@@ -190,9 +190,9 @@ namespace Quartz.Impl
         /// Initialize the <see cref="ISchedulerFactory" />.
         /// </summary>
         /// <remarks>
-        /// By default a properties file named "quartz.properties" is loaded from
+        /// By default a properties file named "quartz.config" is loaded from
         /// the 'current working directory'. If that fails, then the
-        /// "quartz.properties" file located (as an embedded resource) in the Quartz.NET
+        /// "quartz.config" file located (as an embedded resource) in the Quartz.NET
         /// assembly is loaded. If you wish to use a file other than these defaults,
         /// you must define the system property 'quartz.properties' to point to
         /// the file you want.
@@ -659,6 +659,7 @@ Please add configuration to your application config file to correctly initialize
                     objectSerializerType = typeof(BinaryObjectSerializer).AssemblyQualifiedNameWithoutVersion();
 #else
                     initException = new SchedulerException("Binary serialization is not supported");
+                    throw initException;
 #endif
                 }
 

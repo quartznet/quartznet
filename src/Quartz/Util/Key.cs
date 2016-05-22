@@ -19,7 +19,6 @@
 
 #endregion
 
-using Newtonsoft.Json;
 using System;
 
 namespace Quartz.Util
@@ -39,10 +38,12 @@ namespace Quartz.Util
         /// </summary>
         public const string DefaultGroup = "DEFAULT";
 
-        [JsonProperty]
-        private readonly string name;
-        [JsonProperty]
-        private readonly string group;
+        private string name;
+        private string group;
+
+        protected Key()
+        {
+        }
 
         /// <summary> 
         /// Construct a new key with the given name and group.
@@ -74,6 +75,7 @@ namespace Quartz.Util
         public virtual string Name
         {
             get { return name; }
+            set { name = value; }
         }
 
         /// <summary> <para>
@@ -86,8 +88,8 @@ namespace Quartz.Util
         public virtual string Group
         {
             get { return group; }
+            set { group = value; }
         }
-
 
         /// <summary> <para>
         /// Return the string representation of the key. The format will be:

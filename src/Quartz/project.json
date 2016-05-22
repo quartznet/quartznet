@@ -12,7 +12,6 @@
     "licenseUrl": "http://www.apache.org/licenses/LICENSE-2.0"
   },
   "dependencies": {
-    "C5": "2.4.5947.17249",
     "LibLog": "4.2.5",
     "Newtonsoft.Json": "8.0.3"
   },
@@ -21,12 +20,15 @@
     "define": [
       "LIBLOG_PUBLIC",
       "LIBLOG_PORTABLE"
-    ]
+    ],
+    "embed": {
+      "includeFiles": [
+        "quartz.config",
+        "Impl/AdoJobStore/Common/dbproviders.properties",
+        "Impl/AdoJobStore/Common/dbproviders.netstandard15.properties"
+      ]
+    }
   },
-  "embed": [
-    "**/*.config",
-    "**/*.properties"
-  ],
   "frameworks": {
     "net45": {
       "buildOptions": {
@@ -86,7 +88,6 @@
         "System.Net.NameResolution": "4.0.0-rc2-*",
         "System.Net.Requests": "4.0.11-rc2-*",
         "System.Net.Http": "4.0.1-rc2-*",
-        "System.Runtime.Loader": "4.0.0-rc2-*",
         "System.Runtime.Serialization.Primitives": "4.1.1-rc2-*",
         "System.Runtime.Serialization.Xml": "4.1.1-rc2-*",
         "System.Threading.Tasks": "4.0.11-rc2-*",

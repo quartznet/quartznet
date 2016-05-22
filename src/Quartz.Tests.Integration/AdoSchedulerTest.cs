@@ -1,5 +1,4 @@
-﻿using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 
 using NUnit.Framework;
 
@@ -16,7 +15,7 @@ namespace Quartz.Tests.Integration
     {
         protected override Task<IScheduler> CreateScheduler(string name, int threadPoolSize)
         {
-            DBConnectionManager.Instance.AddConnectionProvider("default", new DbProvider("SqlServer-20", "Server=(local);Database=quartz;Trusted_Connection=True;"));
+            DBConnectionManager.Instance.AddConnectionProvider("default", new DbProvider(TestConstants.DefaultSqlServerProvider, "Server=(local);Database=quartz;Trusted_Connection=True;"));
 
             var jobStore = new JobStoreTX
                                {
@@ -24,8 +23,12 @@ namespace Quartz.Tests.Integration
                                    TablePrefix = "QRTZ_",
                                    InstanceId = "AUTO",
                                    DriverDelegateType = typeof(SqlServerDelegate).AssemblyQualifiedName,
-                                   ObjectSerializer = new BinaryObjectSerializer()
-                               };
+#if BINARY_SERIALIZATION
+                ObjectSerializer = new BinaryObjectSerializer()
+#else
+                ObjectSerializer = new JsonObjectSerializer()
+#endif
+            };
            
             DirectSchedulerFactory.Instance.CreateScheduler(name + "Scheduler", "AUTO", new DefaultThreadPool(), jobStore);
             return SchedulerRepository.Instance.Lookup(name + "Scheduler");

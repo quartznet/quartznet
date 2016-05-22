@@ -24,7 +24,7 @@ namespace Quartz.Impl.AdoJobStore.Common
             this.resourceName = resourceName;
             this.propertyGroupName = propertyGroupName;
         }
-        
+
         /// <summary>
         /// Gets the supported provider names.
         /// </summary>
@@ -44,10 +44,10 @@ namespace Quartz.Impl.AdoJobStore.Common
         public override DbMetadata GetDbMetadata(string providerName)
         {
             List<string> deprecatedProviders = new List<string>
-                                               {
-                                                   "Npgsql-10",
-                                                   "SqlServer-11"
-                                               };
+            {
+                "Npgsql-10",
+                "SqlServer-11"
+            };
 
             if (deprecatedProviders.Contains(providerName))
             {
@@ -56,15 +56,13 @@ namespace Quartz.Impl.AdoJobStore.Common
 
             try
             {
-
-
                 PropertiesParser pp = PropertiesParser.ReadFromEmbeddedAssemblyResource(resourceName);
                 NameValueCollection props = pp.GetPropertyGroup(propertyGroupName + "." + providerName, true);
                 DbMetadata metadata = new DbMetadata();
 
                 ObjectUtils.SetObjectProperties(metadata, props);
                 metadata.Init();
-                
+
                 return metadata;
             }
             catch (Exception ex)

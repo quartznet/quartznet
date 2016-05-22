@@ -84,7 +84,7 @@ namespace Quartz.Tests.Unit
             NameValueCollection props = new NameValueCollection();
             props["quartz.scheduler.idleWaitTime"] = "1500";
             props["quartz.threadPool.threadCount"] = "2";
-            props["quartz.serializer.type"] = "binary";
+            props["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
             IScheduler scheduler = await new StdSchedulerFactory(props).GetScheduler();
             scheduler.ListenerManager.AddJobListener(new TestJobListener(2));
             await scheduler.ScheduleJob(job1, trigger1);
@@ -115,7 +115,7 @@ namespace Quartz.Tests.Unit
             props["quartz.scheduler.idleWaitTime"] = "1500";
             props["quartz.scheduler.batchTriggerAcquisitionMaxCount"] = "2";
             props["quartz.threadPool.threadCount"] = "2";
-            props["quartz.serializer.type"] = "binary";
+            props["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
             IScheduler scheduler = await new StdSchedulerFactory(props).GetScheduler();
             scheduler.ListenerManager.AddJobListener(new TestJobListener(2));
             await scheduler.ScheduleJob(job1, trigger1);

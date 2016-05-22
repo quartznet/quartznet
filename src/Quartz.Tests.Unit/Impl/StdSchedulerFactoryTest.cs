@@ -37,17 +37,10 @@ namespace Quartz.Tests.Unit.Impl
     public class StdSchedulerFactoryTest
     {
         [Test]
-        public Task TestFactoryCanBeUsedWithNoProperties()
-        {
-            StdSchedulerFactory factory = new StdSchedulerFactory();
-            return factory.GetScheduler();
-        }
-
-        [Test]
         public Task TestFactoryCanBeUsedWithEmptyProperties()
         {
             var props = new NameValueCollection();
-            props["quartz.serializer.type"] = "binary";
+            props["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
             StdSchedulerFactory factory = new StdSchedulerFactory(props);
             return factory.GetScheduler();
         }
@@ -88,13 +81,16 @@ namespace Quartz.Tests.Unit.Impl
         [Test]
         public async Task TestFactoryShouldOverrideConfigurationWithSysProperties()
         {
-            var factory = new StdSchedulerFactory();
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
+            var factory = new StdSchedulerFactory(properties);
+
             factory.Initialize();
             var scheduler = await factory.GetScheduler();
-            Assert.AreEqual("DefaultQuartzScheduler", scheduler.SchedulerName);
+            Assert.AreEqual("QuartzScheduler", scheduler.SchedulerName);
 
             Environment.SetEnvironmentVariable("quartz.scheduler.instanceName", "fromSystemProperties");
-            factory = new StdSchedulerFactory();
+            factory = new StdSchedulerFactory(properties);
             scheduler = await factory.GetScheduler();
             Assert.AreEqual("fromSystemProperties", scheduler.SchedulerName);
         }

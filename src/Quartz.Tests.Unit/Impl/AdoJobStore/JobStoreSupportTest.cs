@@ -1,3 +1,4 @@
+#if FAKE_IT_EASY
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -57,7 +58,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             {
                 set
                 {
-                    FieldInfo fieldInfo = typeof (JobStoreSupport).GetField("driverDelegate", BindingFlags.Instance | BindingFlags.NonPublic);
+                    FieldInfo fieldInfo = typeof(JobStoreSupport).GetField("driverDelegate", BindingFlags.Instance | BindingFlags.NonPublic);
                     Assert.IsNotNull(fieldInfo);
                     fieldInfo.SetValue(this, value);
                 }
@@ -65,3 +66,5 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         }
     }
 }
+
+#endif

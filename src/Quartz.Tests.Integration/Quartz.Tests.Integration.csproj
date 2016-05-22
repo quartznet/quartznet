@@ -20,7 +20,7 @@
     <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
     <ConfigurationOverrideFile>
     </ConfigurationOverrideFile>
-    <DefineConstants>TRACE;DEBUG</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;BINARY_SERIALIZATION</DefineConstants>
     <DocumentationFile>
     </DocumentationFile>
     <DebugSymbols>true</DebugSymbols>
@@ -44,7 +44,7 @@
     <CheckForOverflowUnderflow>false</CheckForOverflowUnderflow>
     <ConfigurationOverrideFile>
     </ConfigurationOverrideFile>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants>TRACE;BINARY_SERIALIZATION</DefineConstants>
     <DocumentationFile>
     </DocumentationFile>
     <DebugSymbols>false</DebugSymbols>
@@ -90,6 +90,7 @@
     <Compile Include="IntegrationTest.cs" />
     <Compile Include="RAMJobStoreTest.cs" />
     <Compile Include="RAMSchedulerTest.cs" />
+    <Compile Include="TestConstants.cs" />
     <Compile Include="TestJob.cs" />
   </ItemGroup>
   <ItemGroup>

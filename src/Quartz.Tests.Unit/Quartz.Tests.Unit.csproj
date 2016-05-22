@@ -20,7 +20,7 @@
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;BINARY_SERIALIZATION,MAIL,FAKE_IT_EASY,ICLONEABLE,TRANSACTIONS</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
@@ -29,7 +29,7 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
-    <DefineConstants>TRACE</DefineConstants>
+    <DefineConstants>TRACE;BINARY_SERIALIZATION,MAIL,FAKE_IT_EASY,ICLONEABLE,TRANSACTIONS</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
@@ -77,6 +77,7 @@
     <Compile Include="JobBuilderTest.cs" />
     <Compile Include="Job\SendMailJobTest.cs" />
     <Compile Include="Plugin\Xml\XMLSchedulingDataProcessorPluginTest.cs" />
+    <Compile Include="Program.cs" />
     <Compile Include="QualityTest.cs" />
     <Compile Include="SchedulerListenerTest.cs" />
     <Compile Include="SchedulerTest.cs" />
@@ -85,6 +86,7 @@
     <Compile Include="Simpl\SimpleJobFactoryTest.cs" />
     <Compile Include="Simpl\SystemPropertyInstanceIdGeneratorTest.cs" />
     <Compile Include="TestAssemblySetup.cs" />
+    <Compile Include="TestConstants.cs" />
     <Compile Include="TestUtil.cs" />
     <Compile Include="Core\QuartzSchedulerTest.cs" />
     <Compile Include="CronExpressionTest.cs" />
@@ -126,9 +128,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />
-    <None Include="quartz.config">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    <None Include="Quartz.Tests.Unit.project.json" />
     <None Include="Serialized\AnnualCalendar_10.ser">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

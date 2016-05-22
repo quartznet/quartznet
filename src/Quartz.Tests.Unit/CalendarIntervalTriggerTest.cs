@@ -560,7 +560,6 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
-        [Timeout(5000)]
         public void TestMovingAcrossDSTAvoidsInfiniteLoop()
         {
             TimeZoneInfo est = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");

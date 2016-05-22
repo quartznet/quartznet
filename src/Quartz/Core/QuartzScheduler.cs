@@ -85,11 +85,7 @@ namespace Quartz.Core
         static QuartzScheduler()
         {
             var asm = typeof (QuartzScheduler).GetTypeInfo().Assembly;
-
-            if (asm != null)
-            {
-                version = asm.GetName().Version;
-            }
+            version = asm.GetName().Version;
         }
 
         /// <summary>

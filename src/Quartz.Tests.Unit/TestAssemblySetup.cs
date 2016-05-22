@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Reflection;
+
 using NUnit.Framework;
 
 namespace Quartz.Tests.Unit
@@ -13,11 +14,16 @@ namespace Quartz.Tests.Unit
         {
             // set default directory to make sure file loading works
             // (https://youtrack.jetbrains.com/issue/RSRP-451142) 
-            string codeBase = Assembly.GetExecutingAssembly().CodeBase;
-            UriBuilder uri = new UriBuilder(codeBase);
-            string path = Uri.UnescapeDataString(uri.Path);
-            var pathToUse = Path.GetDirectoryName(path);
+            string codeBase = GetType().GetTypeInfo().Assembly.Location;
+            string pathToUse = codeBase;
+            if (!codeBase.StartsWith("/"))
+            {
+                UriBuilder uri = new UriBuilder(codeBase);
+                string path = Uri.UnescapeDataString(uri.Path);
+                pathToUse = path;
+            }
 
+            pathToUse = Path.GetDirectoryName(pathToUse);
             Directory.SetCurrentDirectory(pathToUse);
         }
     }

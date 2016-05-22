@@ -17,8 +17,8 @@ namespace Quartz.Tests.Unit
         [Test]
         public void EnsureNoAsyncVoidMethods()
         {
-            AssertNoAsyncVoidMethods(GetType().Assembly);
-            AssertNoAsyncVoidMethods(typeof (IJob).Assembly);
+            AssertNoAsyncVoidMethods(GetType().GetTypeInfo().Assembly);
+            AssertNoAsyncVoidMethods(typeof (IJob).GetTypeInfo().Assembly);
             // AssertNoAsyncVoidMethods(typeof (TriggersController).Assembly);
         }
 

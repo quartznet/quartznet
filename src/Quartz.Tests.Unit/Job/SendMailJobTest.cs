@@ -19,6 +19,9 @@
 
 #endregion
 
+
+#if MAIL
+
 using System.Net.Mail;
 
 using NUnit.Framework;
@@ -172,3 +175,4 @@ namespace Quartz.Tests.Unit.Job
         }
     }
 }
+ #endif

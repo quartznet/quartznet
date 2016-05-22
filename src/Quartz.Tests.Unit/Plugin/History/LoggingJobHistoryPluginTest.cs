@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,7 +16,10 @@
  * under the License.
  * 
  */
+
 #endregion
+
+#if FAKE_IT_EASY
 
 using System;
 using System.Threading.Tasks;
@@ -43,7 +47,7 @@ namespace Quartz.Tests.Unit.Plugin.History
         [SetUp]
         public void SetUp()
         {
-            mockLog = A.Fake<ILog>();           
+            mockLog = A.Fake<ILog>();
             plugin = new LoggingJobHistoryPlugin();
             plugin.Log = mockLog;
         }
@@ -52,62 +56,63 @@ namespace Quartz.Tests.Unit.Plugin.History
         public async Task TestJobFailedMessage()
         {
             // arrange
-            A.CallTo(() => mockLog.IsWarnEnabled()).Returns(true);
+            A.CallTo(() => mockLog.Log(LogLevel.Warn, null, null, null)).Returns(true);
 
             // act
             JobExecutionException ex = new JobExecutionException("test error");
             await plugin.JobWasExecuted(CreateJobExecutionContext(), ex);
 
             // assert
-            A.CallTo(() => mockLog.Log(A<LogLevel>.That.IsEqualTo(LogLevel.Warn), A<Func<string>>.That.Not.IsNull(), A<Exception>.That.Not.IsNull(), A<object[]>.That.Not.IsNull())).MustHaveHappened();
+            A.CallTo(() => mockLog.Log(A<LogLevel>.That.IsEqualTo(LogLevel.Warn), A<Func<string>>.That.IsNull(), A<Exception>.That.IsNull(), A<object[]>.That.Not.IsNull())).MustHaveHappened();
         }
 
         [Test]
         public async Task TestJobSuccessMessage()
         {
             // arrange
-            A.CallTo(() => mockLog.IsInfoEnabled()).Returns(true);
+            A.CallTo(() => mockLog.Log(LogLevel.Info, null, null, null)).Returns(true);
 
             // act
             await plugin.JobWasExecuted(CreateJobExecutionContext(), null);
 
             // assert
-            A.CallTo(() => mockLog.Log(A<LogLevel>.That.IsEqualTo(LogLevel.Info), A<Func<string>>.That.Not.IsNull(), A<Exception>.That.IsNull(), A<object[]>.That.Not.IsNull())).MustHaveHappened();
+            A.CallTo(() => mockLog.Log(A<LogLevel>.That.IsEqualTo(LogLevel.Info), A<Func<string>>.That.IsNull(), A<Exception>.That.IsNull(), A<object[]>.That.Not.IsNull())).MustHaveHappened();
         }
 
         [Test]
         public async Task TestJobToBeFiredMessage()
         {
             // arrange
-            A.CallTo(() => mockLog.IsInfoEnabled()).Returns(true);
+            A.CallTo(() => mockLog.Log(LogLevel.Info, null, null, null)).Returns(true);
 
             // act
             await plugin.JobToBeExecuted(CreateJobExecutionContext());
 
             // assert
-            A.CallTo(() => mockLog.Log(A<LogLevel>.That.IsEqualTo(LogLevel.Info), A<Func<string>>.That.Not.IsNull(), A<Exception>.That.IsNull(), A<object[]>.That.Not.IsNull())).MustHaveHappened();
+            A.CallTo(() => mockLog.Log(A<LogLevel>.That.IsEqualTo(LogLevel.Info), A<Func<string>>.That.IsNull(), A<Exception>.That.IsNull(), A<object[]>.That.Not.IsNull())).MustHaveHappened();
         }
 
         [Test]
         public void TestJobWasVetoedMessage()
         {
             // arrange
-            A.CallTo(() => mockLog.IsInfoEnabled()).Returns(true);
+            A.CallTo(() => mockLog.Log(LogLevel.Info, null, null, null)).Returns(true);
 
             // act
             plugin.JobExecutionVetoed(CreateJobExecutionContext());
 
             // assert
-            A.CallTo(() => mockLog.Log(A<LogLevel>.That.IsEqualTo(LogLevel.Info), A<Func<string>>.That.Not.IsNull(), A<Exception>.That.IsNull(), A<object[]>.That.Not.IsNull())).MustHaveHappened();
+            A.CallTo(() => mockLog.Log(A<LogLevel>.That.IsEqualTo(LogLevel.Info), A<Func<string>>.That.IsNull(), A<Exception>.That.IsNull(), A<object[]>.That.Not.IsNull())).MustHaveHappened();
         }
 
         protected virtual ICancellableJobExecutionContext CreateJobExecutionContext()
         {
             IOperableTrigger t = new SimpleTriggerImpl("name", "group");
             TriggerFiredBundle firedBundle = TestUtil.CreateMinimalFiredBundleWithTypedJobDetail(typeof(NoOpJob), t);
-            ICancellableJobExecutionContext ctx = new JobExecutionContextImpl(null,  firedBundle, null);
+            ICancellableJobExecutionContext ctx = new JobExecutionContextImpl(null, firedBundle, null);
             return ctx;
         }
-
     }
 }
+
+#endif

@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,16 +16,17 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
-using System.Diagnostics;
+using System.Collections.Specialized;
 using System.Globalization;
 using System.Reflection;
 using System.Threading.Tasks;
-
+#if FAKE_IT_EASY
 using FakeItEasy;
-
+#endif
 using NUnit.Framework;
 
 using Quartz.Core;
@@ -42,10 +44,10 @@ namespace Quartz.Tests.Unit.Core
         [Test]
         public void TestVersionInfo()
         {
-            var versionInfo = FileVersionInfo.GetVersionInfo(Assembly.GetAssembly(typeof(QuartzScheduler)).Location);
-            Assert.AreEqual(versionInfo.FileMajorPart.ToString(CultureInfo.InvariantCulture), QuartzScheduler.VersionMajor);
-            Assert.AreEqual(versionInfo.FileMinorPart.ToString(CultureInfo.InvariantCulture), QuartzScheduler.VersionMinor);
-            Assert.AreEqual(versionInfo.FileBuildPart.ToString(CultureInfo.InvariantCulture), QuartzScheduler.VersionIteration);
+            var versionInfo = typeof(QuartzScheduler).GetTypeInfo().Assembly.GetName().Version;
+            Assert.AreEqual(versionInfo.Major.ToString(CultureInfo.InvariantCulture), QuartzScheduler.VersionMajor);
+            Assert.AreEqual(versionInfo.Minor.ToString(CultureInfo.InvariantCulture), QuartzScheduler.VersionMinor);
+            Assert.AreEqual(versionInfo.Build.ToString(CultureInfo.InvariantCulture), QuartzScheduler.VersionIteration);
         }
 
         [Test]
@@ -53,7 +55,9 @@ namespace Quartz.Tests.Unit.Core
         {
             const string ExpectedError = "Calendar not found: FOOBAR";
 
-            ISchedulerFactory sf = new StdSchedulerFactory();
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
+            ISchedulerFactory sf = new StdSchedulerFactory(properties);
             IScheduler sched = await sf.GetScheduler();
 
             DateTime runTime = DateTime.Now.AddMinutes(10);
@@ -86,21 +90,25 @@ namespace Quartz.Tests.Unit.Core
             {
                 Assert.AreEqual(ExpectedError, ex.Message);
             }
-            
+
             await sched.Shutdown(false);
         }
 
         [Test]
         public async Task TestStartDelayed()
         {
-            ISchedulerFactory sf = new StdSchedulerFactory();
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
+            var sf = new StdSchedulerFactory(properties);
+
             IScheduler sched = await sf.GetScheduler();
             var task = sched.StartDelayed(TimeSpan.FromSeconds(2));
             Assert.IsFalse(sched.IsStarted);
-            await Task.Delay(TimeSpan.FromSeconds(3));
+            await task;
             Assert.IsTrue(sched.IsStarted);
         }
 
+#if FAKE_IT_EASY
         [Test]
         public async Task TestRescheduleJob_SchedulerListenersCalledOnReschedule()
         {
@@ -109,7 +117,9 @@ namespace Quartz.Tests.Unit.Core
             const string JobName = "jobName";
             const string JobGroup = "jobGroup";
 
-            ISchedulerFactory sf = new StdSchedulerFactory();
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
+            ISchedulerFactory sf = new StdSchedulerFactory(properties);
             IScheduler scheduler = await sf.GetScheduler();
             DateTime startTimeUtc = DateTime.UtcNow.AddSeconds(2);
             JobDetailImpl jobDetail = new JobDetailImpl(JobName, JobGroup, typeof(NoOpJob));
@@ -128,7 +138,7 @@ namespace Quartz.Tests.Unit.Core
             // expect unschedule and schedule
             A.CallTo(() => listener.JobUnscheduled(new TriggerKey(TriggerName, TriggerGroup))).MustHaveHappened();
             A.CallTo(() => listener.JobScheduled(jobTrigger)).MustHaveHappened();
-
         }
+#endif
     }
 }

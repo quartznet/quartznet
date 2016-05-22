@@ -62,6 +62,10 @@ namespace Quartz
 #endif // BINARY_SERIALIZATION
     public sealed class JobKey : Key<JobKey>
     {
+        private JobKey()
+        {
+        }
+
         public JobKey(string name) : base(name, null)
         {
         }

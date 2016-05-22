@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
 <quartz xmlns="http://quartznet.sourceforge.net/JobSchedulingData"
 				version="2.0"
 				overwrite-existing-jobs="false">

@@ -94,7 +94,12 @@ namespace Quartz.Examples.Example13
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
 
             properties["quartz.dataSource.default.connectionString"] = "Server=(local);Database=quartz;Trusted_Connection=True;";
+
+#if NETSTANDARD15_DBPROVIDERS
+            properties["quartz.dataSource.default.provider"] = "SqlServer-41";
+#else
             properties["quartz.dataSource.default.provider"] = "SqlServer-20";
+#endif
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory(properties);

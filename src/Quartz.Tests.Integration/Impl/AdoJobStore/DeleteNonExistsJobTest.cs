@@ -29,8 +29,8 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.dataSource"] = "default";
             properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
             properties["quartz.dataSource.default.connectionString"] = "Server=(local);Database=quartz;Trusted_Connection=True;";
-            properties["quartz.dataSource.default.provider"] = "SqlServer-20";
-            properties["quartz.serializer.type"] = "binary";
+            properties["quartz.dataSource.default.provider"] = TestConstants.DefaultSqlServerProvider;
+            properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
