@@ -244,8 +244,6 @@ namespace Quartz.Tests.Integration
             sched.Context.Put(DateStamps, jobExecTimestamps);
             await sched.Start();
 
-            Thread.Yield();
-
             IJobDetail job1 = JobBuilder.Create<TestJobWithSync>()
                 .WithIdentity("job1")
                 .Build();
@@ -280,8 +278,6 @@ namespace Quartz.Tests.Integration
             sched.Context.Put(DateStamps, jobExecTimestamps);
 
             await sched.Start();
-
-            Thread.Yield();
 
             IJobDetail job1 = JobBuilder.Create<TestJobWithSync>()
                 .WithIdentity("job1").
@@ -447,25 +443,23 @@ namespace Quartz.Tests.Integration
             }
             finally
             {
-                ThreadStart threadStart = () =>
-                                          {
-                                              try
-                                              {
-                                                  scheduler.Shutdown(true);
-                                                  shutdown = true;
-                                              }
-                                              catch (SchedulerException ex)
-                                              {
-                                                  throw new Exception("exception: " + ex.Message, ex);
-                                              }
-                                          };
-
-                var t = new Thread(threadStart);
-                t.Start();
+                var task = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await scheduler.Shutdown(true);
+                        shutdown = true;
+                    }
+                    catch (SchedulerException ex)
+                    {
+                        throw new Exception("exception: " + ex.Message, ex);
+                    }
+                });
                 await Task.Delay(1000);
                 Assert.That(shutdown, Is.False);
                 barrier.SignalAndWait(testTimeout);
-                t.Join();
+                await task;
+                Assert.That(shutdown, Is.True);
             }
         }
     }

@@ -292,7 +292,6 @@
     <Compile Include="Impl\Triggers\SimpleTriggerImpl.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Simpl\ClrThreadPool.cs" />
     <Compile Include="Simpl\BinaryObjectSerializer.cs" />
     <Compile Include="Simpl\HostNameBasedIdGenerator.cs" />
     <Compile Include="Simpl\InternalTriggerState.cs" />

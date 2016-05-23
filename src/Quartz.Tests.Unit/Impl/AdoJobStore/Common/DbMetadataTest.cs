@@ -35,7 +35,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore.Common
         [Test]
         public void TestDbMetadataSqlServer20()
         {
-            TestDbMetadata("SqlServer-20");
+            TestDbMetadata(TestConstants.DefaultSqlServerProvider);
         }
 
         [Test]

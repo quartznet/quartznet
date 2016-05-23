@@ -13,3 +13,8 @@ WORKDIR /src/Quartz.Tests.Unit
 RUN dotnet restore
 RUN dotnet build -f netcoreapp1.0
 RUN dotnet run
+
+WORKDIR /src/Quartz.Tests.Integration
+RUN dotnet restore
+RUN dotnet build -f netcoreapp1.0
+RUN dotnet run

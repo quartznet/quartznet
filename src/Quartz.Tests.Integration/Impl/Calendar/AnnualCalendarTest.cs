@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,9 +16,11 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
+using System.Collections.Specialized;
 using System.Threading.Tasks;
 
 using NUnit.Framework;
@@ -32,10 +35,14 @@ namespace Quartz.Tests.Integration.Impl.Calendar
     public class AnnualCalendarTest : IntegrationTest
     {
         [SetUp]
-        public void SetUp()
+        public async Task SetUp()
         {
-            ISchedulerFactory sf = new StdSchedulerFactory();
-            sched = sf.GetScheduler().GetAwaiter().GetResult();      
+            var properties = new NameValueCollection
+            {
+                ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
+            };
+            ISchedulerFactory sf = new StdSchedulerFactory(properties);
+            sched = await sf.GetScheduler();
         }
 
         [Test]

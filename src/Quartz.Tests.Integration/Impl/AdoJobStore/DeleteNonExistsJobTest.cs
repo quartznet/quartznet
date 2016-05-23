@@ -1,6 +1,8 @@
 ﻿using System.Collections.Specialized;
 using System.Data;
+using System.Data.Common;
 using System.Threading.Tasks;
+
 using NUnit.Framework;
 
 using Quartz.Impl;
@@ -12,13 +14,13 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
     [TestFixture]
     public class DeleteNonExistsJobTest
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof (DeleteNonExistsJobTest));
+        private static readonly ILog log = LogProvider.GetLogger(typeof(DeleteNonExistsJobTest));
         private const string DBName = "default";
         private const string SchedulerName = "DeleteNonExistsJobTestScheduler";
         private static IScheduler scheduler;
 
         [SetUp]
-        public void SetUp()
+        public async Task SetUp()
         {
             NameValueCollection properties = new NameValueCollection();
 
@@ -34,38 +36,38 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
-            scheduler = sf.GetScheduler().GetAwaiter().GetResult();
+            scheduler = await sf.GetScheduler();
 
-            ResetDatabaseData();
+            await ResetDatabaseData();
         }
 
-        private void ResetDatabaseData()
+        private async Task ResetDatabaseData()
         {
             using (var conn = DBConnectionManager.Instance.GetConnection(DBName))
             {
-                conn.Open();
-                RunDbCommand(conn, "delete from qrtz_fired_triggers");
-                RunDbCommand(conn, "delete from qrtz_paused_trigger_grps");
-                RunDbCommand(conn, "delete from qrtz_scheduler_state");
-                RunDbCommand(conn, "delete from qrtz_locks");
-                RunDbCommand(conn, "delete from qrtz_simple_triggers");
-                RunDbCommand(conn, "delete from qrtz_simprop_triggers");
-                RunDbCommand(conn, "delete from qrtz_blob_triggers");
-                RunDbCommand(conn, "delete from qrtz_cron_triggers");
-                RunDbCommand(conn, "delete from qrtz_triggers");
-                RunDbCommand(conn, "delete from qrtz_job_details");
-                RunDbCommand(conn, "delete from qrtz_calendars");
+                await conn.OpenAsync();
+                await RunDbCommand(conn, "delete from qrtz_fired_triggers");
+                await RunDbCommand(conn, "delete from qrtz_paused_trigger_grps");
+                await RunDbCommand(conn, "delete from qrtz_scheduler_state");
+                await RunDbCommand(conn, "delete from qrtz_locks");
+                await RunDbCommand(conn, "delete from qrtz_simple_triggers");
+                await RunDbCommand(conn, "delete from qrtz_simprop_triggers");
+                await RunDbCommand(conn, "delete from qrtz_blob_triggers");
+                await RunDbCommand(conn, "delete from qrtz_cron_triggers");
+                await RunDbCommand(conn, "delete from qrtz_triggers");
+                await RunDbCommand(conn, "delete from qrtz_job_details");
+                await RunDbCommand(conn, "delete from qrtz_calendars");
                 conn.Close();
             }
         }
 
-        private void RunDbCommand(IDbConnection conn, string sql)
+        private async Task RunDbCommand(DbConnection conn, string sql)
         {
-            using (IDbCommand dbCommand = conn.CreateCommand())
+            using (var dbCommand = conn.CreateCommand())
             {
                 dbCommand.CommandType = CommandType.Text;
                 dbCommand.CommandText = sql;
-                dbCommand.ExecuteNonQuery();
+                await dbCommand.ExecuteNonQueryAsync();
             }
         }
 
@@ -76,64 +78,65 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        public void DeleteJobDetailOnly()
+        public async Task DeleteJobDetailOnly()
         {
             IJobDetail jobDetail = JobBuilder.Create<TestJob>().WithIdentity("testjob").StoreDurably().Build();
-            scheduler.AddJob(jobDetail, true);
-            ModifyStoredJobClassName();
+            await scheduler.AddJob(jobDetail, true);
+            await ModifyStoredJobClassName();
 
-            scheduler.DeleteJob(jobDetail.Key);
+            await scheduler.DeleteJob(jobDetail.Key);
         }
 
         [Test]
-        public void DeleteJobDetailWithTrigger()
+        public async Task DeleteJobDetailWithTrigger()
         {
             IJobDetail jobDetail = JobBuilder.Create<TestJob>().WithIdentity("testjob2").StoreDurably().Build();
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("testjob2")
                 .WithSchedule(CronScheduleBuilder.CronSchedule("* * * * * ?"))
                 .Build();
-            scheduler.ScheduleJob(jobDetail, trigger);
-            ModifyStoredJobClassName();
 
-            scheduler.DeleteJob(jobDetail.Key);
+            await scheduler.ScheduleJob(jobDetail, trigger);
+            await ModifyStoredJobClassName();
+
+            await scheduler.DeleteJob(jobDetail.Key);
         }
 
         [Test]
-        public void DeleteTrigger()
+        public async Task DeleteTrigger()
         {
             IJobDetail jobDetail = JobBuilder.Create<TestJob>().WithIdentity("testjob3").StoreDurably().Build();
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("testjob3")
                 .WithSchedule(CronScheduleBuilder.CronSchedule("* * * * * ?"))
                 .Build();
-            scheduler.ScheduleJob(jobDetail, trigger);
-            ModifyStoredJobClassName();
+            await scheduler.ScheduleJob(jobDetail, trigger);
+            await ModifyStoredJobClassName();
 
-            scheduler.UnscheduleJob(trigger.Key);
+            await scheduler.UnscheduleJob(trigger.Key);
         }
 
         [Test]
-        public void ReplaceJobDetail()
+        public async Task ReplaceJobDetail()
         {
             IJobDetail jobDetail = JobBuilder.Create<TestJob>().WithIdentity("testjob3").StoreDurably().Build();
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("testjob3")
                 .WithSchedule(CronScheduleBuilder.CronSchedule("* * * * * ?"))
                 .Build();
-            scheduler.ScheduleJob(jobDetail, trigger);
-            ModifyStoredJobClassName();
+            await scheduler.ScheduleJob(jobDetail, trigger);
+            await ModifyStoredJobClassName();
 
             jobDetail = JobBuilder.Create<TestJob>().WithIdentity("testjob3").StoreDurably().Build();
-            scheduler.AddJob(jobDetail, true);
+            await scheduler.AddJob(jobDetail, true);
         }
 
-        private void ModifyStoredJobClassName()
+        private async Task ModifyStoredJobClassName()
         {
             using (var conn = DBConnectionManager.Instance.GetConnection(DBName))
             {
-                conn.Open();
-                RunDbCommand(conn, "update qrtz_job_details set job_class_name='com.FakeNonExistsJob'");
+                await conn.OpenAsync();
+                await RunDbCommand(conn, "update qrtz_job_details set job_class_name='com.FakeNonExistsJob'");
                 conn.Close();
             }
         }

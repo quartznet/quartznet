@@ -35,6 +35,9 @@ namespace Quartz.Impl.Matchers
 #endif // BINARY_SERIALIZATION
     public class NameMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TKey>
     {
+        private NameMatcher(){
+        }
+        
         protected NameMatcher(string compareTo, StringOperator compareWith) : base(compareTo, compareWith)
         {
         }

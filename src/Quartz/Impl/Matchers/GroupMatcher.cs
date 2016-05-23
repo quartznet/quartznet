@@ -35,6 +35,9 @@ namespace Quartz.Impl.Matchers
 #endif // BINARY_SERIALIZATION
     public class GroupMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TKey>
     {
+        private GroupMatcher(){
+        }
+        
         protected GroupMatcher(string compareTo, StringOperator compareWith) : base(compareTo, compareWith)
         {
         }

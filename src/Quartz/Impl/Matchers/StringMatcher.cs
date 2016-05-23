@@ -41,6 +41,9 @@ namespace Quartz.Impl.Matchers
         [JsonProperty]
         private readonly StringOperator compareWith;
 
+        protected StringMatcher(){
+        }
+
         protected StringMatcher(string compareTo, StringOperator compareWith)
         {
             if (compareTo == null)

@@ -88,6 +88,7 @@
     <Compile Include="Impl\RemoteSchedulerSmokeTest.cs" />
     <Compile Include="Impl\SmokeTestPerformer.cs" />
     <Compile Include="IntegrationTest.cs" />
+    <Compile Include="Program.cs" />
     <Compile Include="RAMJobStoreTest.cs" />
     <Compile Include="RAMSchedulerTest.cs" />
     <Compile Include="TestConstants.cs" />
@@ -96,9 +97,7 @@
   <ItemGroup>
     <None Include="app.config" />
     <None Include="project.json" />
-    <None Include="quartz.config">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
+    <None Include="Quartz.Tests.Integration.project.json" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="Impl\AdoJobStore\Common\" />

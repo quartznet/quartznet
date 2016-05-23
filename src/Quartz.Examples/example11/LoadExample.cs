@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Collections.Specialized;
 using System.Threading.Tasks;
 using Quartz.Impl;
 using Quartz.Logging;
@@ -42,7 +43,11 @@ namespace Quartz.Examples.Example11
             ILog log = LogProvider.GetLogger(typeof (LoadExample));
 
             // First we must get a reference to a scheduler
-            ISchedulerFactory sf = new StdSchedulerFactory();
+            var properties = new NameValueCollection
+            {
+                ["quartz.serializer.type"] = "json"
+            };
+            ISchedulerFactory sf = new StdSchedulerFactory(properties);
             IScheduler sched = await sf.GetScheduler();
 
             log.Info("------- Initialization Complete -----------");

@@ -36,7 +36,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         static AdoJobStoreSmokeTest()
         {
             dbConnectionStrings["Oracle"] = "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=1521)))(CONNECT_DATA=(SERVICE_NAME=xe)));User Id=quartznet;Password=quartznet;";
-            dbConnectionStrings["SQLServer"] = "Server=(local);Database=quartz;Trusted_Connection=True;";
+            dbConnectionStrings["SQLServer"] = "Server=(local);Database=quartz;User Id=quartznet;Password=quartznet;";
             dbConnectionStrings["SQLServerCe"] = @"Data Source=C:\quartznet.sdf;Persist Security Info=False;";
             dbConnectionStrings["MySQL"] = "Server = localhost; Database = quartz; Uid = quartznet; Pwd = quartznet";
             dbConnectionStrings["PostgreSQL"] = "Server=127.0.0.1;Port=5432;Userid=quartznet;Password=quartznet;Protocol=3;SSL=false;Pooling=true;MinPoolSize=1;MaxPoolSize=20;Encoding=UTF8;Timeout=15;SslMode=Disable;Database=quartznet";
@@ -59,34 +59,37 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             LogProvider.SetCurrentLogProvider(oldProvider);
         }
 
+        [Test]
+        [TestCaseSource(nameof(GetSerializerTypes))]
+        public Task TestSqlServer(string serializerType)
+        {
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
+            return RunAdoJobStoreTest(TestConstants.DefaultSqlServerProvider, "SQLServer", serializerType, properties);
+        }
+
+        [Test]
+        [TestCaseSource(nameof(GetSerializerTypes))]
+        public Task TestPostgreSQL(string serializerType)
+        {
+            NameValueCollection properties = new NameValueCollection();
+            return RunAdoJobStoreTest("Npgsql", "PostgreSQL", serializerType, properties);
+        }
+
 #if !NETSTANDARD15_DBPROVIDERS
 
         [Test]
-        public Task TestFirebird()
+        [TestCaseSource(nameof(GetSerializerTypes))]
+        public Task TestFirebird(string serializerType)
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.FirebirdDelegate, Quartz";
-            return RunAdoJobStoreTest("Firebird-450", "Firebird", properties);
-        }
-
-
-        [Test]
-        public Task TestPostgreSQL20()
-        {
-            NameValueCollection properties = new NameValueCollection();
-            return RunAdoJobStoreTest("Npgsql-20", "PostgreSQL", properties);
+            return RunAdoJobStoreTest("Firebird", "Firebird", serializerType, properties);
         }
 
         [Test]
-        public Task TestSqlServer20()
-        {
-            NameValueCollection properties = new NameValueCollection();
-            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
-            return RunAdoJobStoreTest(TestConstants.DefaultSqlServerProvider, "SQLServer", properties);
-        }
-
-        [Test]
-        public async Task TestSqlServerCe351()
+        [TestCaseSource(nameof(GetSerializerTypes))]
+        public async Task TestSqlServerCe351(string serializerType)
         {
             bool previousClustered = clustered;
             clustered = false;
@@ -94,7 +97,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
             try
             {
-                await RunAdoJobStoreTest("SqlServerCe-351", "SQLServerCe", properties);
+                await RunAdoJobStoreTest("SqlServerCe-351", "SQLServerCe", serializerType, properties);
             }
             finally
             {
@@ -103,7 +106,8 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        public async Task TestSqlServerCe352()
+        [TestCaseSource(nameof(GetSerializerTypes))]
+        public async Task TestSqlServerCe352(string serializerType)
         {
             bool previousClustered = clustered;
             clustered = false;
@@ -111,7 +115,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
             try
             {
-                await RunAdoJobStoreTest("SqlServerCe-352", "SQLServerCe", properties);
+                await RunAdoJobStoreTest("SqlServerCe-352", "SQLServerCe", serializerType, properties);
             }
             finally
             {
@@ -120,7 +124,8 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        public async Task TestSqlServerCe400()
+        [TestCaseSource(nameof(GetSerializerTypes))]
+        public async Task TestSqlServerCe400(string serializerType)
         {
             bool previousClustered = clustered;
             clustered = false;
@@ -128,7 +133,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
             try
             {
-                await RunAdoJobStoreTest("SqlServerCe-400", "SQLServerCe", properties);
+                await RunAdoJobStoreTest("SqlServerCe-400", "SQLServerCe", serializerType, properties);
             }
             finally
             {
@@ -137,99 +142,69 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        public Task TestOracleODPManaged4011()
+        [TestCaseSource(nameof(GetSerializerTypes))]
+        public Task TestOracleODPManaged(string serializerType)
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.OracleDelegate, Quartz";
-            return RunAdoJobStoreTest("OracleODPManaged-1123-40", "Oracle", properties);
+            return RunAdoJobStoreTest("OracleODPManaged", "Oracle", serializerType, properties);
         }
 
         [Test]
-        public Task TestOracleODPManaged4012()
-        {
-            NameValueCollection properties = new NameValueCollection();
-            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.OracleDelegate, Quartz";
-            return RunAdoJobStoreTest("OracleODPManaged-1211-40", "Oracle", properties);
-        }
-
-        [Test]
-        public Task TestOracleODP20()
-        {
-            NameValueCollection properties = new NameValueCollection();
-            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.OracleDelegate, Quartz";
-            return RunAdoJobStoreTest("OracleODP-20", "Oracle", properties);
-        }
-
-        [Test]
-        public Task TestMySql50()
+        [TestCaseSource(nameof(GetSerializerTypes))]
+        public Task TestMySql(string serializerType)
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MySQLDelegate, Quartz";
-            return RunAdoJobStoreTest("MySql-50", "MySQL", properties);
+            return RunAdoJobStoreTest("MySql", "MySQL", serializerType, properties);
         }
 
         [Test]
-        public Task TestMySql51()
-        {
-            NameValueCollection properties = new NameValueCollection();
-            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MySQLDelegate, Quartz";
-            return RunAdoJobStoreTest("MySql-51", "MySQL", properties);
-        }
-
-        [Test]
-        public Task TestMySql65()
-        {
-            NameValueCollection properties = new NameValueCollection();
-            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MySQLDelegate, Quartz";
-            return RunAdoJobStoreTest("MySql-65", "MySQL", properties);
-        }
-
-        [Test]
-        public Task TestMySql10()
-        {
-            NameValueCollection properties = new NameValueCollection();
-            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MySQLDelegate, Quartz";
-            return RunAdoJobStoreTest("MySql-10", "MySQL", properties);
-        }
-
-        [Test]
-        public Task TestMySql109()
-        {
-            NameValueCollection properties = new NameValueCollection();
-            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MySQLDelegate, Quartz";
-            return RunAdoJobStoreTest("MySql-109", "MySQL", properties);
-        }
-
-        [Test]
-        public Task TestSQLite10()
+        [TestCaseSource(nameof(GetSerializerTypes))]
+        public Task TestSQLite(string serializerType)
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SQLiteDelegate, Quartz";
-            return RunAdoJobStoreTest("SQLite-10", "SQLite", properties);
+            return RunAdoJobStoreTest("SQLite", "SQLite", serializerType, properties);
         }
 
         [Test]
-        public async Task TestSQLite10Clustered()
+        [TestCaseSource(nameof(GetSerializerTypes))]
+        public async Task TestSQLiteClustered(string serializerType)
         {
             clustered = true;
             try
             {
-                await TestSQLite10();
+                await TestSQLite(serializerType);
             }
             finally
             {
                 clustered = false;
             }
         }
-
 #endif // NETSTANDARD15_DBPROVIDERS
 
-        private Task RunAdoJobStoreTest(string dbProvider, string connectionStringId)
+        public static string[] GetSerializerTypes()
         {
-            return RunAdoJobStoreTest(dbProvider, connectionStringId, null);
+            return new[]
+            {
+                "json"
+#if !NETSTANDARD15_DBPROVIDERS
+                , "binary"
+#endif
+            };
         }
 
-        private async Task RunAdoJobStoreTest(string dbProvider, string connectionStringId,
+
+        private Task RunAdoJobStoreTest(string dbProvider, string connectionStringId, string serializerType)
+        {
+            return RunAdoJobStoreTest(dbProvider, connectionStringId, serializerType, null);
+        }
+
+        private async Task RunAdoJobStoreTest(
+            string dbProvider,
+            string connectionStringId,
+            string serializerType,
             NameValueCollection extraProperties)
         {
             NameValueCollection properties = new NameValueCollection();
@@ -238,7 +213,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.scheduler.instanceId"] = "instance_one";
             properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
             properties["quartz.threadPool.threadCount"] = "10";
-            properties["quartz.threadPool.threadPriority"] = "Normal";
             properties["quartz.jobStore.misfireThreshold"] = "60000";
             properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz";
@@ -247,7 +221,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
             properties["quartz.jobStore.clustered"] = clustered.ToString();
             properties["quartz.jobStore.clusterCheckinInterval"] = 1000.ToString();
-            properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
+            properties["quartz.serializer.type"] = serializerType;
 
             if (extraProperties != null)
             {
@@ -293,7 +267,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             string connectionString;
             dbConnectionStrings.TryGetValue("SQLServer", out connectionString);
             properties["quartz.dataSource.default.connectionString"] = connectionString;
-            properties["quartz.dataSource.default.provider"] = "SqlServer-20";
+            properties["quartz.dataSource.default.provider"] = TestConstants.DefaultSqlServerProvider;
 
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
             IScheduler sched = await sf.GetScheduler();
@@ -335,7 +309,8 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
         [Test]
         [Explicit]
-        public async Task TestSqlServerStress()
+        [TestCaseSource(nameof(GetSerializerTypes))]
+        public async Task TestSqlServerStress(string serializerType)
         {
             NameValueCollection properties = new NameValueCollection();
 
@@ -343,7 +318,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.scheduler.instanceId"] = "instance_one";
             properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
             properties["quartz.threadPool.threadCount"] = "10";
-            properties["quartz.threadPool.threadPriority"] = "Normal";
             properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
             properties["quartz.jobStore.misfireThreshold"] = "60000";
             properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
@@ -354,7 +328,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.clustered"] = clustered.ToString();
 
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
-            await RunAdoJobStoreTest(TestConstants.DefaultSqlServerProvider, "SQLServer", properties);
+            await RunAdoJobStoreTest(TestConstants.DefaultSqlServerProvider, "SQLServer", serializerType, properties);
 
             string connectionString;
             if (!dbConnectionStrings.TryGetValue("SQLServer", out connectionString))
@@ -476,7 +450,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
             properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
             properties["quartz.threadPool.threadCount"] = "10";
-            properties["quartz.threadPool.threadPriority"] = "Normal";
             properties["quartz.jobStore.misfireThreshold"] = "60000";
             properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz";
@@ -488,7 +461,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
             string connectionString = "Server=(local);Database=quartz;Trusted_Connection=True;";
             properties["quartz.dataSource.default.connectionString"] = connectionString;
-            properties["quartz.dataSource.default.provider"] = "SqlServer-20";
+            properties["quartz.dataSource.default.provider"] = TestConstants.DefaultSqlServerProvider;
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
@@ -506,7 +479,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.scheduler.instanceId"] = "instance_one";
             properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
             properties["quartz.threadPool.threadCount"] = "10";
-            properties["quartz.threadPool.threadPriority"] = "Normal";
             properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
             properties["quartz.jobStore.misfireThreshold"] = "60000";
             properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
@@ -519,7 +491,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
             string connectionString = "Server=(local);Database=quartz;Trusted_Connection=True;";
             properties["quartz.dataSource.default.connectionString"] = connectionString;
-            properties["quartz.dataSource.default.provider"] = "SqlServer-20";
+            properties["quartz.dataSource.default.provider"] = TestConstants.DefaultSqlServerProvider;
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory(properties);

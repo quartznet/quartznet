@@ -29,6 +29,7 @@ using System.IO;
 using System.Reflection;
 using System.Security;
 using System.Threading.Tasks;
+
 using Quartz.Core;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
@@ -37,6 +38,7 @@ using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
+
 using System.Globalization;
 
 namespace Quartz.Impl
@@ -513,25 +515,13 @@ Please add configuration to your application config file to correctly initialize
             // Get ThreadPool Properties
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-            Type tpType = loadHelper.LoadType(cfg.GetStringProperty(PropertyThreadPoolType)) ??
-// DefaultThreadPool (or DedicatedThreadPool) should work in either case, but this is #if'd until the new thread pools can be more thoroughly tested
-#if WINDOWS_THREADPOOL
-                typeof(ClrThreadPool);
+            Type tpType = loadHelper.LoadType(cfg.GetStringProperty(PropertyThreadPoolType)) ?? typeof(DefaultThreadPool);
 
             if (tpType == typeof(SimpleThreadPool))
             {
                 // use as synonym for now
-                tpType = typeof(ClrThreadPool);
+                tpType = typeof(DefaultThreadPool);
             }
-#else // WINDOWS_THREADPOOL
-                typeof(DefaultThreadPool);
-
-                if (tpType == typeof(SimpleThreadPool))
-                {
-                    // use as synonym for now
-                    tpType = typeof(DefaultThreadPool);
-                }
-#endif // WINDOWS_THREADPOOL
 
             try
             {

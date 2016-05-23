@@ -33,7 +33,8 @@ namespace Quartz.Tests.Unit
     [TestFixture]
     public class InterruptableJobTest
     {
-        private static readonly ManualResetEvent sync = new ManualResetEvent(false);
+        private static readonly ManualResetEvent started = new ManualResetEvent(false);
+        private static readonly ManualResetEvent ended = new ManualResetEvent(false);
 
 #pragma warning disable 618
         public class TestInterruptableJob : IInterruptableJob
@@ -46,7 +47,7 @@ namespace Quartz.Tests.Unit
                 // Console.WriteLine("TestInterruptableJob is executing.");
                 try
                 {
-                    sync.Set(); // wait for test thread to notice the job is now running
+                    started.Set(); // wait for test thread to notice the job is now running
                 }
                 catch (ThreadInterruptedException)
                 {
@@ -65,7 +66,7 @@ namespace Quartz.Tests.Unit
                 try
                 {
                     // Console.WriteLine("TestInterruptableJob exiting with interrupted = " + interrupted);
-                    sync.WaitOne();
+                    ended.Set();
                 }
                 catch (ThreadInterruptedException)
                 {
@@ -101,7 +102,7 @@ namespace Quartz.Tests.Unit
 
             await sched.ScheduleJob(job, trigger);
 
-            sync.WaitOne(); // make sure the job starts running...
+            started.WaitOne(); // make sure the job starts running...
 
             var executingJobs = await sched.GetCurrentlyExecutingJobs();
 
@@ -111,7 +112,7 @@ namespace Quartz.Tests.Unit
 
             bool interruptResult = await sched.Interrupt(jec.FireInstanceId);
 
-            sync.WaitOne(); // wait for the job to terminate
+            ended.WaitOne(); // wait for the job to terminate
 
             Assert.IsTrue(interruptResult, "Expected successful result from interruption of job ");
             Assert.IsTrue(TestInterruptableJob.interrupted, "Expected interrupted flag to be set on job class ");

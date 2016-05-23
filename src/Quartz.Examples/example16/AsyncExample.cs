@@ -24,8 +24,6 @@ using System.Collections.Specialized;
 using System.Threading.Tasks;
 using Quartz.Impl;
 using Quartz.Logging;
-using Quartz.Simpl;
-using Quartz.Util;
 
 namespace Quartz.Examples.example16
 {
@@ -41,11 +39,9 @@ namespace Quartz.Examples.example16
         {
             ILog log = LogProvider.GetLogger(typeof (AsyncExample));
 
-            // First we must get a reference to a scheduler
-            // we need to use ClrThreadPool to run async jobs
             var properties = new NameValueCollection
             {
-                ["quartz.threadPool.type"] = typeof (ClrThreadPool).AssemblyQualifiedNameWithoutVersion()
+                ["quartz.serializer.type"] = "json"
             };
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
             IScheduler sched = await sf.GetScheduler();

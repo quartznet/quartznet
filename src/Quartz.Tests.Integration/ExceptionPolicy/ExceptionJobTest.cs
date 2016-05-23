@@ -1,3 +1,4 @@
+using System.Collections.Specialized;
 using System.Threading.Tasks;
 
 using NUnit.Framework;
@@ -11,12 +12,17 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
     [TestFixture]
     public class ExceptionHandlingTest : IntegrationTest
     {
-		[SetUp]
-		public void SetUp()
-		{
-			ISchedulerFactory sf = new StdSchedulerFactory();
-			sched = sf.GetScheduler().GetAwaiter().GetResult();   
-		}
+        [SetUp]
+        public async Task SetUp()
+        {
+            var properties = new NameValueCollection
+            {
+                ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
+            };
+            ISchedulerFactory sf = new StdSchedulerFactory(properties);
+
+            sched = await sf.GetScheduler();
+        }
 
         [Test]
         public async Task ExceptionJobUnscheduleFiringTrigger()
@@ -24,7 +30,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
             await sched.Start();
             string jobName = "ExceptionPolicyUnscheduleFiringTrigger";
             string jobGroup = "ExceptionPolicyUnscheduleFiringTriggerGroup";
-            JobDetailImpl myDesc = new JobDetailImpl(jobName, jobGroup, typeof (ExceptionJob));
+            JobDetailImpl myDesc = new JobDetailImpl(jobName, jobGroup, typeof(ExceptionJob));
             myDesc.Durable = true;
             await sched.AddJob(myDesc, false);
             string trigGroup = "ExceptionPolicyFiringTriggerGroup";
@@ -42,7 +48,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
             await Task.Delay(7*1000);
             await sched.DeleteJob(trigger.JobKey);
             Assert.AreEqual(1, ExceptionJob.LaunchCount,
-                            "The job shouldn't have been refired (UnscheduleFiringTrigger)");
+                "The job shouldn't have been refired (UnscheduleFiringTrigger)");
 
 
             ExceptionJob.LaunchCount = 0;
@@ -59,7 +65,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
             await Task.Delay(7*1000);
             await sched.DeleteJob(trigger.JobKey);
             Assert.AreEqual(2, ExceptionJob.LaunchCount,
-                            "The job shouldn't have been refired(UnscheduleFiringTrigger)");
+                "The job shouldn't have been refired(UnscheduleFiringTrigger)");
         }
 
         [Test]
@@ -95,7 +101,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
             // in fact, it would be better to have a separate class
             ExceptionJob.ThrowsException = false;
 
-            await Task.Delay(1000); 
+            await Task.Delay(1000);
             await sched.DeleteJob(jobKey);
             await Task.Delay(1000);
             Assert.Greater(ExceptionJob.LaunchCount, 1, "The job should have been refired after exception");
@@ -106,7 +112,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
         {
             await sched.Start();
             JobKey jobKey = new JobKey("ExceptionPolicyNoRestartJob", "ExceptionPolicyNoRestartGroup");
-            JobDetailImpl exceptionJob = new JobDetailImpl(jobKey.Name, jobKey.Group, typeof (ExceptionJob));
+            JobDetailImpl exceptionJob = new JobDetailImpl(jobKey.Name, jobKey.Group, typeof(ExceptionJob));
             exceptionJob.Durable = true;
             await sched.AddJob(exceptionJob, false);
 
