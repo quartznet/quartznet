@@ -1,18 +1,13 @@
 ﻿{
   "version": "3.0.0-*",
   "buildOptions": {
-    "debugType": "portable",
-    "emitEntryPoint": true
+    "debugType": "portable"
   },
   "dependencies": {
-    "Microsoft.NETCore.App": {
-      "type": "platform",
-      "version": "1.0.0-rc2-3002702"
-    },
     "Quartz": "3.0.0-*"
   },
   "frameworks": {
-    "net46": {
+    "net45": {
       "buildOptions": {
         "define": [
           "LOG4NET"
@@ -28,13 +23,17 @@
         "portable-net45+win8"
       ],
       "buildOptions": {
+        "emitEntryPoint": true,
         "define": [
           "NETCORE",
           "NETSTANDARD15_DBPROVIDERS"
         ]
       },
       "dependencies": {
-        "NETStandard.Library": "1.5.0-rc2-*",
+        "Microsoft.NETCore.App": {
+          "type": "platform",
+          "version": "1.0.0-rc2-*"
+        },
         "Microsoft.CSharp": "4.0.1-rc2-*",
         "Microsoft.NETCore.Portable.Compatibility": "1.0.1-rc2-*",
         "System.Collections.NonGeneric": "4.0.1-rc2-*",

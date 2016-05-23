@@ -33,6 +33,7 @@ Ankh.NoLoad
 *.docstates
 
 #Tooling
+.vs/
 _ReSharper*/
 _dotCover*/
 *.resharper
