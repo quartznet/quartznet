@@ -2837,7 +2837,7 @@ namespace Quartz.Impl.AdoJobStore
                     return GetObjectFromBlob<T>(rs, colIndex);
                 }
 
-                return null;
+                return Task.FromResult<T>(null);
             }
 
             return GetObjectFromBlob<T>(rs, colIndex);
