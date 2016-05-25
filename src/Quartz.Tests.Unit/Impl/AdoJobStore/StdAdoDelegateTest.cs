@@ -78,11 +78,17 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             try
             {
                 del.SerializeJobData(jdm);
-                Assert.Fail();
+#if BINARY_SERIALIZATION
+                Assert.Fail("Private types should not be serializable by binary serialization");
+#endif
             }
             catch (SerializationException e)
             {
+#if BINARY_SERIALIZATION
                 Assert.IsTrue(e.Message.IndexOf("key3") >= 0);
+#else
+                Assert.Fail($"Private types should be serializable when not using binary serialization: {e.ToString()}");
+#endif 
             }
         }
 

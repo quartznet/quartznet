@@ -160,7 +160,9 @@ namespace Quartz.Tests.Unit.Xml
         {
             // create temp file
             string tempFileName = XMLSchedulingDataProcessor.QuartzXmlFileName;
-            using (TextWriter writer = new StreamWriter(File.OpenWrite(tempFileName)))
+            // Use File.Create (as opposed to File.OpenWrite) so that if the file already exists, it will be completely
+            // replaced instead of only overwriting the first N bytes (where N is the length of SimpleJobTrigger.xml)
+            using (TextWriter writer = new StreamWriter(File.Create(tempFileName)))
             {
                 using (StreamReader reader = new StreamReader(ReadJobXmlFromEmbeddedResource("SimpleJobTrigger.xml")))
                 {
