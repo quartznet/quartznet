@@ -90,7 +90,10 @@ namespace Quartz.Tests.Unit.Impl
             Assert.AreEqual("QuartzScheduler", scheduler.SchedulerName);
 
             Environment.SetEnvironmentVariable("quartz.scheduler.instanceName", "fromSystemProperties");
-            factory = new StdSchedulerFactory(properties);
+            // Make sure to pass the serializer type as an env var instead of in a NameValueCollection (as in the previous test)
+            // since passing an explicit NameValueCollection causes the scheduler factory to not check environment variables
+            Environment.SetEnvironmentVariable("quartz.serializer.type", TestConstants.DefaultSerializerType);
+            factory = new StdSchedulerFactory();
             scheduler = await factory.GetScheduler();
             Assert.AreEqual("fromSystemProperties", scheduler.SchedulerName);
         }

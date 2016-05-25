@@ -72,7 +72,10 @@ namespace Quartz.Tests.Unit.Impl.Triggers
 
             protected override bool ValidateMisfireInstruction(int misfireInstruction)
             {
-                throw new NotImplementedException();
+                // This method must be implemented because it's used in AbstractTrigger.MisfireInstruction's setter
+                // and JSON serialization serializes at the property level (as opposed to the binary formatter which
+                // serialized at the field level and, therefore, did not need this implemented).
+                return true;
             }
 
             public override void UpdateAfterMisfire(ICalendar cal)
@@ -102,7 +105,13 @@ namespace Quartz.Tests.Unit.Impl.Triggers
 
             public override bool HasMillisecondPrecision
             {
-                get { throw new NotImplementedException(); }
+                get
+                {
+                    // This method must be implemented because it's used in AbstractTrigger.StartTimeUtc's setter
+                    // and JSON serialization serializes at the property level (as opposed to the binary formatter which
+                    // serialized at the field level and, therefore, did not need this implemented).
+                    return false;
+                }
             }
         }
     }
