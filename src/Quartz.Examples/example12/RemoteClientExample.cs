@@ -44,17 +44,15 @@ namespace Quartz.Examples.Example12
         {
             ILog log = LogProvider.GetLogger(typeof (RemoteClientExample));
 
-            NameValueCollection properties = new NameValueCollection();
-            properties["quartz.scheduler.instanceName"] = "RemoteClient";
-
-            // set thread pool info
-            properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
-            properties["quartz.threadPool.threadCount"] = "5";
-            properties["quartz.threadPool.threadPriority"] = "Normal";
-
-            // set remoting exporter
-            properties["quartz.scheduler.proxy"] = "true";
-            properties["quartz.scheduler.proxy.address"] = "tcp://127.0.0.1:555/QuartzScheduler";
+            NameValueCollection properties = new NameValueCollection
+            {
+                ["quartz.scheduler.instanceName"] = "RemoteClient",
+                ["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz",
+                ["quartz.threadPool.threadCount"] = "5",
+                ["quartz.scheduler.proxy"] = "true",
+                ["quartz.scheduler.proxy.address"] = "tcp://127.0.0.1:555/QuartzScheduler",
+                ["quartz.serializer.type"] = "json"
+            };
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory(properties);

@@ -76,31 +76,30 @@ namespace Quartz.Examples.Example13
 
         public virtual async Task Run(bool inClearJobs, bool inScheduleJobs)
         {
-            NameValueCollection properties = new NameValueCollection();
+            NameValueCollection properties = new NameValueCollection
+            {
+                ["quartz.scheduler.instanceName"] = "TestScheduler",
+                ["quartz.scheduler.instanceId"] = "instance_one",
+                ["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz",
+                ["quartz.threadPool.threadCount"] = "5",
+                ["quartz.jobStore.misfireThreshold"] = "60000",
+                ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
+                ["quartz.jobStore.useProperties"] = "false",
+                ["quartz.jobStore.dataSource"] = "default",
+                ["quartz.jobStore.tablePrefix"] = "QRTZ_",
+                ["quartz.jobStore.clustered"] = "true",
+                ["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz",
+                ["quartz.dataSource.default.connectionString"] = "Server=(local);Database=quartz;Trusted_Connection=True;",
+                ["quartz.dataSource.default.provider"] = "SqlServer-20",
+                ["quartz.serializer.type"] = "json"
+            };
 
-            properties["quartz.scheduler.instanceName"] = "TestScheduler";
-            properties["quartz.scheduler.instanceId"] = "instance_one";
-            properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
-            properties["quartz.threadPool.threadCount"] = "5";
-            properties["quartz.threadPool.threadPriority"] = "Normal";
-            properties["quartz.jobStore.misfireThreshold"] = "60000";
-            properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
-            properties["quartz.jobStore.useProperties"] = "false";
-            properties["quartz.jobStore.dataSource"] = "default";
-            properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
-            properties["quartz.jobStore.clustered"] = "true";
             // if running SQLite we need this
             // properties["quartz.jobStore.lockHandler.type"] = "Quartz.Impl.AdoJobStore.UpdateLockRowSemaphore, Quartz";
-            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
-
-            properties["quartz.dataSource.default.connectionString"] = "Server=(local);Database=quartz;Trusted_Connection=True;";
-
 #if NETSTANDARD15_DBPROVIDERS
             properties["quartz.dataSource.default.provider"] = "SqlServer-41";
 #else
-            properties["quartz.dataSource.default.provider"] = "SqlServer-20";
 #endif
-
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
             IScheduler sched = await sf.GetScheduler();

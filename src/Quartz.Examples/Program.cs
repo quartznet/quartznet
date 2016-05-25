@@ -38,8 +38,12 @@ namespace Quartz.Examples
     /// <author>Marko Lahma</author>
     public class Program
     {
+#if NETCORE
+        public static void Main()
+#else
         [STAThread]
         public static void Main()
+#endif
         {
             try
             {

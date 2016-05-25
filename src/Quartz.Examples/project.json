@@ -1,7 +1,11 @@
 ﻿{
   "version": "3.0.0-*",
   "buildOptions": {
-    "debugType": "portable"
+    "debugType": "portable",
+    "emitEntryPoint": true,
+    "copyToOutput": [
+      "quartz_jobs.xml"
+    ]
   },
   "dependencies": {
     "Quartz": "3.0.0-*"

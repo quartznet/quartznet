@@ -43,13 +43,16 @@ namespace Quartz.Examples.Example14
             log.Info("------- Initializing ----------------------");
 
             // First we must get a reference to a scheduler
-            NameValueCollection properties = new NameValueCollection();
-            properties["quartz.scheduler.instanceName"] = "PriorityExampleScheduler";
-            // Set thread count to 1 to force Triggers scheduled for the same time to 
-            // to be ordered by priority.
-            properties["quartz.threadPool.threadCount"] = "1";
-            properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
-            properties["quartz.jobStore.type"] = "Quartz.Simpl.RAMJobStore, Quartz";
+            NameValueCollection properties = new NameValueCollection
+            {
+                ["quartz.scheduler.instanceName"] = "PriorityExampleScheduler",
+                // Set thread count to 1 to force Triggers scheduled for the same time to 
+                // to be ordered by priority.
+                ["quartz.threadPool.threadCount"] = "1",
+                ["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz",
+                ["quartz.jobStore.type"] = "Quartz.Simpl.RAMJobStore, Quartz",
+                ["quartz.serializer.type"] = "json"
+            };
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
             IScheduler sched = await sf.GetScheduler();
 

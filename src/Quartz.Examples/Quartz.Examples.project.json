@@ -1,4 +1,7 @@
 ﻿{
+  "buildOptions": {
+    "emitEntryPoint": true
+  },
   "frameworks": {
     "net45": {
       "buildOptions": {
@@ -12,6 +15,6 @@
     "log4net": "2.0.5"
   },
   "runtimes": {
-    "win": {}
+    "win": { }
   }
 }

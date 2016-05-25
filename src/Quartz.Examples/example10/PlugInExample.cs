@@ -46,13 +46,16 @@ namespace Quartz.Examples.Example10
 
             // our properties that enable XML configuration plugin
             // and makes it watch for changes every two minutes (120 seconds)
-            var properties = new NameValueCollection();
-            properties["quartz.plugin.triggHistory.type"] = "Quartz.Plugin.History.LoggingJobHistoryPlugin";
+            var properties = new NameValueCollection
+            {
+                ["quartz.plugin.triggHistory.type"] = "Quartz.Plugin.History.LoggingJobHistoryPlugin",
+                ["quartz.plugin.jobInitializer.type"] = "Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin",
+                ["quartz.plugin.jobInitializer.fileNames"] = "quartz_jobs.xml",
+                ["quartz.plugin.jobInitializer.failOnFileNotFound"] = "true",
+                ["quartz.plugin.jobInitializer.scanInterval"] = "120",
+                ["quartz.serializer.type"] = "json"
+            };
 
-            properties["quartz.plugin.jobInitializer.type"] = "Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin";
-            properties["quartz.plugin.jobInitializer.fileNames"] = "quartz_jobs.xml";
-            properties["quartz.plugin.jobInitializer.failOnFileNotFound"] = "true";
-            properties["quartz.plugin.jobInitializer.scanInterval"] = "120";
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory(properties);

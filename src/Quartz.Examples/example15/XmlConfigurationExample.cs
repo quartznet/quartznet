@@ -44,17 +44,19 @@ namespace Quartz.Examples.Example15
             log.Info("------- Initializing ----------------------");
 
             // First we must get a reference to a scheduler
-            NameValueCollection properties = new NameValueCollection();
-            properties["quartz.scheduler.instanceName"] = "XmlConfiguredInstance";
+            var properties = new NameValueCollection
+            {
+                ["quartz.scheduler.instanceName"] = "XmlConfiguredInstance",
+                ["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz",
+                ["quartz.threadPool.threadCount"] = "5",
+                ["quartz.plugin.xml.type"] = "Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin, Quartz",
+                ["quartz.plugin.xml.fileNames"] = "~/quartz_jobs.xml",
+                ["quartz.serializer.type"] = "json"
+            };
 
             // set thread pool info
-            properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
-            properties["quartz.threadPool.threadCount"] = "5";
-            properties["quartz.threadPool.threadPriority"] = "Normal";
 
             // job initialization plugin handles our xml reading, without it defaults are used
-            properties["quartz.plugin.xml.type"] = "Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin, Quartz";
-            properties["quartz.plugin.xml.fileNames"] = "~/quartz_jobs.xml";
 
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
             IScheduler sched = await sf.GetScheduler();
