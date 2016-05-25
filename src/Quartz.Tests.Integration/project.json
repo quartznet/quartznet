@@ -14,24 +14,6 @@
     "Quartz": "3.0.0-*"
   },
   "frameworks": {
-    "net45": {
-      "buildOptions": {
-        "define": [
-          "TRANSACTIONS",
-          "BINARY_SERIALIZATION",
-          "ICLONEABLE",
-          "FAKE_IT_EASY"
-        ]
-      },
-      "dependencies": {
-        "FakeItEasy": "1.25.3",
-        "FirebirdSql.Data.FirebirdClient": "5.0.0",
-        "MySql.Data": "6.9.8",
-        "NUnit": "3.2.1",
-        "Oracle.ManagedDataAccess": "12.1.24160419",
-        "System.Data.SQLite": "1.0.101"
-      }
-    },
     "netcoreapp1.0": {
       "imports": [
         "dotnet55",
@@ -72,6 +54,24 @@
         "System.Xml.XmlDocument": "4.0.1-rc2-*",
         "System.Xml.XmlSerializer": "4.0.11-rc2-*",
         "NUnitLite": "3.2.1"
+      }
+    },
+    "net45": {
+      "buildOptions": {
+        "define": [
+          "TRANSACTIONS",
+          "BINARY_SERIALIZATION",
+          "ICLONEABLE",
+          "FAKE_IT_EASY"
+        ]
+      },
+      "dependencies": {
+        "FakeItEasy": "1.25.3",
+        "FirebirdSql.Data.FirebirdClient": "5.0.0",
+        "MySql.Data": "6.9.8",
+        "NUnit": "3.2.1",
+        "Oracle.ManagedDataAccess": "12.1.24160419",
+        "System.Data.SQLite": "1.0.101"
       }
     }
   }
