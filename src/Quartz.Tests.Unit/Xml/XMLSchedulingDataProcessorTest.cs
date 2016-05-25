@@ -303,7 +303,7 @@ namespace Quartz.Tests.Unit.Xml
 
             try
             {
-                string jobName = "testjob1";
+                string jobName = "job1";
                 IJobDetail jobDetail = JobBuilder.Create<NoOpJob>()
                     .WithIdentity(jobName, "DEFAULT")
                     .UsingJobData("foo", "foo")
@@ -329,11 +329,6 @@ namespace Quartz.Tests.Unit.Xml
 
                 jobDetail2 = scheduler.GetJobDetail(jobDetail.Key);
                 trigger2 = scheduler.GetTrigger(trigger.Key);
-                Assert.That(trigger2, Is.Null);
-                Assert.That(jobDetail2, Is.Null);
-
-                jobDetail2 = scheduler.GetJobDetail(new JobKey("job1", "DEFAULT"));
-                trigger2 = scheduler.GetTrigger(new TriggerKey("job1", "DEFAULT"));
                 Assert.That(jobDetail2.JobDataMap.GetString("foo"), Is.EqualTo("bar"));
                 Assert.That(trigger2, Is.InstanceOf<ISimpleTrigger>());
             }
