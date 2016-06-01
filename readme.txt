@@ -1,4 +1,4 @@
-QUARTZ JOB SCHEDULER .NET, 2.3.3, Jul 9, 2015
+QUARTZ JOB SCHEDULER .NET, 3.0-alpha, Jun 1, 2016
 -----------------------------------------------------------------
 
 http://www.quartz-scheduler.net/
@@ -26,13 +26,12 @@ Also, to keep the legal people happy:
 2. KNOWN ISSUES
 ---------------
 
-No known issues at the moment.
+The version 3.0 is a work in progress and things might still change a bit as for
+example CoreCLR evolves.
 
 
 3. RELEASE INFO
 ----------------
-
-This release corresponds to Java Quartz version 2.2.
 
 For API documentation, please refer to Quartz.NET site: 
 

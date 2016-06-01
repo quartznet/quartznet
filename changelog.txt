@@ -2,14 +2,19 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://www.quartz-scheduler.net
 
-Release 3.0, xxx xx 2015
+Release 3.0 alpha, xxx xx 2016
 --------------------------------
+
+NEW FEATURE
+
+* Task based jobs with async/await support
+* Support .NET Core
 
 BREAKING CHANGES
 
-* .NET 4.5 required
+* .NET 4.5.2 required
 * Many scheduler methods have been changed to be Task based, remember to await them
-* There's now IQuartzJob that the new IAsyncJob and old IJob inherit from, job factories operate with new IQuartzJob interface
+* IJob interface now returns a task
 * Some IList properties have been changed to IReadOnlyList to properly reflect intent
 
 
