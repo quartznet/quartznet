@@ -891,5 +891,44 @@ namespace Quartz.Tests.Unit.Impl.Triggers
             Assert.That(cloned.EndTimeOfDay, Is.EqualTo(trigger.EndTimeOfDay));
             Assert.That(cloned.TimeZone, Is.EqualTo(trigger.TimeZone));
         }
+
+        [Test]
+        public void TestNextFireTimeUtc()
+        {
+            var now = DateTimeOffset.Now;
+            var startTime = now.AddSeconds(5);
+            var firstCorrectNextFireTimeUtc = startTime.ToUniversalTime();
+            var secondCorrectNextFireTimeUtc = firstCorrectNextFireTimeUtc.AddDays(1);
+            var trigger = TriggerBuilder.Create().WithIdentity("DailyTrigger")
+                .WithSchedule(
+                    DailyTimeIntervalScheduleBuilder.Create()
+                        .WithMisfireHandlingInstructionFireAndProceed()
+                        .StartingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(startTime.Hour, startTime.Minute, startTime.Second))
+                        .OnEveryDay()
+                        .WithIntervalInHours(24)
+                        .WithRepeatCount(9999)
+                        .InTimeZone(TimeZoneInfo.Local)
+                        ).Build();
+            var jobDetail = JobBuilder.Create().WithIdentity("DailyJob", "DailyGroup").Build();
+            var schedulerFactory = new Quartz.Impl.StdSchedulerFactory();
+            var scheduler = schedulerFactory.GetScheduler();
+            scheduler.ScheduleJob(jobDetail, trigger);
+            scheduler.Start();
+            Console.WriteLine("Checking When Trigger Should Fire The First Time");
+            // skipping Assert.True(trigger.GetNextFireTimeUtc().HasValue);
+            var firstNextFireTimeUtc = trigger.GetNextFireTimeUtc().Value;
+            // cannot use Assert.True(firstCorrectNextFireTimeUtc.Equals(firstNextFireTimeUtc)) because the milliseconds differ
+            var correctAndActualDifferenceFirst = (firstCorrectNextFireTimeUtc - firstNextFireTimeUtc).Duration();
+            Assert.LessOrEqual(correctAndActualDifferenceFirst, TimeSpan.FromSeconds(2), "Next Fire Time Should Have Been {0}, but Was Wrongly {1}", firstCorrectNextFireTimeUtc, firstNextFireTimeUtc);
+            Console.WriteLine("First Trigger Time Prediction Correct");
+            // wait for first fire to pass
+            System.Threading.Thread.Sleep(TimeSpan.FromSeconds(10));
+            Console.WriteLine("Checking When Trigger Should Fire The Second Time");
+            var secondNextFireTimeUtc = trigger.GetNextFireTimeUtc().Value;
+            var correctAndActualDifferenceSecond = (secondCorrectNextFireTimeUtc - secondNextFireTimeUtc).Duration();
+            Assert.LessOrEqual(correctAndActualDifferenceSecond, TimeSpan.FromSeconds(2), "Next Fire Time Should Have Been {0}, but Was Wrongly {1}", secondCorrectNextFireTimeUtc, secondNextFireTimeUtc);
+            Console.WriteLine("Second Trigger Time Prediction Also Correct");
+        }
+
     }
 }
