@@ -2455,7 +2455,6 @@ namespace Quartz.Impl.AdoJobStore
             Collection.ISet<JobKey> acquiredJobKeysForNoConcurrentExec = new Collection.HashSet<JobKey>();
             const int MaxDoLoopRetry = 3;
             int currentLoopCount = 0;
-            DateTimeOffset? firstAcquiredTriggerFireTime = null;
 
             do
             {
@@ -2469,6 +2468,8 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         return acquiredTriggers;
                     }
+
+                    DateTimeOffset batchEnd = noLaterThan;
 
                     foreach (TriggerKey triggerKey in keys)
                     {
@@ -2513,6 +2514,11 @@ namespace Quartz.Impl.AdoJobStore
                             }
                         }
 
+                        if (nextTrigger.GetNextFireTimeUtc() > batchEnd)
+                        {
+                            break;
+                        }
+
                         // We now have a acquired trigger, let's add to return list.
                         // If our trigger was no longer in the expected state, try a new one.
                         int rowsUpdated = Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, StateAcquired, StateWaiting);
@@ -2524,11 +2530,16 @@ namespace Quartz.Impl.AdoJobStore
                         nextTrigger.FireInstanceId = GetFiredTriggerRecordId();
                         Delegate.InsertFiredTrigger(conn, nextTrigger, StateAcquired, null);
 
-                        acquiredTriggers.Add(nextTrigger);
-                        if (firstAcquiredTriggerFireTime == null)
+                        if (acquiredTriggers.Count == 0)
                         {
-                            firstAcquiredTriggerFireTime = nextTrigger.GetNextFireTimeUtc();
+                            var now = SystemTime.UtcNow();
+                            var nextFireTime = nextTrigger.GetNextFireTimeUtc().GetValueOrDefault(DateTimeOffset.MinValue);
+                            var max = now > nextFireTime ? now : nextFireTime;
+
+                            batchEnd = max + timeWindow;
                         }
+
+                        acquiredTriggers.Add(nextTrigger);
                     }
 
                     // if we didn't end up with any trigger to fire from that first

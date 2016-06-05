@@ -26,7 +26,6 @@ using System.Threading;
 using Common.Logging;
 
 using Quartz.Collection;
-using Quartz.Impl;
 using Quartz.Impl.Matchers;
 using Quartz.Spi;
 
@@ -1490,7 +1489,7 @@ namespace Quartz.Simpl
                 List<IOperableTrigger> result = new List<IOperableTrigger>();
                 Collection.ISet<JobKey> acquiredJobKeysForNoConcurrentExec = new Collection.HashSet<JobKey>();
                 Collection.ISet<TriggerWrapper> excludedTriggers = new Collection.HashSet<TriggerWrapper>();
-                DateTimeOffset? firstAcquiredTriggerFireTime = null;
+                DateTimeOffset batchEnd = noLaterThan;
 
                 // return empty list if store has no triggers.
                 if (timeTriggers.Count == 0)
@@ -1524,7 +1523,7 @@ namespace Quartz.Simpl
                         continue;
                     }
 
-                    if (tw.trigger.GetNextFireTimeUtc() > noLaterThan + timeWindow)
+                    if (tw.trigger.GetNextFireTimeUtc() > batchEnd)
                     {
                         timeTriggers.Add(tw);
                         break;
@@ -1549,13 +1548,18 @@ namespace Quartz.Simpl
 
                     tw.state = InternalTriggerState.Acquired;
                     tw.trigger.FireInstanceId = GetFiredTriggerRecordId();
-                    IOperableTrigger trig = (IOperableTrigger)tw.trigger.Clone();
-                    result.Add(trig);
+                    IOperableTrigger trig = (IOperableTrigger) tw.trigger.Clone();
 
-                    if (firstAcquiredTriggerFireTime == null)
+                    if (result.Count == 0)
                     {
-                        firstAcquiredTriggerFireTime = tw.trigger.GetNextFireTimeUtc();
+                        var now = SystemTime.UtcNow();
+                        var nextFireTime = tw.trigger.GetNextFireTimeUtc().GetValueOrDefault(DateTimeOffset.MinValue);
+                        var max = now > nextFireTime ? now : nextFireTime;
+
+                        batchEnd = max + timeWindow;
                     }
+
+                    result.Add(trig);
 
                     if (result.Count == maxCount)
                     {
