@@ -108,6 +108,9 @@ namespace Quartz.Impl.Calendar
                 case 1:
                     dates = (TreeSet<DateTime>) info.GetValue("dates", typeof(TreeSet<DateTime>));
                     break;
+                case 2:
+                    dates = new TreeSet<DateTime>((DateTime[]) info.GetValue("dates", typeof(DateTime[])));
+                    break;
                 default:
                     throw new NotSupportedException("Unknown serialization version");
             }
@@ -118,8 +121,8 @@ namespace Quartz.Impl.Calendar
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
-            info.AddValue("version", 1);
-            info.AddValue("dates", dates);
+            info.AddValue("version", 2);
+            info.AddValue("dates", dates.ToArray());
         }
 
 		/// <summary>

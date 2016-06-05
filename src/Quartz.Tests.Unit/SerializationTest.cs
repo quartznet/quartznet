@@ -77,9 +77,8 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(14, timeRangeStartTimeUtc.Second);
             Assert.AreEqual(150, timeRangeStartTimeUtc.Millisecond);
 
-            
             DateTimeOffset timeRangeEndingTimeUtc = clone.GetTimeRangeEndingTimeUtc(DateTimeOffset.UtcNow);
-            
+
             Assert.AreEqual(13, timeRangeEndingTimeUtc.Hour);
             Assert.AreEqual(14, timeRangeEndingTimeUtc.Minute);
             Assert.AreEqual(0, timeRangeEndingTimeUtc.Second);
@@ -89,7 +88,25 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestHolidayCalendarDeserialization()
         {
-            Deserialize<HolidayCalendar>();
+            var calendar = Deserialize<HolidayCalendar>();
+            Assert.That(calendar.ExcludedDates.Count, Is.EqualTo(1));
+
+            calendar = Deserialize<HolidayCalendar>(23);
+            Assert.That(calendar.ExcludedDates.Count, Is.EqualTo(1));
+
+            BinaryFormatter formatter = new BinaryFormatter();
+            using (var stream = new MemoryStream())
+            {
+                calendar = new HolidayCalendar();
+                calendar.AddExcludedDate(DateTime.Now.Date);
+                formatter.Serialize(stream, calendar);
+
+                stream.Seek(0, SeekOrigin.Begin);
+                stream.Position = 0;
+
+                calendar = (HolidayCalendar) formatter.Deserialize(stream);
+                Assert.That(calendar.ExcludedDates.Count, Is.EqualTo(1));
+            }
         }
 
         [Test]
@@ -192,10 +209,15 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(123, clone["num"]);
         }
 
-        private static T Deserialize<T>() where T : class 
+        private static T Deserialize<T>() where T : class
+        {
+            return Deserialize<T>(10);
+        }
+
+        private static T Deserialize<T>(int version) where T : class
         {
             BinaryFormatter formatter = new BinaryFormatter();
-            object o = formatter.Deserialize(File.OpenRead(@"Serialized\" + typeof(T).Name + "_10.ser"));
+            object o = formatter.Deserialize(File.OpenRead(@"Serialized\" + typeof(T).Name + "_" + version + ".ser"));
             return (T) o;
         }
     }
