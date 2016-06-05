@@ -105,6 +105,7 @@
       <RequiredTargetFramework>3.5</RequiredTargetFramework>
     </Reference>
     <Reference Include="System.Data" />
+    <Reference Include="System.Windows.Forms" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="..\AssemblyInfo.cs">
@@ -126,6 +127,8 @@
     <Compile Include="IntegrationTest.cs" />
     <Compile Include="RAMJobStoreTest.cs" />
     <Compile Include="RAMSchedulerTest.cs" />
+    <Compile Include="ScheduledFireTimeTest.cs" />
+    <Compile Include="ScheduledFireTimeTestJob.cs" />
     <Compile Include="TestJob.cs" />
   </ItemGroup>
   <ItemGroup>

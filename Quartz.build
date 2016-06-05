@@ -389,6 +389,7 @@
         <include name="System.dll" />
         <include name="System.Data.dll" />
         <include name="System.Transactions.dll" />
+        <include name="System.Windows.Forms.dll" />
         <include name="${common-logging-dll}" />
         <include name="${common-logging-core-dll}" />
         <include name="${nunit-dll}" />
