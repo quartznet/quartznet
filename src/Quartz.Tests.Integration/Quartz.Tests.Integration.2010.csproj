@@ -90,6 +90,7 @@
     <Reference Include="FirebirdSql.Data.FirebirdClient">
       <HintPath>..\..\packages\FirebirdSql.Data.FirebirdClient.4.5.0.0\lib\net40-client\FirebirdSql.Data.FirebirdClient.dll</HintPath>
     </Reference>
+    <Reference Include="MySql.Data, Version=6.5.7.0, Culture=neutral, PublicKeyToken=c5687fc88969c44d, processorArchitecture=MSIL" />
     <Reference Include="nunit.framework, Version=2.6.3.13283, Culture=neutral, PublicKeyToken=96d09a1eb7f44a77, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\packages\NUnit.2.6.3\lib\nunit.framework.dll</HintPath>

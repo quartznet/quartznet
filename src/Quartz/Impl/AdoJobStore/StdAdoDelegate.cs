@@ -2900,7 +2900,20 @@ namespace Quartz.Impl.AdoJobStore
 
         public virtual void AddCommandParameter(IDbCommand cmd, string paramName, object paramValue, Enum dataType)
         {
-            adoUtil.AddCommandParameter(cmd, paramName, paramValue, dataType);
+            if ((dataType != null) && (dataType.Equals(dbProvider.Metadata.DbBinaryType)))
+            {
+                adoUtil.AddCommandParameter(cmd, paramName, paramValue, dataType, -1);
+            }
+            else
+            {
+                adoUtil.AddCommandParameter(cmd, paramName, paramValue, dataType);
+            }
+        }
+
+        public virtual void AddCommandParameter(IDbCommand cmd, string paramName, object paramValue, Enum dataType, int size)
+        {
+            
+            adoUtil.AddCommandParameter(cmd, paramName, paramValue, dataType, size);
         }
     }
 }
