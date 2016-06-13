@@ -1,6 +1,7 @@
 ﻿{
   "buildOptions": {
     "debugType": "portable",
+    "emitEntryPoint": true,
     "embed": {
       "include": [
         "**/TestData/*"
@@ -19,7 +20,6 @@
         "portable-net45+win8"
       ],
       "buildOptions": {
-        "emitEntryPoint": true,
         "define": [
           "NETCORE",
           "NETSTANDARD15_DBPROVIDERS"
