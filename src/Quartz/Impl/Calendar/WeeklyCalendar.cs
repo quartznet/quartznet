@@ -22,6 +22,7 @@
 using System;
 using System.Runtime.Serialization;
 using System.Security;
+using Newtonsoft.Json;
 
 using Quartz.Util;
 
@@ -121,6 +122,7 @@ namespace Quartz.Impl.Calendar
         /// equal 8. java.util.Calendar's constants like MONDAY should be used as
         /// index. A value of true is regarded as: exclude it.
         /// </summary>
+        [JsonProperty(IsReference = false)]
         public virtual bool[] DaysExcluded
         {
             get { return excludeDays; }

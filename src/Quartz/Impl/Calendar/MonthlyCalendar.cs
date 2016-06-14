@@ -22,6 +22,7 @@
 using System;
 using System.Runtime.Serialization;
 using System.Security;
+using Newtonsoft.Json;
 
 using Quartz.Util;
 
@@ -121,6 +122,7 @@ namespace Quartz.Impl.Calendar
         /// Setting will redefine the array of days excluded. The array must of size greater or
         /// equal 31.
         /// </summary>
+        [JsonProperty(IsReference = false)]
         public virtual bool[] DaysExcluded
         {
             get { return excludeDays; }
