@@ -245,6 +245,9 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.dataSource.default.connectionString"] = connectionString;
             properties["quartz.dataSource.default.provider"] = dbProvider;
 
+            // Clear any old errors from the log
+            FailFastLoggerFactoryAdapter.Errors.Clear();
+
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
             IScheduler sched = await sf.GetScheduler();
