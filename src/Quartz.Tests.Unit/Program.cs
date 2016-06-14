@@ -1,10 +1,7 @@
-﻿
-#if NETCORE
-using System;
+﻿using System;
 using System.Reflection;
 
 using NUnit.Common;
-using NUnitLite;
 
 namespace Quartz.Tests.Unit
 {
@@ -12,9 +9,13 @@ namespace Quartz.Tests.Unit
     {
         public static int Main(string[] args)
         {
-            return new AutoRun(typeof(Program).GetTypeInfo().Assembly)
+#if NETCORE
+            return new NUnitLite.AutoRun(typeof(Program).GetTypeInfo().Assembly)
                 .Execute(args, new ExtendedTextWrapper(Console.Out), Console.In);
+#else
+            Console.WriteLine("Please run with nunit runner");
+            return 0;
+#endif 
         }
     }
 }
-#endif

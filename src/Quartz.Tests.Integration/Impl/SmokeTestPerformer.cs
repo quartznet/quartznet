@@ -241,6 +241,7 @@ namespace Quartz.Tests.Integration.Impl
                     Assert.IsNotNull(scheduler.GetCalendar("weeklyCalendar"));
 
                     var genericjobKey = new JobKey("genericJob", "genericGroup");
+                    GenericJobType<string>.ResetCount();
                     var genericJob = JobBuilder.Create<GenericJobType<string>>()
                         .WithIdentity(genericjobKey)
                         .StoreDurably()
@@ -368,5 +369,7 @@ namespace Quartz.Tests.Integration.Impl
         }
 
         public static int TriggeredCount { get; private set; }
+
+        public static void ResetCount() { TriggeredCount = 0; }
     }
 }
