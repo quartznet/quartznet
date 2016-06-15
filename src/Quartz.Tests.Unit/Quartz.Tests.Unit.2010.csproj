@@ -121,6 +121,13 @@
     <Compile Include="CalendarIntervalTriggerTest.cs" />
     <Compile Include="Core\ListenerManagerTest .cs" />
     <Compile Include="Core\MissSchedulingChangeSignalTest.cs" />
+    <Compile Include="CronExpressionBuilderTest.DayOfMonth.cs" />
+    <Compile Include="CronExpressionBuilderTest.DayOfWeek.cs" />
+    <Compile Include="CronExpressionBuilderTest.Hour.cs" />
+    <Compile Include="CronExpressionBuilderTest.Minute.cs" />
+    <Compile Include="CronExpressionBuilderTest.Month.cs" />
+    <Compile Include="CronExpressionBuilderTest.Second.cs" />
+    <Compile Include="CronExpressionBuilderTest.Year.cs" />
     <Compile Include="CronScheduleBuilderTest.cs" />
     <Compile Include="CronTriggerTest.cs" />
     <Compile Include="DailyTimeIntervalScheduleBuilderTest.cs" />

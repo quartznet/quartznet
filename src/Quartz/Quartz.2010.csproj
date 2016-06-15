@@ -127,6 +127,14 @@
     </Compile>
     <Compile Include="CalendarIntervalScheduleBuilder.cs" />
     <Compile Include="Collection\ReadOnlySet.cs" />
+    <Compile Include="CronExpressionBuilder.cs" />
+    <Compile Include="CronExpressionBuilder.DayOfMonth.cs" />
+    <Compile Include="CronExpressionBuilder.DayOfWeek.cs" />
+    <Compile Include="CronExpressionBuilder.Hour.cs" />
+    <Compile Include="CronExpressionBuilder.Minute.cs" />
+    <Compile Include="CronExpressionBuilder.Year.cs" />
+    <Compile Include="CronExpressionBuilder.Month.cs" />
+    <Compile Include="CronExpressionBuilder.Second.cs" />
     <Compile Include="Impl\AdoJobStore\FirebirdDelegate.cs" />
     <Compile Include="Impl\AdoJobStore\Common\ConfigurationBasedDbMetadataFactory.cs" />
     <Compile Include="Impl\AdoJobStore\Common\DbMetadataFactory.cs" />
