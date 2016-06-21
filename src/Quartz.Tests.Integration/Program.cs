@@ -1,7 +1,4 @@
 ﻿using System;
-using System.Reflection;
-
-using NUnit.Common;
 
 namespace Quartz.Tests.Integration
 {
@@ -11,7 +8,7 @@ namespace Quartz.Tests.Integration
         {
 #if NETCORE
             return new NUnitLite.AutoRun(typeof(Program).GetTypeInfo().Assembly)
-                .Execute(args, new ExtendedTextWrapper(Console.Out), Console.In);
+                .Execute(args, new NUnit.Common.ExtendedTextWrapper(Console.Out), Console.In);
 #else
             Console.WriteLine("Please run with nunit runner");
             return 0;

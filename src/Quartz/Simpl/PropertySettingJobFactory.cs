@@ -118,7 +118,7 @@ namespace Quartz.Simpl
 				string propName = c + name.Substring(1);
 
 				object o = data[name];
-				PropertyInfo prop = obj.GetType().GetProperty(propName);
+				PropertyInfo prop = obj.GetType().GetTypeInfo().GetProperty(propName);
 
 				try
 				{

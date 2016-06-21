@@ -379,7 +379,7 @@ namespace Quartz.Tests.Unit.Xml
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz";
             properties["quartz.jobStore.dataSource"] = "default";
             properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
-            properties["quartz.dataSource.default.connectionString"] = "Server=(local);Database=quartz;Trusted_Connection=True;";
+            properties["quartz.dataSource.default.connectionString"] = "Server=(local);Database=quartz;User Id=quartznet;Password=quartznet;";
             properties["quartz.dataSource.default.provider"] = TestConstants.DefaultSqlServerProvider;
             properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
 

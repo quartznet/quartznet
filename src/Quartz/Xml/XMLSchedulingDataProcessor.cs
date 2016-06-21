@@ -1108,7 +1108,7 @@ namespace Quartz.Xml
             {
                 foreach (Type type in types)
                 {
-                    FieldInfo fi = type.GetField(field);
+                    FieldInfo fi = type.GetTypeInfo().GetField(field);
                     if (fi != null)
                     {
                         return Convert.ToInt32(fi.GetValue(null), CultureInfo.InvariantCulture);

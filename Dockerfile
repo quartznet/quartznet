@@ -1,9 +1,9 @@
 FROM microsoft/dotnet:latest
 
 RUN mkdir /src
-ADD Quartz /src/Quartz
-ADD Quartz.Tests.Unit /src/Quartz.Tests.Unit
-ADD Quartz.Tests.Integration /src/Quartz.Tests.Integration
+ADD src/Quartz /src/Quartz
+ADD src/Quartz.Tests.Unit /src/Quartz.Tests.Unit
+ADD src/Quartz.Tests.Integration /src/Quartz.Tests.Integration
 
 WORKDIR /src/Quartz
 RUN dotnet restore

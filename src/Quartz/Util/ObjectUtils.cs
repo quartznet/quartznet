@@ -94,7 +94,7 @@ namespace Quartz.Util
 		/// </returns>
 		private static bool IsAssignableFrom(object value, Type requiredType)
 		{
-			return requiredType.IsInstanceOfType(value);
+			return requiredType.GetTypeInfo().IsInstanceOfType(value);
 		}
 		
 		/// <summary>
@@ -105,9 +105,9 @@ namespace Quartz.Util
 		{
             if (type == null)
             {
-                throw new ArgumentNullException("type", "Cannot instantiate null");
+                throw new ArgumentNullException(nameof(type), "Cannot instantiate null");
             }
-            ConstructorInfo ci = type.GetConstructor(Type.EmptyTypes);
+            ConstructorInfo ci = type.GetTypeInfo().GetConstructor(Type.EmptyTypes);
 			if (ci == null)
 			{
                 throw new ArgumentException("Cannot instantiate type which has no empty constructor", type.Name);
@@ -166,14 +166,14 @@ namespace Quartz.Util
         {
             Type t = target.GetType();				
 
-            PropertyInfo pi = t.GetProperty(propertyName);
+            PropertyInfo pi = t.GetTypeInfo().GetProperty(propertyName);
 
 			if (pi == null || !pi.CanWrite)
 			{
                 // try to find from interfaces
-                foreach (var interfaceType in target.GetType().GetInterfaces())
+                foreach (var interfaceType in target.GetType().GetTypeInfo().GetInterfaces())
                 {
-                    pi = interfaceType.GetProperty(propertyName);
+                    pi = interfaceType.GetTypeInfo().GetProperty(propertyName);
                     if (pi != null && pi.CanWrite)
                     {
                         // found suitable
