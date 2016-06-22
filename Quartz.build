@@ -74,9 +74,8 @@
     
   </target>
 
-  <target name="build" depends="generate-assembly-info">
+  <target name="build" depends="restore-nuget-packages generate-assembly-info">
 
-  <call target="restore-nuget-packages" />
 	<exec
 		program="${msbuild.location}"
 		commandline="/p:Configuration=Release /v:m /m Quartz.sln" 

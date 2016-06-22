@@ -1,21 +1,29 @@
 ﻿{
-  "version": "3.0.0-*",
+  "version": "3.0.0-alpha-*",
   "description": "Quartz.NET",
   "authors": [
     "Marko Lahma"
   ],
   "packOptions": {
     "tags": [
-      ""
+      "scheduling", "tasks", "jobs", "triggers", "scheduler", "threading"
     ],
     "projectUrl": "http://www.quartz-scheduler.net/",
-    "licenseUrl": "http://www.apache.org/licenses/LICENSE-2.0"
+    "licenseUrl": "http://www.apache.org/licenses/LICENSE-2.0",
+    "copyright": "Copyright Marko Lahma",
+    "owners": [ "Marko Lahma" ],
+    "iconUrl": "",
+    "requireLicenseAcceptance": false,
+    "summary": "Quartz.NET Scheduling Framework for .NET Platform"
   },
   "dependencies": {
     "LibLog": "4.2.5",
     "Newtonsoft.Json": "9.0.1"
   },
   "buildOptions": {
+    "compilationOptions": { 
+      "keyFile": "..\\quartz.net.snk"
+    },
     "warningsAsErrors": true,
     "define": [
       "LIBLOG_PUBLIC",
@@ -82,6 +90,7 @@
         "System.Diagnostics.Tools": "4.0.1",
         "System.Dynamic.Runtime": "4.0.11",
         "System.IO.FileSystem": "4.0.1",
+        "System.Linq": "4.1.0",
         "System.Net.NameResolution": "4.0.0",
         "System.Net.Requests": "4.0.11",
         "System.Runtime.Serialization.Primitives": "4.1.1",

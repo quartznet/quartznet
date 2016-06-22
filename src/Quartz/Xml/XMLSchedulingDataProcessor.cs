@@ -748,7 +748,7 @@ namespace Quartz.Xml
                     }
                 }
 
-                if ((dupeJ != null))
+                if (dupeJ != null)
                 {
                     if (!OverWriteExistingData && IgnoreDuplicates)
                     {

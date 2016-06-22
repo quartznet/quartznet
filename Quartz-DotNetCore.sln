@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
-VisualStudioVersion = 14.0.25123.0
+VisualStudioVersion = 14.0.25420.1
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "Quartz", "src\Quartz\Quartz.xproj", "{0545C4AC-45BE-47C3-81B7-1592579B9C31}"
 EndProject
@@ -10,6 +10,12 @@ EndProject
 Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "Quartz.Tests.Integration", "src\Quartz.Tests.Integration\Quartz.Tests.Integration.xproj", "{54FCAFBB-0040-4FBB-96BB-0AE9C70742B0}"
 EndProject
 Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "Quartz.Examples", "src\Quartz.Examples\Quartz.Examples.xproj", "{E84E25C9-B291-4F51-9599-EFB63EB59569}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{7E6034DE-2AF7-42CE-B9E3-A1B3B582E6DA}"
+	ProjectSection(SolutionItems) = preProject
+		fakex.fsx = fakex.fsx
+		Quartz.fsx = Quartz.fsx
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

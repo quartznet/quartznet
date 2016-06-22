@@ -14,10 +14,11 @@
     "Quartz": {
       "target": "project"
     },
-    "dotnet-test-nunit": "3.4.0-alpha-2",
+    "dotnet-test-nunit": "3.4.0-beta-1",
     "Npgsql": "3.1.2",
-    "NUnit": "3.4.0"
+    "NUnit": "3.4.1"
   },
+  "testRunner": "nunit",
   "frameworks": {
     "netcoreapp1.0": {
       "imports": [

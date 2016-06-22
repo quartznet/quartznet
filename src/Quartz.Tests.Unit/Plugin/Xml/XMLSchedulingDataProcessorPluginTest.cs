@@ -35,6 +35,7 @@ namespace Quartz.Tests.Unit.Plugin.Xml
         }
 
         [Test]
+        [Category("fragile")]
         public async Task WhenRelativePathFilesAreSeparatedByCommaSpaceThenPurgeSpaces()
         {
             string configuredFileName1 = "~/File1.xml";

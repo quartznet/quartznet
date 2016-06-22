@@ -1,0 +1,33 @@
+version: '{build}'
+pull_requests:
+  do_not_increment_build_number: true
+branches:
+  only:
+  - master
+services:
+- mssql2016
+- mysql
+- postgresql
+nuget:
+  disable_publish_on_pr: true
+build_script:
+- cmd: build.cmd
+test: off
+artifacts:
+- path: src\Quartz\bin\release\*.nupkg
+  name: NuGet
+deploy:
+- provider: NuGet
+  server: https://www.myget.org/F/quartznetdev/api/v2/package
+  api_key:
+    secure: XXX
+  skip_symbols: true
+  on:
+    branch: master
+- provider: NuGet
+  name: production
+  api_key:
+    secure: XXX
+  on:
+    branch: master
+    appveyor_repo_tag: true

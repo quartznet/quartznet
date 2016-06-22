@@ -53,7 +53,6 @@ _dotCover*/
 *.ReSharper
 *.dotCover
 /package/*
-*.snk
 *.zip
 website
 /doc/apidoc
@@ -81,3 +80,6 @@ node_modules
 /.idea
 /*.iml
 
+/.fake
+/tools/psake
+/tools/NUnit*

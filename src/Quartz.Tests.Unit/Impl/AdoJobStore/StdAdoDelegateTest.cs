@@ -88,7 +88,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
                 Assert.IsTrue(e.Message.IndexOf("key3") >= 0);
 #else
                 Assert.Fail($"Private types should be serializable when not using binary serialization: {e.ToString()}");
-#endif 
+#endif
             }
         }
 
@@ -182,7 +182,6 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             var exception = new InvalidOperationException();
             A.CallTo(() => persistenceDelegate.LoadExtendedTriggerProperties(A<ConnectionAndTransactionHolder>.Ignored, A<TriggerKey>.Ignored)).Throws(exception);
 
-
             StdAdoDelegate adoDelegate = new TestStdAdoDelegate(persistenceDelegate);
 
             var delegateInitializationArgs = new DelegateInitializationArgs
@@ -201,6 +200,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             // Mock basic trigger data
             A.CallTo(() => dataReader.ReadAsync(CancellationToken.None)).Returns(true);
             A.CallTo(() => dataReader[AdoConstants.ColumnTriggerType]).Returns(AdoConstants.TriggerTypeSimple);
+            A.CallTo(() => dataReader[A<string>._]).Returns("1");
 
             try
             {
@@ -248,7 +248,6 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             var exception = new InvalidOperationException();
             A.CallTo(() => persistenceDelegate.LoadExtendedTriggerProperties(A<ConnectionAndTransactionHolder>.Ignored, A<TriggerKey>.Ignored)).Throws(exception);
 
-
             StdAdoDelegate adoDelegate = new TestStdAdoDelegate(persistenceDelegate);
 
             var delegateInitializationArgs = new DelegateInitializationArgs
@@ -266,8 +265,8 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
 
             // First result set has results, second has none
             A.CallTo(() => dataReader.ReadAsync(CancellationToken.None)).Returns(true).Once();
-            A.CallTo(() => dataReader.ReadAsync(CancellationToken.None)).Returns(false);
             A.CallTo(() => dataReader[AdoConstants.ColumnTriggerType]).Returns(AdoConstants.TriggerTypeSimple);
+            A.CallTo(() => dataReader[A<string>._]).Returns("1");
 
             var conn = new ConnectionAndTransactionHolder(connection, transaction);
             IOperableTrigger trigger = await adoDelegate.SelectTrigger(conn, new TriggerKey("test"));

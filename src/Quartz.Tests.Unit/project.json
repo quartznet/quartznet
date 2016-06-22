@@ -1,4 +1,4 @@
-﻿{
+{
   "buildOptions": {
     "debugType": "portable",
     "emitEntryPoint": true,
@@ -15,8 +15,8 @@
     "Quartz": {
       "target": "project"
     },
-    "dotnet-test-nunit": "3.4.0-alpha-2",
-    "NUnit": "3.4.0"
+    "dotnet-test-nunit": "3.4.0-beta-1",
+    "NUnit": "3.4.1"
   },
   "testRunner": "nunit",
   "frameworks": {

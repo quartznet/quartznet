@@ -4,7 +4,7 @@
   },
   "dependencies": {
     "FakeItEasy": "2.1.0",
-    "NUnit": "3.4.0",
+    "NUnit": "3.4.1",
     "Oracle.ManagedDataAccess": "12.1.24160419"
   },
   "runtimes": {

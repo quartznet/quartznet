@@ -106,13 +106,10 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
 
             var dataParameterCollectionOutputs = new List<object>();
 
-            Func<object, int> dataParameterFunc = x =>
+            A.CallTo(() => dataParameterCollection.Add(A<object>._)).Invokes(x=>
             {
-                dataParameterCollectionOutputs.Add(x);
-                return 1;
-            };
-
-            A.CallTo(() => dataParameterCollection.Add(A<object>.Ignored)).ReturnsLazily(dataParameterFunc);
+                dataParameterCollectionOutputs.Add(x.Arguments.Single());
+            });
 
             A.CallTo(dbCommand)
                 .Where(x => x.Method.Name == "get_DbParameterCollection")
