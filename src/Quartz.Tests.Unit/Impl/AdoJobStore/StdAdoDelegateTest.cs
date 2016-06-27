@@ -100,7 +100,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         [Test]
         public async Task TestSelectBlobTriggerWithNoBlobContent()
         {
-            var dbProvider = A.Fake<DbProvider>();
+            var dbProvider = A.Fake<IDbProvider>();
             var connection = A.Fake<DbConnection>();
             var transaction = A.Fake<DbTransaction>();
             var command = (DbCommand) A.Fake<StubCommand>();
@@ -153,7 +153,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         [Test]
         public async Task TestSelectSimpleTriggerWithExceptionWithExtendedProps()
         {
-            var dbProvider = A.Fake<DbProvider>();
+            var dbProvider = A.Fake<IDbProvider>();
             var connection = A.Fake<DbConnection>();
             var transaction = A.Fake<DbTransaction>();
             var command = (DbCommand) A.Fake<StubCommand>();
@@ -219,7 +219,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         [Test]
         public async Task TestSelectSimpleTriggerWithDeleteBeforeSelectExtendedProps()
         {
-            var dbProvider = A.Fake<DbProvider>();
+            var dbProvider = A.Fake<IDbProvider>();
             var connection = A.Fake<DbConnection>();
             var transaction = A.Fake<DbTransaction>();
             var command = (DbCommand) A.Fake<StubCommand>();

@@ -89,7 +89,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             cronTriggerImpl.JobKey = new JobKey("JobKey", "JobKeyGroup");
             cronTriggerImpl.Priority = 1;
 
-            var dbProvider = A.Fake<DbProvider>();
+            var dbProvider = A.Fake<IDbProvider>();
             var dbCommand = A.Fake<DbCommand>();
             var dataParameterCollection = A.Fake<DbParameterCollection>();
             A.CallTo(() => dbProvider.CreateCommand()).Returns(dbCommand);

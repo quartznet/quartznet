@@ -18,6 +18,16 @@
             "isBuildCommand": true,
             "showOutput": "silent",
             "problemMatcher": "$msCompile"
-        }
+        },
+        {
+            "taskName": "test",
+            "args":
+             [ 
+                "src/Quartz.Tests.Unit/project.json",
+                "src/Quartz.Tests.Integration/project.json"
+             ],
+            "showOutput": "silent",
+            "isTestCommand": true
+        }        
     ]
 }

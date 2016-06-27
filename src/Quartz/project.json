@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "LibLog": "4.2.5",
-    "Newtonsoft.Json": "8.0.3"
+    "Newtonsoft.Json": "9.0.1"
   },
   "buildOptions": {
     "warningsAsErrors": true,
@@ -73,29 +73,29 @@
         ]
       },
       "dependencies": {
-        "NETStandard.Library": "1.5.0-rc2-*",
-        "Microsoft.CSharp": "4.0.1-rc2-*",
-        "Microsoft.NETCore.Portable.Compatibility": "1.0.1-rc2-*",
-        "System.Collections.NonGeneric": "4.0.1-rc2-*",
-        "System.Collections.Specialized": "4.0.1-rc2-*",
-        "System.ComponentModel.TypeConverter": "4.0.1-rc2-*",
-        "System.Data.Common": "4.0.1-rc2-*",
-        "System.Data.SqlClient": "4.1.0-rc2-*",
-        "System.Diagnostics.Process": "4.1.0-rc2-*",
-        "System.Diagnostics.StackTrace": "4.0.1-rc2-*",
-        "System.Diagnostics.Tools": "4.0.1-rc2-*",
-        "System.Dynamic.Runtime": "4.0.11-rc2-*",
-        "System.Net.NameResolution": "4.0.0-rc2-*",
-        "System.Net.Requests": "4.0.11-rc2-*",
-        "System.Net.Http": "4.0.1-rc2-*",
-        "System.Runtime.Serialization.Primitives": "4.1.1-rc2-*",
-        "System.Runtime.Serialization.Xml": "4.1.1-rc2-*",
-        "System.Threading.Tasks": "4.0.11-rc2-*",
-        "System.Threading.Tasks.Parallel": "4.0.1-rc2-*",
-        "System.Threading.Thread": "4.0.0-rc2-*",
-        "System.Threading.ThreadPool": "4.0.10-rc2-*",
-        "System.Xml.XmlDocument": "4.0.1-rc2-*",
-        "System.Xml.XmlSerializer": "4.0.11-rc2-*"
+        "Microsoft.CSharp": "4.0.1",
+        "Microsoft.NETCore.Portable.Compatibility": "1.0.1",
+        "System.AppContext": "4.1.0",
+        "System.Collections.NonGeneric": "4.0.1",
+        "System.Collections.Specialized": "4.0.1",
+        "System.ComponentModel.TypeConverter": "4.1.0",
+        "System.Data.SqlClient": "4.1.0",
+        "System.Diagnostics.Process": "4.1.0",
+        "System.Diagnostics.StackTrace": "4.0.1",
+        "System.Diagnostics.Tools": "4.0.1",
+        "System.Dynamic.Runtime": "4.0.11",
+        "System.IO.FileSystem": "4.0.1",
+        "System.Net.NameResolution": "4.0.0",
+        "System.Net.Requests": "4.0.11",
+        "System.Runtime.Serialization.Primitives": "4.1.1",
+        "System.Runtime.Serialization.Xml": "4.1.1",
+        "System.Threading.Tasks": "4.0.11",
+        "System.Threading.Tasks.Parallel": "4.0.1",
+        "System.Threading.Thread": "4.0.0",
+        "System.Threading.ThreadPool": "4.0.10",
+        "System.Xml.XmlDocument": "4.0.1",
+        "System.Xml.XmlSerializer": "4.0.11",
+        "System.Data.Common": "4.1.0"
       }
     }
   }
