@@ -343,11 +343,7 @@ namespace Quartz.Plugin.Xml
                         Uri url = plugin.typeLoadHelper.GetResource(FileName);
                         if (url != null)
                         {
-#if !ClientProfile
                             furl = WebUtility.UrlDecode(url.AbsolutePath);
-#else
-                        furl = url.AbsolutePath;
-#endif
                             file = new FileInfo(furl);
                             try
                             {

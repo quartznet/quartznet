@@ -481,19 +481,10 @@ namespace Quartz.Core
 
             if ((resources.InterruptJobsOnShutdown && !waitForJobsToComplete) || (resources.InterruptJobsOnShutdownWithWait && waitForJobsToComplete))
             {
-                var jobs = CurrentlyExecutingJobs;
-                foreach (ICancellableJobExecutionContext job in jobs)
+                var jobs = CurrentlyExecutingJobs.OfType<ICancellableJobExecutionContext>();
+                foreach (var job in jobs)
                 {
-                    try
-                    {
-                        job.Cancel();
-                    }
-                    catch (Exception ex)
-                    {
-                        // TODO: Is this still needed? Probably not.
-                        // do nothing, this was just a courtesy effort
-                        log.WarnFormat("Encountered error when interrupting job {0} during shutdown: {1}", job.JobDetail.Key, ex);
-                    }
+                    job.Cancel();
                 }
             }
 

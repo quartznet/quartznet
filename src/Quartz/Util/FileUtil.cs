@@ -22,7 +22,7 @@ using System.IO;
 using System.Security;
 
 using Quartz.Logging;
-#if !ClientProfile && HTTPCONTEXT
+#if HTTPCONTEXT
 using System.Web;
 #endif
 
@@ -47,7 +47,6 @@ namespace Quartz.Util
             {
                 // relative to run directory
 
-#if !ClientProfile
 #if HTTPCONTEXT
                 // if HttpContext available, use it
                 if (HttpContext.Current != null)
@@ -57,7 +56,6 @@ namespace Quartz.Util
 #else // HTTPCONTEXT
                 // TODO (NetCore Port): Use Microsoft.AspNet.Http.Abstractions.HttpContext as a substitute?
 #endif // HTTPCONTEXT
-#endif // !ClientProfile
 
                 fName = fName.Substring(1);
                 if (fName.StartsWith("/") || fName.StartsWith("\\"))
