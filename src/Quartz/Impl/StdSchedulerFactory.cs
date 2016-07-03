@@ -631,10 +631,24 @@ Please add configuration to your application config file to correctly initialize
                 }
             }
 
+            // Get JobStore Properties
+            // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+            Type jsType = loadHelper.LoadType(cfg.GetStringProperty(PropertyJobStoreType));
+            try
+            {
+                js = ObjectUtils.InstantiateType<IJobStore>(jsType ?? typeof(RAMJobStore));
+            }
+            catch (Exception e)
+            {
+                initException = new SchedulerException("JobStore of type '{0}' could not be instantiated.".FormatInvariant(jsType), e);
+                throw initException;
+            }
+
             // Get object serializer properties
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-            IObjectSerializer objectSerializer;
+            IObjectSerializer objectSerializer = null;
             string objectSerializerType = cfg.GetStringProperty("quartz.serializer.type");
             if (objectSerializerType != null)
             {
@@ -667,23 +681,11 @@ Please add configuration to your application config file to correctly initialize
                     throw initException;
                 }
             }
-            else
+            else if (jsType != typeof(RAMJobStore))
             {
+                // when we know for sure that job store does not need serialization we can be a bit more relaxed
+                // otherwise it's an error to not define the serialization strategy
                 initException = new SchedulerException("Must define object serializer");
-                throw initException;
-            }
-
-            // Get JobStore Properties
-            // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-            Type jsType = loadHelper.LoadType(cfg.GetStringProperty(PropertyJobStoreType));
-            try
-            {
-                js = ObjectUtils.InstantiateType<IJobStore>(jsType ?? typeof(RAMJobStore));
-            }
-            catch (Exception e)
-            {
-                initException = new SchedulerException("JobStore of type '{0}' could not be instantiated.".FormatInvariant(jsType), e);
                 throw initException;
             }
 
