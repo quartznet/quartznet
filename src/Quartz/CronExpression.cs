@@ -213,9 +213,6 @@ namespace Quartz
     [Serializable]
 #endif // BINARY_SERIALIZATION
     public class CronExpression : object
-#if ICLONEABLE
-        , ICloneable
-#endif // ICLONEABLE
 #if BINARY_SERIALIZATION
         , IDeserializationCallback
 #endif // BINARY_SERIALIZATION

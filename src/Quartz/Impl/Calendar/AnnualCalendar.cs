@@ -319,7 +319,7 @@ namespace Quartz.Impl.Calendar
             return Equals((AnnualCalendar) obj);
         }
 
-        public override object Clone()
+        public override ICalendar Clone()
         {
             AnnualCalendar copy = (AnnualCalendar) base.Clone();
             copy.excludeDays = new List<DateTimeOffset>(excludeDays);

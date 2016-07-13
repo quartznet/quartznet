@@ -187,7 +187,7 @@ namespace Quartz.Impl.Calendar
         /// Creates a new object that is a copy of the current instance.
         /// </summary>
         /// <returns>A new object that is a copy of this instance.</returns>
-        public override object Clone()
+        public override ICalendar Clone()
         {
             HolidayCalendar clone = (HolidayCalendar) base.Clone();
             clone.dates = new SortedSet<DateTime>(dates);

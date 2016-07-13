@@ -361,7 +361,7 @@ namespace Quartz.Impl
         /// <returns>
         /// A new object that is a copy of this instance.
         /// </returns>
-        public virtual object Clone()
+        public virtual IJobDetail Clone()
         {
             JobDetailImpl copy;
             try

@@ -411,7 +411,7 @@ namespace Quartz.Impl.Triggers
 		/// Clones this instance.
 		/// </summary>
 		/// <returns></returns>
-		public override object Clone()
+		public override ITrigger Clone()
 		{
             CronTriggerImpl copy = (CronTriggerImpl) MemberwiseClone();
 			if (cronEx != null)

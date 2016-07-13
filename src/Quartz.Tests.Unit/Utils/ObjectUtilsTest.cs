@@ -52,14 +52,13 @@ namespace Quartz.Tests.Unit.Utils
             TimeSpan ts = (TimeSpan) ObjectUtils.ConvertValueIfNecessary(typeof (TimeSpan), "1");
             Assert.AreEqual(1, ts.TotalDays);
         }
-#if ICLONEABLE
+
         [Test]
         public void TestConvertAssignable()
         {
-            ICloneable val = (ICloneable) ObjectUtils.ConvertValueIfNecessary(typeof (ICloneable), "test");
+            IComparable val = (IComparable) ObjectUtils.ConvertValueIfNecessary(typeof (IComparable), "test");
             Assert.AreEqual("test", val);
         }
-#endif
 
         [Test]
         public void TestConvertStringToEnum()

@@ -776,7 +776,7 @@ namespace Quartz.Impl.Triggers
         /// <returns>
         /// A new object that is a copy of this instance.
         /// </returns>
-		public virtual object Clone()
+		public virtual ITrigger Clone()
 		{
             AbstractTrigger copy;
 			try

@@ -45,9 +45,6 @@ namespace Quartz
     /// <author>Juergen Donnerstag</author>
     /// <author>Marko Lahma (.NET)</author>
     public interface ICalendar
-#if ICLONEABLE        
-        : ICloneable
-#endif // ICLONEABLE
     {
         /// <summary> 
         /// Gets or sets a description for the <see cref="ICalendar" /> instance - may be
@@ -74,8 +71,6 @@ namespace Quartz
 		/// </summary>
         DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc);
 
-#if !ICLONEABLE
-        object Clone();
-#endif // !ICLONEABLE      
+        ICalendar Clone();
     }
 }

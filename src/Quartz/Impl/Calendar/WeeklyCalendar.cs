@@ -267,7 +267,7 @@ namespace Quartz.Impl.Calendar
             return d;
         }
 
-        public override object Clone()
+        public override ICalendar Clone()
         {
             WeeklyCalendar clone = (WeeklyCalendar) base.Clone();
             bool[] excludeCopy = new bool[excludeDays.Length];

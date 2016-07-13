@@ -253,12 +253,12 @@ namespace Quartz.Impl.Calendar
 	    /// Creates a new object that is a copy of the current instance.
 	    /// </summary>
 	    /// <returns>A new object that is a copy of this instance.</returns>
-	    public virtual object Clone()
+	    public virtual ICalendar Clone()
 	    {
 	        BaseCalendar clone = (BaseCalendar) MemberwiseClone();
             if (GetBaseCalendar() != null)
             {
-                clone.baseCalendar = (ICalendar) GetBaseCalendar().Clone();
+                clone.baseCalendar = GetBaseCalendar().Clone();
             }
             return clone;
 	    }

@@ -39,9 +39,6 @@ namespace Quartz.Util
     public class DirtyFlagMap<TKey, TValue> : 
         IDictionary<TKey, TValue>, 
         IDictionary
-#if ICLONEABLE
-        ,ICloneable
-#endif // ICLONEABLE
 #if BINARY_SERIALIZATION
         ,ISerializable
 #endif // BINARY_SERIALIZATION
@@ -177,7 +174,7 @@ namespace Quartz.Util
         /// <returns>
         /// A new object that is a copy of this instance.
         /// </returns>
-        public virtual object Clone()
+        public virtual DirtyFlagMap<TKey, TValue> Clone()
         {
             DirtyFlagMap<TKey, TValue> copy;
             try

@@ -255,7 +255,7 @@ namespace Quartz.Impl.Calendar
         /// Creates a new object that is a copy of the current instance.
         /// </summary>
         /// <returns>A new object that is a copy of this instance.</returns>
-        public override object Clone()
+        public override ICalendar Clone()
         {
             MonthlyCalendar clone = (MonthlyCalendar) base.Clone();
             bool[] excludeCopy = new bool[excludeDays.Length];

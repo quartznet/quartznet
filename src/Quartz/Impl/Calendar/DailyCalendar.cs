@@ -561,7 +561,7 @@ namespace Quartz.Impl.Calendar
             return nextIncludedTime;
         }
 
-        public override object Clone()
+        public override ICalendar Clone()
         {
             DailyCalendar clone = (DailyCalendar) base.Clone();
             return clone;
