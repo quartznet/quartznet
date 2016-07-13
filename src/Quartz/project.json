@@ -36,7 +36,6 @@
           "APPDOMAINS",
           "BINARY_SERIALIZATION",
           "CONFIGURATION",
-          "DESIGNER",
           "HTTPCONTEXT",
           "MAIL",
           "REMOTING",
@@ -72,9 +71,8 @@
         ]
       },
       "dependencies": {
-        "Microsoft.CSharp": "4.0.1",
-        "Microsoft.NETCore.Portable.Compatibility": "1.0.1",
         "System.AppContext": "4.1.0",
+        "System.Collections.Concurrent": "4.0.12",
         "System.Collections.NonGeneric": "4.0.1",
         "System.Collections.Specialized": "4.0.1",
         "System.ComponentModel.TypeConverter": "4.1.0",
