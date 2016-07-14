@@ -98,7 +98,7 @@ namespace Quartz.Job
 		/// <param name="context">The execution context.</param>
 		/// <seealso cref="IJob">
 		/// </seealso>
-		public virtual Task Execute(IJobExecutionContext context)
+		public virtual async Task Execute(IJobExecutionContext context)
 		{
 			JobDataMap mergedJobDataMap = context.MergedJobDataMap;
 			SchedulerContext schedCtxt;
@@ -149,14 +149,14 @@ namespace Quartz.Job
 			if (newDate == DateTime.MinValue)
 			{
 				Log.Warn($"File '{fileName}' does not exist.");
-				return Task.FromResult(0);
+				return;
 			}
 
             if (lastDate != DateTime.MinValue && (newDate != lastDate && newDate < maxAgeDate))
 			{
 				// notify call back...
 				Log.Info($"File '{fileName}' updated, notifying listener.");
-				listener.FileUpdated(fileName).ConfigureAwait(false).GetAwaiter().GetResult();
+				await listener.FileUpdated(fileName).ConfigureAwait(false);
 			}
 			else
 			{
@@ -164,7 +164,6 @@ namespace Quartz.Job
 			}
 
 			context.JobDetail.JobDataMap.Put(LastModifiedTime, newDate);
-            return Task.FromResult(0);
         }
 
 		/// <summary>

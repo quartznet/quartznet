@@ -125,7 +125,7 @@ namespace Quartz.Plugin.Xml
         /// <param name="pluginName">The name.</param>
         /// <param name="scheduler">The scheduler.</param>
         /// <throws>SchedulerConfigException </throws>
-        public virtual void Initialize(string pluginName, IScheduler scheduler)
+        public virtual async Task Initialize(string pluginName, IScheduler scheduler)
         {
             Name = pluginName;
             Scheduler = scheduler;
@@ -140,6 +140,7 @@ namespace Quartz.Plugin.Xml
             foreach (string token in tokens)
             {
                 JobFile jobFile = new JobFile(this, token);
+                await jobFile.Initialize();
                 jobFiles.Add(new KeyValuePair<string, JobFile>(jobFile.FilePath, jobFile));
             }
         }
@@ -314,7 +315,6 @@ namespace Quartz.Plugin.Xml
             {
                 this.plugin = plugin;
                 FileName = fileName;
-                Initialize();
             }
 
             public string FileName { get; }
@@ -325,7 +325,7 @@ namespace Quartz.Plugin.Xml
 
             public string FileBasename { get; private set; }
 
-            public void Initialize()
+            public async Task Initialize()
             {
                 Stream f = null;
                 try
@@ -347,7 +347,9 @@ namespace Quartz.Plugin.Xml
                             file = new FileInfo(furl);
                             try
                             {
-                                f = WebRequest.Create(url).GetResponseAsync().Result.GetResponseStream();
+                                var request = WebRequest.Create(url);
+                                var response = await request.GetResponseAsync().ConfigureAwait(false);
+                                f = response.GetResponseStream();
                             }
                             catch (IOException)
                             {

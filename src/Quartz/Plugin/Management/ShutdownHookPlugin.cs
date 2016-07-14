@@ -59,7 +59,7 @@ namespace Quartz.Plugin.Management
         /// Called during creation of the <see cref="IScheduler" /> in order to give
         /// the <see cref="ISchedulerPlugin" /> a chance to Initialize.
         /// </summary>
-        public virtual void Initialize(string pluginName, IScheduler scheduler)
+        public virtual Task Initialize(string pluginName, IScheduler scheduler)
         {
             log.InfoFormat("Registering Quartz Shutdown hook '{0}.", pluginName);
             AppDomain.CurrentDomain.ProcessExit += (sender, ea) =>
@@ -74,6 +74,7 @@ namespace Quartz.Plugin.Management
                     log.InfoException("Error shutting down Quartz: " + e.Message, e);
                 }
             };
+            return TaskUtil.CompletedTask;
         }
 
         /// <summary>

@@ -930,7 +930,7 @@ Please add configuration to your application config file to correctly initialize
 
                         if (js.Clustered)
                         {
-                            schedInstId = instanceIdGenerator.GenerateInstanceId();
+                            schedInstId = await instanceIdGenerator.GenerateInstanceId().ConfigureAwait(false);
                         }
                     }
                     catch (Exception e)
@@ -989,7 +989,7 @@ Please add configuration to your application config file to correctly initialize
                 // Initialize plugins now that we have a Scheduler instance.
                 for (int i = 0; i < plugins.Length; i++)
                 {
-                    plugins[i].Initialize(pluginNames[i], sched);
+                    await plugins[i].Initialize(pluginNames[i], sched).ConfigureAwait(false);
                 }
 
                 // add listeners

@@ -47,7 +47,7 @@ namespace Quartz.Tests.Unit
         }
 
         [SetUp]
-        protected void SetUp()
+        protected async Task SetUp()
         {
             string input = "0 0 03-07 ? * MON-FRI | 0 35/15 07 ? * MON-FRI | 0 05/15 08-14 ? * MON-FRI | 0 0/10 15-16 ? * MON-FRI | 0 05/15 17-23 ? * MON-FRI";
 
@@ -55,10 +55,10 @@ namespace Quartz.Tests.Unit
             properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
             ISchedulerFactory factory = new StdSchedulerFactory(properties);
 
-            IScheduler scheduler = factory.GetScheduler().GetAwaiter().GetResult();
+            IScheduler scheduler = await factory.GetScheduler();
             var job = JobBuilder.Create<NoOpJob>().Build();
             var crontTriggers = input.Split('|').Select(x => x.Trim()).Select(cronExpression => TriggerBuilder.Create().WithCronSchedule(cronExpression).Build());
-            scheduler.ScheduleJob(job, new HashSet<ITrigger>(crontTriggers), replace: false);
+            await scheduler.ScheduleJob(job, new HashSet<ITrigger>(crontTriggers), replace: false);
         }
 
         [Test]

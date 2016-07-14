@@ -66,12 +66,13 @@ namespace Quartz.Tests.Unit.Impl
 				this.result = result;
 			}
 
-			public void Initialize(string name, IScheduler scheduler)
+			public Task Initialize(string name, IScheduler scheduler)
 			{
 				result.Append(name).Append("|").Append(scheduler.SchedulerName);
-			}
+                return TaskUtil.CompletedTask;
+            }
 
-		    Task ISchedulerPlugin.Start()
+            Task ISchedulerPlugin.Start()
 		    {
 		        result.Append("|Start");
                 return TaskUtil.CompletedTask;

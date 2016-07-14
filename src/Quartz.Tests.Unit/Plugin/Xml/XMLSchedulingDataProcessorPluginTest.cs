@@ -1,6 +1,6 @@
 using System.IO;
 using System.Linq;
-
+using System.Threading.Tasks;
 #if FAKE_IT_EASY
 using FakeItEasy;
 #endif
@@ -17,7 +17,7 @@ namespace Quartz.Tests.Unit.Plugin.Xml
     {
 #if FAKE_IT_EASY
         [Test]
-        public void WhenFullPathFilesAreSeparatedByCommaSpaceThenPurgeSpaces()
+        public async Task WhenFullPathFilesAreSeparatedByCommaSpaceThenPurgeSpaces()
         {
             string fp1 = Path.GetTempFileName();
             File.Create(fp1).Close();
@@ -28,14 +28,14 @@ namespace Quartz.Tests.Unit.Plugin.Xml
             dataProcessor.FileNames = fp1 + ", " + fp2;
             var mockScheduler = A.Fake<IScheduler>();
 
-            dataProcessor.Initialize("something", mockScheduler);
+            await dataProcessor.Initialize("something", mockScheduler);
 
             Assert.That(dataProcessor.JobFiles.Count(), Is.EqualTo(2));
-            Assert.That(dataProcessor.JobFiles.Select(x => x.Key), Is.EqualTo(new[] {fp1, fp2}));
+            Assert.That(dataProcessor.JobFiles.Select(x => x.Key), Is.EqualTo(new[] { fp1, fp2 }));
         }
 
         [Test]
-        public void WhenRelativePathFilesAreSeparatedByCommaSpaceThenPurgeSpaces()
+        public async Task WhenRelativePathFilesAreSeparatedByCommaSpaceThenPurgeSpaces()
         {
             string configuredFileName1 = "~/File1.xml";
             string expectedPathFile1 = FileUtil.ResolveFile(configuredFileName1);
@@ -55,10 +55,10 @@ namespace Quartz.Tests.Unit.Plugin.Xml
             dataProcessor.FileNames = configuredFileName1 + ", " + configuredFileName2;
             var mockScheduler = A.Fake<IScheduler>();
 
-            dataProcessor.Initialize("something", mockScheduler);
+            await dataProcessor.Initialize("something", mockScheduler);
 
             Assert.That(dataProcessor.JobFiles.Count(), Is.EqualTo(2));
-            Assert.That(dataProcessor.JobFiles.Select(x => x.Key).ToArray(), Is.EqualTo(new[] {expectedPathFile1, expectedPathFile2}));
+            Assert.That(dataProcessor.JobFiles.Select(x => x.Key).ToArray(), Is.EqualTo(new[] { expectedPathFile1, expectedPathFile2 }));
         }
 #endif
     }

@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,10 +16,12 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
 using System.Net;
+using System.Threading.Tasks;
 
 using Quartz.Logging;
 using Quartz.Spi;
@@ -45,13 +48,14 @@ namespace Quartz.Simpl
         /// </summary>
         /// <returns> The clusterwide unique instance id.
         /// </returns>
-        public abstract string GenerateInstanceId();
+        public abstract Task<string> GenerateInstanceId();
 
-        protected string GetHostName(int maxLength)
+        protected async Task<string> GetHostName(int maxLength)
         {
             try
             {
-                string hostName = GetHostAddress().HostName;
+                var hostAddress = await GetHostAddress().ConfigureAwait(false);
+                string hostName = hostAddress.HostName;
                 if (hostName != null && hostName.Length > maxLength)
                 {
                     string newName = hostName.Substring(0, maxLength);
@@ -66,9 +70,11 @@ namespace Quartz.Simpl
             }
         }
 
-        protected virtual IPHostEntry GetHostAddress()
+        protected virtual async Task<IPHostEntry> GetHostAddress()
         {
-            return Dns.GetHostEntryAsync(Dns.GetHostEntryAsync(Dns.GetHostName()).Result.AddressList[0].ToString()).Result;
+            var hostEntry = await Dns.GetHostEntryAsync(Dns.GetHostName()).ConfigureAwait(false);
+            var firstAddressEntry = await Dns.GetHostEntryAsync(hostEntry.AddressList[0].ToString()).ConfigureAwait(false);
+            return firstAddressEntry;
         }
     }
 }

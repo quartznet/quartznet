@@ -17,6 +17,8 @@
  */
 #endregion
 
+using System.Threading.Tasks;
+
 using Quartz.Simpl;
 
 namespace Quartz.Spi
@@ -34,11 +36,11 @@ namespace Quartz.Spi
     /// <author>Marko Lahma (.NET)</author>
     public interface IInstanceIdGenerator
 	{
-		/// <summary>
-		/// Generate the instance id for a <see cref="IScheduler" />
-		/// </summary>
-		/// <returns> The clusterwide unique instance id.
-		/// </returns>
-		string GenerateInstanceId();
+	    /// <summary>
+	    /// Generate the instance id for a <see cref="IScheduler" />
+	    /// </summary>
+	    /// <returns> The clusterwide unique instance id.
+	    /// </returns>
+	    Task<string> GenerateInstanceId();
 	}
 }
