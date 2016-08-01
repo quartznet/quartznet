@@ -23,7 +23,7 @@ let CopyArtifact artifact =
 // targets
 
 Target "Clean" (fun _ ->
-    !! "artifacts" ++ "src/*/bin" ++ "test/*/bin" ++ "build" ++ "deploy"
+    !! "artifacts" ++ "src/*/bin" ++ "src/*/obj" ++ "test/*/bin" ++ "test/*/obj" ++ "build" ++ "deploy"
         |> CleanDirs
 )
 
@@ -47,15 +47,13 @@ Target "Build" (fun _ ->
 )
 
 Target "Pack" (fun _ -> 
-    !! "src/*/project.json" -- "src/*Web*/project.json"
+    !! "src/Quartz/project.json"
         |> DotNetCli.Pack
             (fun p -> 
                 { p with 
                     Configuration = "Release"
                 })
-)
 
-Target "CopyArtifacts" (fun _ ->    
     !! "src/*/bin/**/*.nupkg" 
         |> Seq.iter(CopyArtifact)
 )
@@ -74,6 +72,5 @@ Target "Test" (fun _ ->
   ==> "Build"
   ==> "Test"
   ==> "Pack"
-  ==> "CopyArtifacts"
 
 RunTargetOrDefault "Test"
