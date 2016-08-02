@@ -2,6 +2,7 @@ version: '2'
 services:
   quartz:
 #    build: ../.
+    container_name: quartz
     build: quartz
 #    volumes:
 #     - ./docker-run-corecrl-tests.sh:/scripts/docker-run-corecrl-tests.sh
@@ -11,21 +12,25 @@ services:
      - firebird
      - oracle
   mysql:
+    container_name: mysql
     build: mysql
     ports:
      - "3306:3306"
   
   postgres:
+    container_name: postgres
     build: postgres
     ports:
      - "5432:5432"
 
   firebird:
+    container_name: firebird
     build: firebird
     ports:
      - "3050:3050"
 
   oracle:
+    container_name: oracle
     build: oracle
     ports:
      - "1521:1521"

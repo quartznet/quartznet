@@ -2764,22 +2764,16 @@ namespace Quartz.Impl.AdoJobStore
             NameValueCollection properties = new NameValueCollection();
             foreach (KeyValuePair<string, object> entry in data)
             {
-                object key = entry.Key;
+                string key = entry.Key;
                 object val = entry.Value ?? string.Empty;
 
-                if (!(key is string))
-                {
-                    throw new IOException("JobDataMap keys/values must be Strings " +
-                                          "when the 'useProperties' property is set. " +
-                                          " offending Key: " + key);
-                }
                 if (!(val is string))
                 {
-                    throw new IOException("JobDataMap values must be Strings " +
+                    throw new IOException("JobDataMap values must be strings " +
                                           "when the 'useProperties' property is set. " +
                                           " Key of offending value: " + key);
                 }
-                properties[(string) key] = (string) val;
+                properties[key] = (string) val;
             }
             return properties;
         }

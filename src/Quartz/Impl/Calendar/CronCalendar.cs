@@ -20,6 +20,7 @@
 #endregion
 
 using Newtonsoft.Json;
+
 using System;
 using System.Runtime.Serialization;
 using System.Security;
@@ -53,13 +54,17 @@ namespace Quartz.Impl.Calendar
     {
         private CronExpression cronExpression;
 
+        // ReSharper disable once UnusedMember.Local
+        private CronCalendar()
+        {
+        }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="CronCalendar"/> class.
         /// </summary>
         /// <param name="expression">a string representation of the desired cron expression</param>
-        public CronCalendar(string expression)
+        public CronCalendar(string expression) : this(null, expression)
         {
-            cronExpression = new CronExpression(expression);
         }
 
         /// <summary>
@@ -72,9 +77,8 @@ namespace Quartz.Impl.Calendar
         /// calendar functionality
         /// </param>
         /// <param name="expression">a string representation of the desired cron expression</param>
-        public CronCalendar(ICalendar baseCalendar, string expression) : base(baseCalendar)
+        public CronCalendar(ICalendar baseCalendar, string expression) : this(baseCalendar, expression, null)
         {
-            cronExpression = new CronExpression(expression);
         }
 
         /// <summary>
@@ -94,6 +98,7 @@ namespace Quartz.Impl.Calendar
         }
 
 #if BINARY_SERIALIZATION // If this functionality is needed in the future with DCS serialization, it can ne added with [OnSerializing] and [OnDeserialized] methods
+
         /// <summary>
         /// Serialization constructor.
         /// </summary>
@@ -115,7 +120,7 @@ namespace Quartz.Impl.Calendar
             {
                 case 0:
                 case 1:
-                    cronExpression = (CronExpression) info.GetValue("cronExpression", typeof (CronExpression));
+                    cronExpression = (CronExpression) info.GetValue("cronExpression", typeof(CronExpression));
                     break;
                 default:
                     throw new NotSupportedException("Unknown serialization version");

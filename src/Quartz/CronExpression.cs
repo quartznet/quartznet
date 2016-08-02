@@ -424,6 +424,10 @@ namespace Quartz
             dayMap.Add("SAT", 7);
         }
 
+        private CronExpression()
+        {
+        }
+
         ///<summary>
         /// Constructs a new <see cref="CronExpressionString" /> based on the specified 
         /// parameter.

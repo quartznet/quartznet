@@ -365,6 +365,7 @@
     <Compile Include="UnableToInterruptJobException.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="Util\NameValueCollectionConverter.cs" />
     <Compile Include="Util\QueuedTaskScheduler.cs" />
     <Compile Include="Util\CollectionExtensions.cs" />
     <Compile Include="Util\DataReaderExtensions.cs" />
