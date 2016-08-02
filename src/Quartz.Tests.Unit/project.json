@@ -67,7 +67,7 @@
         ]
       },
       "dependencies": {
-        "FakeItEasy": "2.1.0",
+        "FakeItEasy": "2.2.0",
         "Oracle.ManagedDataAccess": "12.1.24160419"
       },
       "frameworkAssemblies": {
