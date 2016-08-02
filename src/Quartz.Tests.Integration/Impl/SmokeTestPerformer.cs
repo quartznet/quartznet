@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 using NUnit.Framework;
@@ -241,8 +242,8 @@ namespace Quartz.Tests.Integration.Impl
                     Assert.IsNotNull(scheduler.GetCalendar("weeklyCalendar"));
 
                     var genericjobKey = new JobKey("genericJob", "genericGroup");
-                    GenericJobType<string>.ResetCount();
-                    var genericJob = JobBuilder.Create<GenericJobType<string>>()
+                    GenericJobType.Reset();
+                    var genericJob = JobBuilder.Create<GenericJobType>()
                         .WithIdentity(genericjobKey)
                         .StoreDurably()
                         .Build();
@@ -253,9 +254,9 @@ namespace Quartz.Tests.Integration.Impl
                     Assert.That(genericJob, Is.Not.Null);
                     await scheduler.TriggerJob(genericjobKey);
 
-                    await Task.Delay(TimeSpan.FromSeconds(20));
+                    GenericJobType.WaitForTrigger(TimeSpan.FromSeconds(20));
 
-                    Assert.That(GenericJobType<string>.TriggeredCount, Is.EqualTo(1));
+                    Assert.That(GenericJobType.TriggeredCount, Is.EqualTo(1));
                     await scheduler.Standby();
 
                     CollectionAssert.IsNotEmpty(await scheduler.GetCalendarNames());
@@ -360,16 +361,28 @@ namespace Quartz.Tests.Integration.Impl
         }
     }
 
-    public class GenericJobType<T> : IJob
+    public class GenericJobType : IJob
     {
+        private static readonly ManualResetEventSlim triggered = new ManualResetEventSlim();
+
         public Task Execute(IJobExecutionContext context)
         {
             TriggeredCount++;
+            triggered.Set();
             return Task.FromResult(0);
         }
 
         public static int TriggeredCount { get; private set; }
 
-        public static void ResetCount() { TriggeredCount = 0; }
+        public static void Reset()
+        {
+            TriggeredCount = 0;
+            triggered.Reset();
+        }
+
+        public static void WaitForTrigger(TimeSpan timeout)
+        {
+            triggered.Wait(timeout);
+        }
     }
 }

@@ -20,6 +20,7 @@
 #endregion
 
 using Newtonsoft.Json;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -56,8 +57,7 @@ namespace Quartz.Impl.Calendar
         public virtual ISet<DateTime> ExcludedDates => new SortedSet<DateTime>(dates);
 
         // A sorted set to store the holidays
-        [JsonProperty]
-        private SortedSet<DateTime> dates = new SortedSet<DateTime>();
+        [JsonProperty] private SortedSet<DateTime> dates = new SortedSet<DateTime>();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="HolidayCalendar"/> class.
@@ -76,7 +76,7 @@ namespace Quartz.Impl.Calendar
         }
 
 #if BINARY_SERIALIZATION // NetCore versions of Quartz can't use old serialized data. 
-                         // Make sure that future calendar version changes are done in a DCS-friendly way (with [OnSerializing] and [OnDeserialized] methods).
+        // Make sure that future calendar version changes are done in a DCS-friendly way (with [OnSerializing] and [OnDeserialized] methods).
         /// <summary>
         /// Serialization constructor.
         /// </summary>
@@ -97,7 +97,7 @@ namespace Quartz.Impl.Calendar
             switch (version)
             {
                 case 0:
-                    object o = info.GetValue("dates", typeof (object));
+                    object o = info.GetValue("dates", typeof(object));
                     TreeSet oldTreeset = o as TreeSet;
                     if (oldTreeset != null)
                     {
@@ -113,10 +113,10 @@ namespace Quartz.Impl.Calendar
                     }
                     break;
                 case 1:
-                    dates = (TreeSet<DateTime>) info.GetValue("dates", typeof (TreeSet<DateTime>));
+                    dates = (TreeSet<DateTime>) info.GetValue("dates", typeof(TreeSet<DateTime>));
                     break;
                 case 2:
-                    dates = new SortedSet<DateTime>((DateTime[]) info.GetValue("dates", typeof (DateTime[])));
+                    dates = new SortedSet<DateTime>((DateTime[]) info.GetValue("dates", typeof(DateTime[])));
                     break;
                 default:
                     throw new NotSupportedException("Unknown serialization version");
@@ -234,7 +234,7 @@ namespace Quartz.Impl.Calendar
 
             bool baseEqual = GetBaseCalendar() == null || GetBaseCalendar().Equals(obj.GetBaseCalendar());
 
-            return baseEqual && (ExcludedDates.Equals(obj.ExcludedDates));
+            return baseEqual && ExcludedDates.SequenceEqual(obj.ExcludedDates);
         }
 
         public override bool Equals(object obj)

@@ -25,11 +25,12 @@ namespace Quartz.Simpl
             {
                 using (var sw = new StreamWriter(ms))
                 {
-                    var js = new JsonSerializer();
-                    js.TypeNameHandling = TypeNameHandling.All;
-                    js.PreserveReferencesHandling = PreserveReferencesHandling.All;
-                    js.ContractResolver = new WritablePropertiesOnlyResolver();
-                    js.Serialize(sw, obj);
+                    var js = new JsonSerializer
+                    {
+                        TypeNameHandling = TypeNameHandling.Auto,
+                        ContractResolver = new WritablePropertiesOnlyResolver()
+                    };
+                    js.Serialize(sw, obj, typeof(object));
                 }
                 return ms.ToArray();
             }
@@ -45,9 +46,10 @@ namespace Quartz.Simpl
             {
                 using (var sr = new StreamReader(ms))
                 {
-                    var js = new JsonSerializer();
-                    js.TypeNameHandling = TypeNameHandling.All;
-                    js.PreserveReferencesHandling = PreserveReferencesHandling.All;
+                    var js = new JsonSerializer
+                    {
+                        TypeNameHandling = TypeNameHandling.Auto
+                    };
                     return (T) js.Deserialize(sr, typeof(T));
                 }
             }

@@ -82,6 +82,7 @@
     <Compile Include="SchedulerListenerTest.cs" />
     <Compile Include="SchedulerTest.cs" />
     <Compile Include="SerializationTest.cs" />
+    <Compile Include="Simpl\JsonObjectSerializerTest.cs" />
     <Compile Include="Simpl\SimpleInstanceIdGeneratorTest.cs" />
     <Compile Include="Simpl\SimpleJobFactoryTest.cs" />
     <Compile Include="Simpl\SystemPropertyInstanceIdGeneratorTest.cs" />
