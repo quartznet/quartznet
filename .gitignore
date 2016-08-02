@@ -83,3 +83,4 @@ node_modules
 /.fake
 /tools/psake
 /tools/NUnit*
+/artifacts

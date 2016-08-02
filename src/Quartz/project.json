@@ -1,5 +1,5 @@
 ﻿{
-  "version": "3.0.0-alpha-*",
+  "version": "3.0.0-alpha1-*",
   "description": "Quartz.NET",
   "authors": [
     "Marko Lahma"
@@ -17,7 +17,6 @@
     "summary": "Quartz.NET Scheduling Framework for .NET Platform"
   },
   "dependencies": {
-    "LibLog": "4.2.5",
     "Newtonsoft.Json": "9.0.1"
   },
   "buildOptions": {
@@ -29,6 +28,9 @@
       "LIBLOG_PUBLIC",
       "LIBLOG_PORTABLE"
     ],
+    "sources": {
+      "compile": "../AssemblyInfo.cs"
+    },
     "embed": {
       "includeFiles": [
         "quartz.config",

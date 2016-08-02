@@ -1,40 +1,48 @@
 #r "packages/FAKE/tools/FakeLib.dll"
 
 open Fake
+open Fake.AssemblyInfoFile
+open Fake.Git
+
 open System
 open System.Collections.Generic
 open System.IO
 
+let commitHash = Information.getCurrentHash()
 let configuration = getBuildParamOrDefault "configuration" "Debug"
-
-// helpers
-
-let inline FileName fullName = Path.GetFileName fullName
-
-let UpdateVersion version project =
-    log ("Updating version in " + project)   
-    ReplaceInFile (fun s -> replace "1.0.0-ci" version s) project
-
-let CopyArtifact artifact =
-    log ("Copying artifact " + (FileName artifact))
-    ensureDirectory "artifacts"
-    CopyFile "artifacts" artifact
-
-// targets
 
 Target "Clean" (fun _ ->
     !! "artifacts" ++ "src/*/bin" ++ "src/*/obj" ++ "test/*/bin" ++ "test/*/obj" ++ "build" ++ "deploy"
         |> CleanDirs
 )
 
-Target "UpdateVersions" (fun _ ->    
-    let version = if buildServer <> BuildServer.LocalBuild then buildVersion else "1.0.0"
-    
-    !! "src/*/project.json" ++ "test/*/project.json"
-        |> Seq.iter(UpdateVersion version)
+Target "GenerateAssemblyInfo" (fun _ ->
+    CreateCSharpAssemblyInfo "./src/AssemblyInfo.cs"
+        [
+            (Attribute.CLSCompliant(true))
+            (Attribute.ComVisible(false))
+            (Attribute.Metadata("githash", commitHash))]  
 )
 
 Target "Build" (fun _ ->
+
+    let setParams defaults =
+            { defaults with
+                Verbosity = Some(Quiet)
+                Targets = ["Build"]
+                Properties =
+                    [
+                        "Optimize", "True"
+                        "DebugSymbols", "True"
+                        "Configuration", configuration
+                    ]
+            }
+    build setParams "./Quartz.sln"
+        |> DoNothing
+
+    build setParams "./Quartz-DotNetCore.sln"
+        |> DoNothing
+
     DotNetCli.Restore (fun p -> 
                 { p with 
                     TimeOut = TimeSpan.FromMinutes 10. }) |> ignore
@@ -55,7 +63,7 @@ Target "Pack" (fun _ ->
                 })
 
     !! "src/*/bin/**/*.nupkg" 
-        |> Seq.iter(CopyArtifact)
+        |> Copy "artifacts"
 )
 
 Target "Test" (fun _ ->
@@ -68,7 +76,7 @@ Target "Test" (fun _ ->
 )
 
 "Clean"
-  //==> "UpdateVersions"
+  ==> "GenerateAssemblyInfo"
   ==> "Build"
   ==> "Test"
   ==> "Pack"
