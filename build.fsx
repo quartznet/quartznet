@@ -10,6 +10,7 @@ open System.IO
 
 let commitHash = Information.getCurrentHash()
 let configuration = getBuildParamOrDefault "configuration" "Debug"
+let projectJsonFiles = !! "src/*/project.json" -- "src/*Web*/project.json"
 
 Target "Clean" (fun _ ->
     !! "artifacts" ++ "src/*/bin" ++ "src/*/obj" ++ "test/*/bin" ++ "test/*/obj" ++ "build" ++ "deploy"
@@ -25,6 +26,22 @@ Target "GenerateAssemblyInfo" (fun _ ->
 )
 
 Target "Build" (fun _ ->
+
+    let restore f = DotNetCli.Restore (fun p -> 
+                { p with 
+                    AdditionalArgs = [f] })
+
+    projectJsonFiles
+        |> Seq.iter restore
+
+    projectJsonFiles
+        |> DotNetCli.Build
+            (fun p -> 
+                { p with 
+                    Configuration = configuration })
+)
+
+Target "BuildSolutions" (fun _ -> 
 
     let setParams defaults =
             { defaults with
@@ -42,16 +59,6 @@ Target "Build" (fun _ ->
 
     build setParams "./Quartz-DotNetCore.sln"
         |> DoNothing
-
-    DotNetCli.Restore (fun p -> 
-                { p with 
-                    TimeOut = TimeSpan.FromMinutes 10. }) |> ignore
-
-    !! "src/*/project.json" -- "src/*Web*/project.json"
-        |> DotNetCli.Build
-            (fun p -> 
-                { p with 
-                    Configuration = configuration })
 )
 
 Target "Pack" (fun _ -> 
@@ -78,6 +85,7 @@ Target "Test" (fun _ ->
 "Clean"
   ==> "GenerateAssemblyInfo"
   ==> "Build"
+  =?> ("BuildSolutions", hasBuildParam "buildSolutions")
   ==> "Test"
   ==> "Pack"
 

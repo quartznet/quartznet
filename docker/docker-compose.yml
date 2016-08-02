@@ -3,7 +3,7 @@ services:
   quartz:
 #    build: ../.
     container_name: quartz
-    build: quartz
+    build: ../.
 #    volumes:
 #     - ./docker-run-corecrl-tests.sh:/scripts/docker-run-corecrl-tests.sh
     depends_on:
