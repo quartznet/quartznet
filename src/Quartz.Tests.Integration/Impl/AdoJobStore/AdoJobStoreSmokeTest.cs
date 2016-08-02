@@ -37,7 +37,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         {
             dbConnectionStrings["Oracle"] = "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=1521)))(CONNECT_DATA=(SERVICE_NAME=xe)));User Id=system;Password=oracle;";
             dbConnectionStrings["SQLServer"] = "Server=(local);Database=quartz;User Id=quartznet;Password=quartznet;";
-            dbConnectionStrings["SQLServerCe"] = @"Data Source=C:\quartznet.sdf;Persist Security Info=False;";
             dbConnectionStrings["MySQL"] = "Server = localhost; Database = quartz; Uid = root; Pwd = Password12!";
             dbConnectionStrings["PostgreSQL"] = "Server=127.0.0.1;Port=5432;Userid=postgres;Password=Password12!;Pooling=true;MinPoolSize=1;MaxPoolSize=20;Timeout=15;SslMode=Disable;Database=quartz";
             dbConnectionStrings["SQLite"] = "Data Source=test.db;Version=3;";
@@ -85,60 +84,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.FirebirdDelegate, Quartz";
             return RunAdoJobStoreTest("Firebird", "Firebird", serializerType, properties);
-        }
-
-        [Test]
-        [TestCaseSource(nameof(GetSerializerTypes))]
-        public async Task TestSqlServerCe351(string serializerType)
-        {
-            bool previousClustered = clustered;
-            clustered = false;
-            NameValueCollection properties = new NameValueCollection();
-            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
-            try
-            {
-                await RunAdoJobStoreTest("SqlServerCe-351", "SQLServerCe", serializerType, properties);
-            }
-            finally
-            {
-                clustered = previousClustered;
-            }
-        }
-
-        [Test]
-        [TestCaseSource(nameof(GetSerializerTypes))]
-        public async Task TestSqlServerCe352(string serializerType)
-        {
-            bool previousClustered = clustered;
-            clustered = false;
-            NameValueCollection properties = new NameValueCollection();
-            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
-            try
-            {
-                await RunAdoJobStoreTest("SqlServerCe-352", "SQLServerCe", serializerType, properties);
-            }
-            finally
-            {
-                clustered = previousClustered;
-            }
-        }
-
-        [Test]
-        [TestCaseSource(nameof(GetSerializerTypes))]
-        public async Task TestSqlServerCe400(string serializerType)
-        {
-            bool previousClustered = clustered;
-            clustered = false;
-            NameValueCollection properties = new NameValueCollection();
-            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
-            try
-            {
-                await RunAdoJobStoreTest("SqlServerCe-400", "SQLServerCe", serializerType, properties);
-            }
-            finally
-            {
-                clustered = previousClustered;
-            }
         }
 
         [Test]

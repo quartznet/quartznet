@@ -13,9 +13,10 @@ NEW FEATURE
 BREAKING CHANGES
 
 * .NET 4.5.2 required
-* Many scheduler methods have been changed to be Task based, remember to await them
+* Scheduler methods have been changed to be Task based, remember to await them
 * IJob interface now returns a task
 * Some IList properties have been changed to IReadOnlyList to properly reflect intent
+* SQL Server CE support has been dropped
 
 
 Release 2.3.3, Jul 9, 2015
