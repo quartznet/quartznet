@@ -431,7 +431,7 @@ namespace Quartz.Impl.AdoJobStore
                             args.ObjectSerializer = ObjectSerializer;
                             args.InitString = DriverDelegateInitString;
 
-                            ConstructorInfo ctor = delegateType.GetTypeInfo().GetConstructor(new Type[0]);
+                            ConstructorInfo ctor = delegateType.GetConstructor(new Type[0]);
                             if (ctor == null)
                             {
                                 throw new InvalidConfigurationException("Configured delegate does not have public constructor that takes no arguments");

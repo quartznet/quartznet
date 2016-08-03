@@ -4,11 +4,11 @@
     "emitEntryPoint": true,
     "embed": {
       "include": [
-        "**/TestData/*"
+        "Xml/TestData/*"
       ]
     },
     "copyToOutput": [
-       "**/Serialized/*"
+       "Serialized/*"
     ]
   },
   "dependencies": {

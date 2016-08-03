@@ -310,7 +310,7 @@ Please add configuration to your application config file to correctly initialize
 
             // determine currently supported configuration keys via reflection
             List<string> supportedKeys = new List<string>();
-            List<FieldInfo> fields = new List<FieldInfo>(GetType().GetTypeInfo().GetFields(BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy));
+            List<FieldInfo> fields = new List<FieldInfo>(GetType().GetFields(BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy));
             // choose constant string fields
             fields = fields.FindAll(field => field.FieldType == typeof(string));
 
@@ -714,7 +714,7 @@ Please add configuration to your application config file to correctly initialize
                     try
                     {
                         ISemaphore lockHandler;
-                        ConstructorInfo cWithDbProvider = lockHandlerType.GetTypeInfo().GetConstructor(new Type[] {typeof(DbProvider)});
+                        ConstructorInfo cWithDbProvider = lockHandlerType.GetConstructor(new Type[] {typeof(DbProvider)});
 
                         if (cWithDbProvider != null)
                         {
@@ -823,7 +823,7 @@ Please add configuration to your application config file to correctly initialize
                 }
                 try
                 {
-                    PropertyInfo nameProperty = listener.GetType().GetTypeInfo().GetProperty("Name", BindingFlags.Public | BindingFlags.Instance);
+                    PropertyInfo nameProperty = listener.GetType().GetProperty("Name", BindingFlags.Public | BindingFlags.Instance);
                     if (nameProperty != null && nameProperty.CanWrite)
                     {
                         nameProperty.GetSetMethod().Invoke(listener, new object[] {jobListenerNames[i]});
@@ -866,7 +866,7 @@ Please add configuration to your application config file to correctly initialize
                 }
                 try
                 {
-                    PropertyInfo nameProperty = listener.GetType().GetTypeInfo().GetProperty("Name", BindingFlags.Public | BindingFlags.Instance);
+                    PropertyInfo nameProperty = listener.GetType().GetProperty("Name", BindingFlags.Public | BindingFlags.Instance);
                     if (nameProperty != null && nameProperty.CanWrite)
                     {
                         nameProperty.GetSetMethod().Invoke(listener, new object[] {triggerListenerNames[i]});

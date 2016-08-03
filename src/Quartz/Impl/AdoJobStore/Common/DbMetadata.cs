@@ -47,7 +47,7 @@ namespace Quartz.Impl.AdoJobStore.Common
             {
                 // not inited yet
                 dbBinaryType = (Enum) Enum.Parse(ParameterDbType, dbBinaryTypeName);
-                ParameterDbTypeProperty = ParameterType.GetTypeInfo().GetProperty(parameterDbTypePropertyName);
+                ParameterDbTypeProperty = ParameterType.GetProperty(parameterDbTypePropertyName);
                 if (ParameterDbTypeProperty == null)
                 {
                     throw new ArgumentException($"Couldn't parse parameter db type for database type '{ProductName}'");
