@@ -17,7 +17,6 @@
  */
 #endregion
 
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -275,7 +274,6 @@ namespace Quartz
         private static readonly Dictionary<string, int> monthMap = new Dictionary<string, int>(20);
         private static readonly Dictionary<string, int> dayMap = new Dictionary<string, int>(60);
 
-        [JsonProperty]
         private readonly string cronExpressionString;
 
         private TimeZoneInfo timeZone;
@@ -285,7 +283,6 @@ namespace Quartz
         // match IANA tz IDs (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). This feature is coming, but depending
         // on timelines, it may be worth doign the mapping here.
         // More info: https://github.com/dotnet/corefx/issues/7757
-        [JsonProperty]
         private string timeZoneInfoId
         {
             get { return timeZone?.Id; }
@@ -524,7 +521,6 @@ namespace Quartz
         /// Sets or gets the time zone for which the <see cref="CronExpression" /> of this
         /// <see cref="ICronTrigger" /> will be resolved.
         /// </summary>
-        [JsonIgnore]
         public virtual TimeZoneInfo TimeZone
         {
             set { timeZone = value; }
@@ -2177,12 +2173,6 @@ namespace Quartz
             BuildExpression(cronExpressionString);
         }
 
-        [OnDeserialized]
-        internal void OnDeserializedCallback(StreamingContext context)
-        {
-            OnDeserialization(null);
-        }
-
         /// <summary>
         /// Determines whether the specified <see cref="CronExpression"/> is equal to the current <see cref="CronExpression"/>.
         /// </summary>
@@ -2194,7 +2184,7 @@ namespace Quartz
         {
             if (ReferenceEquals(null, other)) return false;
             if (ReferenceEquals(this, other)) return true;
-            return Equals(other.cronExpressionString, cronExpressionString) && Equals(other.timeZone, timeZone);
+            return Equals(other.CronExpressionString, CronExpressionString) && Equals(other.TimeZone, TimeZone);
         }
 
         /// <summary>

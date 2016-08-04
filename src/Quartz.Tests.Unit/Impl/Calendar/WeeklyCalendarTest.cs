@@ -22,19 +22,27 @@ using System;
 using NUnit.Framework;
 
 using Quartz.Impl.Calendar;
+using Quartz.Simpl;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl.Calendar
 {
     /// <author>Marko Lahma (.NET)</author>
-    [TestFixture]
+#if BINARY_SERIALIZATION
+    [TestFixture(typeof(BinaryObjectSerializer))]
+#endif
+    [TestFixture(typeof(JsonObjectSerializer))]
     public class WeeklyCalendarTest : SerializationTestSupport
     {
         private WeeklyCalendar cal;
 
-        private static string[] VERSIONS = new string[] { "1.5.1" };
+        private static readonly string[] Versions = { "1.5.1" };
 
         //private static final TimeZone EST_TIME_ZONE = TimeZone.getTimeZone("America/New_York"); 
+
+        public WeeklyCalendarTest(Type serializerType) : base(serializerType)
+        {
+        }
 
         [SetUp]
         public void Setup()
@@ -108,7 +116,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         /// <returns></returns>
         protected override string[] GetVersions()
         {
-            return VERSIONS;
+            return Versions;
         }
 
         /// <summary>

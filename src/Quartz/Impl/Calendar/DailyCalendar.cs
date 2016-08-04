@@ -19,8 +19,6 @@
 
 #endregion
 
-using Newtonsoft.Json;
-
 using System;
 using System.Globalization;
 using System.Runtime.Serialization;
@@ -69,24 +67,22 @@ namespace Quartz.Impl.Calendar
         private const long OneMillis = 1;
         private const char Colon = ':';
 
+        private const string TwoDigitFormat = "00";
+        private const string ThreeDigitFormat = "000";
+
         // JsonProperty attributes are necessary because no public field/property exposes these directly
         // Adding RangeStartingTimeUTC and RangeEndingTimeUTC properties with getters/setters to control
         // these would remove the need for the attribute.
-        [JsonProperty] private int rangeStartingHourOfDay;
-        [JsonProperty] private int rangeStartingMinute;
-        [JsonProperty] private int rangeStartingSecond;
-        [JsonProperty] private int rangeStartingMillis;
-        [JsonProperty] private int rangeEndingHourOfDay;
-        [JsonProperty] private int rangeEndingMinute;
-        [JsonProperty] private int rangeEndingSecond;
-        [JsonProperty] private int rangeEndingMillis;
+        private int rangeStartingHourOfDay;
+        private int rangeStartingMinute;
+        private int rangeStartingSecond;
+        private int rangeStartingMillis;
+        private int rangeEndingHourOfDay;
+        private int rangeEndingMinute;
+        private int rangeEndingSecond;
+        private int rangeEndingMillis;
 
         private bool invertTimeRange;
-
-        // ReSharper disable once UnusedMember.Local
-        private DailyCalendar()
-        {
-        }
 
         /// <summary>
         /// Create a <see cref="DailyCalendar" /> with a time range defined by the
@@ -568,7 +564,8 @@ namespace Quartz.Impl.Calendar
 
         public override ICalendar Clone()
         {
-            DailyCalendar clone = (DailyCalendar) base.Clone();
+            var clone = new DailyCalendar(CalendarBase, RangeStartingTime, RangeEndingTime);
+            CloneFields(clone);
             return clone;
         }
 
@@ -615,6 +612,14 @@ namespace Quartz.Impl.Calendar
             set { invertTimeRange = value; }
         }
 
+        public string RangeStartingTime => FormatTimeRange(rangeStartingHourOfDay, rangeStartingMinute, rangeStartingSecond, rangeStartingMillis);
+        public string RangeEndingTime => FormatTimeRange(rangeEndingHourOfDay, rangeEndingMinute, rangeEndingSecond, rangeEndingMillis);
+
+        private static string FormatTimeRange(int hourOfDay, int minute, int seconds, int milliseconds)
+        {
+            return $"{hourOfDay.ToString(TwoDigitFormat, CultureInfo.InvariantCulture)}:{minute.ToString(TwoDigitFormat, CultureInfo.InvariantCulture)}:{seconds.ToString(TwoDigitFormat, CultureInfo.InvariantCulture)}:{milliseconds.ToString(ThreeDigitFormat, CultureInfo.InvariantCulture)}";
+        }
+
         /// <summary>
         /// Returns a <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>.
         /// </summary>
@@ -634,25 +639,10 @@ namespace Quartz.Impl.Calendar
                 buffer.Append("null");
             }
 
-            const string ThreeDigitFormat = "000";
-            const string TwoDigitFormat = "00";
-
             buffer.Append("], time range: '");
-            buffer.Append(rangeStartingHourOfDay.ToString(TwoDigitFormat, CultureInfo.InvariantCulture));
-            buffer.Append(":");
-            buffer.Append(rangeStartingMinute.ToString(TwoDigitFormat, CultureInfo.InvariantCulture));
-            buffer.Append(":");
-            buffer.Append(rangeStartingSecond.ToString(TwoDigitFormat, CultureInfo.InvariantCulture));
-            buffer.Append(":");
-            buffer.Append(rangeStartingMillis.ToString(ThreeDigitFormat, CultureInfo.InvariantCulture));
+            buffer.Append(RangeStartingTime);
             buffer.Append(" - ");
-            buffer.Append(rangeEndingHourOfDay.ToString(TwoDigitFormat, CultureInfo.InvariantCulture));
-            buffer.Append(":");
-            buffer.Append(rangeEndingMinute.ToString(TwoDigitFormat, CultureInfo.InvariantCulture));
-            buffer.Append(":");
-            buffer.Append(rangeEndingSecond.ToString(TwoDigitFormat, CultureInfo.InvariantCulture));
-            buffer.Append(":");
-            buffer.Append(rangeEndingMillis.ToString(ThreeDigitFormat, CultureInfo.InvariantCulture));
+            buffer.Append(RangeEndingTime);
             buffer.AppendFormat("', inverted: {0}", invertTimeRange);
             return buffer.ToString();
         }

@@ -1,6 +1,7 @@
 ﻿#if BINARY_SERIALIZATION
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
+
 using Quartz.Spi;
 
 namespace Quartz.Simpl
@@ -12,6 +13,10 @@ namespace Quartz.Simpl
     /// <author>Marko Lahma</author>
     public class BinaryObjectSerializer : IObjectSerializer
     {
+        public void Initialize()
+        {
+        }
+
         /// <summary>
         /// Serializes given object as bytes 
         /// that can be stored to permanent stores.

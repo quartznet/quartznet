@@ -51,10 +51,6 @@
     <Reference Include="System.Transactions" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\AssemblyInfo.cs">
-      <Link>AssemblyInfo.cs</Link>
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="CalendarIntervalTriggerTest.cs" />
     <Compile Include="Core\ListenerManagerTest .cs" />
     <Compile Include="Core\MissSchedulingChangeSignalTest.cs" />
@@ -76,6 +72,7 @@
     <Compile Include="InterrubtableJobTest.cs" />
     <Compile Include="JobBuilderTest.cs" />
     <Compile Include="Job\SendMailJobTest.cs" />
+    <Compile Include="Utils\ObjectExtensions.cs" />
     <Compile Include="Plugin\Xml\XMLSchedulingDataProcessorPluginTest.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="QualityTest.cs" />

@@ -20,9 +20,9 @@
 #endregion
 
 using System;
+using System.Linq;
 using System.Runtime.Serialization;
 using System.Security;
-using Newtonsoft.Json;
 
 using Quartz.Util;
 
@@ -69,6 +69,7 @@ namespace Quartz.Impl.Calendar
         }
 
 #if BINARY_SERIALIZATION // If this functionality is needed in the future with DCS serialization, it can ne added with [OnSerializing] and [OnDeserialized] methods
+
         /// <summary>
         /// Serialization constructor.
         /// </summary>
@@ -90,8 +91,8 @@ namespace Quartz.Impl.Calendar
             {
                 case 0:
                 case 1:
-                    excludeDays = (bool[]) info.GetValue("excludeDays", typeof (bool[]));
-                    excludeAll = (bool) info.GetValue("excludeAll", typeof (bool));
+                    excludeDays = (bool[]) info.GetValue("excludeDays", typeof(bool[]));
+                    excludeAll = (bool) info.GetValue("excludeAll", typeof(bool));
                     break;
                 default:
                     throw new NotSupportedException("Unknown serialization version");
@@ -102,6 +103,7 @@ namespace Quartz.Impl.Calendar
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
+
             info.AddValue("version", 1);
             info.AddValue("excludeDays", excludeDays);
             info.AddValue("excludeAll", excludeAll);
@@ -122,7 +124,6 @@ namespace Quartz.Impl.Calendar
         /// Setting will redefine the array of days excluded. The array must of size greater or
         /// equal 31.
         /// </summary>
-        [JsonProperty(IsReference = false)]
         public virtual bool[] DaysExcluded
         {
             get { return excludeDays; }
@@ -201,10 +202,10 @@ namespace Quartz.Impl.Calendar
                 return false;
             }
 
-            timeStampUtc = TimeZoneUtil.ConvertTime(timeStampUtc, this.TimeZone); //apply the timezone
+            timeStampUtc = TimeZoneUtil.ConvertTime(timeStampUtc, TimeZone); //apply the timezone
             int day = timeStampUtc.Day;
 
-            return !(IsDayExcluded(day));
+            return !IsDayExcluded(day);
         }
 
         /// <summary>
@@ -230,7 +231,7 @@ namespace Quartz.Impl.Calendar
             }
 
             //apply the timezone
-            timeUtc = TimeZoneUtil.ConvertTime(timeUtc, this.TimeZone);
+            timeUtc = TimeZoneUtil.ConvertTime(timeUtc, TimeZone);
 
             // Get timestamp for 00:00:00, in the correct timezone offset
             DateTimeOffset newTimeStamp = new DateTimeOffset(timeUtc.Date, timeUtc.Offset);
@@ -257,7 +258,8 @@ namespace Quartz.Impl.Calendar
         /// <returns>A new object that is a copy of this instance.</returns>
         public override ICalendar Clone()
         {
-            MonthlyCalendar clone = (MonthlyCalendar) base.Clone();
+            MonthlyCalendar clone = new MonthlyCalendar();
+            CloneFields(clone);
             bool[] excludeCopy = new bool[excludeDays.Length];
             Array.Copy(excludeDays, excludeCopy, excludeDays.Length);
             clone.excludeDays = excludeCopy;
@@ -290,8 +292,7 @@ namespace Quartz.Impl.Calendar
             }
             bool baseEqual = GetBaseCalendar() == null || GetBaseCalendar().Equals(obj.GetBaseCalendar());
 
-            return baseEqual && (ArraysEqualElementsOnEqualPlaces(DaysExcluded, obj.DaysExcluded)
-                                );
+            return baseEqual && DaysExcluded.SequenceEqual(obj.DaysExcluded);
         }
 
         public override bool Equals(object obj)

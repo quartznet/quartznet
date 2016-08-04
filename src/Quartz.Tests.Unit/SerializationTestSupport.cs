@@ -25,7 +25,6 @@ using System.Reflection;
 
 using NUnit.Framework;
 
-using Quartz.Simpl;
 using Quartz.Spi;
 
 namespace Quartz.Tests.Unit
@@ -38,11 +37,13 @@ namespace Quartz.Tests.Unit
     /// <author>Marko Lahma (.NET)</author>
     public abstract class SerializationTestSupport
     {
-#if BINARY_SERIALIZATION    
-        private readonly IObjectSerializer serializer = new BinaryObjectSerializer();
-#else
-        private readonly IObjectSerializer serializer = new JsonObjectSerializer();
-#endif
+        private readonly IObjectSerializer serializer;
+
+        public SerializationTestSupport(Type serializerType)
+        {
+            serializer = (IObjectSerializer) Activator.CreateInstance(serializerType);
+            serializer.Initialize();
+        }
 
         /// <summary>
         /// Get the object to serialize when generating serialized file for future
@@ -50,7 +51,6 @@ namespace Quartz.Tests.Unit
         /// </summary>
         /// <returns></returns>
         protected abstract object GetTargetObject();
-
 
         /// <summary>
         /// Get the Quartz versions for which we should verify
@@ -66,7 +66,6 @@ namespace Quartz.Tests.Unit
         /// <param name="target"></param>
         /// <param name="deserialized"></param>
         protected abstract void VerifyMatch(object target, object deserialized);
-
 
         /// <summary>
         /// Test that we can successfully deserialize our target
@@ -117,7 +116,6 @@ namespace Quartz.Tests.Unit
                 fs.Write(bytes, 0, bytes.Length);
             }
         }
-
 
         /// <summary>
         /// Generate the expected name of the serialized object file.

@@ -23,7 +23,7 @@ using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Job;
-using Quartz.Util;
+using Quartz.Tests.Unit.Utils;
 
 namespace Quartz.Tests.Unit
 {

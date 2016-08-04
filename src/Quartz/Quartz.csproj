@@ -366,6 +366,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Util\NameValueCollectionConverter.cs" />
+    <Compile Include="Util\ObjectExtensions.cs" />
     <Compile Include="Util\QueuedTaskScheduler.cs" />
     <Compile Include="Util\CollectionExtensions.cs" />
     <Compile Include="Util\DataReaderExtensions.cs" />
@@ -379,7 +380,6 @@
     <Compile Include="Util\Key.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Util\ObjectExtensions.cs" />
     <Compile Include="Util\ObjectUtils.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -440,7 +440,6 @@
     <Compile Include="Util\StringKeyDirtyFlagMap.cs" />
     <Compile Include="Util\TaskUtil.cs" />
     <Compile Include="Util\TimeZoneUtil.cs" />
-    <Compile Include="Util\WritablePropertiesOnlyResolver.cs" />
     <Compile Include="Xml\job_scheduling_data_2_0.cs">
       <DependentUpon>job_scheduling_data_2_0.xsd</DependentUpon>
     </Compile>

@@ -4,14 +4,22 @@ using System.Collections.Generic;
 using NUnit.Framework;
 
 using Quartz.Impl.Triggers;
+using Quartz.Simpl;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit
 {
-    [TestFixture]
+#if BINARY_SERIALIZATION
+    [TestFixture(typeof(BinaryObjectSerializer))]
+#endif
+    [TestFixture(typeof(JsonObjectSerializer))]
     public class CalendarIntervalTriggerTest : SerializationTestSupport
     {
-        private static readonly string[] versions = new[] {"2.0"};
+        private static readonly string[] versions = {"2.0"};
+
+        public CalendarIntervalTriggerTest(Type serializerType) : base(serializerType)
+        {
+        }
 
         [Test]
         public void TestYearlyIntervalGetFireTimeAfter()
@@ -675,8 +683,8 @@ namespace Quartz.Tests.Unit
                 */
                 if (i > 1)
                 {
-                    Assert.That((int)timeSpan.TotalDays, Is.GreaterThanOrEqualTo(13), "should have had more than 13 days between");
-                    Assert.That((int)timeSpan.TotalDays, Is.LessThanOrEqualTo(15), "should have had less than 15 days between");
+                    Assert.That((int) timeSpan.TotalDays, Is.GreaterThanOrEqualTo(13), "should have had more than 13 days between");
+                    Assert.That((int) timeSpan.TotalDays, Is.LessThanOrEqualTo(15), "should have had less than 15 days between");
                 }
 
                 prevTime = fireTime.Value;
@@ -695,7 +703,7 @@ namespace Quartz.Tests.Unit
             trigger.MisfireInstruction = MisfireInstruction.CalendarIntervalTrigger.FireOnceNow;
             var scheduleBuilder = trigger.GetScheduleBuilder();
 
-            var cloned = (CalendarIntervalTriggerImpl)scheduleBuilder.Build();
+            var cloned = (CalendarIntervalTriggerImpl) scheduleBuilder.Build();
             Assert.That(cloned.PreserveHourOfDayAcrossDaylightSavings, Is.EqualTo(trigger.PreserveHourOfDayAcrossDaylightSavings));
             Assert.That(cloned.SkipDayIfHourDoesNotExist, Is.EqualTo(trigger.SkipDayIfHourDoesNotExist));
             Assert.That(cloned.RepeatInterval, Is.EqualTo(trigger.RepeatInterval));

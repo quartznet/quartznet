@@ -19,8 +19,6 @@
 
 #endregion
 
-using Newtonsoft.Json;
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -54,10 +52,14 @@ namespace Quartz.Impl.Calendar
         /// days. Only the month, day and year of the returned dates are
         /// significant.
         /// </summary>
-        public virtual ISet<DateTime> ExcludedDates => new SortedSet<DateTime>(dates);
+        public virtual ISet<DateTime> ExcludedDates
+        {
+            get { return new SortedSet<DateTime>(dates); }
+            internal set { dates = new SortedSet<DateTime>(value); }
+        }
 
         // A sorted set to store the holidays
-        [JsonProperty] private SortedSet<DateTime> dates = new SortedSet<DateTime>();
+        private SortedSet<DateTime> dates = new SortedSet<DateTime>();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="HolidayCalendar"/> class.
@@ -127,6 +129,7 @@ namespace Quartz.Impl.Calendar
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
+
             info.AddValue("version", 2);
             info.AddValue("dates", dates.ToArray());
         }
@@ -147,10 +150,10 @@ namespace Quartz.Impl.Calendar
             }
 
             //apply the timezone
-            timeStampUtc = TimeZoneUtil.ConvertTime(timeStampUtc, this.TimeZone);
+            timeStampUtc = TimeZoneUtil.ConvertTime(timeStampUtc, TimeZone);
             DateTime lookFor = timeStampUtc.Date;
 
-            return !(dates.Contains(lookFor));
+            return !dates.Contains(lookFor);
         }
 
         /// <summary>
@@ -170,7 +173,7 @@ namespace Quartz.Impl.Calendar
             }
 
             //apply the timezone
-            timeUtc = TimeZoneUtil.ConvertTime(timeUtc, this.TimeZone);
+            timeUtc = TimeZoneUtil.ConvertTime(timeUtc, TimeZone);
 
             // Get timestamp for 00:00:00, with the correct timezone offset
             DateTimeOffset day = new DateTimeOffset(timeUtc.Date, timeUtc.Offset);
@@ -189,7 +192,8 @@ namespace Quartz.Impl.Calendar
         /// <returns>A new object that is a copy of this instance.</returns>
         public override ICalendar Clone()
         {
-            HolidayCalendar clone = (HolidayCalendar) base.Clone();
+            HolidayCalendar clone = new HolidayCalendar();
+            CloneFields(clone);
             clone.dates = new SortedSet<DateTime>(dates);
             return clone;
         }

@@ -10,8 +10,10 @@ using Quartz.Spi;
 namespace Quartz.Tests.Integration.ExceptionPolicy
 {
     [TestFixture]
-    public class ExceptionHandlingTest : IntegrationTest
+    public class ExceptionHandlingTest
     {
+        private IScheduler sched;
+
         [SetUp]
         public async Task SetUp()
         {
@@ -49,7 +51,6 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
             await sched.DeleteJob(trigger.JobKey);
             Assert.AreEqual(1, ExceptionJob.LaunchCount,
                 "The job shouldn't have been refired (UnscheduleFiringTrigger)");
-
 
             ExceptionJob.LaunchCount = 0;
             ExceptionJob.UnscheduleFiringTrigger = true;

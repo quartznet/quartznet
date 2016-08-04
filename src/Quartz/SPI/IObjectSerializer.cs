@@ -10,6 +10,8 @@ namespace Quartz.Spi
     /// <seealso cref="JsonObjectSerializer" />
     public interface IObjectSerializer
     {
+        void Initialize();
+
         /// <summary>
         /// Serializes given object as bytes 
         /// that can be stored to permanent stores.

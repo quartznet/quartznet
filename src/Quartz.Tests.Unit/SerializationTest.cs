@@ -6,6 +6,7 @@ using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 using NUnit.Framework;
 using Quartz.Impl.Calendar;
+using Quartz.Tests.Unit.Utils;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit
@@ -23,7 +24,7 @@ namespace Quartz.Tests.Unit
         public void TestAnnualCalendarSerialization()
         {
             AnnualCalendar annualCalendar = new AnnualCalendar();
-            DateTimeOffset day = new DateTimeOffset(2011, 12, 20, 0, 0, 0, TimeSpan.Zero);
+            DateTime day = new DateTime(2011, 12, 20, 0, 0, 0);
             annualCalendar.SetDayExcluded(day, true);
             AnnualCalendar clone = annualCalendar.DeepClone();
             Assert.IsTrue(clone.IsDayExcluded(day));

@@ -20,21 +20,30 @@
 #endregion
 
 using System;
+using System.Linq;
 
 using NUnit.Framework;
 
 using Quartz.Impl.Calendar;
+using Quartz.Simpl;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl.Calendar
 {
     /// <author>Marko Lahma (.NET)</author>
-    [TestFixture]
+#if BINARY_SERIALIZATION
+    [TestFixture(typeof(BinaryObjectSerializer))]
+#endif
+    [TestFixture(typeof(JsonObjectSerializer))]
     public class AnnualCalendarTest : SerializationTestSupport
     {
         private AnnualCalendar cal;
 
-        private static readonly string[] Versions = new string[] {"0.6.0"};
+        private static readonly string[] Versions = {"0.6.0"};
+
+        public AnnualCalendarTest(Type serializerType) : base(serializerType)
+        {
+        }
 
         [SetUp]
         public void Setup()
@@ -51,8 +60,8 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             Assert.IsFalse(cal.IsTimeIncluded(d.ToUniversalTime()), "Time was included when it was supposed not to be");
             Assert.IsTrue(cal.IsDayExcluded(d), "Day was not excluded when it was supposed to be excluded");
             Assert.AreEqual(1, cal.DaysExcluded.Count);
-            Assert.AreEqual(d.Day, cal.DaysExcluded[0].Day);
-            Assert.AreEqual(d.Month, cal.DaysExcluded[0].Month);
+            Assert.AreEqual(d.Day, cal.DaysExcluded.First().Day);
+            Assert.AreEqual(d.Month, cal.DaysExcluded.First().Month);
         }
 
         [Test]
@@ -85,7 +94,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             DateTimeOffset test = DateTimeOffset.UtcNow.Date;
             Assert.AreEqual(test, cal.GetNextIncludedTimeUtc(test), "Did not get today as date when nothing was excluded");
 
-            cal.SetDayExcluded(test, true);
+            cal.SetDayExcluded(test.Date, true);
             Assert.AreEqual(test.AddDays(1), cal.GetNextIncludedTimeUtc(test), "Did not get next day when current day excluded");
         }
 
@@ -131,7 +140,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             AnnualCalendar c = new AnnualCalendar();
             c.TimeZone = tz;
 
-            DateTimeOffset excludedDay = new DateTimeOffset(2012, 11, 4, 0, 0, 0, TimeSpan.Zero);
+            DateTime excludedDay = new DateTime(2012, 11, 4, 0, 0, 0);
             c.SetDayExcluded(excludedDay, true);
 
             // 11/5/2012 12:00:00 AM -04:00  translate into 11/4/2012 11:00:00 PM -05:00 (EST)

@@ -12,7 +12,7 @@ using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Spi;
 using Quartz.Tests.Integration.Impl.AdoJobStore;
-using Quartz.Util;
+using Quartz.Tests.Integration.Utils;
 
 namespace Quartz.Tests.Integration.Impl
 {

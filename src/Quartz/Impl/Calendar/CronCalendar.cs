@@ -19,8 +19,6 @@
 
 #endregion
 
-using Newtonsoft.Json;
-
 using System;
 using System.Runtime.Serialization;
 using System.Security;
@@ -131,12 +129,12 @@ namespace Quartz.Impl.Calendar
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
+
             info.AddValue("version", 1);
             info.AddValue("cronExpression", cronExpression);
         }
 #endif // BINARY_SERIALIZATION
 
-        [JsonIgnore]
         public override TimeZoneInfo TimeZone
         {
             get { return cronExpression.TimeZone; }
@@ -204,8 +202,9 @@ namespace Quartz.Impl.Calendar
         /// <returns>A new object that is a copy of this instance.</returns>
         public override ICalendar Clone()
         {
-            CronCalendar clone = (CronCalendar) base.Clone();
+            var clone = new CronCalendar();
             clone.cronExpression = (CronExpression) cronExpression.Clone();
+            CloneFields(clone);
             return clone;
         }
 
@@ -280,7 +279,7 @@ namespace Quartz.Impl.Calendar
             }
             bool baseEqual = GetBaseCalendar() == null || GetBaseCalendar().Equals(obj.GetBaseCalendar());
 
-            return baseEqual && (CronExpression.Equals(obj.CronExpression));
+            return baseEqual && CronExpression.Equals(obj.CronExpression);
         }
 
         public override bool Equals(object obj)

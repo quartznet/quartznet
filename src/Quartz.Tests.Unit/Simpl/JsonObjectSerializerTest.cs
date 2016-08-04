@@ -2,6 +2,7 @@
 using System.Collections.Specialized;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 using NUnit.Framework;
@@ -20,52 +21,69 @@ namespace Quartz.Tests.Unit.Simpl
         public void SetUp()
         {
             serializer = new JsonObjectSerializer();
+            serializer.Initialize();
         }
 
         [Test]
         public void SerializeAnnualCalendar()
         {
             var calendar = new AnnualCalendar();
+            calendar.Description = "description";
             calendar.SetDayExcluded(DateTime.UtcNow.Date, true);
-            CompareSerialization<ICalendar>(calendar);
+            CompareSerialization(calendar);
+        }
+
+        [Test]
+        public void SerializeBaseCalendar()
+        {
+            var calendar = new BaseCalendar();
+            calendar.Description = "description";
+            CompareSerialization(calendar);
         }
 
         [Test]
         public void SerializeCronCalendar()
         {
             var calendar = new CronCalendar("0/5 * * * * ?");
-            CompareSerialization<ICalendar>(calendar);
+            calendar.Description = "description";
+            CompareSerialization(calendar);
         }
 
         [Test]
         public void SerializeDailyCalendar()
         {
-            var calendar = new DailyCalendar(DateTime.UtcNow.Date, DateTime.UtcNow.Date.AddHours(2));
-            CompareSerialization<ICalendar>(calendar);
+            var start = DateTime.UtcNow.Date.AddHours(1).AddMinutes(1).AddSeconds(1).AddMilliseconds(1);
+            var calendar = new DailyCalendar(start, start.AddHours(1).AddMinutes(1).AddSeconds(1).AddMilliseconds(1));
+            calendar.Description = "description";
+            calendar.InvertTimeRange = true;
+            CompareSerialization(calendar);
         }
 
         [Test]
         public void SerializeHolidayCalendar()
         {
             var calendar = new HolidayCalendar();
+            calendar.Description = "description";
             calendar.AddExcludedDate(DateTime.UtcNow.Date);
-            CompareSerialization<ICalendar>(calendar);
+            CompareSerialization(calendar);
         }
 
         [Test]
         public void SerializeMonthlyCalendar()
         {
             var calendar = new MonthlyCalendar();
+            calendar.Description = "description";
             calendar.SetDayExcluded(23, true);
-            CompareSerialization<ICalendar>(calendar);
+            CompareSerialization(calendar);
         }
 
         [Test]
         public void SerializeWeeklyCalendar()
         {
             var calendar = new WeeklyCalendar();
+            calendar.Description = "description";
             calendar.SetDayExcluded(DayOfWeek.Thursday, true);
-            CompareSerialization<ICalendar>(calendar);
+            CompareSerialization(calendar);
         }
 
         [Test]
@@ -80,7 +98,45 @@ namespace Quartz.Tests.Unit.Simpl
             CompareSerialization(collection);
         }
 
-        private void CompareSerialization<T>(T original) where T : class
+        [Test]
+        public void SerializeJobDataMap()
+        {
+            var collection = new JobDataMap
+            {
+                {"key", "value"},
+                {"key2", DateTime.UtcNow},
+                {"jobKey", new JobKey("name", "group")}
+            };
+
+            CompareSerialization(collection, (deserialized, original) =>
+            {
+                Assert.That(deserialized.Keys.SequenceEqual(original.Keys));
+                Assert.That(deserialized.Values.SequenceEqual(original.Values));
+            });
+        }
+
+        [Test]
+        public void SerializeChainedCalendars()
+        {
+            var annualCalendar = new AnnualCalendar();
+            annualCalendar.Description = "description";
+            annualCalendar.SetDayExcluded(DateTime.UtcNow.Date, true);
+
+            var cronCalendar = new CronCalendar("0/5 * * * * ?");
+            cronCalendar.CalendarBase = annualCalendar;
+
+            CompareSerialization(cronCalendar);
+        }
+
+        [Test]
+        public void SerializeCronExpression()
+        {
+            var cronExpression = new CronExpression("0/5 * * * * ?");
+
+            CompareSerialization(cronExpression);
+        }
+
+        private void CompareSerialization<T>(T original, Action<T, T> asserter = null) where T : class
         {
             var bytes = serializer.Serialize(original);
 
@@ -88,7 +144,14 @@ namespace Quartz.Tests.Unit.Simpl
 
             var deserialized = serializer.DeSerialize<T>(bytes);
 
-            Assert.That(deserialized, Is.EqualTo(original));
+            if (asserter != null)
+            {
+                asserter(deserialized, original);
+            }
+            else
+            {
+                Assert.That(deserialized, Is.EqualTo(original));
+            }
         }
 
         private static void WriteJson(byte[] bytes)

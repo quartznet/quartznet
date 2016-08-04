@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,12 +16,14 @@
  * under the License.
  * 
  */
+
 #endregion
 
-using Newtonsoft.Json;
 using System;
 using System.Runtime.Serialization;
 using System.Security;
+
+using Quartz.Util;
 
 namespace Quartz.Impl.Calendar
 {
@@ -45,25 +48,13 @@ namespace Quartz.Impl.Calendar
 #endif // BINARY_SERIALIZATION
     public class BaseCalendar : ICalendar
 #if BINARY_SERIALIZATION
-        , ISerializable
+        , ISerializable, IEquatable<BaseCalendar>
 #endif // BINARY_SERIALIZATION
     {
         // A optional base calendar.
         private ICalendar baseCalendar;
         private string description;
         private TimeZoneInfo timeZone;
-
-        // Serializing TimeZones is tricky in .NET Core. This helper will ensure that we get the same timezone on a given platform,
-        // but there's not yet a good method of serializing/deserializing timezones cross-platform since Windows timezone IDs don't
-        // match IANA tz IDs (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). This feature is coming, but depending
-        // on timelines, it may be worth doign the mapping here.
-        // More info: https://github.com/dotnet/corefx/issues/7757
-        [JsonProperty]
-        private string timeZoneInfoId
-        {
-            get { return timeZone?.Id; }
-            set { timeZone = (value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value)); }
-        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="BaseCalendar"/> class.
@@ -81,15 +72,14 @@ namespace Quartz.Impl.Calendar
             CalendarBase = baseCalendar;
         }
 
-
         /// <summary>
         /// Initializes a new instance of the <see cref="BaseCalendar"/> class.
         /// </summary>
         /// <param name="timeZone">The time zone.</param>
         public BaseCalendar(TimeZoneInfo timeZone)
-	    {
-	        this.timeZone = timeZone;
-	    }
+        {
+            this.timeZone = timeZone;
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="BaseCalendar"/> class.
@@ -98,9 +88,9 @@ namespace Quartz.Impl.Calendar
         /// <param name="timeZone">The time zone.</param>
         public BaseCalendar(ICalendar baseCalendar, TimeZoneInfo timeZone)
         {
-	        this.baseCalendar = baseCalendar;
-	        this.timeZone = timeZone;
-	    }
+            this.baseCalendar = baseCalendar;
+            this.timeZone = timeZone;
+        }
 
 #if BINARY_SERIALIZATION
         /// <summary>
@@ -110,6 +100,16 @@ namespace Quartz.Impl.Calendar
         /// <param name="context"></param>
         protected BaseCalendar(SerializationInfo info, StreamingContext context)
         {
+            int version;
+            try
+            {
+                version = info.GetInt32("baseCalendarVersion");
+            }
+            catch
+            {
+                version = 0;
+            }
+
             string prefix = "";
             try
             {
@@ -119,31 +119,53 @@ namespace Quartz.Impl.Calendar
             {
                 // base class for other
                 prefix = "BaseCalendar+";
-            } 
+            }
+
+            // Serializing TimeZones is tricky in .NET Core. This helper will ensure that we get the same timezone on a given platform,
+            // but there's not yet a good method of serializing/deserializing timezones cross-platform since Windows timezone IDs don't
+            // match IANA tz IDs (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). This feature is coming, but depending
+            // on timelines, it may be worth doign the mapping here.
+            // More info: https://github.com/dotnet/corefx/issues/7757
+
+            switch (version)
+            {
+                case 0:
+                    timeZone = (TimeZoneInfo) info.GetValue(prefix + "timeZone", typeof(TimeZoneInfo));
+                    break;
+                case 1:
+                    var timeZoneId = (string) info.GetValue(prefix + "timeZoneId", typeof(string));
+                    if (!string.IsNullOrEmpty(timeZoneId))
+                    {
+                        timeZone = TimeZoneUtil.FindTimeZoneById(timeZoneId);
+                    }
+                    break;
+                default:
+                    throw new NotSupportedException("Unknown serialization version");
+            }
 
             baseCalendar = (ICalendar) info.GetValue(prefix + "baseCalendar", typeof(ICalendar));
-            description = (string)info.GetValue(prefix + "description", typeof(string));
-            timeZone = (TimeZoneInfo)info.GetValue(prefix + "timeZone", typeof(TimeZoneInfo));
+            description = (string) info.GetValue(prefix + "description", typeof(string));
         }
 
         [SecurityCritical]
         public virtual void GetObjectData(SerializationInfo info, StreamingContext context)
-	    {
+        {
+            info.AddValue("baseCalendarVersion", 1);
             info.AddValue("baseCalendar", baseCalendar);
             info.AddValue("description", description);
-            info.AddValue("timeZone", timeZone);
+            info.AddValue("timeZoneId", timeZone?.Id);
         }
+
 #endif // BINARY_SERIALIZATION
 
         /// <summary>
         /// Gets or sets the time zone.
         /// </summary>
         /// <value>The time zone.</value>
-        [JsonIgnore]
         public virtual TimeZoneInfo TimeZone
-	    {
-	        get
-	        {
+        {
+            get
+            {
                 if (timeZone == null)
                 {
                     timeZone = TimeZoneInfo.Local;
@@ -153,114 +175,121 @@ namespace Quartz.Impl.Calendar
             set { timeZone = value; }
         }
 
-	    /// <summary>
-        /// checks whether two arrays have 
-        /// the same length and 
-        /// for any given place there are equal elements 
-        /// in both arrays
+        /// <summary> 
+        /// Gets or sets the description given to the <see cref="ICalendar" /> instance by
+        /// its creator (if any).
         /// </summary>
-        /// <returns></returns>
-        protected static bool ArraysEqualElementsOnEqualPlaces(Array array1, Array array2)
+        public virtual string Description
         {
-            if (array1.Length != array2.Length)
-            {
-                return false;
-            }
-            bool toReturn = true;
-            for (int i = 0; i < array1.Length; i++)
-            {
-                toReturn = toReturn && (array1.GetValue(i).Equals(array2.GetValue(i)));
-            }
-            return toReturn;
+            get { return description; }
+            set { description = value; }
         }
 
+        /// <summary>
+        /// Set a new base calendar or remove the existing one
+        /// </summary>
+        /// <value></value>
+        public ICalendar CalendarBase
+        {
+            set { baseCalendar = value; }
+            get { return baseCalendar; }
+        }
 
-		/// <summary> 
-		/// Gets or sets the description given to the <see cref="ICalendar" /> instance by
-		/// its creator (if any).
-		/// </summary>
-		public virtual string Description
-		{
-			get { return description; }
-			set { description = value; }
-		}
+        /// <summary>
+        /// Get the base calendar. Will be null, if not set.
+        /// </summary>
+        public ICalendar GetBaseCalendar()
+        {
+            return baseCalendar;
+        }
 
-		/// <summary>
-		/// Set a new base calendar or remove the existing one
-		/// </summary>
-		/// <value></value>
-		public ICalendar CalendarBase
-		{
-			set { baseCalendar = value; }
-			get { return baseCalendar; }
-		}
-
-		/// <summary>
-		/// Get the base calendar. Will be null, if not set.
-		/// </summary>
-		public ICalendar GetBaseCalendar()
-		{
-			return baseCalendar;
-		}
-
-		/// <summary>
-		/// Check if date/time represented by timeStamp is included. If included
-		/// return true. The implementation of BaseCalendar simply calls the base
-		/// calendars IsTimeIncluded() method if base calendar is set.
-		/// </summary>
-		/// <seealso cref="ICalendar.IsTimeIncluded" />
+        /// <summary>
+        /// Check if date/time represented by timeStamp is included. If included
+        /// return true. The implementation of BaseCalendar simply calls the base
+        /// calendars IsTimeIncluded() method if base calendar is set.
+        /// </summary>
+        /// <seealso cref="ICalendar.IsTimeIncluded" />
         public virtual bool IsTimeIncluded(DateTimeOffset timeStampUtc)
-		{
+        {
             if (timeStampUtc == DateTimeOffset.MinValue)
-			{
-				throw new ArgumentException("timeStampUtc must be greater 0");
-			}
-
-			if (baseCalendar != null)
-			{
-				if (!baseCalendar.IsTimeIncluded(timeStampUtc))
-				{
-					return false;
-				}
-			}
-
-			return true;
-		}
-
-		/// <summary>
-		/// Determine the next UTC time (in milliseconds) that is 'included' by the
-		/// Calendar after the given time. Return the original value if timeStamp is
-		/// included. Return 0 if all days are excluded.
-		/// </summary>
-		/// <seealso cref="ICalendar.GetNextIncludedTimeUtc" />
-        public virtual DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc)
-		{
-			if (timeUtc == DateTimeOffset.MinValue)
-			{
-				throw new ArgumentException("timeStamp must be greater DateTimeOffset.MinValue");
-			}
-
-			if (baseCalendar != null)
-			{
-				return baseCalendar.GetNextIncludedTimeUtc(timeUtc);
-			}
-
-			return timeUtc;
-		}
-
-
-	    /// <summary>
-	    /// Creates a new object that is a copy of the current instance.
-	    /// </summary>
-	    /// <returns>A new object that is a copy of this instance.</returns>
-	    public virtual ICalendar Clone()
-	    {
-	        BaseCalendar clone = (BaseCalendar) MemberwiseClone();
-            if (GetBaseCalendar() != null)
             {
-                clone.baseCalendar = GetBaseCalendar().Clone();
+                throw new ArgumentException("timeStampUtc must be greater 0");
             }
+
+            if (baseCalendar != null)
+            {
+                if (!baseCalendar.IsTimeIncluded(timeStampUtc))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Determine the next UTC time (in milliseconds) that is 'included' by the
+        /// Calendar after the given time. Return the original value if timeStamp is
+        /// included. Return 0 if all days are excluded.
+        /// </summary>
+        /// <seealso cref="ICalendar.GetNextIncludedTimeUtc" />
+        public virtual DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc)
+        {
+            if (timeUtc == DateTimeOffset.MinValue)
+            {
+                throw new ArgumentException("timeStamp must be greater DateTimeOffset.MinValue");
+            }
+
+            if (baseCalendar != null)
+            {
+                return baseCalendar.GetNextIncludedTimeUtc(timeUtc);
+            }
+
+            return timeUtc;
+        }
+
+        /// <summary>
+        /// Creates a new object that is a copy of the current instance.
+        /// </summary>
+        /// <returns>A new object that is a copy of this instance.</returns>
+        public virtual ICalendar Clone()
+        {
+            var clone = CloneFields(new BaseCalendar());
             return clone;
-	    }
-	}
+        }
+
+        protected BaseCalendar CloneFields(BaseCalendar clone)
+        {
+            clone.Description = description;
+            clone.TimeZone = timeZone;
+            clone.CalendarBase = baseCalendar?.Clone();
+            return clone;
+        }
+
+        public bool Equals(BaseCalendar other)
+        {
+            if (ReferenceEquals(null, other)) return false;
+            if (ReferenceEquals(this, other)) return true;
+            return Equals(CalendarBase, other.CalendarBase) && string.Equals(Description, other.Description) && Equals(TimeZone, other.TimeZone);
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (ReferenceEquals(null, obj)) return false;
+            if (ReferenceEquals(this, obj)) return true;
+            if (obj.GetType() != GetType()) return false;
+            return Equals((BaseCalendar) obj);
+        }
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                var hashCode = baseCalendar?.GetHashCode() ?? 0;
+                hashCode = (hashCode*397) ^ (description?.GetHashCode() ?? 0);
+                hashCode = (hashCode*397) ^ (timeZone?.GetHashCode() ?? 0);
+                return hashCode;
+            }
+        }
+    }
 }

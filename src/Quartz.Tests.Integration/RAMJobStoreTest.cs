@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 
 using Quartz.Impl.Matchers;
+using Quartz.Simpl;
 
 namespace Quartz.Tests.Integration
 {

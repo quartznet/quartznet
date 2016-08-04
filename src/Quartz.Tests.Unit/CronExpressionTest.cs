@@ -25,17 +25,25 @@ using System.Diagnostics;
 
 using NUnit.Framework;
 
+using Quartz.Simpl;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit
 {
     /// <author>Marko Lahma (.NET)</author>
-    [TestFixture]
+#if BINARY_SERIALIZATION
+    [TestFixture(typeof(BinaryObjectSerializer))]
+#endif
+    [TestFixture(typeof(JsonObjectSerializer))]
     public class CronExpressionTest : SerializationTestSupport
     {
         private static readonly string[] versions = new[] {"0.6.0"};
 
         private static readonly TimeZoneInfo testTimeZone = TimeZoneInfo.Local;
+
+        public CronExpressionTest(Type serializerType) : base(serializerType)
+        {
+        }
 
         /// <summary>
         /// Get the object to serialize when generating serialized file for future

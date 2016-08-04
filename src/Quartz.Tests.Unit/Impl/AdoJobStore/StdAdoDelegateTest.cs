@@ -40,12 +40,29 @@ using Quartz.Spi;
 namespace Quartz.Tests.Unit.Impl.AdoJobStore
 {
     /// <author>Marko Lahma (.NET)</author>
-    [TestFixture]
+#if BINARY_SERIALIZATION
+    [TestFixture(typeof(BinaryObjectSerializer))]
+#endif
+    [TestFixture(typeof(JsonObjectSerializer))]
     public class StdAdoDelegateTest
     {
+        private readonly IObjectSerializer serializer;
+
+        public StdAdoDelegateTest(Type serializerType)
+        {
+            serializer = (IObjectSerializer) Activator.CreateInstance(serializerType);
+            serializer.Initialize();
+        }
+
         [Test]
         public void TestSerializeJobData()
         {
+#if BINARY_SERIALIZATION
+            bool binary = serializer.GetType() == typeof(BinaryObjectSerializer);
+#else
+            bool binary = false;
+#endif
+
             var args = new DelegateInitializationArgs();
             args.Logger = LogProvider.GetLogger(GetType());
             args.TablePrefix = "QRTZ_";
@@ -53,11 +70,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             args.InstanceId = "INSTANCE";
             args.DbProvider = new DbProvider(TestConstants.DefaultSqlServerProvider, "");
             args.TypeLoadHelper = new SimpleTypeLoadHelper();
-#if BINARY_SERIALIZATION
-            args.ObjectSerializer = new BinaryObjectSerializer();
-#else
-            args.ObjectSerializer = new JsonObjectSerializer();
-#endif
+            args.ObjectSerializer = serializer;
 
             var del = new StdAdoDelegate();
             del.Initialize(args);
@@ -78,17 +91,21 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             try
             {
                 del.SerializeJobData(jdm);
-#if BINARY_SERIALIZATION
-                Assert.Fail("Private types should not be serializable by binary serialization");
-#endif
+                if (binary)
+                {
+                    Assert.Fail("Private types should not be serializable by binary serialization");
+                }
             }
             catch (SerializationException e)
             {
-#if BINARY_SERIALIZATION
-                Assert.IsTrue(e.Message.IndexOf("key3") >= 0);
-#else
-                Assert.Fail($"Private types should be serializable when not using binary serialization: {e.ToString()}");
-#endif
+                if (binary)
+                {
+                    Assert.IsTrue(e.Message.IndexOf("key3", StringComparison.Ordinal) >= 0);
+                }
+                else
+                {
+                    Assert.Fail($"Private types should be serializable when not using binary serialization: {e}");
+                }
             }
         }
 
@@ -383,12 +400,10 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             get { throw new NotImplementedException(); }
         }
 
-
         public override bool IsReadOnly
         {
             get { throw new NotImplementedException(); }
         }
-
 
         public override bool IsSynchronized
         {

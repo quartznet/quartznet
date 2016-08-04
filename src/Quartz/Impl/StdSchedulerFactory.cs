@@ -289,7 +289,6 @@ Please add configuration to your application config file to correctly initialize
             return retValue;
         }
 
-
         /// <summary> 
         /// Initialize the <see cref="ISchedulerFactory" /> with
         /// the contents of the given key value collection object.
@@ -419,7 +418,6 @@ Please add configuration to your application config file to correctly initialize
 
             bool proxyScheduler = cfg.GetBooleanProperty(PropertySchedulerProxy, false);
 
-
             // Create type load helper
             ITypeLoadHelper loadHelper;
             try
@@ -431,7 +429,6 @@ Please add configuration to your application config file to correctly initialize
                 throw new SchedulerConfigException("Unable to instantiate type load helper: {0}".FormatInvariant(e.Message), e);
             }
             loadHelper.Initialize();
-
 
             // If Proxying to remote scheduler, short-circuit here...
             // ~~~~~~~~~~~~~~~~~~
@@ -463,7 +460,6 @@ Please add configuration to your application config file to correctly initialize
 
                 return remoteScheduler;
             }
-
 
             IJobFactory jobFactory = null;
             if (jobFactoryType != null)
@@ -674,6 +670,8 @@ Please add configuration to your application config file to correctly initialize
                     log.Info("Using custom implementation for object serializer: " + objectSerializerType);
 
                     ObjectUtils.SetObjectProperties(objectSerializer, tProps);
+
+                    objectSerializer.Initialize();
                 }
                 catch (Exception e)
                 {
@@ -688,7 +686,6 @@ Please add configuration to your application config file to correctly initialize
                 initException = new SchedulerException("Must define object serializer");
                 throw initException;
             }
-
 
             SchedulerDetailsSetter.SetDetails(js, schedName, schedInstId);
 
@@ -914,7 +911,6 @@ Please add configuration to your application config file to correctly initialize
             bool tpInited = false;
             bool qsInited = false;
 
-
             // Fire everything up
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1071,7 +1067,6 @@ Please add configuration to your application config file to correctly initialize
             IScheduler sched = new StdScheduler(qs);
             return sched;
         }
-
 
         /// <summary>
         /// Needed while loadhelper is not constructed.

@@ -1,9 +1,11 @@
 using System;
 
+using Newtonsoft.Json;
+
 using NUnit.Framework;
 
 using Quartz.Impl.Triggers;
-using Quartz.Util;
+using Quartz.Tests.Unit.Utils;
 
 namespace Quartz.Tests.Unit.Impl.Triggers
 {
@@ -23,14 +25,13 @@ namespace Quartz.Tests.Unit.Impl.Triggers
         {
             trigger.Key = new TriggerKey("tname", "tgroup");
             trigger.JobKey = new JobKey("jname", "jgroup");
-            
+
             AbstractTrigger cloned = trigger.DeepClone();
-            
+
             Assert.That(cloned.Name, Is.EqualTo(trigger.Name));
             Assert.That(cloned.Group, Is.EqualTo(trigger.Group));
             Assert.That(cloned.Key, Is.EqualTo(trigger.Key));
         }
-
 
         [Serializable]
         private class TestTrigger : AbstractTrigger
@@ -40,6 +41,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
                 throw new NotImplementedException();
             }
 
+            [JsonIgnore]
             public override DateTimeOffset? FinalFireTimeUtc
             {
                 get { throw new NotImplementedException(); }

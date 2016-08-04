@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
@@ -32,7 +34,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         [Test]
         public void TestTimeIncluded()
         {
-            string expr = string.Format("0/15 * * * * ?");
+            string expr = "0/15 * * * * ?";
             CronCalendar calendar = new CronCalendar(expr);
             string fault = "Time was included when it was not supposed to be";
             DateTime tst = DateTime.UtcNow.AddMinutes(2);
@@ -47,11 +49,10 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         [Test]
         public void TestClone()
         {
-            string expr = string.Format("0/15 * * * * ?");
+            string expr = "0/15 * * * * ?";
             CronCalendar calendar = new CronCalendar(expr);
             CronCalendar clone = (CronCalendar) calendar.Clone();
-            Assert.AreEqual(calendar.CronExpression, clone.CronExpression);            
+            Assert.AreEqual(calendar.CronExpression, clone.CronExpression);
         }
-  
     }
 }

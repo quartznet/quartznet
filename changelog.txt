@@ -17,6 +17,8 @@ BREAKING CHANGES
 * IJob interface now returns a task
 * Some IList properties have been changed to IReadOnlyList to properly reflect intent
 * SQL Server CE support has been dropped
+* DailyCalendar uses now datetimes for excluded dates and has ISet interface to access them
+* IObjectSerializer has new method, void Initialize(), that has to be implemented
 
 
 Release 2.3.3, Jul 9, 2015
