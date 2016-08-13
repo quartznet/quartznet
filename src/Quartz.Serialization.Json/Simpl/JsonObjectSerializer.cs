@@ -9,10 +9,9 @@ using Newtonsoft.Json.Serialization;
 
 using Quartz.Impl.Calendar;
 using Quartz.Spi;
-using Quartz.Util;
-
 using System.Reflection;
 using System.Text;
+using Quartz.Util;
 
 namespace Quartz.Simpl
 {
@@ -321,7 +320,11 @@ namespace Quartz.Simpl
 
             protected override void PopulateFieldsToCalendarObject(HolidayCalendar value, JObject jObject)
             {
-                value.ExcludedDates = new SortedSet<DateTime>(jObject["ExcludedDates"].Values<DateTime>());
+                var ecludedDates = jObject["ExcludedDates"].Values<DateTime>();
+                foreach (var date in ecludedDates)
+                {
+                    value.AddExcludedDate(date);
+                }
             }
 
             protected override HolidayCalendar Create(JObject value)

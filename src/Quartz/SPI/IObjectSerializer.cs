@@ -7,13 +7,12 @@ namespace Quartz.Spi
     /// </summary>
     /// <author>Marko Lahma</author>
     /// <seealso cref="BinaryObjectSerializer" />
-    /// <seealso cref="JsonObjectSerializer" />
     public interface IObjectSerializer
     {
         void Initialize();
 
         /// <summary>
-        /// Serializes given object as bytes 
+        /// Serializes given object as bytes
         /// that can be stored to permanent stores.
         /// </summary>
         /// <param name="obj">Object to serialize, always non-null.</param>

@@ -22,13 +22,13 @@ Target "GenerateAssemblyInfo" (fun _ ->
         [
             (Attribute.CLSCompliant(true))
             (Attribute.ComVisible(false))
-            (Attribute.Metadata("githash", commitHash))]  
+            (Attribute.Metadata("githash", commitHash))]
 )
 
 Target "Build" (fun _ ->
 
-    let restore f = DotNetCli.Restore (fun p -> 
-                { p with 
+    let restore f = DotNetCli.Restore (fun p ->
+                { p with
                     AdditionalArgs = [f] })
 
     projectJsonFiles
@@ -36,12 +36,12 @@ Target "Build" (fun _ ->
 
     projectJsonFiles
         |> DotNetCli.Build
-            (fun p -> 
-                { p with 
+            (fun p ->
+                { p with
                     Configuration = configuration })
 )
 
-Target "BuildSolutions" (fun _ -> 
+Target "BuildSolutions" (fun _ ->
 
     let setParams defaults =
             { defaults with
@@ -61,23 +61,23 @@ Target "BuildSolutions" (fun _ ->
         |> DoNothing
 )
 
-Target "Pack" (fun _ -> 
+Target "Pack" (fun _ ->
     !! "src/Quartz/project.json"
         |> DotNetCli.Pack
-            (fun p -> 
-                { p with 
+            (fun p ->
+                { p with
                     Configuration = "Release"
                 })
 
-    !! "src/*/bin/**/*.nupkg" 
+    !! "src/*/bin/**/*.nupkg"
         |> Copy "artifacts"
 )
 
 Target "Test" (fun _ ->
     !! "src/Quartz.Tests.Unit/project.json"
         |>  DotNetCli.Test
-            (fun p -> 
-                    { p with 
+            (fun p ->
+                    { p with
                         Configuration = configuration
                         AdditionalArgs = ["--where \"cat != database && cat != fragile\""] })
 )

@@ -1,0 +1,18 @@
+﻿{
+  "buildOptions": {
+  },
+  "frameworks": {
+    "net45": {
+      "buildOptions": {
+        "define": [
+        ]
+      }
+    }
+  },
+  "dependencies": {
+    "Newtonsoft.Json": "9.0.1"
+  },
+  "runtimes": {
+    "win": { }
+  }
+}

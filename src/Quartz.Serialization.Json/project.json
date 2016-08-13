@@ -1,0 +1,74 @@
+﻿{
+  "version": "3.0.0-alpha1-*",
+  "description": "Quartz.NET JSON Serialization Support",
+  "authors": [
+    "Marko Lahma"
+  ],
+  "packOptions": {
+    "tags": [
+      "scheduling", "tasks", "jobs", "triggers", "scheduler", "threading"
+    ],
+    "projectUrl": "http://www.quartz-scheduler.net/",
+    "licenseUrl": "http://www.apache.org/licenses/LICENSE-2.0",
+    "copyright": "Copyright Marko Lahma",
+    "owners": [ "Marko Lahma" ],
+    "iconUrl": "",
+    "requireLicenseAcceptance": false,
+    "summary": "Quartz.NET JSON Serialization Support for Job Store"
+  },
+  "dependencies": {
+    "Quartz": {
+      "target": "project"
+    },
+    "Newtonsoft.Json": "9.0.1"
+  },
+  "buildOptions": {
+    "compilationOptions": {
+      "keyFile": "..\\quartz.net.snk"
+    },
+    "warningsAsErrors": true,
+    "define": [
+      "LIBLOG_PUBLIC",
+      "LIBLOG_PORTABLE"
+    ],
+    "sources": {
+      "compile": "../AssemblyInfo.cs"
+    }
+  },
+  "frameworks": {
+    "net45": {
+      "buildOptions": {
+        "define": [
+          "BINARY_SERIALIZATION"
+        ]
+      },
+      "frameworkAssemblies": {
+      }
+    },
+    "netstandard1.5": {
+      "imports": [
+        "dotnet55",
+        "portable-net45+win8"
+      ],
+      "buildOptions": {
+        "debugType": "portable",
+        "define": [
+        ]
+      },
+      "dependencies": {
+      }
+    },
+    "netstandard1.3": {
+      "imports": [
+        "portable-net452+win81"
+      ],
+      "buildOptions": {
+        "debugType": "portable",
+        "define": [
+        ]
+      },
+      "dependencies": {
+      }
+    }
+  }
+}

@@ -1,19 +1,19 @@
 #region License
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 #endregion
 
@@ -21,7 +21,6 @@ using System;
 
 using Quartz.Spi;
 using Quartz.Util;
-using Newtonsoft.Json;
 
 namespace Quartz.Impl.Triggers
 {
@@ -35,12 +34,12 @@ namespace Quartz.Impl.Triggers
 	/// schedule such as: "At 8:00am every Monday through Friday" or "At 1:30am
 	/// every last Friday of the month".
 	/// </para>
-	/// 
+	///
 	/// <para>
-	/// The format of a "Cron-Expression" string is documented on the 
+	/// The format of a "Cron-Expression" string is documented on the
 	/// <see cref="CronExpression" /> class.
 	/// </para>
-	/// 
+	///
 	/// <para>
 	/// Here are some full examples: <br />
 	/// <table cellspacing="8">
@@ -149,12 +148,12 @@ namespace Quartz.Impl.Triggers
 	/// </tr>
 	/// </table>
 	/// </para>
-	/// 
+	///
 	/// <para>
 	/// Pay attention to the effects of '?' and '*' in the day-of-week and
 	/// day-of-month fields!
 	/// </para>
-	/// 
+	///
 	/// <para>
 	/// <b>NOTES:</b>
 	/// <ul>
@@ -182,8 +181,8 @@ namespace Quartz.Impl.Triggers
 		private CronExpression cronEx;
         private DateTimeOffset startTimeUtc = DateTimeOffset.MinValue;
         private DateTimeOffset? endTimeUtc;
-        [JsonProperty] private DateTimeOffset? nextFireTimeUtc; // Making a public property which called GetNextFireTime/SetNextFireTime would make the json attribute unnecessary
-        [JsonProperty] private DateTimeOffset? previousFireTimeUtc; // Making a public property which called GetPreviousFireTime/SetPreviousFireTime would make the json attribute unnecessary
+        private DateTimeOffset? nextFireTimeUtc; // Making a public property which called GetNextFireTime/SetNextFireTime would make the json attribute unnecessary
+        private DateTimeOffset? previousFireTimeUtc; // Making a public property which called GetPreviousFireTime/SetPreviousFireTime would make the json attribute unnecessary
 
 #if BINARY_SERIALIZATION
         [NonSerialized]
@@ -192,14 +191,13 @@ namespace Quartz.Impl.Triggers
 
         // With binary serialization, the timeZone doesn't need serialized since it is part of the CronExpression.
         // With json serialization, however, the cron expression is only serialized as a string (CronExpressionString),
-        // so the TimeZone needs serialized separately. 
+        // so the TimeZone needs serialized separately.
         //
         // Serializing TimeZones is tricky in .NET Core. This helper will ensure that we get the same timezone on a given platform,
         // but there's not yet a good method of serializing/deserializing timezones cross-platform since Windows timezone IDs don't
         // match IANA tz IDs (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). This feature is coming, but depending
         // on timelines, it may be worth doign the mapping here.
         // More info: https://github.com/dotnet/corefx/issues/7757
-        [JsonProperty]
         private string timeZoneInfoId
         {
             get { return timeZone?.Id; }
@@ -316,7 +314,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="jobGroup">Group of the <see cref="IJobDetail" /> executed on firetime</param>
         /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="ITrigger" /></param>
         /// <param name="timeZone">
-        /// Specifies for which time zone the cronExpression should be interpreted, 
+        /// Specifies for which time zone the cronExpression should be interpreted,
         /// i.e. the expression 0 0 10 * * ?, is resolved to 10:00 am in this time zone.
         /// </param>
 		public CronTriggerImpl(string name, string group, string jobName,
@@ -343,8 +341,8 @@ namespace Quartz.Impl.Triggers
         /// <param name="endTime">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to quit repeat firing.</param>
         /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="ITrigger" /></param>
 		public CronTriggerImpl(string name, string group, string jobName,
-			string jobGroup, DateTimeOffset startTimeUtc, 
-            DateTimeOffset? endTime, 
+			string jobGroup, DateTimeOffset startTimeUtc,
+            DateTimeOffset? endTime,
             string cronExpression)
 			: base(name, group, jobName, jobGroup)
 		{
@@ -376,13 +374,13 @@ namespace Quartz.Impl.Triggers
         /// <param name="endTime">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to quit repeat firing.</param>
         /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="ITrigger" /></param>
         /// <param name="timeZone">
-        /// Specifies for which time zone the cronExpression should be interpreted, 
+        /// Specifies for which time zone the cronExpression should be interpreted,
         /// i.e. the expression 0 0 10 * * ?, is resolved to 10:00 am in this time zone.
         /// </param>
 		public CronTriggerImpl(string name, string group, string jobName,
-            string jobGroup, DateTimeOffset startTimeUtc, 
+            string jobGroup, DateTimeOffset startTimeUtc,
             DateTimeOffset? endTime,
-			string cronExpression, 
+			string cronExpression,
             TimeZoneInfo timeZone) : base(name, group, jobName, jobGroup)
 		{
 			CronExpressionString = cronExpression;
@@ -466,7 +464,7 @@ namespace Quartz.Impl.Triggers
 				{
 					throw new ArgumentException("End time cannot be before start time");
 				}
-        
+
 				// round off millisecond...
                 DateTimeOffset dt = new DateTimeOffset(value.Year, value.Month, value.Day, value.Hour, value.Minute, value.Second, value.Offset);
                 startTimeUtc = dt;
@@ -476,7 +474,7 @@ namespace Quartz.Impl.Triggers
 
 		/// <summary>
 		/// Get or sets the time at which the <c>CronTrigger</c> should quit
-		/// repeating - even if repeatCount isn't yet satisfied. 
+		/// repeating - even if repeatCount isn't yet satisfied.
 		/// </summary>
         public override DateTimeOffset? EndTimeUtc
 		{
@@ -556,11 +554,10 @@ namespace Quartz.Impl.Triggers
         /// If <see cref="ICronTrigger.CronExpressionString" /> is set after this
         /// property, the TimeZone setting on the CronExpression will "win".  However
         /// if <see cref="CronExpressionString" /> is set after this property, the
-        /// time zone applied by this method will remain in effect, since the 
+        /// time zone applied by this method will remain in effect, since the
         /// string cron expression does not carry a time zone!
         /// </remarks>
 		/// <value>The time zone.</value>
-        [JsonIgnore]
         public TimeZoneInfo TimeZone
 		{
 			get
@@ -750,10 +747,10 @@ namespace Quartz.Impl.Triggers
 
 		/// <summary>
 		/// <para>
-		/// Determines whether the date and (optionally) time of the given Calendar 
+		/// Determines whether the date and (optionally) time of the given Calendar
 		/// instance falls on a scheduled fire-time of this trigger.
 		/// </para>
-		/// 
+		///
 		/// <para>
 		/// Equivalent to calling <see cref="WillFireOn(DateTimeOffset, bool)" />.
 		/// </para>
@@ -767,7 +764,7 @@ namespace Quartz.Impl.Triggers
 
 
 		/// <summary>
-		/// Determines whether the date and (optionally) time of the given Calendar 
+		/// Determines whether the date and (optionally) time of the given Calendar
 		/// instance falls on a scheduled fire-time of this trigger.
 		/// <para>
 		/// Note that the value returned is NOT validated against the related
@@ -812,7 +809,7 @@ namespace Quartz.Impl.Triggers
 			if (fta.Equals(test))
 			{
 				return true;
-			}   
+			}
 
 			return false;
 		}
@@ -933,7 +930,7 @@ namespace Quartz.Impl.Triggers
             {
                 return cronEx.GetTimeAfter(afterTime);
             }
-		    
+
             return null;
 		}
 
@@ -942,7 +939,7 @@ namespace Quartz.Impl.Triggers
         /// that this <see cref="ICronTrigger" /> will fire.
 		/// </summary>
 		/// <param name="date">The date.</param>
-		/// <returns></returns> 
+		/// <returns></returns>
         protected DateTimeOffset? GetTimeBefore(DateTimeOffset? date)
 		{
             return (cronEx == null) ? null : cronEx.GetTimeBefore(endTimeUtc);

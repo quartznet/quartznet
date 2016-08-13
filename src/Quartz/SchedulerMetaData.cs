@@ -1,23 +1,22 @@
 #region License
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 #endregion
 
-using Newtonsoft.Json;
 using System;
 using System.Text;
 using System.Threading;
@@ -37,22 +36,22 @@ namespace Quartz
 #endif // BINARY_SERIALIZATION
     public class SchedulerMetaData
 	{
-		[JsonProperty] private readonly string schedName;
-		[JsonProperty] private readonly string schedInst;
-		[JsonProperty] private Type schedType;
-		[JsonProperty] private readonly bool isRemote;
-		[JsonProperty] private readonly bool started;
-		[JsonProperty] private readonly bool isInStandbyMode;
-		[JsonProperty] private readonly bool shutdown;
-        [JsonProperty] private readonly DateTimeOffset? startTime;
-        [JsonProperty] private readonly int numberOfJobsExec;
-		[JsonProperty] private Type jsType;
-		[JsonProperty] private readonly bool jsPersistent;
-	    [JsonProperty] private readonly bool jsClustered;
-		[JsonProperty] private Type tpType;
-		[JsonProperty] private readonly int tpSize;
-		[JsonProperty] private readonly string version;
-        
+		private readonly string schedName;
+		private readonly string schedInst;
+		private Type schedType;
+		private readonly bool isRemote;
+		private readonly bool started;
+		private readonly bool isInStandbyMode;
+		private readonly bool shutdown;
+        private readonly DateTimeOffset? startTime;
+        private readonly int numberOfJobsExec;
+		private Type jsType;
+		private readonly bool jsPersistent;
+	    private readonly bool jsClustered;
+		private Type tpType;
+		private readonly int tpSize;
+		private readonly string version;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="SchedulerMetaData"/> class.
         /// </summary>
@@ -73,7 +72,7 @@ namespace Quartz
         /// <param name="version">The version string.</param>
         public SchedulerMetaData(
             string schedName, string schedInst, Type schedType, bool isRemote, bool started, bool isInStandbyMode,
-			bool shutdown, DateTimeOffset? startTime, int numberOfJobsExec, Type jsType, bool jsPersistent, bool jsClustered, 
+			bool shutdown, DateTimeOffset? startTime, int numberOfJobsExec, Type jsType, bool jsPersistent, bool jsClustered,
             Type tpType, int tpSize, string version)
 		{
 			this.schedName = schedName;
@@ -175,7 +174,7 @@ namespace Quartz
 			get { return tpType; }
 		}
 
-		/// <summary> 
+		/// <summary>
 		/// Returns the number of threads currently in the <see cref="IScheduler" />'s
 		/// </summary>
 		public virtual int ThreadPoolSize
@@ -291,7 +290,7 @@ namespace Quartz
 			return str.ToString();
 		}
 
-		/// <summary> 
+		/// <summary>
 		/// Returns the <see cref="DateTimeOffset" /> at which the Scheduler started running.
 		/// </summary>
 		/// <returns> null if the scheduler has not been started.

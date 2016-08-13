@@ -10,6 +10,9 @@
   "dependencies": {
     "Quartz": {
       "target": "project"
+    },
+    "Quartz.Serialization.Json": {
+      "target": "project"
     }
   },
   "frameworks": {

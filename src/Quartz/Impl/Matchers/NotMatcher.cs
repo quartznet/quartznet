@@ -19,7 +19,6 @@
 
 #endregion
 
-using Newtonsoft.Json;
 using System;
 
 using Quartz.Util;
@@ -36,7 +35,6 @@ namespace Quartz.Impl.Matchers
 #endif // BINARY_SERIALIZATION
     public class NotMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
-        [JsonProperty]
         private readonly IMatcher<TKey> operand;
 
         protected NotMatcher(IMatcher<TKey> operand)

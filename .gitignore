@@ -50,6 +50,8 @@ _dotCover*/
 
 # Other
 /src/Quartz/Quartz.xml
+/src/Quartz.Serialization.Json/Quartz.Serialization.Json.xml
+
 *.ReSharper
 *.dotCover
 /package/*

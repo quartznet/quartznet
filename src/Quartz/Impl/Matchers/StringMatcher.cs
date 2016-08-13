@@ -19,7 +19,6 @@
 
 #endregion
 
-using Newtonsoft.Json;
 using System;
 
 using Quartz.Util;
@@ -36,9 +35,7 @@ namespace Quartz.Impl.Matchers
 #endif // BINARY_SERIALIZATION
     public abstract class StringMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
-        [JsonProperty]
         private readonly string compareTo;
-        [JsonProperty]
         private readonly StringOperator compareWith;
 
         protected StringMatcher(){

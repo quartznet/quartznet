@@ -1,4 +1,3 @@
-using Newtonsoft.Json;
 using System;
 
 namespace Quartz.Spi
@@ -12,8 +11,8 @@ namespace Quartz.Spi
     public class TriggerFiredResult
     {
         // JsonProperty attributes are used since Json.Net's default behavior is to serialize public members and the properties wrapping these fields are read-only
-        [JsonProperty] private readonly TriggerFiredBundle triggerFiredBundle;
-        [JsonProperty] private readonly Exception exception;
+        private readonly TriggerFiredBundle triggerFiredBundle;
+        private readonly Exception exception;
 
         ///<summary>
         /// Constructor.

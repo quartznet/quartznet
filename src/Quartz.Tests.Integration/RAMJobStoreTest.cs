@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 
 using Quartz.Impl.Matchers;
-using Quartz.Simpl;
 
 namespace Quartz.Tests.Integration
 {
@@ -182,7 +181,7 @@ namespace Quartz.Tests.Integration
 
             await sched.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("g1"));
 
-            // test that adding a trigger to a paused group causes the new trigger to be paused also... 
+            // test that adding a trigger to a paused group causes the new trigger to be paused also...
             job = JobBuilder.Create<TestJob>()
                 .WithIdentity("j4", "g1")
                 .Build();

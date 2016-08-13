@@ -3,7 +3,7 @@ using System.Collections.Specialized;
 
 using Newtonsoft.Json;
 
-namespace Quartz.Util
+namespace Quartz.Simpl
 {
     /// <summary>
     /// Custom converter for (de)serializing <see cref="NameValueCollection" />.

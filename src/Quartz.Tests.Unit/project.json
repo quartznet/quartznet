@@ -15,6 +15,9 @@
     "Quartz": {
       "target": "project"
     },
+    "Quartz.Serialization.Json": {
+      "target": "project"
+    },
     "dotnet-test-nunit": "3.4.0-beta-1",
     "NUnit": "3.4.1"
   },

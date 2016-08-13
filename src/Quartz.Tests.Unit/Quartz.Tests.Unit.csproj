@@ -160,6 +160,10 @@
     <None Include="project.json" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Quartz.Serialization.Json\Quartz.Serialization.Json.csproj">
+      <Project>{aef8823b-e45b-4b35-a4d0-c08c1111d017}</Project>
+      <Name>Quartz.Serialization.Json</Name>
+    </ProjectReference>
     <ProjectReference Include="..\Quartz\Quartz.csproj">
       <Project>{AEF8823B-E45B-4B35-A4D0-C08C1196D017}</Project>
       <Name>Quartz.2010</Name>

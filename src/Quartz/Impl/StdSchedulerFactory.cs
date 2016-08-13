@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -50,7 +50,7 @@ namespace Quartz.Impl
     /// </summary>
     /// <remarks>
     /// <para>
-    /// By default a properties are loaded from App.config's quartz section. 
+    /// By default a properties are loaded from App.config's quartz section.
     /// If that fails, then the file is loaded "quartz.config". If file does not exist,
     /// default configuration located (as a embedded resource) in Quartz.dll is loaded. If you
     /// wish to use a file other than these defaults, you must define the system
@@ -289,7 +289,7 @@ Please add configuration to your application config file to correctly initialize
             return retValue;
         }
 
-        /// <summary> 
+        /// <summary>
         /// Initialize the <see cref="ISchedulerFactory" /> with
         /// the contents of the given key value collection object.
         /// </summary>
@@ -651,7 +651,7 @@ Please add configuration to your application config file to correctly initialize
                 // some aliases
                 if (objectSerializerType.Equals("json", StringComparison.OrdinalIgnoreCase))
                 {
-                    objectSerializerType = typeof(JsonObjectSerializer).AssemblyQualifiedNameWithoutVersion();
+                    objectSerializerType = "Quartz.Simpl.JsonObjectSerializer, Quartz.Serialization.Json";
                 }
                 if (objectSerializerType.Equals("binary", StringComparison.OrdinalIgnoreCase))
                 {
@@ -667,7 +667,7 @@ Please add configuration to your application config file to correctly initialize
                 try
                 {
                     objectSerializer = ObjectUtils.InstantiateType<IObjectSerializer>(loadHelper.LoadType(objectSerializerType));
-                    log.Info("Using custom implementation for object serializer: " + objectSerializerType);
+                    log.Info("Using object serializer: " + objectSerializerType);
 
                     ObjectUtils.SetObjectProperties(objectSerializer, tProps);
 

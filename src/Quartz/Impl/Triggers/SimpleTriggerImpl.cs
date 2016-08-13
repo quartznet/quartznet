@@ -17,7 +17,6 @@
  */
 #endregion
 
-using Newtonsoft.Json;
 using System;
 
 namespace Quartz.Impl.Triggers
@@ -44,8 +43,8 @@ namespace Quartz.Impl.Triggers
         public const int RepeatIndefinitely = -1;
         private const int YearToGiveupSchedulingAt = 2299;
 
-        [JsonProperty] private DateTimeOffset? nextFireTimeUtc; // Making a public property which called GetNextFireTime/SetNextFireTime would make the json attribute unnecessary
-        [JsonProperty] private DateTimeOffset? previousFireTimeUtc; // Making a public property which called GetPreviousFireTime/SetPreviousFireTime would make the json attribute unnecessary
+        private DateTimeOffset? nextFireTimeUtc; // Making a public property which called GetNextFireTime/SetNextFireTime would make the json attribute unnecessary
+        private DateTimeOffset? previousFireTimeUtc; // Making a public property which called GetPreviousFireTime/SetPreviousFireTime would make the json attribute unnecessary
 
         private int repeatCount;
         private TimeSpan repeatInterval = TimeSpan.Zero;

@@ -1,33 +1,34 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
 
-using Newtonsoft.Json;
+#if BINARY_SERIALIZATION
 using System;
+#endif // BINARY_SERIALIZATION
 
 using Quartz.Util;
 
 namespace Quartz.Impl.Matchers
 {
     /// <summary>
-    /// Matches on the complete key being equal (both name and group). 
+    /// Matches on the complete key being equal (both name and group).
     /// </summary>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
@@ -36,7 +37,6 @@ namespace Quartz.Impl.Matchers
 #endif // BINARY_SERIALIZATION
     public class KeyMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
-        [JsonProperty]
         private readonly TKey compareTo;
 
         protected KeyMatcher(TKey compareTo)
@@ -45,7 +45,7 @@ namespace Quartz.Impl.Matchers
         }
 
         /// <summary>
-        /// Create a KeyMatcher that matches Keys that equal the given key. 
+        /// Create a KeyMatcher that matches Keys that equal the given key.
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <param name="compareTo"></param>
