@@ -161,8 +161,8 @@ documentation for **IStatefulJob** for more information.
 
 ## How do I stop a Job that is currently executing?
 
-See the Quartz.IInterruptableJob interface, and the 
-Scheduler.Interrupt(string, string) method.
+Quartz 1.x and 2x: See the Quartz.IInterruptableJob interface, and the Scheduler.Interrupt(string, string) method.
+Quartz 3.x: See IJobExecutionContext's CancellationToken.IsCancellationRequested
 
 # Questions About Triggers
 

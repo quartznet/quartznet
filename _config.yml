@@ -15,12 +15,14 @@ domain: www.quartz-scheduler.net
 
 #### Under the Hood Stuff #####
 
-markdown: redcarpet  
-redcarpet:
-  extensions: ["no_intra_emphasis", "fenced_code_blocks", "autolink", "tables", "with_toc_data"]
-  
-pygments: true
+markdown: kramdown  
 
+kramdown:
+  input: GFM
+  hard_wrap: false
+
+highlighter: rouge
+  
 exclude: [README.markdown, package.json, grunt.js, Gruntfile.js, node_modules, Gemfile, Gemfile.lock]
 
 encoding: UTF-8
