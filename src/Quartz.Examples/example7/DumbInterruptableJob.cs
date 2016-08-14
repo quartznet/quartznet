@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -35,9 +35,7 @@ namespace Quartz.Examples.Example7
     {
         // logging services
         private static readonly ILog log = LogProvider.GetLogger(typeof (DumbInterruptableJob));
-        // has the job been interrupted?
-        private bool interrupted;
-        // job name 
+        // job name
         private JobKey jobKey;
 
         /// <summary>
@@ -51,19 +49,19 @@ namespace Quartz.Examples.Example7
 
             try
             {
-                // main job loop... see the JavaDOC for InterruptableJob for discussion...
+                // main job loop...
                 // do some work... in this example we are 'simulating' work by sleeping...
 
                 for (int i = 0; i < 4; i++)
                 {
-                    await Task.Delay(10*1000, context.CancellationToken);
+                    await Task.Delay(10*1000);
 
                     // periodically check if we've been interrupted...
-                    if (interrupted)
+                    if (context.CancellationToken.IsCancellationRequested)
                     {
                         log.InfoFormat("--- {0}  -- Interrupted... bailing out!", jobKey);
-                        return; // could also choose to throw a JobExecutionException 
-                        // if that made for sense based on the particular  
+                        return; // could also choose to throw a JobExecutionException
+                        // if that made for sense based on the particular
                         // job's responsibilities/behaviors
                     }
                 }
@@ -72,16 +70,6 @@ namespace Quartz.Examples.Example7
             {
                 log.InfoFormat("---- {0} completed at {1}", jobKey, DateTime.Now.ToString("r"));
             }
-        }
-
-        /// <summary>
-        /// Called by the <see cref="IScheduler" /> when a user
-        /// interrupts the <see cref="IJob" />.
-        /// </summary>
-        public virtual void Interrupt()
-        {
-            log.Info("---  -- INTERRUPTING --");
-            interrupted = true;
         }
     }
 }
