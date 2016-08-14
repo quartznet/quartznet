@@ -511,13 +511,15 @@ Please add configuration to your application config file to correctly initialize
             // Get ThreadPool Properties
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-            Type tpType = loadHelper.LoadType(cfg.GetStringProperty(PropertyThreadPoolType)) ?? typeof(DefaultThreadPool);
-
-            if (tpType == typeof(SimpleThreadPool))
+            var threadPoolTypeString = cfg.GetStringProperty(PropertyThreadPoolType).NullSafeTrim();
+            if (threadPoolTypeString != null
+                && threadPoolTypeString.NullSafeTrim().StartsWith("Quartz.Simpl.SimpleThreadPool", StringComparison.OrdinalIgnoreCase))
             {
-                // use as synonym for now
-                tpType = typeof(DefaultThreadPool);
+                // default to use as synonym for now
+                threadPoolTypeString = typeof(DefaultThreadPool).AssemblyQualifiedNameWithoutVersion();
             }
+
+            Type tpType = loadHelper.LoadType(threadPoolTypeString) ?? typeof(DefaultThreadPool);
 
             try
             {

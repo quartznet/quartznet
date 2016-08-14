@@ -318,9 +318,6 @@
     <Compile Include="Simpl\SimpleJobFactory.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Simpl\SimpleThreadPool.cs">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="Simpl\TriggerWrapper.cs" />
     <Compile Include="Simpl\TriggerWrapperComparator.cs" />
     <Compile Include="SPI\IMutableTrigger.cs" />
