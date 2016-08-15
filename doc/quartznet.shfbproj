@@ -7,14 +7,14 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{f2d9ee1c-030c-4f0a-a80d-ce0bb813da68}</ProjectGuid>
-    <SHFBSchemaVersion>1.9.9.0</SHFBSchemaVersion>
+    <SHFBSchemaVersion>2015.6.5.0</SHFBSchemaVersion>
     <!-- AssemblyName, Name, and RootNamespace are not used by SHFB but Visual Studio adds them anyway -->
     <AssemblyName>Documentation</AssemblyName>
     <RootNamespace>Documentation</RootNamespace>
     <Name>Documentation</Name>
     <!-- SHFB properties -->
-    <FrameworkVersion>.NET Framework 4.0</FrameworkVersion>
-    <OutputPath>..\build\apidoc\2.0\</OutputPath>
+    <FrameworkVersion>.NET Framework 4.5</FrameworkVersion>
+    <OutputPath>..\build\apidoc\3.0\</OutputPath>
     <HtmlHelpName>Documentation</HtmlHelpName>
     <Language>en-US</Language>
     <BuildAssemblerVerbosity>OnlyWarningsAndErrors</BuildAssemblerVerbosity>
@@ -25,9 +25,9 @@
     <CppCommentsFixup>False</CppCommentsFixup>
     <CleanIntermediates>True</CleanIntermediates>
     <DocumentationSources>
-      <DocumentationSource sourceFile="..\src\Quartz\Quartz.2010.csproj" />
+      <DocumentationSource sourceFile="..\src\Quartz\Quartz.csproj" />
     </DocumentationSources>
-    <BuildLogFile>..\build\apidoc\log-2.0.txt</BuildLogFile>
+    <BuildLogFile>..\build\apidoc\log.txt</BuildLogFile>
     <CopyrightText>
     </CopyrightText>
     <CopyrightHref>
@@ -40,9 +40,9 @@
     <SdkLinkTarget>Blank</SdkLinkTarget>
     <RootNamespaceContainer>False</RootNamespaceContainer>
     <PresentationStyle>VS2010</PresentationStyle>
-    <Preliminary>False</Preliminary>
+    <Preliminary>True</Preliminary>
     <NamingMethod>Guid</NamingMethod>
-    <HelpTitle>Quartz.NET API Documentation</HelpTitle>
+    <HelpTitle>Quartz.NET 3.0 API Documentation</HelpTitle>
     <ContentPlacement>AboveNamespaces</ContentPlacement>
     <HeaderText>%40HEADER%40</HeaderText>
     <MissingTags>Summary, Parameter, Returns, AutoDocumentCtors, TypeParameter, AutoDocumentDispose</MissingTags>

@@ -20,6 +20,11 @@ Target "Clean" (fun _ ->
 Target "GenerateAssemblyInfo" (fun _ ->
     CreateCSharpAssemblyInfo "./src/AssemblyInfo.cs"
         [
+            (Attribute.Product("Quarz.NET"))
+            (Attribute.Description("Quartz Scheduling Framework for .NET"))
+            (Attribute.Copyright("Copyright 2001-2016 Marko Lahma"))
+            (Attribute.Trademark("Apache License, Version 2.0"))
+            (Attribute.Company("http://www.quartz-scheduler.net/"))
             (Attribute.CLSCompliant(true))
             (Attribute.ComVisible(false))
             (Attribute.Metadata("githash", commitHash))]
@@ -82,11 +87,51 @@ Target "Test" (fun _ ->
                         AdditionalArgs = ["--where \"cat != database && cat != fragile\""] })
 )
 
+Target "ApiDoc" (fun _ -> 
+
+    let setParams defaults =
+            { defaults with
+                Verbosity = Some(Quiet)
+                Targets = ["Build"]
+                Properties =
+                    [
+                        "Configuration", "Release"
+                    ]
+            }
+    build setParams "./Quartz.sln"
+        |> DoNothing
+
+    let setShfbParams defaults =
+        { defaults with
+            Verbosity = Some(Quiet)
+            Targets = ["Build"]
+            Properties =
+                [
+                    "CleanIntermediates", "True"
+                    "Configuration", "Release"
+                ]
+        }
+    build setShfbParams "doc/quartznet.shfbproj"
+        |> DoNothing
+
+    let headerContent = ReadFileAsString "doc/header.template"
+    let footerContent = ReadFileAsString "doc/footer.template"
+
+    !! "build/apidoc/**/*.htm" ++ "build/apidoc/**/*.html"
+        |> ReplaceInFiles [("@HEADER@", footerContent);("@FOOTER@", headerContent)]
+    
+)
+
 "Clean"
   ==> "GenerateAssemblyInfo"
   ==> "Build"
   =?> ("BuildSolutions", hasBuildParam "buildSolutions")
   ==> "Test"
   ==> "Pack"
+
+
+"Clean"
+  ==> "GenerateAssemblyInfo"
+  ==> "ApiDoc"  
 
 RunTargetOrDefault "Test"
