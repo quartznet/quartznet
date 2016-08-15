@@ -9,7 +9,7 @@ open System.Collections.Generic
 open System.IO
 
 let commitHash = Information.getCurrentHash()
-let configuration = getBuildParamOrDefault "configuration" "Debug"
+let configuration = getBuildParamOrDefault "configuration" "Release"
 let projectJsonFiles = !! "src/*/project.json" -- "src/*Web*/project.json"
 
 Target "Clean" (fun _ ->

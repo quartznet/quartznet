@@ -31,8 +31,8 @@
       "LIBLOG_PUBLIC",
       "LIBLOG_PORTABLE"
     ],
-    "sources": {
-      "compile": "../AssemblyInfo.cs"
+    "compile": {
+      "include": [ "**/*.cs", "../AssemblyInfo.cs" ]
     }
   },
   "frameworks": {
