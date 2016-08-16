@@ -1,6 +1,8 @@
 ﻿{
   "version": "3.0.0-alpha1-*",
-  "description": "Quartz.NET",
+  "title": "Quartz.NET",
+  "description": "Quartz.NET Scheduling Framework for .NET Platform",
+  "copyright": "Copyright Marko Lahma",
   "authors": [
     "Marko Lahma"
   ],
@@ -10,7 +12,6 @@
     ],
     "projectUrl": "http://www.quartz-scheduler.net/",
     "licenseUrl": "http://www.apache.org/licenses/LICENSE-2.0",
-    "copyright": "Copyright Marko Lahma",
     "owners": [ "Marko Lahma" ],
     "iconUrl": "",
     "requireLicenseAcceptance": false,
