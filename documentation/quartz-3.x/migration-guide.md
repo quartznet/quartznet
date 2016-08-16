@@ -93,3 +93,7 @@ var properties = new NameValueCollection
 };
 ISchedulerFactory sf = new StdSchedulerFactory(properties);
 ```
+
+### Remoting
+
+Remoting has been removed and will be replaced with HTTP JSON/RESTish based solution in later release.
