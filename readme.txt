@@ -1,4 +1,4 @@
-QUARTZ JOB SCHEDULER .NET, 3.0-alpha, Jun 1, 2016
+QUARTZ JOB SCHEDULER .NET, 3.0-alpha, Aug 16, 2016
 -----------------------------------------------------------------
 
 http://www.quartz-scheduler.net/
@@ -26,8 +26,7 @@ Also, to keep the legal people happy:
 2. KNOWN ISSUES
 ---------------
 
-The version 3.0 is a work in progress and things might still change a bit as for
-example CoreCLR evolves.
+The version 3.0 is a work in progress and things might still change a bit.
 
 
 3. RELEASE INFO
