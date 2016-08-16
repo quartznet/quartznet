@@ -96,7 +96,12 @@ namespace QuartzSampleApp
             try
             {
                 // Grab the Scheduler instance from the Factory
-                IScheduler scheduler = await StdSchedulerFactory.GetDefaultScheduler();
+                NameValueCollection props = new NameValueCollection
+                {
+                    { "quartz.serializer.type", "binary" }
+                };
+                StdSchedulerFactory factory = new StdSchedulerFactory(props);
+                IScheduler scheduler = await factory.GetScheduler();
 
                 // and start it off
                 await scheduler.Start();
@@ -241,7 +246,12 @@ namespace QuartzSampleApp
             try
             {
                 // Grab the Scheduler instance from the Factory
-                IScheduler scheduler = await StdSchedulerFactory.GetDefaultScheduler();
+                NameValueCollection props = new NameValueCollection
+                {
+                    { "quartz.serializer.type", "binary" }
+                };
+                StdSchedulerFactory factory = new StdSchedulerFactory(props);
+                IScheduler scheduler = await factory.GetScheduler();
 
                 // and start it off
                 await scheduler.Start();

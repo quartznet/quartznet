@@ -17,7 +17,11 @@ __Using Quartz.NET__
 
 ```c#
     // construct a scheduler factory
-    ISchedulerFactory schedFact = new StdSchedulerFactory();
+    NameValueCollection props = new NameValueCollection
+    {
+        { "quartz.serializer.type", "binary" }
+    };
+    StdSchedulerFactory factory = new StdSchedulerFactory(props);
     
     // get a scheduler
     IScheduler sched = await schedFact.GetScheduler();
