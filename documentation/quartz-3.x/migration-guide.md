@@ -94,6 +94,14 @@ var properties = new NameValueCollection
 ISchedulerFactory sf = new StdSchedulerFactory(properties);
 ```
 
+### C5 Collections
+
+C5 Collections are no longer ILMerged inside Quartz, .NET 4.5 offers the needed collections.
+
+### Logging
+
+Common.Logging has been replaced with [LibLog](https://github.com/damianh/LibLog) to reduce dependencies to none. LibLog should automatically detect your logging framework of choice if it's supported.
+
 ### Remoting
 
 Remoting has been removed and will be replaced with HTTP JSON/RESTish based solution in later release.
