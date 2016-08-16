@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -22,9 +22,9 @@
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
-#if REMOTING
+#if !ASYNCLOCAL
 using System.Runtime.Remoting.Messaging;
-#endif // REMOTING
+#endif // ASYNCLOCAL
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -34,20 +34,20 @@ using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore
 {
-    /// <summary> 
-    /// Internal in-memory lock handler for providing thread/resource locking in 
-    /// order to protect resources from being altered by multiple threads at the 
+    /// <summary>
+    /// Internal in-memory lock handler for providing thread/resource locking in
+    /// order to protect resources from being altered by multiple threads at the
     /// same time.
     /// </summary>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     public class SimpleSemaphore : ISemaphore
     {
-#if REMOTING
+#if !ASYNCLOCAL
         private const string KeyThreadLockOwners = "quartz_semaphore_lock_owners";
-#else // REMOTING
+#else // ASYNCLOCAL
         private static readonly AsyncLocal<HashSet<string>> asyncThreadLocks = new AsyncLocal<HashSet<string>>();
-#endif // REMOTING
+#endif // ASYNCLOCAL
 
         private readonly ILog log;
         private readonly HashSet<string> locks = new HashSet<string>();
@@ -64,7 +64,7 @@ namespace Quartz.Impl.AdoJobStore
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private static HashSet<string> GetThreadLocks()
         {
-#if REMOTING
+#if !ASYNCLOCAL
             HashSet<string> threadLocks = (HashSet<string>) CallContext.LogicalGetData(KeyThreadLockOwners);
             if (threadLocks == null)
             {
@@ -72,16 +72,16 @@ namespace Quartz.Impl.AdoJobStore
                 CallContext.LogicalSetData(KeyThreadLockOwners, threadLocks);
             }
             return threadLocks;
-#else // REMOTING
+#else // ASYNCLOCAL
             if (asyncThreadLocks.Value == null)
             {
                 asyncThreadLocks.Value = new HashSet<string>();
             }
             return asyncThreadLocks.Value;
-#endif // REMOTING
+#endif // ASYNCLOCAL
         }
 
-        /// <summary> 
+        /// <summary>
         /// Grants a lock on the identified resource to the calling thread (blocking
         /// until it is available).
         /// </summary>
@@ -158,7 +158,7 @@ namespace Quartz.Impl.AdoJobStore
             return TaskUtil.CompletedTask;
         }
 
-        /// <summary> 
+        /// <summary>
         /// Determine whether the calling thread owns a lock on the identified
         /// resource.
         /// </summary>

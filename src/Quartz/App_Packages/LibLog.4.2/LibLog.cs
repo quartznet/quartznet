@@ -733,7 +733,7 @@ namespace Quartz.Logging.LogProviders
 #endif
     using System.Text.RegularExpressions;
 
-    internal abstract class LogProviderBase : ILogProvider
+    public abstract class LogProviderBase : ILogProvider
     {
         protected delegate IDisposable OpenNdc(string message);
         protected delegate IDisposable OpenMdc(string key, string value);

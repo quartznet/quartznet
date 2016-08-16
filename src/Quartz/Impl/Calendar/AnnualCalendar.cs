@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -63,7 +63,7 @@ namespace Quartz.Impl.Calendar
         {
         }
 
-#if BINARY_SERIALIZATION // NetCore versions of Quartz can't use old serialized data. 
+#if BINARY_SERIALIZATION // NetCore versions of Quartz can't use old serialized data.
         // Make sure that future calendar version changes are done in a DCS-friendly way (with [OnSerializing] and [OnDeserialized] methods).
 
         /// <summary>
@@ -125,7 +125,7 @@ namespace Quartz.Impl.Calendar
         }
 #endif // BINARY_SERIALIZATION
 
-        /// <summary> 
+        /// <summary>
         /// Get or the array which defines the exclude-value of each day of month.
         /// Setting will redefine the array of days excluded. The array must of size greater or
         /// equal 31.

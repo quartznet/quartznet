@@ -23,9 +23,7 @@
     "Newtonsoft.Json": "9.0.1"
   },
   "buildOptions": {
-    "compilationOptions": {
-      "keyFile": "..\\quartz.net.snk"
-    },
+    "keyFile": "../../quartz.net.snk",
     "warningsAsErrors": true,
     "define": [
       "LIBLOG_PUBLIC",
@@ -39,28 +37,13 @@
     "net45": {
       "buildOptions": {
         "define": [
-          "BINARY_SERIALIZATION"
         ]
       },
       "frameworkAssemblies": {
       }
     },
-    "netstandard1.5": {
-      "imports": [
-        "dotnet55",
-        "portable-net45+win8"
-      ],
-      "buildOptions": {
-        "debugType": "portable",
-        "define": [
-        ]
-      },
-      "dependencies": {
-      }
-    },
     "netstandard1.3": {
       "imports": [
-        "portable-net452+win81"
       ],
       "buildOptions": {
         "debugType": "portable",

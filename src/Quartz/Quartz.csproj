@@ -12,7 +12,7 @@
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">../../</SolutionDir>
     <TargetFrameworkProfile />
-    <DefineConstants>TRACE;DEBUG;LIBLOG_PORTABLE;LIBLOG_PUBLIC;APPDOMAINS;BINARY_SERIALIZATION;CONFIGURATION;DESIGNER;HTTPCONTEXT;ICLONEABLE;MAIL;REMOTING;THREAD_APARTMENTSTATE;THREAD_INTERRUPTION;THREAD_PRIORITY;WINDOWS_PROCESS;WINDOWS_THREADPOOL;XML_SCHEMA</DefineConstants>
+    <DefineConstants>TRACE;DEBUG;LIBLOG_PORTABLE;LIBLOG_PUBLIC;APPDOMAINS;BINARY_SERIALIZATION;CONFIGURATION;DESIGNER;HTTPCONTEXT;ICLONEABLE;MAIL;REMOTING;THREAD_APARTMENTSTATE;THREAD_INTERRUPTION;THREAD_PRIORITY;WINDOWS_PROCESS;XML_SCHEMA</DefineConstants>
     <CopyNuGetImplementations>false</CopyNuGetImplementations>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -274,7 +274,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="Plugin\Xml\XMLSchedulingDataProcessorPlugin.cs" />
-    <Compile Include="QuartzThread.cs" />
     <Compile Include="SchedulerConfigException.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -493,7 +492,7 @@
     <Compile Include="Impl\Matchers\OrMatcher.cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Impl\AdoJobStore\Common\dbproviders.netstandard15.properties" />
+    <EmbeddedResource Include="Impl\AdoJobStore\Common\dbproviders.netstandard.properties" />
     <None Include="project.json" />
   </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />

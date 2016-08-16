@@ -67,7 +67,7 @@ Target "BuildSolutions" (fun _ ->
 )
 
 Target "Pack" (fun _ ->
-    !! "src/Quartz/project.json"
+    !! "src/Quartz/project.json" ++ "src/Quartz.Serialization.Json/project.json"
         |> DotNetCli.Pack
             (fun p ->
                 { p with

@@ -75,7 +75,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             return RunAdoJobStoreTest("Npgsql", "PostgreSQL", serializerType, properties);
         }
 
-#if !NETSTANDARD15_DBPROVIDERS
+#if !NETSTANDARD_DBPROVIDERS
 
         [Test]
         [TestCaseSource(nameof(GetSerializerTypes))]
@@ -127,14 +127,14 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                 clustered = false;
             }
         }
-#endif // NETSTANDARD15_DBPROVIDERS
+#endif // NETSTANDARD_DBPROVIDERS
 
         public static string[] GetSerializerTypes()
         {
             return new[]
             {
                 "json"
-#if !NETSTANDARD15_DBPROVIDERS
+#if !NETSTANDARD_DBPROVIDERS
                 , "binary"
 #endif
             };

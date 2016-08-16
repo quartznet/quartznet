@@ -8,7 +8,7 @@
         public const string DefaultSerializerType = "binary";
 #endif
 
-#if NETSTANDARD15_DBPROVIDERS
+#if NETSTANDARD_DBPROVIDERS
         public const string DefaultSqlServerProvider = "SqlServer-41";
 #else
         public const string DefaultSqlServerProvider = "SqlServer-20";

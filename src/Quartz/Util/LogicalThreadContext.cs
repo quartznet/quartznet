@@ -1,51 +1,52 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
 
-#if REMOTING
+#if !ASYNCLOCAL
 using System.Runtime.Remoting.Messaging;
 #else
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-#endif // REMOTING
+#endif // ASYNCLOCAL
 using System.Security;
+
 #if HTTPCONTEXT
 using System.Web;
-
 #endif
 
 namespace Quartz.Util
 {
     /// <summary>
     /// Wrapper class to access thread local data.
-    /// Data is either accessed from thread or HTTP Context's 
+    /// Data is either accessed from thread or HTTP Context's
     /// data if HTTP Context is available.
     /// </summary>
     /// <author>Marko Lahma .NET</author>
     [SecurityCritical]
     public static class LogicalThreadContext
     {
-#if !REMOTING
-    // Async local dictionary can be used as a .NET Core-compliant substitute for CallContext
+#if ASYNCLOCAL
+        // Async local dictionary can be used as a .NET Core-compliant substitute for CallContext
         static AsyncLocal<Dictionary<string, object>> AsyncLocalObjects = new AsyncLocal<Dictionary<string, object>>();
+
         static Dictionary<string, object> Data
         {
             get
@@ -56,8 +57,8 @@ namespace Quartz.Util
                 }
                 return AsyncLocalObjects.Value;
             }
-        }        
-#endif // !REMOTING
+        }
+#endif // ASYNCLOCAL
 
         /// <summary>
         /// Retrieves an object with the specified name.
@@ -73,11 +74,11 @@ namespace Quartz.Util
             }
 #endif
 
-#if REMOTING
+#if !ASYNCLOCAL
             return (T) CallContext.LogicalGetData(name);
-#else // REMOTING
-            return (T)Data.TryGetAndReturn(name);
-#endif // REMOTING
+#else // ASYNCLOCAL
+            return (T) Data.TryGetAndReturn(name);
+#endif // ASYNCLOCAL
         }
 
         /// <summary>
@@ -95,11 +96,11 @@ namespace Quartz.Util
             else
 #endif
             {
-#if REMOTING
+#if !ASYNCLOCAL
                 CallContext.LogicalSetData(name, value);
-#else // REMOTING
+#else // ASYNCLOCAL
                 Data[name] = value;
-#endif // REMOTING
+#endif // ASYNCLOCAL
             }
         }
 
@@ -117,11 +118,11 @@ namespace Quartz.Util
             else
 #endif
             {
-#if REMOTING
+#if !ASYNCLOCAL
                 CallContext.FreeNamedDataSlot(name);
-#else // REMOTING
+#else // ASYNCLOCAL
                 if (Data.ContainsKey(name)) Data.Remove(name);
-#endif // REMOTING
+#endif // ASYNCLOCAL
             }
         }
     }

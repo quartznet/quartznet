@@ -1,31 +1,30 @@
 #region License
-/* 
+/*
  * Copyright 2009- Marko Lahma
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 #endregion
 
+#if REMOTING
 using System;
 using System.Collections;
 using System.Collections.Generic;
-#if REMOTING
 using System.Runtime.Remoting;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Http;
 using System.Runtime.Remoting.Channels.Tcp;
-#endif // REMOTING
 using System.Runtime.Serialization.Formatters;
 using System.Security;
 
@@ -222,7 +221,7 @@ namespace Quartz.Simpl
         public virtual string BindName { get; set; }
 
         /// <summary>
-        /// Gets or sets the name to use when binding to 
+        /// Gets or sets the name to use when binding to
         /// tcp channel.
         /// </summary>
         public virtual string ChannelName { get; set; }
@@ -231,7 +230,7 @@ namespace Quartz.Simpl
         /// Sets the channel type when registering remoting.
         /// </summary>
         public virtual string ChannelType { get; set; }
-        
+
         /// <summary>
         /// Sets the <see cref="TypeFilterLevel" /> used when
         /// exporting to remoting context. Defaults to
@@ -240,9 +239,10 @@ namespace Quartz.Simpl
         public virtual TypeFilterLevel TypeFilterLevel { get; set; }
 
         /// <summary>
-        /// A Boolean value (true or false) that specifies whether to refuse requests from other computers. 
+        /// A Boolean value (true or false) that specifies whether to refuse requests from other computers.
         /// Specifying true allows only remoting calls from the local computer. The default is false.
         /// </summary>
         public virtual bool RejectRemoteRequests { get; set; }
     }
 }
+#endif // REMOTING

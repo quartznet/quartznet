@@ -35,7 +35,7 @@
         "emitEntryPoint": true,
         "define": [
           "NETCORE",
-          "NETSTANDARD15_DBPROVIDERS"
+          "NETSTANDARD_DBPROVIDERS"
         ]
       },
       "dependencies": {

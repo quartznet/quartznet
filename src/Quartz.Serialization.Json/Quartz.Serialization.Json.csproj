@@ -12,7 +12,7 @@
     <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <SolutionDir Condition="$(SolutionDir) == '' Or $(SolutionDir) == '*Undefined*'">../../</SolutionDir>
     <TargetFrameworkProfile />
-    <DefineConstants>TRACE;DEBUG;BINARY_SERIALIZATION</DefineConstants>
+    <DefineConstants>TRACE;DEBUG</DefineConstants>
     <CopyNuGetImplementations>false</CopyNuGetImplementations>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">

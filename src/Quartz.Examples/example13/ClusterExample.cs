@@ -96,7 +96,7 @@ namespace Quartz.Examples.Example13
 
             // if running SQLite we need this
             // properties["quartz.jobStore.lockHandler.type"] = "Quartz.Impl.AdoJobStore.UpdateLockRowSemaphore, Quartz";
-#if NETSTANDARD15_DBPROVIDERS
+#if NETSTANDARD_DBPROVIDERS
             properties["quartz.dataSource.default.provider"] = "SqlServer-41";
 #else
 #endif
