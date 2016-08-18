@@ -16,6 +16,11 @@ can be found on APIs and functionality available depending on whether you target
 
 ** None so far **
 
+### Migrating HolidayCalendar binary format
+
+If you have HolidayCalendars stored in database in binary format (just stored with AdoJobStore). You need to first load them with Quartz 2.4 and then re-store them.
+This will make the serialization use format that is not dependant on precense of C5 library.
+
 ### Thread pool changes
 
 * SimpleThreadPool was removed altogether and it's now a synonym for DefaultThreadPool
