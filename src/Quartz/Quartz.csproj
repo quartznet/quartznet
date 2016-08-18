@@ -121,6 +121,10 @@
     <Compile Include="IScheduleBuilder.cs" />
     <Compile Include="ISimpleTrigger.cs" />
     <Compile Include="ITrigger.cs" />
+    <Compile Include="NetCoreStubs\ApartmentState.cs" />
+    <Compile Include="NetCoreStubs\ThreadInterruptedException.cs" />
+    <Compile Include="NetCoreStubs\ThreadPriority.cs" />
+    <Compile Include="NetCoreStubs\TypeFilterLevel.cs" />
     <Compile Include="Simpl\DedicatedThreadPool.cs" />
     <Compile Include="Simpl\DefaultDirectoryProvider.cs" />
     <Compile Include="Job\DirectoryScanJob.cs" />
