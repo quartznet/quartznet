@@ -21,7 +21,7 @@
 
 using System;
 using System.Collections.Specialized;
-
+using System.Threading.Tasks;
 using NUnit.Framework;
 
 using Quartz.Spi;
@@ -36,14 +36,14 @@ namespace Quartz.Tests.Unit.Utils
         [Test]
         public void NullObjectForValueTypeShouldReturnDefaultforValueType()
         {
-            object value = ObjectUtils.ConvertValueIfNecessary(typeof(int), null);
+            object value = ObjectUtils.ConvertValueIfNecessary(typeof (int), null);
             Assert.AreEqual(0, value);
         }
 
         [Test]
         public void NotConvertableDataShouldThrowNotSupportedException()
         {
-            Assert.Throws<NotSupportedException>(() => ObjectUtils.ConvertValueIfNecessary(typeof(int), new DirtyFlagMap<int, string>()));
+            Assert.Throws<NotSupportedException>(() => ObjectUtils.ConvertValueIfNecessary(typeof (int), new DirtyFlagMap<int, string>()));
         }
 
         [Test]
@@ -53,10 +53,10 @@ namespace Quartz.Tests.Unit.Utils
             Assert.AreEqual(1, ts.TotalDays);
         }
 
-                [Test]
+        [Test]
         public void TestConvertAssignable()
         {
-            ICloneable val = (ICloneable) ObjectUtils.ConvertValueIfNecessary(typeof (ICloneable), "test");
+            IComparable val = (IComparable) ObjectUtils.ConvertValueIfNecessary(typeof (IComparable), "test");
             Assert.AreEqual("test", val);
         }
 
@@ -102,7 +102,6 @@ namespace Quartz.Tests.Unit.Utils
             Assert.AreEqual("System.String", val);
         }
 
-
         [Test]
         public void TestSetObjectTimeSpanProperties()
         {
@@ -144,9 +143,10 @@ namespace Quartz.Tests.Unit.Utils
         [DisallowConcurrentExecution]
         private class BaseJob : IJob
         {
-            public void Execute(IJobExecutionContext context)
+            public Task Execute(IJobExecutionContext context)
             {
-                Console.WriteLine(GetType().Name);
+                // Console.WriteLine(GetType().Name);
+                return Task.FromResult(0);
             }
         }
 
@@ -161,53 +161,30 @@ namespace Quartz.Tests.Unit.Utils
 
         public class TimeSpanPropertyTest
         {
-            private TimeSpan timeMinutes;
-            private TimeSpan timeSeconds;
-            private TimeSpan timeMilliseconds;
-            private TimeSpan timeHours;
-            private TimeSpan timeDefault;
-
             [TimeSpanParseRule(TimeSpanParseRule.Hours)]
-            public TimeSpan TimeHours
-            {
-                get { return timeHours; }
-                set { timeHours = value; }
-            }
+            public TimeSpan TimeHours { get; set; }
 
             [TimeSpanParseRule(TimeSpanParseRule.Minutes)]
-            public TimeSpan TimeMinutes
-            {
-                get { return timeMinutes; }
-                set { timeMinutes = value; }
-            }
+            public TimeSpan TimeMinutes { get; set; }
 
             [TimeSpanParseRule(TimeSpanParseRule.Seconds)]
-            public TimeSpan TimeSeconds
-            {
-                get { return timeSeconds; }
-                set { timeSeconds = value; }
-            }
+            public TimeSpan TimeSeconds { get; set; }
 
             [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-            public TimeSpan TimeMilliseconds
-            {
-                get { return timeMilliseconds; }
-                set { timeMilliseconds = value; }
-            }
+            public TimeSpan TimeMilliseconds { get; set; }
 
-            public TimeSpan TimeDefault
-            {
-                get { return timeDefault; }
-                set { timeDefault = value; }
-            }
+            public TimeSpan TimeDefault { get; set; }
         }
     }
 
     internal class ExplicitImplementor : IThreadPool
     {
-        private string instanceName;
+        bool IThreadPool.RunInThread(Action action)
+        {
+            throw new NotImplementedException();
+        }
 
-        bool IThreadPool.RunInThread(IThreadRunnable runnable)
+        public bool RunInThread(Func<Task> runnable)
         {
             throw new NotImplementedException();
         }
@@ -232,19 +209,7 @@ namespace Quartz.Tests.Unit.Utils
             get { throw new NotImplementedException(); }
         }
 
-        string IThreadPool.InstanceId
-        {
-            set { throw new NotImplementedException(); }
-        }
-
-        string IThreadPool.InstanceName
-        {
-            set { instanceName = value; }
-        }
-
-        public string InstanceName
-        {
-            get { return instanceName; }
-        }
+        public string InstanceId { get; set; }
+        public string InstanceName { get; set; }
     }
 }

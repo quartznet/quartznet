@@ -20,11 +20,11 @@
 using System;
 using System.IO;
 using System.Security;
-#if !ClientProfile
+
+using Quartz.Logging;
+#if HTTPCONTEXT
 using System.Web;
 #endif
-
-using Common.Logging;
 
 namespace Quartz.Util
 {
@@ -34,7 +34,7 @@ namespace Quartz.Util
     /// <author>Marko Lahma</author>
     public class FileUtil
     {
-        private static readonly ILog logger = LogManager.GetLogger<FileUtil>();
+        private static readonly ILog logger = LogProvider.GetLogger(typeof(FileUtil));
 
         /// <summary>
         /// Resolves file to actual file if for example relative '~' used.
@@ -47,13 +47,15 @@ namespace Quartz.Util
             {
                 // relative to run directory
 
-#if !ClientProfile
+#if HTTPCONTEXT
                 // if HttpContext available, use it
                 if (HttpContext.Current != null)
                 {
                     return HttpContext.Current.Server.MapPath(fName);
                 }
-#endif
+#else // HTTPCONTEXT
+                // TODO (NetCore Port): Use Microsoft.AspNet.Http.Abstractions.HttpContext as a substitute?
+#endif // HTTPCONTEXT
 
                 fName = fName.Substring(1);
                 if (fName.StartsWith("/") || fName.StartsWith("\\"))
@@ -62,7 +64,11 @@ namespace Quartz.Util
                 }
                 try
                 {
+#if APPCONTEXT
+                    fName = Path.Combine(AppContext.BaseDirectory, fName);
+#else // APPCONTEXT
                     fName = Path.Combine(AppDomain.CurrentDomain.SetupInformation.ApplicationBase, fName);
+#endif // APPCONTEXT
                 }
                 catch (SecurityException)
                 {

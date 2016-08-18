@@ -37,7 +37,9 @@ namespace Quartz
 	/// <seealso cref="IScheduler.Context" />
 	/// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
     public class SchedulerContext : StringKeyDirtyFlagMap
 	{
 
@@ -56,6 +58,7 @@ namespace Quartz
 			PutAll(map);
 		}
 
+#if BINARY_SERIALIZATION
         /// <summary>
         /// Serialization constructor.
         /// </summary>
@@ -64,5 +67,6 @@ namespace Quartz
         protected SchedulerContext(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
-	}
+#endif // BINARY_SERIALIZATION
+    }
 }

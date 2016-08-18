@@ -54,7 +54,7 @@ namespace Quartz
     /// <author>James House</author>
     /// <author>Sharada Jambula</author>
     /// <author>Marko Lahma (.NET)</author>
-    public interface ITrigger : ICloneable, IComparable<ITrigger>
+    public interface ITrigger : IComparable<ITrigger>
     {
         TriggerKey Key { get; }
 
@@ -195,5 +195,6 @@ namespace Quartz
 
         bool HasMillisecondPrecision { get; }
 
+        ITrigger Clone();
     }
 }

@@ -1,6 +1,6 @@
 using NUnit.Framework;
 
-using Quartz.Util;
+using Quartz.Tests.Unit.Utils;
 
 namespace Quartz.Tests.Unit
 {

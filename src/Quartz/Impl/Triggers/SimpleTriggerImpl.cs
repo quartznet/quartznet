@@ -21,17 +21,19 @@ using System;
 
 namespace Quartz.Impl.Triggers
 {
-	/// <summary> 
-	/// A concrete <see cref="ITrigger" /> that is used to fire a <see cref="IJobDetail" />
-	/// at a given moment in time, and optionally repeated at a specified interval.
-	/// </summary>
+    /// <summary> 
+    /// A concrete <see cref="ITrigger" /> that is used to fire a <see cref="IJobDetail" />
+    /// at a given moment in time, and optionally repeated at a specified interval.
+    /// </summary>
     /// <seealso cref="ITrigger" />
-	/// <seealso cref="ICronTrigger" />
-	/// <author>James House</author>
-	/// <author>Contributions by Lieven Govaerts of Ebitec Nv, Belgium.</author>
-	/// <author>Marko Lahma (.NET)</author>
-	[Serializable]
-	public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
+    /// <seealso cref="ICronTrigger" />
+    /// <author>James House</author>
+    /// <author>Contributions by Lieven Govaerts of Ebitec Nv, Belgium.</author>
+    /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
+    [Serializable]
+#endif // BINARY_SERIALIZATION
+    public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
 	{
         /// <summary>
         /// Used to indicate the 'repeat count' of the trigger is indefinite. Or in
@@ -41,8 +43,8 @@ namespace Quartz.Impl.Triggers
         public const int RepeatIndefinitely = -1;
         private const int YearToGiveupSchedulingAt = 2299;
 
-        private DateTimeOffset? nextFireTimeUtc;
-		private DateTimeOffset? previousFireTimeUtc;
+        private DateTimeOffset? nextFireTimeUtc; // Making a public property which called GetNextFireTime/SetNextFireTime would make the json attribute unnecessary
+        private DateTimeOffset? previousFireTimeUtc; // Making a public property which called GetPreviousFireTime/SetPreviousFireTime would make the json attribute unnecessary
 
         private int repeatCount;
         private TimeSpan repeatInterval = TimeSpan.Zero;

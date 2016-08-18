@@ -1,4 +1,4 @@
-using System.Data;
+using System.Data.Common;
 
 using Quartz.Impl.AdoJobStore.Common;
 
@@ -19,7 +19,7 @@ namespace Quartz.Util
         /// <summary>
         /// Get a database connection from the data source with the given name.
         /// </summary>
-        IDbConnection GetConnection(string dataSourceName);
+        DbConnection GetConnection(string dataSourceName);
 
         /// <summary>
         /// Returns meta data for data source with the given name.

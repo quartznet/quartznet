@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -31,20 +31,20 @@ namespace Quartz.Impl.Triggers
     ///  </summary>
     /// <remarks>
     /// The trigger will fire every N (see <see cref="RepeatInterval" />) units of calendar time
-    /// (see <see cref="RepeatIntervalUnit" />) as specified in the trigger's definition.  
-    /// This trigger can achieve schedules that are not possible with <see cref="ISimpleTrigger" /> (e.g 
+    /// (see <see cref="RepeatIntervalUnit" />) as specified in the trigger's definition.
+    /// This trigger can achieve schedules that are not possible with <see cref="ISimpleTrigger" /> (e.g
     /// because months are not a fixed number of seconds) or <see cref="ICronTrigger" /> (e.g. because
     /// "every 5 months" is not an even divisor of 12).
     /// <para>
     /// If you use an interval unit of <see cref="IntervalUnit.Month" /> then care should be taken when setting
     /// a <see cref="StartTimeUtc" /> value that is on a day near the end of the month.  For example,
     /// if you choose a start time that occurs on January 31st, and have a trigger with unit
-    /// <see cref="IntervalUnit.Month" /> and interval 1, then the next fire time will be February 28th, 
-    /// and the next time after that will be March 28th - and essentially each subsequent firing will 
+    /// <see cref="IntervalUnit.Month" /> and interval 1, then the next fire time will be February 28th,
+    /// and the next time after that will be March 28th - and essentially each subsequent firing will
     /// occur on the 28th of the month, even if a 31st day exists.  If you want a trigger that always
-    /// fires on the last day of the month - regardless of the number of days in the month, 
+    /// fires on the last day of the month - regardless of the number of days in the month,
     /// you should use <see cref="ICronTrigger" />.
-    /// </para> 
+    /// </para>
     /// </remarks>
     /// <see cref="ITrigger" />
     /// <see cref="ICronTrigger" />
@@ -53,21 +53,34 @@ namespace Quartz.Impl.Triggers
     /// <since>2.0</since>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
     public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTrigger
     {
         private static readonly int YearToGiveupSchedulingAt = DateTime.Now.AddYears(100).Year;
 
         private DateTimeOffset startTime;
         private DateTimeOffset? endTime;
-        private DateTimeOffset? nextFireTimeUtc;
-        private DateTimeOffset? previousFireTimeUtc;
+        private DateTimeOffset? nextFireTimeUtc; // Making a public property which called GetNextFireTime/SetNextFireTime would make the json attribute unnecessary
+        private DateTimeOffset? previousFireTimeUtc; // Making a public property which called GetPreviousFireTime/SetPreviousFireTime would make the json attribute unnecessary
         private int repeatInterval;
         private IntervalUnit repeatIntervalUnit = IntervalUnit.Day;
-        private TimeZoneInfo timeZone;
         private bool preserveHourOfDayAcrossDaylightSavings; // false is backward-compatible with behavior
         private bool skipDayIfHourDoesNotExist;
         private int timesTriggered;
+        private TimeZoneInfo timeZone;
+
+        // Serializing TimeZones is tricky in .NET Core. This helper will ensure that we get the same timezone on a given platform,
+        // but there's not yet a good method of serializing/deserializing timezones cross-platform since Windows timezone IDs don't
+        // match IANA tz IDs (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). This feature is coming, but depending
+        // on timelines, it may be worth doign the mapping here.
+        // More info: https://github.com/dotnet/corefx/issues/7757
+        private string timeZoneInfoId
+        {
+            get { return timeZone?.Id; }
+            set { timeZone = (value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value)); }
+        }
 
         /// <summary>
         /// Create a <see cref="ICalendarIntervalTrigger" /> with no settings.
@@ -229,7 +242,7 @@ namespace Quartz.Impl.Triggers
 
         /// <summary>
         /// Get the time interval that will be added to the <see cref="ICalendarIntervalTrigger" />'s
-        /// fire time (in the set repeat interval unit) in order to calculate the time of the 
+        /// fire time (in the set repeat interval unit) in order to calculate the time of the
         /// next trigger repeat.
         /// </summary>
         public int RepeatInterval
@@ -261,22 +274,22 @@ namespace Quartz.Impl.Triggers
         }
 
         ///<summary>
-        /// If intervals are a day or greater, this property (set to true) will 
+        /// If intervals are a day or greater, this property (set to true) will
         /// cause the firing of the trigger to always occur at the same time of day,
-        /// (the time of day of the startTime) regardless of daylight saving time 
+        /// (the time of day of the startTime) regardless of daylight saving time
         /// transitions.  Default value is false.
         /// </summary>
         /// <remarks>
         /// <para>
-        /// For example, without the property set, your trigger may have a start 
-        /// time of 9:00 am on March 1st, and a repeat interval of 2 days.  But 
-        /// after the daylight saving transition occurs, the trigger may start 
+        /// For example, without the property set, your trigger may have a start
+        /// time of 9:00 am on March 1st, and a repeat interval of 2 days.  But
+        /// after the daylight saving transition occurs, the trigger may start
         /// firing at 8:00 am every other day.
         /// </para>
         /// <para>
         /// If however, the time of day does not exist on a given day to fire
         /// (e.g. 2:00 am in the United States on the days of daylight saving
-        /// transition), the trigger will go ahead and fire one hour off on 
+        /// transition), the trigger will go ahead and fire one hour off on
         /// that day, and then resume the normal hour on other days.  If
         /// you wish for the trigger to never fire at the "wrong" hour, then
         /// you should set the property skipDayIfHourDoesNotExist.
@@ -292,20 +305,20 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// If intervals are a day or greater, and 
+        /// If intervals are a day or greater, and
         /// preserveHourOfDayAcrossDaylightSavings property is set to true, and the
-        /// hour of the day does not exist on a given day for which the trigger 
+        /// hour of the day does not exist on a given day for which the trigger
         /// would fire, the day will be skipped and the trigger advanced a second
         /// interval if this property is set to true.  Defaults to false.
         /// </summary>
         /// <remarks>
-        /// <b>CAUTION!</b>  If you enable this property, and your hour of day happens 
-        /// to be that of daylight savings transition (e.g. 2:00 am in the United 
+        /// <b>CAUTION!</b>  If you enable this property, and your hour of day happens
+        /// to be that of daylight savings transition (e.g. 2:00 am in the United
         /// States) and the trigger's interval would have had the trigger fire on
-        /// that day, then you may actually completely miss a firing on the day of 
-        /// transition if that hour of day does not exist on that day!  In such a 
-        /// case the next fire time of the trigger will be computed as double (if 
-        /// the interval is 2 days, then a span of 4 days between firings will 
+        /// that day, then you may actually completely miss a firing on the day of
+        /// transition if that hour of day does not exist on that day!  In such a
+        /// case the next fire time of the trigger will be computed as double (if
+        /// the interval is 2 days, then a span of 4 days between firings will
         /// occur).
         /// </remarks>
         /// <seealso cref="ICalendarIntervalTrigger.PreserveHourOfDayAcrossDaylightSavings"/>
@@ -344,7 +357,7 @@ namespace Quartz.Impl.Triggers
             return true;
         }
 
-        /// <summary> 
+        /// <summary>
         /// Updates the <see cref="ICalendarIntervalTrigger" />'s state based on the
         /// MisfireInstruction.XXX that was selected when the <see cref="ICalendarIntervalTrigger" />
         /// was created.
@@ -383,8 +396,8 @@ namespace Quartz.Impl.Triggers
             {
                 // fire once now...
                 SetNextFireTimeUtc(SystemTime.UtcNow());
-                // the new fire time afterward will magically preserve the original  
-                // time of day for firing for day/week/month interval triggers, 
+                // the new fire time afterward will magically preserve the original
+                // time of day for firing for day/week/month interval triggers,
                 // because of the way getFireTimeAfter() works - in its always restarting
                 // computation from the start time.
             }
@@ -424,13 +437,13 @@ namespace Quartz.Impl.Triggers
             }
         }
 
-        /// <summary> 
+        /// <summary>
         /// This method should not be used by the Quartz client.
         /// <para>
         /// The implementation should update the <see cref="ITrigger" />'s state
         /// based on the given new version of the associated <see cref="ICalendar" />
         /// (the state should be updated so that it's next fire time is appropriate
-        /// given the Calendar's new settings). 
+        /// given the Calendar's new settings).
         /// </para>
         /// </summary>
         /// <param name="calendar"> </param>
@@ -480,17 +493,17 @@ namespace Quartz.Impl.Triggers
         /// added to the scheduler, in order to have the <see cref="ITrigger" />
         /// compute its first fire time, based on any associated calendar.
         /// </para>
-        /// 
+        ///
         /// <para>
         /// After this method has been called, <see cref="ITrigger.GetNextFireTimeUtc" />
         /// should return a valid answer.
         /// </para>
         /// </remarks>
-        /// <returns> 
+        /// <returns>
         /// The first time at which the <see cref="ITrigger" /> will be fired
         /// by the scheduler, which is also the same value <see cref="ITrigger.GetNextFireTimeUtc" />
         /// will return (until after the first firing of the <see cref="ITrigger" />).
-        /// </returns>        
+        /// </returns>
         public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar calendar)
         {
             nextFireTimeUtc = StartTimeUtc;
@@ -564,7 +577,7 @@ namespace Quartz.Impl.Triggers
 
         protected DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTime, bool ignoreEndTime)
         {
-            // increment afterTime by a second, so that we are 
+            // increment afterTime by a second, so that we are
             // comparing against a time after it!
             if (afterTime == null)
             {
@@ -635,17 +648,17 @@ namespace Quartz.Impl.Triggers
 
                 if (RepeatIntervalUnit == IntervalUnit.Day)
                 {
-                    // Because intervals greater than an hour have an non-fixed number 
-                    // of seconds in them (due to daylight savings, variation number of 
+                    // Because intervals greater than an hour have an non-fixed number
+                    // of seconds in them (due to daylight savings, variation number of
                     // days in each month, leap year, etc. ) we can't jump forward an
                     // exact number of seconds to calculate the fire time as we can
                     // with the second, minute and hour intervals.   But, rather
-                    // than slowly crawling our way there by iteratively adding the 
+                    // than slowly crawling our way there by iteratively adding the
                     // increment to the start time until we reach the "after time",
                     // we can first make a big leap most of the way there...
 
                     long jumpCount = secondsAfterStart/(repeatLong*24L*60L*60L);
-                    // if we need to make a big jump, jump most of the way there, 
+                    // if we need to make a big jump, jump most of the way there,
                     // but not all the way because in some cases we may over-shoot or under-shoot
                     if (jumpCount > 20)
                     {
@@ -679,17 +692,17 @@ namespace Quartz.Impl.Triggers
                 }
                 else if (RepeatIntervalUnit == IntervalUnit.Week)
                 {
-                    // Because intervals greater than an hour have an non-fixed number 
-                    // of seconds in them (due to daylight savings, variation number of 
+                    // Because intervals greater than an hour have an non-fixed number
+                    // of seconds in them (due to daylight savings, variation number of
                     // days in each month, leap year, etc. ) we can't jump forward an
                     // exact number of seconds to calculate the fire time as we can
                     // with the second, minute and hour intervals.   But, rather
-                    // than slowly crawling our way there by iteratively adding the 
+                    // than slowly crawling our way there by iteratively adding the
                     // increment to the start time until we reach the "after time",
                     // we can first make a big leap most of the way there...
 
                     long jumpCount = secondsAfterStart/(repeatLong*7L*24L*60L*60L);
-                    // if we need to make a big jump, jump most of the way there, 
+                    // if we need to make a big jump, jump most of the way there,
                     // but not all the way because in some cases we may over-shoot or under-shoot
                     if (jumpCount > 20)
                     {
@@ -721,7 +734,7 @@ namespace Quartz.Impl.Triggers
                 }
                 else if (RepeatIntervalUnit == IntervalUnit.Month)
                 {
-                    // because of the large variation in size of months, and 
+                    // because of the large variation in size of months, and
                     // because months are already large blocks of time, we will
                     // just advance via brute-force iteration.
 

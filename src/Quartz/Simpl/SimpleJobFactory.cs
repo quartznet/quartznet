@@ -18,10 +18,8 @@
 #endregion
 
 using System;
-using System.Globalization;
 
-using Common.Logging;
-
+using Quartz.Logging;
 using Quartz.Spi;
 using Quartz.Util;
 
@@ -37,7 +35,7 @@ namespace Quartz.Simpl
 	/// <author>Marko Lahma (.NET)</author>
 	public class SimpleJobFactory : IJobFactory
 	{
-		private static readonly ILog log = LogManager.GetLogger(typeof (SimpleJobFactory));
+		private static readonly ILog log = LogProvider.GetLogger(typeof (SimpleJobFactory));
 
 	    /// <summary>
 	    /// Called by the scheduler at the time of the trigger firing, in order to
@@ -63,16 +61,16 @@ namespace Quartz.Simpl
 			Type jobType = jobDetail.JobType;
 			try
 			{
-				if (log.IsDebugEnabled)
+				if (log.IsDebugEnabled())
 				{
-					log.Debug(string.Format(CultureInfo.InvariantCulture, "Producing instance of Job '{0}', class={1}", jobDetail.Key, jobType.FullName));
+					log.Debug($"Producing instance of Job '{jobDetail.Key}', class={jobType.FullName}");
 				}
 
 				return ObjectUtils.InstantiateType<IJob>(jobType);
 			}
 			catch (Exception e)
 			{
-				SchedulerException se = new SchedulerException(string.Format(CultureInfo.InvariantCulture, "Problem instantiating class '{0}'", jobDetail.JobType.FullName), e);
+				SchedulerException se = new SchedulerException($"Problem instantiating class '{jobDetail.JobType.FullName}'", e);
 				throw se;
 			}
 		}
@@ -84,10 +82,7 @@ namespace Quartz.Simpl
 	    public virtual void ReturnJob(IJob job)
 	    {
 	        var disposable = job as IDisposable;
-	        if (disposable != null)
-	        {
-	            disposable.Dispose();
-	        }
+	        disposable?.Dispose();
 	    }
 	}
 }

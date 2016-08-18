@@ -1,0 +1,20 @@
+﻿{
+  "buildOptions": {
+    "emitEntryPoint": true
+  },
+  "frameworks": {
+    "net45": {
+      "buildOptions": {
+        "define": [
+          "LOG4NET"
+        ]
+      }
+    }
+  },
+  "dependencies": {
+    "log4net": "2.0.5"
+  },
+  "runtimes": {
+    "win": { }
+  }
+}

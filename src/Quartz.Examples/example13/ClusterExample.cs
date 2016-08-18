@@ -1,68 +1,66 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
 
 using System;
-using System.Collections.Generic;
 using System.Collections.Specialized;
-using System.Threading;
-
-using Common.Logging;
+using System.Threading.Tasks;
 
 using Quartz.Impl;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example13
 {
-    /// <summary> 
+    /// <summary>
     /// Used to test/show the clustering features of AdoJobStore.
     /// </summary>
     /// <remarks>
-    /// 
+    ///
     /// <para>
     /// All instances MUST use a different properties file, because their instance
     /// Ids must be different, however all other properties should be the same.
     /// </para>
-    /// 
+    ///
     /// <para>
     /// If you want it to clear out existing jobs & triggers, pass a command-line
     /// argument called "clearJobs".
     /// </para>
-    /// 
+    ///
     /// <para>
     /// You should probably start with a "fresh" set of tables (assuming you may
     /// have some data lingering in it from other tests), since mixing data from a
     /// non-clustered setup with a clustered one can be bad.
     /// </para>
-    /// 
+    ///
     /// <para>
     /// Try killing one of the cluster instances while they are running, and see
     /// that the remaining instance(s) recover the in-progress jobs. Note that
     /// detection of the failure may take up to 15 or so seconds with the default
     /// settings.
     /// </para>
-    /// 
+    ///
     /// <para>
     /// Also try running it with/without the shutdown-hook plugin registered with
     /// the scheduler. (quartz.plugins.management.ShutdownHookPlugin).
     /// </para>
-    /// 
+    ///
     /// <para>
     /// <i>Note:</i> Never run clustering on separate machines, unless their
     /// clocks are synchronized using some form of time-sync service (daemon).
@@ -72,38 +70,42 @@ namespace Quartz.Examples.Example13
     /// <author>Marko Lahma (.NET)</author>
     public class ClusterExample : IExample
     {
-        private static readonly ILog log = LogManager.GetLogger(typeof (ClusterExample));
+        private static readonly ILog log = LogProvider.GetLogger(typeof (ClusterExample));
 
-        public virtual void Run(bool inClearJobs, bool inScheduleJobs)
+        public virtual async Task Run(bool inClearJobs, bool inScheduleJobs)
         {
-            NameValueCollection properties = new NameValueCollection();
+            NameValueCollection properties = new NameValueCollection
+            {
+                ["quartz.scheduler.instanceName"] = "TestScheduler",
+                ["quartz.scheduler.instanceId"] = "instance_one",
+                ["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz",
+                ["quartz.threadPool.threadCount"] = "5",
+                ["quartz.jobStore.misfireThreshold"] = "60000",
+                ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
+                ["quartz.jobStore.useProperties"] = "false",
+                ["quartz.jobStore.dataSource"] = "default",
+                ["quartz.jobStore.tablePrefix"] = "QRTZ_",
+                ["quartz.jobStore.clustered"] = "true",
+                ["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz",
+                ["quartz.dataSource.default.connectionString"] = "Server=(local);Database=quartz;Trusted_Connection=True;",
+                ["quartz.dataSource.default.provider"] = "SqlServer-20",
+                ["quartz.serializer.type"] = "json"
+            };
 
-            properties["quartz.scheduler.instanceName"] = "TestScheduler";
-            properties["quartz.scheduler.instanceId"] = "instance_one";
-            properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
-            properties["quartz.threadPool.threadCount"] = "5";
-            properties["quartz.threadPool.threadPriority"] = "Normal";
-            properties["quartz.jobStore.misfireThreshold"] = "60000";
-            properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
-            properties["quartz.jobStore.useProperties"] = "false";
-            properties["quartz.jobStore.dataSource"] = "default";
-            properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
-            properties["quartz.jobStore.clustered"] = "true";
             // if running SQLite we need this
             // properties["quartz.jobStore.lockHandler.type"] = "Quartz.Impl.AdoJobStore.UpdateLockRowSemaphore, Quartz";
-            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
-
-            properties["quartz.dataSource.default.connectionString"] = "Server=(local);Database=quartz;Trusted_Connection=True;";
-            properties["quartz.dataSource.default.provider"] = "SqlServer-20";
-
+#if NETSTANDARD_DBPROVIDERS
+            properties["quartz.dataSource.default.provider"] = "SqlServer-41";
+#else
+#endif
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
-            IScheduler sched = sf.GetScheduler();
+            IScheduler sched = await sf.GetScheduler();
 
             if (inClearJobs)
             {
                 log.Warn("***** Deleting existing jobs/triggers *****");
-                sched.Clear();
+                await sched.Clear();
             }
 
             log.Info("------- Initialization Complete -----------");
@@ -116,23 +118,20 @@ namespace Quartz.Examples.Example13
 
                 int count = 1;
 
-
                 IJobDetail job = JobBuilder.Create<SimpleRecoveryJob>()
                     .WithIdentity("job_" + count, schedId) // put triggers in group named after the cluster node instance just to distinguish (in logging) what was scheduled from where
                     .RequestRecovery() // ask scheduler to re-execute this job if it was in progress when the scheduler went down...
                     .Build();
 
-
                 ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                                                              .WithIdentity("triger_" + count, schedId)
-                                                              .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Second))
-                                                              .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(5)))
-                                                              .Build();
+                    .WithIdentity("triger_" + count, schedId)
+                    .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Second))
+                    .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(5)))
+                    .Build();
 
                 log.InfoFormat("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.Key, trigger.GetNextFireTimeUtc(), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds);
 
                 count++;
-
 
                 job = JobBuilder.Create<SimpleRecoveryJob>()
                     .WithIdentity("job_" + count, schedId) // put triggers in group named after the cluster node instance just to distinguish (in logging) what was scheduled from where
@@ -140,16 +139,15 @@ namespace Quartz.Examples.Example13
                     .Build();
 
                 trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                                               .WithIdentity("triger_" + count, schedId)
-                                               .StartAt(DateBuilder.FutureDate(2, IntervalUnit.Second))
-                                               .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(5)))
-                                               .Build();
+                    .WithIdentity("triger_" + count, schedId)
+                    .StartAt(DateBuilder.FutureDate(2, IntervalUnit.Second))
+                    .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(5)))
+                    .Build();
 
-                log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.Key, trigger.GetNextFireTimeUtc(), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
-                sched.ScheduleJob(job, trigger);
+                log.Info($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
+                await sched.ScheduleJob(job, trigger);
 
                 count++;
-
 
                 job = JobBuilder.Create<SimpleRecoveryStatefulJob>()
                     .WithIdentity("job_" + count, schedId) // put triggers in group named after the cluster node instance just to distinguish (in logging) what was scheduled from where
@@ -157,13 +155,13 @@ namespace Quartz.Examples.Example13
                     .Build();
 
                 trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                                               .WithIdentity("triger_" + count, schedId)
-                                               .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Second))
-                                               .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(3)))
-                                               .Build();
+                    .WithIdentity("triger_" + count, schedId)
+                    .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Second))
+                    .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(3)))
+                    .Build();
 
-                log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.Key, trigger.GetNextFireTimeUtc(), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
-                sched.ScheduleJob(job, trigger);
+                log.Info($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
+                await sched.ScheduleJob(job, trigger);
 
                 count++;
 
@@ -173,16 +171,15 @@ namespace Quartz.Examples.Example13
                     .Build();
 
                 trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                                               .WithIdentity("triger_" + count, schedId)
-                                               .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Second))
-                                               .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(4)))
-                                               .Build();
+                    .WithIdentity("triger_" + count, schedId)
+                    .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Second))
+                    .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(4)))
+                    .Build();
 
-                log.Info(string.Format("{0} will run at: {1} & repeat: {2}/{3}", job.Key, trigger.GetNextFireTimeUtc(), trigger.RepeatCount, trigger.RepeatInterval));
-                sched.ScheduleJob(job, trigger);
+                log.Info($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} & repeat: {trigger.RepeatCount}/{trigger.RepeatInterval}");
+                await sched.ScheduleJob(job, trigger);
 
                 count++;
-
 
                 job = JobBuilder.Create<SimpleRecoveryJob>()
                     .WithIdentity("job_" + count, schedId) // put triggers in group named after the cluster node instance just to distinguish (in logging) what was scheduled from where
@@ -190,36 +187,30 @@ namespace Quartz.Examples.Example13
                     .Build();
 
                 trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                                               .WithIdentity("triger_" + count, schedId)
-                                               .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Second))
-                                               .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromMilliseconds(4500)))
-                                               .Build();
+                    .WithIdentity("triger_" + count, schedId)
+                    .StartAt(DateBuilder.FutureDate(1, IntervalUnit.Second))
+                    .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromMilliseconds(4500)))
+                    .Build();
 
-                log.Info(string.Format("{0} will run at: {1} & repeat: {2}/{3}", job.Key, trigger.GetNextFireTimeUtc(), trigger.RepeatCount, trigger.RepeatInterval));
-                sched.ScheduleJob(job, trigger);
+                log.Info($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} & repeat: {trigger.RepeatCount}/{trigger.RepeatInterval}");
+                await sched.ScheduleJob(job, trigger);
             }
 
             // jobs don't start firing until start() has been called...
             log.Info("------- Starting Scheduler ---------------");
-            sched.Start();
+            await sched.Start();
             log.Info("------- Started Scheduler ----------------");
 
             log.Info("------- Waiting for one hour... ----------");
 
-            Thread.Sleep(TimeSpan.FromHours(1));
-
+            await Task.Delay(TimeSpan.FromHours(1));
 
             log.Info("------- Shutting Down --------------------");
-            sched.Shutdown();
+            await sched.Shutdown();
             log.Info("------- Shutdown Complete ----------------");
         }
 
-        public string Name
-        {
-            get { throw new NotImplementedException(); }
-        }
-
-        public void Run()
+        public Task Run()
         {
             bool clearJobs = true;
             bool scheduleJobs = true;
@@ -237,7 +228,7 @@ namespace Quartz.Examples.Example13
 			}
 			*/
             ClusterExample example = new ClusterExample();
-            example.Run(clearJobs, scheduleJobs);
+            return example.Run(clearJobs, scheduleJobs);
         }
     }
 }

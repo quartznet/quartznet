@@ -23,14 +23,14 @@ using System.Runtime.Serialization;
 namespace Quartz
 {
 	/// <summary>
-	/// An exception that is thrown to indicate that a call to 
-	/// <see cref="IInterruptableJob.Interrupt" /> failed without interrupting the Job.
+	/// An exception that is thrown to indicate that cancellation failed.
 	/// </summary>
-	/// <seealso cref="IInterruptableJob" />
 	/// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
-	public class UnableToInterruptJobException : SchedulerException
+#endif // BINARY_SERIALIZATION
+    public class UnableToInterruptJobException : SchedulerException
 	{
 		/// <summary>
 		/// Create a <see cref="UnableToInterruptJobException" /> with the given message.
@@ -46,6 +46,7 @@ namespace Quartz
 		{
 		}
 
+#if BINARY_SERIALIZATION
         /// <summary>
         /// Initializes a new instance of the <see cref="UnableToInterruptJobException"/> class.
         /// </summary>
@@ -57,5 +58,6 @@ namespace Quartz
             : base(info, context)
         {
         }
-	}
+#endif // BINARY_SERIALIZATION
+    }
 }

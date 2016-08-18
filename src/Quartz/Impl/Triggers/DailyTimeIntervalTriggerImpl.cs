@@ -1,27 +1,27 @@
 ﻿#region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
 
 using System;
+using System.Collections.Generic;
 
-using Quartz.Collection;
 using Quartz.Util;
 
 namespace Quartz.Impl.Triggers
@@ -54,14 +54,14 @@ namespace Quartz.Impl.Triggers
     /// <para>
     /// If startTime is before startTimeOfDay, then startTimeOfDay will be used and startTime has no affect other than to specify
     /// the first day of firing. Else if startTime is  after startTimeOfDay, then the first fire time for that day will be the next
-    /// interval after the startTime. For example, if you set startingTimeOfDay=9am, endingTimeOfDay=11am, interval=15 mins, and startTime=9:33am, 
-    /// then the next fire time will be 9:45pm. Note also that if you do not set startTime value, the trigger builder will default to current time, and current time 
+    /// interval after the startTime. For example, if you set startingTimeOfDay=9am, endingTimeOfDay=11am, interval=15 mins, and startTime=9:33am,
+    /// then the next fire time will be 9:45pm. Note also that if you do not set startTime value, the trigger builder will default to current time, and current time
     /// maybe before or after the startTimeOfDay! So be aware how you set your startTime.
     /// </para>
     /// <para>
     /// This trigger also supports "repeatCount" feature to end the trigger fire time after
-    /// a certain number of count is reached. Just as the SimpleTrigger, setting repeatCount=0 
-    /// means trigger will fire once only! Setting any positive count then the trigger will repeat 
+    /// a certain number of count is reached. Just as the SimpleTrigger, setting repeatCount=0
+    /// means trigger will fire once only! Setting any positive count then the trigger will repeat
     /// count + 1 times. Unlike SimpleTrigger, the default value of repeatCount of this trigger
     /// is set to REPEAT_INDEFINITELY instead of 0 though.
     /// </para>
@@ -72,7 +72,9 @@ namespace Quartz.Impl.Triggers
     /// <author>James House</author>
     /// <author>Zemian Deng saltnlight5@gmail.com</author>
     /// <author>Nuno Maia (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
     public class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalTrigger
     {
         /// <summary>
@@ -86,8 +88,8 @@ namespace Quartz.Impl.Triggers
 
         private DateTimeOffset startTimeUtc;
         private DateTimeOffset? endTimeUtc;
-        private DateTimeOffset? nextFireTimeUtc;
-        private DateTimeOffset? previousFireTimeUtc;
+        private DateTimeOffset? nextFireTimeUtc; // Making a public property which called GetNextFireTime/SetNextFireTime would make the json attribute unnecessary
+        private DateTimeOffset? previousFireTimeUtc; // Making a public property which called GetPreviousFireTime/SetPreviousFireTime would make the json attribute unnecessary
         private int repeatInterval = 1;
         private IntervalUnit repeatIntervalUnit = IntervalUnit.Minute;
         private ISet<DayOfWeek> daysOfWeek;
@@ -97,6 +99,17 @@ namespace Quartz.Impl.Triggers
         private bool complete;
         private int repeatCount = RepeatIndefinitely;
         private TimeZoneInfo timeZone;
+
+        // Serializing TimeZones is tricky in .NET Core. This helper will ensure that we get the same timezone on a given platform,
+        // but there's not yet a good method of serializing/deserializing timezones cross-platform since Windows timezone IDs don't
+        // match IANA tz IDs (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). This feature is coming, but depending
+        // on timelines, it may be worth doign the mapping here.
+        // More info: https://github.com/dotnet/corefx/issues/7757
+        private string timeZoneInfoId
+        {
+            get { return timeZone?.Id; }
+            set { timeZone = (value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value)); }
+        }
 
         /// <summary>
         /// Create a  <see cref="IDailyTimeIntervalTrigger"/> with no settings.
@@ -264,7 +277,7 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// Get the number of times for interval this trigger should repeat, 
+        /// Get the number of times for interval this trigger should repeat,
         /// after which it will be automatically deleted.
         /// </summary>
         public int RepeatCount
@@ -361,7 +374,7 @@ namespace Quartz.Impl.Triggers
             return true;
         }
 
-        /// <summary> 
+        /// <summary>
         /// Updates the <see cref="ICalendarIntervalTrigger" />'s state based on the
         /// MisfireInstruction.XXX that was selected when the <see cref="IDailyTimeIntervalTrigger" />
         /// was created.
@@ -400,8 +413,8 @@ namespace Quartz.Impl.Triggers
             {
                 // fire once now...
                 SetNextFireTimeUtc(SystemTime.UtcNow());
-                // the new fire time afterward will magically preserve the original  
-                // time of day for firing for day/week/month interval triggers, 
+                // the new fire time afterward will magically preserve the original
+                // time of day for firing for day/week/month interval triggers,
                 // because of the way getFireTimeAfter() works - in its always restarting
                 // computation from the start time.
             }
@@ -445,7 +458,7 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="calendar"></param>
         /// <param name="misfireThreshold"></param>
@@ -495,17 +508,17 @@ namespace Quartz.Impl.Triggers
         /// added to the scheduler, in order to have the <see cref="ITrigger" />
         /// compute its first fire time, based on any associated calendar.
         /// </para>
-        /// 
+        ///
         /// <para>
         /// After this method has been called, <see cref="ITrigger.GetNextFireTimeUtc" />
         /// should return a valid answer.
         /// </para>
         /// </remarks>
-        /// <returns> 
+        /// <returns>
         /// The first time at which the <see cref="ITrigger" /> will be fired
         /// by the scheduler, which is also the same value <see cref="ITrigger.GetNextFireTimeUtc" />
         /// will return (until after the first firing of the <see cref="ITrigger" />).
-        /// </returns>        
+        /// </returns>
         public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar calendar)
         {
             nextFireTimeUtc = GetFireTimeAfter(StartTimeUtc.AddSeconds(-1));
@@ -627,7 +640,7 @@ namespace Quartz.Impl.Triggers
             // now change to local time zone
             afterTime = TimeZoneUtil.ConvertTime(afterTime.Value, TimeZone);
 
-            // b.Check to see if afterTime is after endTimeOfDay or not. 
+            // b.Check to see if afterTime is after endTimeOfDay or not.
             // If yes, then we need to advance to next day as well.
             bool afterTimePastEndTimeOfDay = false;
             if (endTimeOfDay != null)
@@ -635,7 +648,7 @@ namespace Quartz.Impl.Triggers
                 afterTimePastEndTimeOfDay = afterTime.Value > endTimeOfDay.GetTimeOfDayForDate(afterTime).Value;
             }
 
-            // c. now we need to move to the next valid day of week if either: 
+            // c. now we need to move to the next valid day of week if either:
             // the given time is past the end time of day, or given time is not on a valid day of week
             DateTimeOffset? fireTime = AdvanceToNextDayOfWeekIfNecessary(afterTime.Value, afterTimePastEndTimeOfDay);
 
@@ -869,7 +882,7 @@ namespace Quartz.Impl.Triggers
         /// </summary>
         /// <returns>
         /// A Set containing the integers representing the days of the week, per the values 0-6 as defined by
-        /// DayOfWees.Sunday - DayOfWeek.Saturday. 
+        /// DayOfWees.Sunday - DayOfWeek.Saturday.
         /// </returns>
         public ISet<DayOfWeek> DaysOfWeek
         {
@@ -951,7 +964,7 @@ namespace Quartz.Impl.Triggers
         }
 
         /// <summary>
-        /// Get a <see cref="IScheduleBuilder" /> that is configured to produce a 
+        /// Get a <see cref="IScheduleBuilder" /> that is configured to produce a
         /// schedule identical to this trigger's schedule.
         /// </summary>
         /// <returns></returns>

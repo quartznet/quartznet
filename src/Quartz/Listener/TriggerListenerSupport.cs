@@ -19,7 +19,10 @@
 
 #endregion
 
-using Common.Logging;
+using System.Threading.Tasks;
+
+using Quartz.Logging;
+using Quartz.Util;
 
 namespace Quartz.Listener
 {
@@ -47,7 +50,7 @@ namespace Quartz.Listener
 
         protected TriggerListenerSupport()
         {
-            log = LogManager.GetLogger(GetType());
+            log = LogProvider.GetLogger(GetType());
         }
 
         /// <summary>
@@ -65,22 +68,24 @@ namespace Quartz.Listener
         /// <value></value>
         public abstract string Name { get; }
 
-        public virtual void TriggerFired(ITrigger trigger, IJobExecutionContext context)
+        public virtual Task TriggerFired(ITrigger trigger, IJobExecutionContext context)
         {
+            return TaskUtil.CompletedTask;
         }
 
-        public virtual bool VetoJobExecution(ITrigger trigger, IJobExecutionContext context)
+        public virtual Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context)
         {
-            return false;
+            return Task.FromResult(false);
         }
 
-        public virtual void TriggerMisfired(ITrigger trigger)
+        public virtual Task TriggerMisfired(ITrigger trigger)
         {
+            return TaskUtil.CompletedTask;
         }
 
-        public virtual void TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode)
+        public virtual Task TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode)
         {
+            return TaskUtil.CompletedTask;
         }
-
     }
 }

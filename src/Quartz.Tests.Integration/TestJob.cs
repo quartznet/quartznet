@@ -19,13 +19,13 @@
 
 #endregion
 
+using System.Threading.Tasks;
+
 namespace Quartz.Tests.Integration
 {
     /// <author>Marko Lahma (.NET)</author>
     public class TestJob : IJob
     {
-        private static bool jobFired;
-
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
         /// fires that is associated with the <see cref="IJob" />.
@@ -39,19 +39,16 @@ namespace Quartz.Tests.Integration
         /// execution.
         /// </remarks>
         /// <param name="context">The execution context.</param>
-        public void Execute(IJobExecutionContext context)
+        public Task Execute(IJobExecutionContext context)
         {
             JobHasFired = true;
+            return Task.FromResult(0);
         }
 
         /// <summary>
         /// Gets or sets a value indicating whether job has fired.
         /// </summary>
         /// <value><c>true</c> if job has fired; otherwise, <c>false</c>.</value>
-        public static bool JobHasFired
-        {
-            get { return jobFired; }
-            set { jobFired = value; }
-        }
+        public static bool JobHasFired { get; set; }
     }
 }

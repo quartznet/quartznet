@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,120 +16,120 @@
  * under the License.
  * 
  */
+
 #endregion
+
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Reflection;
-using System.Runtime.Serialization.Formatters.Binary;
 
 using NUnit.Framework;
 
+using Quartz.Spi;
+
 namespace Quartz.Tests.Unit
 {
-	/// <summary>
-	/// Base class for unit tests that wish to verify 
-	/// backwards compatibility of serialization with earlier versions
-	/// of Quartz.
-	/// </summary>
+    /// <summary>
+    /// Base class for unit tests that wish to verify 
+    /// backwards compatibility of serialization with earlier versions
+    /// of Quartz.
+    /// </summary>
     /// <author>Marko Lahma (.NET)</author>
     public abstract class SerializationTestSupport
-	{
-		/// <summary>
-		/// Get the object to serialize when generating serialized file for future
-		/// tests, and against which to validate deserialized object.
-		/// </summary>
-		/// <returns></returns>
-		protected abstract object GetTargetObject();
+    {
+        private readonly IObjectSerializer serializer;
 
+        public SerializationTestSupport(Type serializerType)
+        {
+            serializer = (IObjectSerializer) Activator.CreateInstance(serializerType);
+            serializer.Initialize();
+        }
 
-		/// <summary>
-		/// Get the Quartz versions for which we should verify
-		/// serialization backwards compatibility.
-		/// </summary>
-		/// <returns></returns>
-		protected abstract string[] GetVersions();
+        /// <summary>
+        /// Get the object to serialize when generating serialized file for future
+        /// tests, and against which to validate deserialized object.
+        /// </summary>
+        /// <returns></returns>
+        protected abstract object GetTargetObject();
 
-		/// <summary>
-		/// Verify that the target object and the object we just deserialized 
-		/// match.
-		/// </summary>
-		/// <param name="target"></param>
-		/// <param name="deserialized"></param>
-		protected abstract void VerifyMatch(object target, object deserialized);
+        /// <summary>
+        /// Get the Quartz versions for which we should verify
+        /// serialization backwards compatibility.
+        /// </summary>
+        /// <returns></returns>
+        protected abstract string[] GetVersions();
 
+        /// <summary>
+        /// Verify that the target object and the object we just deserialized 
+        /// match.
+        /// </summary>
+        /// <param name="target"></param>
+        /// <param name="deserialized"></param>
+        protected abstract void VerifyMatch(object target, object deserialized);
 
-		/// <summary>
-		/// Test that we can successfully deserialize our target
-		/// class for all of the given Quartz versions. 
-		/// </summary>
-		[Test]
+        /// <summary>
+        /// Test that we can successfully deserialize our target
+        /// class for all of the given Quartz versions. 
+        /// </summary>
+        [Test]
         [Ignore("Currently no working implementation for serialization testing")]
-		public void TestSerialization()
-		{
-			object targetObject = GetTargetObject();
+        public void TestSerialization()
+        {
+            object targetObject = GetTargetObject();
 
-			for (int i = 0; i < GetVersions().Length; i++)
-			{
-				string version = GetVersions()[i];
+            for (int i = 0; i < GetVersions().Length; i++)
+            {
+                string version = GetVersions()[i];
 
-				VerifyMatch(targetObject, Deserialize(version, targetObject.GetType()));
-			}
-		}
+                VerifyMatch(targetObject, Deserialize(version, targetObject.GetType()));
+            }
+        }
 
-		/// <summary>
-		///  Deserialize the target object from disk.
-		/// </summary>
-		/// <param name="version"></param>
-		/// <param name="type"></param>
-		/// <returns></returns>
-		protected object Deserialize(string version, Type type)
-		{
-			// should load from assembly
-            Stream s = GetType().Assembly.GetManifestResourceStream("SQM.Tests.Unit." + GetSerializedFileName(version, type));
-            Assert.IsNotNull(s, string.Format("Could not load serialized object data for version {0} of type {1}", version, type));
-			using (s)
-			{
-				BinaryFormatter bf = new BinaryFormatter();
-				return bf.Deserialize(s);
-			}
-		}
+        /// <summary>
+        ///  Deserialize the target object from disk.
+        /// </summary>
+        /// <param name="version"></param>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        protected object Deserialize(string version, Type type)
+        {
+            throw new NotImplementedException();
+        }
 
-		/// <summary>
-		/// Use this method in the future to generate other versions of
-		/// of the serialized object file.
-		/// </summary>
-		[Test]
-		public void WriteJobDataFile()
-		{
-		    Assembly asm = Assembly.GetExecutingAssembly();
-		    FileVersionInfo info = FileVersionInfo.GetVersionInfo(asm.Location);
+        /// <summary>
+        /// Use this method in the future to generate other versions of
+        /// of the serialized object file.
+        /// </summary>
+        [Test]
+        public void WriteJobDataFile()
+        {
+            Assembly asm = GetType().GetTypeInfo().Assembly;
+            Version info = asm.GetName().Version;
 
-		    string version = info.FileVersion;
-			object obj = GetTargetObject();
+            string version = info.ToString();
+            object obj = GetTargetObject();
 
-			string fileName = GetSerializedFileName(version, obj.GetType());
-			using (FileStream fs = new FileStream(fileName, FileMode.Create))
-			{
-				BinaryFormatter bf = new BinaryFormatter();
-				bf.Serialize(fs, obj);
-			}
-		}
+            string fileName = GetSerializedFileName(version, obj.GetType());
+            using (FileStream fs = new FileStream(fileName, FileMode.Create))
+            {
+                var bytes = serializer.Serialize(obj);
+                fs.Write(bytes, 0, bytes.Length);
+            }
+        }
 
+        /// <summary>
+        /// Generate the expected name of the serialized object file.
+        /// </summary>
+        /// <param name="version"></param>
+        /// <param name="type"></param>
+        /// <returns></returns>
+        private static string GetSerializedFileName(string version, Type type)
+        {
+            string className = type.Name;
+            int index = className.LastIndexOf(".");
+            index = (index < 0) ? 0 : index + 1;
 
-		/// <summary>
-		/// Generate the expected name of the serialized object file.
-		/// </summary>
-		/// <param name="version"></param>
-		/// <param name="type"></param>
-		/// <returns></returns>
-		private static string GetSerializedFileName(string version, Type type)
-		{
-			string className = type.Name;
-			int index = className.LastIndexOf(".");
-			index = (index < 0) ? 0 : index + 1;
-
-			return string.Format("{0}-{1}.ser", className.Substring(index), version);
-		}
-	}
+            return $"{className.Substring(index)}-{version}.ser";
+        }
+    }
 }

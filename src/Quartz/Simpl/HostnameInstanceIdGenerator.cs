@@ -17,6 +17,8 @@
  */
 #endregion
 
+using System.Threading.Tasks;
+
 using Quartz.Spi;
 
 namespace Quartz.Simpl
@@ -36,11 +38,11 @@ namespace Quartz.Simpl
 	/// <seealso cref="SimpleInstanceIdGenerator" />
 	public class HostnameInstanceIdGenerator : HostNameBasedIdGenerator
 	{
-		/// <summary>
-		/// Generate the instance id for a <see cref="IScheduler"/>
-		/// </summary>
-		/// <returns>The clusterwide unique instance id.</returns>
-		public override string GenerateInstanceId()
+	    /// <summary>
+	    /// Generate the instance id for a <see cref="IScheduler"/>
+	    /// </summary>
+	    /// <returns>The clusterwide unique instance id.</returns>
+	    public override Task<string> GenerateInstanceId()
 		{
 		    return GetHostName(IdMaxLength);
 		}

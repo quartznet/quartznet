@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,18 +16,23 @@
  * under the License.
  * 
  */
+
 #endregion
 
-using Common.Logging;
+#if FAKE_IT_EASY
+
+using System;
+using System.Threading.Tasks;
+
+using FakeItEasy;
 
 using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Job;
+using Quartz.Logging;
 using Quartz.Plugin.History;
 using Quartz.Spi;
-
-using Rhino.Mocks;
 
 namespace Quartz.Tests.Unit.Plugin.History
 {
@@ -40,73 +46,74 @@ namespace Quartz.Tests.Unit.Plugin.History
         [SetUp]
         public void SetUp()
         {
-            mockLog = MockRepository.GenerateMock<ILog>();
+            mockLog = A.Fake<ILog>();
             plugin = new LoggingTriggerHistoryPlugin();
             plugin.Log = mockLog;
         }
 
         [Test]
-        public void TestTriggerFiredMessage()
+        public async Task TestTriggerFiredMessage()
         {
             // arrange
-            mockLog.Stub(log => log.IsInfoEnabled).Return(true);
+            A.CallTo(() => mockLog.Log(LogLevel.Info, null, null, null)).Returns(true);
 
             ITrigger t = TriggerBuilder.Create()
-                                        .WithSchedule(SimpleScheduleBuilder.Create())
-                                        .Build();
-            
-            IJobExecutionContext ctx = new JobExecutionContextImpl(
-                null, 
-                TestUtil.CreateMinimalFiredBundleWithTypedJobDetail(typeof(NoOpJob), (IOperableTrigger) t), 
-                null);
+                .WithSchedule(SimpleScheduleBuilder.Create())
+                .Build();
 
-            // act
-            plugin.TriggerFired(t, ctx);
-
-            // assert
-            mockLog.AssertWasCalled(log => log.Info(Arg<string>.Is.NotNull));
-        }
-
-
-        [Test]
-        public void TestTriggerMisfiredMessage()
-        {
-            // arrange
-            mockLog.Stub(log => log.IsInfoEnabled).Return(true);
-            IOperableTrigger t = (IOperableTrigger) TriggerBuilder.Create()
-                                                        .WithSchedule(SimpleScheduleBuilder.Create())
-                                                        .Build();
-
-            t.JobKey = new JobKey("name", "group");
-            
-            // act
-            plugin.TriggerMisfired(t);
-
-            // assert
-            mockLog.AssertWasCalled(log => log.Info(Arg<string>.Is.NotNull));
-        }
-
-        [Test]
-        public void TestTriggerCompleteMessage()
-        {
-            // arrange
-            mockLog.Stub(log => log.IsInfoEnabled).Return(true);
-
-            ITrigger t = TriggerBuilder.Create()
-                                        .WithSchedule(SimpleScheduleBuilder.Create())
-                                        .Build();
-            
             IJobExecutionContext ctx = new JobExecutionContextImpl(
                 null,
                 TestUtil.CreateMinimalFiredBundleWithTypedJobDetail(typeof(NoOpJob), (IOperableTrigger) t),
                 null);
 
             // act
-            plugin.TriggerComplete(t, ctx, SchedulerInstruction.ReExecuteJob);
+            await plugin.TriggerFired(t, ctx);
 
             // assert
-            mockLog.AssertWasCalled(log => log.Info(Arg<string>.Is.NotNull));
+            A.CallTo(() => mockLog.Log(A<LogLevel>.That.IsEqualTo(LogLevel.Info), A<Func<string>>.That.IsNull(), A<Exception>.That.IsNull(), A<object[]>.That.Not.IsNull())).MustHaveHappened();
         }
-        
+
+
+        [Test]
+        public async Task TestTriggerMisfiredMessage()
+        {
+            // arrange
+            A.CallTo(() => mockLog.Log(LogLevel.Info, null, null, null)).Returns(true);
+            IOperableTrigger t = (IOperableTrigger) TriggerBuilder.Create()
+                .WithSchedule(SimpleScheduleBuilder.Create())
+                .Build();
+
+            t.JobKey = new JobKey("name", "group");
+
+            // act
+            await plugin.TriggerMisfired(t);
+
+            // assert
+            A.CallTo(() => mockLog.Log(A<LogLevel>.That.IsEqualTo(LogLevel.Info), A<Func<string>>.That.IsNull(), A<Exception>.That.IsNull(), A<object[]>.That.Not.IsNull())).MustHaveHappened();
+        }
+
+        [Test]
+        public async Task TestTriggerCompleteMessage()
+        {
+            // arrange
+            A.CallTo(() => mockLog.Log(LogLevel.Info, null, null, null)).Returns(true);
+
+            ITrigger t = TriggerBuilder.Create()
+                .WithSchedule(SimpleScheduleBuilder.Create())
+                .Build();
+
+            IJobExecutionContext ctx = new JobExecutionContextImpl(
+                null,
+                TestUtil.CreateMinimalFiredBundleWithTypedJobDetail(typeof(NoOpJob), (IOperableTrigger) t),
+                null);
+
+            // act
+            await plugin.TriggerComplete(t, ctx, SchedulerInstruction.ReExecuteJob);
+
+            // assert
+            A.CallTo(() => mockLog.Log(A<LogLevel>.That.IsEqualTo(LogLevel.Info), A<Func<string>>.That.IsNull(), A<Exception>.That.IsNull(), A<object[]>.That.Not.IsNull())).MustHaveHappened();
+        }
     }
 }
+
+#endif

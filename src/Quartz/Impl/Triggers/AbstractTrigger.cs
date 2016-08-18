@@ -1,19 +1,19 @@
 #region License
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 #endregion
 
@@ -32,13 +32,13 @@ namespace Quartz.Impl.Triggers
     /// <see cref="ITrigger" />s have a name and group associated with them, which
 	/// should uniquely identify them within a single <see cref="IScheduler" />.
 	/// </para>
-	/// 
+	///
 	/// <para>
 	/// <see cref="ITrigger" />s are the 'mechanism' by which <see cref="IJob" /> s
     /// are scheduled. Many <see cref="ITrigger" /> s can point to the same <see cref="IJob" />,
     /// but a single <see cref="ITrigger" /> can only point to one <see cref="IJob" />.
 	/// </para>
-	/// 
+	///
 	/// <para>
 	/// Triggers can 'send' parameters/data to <see cref="IJob" />s by placing contents
     /// into the <see cref="JobDataMap" /> on the <see cref="ITrigger" />.
@@ -52,7 +52,9 @@ namespace Quartz.Impl.Triggers
 	/// <author>James House</author>
 	/// <author>Sharada Jambula</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
     public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTrigger>
 	{
         private string name;
@@ -69,8 +71,10 @@ namespace Quartz.Impl.Triggers
         private DateTimeOffset? endTimeUtc;
         private DateTimeOffset startTimeUtc;
 		private int priority = TriggerConstants.DefaultPriority;
-		
+
+#if BINARY_SERIALIZATION
         [NonSerialized] // we have the key in string fields
+#endif // BINARY_SERIALIZATION
         private TriggerKey key;
 
 		/// <summary>
@@ -96,7 +100,7 @@ namespace Quartz.Impl.Triggers
 		/// <summary>
 		/// Get the group of this <see cref="ITrigger" />. If <see langword="null" />, Scheduler.DefaultGroup will be used.
 		/// </summary>
-		/// <exception cref="ArgumentException"> 
+		/// <exception cref="ArgumentException">
 		/// if group is an empty string.
 		/// </exception>
 		public virtual string Group
@@ -122,8 +126,8 @@ namespace Quartz.Impl.Triggers
 
 		/// <summary>
 		/// Get or set the name of the associated <see cref="IJobDetail" />.
-		/// </summary> 
-		/// <exception cref="ArgumentException"> 
+		/// </summary>
+		/// <exception cref="ArgumentException">
 		/// if jobName is null or empty.
 		/// </exception>
 		public virtual string JobName
@@ -185,7 +189,7 @@ namespace Quartz.Impl.Triggers
 		{
 		    get
 			{
-				if(key == null) 
+				if(key == null)
 				{
                     key = new TriggerKey(Name, Group);
 				}
@@ -264,7 +268,7 @@ namespace Quartz.Impl.Triggers
 		}
 
 		/// <summary>
-		/// Get or set the <see cref="JobDataMap" /> that is associated with the 
+		/// Get or set the <see cref="JobDataMap" /> that is associated with the
 		/// <see cref="ITrigger" />.
 		/// <para>
 		/// Changes made to this map during job execution are not re-persisted, and
@@ -322,7 +326,7 @@ namespace Quartz.Impl.Triggers
 			}
 		}
 
-        /// <summary> 
+        /// <summary>
         /// This method should not be used by the Quartz client.
         /// </summary>
         /// <remarks>
@@ -347,7 +351,7 @@ namespace Quartz.Impl.Triggers
 	    public abstract DateTimeOffset? GetPreviousFireTimeUtc();
 
 	    /// <summary>
-		/// Gets and sets the date/time on which the trigger must stop firing. This 
+		/// Gets and sets the date/time on which the trigger must stop firing. This
 		/// defines the final boundary for trigger firings &#x8212; the trigger will
 		/// not fire after to this date and time. If this value is null, no end time
 		/// boundary is assumed, and the trigger can continue indefinitely.
@@ -393,7 +397,7 @@ namespace Quartz.Impl.Triggers
 
 				if (!HasMillisecondPrecision)
 				{
-					// round off millisecond...	
+					// round off millisecond...
 					startTimeUtc = value.AddMilliseconds(-value.Millisecond);
 				}
 				else
@@ -474,9 +478,9 @@ namespace Quartz.Impl.Triggers
 		}
 
 		/// <summary>
-		/// The priority of a <see cref="ITrigger" /> acts as a tie breaker such that if 
+		/// The priority of a <see cref="ITrigger" /> acts as a tie breaker such that if
         /// two <see cref="ITrigger" />s have the same scheduled fire time, then Quartz
-        /// will do its best to give the one with the higher priority first access 
+        /// will do its best to give the one with the higher priority first access
         /// to a worker thread.
 		/// </summary>
 		/// <remarks>
@@ -512,17 +516,17 @@ namespace Quartz.Impl.Triggers
         /// added to the scheduler, in order to have the <see cref="ITrigger" />
         /// compute its first fire time, based on any associated calendar.
         /// </para>
-        /// 
+        ///
         /// <para>
         /// After this method has been called, <see cref="GetNextFireTimeUtc" />
         /// should return a valid answer.
         /// </para>
         /// </remarks>
-        /// <returns> 
+        /// <returns>
         /// The first time at which the <see cref="ITrigger" /> will be fired
         /// by the scheduler, which is also the same value <see cref="GetNextFireTimeUtc" />
         /// will return (until after the first firing of the <see cref="ITrigger" />).
-        /// </returns>        
+        /// </returns>
         public abstract DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar cal);
 
         /// <summary>
@@ -569,7 +573,7 @@ namespace Quartz.Impl.Triggers
             return SchedulerInstruction.NoInstruction;
         }
 
-		/// <summary> 
+		/// <summary>
 		/// Used by the <see cref="IScheduler" /> to determine whether or not
 		/// it is possible for this <see cref="ITrigger" /> to fire again.
 		/// <para>
@@ -608,7 +612,7 @@ namespace Quartz.Impl.Triggers
 		/// <returns></returns>
 		protected abstract bool ValidateMisfireInstruction(int misfireInstruction);
 
-		/// <summary> 
+		/// <summary>
 		/// This method should not be used by the Quartz client.
 		/// <para>
 		/// To be implemented by the concrete classes that extend this class.
@@ -621,13 +625,13 @@ namespace Quartz.Impl.Triggers
 		/// </summary>
 		public abstract void UpdateAfterMisfire(ICalendar cal);
 
-		/// <summary> 
+		/// <summary>
 		/// This method should not be used by the Quartz client.
 		/// <para>
 		/// The implementation should update the <see cref="ITrigger" />'s state
 		/// based on the given new version of the associated <see cref="ICalendar" />
 		/// (the state should be updated so that it's next fire time is appropriate
-		/// given the Calendar's new settings). 
+		/// given the Calendar's new settings).
 		/// </para>
 		/// </summary>
 		/// <param name="cal"> </param>
@@ -663,12 +667,12 @@ namespace Quartz.Impl.Triggers
 
         /// <summary>
         /// Gets a value indicating whether this instance has additional properties
-        /// that should be considered when for example saving to database. 
+        /// that should be considered when for example saving to database.
         /// </summary>
         /// <remarks>
-        /// If trigger implementation has additional properties that need to be saved 
+        /// If trigger implementation has additional properties that need to be saved
         /// with base properties you need to make your class override this property with value true.
-        /// Returning true will effectively mean that ADOJobStore needs to serialize 
+        /// Returning true will effectively mean that ADOJobStore needs to serialize
         /// this trigger instance to make sure additional properties are also saved.
         /// </remarks>
         /// <value>
@@ -770,7 +774,7 @@ namespace Quartz.Impl.Triggers
         /// <returns>
         /// A new object that is a copy of this instance.
         /// </returns>
-		public virtual object Clone()
+		public virtual ITrigger Clone()
 		{
             AbstractTrigger copy;
 			try
@@ -779,8 +783,8 @@ namespace Quartz.Impl.Triggers
 
 				// Shallow copy the jobDataMap.  Note that this means that if a user
 				// modifies a value object in this map from the cloned Trigger
-				// they will also be modifying this Trigger. 
-				if (jobDataMap != null) 
+				// they will also be modifying this Trigger.
+				if (jobDataMap != null)
 				{
 					copy.jobDataMap = (JobDataMap)jobDataMap.Clone();
 				}

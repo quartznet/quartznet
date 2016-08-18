@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,60 +16,53 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
-using System.Threading;
-using Common.Logging;
+using System.Threading.Tasks;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example5
 {
-	
-	/// <summary>
-	/// A dumb implementation of Job, for unit testing purposes.
-	/// </summary>
-	/// <author>James House</author>
+    /// <summary>
+    /// A dumb implementation of Job, for unit testing purposes.
+    /// </summary>
+    /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [PersistJobDataAfterExecution]
     [DisallowConcurrentExecution]
     public class MisfireJob : IJob
-	{
-		// Logging
-		private static readonly ILog log = LogManager.GetLogger(typeof(MisfireJob));
-		
-		// Constants
-		public const string NumExecutions = "NumExecutions";
-		public const string ExecutionDelay = "ExecutionDelay";
-		
-		/// <summary>
-		/// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
-		/// fires that is associated with the <see cref="IJob" />.
-		/// </summary>
-		public virtual void  Execute(IJobExecutionContext context)
-		{
-			JobKey jobKey = context.JobDetail.Key;
-			log.Info(string.Format("---{0} executing at {1}", jobKey, DateTime.Now.ToString("r")));
-			
-			// default delay to five seconds
-			int delay = 5;
-			
-			// use the delay passed in as a job parameter (if it exists)
-			JobDataMap map = context.JobDetail.JobDataMap;
-			if (map.ContainsKey(ExecutionDelay))
-			{
-				delay = map.GetInt(ExecutionDelay);
-			}
-			
-			try
-			{
-				Thread.Sleep(1000 * delay);
-			}
-            catch (ThreadInterruptedException)
-			{
-			}
-			
-			log.Info(string.Format("---{0} completed at {1}", jobKey, DateTime.Now.ToString("r")));
-		}
+    {
+        // Logging
+        private static readonly ILog log = LogProvider.GetLogger(typeof (MisfireJob));
 
-	}
+        // Constants
+        public const string NumExecutions = "NumExecutions";
+        public const string ExecutionDelay = "ExecutionDelay";
+
+        /// <summary>
+        /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
+        /// fires that is associated with the <see cref="IJob" />.
+        /// </summary>
+        public virtual async Task Execute(IJobExecutionContext context)
+        {
+            JobKey jobKey = context.JobDetail.Key;
+            log.Info($"---{jobKey} executing at {DateTime.Now.ToString("r")}");
+
+            // default delay to five seconds
+            int delay = 5;
+
+            // use the delay passed in as a job parameter (if it exists)
+            JobDataMap map = context.JobDetail.JobDataMap;
+            if (map.ContainsKey(ExecutionDelay))
+            {
+                delay = map.GetInt(ExecutionDelay);
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(delay));
+
+            log.Info($"---{jobKey} completed at {DateTime.Now.ToString("r")}");
+        }
+    }
 }

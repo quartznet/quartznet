@@ -1,24 +1,23 @@
 #region License
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 #endregion
 
 using System;
-
 using Quartz.Core;
 
 namespace Quartz.Spi
@@ -30,9 +29,12 @@ namespace Quartz.Spi
     /// <seealso cref="QuartzScheduler" />
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
     public class TriggerFiredBundle
     {
+        // JsonProperty attributes are used since Json.Net's default behavior is to serialize public members and the properties wrapping these fields are read-only
         private readonly IJobDetail job;
         private readonly IOperableTrigger trigger;
         private readonly ICalendar cal;
@@ -78,7 +80,7 @@ namespace Quartz.Spi
             get { return jobIsRecovering; }
         }
 
-        /// <returns> 
+        /// <returns>
         /// Returns the UTC fire time.
         /// </returns>
         public virtual DateTimeOffset? FireTimeUtc
@@ -106,7 +108,7 @@ namespace Quartz.Spi
             get { return prevFireTimeUtc; }
         }
 
-        /// <returns> 
+        /// <returns>
         /// Returns the scheduled UTC fire time.
         /// </returns>
         public virtual DateTimeOffset? ScheduledFireTimeUtc

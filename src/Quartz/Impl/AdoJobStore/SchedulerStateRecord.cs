@@ -21,31 +21,33 @@ using System;
 
 namespace Quartz.Impl.AdoJobStore
 {
-	/// <summary>
-	/// Conveys a scheduler-instance state record.
-	/// </summary>
-	/// <author>James House</author>
-	/// <author>Marko Lahma (.NET)</author>
-	[Serializable]
-	public class SchedulerStateRecord
+    /// <summary>
+    /// Conveys a scheduler-instance state record.
+    /// </summary>
+    /// <author>James House</author>
+    /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
+    [Serializable]
+#endif // BINARY_SERIALIZATION
+    public class SchedulerStateRecord
 	{
 	    /// <summary>
 	    /// Gets or sets the checkin interval.
 	    /// </summary>
 	    /// <value>The checkin interval.</value>
-	    public virtual TimeSpan CheckinInterval { get; set; }
+        public virtual TimeSpan CheckinInterval { get; set; }
 
 	    /// <summary>
 	    /// Gets or sets the checkin timestamp.
 	    /// </summary>
 	    /// <value>The checkin timestamp.</value>
-	    public virtual DateTimeOffset CheckinTimestamp { get; set; }
+        public virtual DateTimeOffset CheckinTimestamp { get; set; }
 
 	    /// <summary>
 	    /// Gets or sets the scheduler instance id.
 	    /// </summary>
 	    /// <value>The scheduler instance id.</value>
-	    public virtual string SchedulerInstanceId { get; set; }
+        public virtual string SchedulerInstanceId { get; set; }
 	}
 
 }

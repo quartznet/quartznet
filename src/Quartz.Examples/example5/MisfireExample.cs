@@ -1,37 +1,37 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
 
 using System;
-using System.Threading;
-
-using Common.Logging;
+using System.Collections.Specialized;
+using System.Threading.Tasks;
 
 using Quartz.Impl;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example5
 {
-    /// <summary> 
-    /// Demonstrates the behavior of <see cref="PersistJobDataAfterExecutionAttribute" />, 
+    /// <summary>
+    /// Demonstrates the behavior of <see cref="PersistJobDataAfterExecutionAttribute" />,
     /// as well as how misfire instructions affect the firings of triggers of
-    /// that have <see cref="DisallowConcurrentExecutionAttribute" /> present - 
+    /// that have <see cref="DisallowConcurrentExecutionAttribute" /> present -
     /// when the jobs take longer to execute that the frequency of the trigger's
     /// repetition.
     /// </summary>
@@ -55,20 +55,15 @@ namespace Quartz.Examples.Example5
     /// <author>Marko Lahma (.NET)</author>
     public class MisfireExample : IExample
     {
-        public string Name
+        public virtual async Task Run()
         {
-            get { throw new NotImplementedException(); }
-        }
-
-        public virtual void Run()
-        {
-            ILog log = LogManager.GetLogger(typeof (MisfireExample));
+            ILog log = LogProvider.GetLogger(typeof (MisfireExample));
 
             log.Info("------- Initializing -------------------");
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory();
-            IScheduler sched = sf.GetScheduler();
+            IScheduler sched = await sf.GetScheduler();
 
             log.Info("------- Initialization Complete -----------");
 
@@ -88,13 +83,13 @@ namespace Quartz.Examples.Example5
                 .Build();
 
             ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                                                          .WithIdentity("trigger1", "group1")
-                                                          .StartAt(startTime)
-                                                          .WithSimpleSchedule(x  => x.WithIntervalInSeconds(3).RepeatForever())
-                                                          .Build();
+                .WithIdentity("trigger1", "group1")
+                .StartAt(startTime)
+                .WithSimpleSchedule(x => x.WithIntervalInSeconds(3).RepeatForever())
+                .Build();
 
-            DateTimeOffset ft = sched.ScheduleJob(job, trigger);
-            log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.Key, ft.ToString("r"), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
+            DateTimeOffset ft = await sched.ScheduleJob(job, trigger);
+            log.Info($"{job.Key} will run at: {ft.ToString("r")} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
 
             // statefulJob2 will run every three seconds
             // (but it will delay for ten seconds - and therefore purposely misfire after a few iterations)
@@ -104,41 +99,35 @@ namespace Quartz.Examples.Example5
                 .Build();
 
             trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                                           .WithIdentity("trigger2", "group1")
-                                           .StartAt(startTime)
-                                           .WithSimpleSchedule(x => x
-                                                                 .WithIntervalInSeconds(3)
-                                                                 .RepeatForever()
-                                                                 .WithMisfireHandlingInstructionNowWithExistingCount()) // set misfire instructions
-                                           .Build();
-            ft = sched.ScheduleJob(job, trigger);
+                .WithIdentity("trigger2", "group1")
+                .StartAt(startTime)
+                .WithSimpleSchedule(x => x
+                    .WithIntervalInSeconds(3)
+                    .RepeatForever()
+                    .WithMisfireHandlingInstructionNowWithExistingCount()) // set misfire instructions
+                .Build();
+            ft = await sched.ScheduleJob(job, trigger);
 
-            log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.Key, ft.ToString("r"), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
+            log.Info($"{job.Key} will run at: {ft.ToString("r")} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
 
             log.Info("------- Starting Scheduler ----------------");
 
             // jobs don't start firing until start() has been called...
-            sched.Start();
+            await sched.Start();
 
             log.Info("------- Started Scheduler -----------------");
 
-            try
-            {
-                // sleep for ten minutes for triggers to file....
-                Thread.Sleep(TimeSpan.FromMinutes(10));
-            }
-            catch (ThreadInterruptedException)
-            {
-            }
+            // sleep for ten minutes for triggers to file....
+            await Task.Delay(TimeSpan.FromMinutes(10));
 
             log.Info("------- Shutting Down ---------------------");
 
-            sched.Shutdown(true);
+            await sched.Shutdown(true);
 
             log.Info("------- Shutdown Complete -----------------");
 
-            SchedulerMetaData metaData = sched.GetMetaData();
-            log.Info(string.Format("Executed {0} jobs.", metaData.NumberOfJobsExecuted));
+            SchedulerMetaData metaData = await sched.GetMetaData();
+            log.Info($"Executed {metaData.NumberOfJobsExecuted} jobs.");
         }
     }
 }

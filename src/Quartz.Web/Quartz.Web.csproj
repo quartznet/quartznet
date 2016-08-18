@@ -1,0 +1,1315 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{85E583B5-2D1E-4D08-8677-0D0851CBE2B6}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Quartz.Web</RootNamespace>
+    <AssemblyName>Quartz.Web</AssemblyName>
+    <TargetFrameworkVersion>v4.5.2</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <TargetFrameworkProfile />
+    <TypeScriptToolsVersion>1.6</TypeScriptToolsVersion>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>..\..\build\4.5\Debug\Quartz.Web\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>..\..\build\4.5\Release\Quartz.Web\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <TypeScriptTarget>ES5</TypeScriptTarget>
+    <TypeScriptIncludeComments>false</TypeScriptIncludeComments>
+    <TypeScriptSourceMap>false</TypeScriptSourceMap>
+    <TypeScriptModuleKind>amd</TypeScriptModuleKind>
+    <TypeScriptNoImplicitAny>False</TypeScriptNoImplicitAny>
+    <TypeScriptAdditionalFlags> $(TypeScriptAdditionalFlags) --emitDecoratorMetadata --experimentalDecorators </TypeScriptAdditionalFlags>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <TypeScriptTarget>ES5</TypeScriptTarget>
+    <TypeScriptIncludeComments>false</TypeScriptIncludeComments>
+    <TypeScriptSourceMap>false</TypeScriptSourceMap>
+    <TypeScriptModuleKind>amd</TypeScriptModuleKind>
+    <TypeScriptAdditionalFlags> $(TypeScriptAdditionalFlags) --emitDecoratorMetadata --experimentalDecorators </TypeScriptAdditionalFlags>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="System" />
+    <Reference Include="System.Configuration" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.IdentityModel" />
+    <Reference Include="System.Net.Http" />
+    <Reference Include="System.Xml.Linq" />
+    <Reference Include="System.Data.DataSetExtensions" />
+    <Reference Include="Microsoft.CSharp" />
+    <Reference Include="System.Data" />
+    <Reference Include="System.Xml" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\AssemblyInfo.cs">
+      <Link>AssemblyInfo.cs</Link>
+    </Compile>
+    <Compile Include="Api\CalendarsController.cs" />
+    <Compile Include="Api\Dto\CalendarDetailDto.cs" />
+    <Compile Include="Api\Dto\TimeZoneDto.cs" />
+    <Compile Include="Api\Dto\CurrentlyExecutingJobDto.cs" />
+    <Compile Include="Api\Dto\GroupMatcherDto.cs" />
+    <Compile Include="Api\Dto\JobDetailDto.cs" />
+    <Compile Include="Api\Dto\JobHistoryEntryDto.cs" />
+    <Compile Include="Api\Dto\JobHistoryViewModel.cs" />
+    <Compile Include="Api\Dto\KeyDto.cs" />
+    <Compile Include="Api\Dto\SchedulerDto.cs" />
+    <Compile Include="Api\Dto\SchedulerHeaderDto.cs" />
+    <Compile Include="Api\Dto\SchedulerJobStoreDto.cs" />
+    <Compile Include="Api\Dto\SchedulerStatisticsDto.cs" />
+    <Compile Include="Api\Dto\SchedulerStatus.cs" />
+    <Compile Include="Api\Dto\SchedulerThreadPoolDto.cs" />
+    <Compile Include="Api\Dto\ServerDetailsDto.cs" />
+    <Compile Include="Api\Dto\ServerHeaderDto.cs" />
+    <Compile Include="Api\Dto\TriggerDetailDto.cs" />
+    <Compile Include="Api\JobsController.cs" />
+    <Compile Include="Api\TriggersController.cs" />
+    <Compile Include="History\JobExecutionHistoryController.cs" />
+    <Compile Include="Api\ServerController.cs" />
+    <Compile Include="Api\SchedulerController.cs" />
+    <Compile Include="Api\ServerRepository.cs" />
+    <Compile Include="History\DatabaseExecutionHistoryPlugin.cs" />
+    <Compile Include="History\JobHistoryDelegate.cs" />
+    <Compile Include="LiveLog\LiveLogPlugin.cs" />
+    <Compile Include="LiveLog\LiveLogHub.cs" />
+    <Compile Include="Startup.cs" />
+    <Compile Include="WebConsolePlugin.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz\Quartz.csproj">
+      <Project>{aef8823b-e45b-4b35-a4d0-c08c1196d017}</Project>
+      <Name>Quartz.2010</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="app.config" />
+    <None Include="App\jspm_packages\.loaderversions" />
+    <None Include="App\jspm_packages\github\jmcriffey\bower-traceur%400.0.87\.gitignore" />
+    <None Include="App\jspm_packages\github\jmcriffey\bower-traceur%400.0.87\.jspm-hash" />
+    <None Include="App\jspm_packages\github\jmcriffey\bower-traceur%400.0.87\.jspm.json" />
+    <None Include="App\jspm_packages\github\jmcriffey\bower-traceur%400.0.87\bower.json" />
+    <None Include="App\jspm_packages\github\jmcriffey\bower-traceur%400.0.87\package.json" />
+    <None Include="App\jspm_packages\github\jmcriffey\bower-traceur%400.0.87\README.md" />
+    <None Include="App\jspm_packages\github\jmcriffey\bower-traceur%400.0.87\traceur.min.map" />
+    <None Include="App\jspm_packages\github\jmcriffey\bower-traceur-runtime%400.0.87\.gitignore" />
+    <None Include="App\jspm_packages\github\jmcriffey\bower-traceur-runtime%400.0.87\.jspm-hash" />
+    <None Include="App\jspm_packages\github\jmcriffey\bower-traceur-runtime%400.0.87\.jspm.json" />
+    <None Include="App\jspm_packages\github\jmcriffey\bower-traceur-runtime%400.0.87\bower.json" />
+    <None Include="App\jspm_packages\github\jmcriffey\bower-traceur-runtime%400.0.87\package.json" />
+    <None Include="App\jspm_packages\github\jmcriffey\bower-traceur-runtime%400.0.87\README.md" />
+    <None Include="App\jspm_packages\github\jmcriffey\bower-traceur-runtime%400.0.87\traceur-runtime.min.map" />
+    <None Include="App\jspm_packages\github\jspm\nodelibs-fs%400.1.2\.jspm-hash" />
+    <None Include="App\jspm_packages\github\jspm\nodelibs-fs%400.1.2\.jspm.json" />
+    <None Include="App\jspm_packages\github\jspm\nodelibs-fs%400.1.2\package.json" />
+    <None Include="App\jspm_packages\github\jspm\nodelibs-process%400.1.1\.jspm-hash" />
+    <None Include="App\jspm_packages\github\jspm\nodelibs-process%400.1.1\.jspm.json" />
+    <None Include="App\jspm_packages\github\jspm\nodelibs-process%400.1.1\package.json" />
+    <None Include="App\jspm_packages\github\moment\moment%402.10.3\.editorconfig" />
+    <None Include="App\jspm_packages\github\moment\moment%402.10.3\.gitignore" />
+    <None Include="App\jspm_packages\github\moment\moment%402.10.3\.jscs.json" />
+    <None Include="App\jspm_packages\github\moment\moment%402.10.3\.jshintrc" />
+    <None Include="App\jspm_packages\github\moment\moment%402.10.3\.jspm-hash" />
+    <None Include="App\jspm_packages\github\moment\moment%402.10.3\.jspm.json" />
+    <None Include="App\jspm_packages\github\moment\moment%402.10.3\.npmignore" />
+    <None Include="App\jspm_packages\github\moment\moment%402.10.3\.spmignore" />
+    <None Include="App\jspm_packages\github\moment\moment%402.10.3\.travis.yml" />
+    <None Include="App\jspm_packages\github\systemjs\plugin-css%400.1.13\.gitignore" />
+    <None Include="App\jspm_packages\github\systemjs\plugin-css%400.1.13\.jspm-hash" />
+    <None Include="App\jspm_packages\github\systemjs\plugin-css%400.1.13\.jspm.json" />
+    <None Include="App\jspm_packages\github\systemjs\plugin-css%400.1.13\LICENSE" />
+    <None Include="App\jspm_packages\github\systemjs\plugin-css%400.1.13\package.json" />
+    <None Include="App\jspm_packages\github\systemjs\plugin-css%400.1.13\README.md" />
+    <None Include="App\jspm_packages\github\systemjs\plugin-json%400.1.0\.jspm-hash" />
+    <None Include="App\jspm_packages\github\systemjs\plugin-json%400.1.0\.jspm.json" />
+    <None Include="App\jspm_packages\github\systemjs\plugin-json%400.1.0\json.json" />
+    <None Include="App\jspm_packages\github\systemjs\plugin-json%400.1.0\LICENSE" />
+    <None Include="App\jspm_packages\github\systemjs\plugin-json%400.1.0\package.json" />
+    <None Include="App\jspm_packages\github\systemjs\plugin-json%400.1.0\README.md" />
+    <None Include="App\jspm_packages\github\webcomponents\webcomponentsjs%400.6.3\.jspm-hash" />
+    <None Include="App\jspm_packages\github\webcomponents\webcomponentsjs%400.6.3\.jspm.json" />
+    <None Include="App\jspm_packages\github\webcomponents\webcomponentsjs%400.6.3\bower.json" />
+    <None Include="App\jspm_packages\github\webcomponents\webcomponentsjs%400.6.3\build.log" />
+    <None Include="App\jspm_packages\github\webcomponents\webcomponentsjs%400.6.3\package.json" />
+    <None Include="App\jspm_packages\github\webcomponents\webcomponentsjs%400.6.3\README.md" />
+    <None Include="App\jspm_packages\npm\core-js%400.9.18\.eslintrc" />
+    <None Include="App\jspm_packages\npm\core-js%400.9.18\.gitattributes" />
+    <None Include="App\jspm_packages\npm\core-js%400.9.18\.jspm-hash" />
+    <None Include="App\jspm_packages\npm\core-js%400.9.18\.jspm.json" />
+    <None Include="App\jspm_packages\npm\core-js%400.9.18\.npmignore" />
+    <None Include="App\jspm_packages\npm\core-js%400.9.18\.travis.yml" />
+    <None Include="App\jspm_packages\npm\core-js%400.9.18\bower.json" />
+    <None Include="App\jspm_packages\npm\core-js%400.9.18\build\build.ls" />
+    <None Include="App\jspm_packages\npm\core-js%400.9.18\build\Gruntfile.ls" />
+    <None Include="App\jspm_packages\npm\core-js%400.9.18\client\core.min.js.map" />
+    <None Include="App\jspm_packages\npm\core-js%400.9.18\client\library.min.js.map" />
+    <None Include="App\jspm_packages\npm\core-js%400.9.18\client\shim.min.js.map" />
+    <None Include="App\jspm_packages\npm\core-js%400.9.18\LICENSE" />
+    <None Include="App\jspm_packages\npm\core-js%400.9.18\package.json" />
+    <None Include="App\jspm_packages\npm\core-js%400.9.18\README.md" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\.jspm-hash" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\.jspm.json" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\.npmignore" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\css\font-awesome.css.map" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\fonts\fontawesome-webfont.eot" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\fonts\fontawesome-webfont.ttf" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\fonts\fontawesome-webfont.woff" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\fonts\fontawesome-webfont.woff2" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\fonts\FontAwesome.otf" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\less\animated.less" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\less\bordered-pulled.less" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\less\core.less" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\less\fixed-width.less" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\less\font-awesome.less" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\less\icons.less" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\less\larger.less" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\less\list.less" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\less\mixins.less" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\less\path.less" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\less\rotated-flipped.less" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\less\stacked.less" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\less\variables.less" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\package.json" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\README.md" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\scss\font-awesome.scss" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\scss\_animated.scss" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\scss\_bordered-pulled.scss" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\scss\_core.scss" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\scss\_fixed-width.scss" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\scss\_icons.scss" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\scss\_larger.scss" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\scss\_list.scss" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\scss\_mixins.scss" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\scss\_path.scss" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\scss\_rotated-flipped.scss" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\scss\_stacked.scss" />
+    <None Include="App\jspm_packages\npm\font-awesome%404.3.0\scss\_variables.scss" />
+    <None Include="App\jspm_packages\npm\process%400.10.1\.jspm-hash" />
+    <None Include="App\jspm_packages\npm\process%400.10.1\.jspm.json" />
+    <None Include="App\jspm_packages\npm\process%400.10.1\LICENSE" />
+    <None Include="App\jspm_packages\npm\process%400.10.1\package.json" />
+    <None Include="App\jspm_packages\npm\process%400.10.1\README.md" />
+    <None Include="App\package.json" />
+    <None Include="App\scripts\core-js\client\core.min.js.map">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="App\scripts\core-js\client\core.min.map">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="App\scripts\core-js\client\library.min.js.map">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="App\scripts\core-js\client\library.min.map">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="App\scripts\core-js\client\shim.min.js.map">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="App\scripts\core-js\client\shim.min.map">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="App\scripts\underscore\underscore-min.map">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="App\scripts\webcomponentsjs\README.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="App\styles\bootstrap\fonts\glyphicons-halflings-regular.eot">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="App\styles\bootstrap\fonts\glyphicons-halflings-regular.ttf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="App\styles\bootstrap\fonts\glyphicons-halflings-regular.woff">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="App\styles\bootstrap\fonts\glyphicons-halflings-regular.woff2">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="App\styles\fontawesome\fonts\fontawesome-webfont.eot">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="App\styles\fontawesome\fonts\fontawesome-webfont.ttf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="App\styles\fontawesome\fonts\fontawesome-webfont.woff">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="App\styles\fontawesome\fonts\fontawesome-webfont.woff2">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="App\styles\fontawesome\fonts\FontAwesome.otf">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="App\styles\toastr.less" />
+    <None Include="App\styles\toastr.scss" />
+    <None Include="App\scripts\signalr\jquery-2.1.3.min.map" />
+    <None Include="tsconfig.json" />
+    <None Include="project.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="App\config.js" />
+    <Content Include="App\index.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\jspm_packages\es6-module-loader.js" />
+    <Content Include="App\jspm_packages\github\jmcriffey\bower-traceur%400.0.87.js" />
+    <Content Include="App\jspm_packages\github\jmcriffey\bower-traceur%400.0.87\Gruntfile.js" />
+    <Content Include="App\jspm_packages\github\jmcriffey\bower-traceur%400.0.87\traceur.js" />
+    <Content Include="App\jspm_packages\github\jmcriffey\bower-traceur%400.0.87\traceur.min.js" />
+    <Content Include="App\jspm_packages\github\jmcriffey\bower-traceur%400.0.87\update.js" />
+    <Content Include="App\jspm_packages\github\jmcriffey\bower-traceur-runtime%400.0.87.js" />
+    <Content Include="App\jspm_packages\github\jmcriffey\bower-traceur-runtime%400.0.87\Gruntfile.js" />
+    <Content Include="App\jspm_packages\github\jmcriffey\bower-traceur-runtime%400.0.87\traceur-runtime.js" />
+    <Content Include="App\jspm_packages\github\jmcriffey\bower-traceur-runtime%400.0.87\traceur-runtime.min.js" />
+    <Content Include="App\jspm_packages\github\jmcriffey\bower-traceur-runtime%400.0.87\update.js" />
+    <Content Include="App\jspm_packages\github\jspm\nodelibs-fs%400.1.2.js" />
+    <Content Include="App\jspm_packages\github\jspm\nodelibs-fs%400.1.2\index.js" />
+    <Content Include="App\jspm_packages\github\jspm\nodelibs-process%400.1.1.js" />
+    <Content Include="App\jspm_packages\github\jspm\nodelibs-process%400.1.1\index.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\af.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\ar-ma.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\ar-sa.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\ar-tn.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\ar.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\az.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\be.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\bg.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\bn.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\bo.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\br.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\bs.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\ca.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\cs.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\cv.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\cy.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\da.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\de-at.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\de.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\el.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\en-au.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\en-ca.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\en-gb.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\eo.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\es.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\et.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\eu.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\fa.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\fi.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\fo.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\fr-ca.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\fr.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\fy.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\gl.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\he.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\hi.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\hr.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\hu.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\hy-am.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\id.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\is.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\it.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\ja.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\jv.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\ka.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\km.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\ko.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\lb.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\lt.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\lv.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\me.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\mk.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\ml.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\mr.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\ms-my.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\my.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\nb.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\ne.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\nl.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\nn.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\pl.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\pt-br.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\pt.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\ro.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\ru.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\si.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\sk.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\sl.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\sq.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\sr-cyrl.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\sr.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\sv.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\ta.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\th.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\tl-ph.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\tr.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\tzm-latn.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\tzm.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\uk.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\uz.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\vi.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\zh-cn.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\locale\zh-tw.js" />
+    <Content Include="App\jspm_packages\github\moment\moment%402.10.3\moment.js" />
+    <Content Include="App\jspm_packages\github\systemjs\plugin-css%400.1.13.js" />
+    <Content Include="App\jspm_packages\github\systemjs\plugin-css%400.1.13\css-builder.js" />
+    <Content Include="App\jspm_packages\github\systemjs\plugin-css%400.1.13\css.js" />
+    <Content Include="App\jspm_packages\github\systemjs\plugin-css%400.1.13\test.css" />
+    <Content Include="App\jspm_packages\github\systemjs\plugin-css%400.1.13\test.html" />
+    <Content Include="App\jspm_packages\github\systemjs\plugin-json%400.1.0.js" />
+    <Content Include="App\jspm_packages\github\systemjs\plugin-json%400.1.0\json.js" />
+    <Content Include="App\jspm_packages\github\systemjs\plugin-json%400.1.0\test.html" />
+    <Content Include="App\jspm_packages\github\twbs\bootstrap%403.3.5\js\bootstrap.js" />
+    <Content Include="App\jspm_packages\github\webcomponents\webcomponentsjs%400.6.3.js" />
+    <Content Include="App\jspm_packages\github\webcomponents\webcomponentsjs%400.6.3\CustomElements.js" />
+    <Content Include="App\jspm_packages\github\webcomponents\webcomponentsjs%400.6.3\CustomElements.min.js" />
+    <Content Include="App\jspm_packages\github\webcomponents\webcomponentsjs%400.6.3\HTMLImports.js" />
+    <Content Include="App\jspm_packages\github\webcomponents\webcomponentsjs%400.6.3\HTMLImports.min.js" />
+    <Content Include="App\jspm_packages\github\webcomponents\webcomponentsjs%400.6.3\ShadowDOM.js" />
+    <Content Include="App\jspm_packages\github\webcomponents\webcomponentsjs%400.6.3\ShadowDOM.min.js" />
+    <Content Include="App\jspm_packages\github\webcomponents\webcomponentsjs%400.6.3\webcomponents-lite.js" />
+    <Content Include="App\jspm_packages\github\webcomponents\webcomponentsjs%400.6.3\webcomponents-lite.min.js" />
+    <Content Include="App\jspm_packages\github\webcomponents\webcomponentsjs%400.6.3\webcomponents.js" />
+    <Content Include="App\jspm_packages\github\webcomponents\webcomponentsjs%400.6.3\webcomponents.min.js" />
+    <Content Include="App\jspm_packages\npm\bootbox%404.4.0\bootbox.js" />
+    <Content Include="App\jspm_packages\npm\bootbox%404.4.0\bootbox.min.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\build.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\build\config.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\build\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\client\core.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\client\core.min.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\client\library.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\client\library.min.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\client\shim.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\client\shim.min.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\core.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\core\%24for.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\core\array.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\core\date.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\core\delay.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\core\dict.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\core\function.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\core\global.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\core\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\core\log.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\core\number.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\core\object.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\core\string.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\core\_.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\es5.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\es5\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\es6.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\es6\array.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\es6\function.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\es6\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\es6\map.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\es6\math.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\es6\number.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\es6\object.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\es6\promise.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\es6\reflect.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\es6\regexp.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\es6\set.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\es6\string.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\es6\symbol.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\es6\weak-map.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\es6\weak-set.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\es7.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\es7\array.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\es7\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\es7\map.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\es7\object.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\es7\regexp.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\es7\set.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\es7\string.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\%24for.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\concat.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\copy-within.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\entries.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\every.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\fill.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\filter.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\find-index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\find.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\for-each.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\from.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\includes.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\index-of.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\iterator.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\join.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\keys.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\last-index-of.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\map.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\of.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\pop.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\push.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\reduce-right.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\reduce.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\reverse.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\shift.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\slice.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\some.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\sort.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\splice.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\turn.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\unshift.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\array\values.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\clear-immediate.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\date.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\date\add-locale.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\date\format-utc.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\date\format.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\date\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\delay.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\dict.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\function.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\function\has-instance.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\function\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\function\name.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\function\part.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\get-iterator.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\global.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\html-collection.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\html-collection\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\html-collection\iterator.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\is-iterable.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\log.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\map.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\math.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\math\acosh.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\math\asinh.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\math\atanh.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\math\cbrt.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\math\clz32.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\math\cosh.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\math\expm1.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\math\fround.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\math\hypot.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\math\imul.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\math\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\math\log10.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\math\log1p.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\math\log2.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\math\sign.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\math\sinh.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\math\tanh.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\math\trunc.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\node-list.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\node-list\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\node-list\iterator.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\number.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\number\epsilon.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\number\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\number\is-finite.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\number\is-integer.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\number\is-nan.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\number\is-safe-integer.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\number\iterator.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\number\max-safe-integer.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\number\min-safe-integer.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\number\parse-float.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\number\parse-int.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\number\random.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\object.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\object\assign.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\object\classof.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\object\create.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\object\define-properties.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\object\define-property.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\object\define.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\object\entries.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\object\freeze.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\object\get-own-property-descriptor.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\object\get-own-property-descriptors.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\object\get-own-property-names.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\object\get-own-property-symbols.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\object\get-prototype-of.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\object\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\object\is-extensible.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\object\is-frozen.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\object\is-object.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\object\is-sealed.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\object\is.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\object\keys.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\object\make.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\object\prevent-extensions.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\object\seal.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\object\set-prototype-of.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\object\values.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\promise.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\reflect.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\reflect\apply.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\reflect\construct.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\reflect\define-property.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\reflect\delete-property.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\reflect\enumerate.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\reflect\get-own-property-descriptor.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\reflect\get-prototype-of.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\reflect\get.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\reflect\has.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\reflect\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\reflect\is-extensible.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\reflect\own-keys.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\reflect\prevent-extensions.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\reflect\set-prototype-of.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\reflect\set.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\regexp.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\regexp\escape.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\regexp\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\set-immediate.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\set-interval.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\set-timeout.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\set.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\string.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\string\at.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\string\code-point-at.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\string\ends-with.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\string\escape-html.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\string\from-code-point.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\string\includes.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\string\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\string\iterator.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\string\lpad.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\string\raw.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\string\repeat.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\string\rpad.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\string\starts-with.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\string\unescape-html.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\symbol.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\symbol\for.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\symbol\has-instance.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\symbol\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\symbol\is-concat-spreadable.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\symbol\iterator.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\symbol\key-for.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\symbol\match.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\symbol\replace.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\symbol\search.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\symbol\species.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\symbol\split.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\symbol\to-primitive.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\symbol\to-string-tag.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\symbol\unscopables.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\weak-map.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\weak-set.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\fn\_.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\Gruntfile.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\js.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\js\array.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\js\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\core.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\core\%24for.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\core\array.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\core\date.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\core\delay.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\core\dict.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\core\function.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\core\global.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\core\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\core\log.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\core\number.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\core\object.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\core\string.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\core\_.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\es5.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\es5\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\es6.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\es6\array.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\es6\function.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\es6\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\es6\map.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\es6\math.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\es6\number.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\es6\object.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\es6\promise.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\es6\reflect.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\es6\regexp.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\es6\set.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\es6\string.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\es6\symbol.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\es6\weak-map.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\es6\weak-set.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\es7.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\es7\array.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\es7\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\es7\map.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\es7\object.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\es7\regexp.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\es7\set.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\es7\string.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\%24for.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\concat.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\copy-within.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\entries.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\every.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\fill.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\filter.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\find-index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\find.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\for-each.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\from.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\includes.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\index-of.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\iterator.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\join.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\keys.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\last-index-of.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\map.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\of.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\pop.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\push.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\reduce-right.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\reduce.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\reverse.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\shift.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\slice.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\some.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\sort.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\splice.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\turn.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\unshift.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\array\values.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\clear-immediate.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\date.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\date\add-locale.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\date\format-utc.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\date\format.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\date\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\delay.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\dict.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\function.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\function\has-instance.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\function\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\function\name.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\function\part.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\get-iterator.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\global.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\html-collection.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\html-collection\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\html-collection\iterator.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\is-iterable.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\log.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\map.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\math.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\math\acosh.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\math\asinh.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\math\atanh.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\math\cbrt.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\math\clz32.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\math\cosh.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\math\expm1.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\math\fround.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\math\hypot.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\math\imul.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\math\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\math\log10.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\math\log1p.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\math\log2.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\math\sign.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\math\sinh.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\math\tanh.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\math\trunc.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\node-list.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\node-list\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\node-list\iterator.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\number.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\number\epsilon.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\number\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\number\is-finite.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\number\is-integer.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\number\is-nan.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\number\is-safe-integer.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\number\iterator.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\number\max-safe-integer.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\number\min-safe-integer.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\number\parse-float.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\number\parse-int.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\number\random.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\object.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\object\assign.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\object\classof.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\object\create.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\object\define-properties.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\object\define-property.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\object\define.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\object\entries.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\object\freeze.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\object\get-own-property-descriptor.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\object\get-own-property-descriptors.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\object\get-own-property-names.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\object\get-own-property-symbols.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\object\get-prototype-of.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\object\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\object\is-extensible.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\object\is-frozen.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\object\is-object.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\object\is-sealed.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\object\is.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\object\keys.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\object\make.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\object\prevent-extensions.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\object\seal.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\object\set-prototype-of.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\object\values.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\promise.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\reflect.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\reflect\apply.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\reflect\construct.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\reflect\define-property.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\reflect\delete-property.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\reflect\enumerate.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\reflect\get-own-property-descriptor.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\reflect\get-prototype-of.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\reflect\get.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\reflect\has.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\reflect\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\reflect\is-extensible.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\reflect\own-keys.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\reflect\prevent-extensions.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\reflect\set-prototype-of.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\reflect\set.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\regexp.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\regexp\escape.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\regexp\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\set-immediate.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\set-interval.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\set-timeout.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\set.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\string.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\string\at.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\string\code-point-at.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\string\ends-with.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\string\escape-html.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\string\from-code-point.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\string\includes.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\string\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\string\iterator.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\string\lpad.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\string\raw.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\string\repeat.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\string\rpad.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\string\starts-with.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\string\unescape-html.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\symbol.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\symbol\for.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\symbol\has-instance.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\symbol\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\symbol\is-concat-spreadable.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\symbol\iterator.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\symbol\key-for.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\symbol\match.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\symbol\replace.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\symbol\search.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\symbol\species.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\symbol\split.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\symbol\to-primitive.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\symbol\to-string-tag.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\symbol\unscopables.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\weak-map.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\weak-set.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\fn\_.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\js.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\js\array.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\js\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.array-includes.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.array-methods.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.assert.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.assign.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.cof.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.collection-strong.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.collection-to-json.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.collection-weak.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.collection.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.ctx.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.def.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.dom-create.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.enum-keys.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.for-of.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.fw.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.get-names.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.invoke.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.iter-call.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.iter-define.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.iter-detect.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.iter.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.keyof.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.mix.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.own-keys.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.partial.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.redef.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.replacer.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.same.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.set-proto.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.shared.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.species.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.string-at.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.string-pad.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.string-repeat.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.task.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.throws.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.uid.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.unscope.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\%24.wks.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\core.%24for.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\core.array.turn.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\core.date.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\core.delay.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\core.dict.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\core.function.part.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\core.global.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\core.iter-helpers.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\core.log.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\core.number.iterator.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\core.number.math.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\core.object.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\core.string.escape-html.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es5.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.array.copy-within.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.array.fill.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.array.find-index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.array.find.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.array.from.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.array.iterator.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.array.of.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.array.species.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.function.has-instance.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.function.name.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.map.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.math.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.number.constructor.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.number.statics.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.object.assign.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.object.is.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.object.set-prototype-of.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.object.statics-accept-primitives.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.object.to-string.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.promise.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.reflect.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.regexp.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.set.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.string.code-point-at.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.string.ends-with.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.string.from-code-point.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.string.includes.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.string.iterator.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.string.raw.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.string.repeat.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.string.starts-with.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.symbol.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.weak-map.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es6.weak-set.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es7.array.includes.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es7.map.to-json.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es7.object.get-own-property-descriptors.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es7.object.to-array.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es7.observable.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es7.regexp.escape.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es7.set.to-json.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es7.string.at.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es7.string.lpad.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\es7.string.rpad.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\js.array.statics.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\library\modules\%24.collection.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\library\modules\%24.def.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\library\modules\%24.fw.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\library\modules\%24.redef.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\library\modules\%24.unscope.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\web.dom.iterable.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\web.immediate.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\modules\web.timers.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\shim.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\web.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\web\dom.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\web\immediate.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\web\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\library\web\timers.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.array-includes.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.array-methods.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.assert.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.assign.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.cof.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.collection-strong.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.collection-to-json.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.collection-weak.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.collection.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.ctx.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.def.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.dom-create.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.enum-keys.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.for-of.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.fw.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.get-names.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.invoke.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.iter-call.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.iter-define.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.iter-detect.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.iter.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.keyof.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.mix.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.own-keys.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.partial.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.redef.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.replacer.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.same.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.set-proto.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.shared.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.species.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.string-at.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.string-pad.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.string-repeat.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.task.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.throws.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.uid.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.unscope.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\%24.wks.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\core.%24for.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\core.array.turn.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\core.date.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\core.delay.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\core.dict.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\core.function.part.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\core.global.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\core.iter-helpers.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\core.log.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\core.number.iterator.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\core.number.math.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\core.object.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\core.string.escape-html.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es5.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.array.copy-within.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.array.fill.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.array.find-index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.array.find.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.array.from.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.array.iterator.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.array.of.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.array.species.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.function.has-instance.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.function.name.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.map.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.math.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.number.constructor.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.number.statics.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.object.assign.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.object.is.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.object.set-prototype-of.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.object.statics-accept-primitives.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.object.to-string.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.promise.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.reflect.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.regexp.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.set.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.string.code-point-at.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.string.ends-with.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.string.from-code-point.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.string.includes.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.string.iterator.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.string.raw.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.string.repeat.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.string.starts-with.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.symbol.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.weak-map.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es6.weak-set.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es7.array.includes.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es7.map.to-json.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es7.object.get-own-property-descriptors.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es7.object.to-array.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es7.observable.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es7.regexp.escape.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es7.set.to-json.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es7.string.at.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es7.string.lpad.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\es7.string.rpad.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\js.array.statics.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\library\modules\%24.collection.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\library\modules\%24.def.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\library\modules\%24.fw.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\library\modules\%24.redef.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\library\modules\%24.unscope.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\web.dom.iterable.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\web.immediate.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\modules\web.timers.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\shim.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\web.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\web\dom.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\web\immediate.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\web\index.js" />
+    <Content Include="App\jspm_packages\npm\core-js%400.9.18\web\timers.js" />
+    <Content Include="App\jspm_packages\npm\font-awesome%404.3.0.js" />
+    <Content Include="App\jspm_packages\npm\font-awesome%404.3.0\css\font-awesome.css" />
+    <Content Include="App\jspm_packages\npm\font-awesome%404.3.0\css\font-awesome.min.css" />
+    <Content Include="App\jspm_packages\npm\font-awesome%404.3.0\fonts\fontawesome-webfont.svg" />
+    <Content Include="App\jspm_packages\npm\process%400.10.1.js" />
+    <Content Include="App\jspm_packages\npm\process%400.10.1\browser.js" />
+    <Content Include="App\jspm_packages\npm\process%400.10.1\index.js" />
+    <Content Include="App\jspm_packages\system.js" />
+    <Content Include="App\scripts\core-js\client\core.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\scripts\core-js\client\core.min.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\scripts\core-js\client\library.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\scripts\core-js\client\library.min.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\scripts\core-js\client\shim.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\scripts\core-js\client\shim.min.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\scripts\underscore\underscore-min.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\scripts\underscore\underscore.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\scripts\webcomponentsjs\CustomElements.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\scripts\webcomponentsjs\CustomElements.min.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\scripts\webcomponentsjs\HTMLImports.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\scripts\webcomponentsjs\HTMLImports.min.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\scripts\webcomponentsjs\ShadowDOM.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\scripts\webcomponentsjs\ShadowDOM.min.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\scripts\webcomponentsjs\webcomponents-lite.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\scripts\webcomponentsjs\webcomponents-lite.min.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\scripts\webcomponentsjs\webcomponents.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\scripts\webcomponentsjs\webcomponents.min.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\styles\bootstrap\css\bootstrap-theme.min.css">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\styles\bootstrap\css\bootstrap.min.css">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\styles\bootstrap\fonts\glyphicons-halflings-regular.svg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\styles\fontawesome\css\font-awesome.min.css">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\styles\fontawesome\fonts\fontawesome-webfont.svg">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\styles\styles.css">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\views\app.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\views\history.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\views\cron-trigger-details.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\views\calendar-details.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\views\trigger-details.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\views\live-logs.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\views\job-details.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\views\calendars.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\views\triggers.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\views\jobs.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\views\scheduler-router.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\views\scheduler-details.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\views\nav-bar.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\views\dashboard.html">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\scripts\signalr\jquery-2.1.3.intellisense.js" />
+    <Content Include="App\scripts\signalr\jquery-2.1.3.js" />
+    <Content Include="App\scripts\signalr\jquery-2.1.3.min.js" />
+    <Content Include="App\scripts\signalr\jquery.signalR-2.2.0.js" />
+    <Content Include="App\scripts\signalr\jquery.signalR-2.2.0.min.js" />
+    <Content Include="App\scripts\r.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\scripts\require.js">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="App\styles\toastr.css" />
+    <Content Include="App\styles\toastr.min.css" />
+    <Content Include="History\tables_sqlServer.sql" />
+    <Content Include="App\scripts\toastr.js" />
+    <Content Include="App\scripts\toastr.min.js" />
+  </ItemGroup>
+  <ItemGroup>
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\animator-css%400.16.0\aurelia-animator-css.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\binding%400.9.1\aurelia-binding.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\bootstrapper%400.17.0\aurelia-bootstrapper.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\dependency-injection%400.10.1\aurelia-dependency-injection.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\event-aggregator%400.8.0\aurelia-event-aggregator.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\framework%400.16.0\aurelia-framework.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\history%400.7.0\aurelia-history.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\history-browser%400.8.0\aurelia-history-browser.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\http-client%400.11.0\aurelia-http-client.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\loader%400.9.0\aurelia-loader.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\loader-default%400.10.0\aurelia-loader-default.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\logging%400.7.0\aurelia-logging.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\logging-console%400.7.1\aurelia-logging-console.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\metadata%400.8.0\aurelia-metadata.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\path%400.9.0\aurelia-path.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\route-recognizer%400.7.0\aurelia-route-recognizer.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\router%400.12.0\aurelia-router.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\task-queue%400.7.0\aurelia-task-queue.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\templating%400.15.3\aurelia-templating.d.ts" />
+    <TypeScriptCompile Include="App\jspm_packages\github\aurelia\templating-binding%400.15.0\aurelia-templating-binding.d.ts" />
+    <TypeScriptCompile Include="App\resources\index.ts" />
+    <TypeScriptCompile Include="App\views\app.ts" />
+    <TypeScriptCompile Include="App\views\history.ts" />
+    <TypeScriptCompile Include="App\resources\duration-format.ts" />
+    <TypeScriptCompile Include="App\resources\date-format.ts" />
+    <TypeScriptCompile Include="App\views\cron-trigger-details.ts" />
+    <TypeScriptCompile Include="App\views\calendar-details.ts" />
+    <TypeScriptCompile Include="App\views\trigger-details.ts" />
+    <TypeScriptCompile Include="App\views\live-logs.ts" />
+    <TypeScriptCompile Include="App\views\main.ts" />
+    <TypeScriptCompile Include="App\views\job-details.ts" />
+    <TypeScriptCompile Include="App\views\calendars.ts" />
+    <TypeScriptCompile Include="App\views\triggers.ts" />
+    <TypeScriptCompile Include="App\views\jobs.ts" />
+    <TypeScriptCompile Include="App\views\scheduler-router.ts">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </TypeScriptCompile>
+    <TypeScriptCompile Include="App\views\scheduler-details.ts" />
+    <TypeScriptCompile Include="App\views\nav-bar.ts" />
+    <TypeScriptCompile Include="App\views\dashboard.ts" />
+    <TypeScriptCompile Include="Scripts\typings\bootbox\bootbox.d.ts" />
+    <TypeScriptCompile Include="Scripts\typings\bootstrap\bootstrap.d.ts" />
+    <TypeScriptCompile Include="Scripts\typings\custom.d.ts" />
+    <TypeScriptCompile Include="Scripts\typings\es6-promise\es6-promise.d.ts" />
+    <TypeScriptCompile Include="Scripts\typings\jquery\jquery.d.ts" />
+    <TypeScriptCompile Include="Scripts\typings\moment\moment-node.d.ts" />
+    <TypeScriptCompile Include="Scripts\typings\moment\moment.d.ts" />
+    <TypeScriptCompile Include="Scripts\typings\signalr\signalr.d.ts" />
+    <TypeScriptCompile Include="Scripts\typings\toastr\toastr.d.ts" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="App\jspm_packages\github\moment\moment%402.10.3\benchmarks\" />
+    <Folder Include="App\jspm_packages\github\moment\moment%402.10.3\meteor\" />
+    <Folder Include="App\jspm_packages\github\moment\moment%402.10.3\min\" />
+    <Folder Include="App\jspm_packages\github\moment\moment%402.10.3\scripts\" />
+    <Folder Include="App\jspm_packages\github\moment\moment%402.10.3\src\lib\create\" />
+    <Folder Include="App\jspm_packages\github\moment\moment%402.10.3\src\lib\duration\" />
+    <Folder Include="App\jspm_packages\github\moment\moment%402.10.3\src\lib\format\" />
+    <Folder Include="App\jspm_packages\github\moment\moment%402.10.3\src\lib\locale\" />
+    <Folder Include="App\jspm_packages\github\moment\moment%402.10.3\src\lib\moment\" />
+    <Folder Include="App\jspm_packages\github\moment\moment%402.10.3\src\lib\parse\" />
+    <Folder Include="App\jspm_packages\github\moment\moment%402.10.3\src\lib\units\" />
+    <Folder Include="App\jspm_packages\github\moment\moment%402.10.3\src\lib\utils\" />
+    <Folder Include="App\jspm_packages\github\moment\moment%402.10.3\src\locale\" />
+    <Folder Include="App\jspm_packages\github\moment\moment%402.10.3\src\test\helpers\" />
+    <Folder Include="App\jspm_packages\github\moment\moment%402.10.3\src\test\locale\" />
+    <Folder Include="App\jspm_packages\github\moment\moment%402.10.3\src\test\moment\" />
+    <Folder Include="App\jspm_packages\github\moment\moment%402.10.3\tasks\" />
+    <Folder Include="App\jspm_packages\github\moment\moment%402.10.3\templates\" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|Any CPU'">
+    <TypeScriptTarget>ES5</TypeScriptTarget>
+    <TypeScriptCompileOnSaveEnabled>True</TypeScriptCompileOnSaveEnabled>
+    <TypeScriptRemoveComments>False</TypeScriptRemoveComments>
+    <TypeScriptOutFile />
+    <TypeScriptOutDir />
+    <TypeScriptGeneratesDeclarations>False</TypeScriptGeneratesDeclarations>
+    <TypeScriptNoEmitOnError>True</TypeScriptNoEmitOnError>
+    <TypeScriptMapRoot />
+    <TypeScriptSourceRoot />
+    <TypeScriptModuleKind>System</TypeScriptModuleKind>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Release|Any CPU'">
+    <TypeScriptCompileOnSaveEnabled>True</TypeScriptCompileOnSaveEnabled>
+    <TypeScriptNoImplicitAny>False</TypeScriptNoImplicitAny>
+    <TypeScriptModuleKind>System</TypeScriptModuleKind>
+    <TypeScriptRemoveComments>False</TypeScriptRemoveComments>
+    <TypeScriptOutFile />
+    <TypeScriptOutDir />
+    <TypeScriptGeneratesDeclarations>False</TypeScriptGeneratesDeclarations>
+    <TypeScriptNoEmitOnError>True</TypeScriptNoEmitOnError>
+    <TypeScriptMapRoot />
+    <TypeScriptSourceRoot />
+  </PropertyGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.targets" Condition="Exists('$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\TypeScript\Microsoft.TypeScript.targets')" />
+  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
+       Other similar extension points exist, see Microsoft.Common.targets.
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+  -->
+</Project>

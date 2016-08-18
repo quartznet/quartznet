@@ -1,33 +1,34 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
 
 using System;
 using System.Globalization;
+using System.Reflection;
 
 using Quartz.Util;
 
 namespace Quartz.Impl
 {
     /// <summary>
-    /// Conveys the detail properties of a given job instance. 
+    /// Conveys the detail properties of a given job instance.
     /// </summary>
     /// <remarks>
     /// Quartz does not store an actual instance of a <see cref="IJob" /> type, but
@@ -49,18 +50,22 @@ namespace Quartz.Impl
     /// <seealso cref="ITrigger"/>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
     public class JobDetailImpl : IJobDetail
     {
         private string name;
         private string group = SchedulerConstants.DefaultGroup;
         private string description;
-        private Type jobType;
         private JobDataMap jobDataMap;
         private bool durability;
         private bool shouldRecover;
+        private Type jobType;
 
+#if BINARY_SERIALIZATION
         [NonSerialized] // we have the key in string fields
+#endif // BINARY_SERIALIZATION
         private JobKey key;
 
         /// <summary>
@@ -113,7 +118,7 @@ namespace Quartz.Impl
         /// <param name="jobType">Type of the job.</param>
         /// <param name="isDurable">if set to <c>true</c>, job will be durable.</param>
         /// <param name="requestsRecovery">if set to <c>true</c>, job will request recovery.</param>
-        /// <exception cref="ArgumentException"> 
+        /// <exception cref="ArgumentException">
         /// ArgumentException if name is null or empty, or the group is an empty string.
         /// </exception>
         public JobDetailImpl(string name, string group, Type jobType, bool isDurable, bool requestsRecovery)
@@ -128,7 +133,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Get or sets the name of this <see cref="IJob" />.
         /// </summary>
-        /// <exception cref="ArgumentException"> 
+        /// <exception cref="ArgumentException">
         /// if name is null or empty.
         /// </exception>
         public virtual string Name
@@ -147,10 +152,10 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Get or sets the group of this <see cref="IJob" />. 
+        /// Get or sets the group of this <see cref="IJob" />.
         /// If <see langword="null" />, <see cref="SchedulerConstants.DefaultGroup" /> will be used.
         /// </summary>
-        /// <exception cref="ArgumentException"> 
+        /// <exception cref="ArgumentException">
         /// If the group is an empty string.
         /// </exception>
         public virtual string Group
@@ -173,7 +178,7 @@ namespace Quartz.Impl
             }
         }
 
-        /// <summary> 
+        /// <summary>
         /// Returns the 'full name' of the <see cref="ITrigger" /> in the format
         /// "group.name".
         /// </summary>
@@ -226,7 +231,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Get or sets the instance of <see cref="IJob" /> that will be executed.
         /// </summary>
-        /// <exception cref="ArgumentException"> 
+        /// <exception cref="ArgumentException">
         /// if jobType is null or the class is not a <see cref="IJob" />.
         /// </exception>
         public virtual Type JobType
@@ -240,7 +245,7 @@ namespace Quartz.Impl
                     throw new ArgumentException("Job class cannot be null.");
                 }
 
-                if (!typeof (IJob).IsAssignableFrom(value))
+                if (!typeof (IJob).GetTypeInfo().IsAssignableFrom(value.GetTypeInfo()))
                 {
                     throw new ArgumentException("Job class must implement the Job interface.");
                 }
@@ -288,7 +293,7 @@ namespace Quartz.Impl
         /// If not explicitly set, the default value is <see langword="false" />.
         /// </para>
         /// </summary>
-        /// <returns> 
+        /// <returns>
         /// <see langword="true" /> if the Job should remain persisted after
         /// being orphaned.
         /// </returns>
@@ -314,7 +319,7 @@ namespace Quartz.Impl
             get { return ObjectUtils.IsAttributePresent(jobType, typeof (DisallowConcurrentExecutionAttribute)); }
         }
 
-        /// <summary> 
+        /// <summary>
         /// Validates whether the properties of the <see cref="IJobDetail" /> are
         /// valid for submission into a <see cref="IScheduler" />.
         /// </summary>
@@ -354,7 +359,7 @@ namespace Quartz.Impl
         /// <returns>
         /// A new object that is a copy of this instance.
         /// </returns>
-        public virtual object Clone()
+        public virtual IJobDetail Clone()
         {
             JobDetailImpl copy;
             try

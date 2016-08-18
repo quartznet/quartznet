@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,45 +16,45 @@
  * under the License.
  * 
  */
+
 #endregion
 
-using Common.Logging;
+using System;
+using System.Threading.Tasks;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example1
 {
-	
-	/// <summary>
-	/// This is just a simple job that says "Hello" to the world.
-	/// </summary>
-	/// <author>Bill Kratzer</author>
+    /// <summary>
+    /// This is just a simple job that says "Hello" to the world.
+    /// </summary>
+    /// <author>Bill Kratzer</author>
     /// <author>Marko Lahma (.NET)</author>
     public class HelloJob : IJob
-	{
-		
-		private static ILog _log = LogManager.GetLogger(typeof(HelloJob));
-		
-		/// <summary> 
-		/// Empty constructor for job initialization
-		/// <para>
-		/// Quartz requires a public empty constructor so that the
-		/// scheduler can instantiate the class whenever it needs.
-		/// </para>
-		/// </summary>
-		public HelloJob()
-		{
-		}
-		
-		/// <summary> 
-		/// Called by the <see cref="IScheduler" /> when a
-		/// <see cref="ITrigger" /> fires that is associated with
-		/// the <see cref="IJob" />.
-		/// </summary>
-		public virtual void  Execute(IJobExecutionContext context)
-		{
-			
-			// Say Hello to the World and display the date/time
-			_log.Info(string.Format("Hello World! - {0}", System.DateTime.Now.ToString("r")));
-		}
+    {
+        private static ILog _log = LogProvider.GetLogger(typeof (HelloJob));
 
-	}
+        /// <summary> 
+        /// Empty constructor for job initialization
+        /// <para>
+        /// Quartz requires a public empty constructor so that the
+        /// scheduler can instantiate the class whenever it needs.
+        /// </para>
+        /// </summary>
+        public HelloJob()
+        {
+        }
+
+        /// <summary> 
+        /// Called by the <see cref="IScheduler" /> when a
+        /// <see cref="ITrigger" /> fires that is associated with
+        /// the <see cref="IJob" />.
+        /// </summary>
+        public virtual Task Execute(IJobExecutionContext context)
+        {
+            // Say Hello to the World and display the date/time
+            _log.Info($"Hello World! - {DateTime.Now.ToString("r")}");
+            return Task.FromResult(0);
+        }
+    }
 }

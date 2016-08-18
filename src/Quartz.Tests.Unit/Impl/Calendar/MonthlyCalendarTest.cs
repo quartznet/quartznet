@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,23 +16,33 @@
  * under the License.
  * 
  */
+
 #endregion
+
 using System;
 
 using NUnit.Framework;
 
 using Quartz.Impl.Calendar;
+using Quartz.Simpl;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl.Calendar
 {
     /// <author>Marko Lahma (.NET)</author>
-    [TestFixture]
+#if BINARY_SERIALIZATION
+    [TestFixture(typeof(BinaryObjectSerializer))]
+#endif
+    [TestFixture(typeof(JsonObjectSerializer))]
     public class MonthlyCalendarTest : SerializationTestSupport
     {
         private MonthlyCalendar cal;
 
-        private static readonly string[] versions = new[] { "1.5.1" };
+        private static readonly string[] versions = {"1.5.1"};
+
+        public MonthlyCalendarTest(Type serializerType) : base(serializerType)
+        {
+        }
 
         [SetUp]
         public void Setup()
@@ -85,7 +96,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
 
             Assert.IsFalse(monthlyCalendar.IsTimeIncluded(date));
         }
-    
+
         /// <summary>
         /// Get the object to serialize when generating serialized file for future
         /// tests, and against which to validate deserialized object.
@@ -118,8 +129,8 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         /// <param name="deserialized"></param>
         protected override void VerifyMatch(object target, object deserialized)
         {
-            AnnualCalendar targetCalendar = (AnnualCalendar)target;
-            AnnualCalendar deserializedCalendar = (AnnualCalendar)deserialized;
+            AnnualCalendar targetCalendar = (AnnualCalendar) target;
+            AnnualCalendar deserializedCalendar = (AnnualCalendar) deserialized;
 
             Assert.IsNotNull(deserializedCalendar);
             Assert.AreEqual(targetCalendar.Description, deserializedCalendar.Description);

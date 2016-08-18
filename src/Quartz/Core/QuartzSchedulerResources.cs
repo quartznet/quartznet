@@ -19,7 +19,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 
 using Quartz.Spi;
 
@@ -70,7 +69,7 @@ namespace Quartz.Core
 				if (threadName == null)
 				{
 					// thread name not already set, use default thread name
-					ThreadName = string.Format(CultureInfo.InvariantCulture, "{0}_QuartzSchedulerThread", value);
+					ThreadName = $"{value}_QuartzSchedulerThread";
 				}
 			}
 		}
@@ -192,7 +191,7 @@ namespace Quartz.Core
 		/// <returns></returns>
 		public static string GetUniqueIdentifier(string schedName, string schedInstId)
 		{
-			return string.Format(CultureInfo.InvariantCulture, "{0}_$_{1}", schedName, schedInstId);
+			return $"{schedName}_$_{schedInstId}";
 		}
 
 		/// <summary>
@@ -239,11 +238,6 @@ namespace Quartz.Core
 	    /// </summary>
 	    /// <value>The scheduler exporter.</value>
 	    public ISchedulerExporter SchedulerExporter { get; set; }
-
-	    /// <summary>
-	    /// The ThreadExecutor which runs the QuartzSchedulerThread.
-	    /// </summary>
-	    public IThreadExecutor ThreadExecutor { get; set; }
 
 	    /// <summary>
 	    /// Gets or sets the batch time window.

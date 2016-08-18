@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,9 +16,11 @@
  * under the License.
  * 
  */
+
 #endregion
 
-using Common.Logging;
+using System.Threading.Tasks;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example14
 {
@@ -28,7 +31,7 @@ namespace Quartz.Examples.Example14
     /// <author>Marko Lahma (.NET)</author>
     public class TriggerEchoJob : IJob
     {
-        private static readonly ILog log = LogManager.GetLogger(typeof (TriggerEchoJob));
+        private static readonly ILog log = LogProvider.GetLogger(typeof (TriggerEchoJob));
 
         /// <summary>
         /// Called by the <see cref="IScheduler"/> when a <see cref="ITrigger"/>
@@ -44,10 +47,10 @@ namespace Quartz.Examples.Example14
         /// 	<param name="context">The execution context.</param>
         /// </summary>
         /// <param name="context"></param>
-        public void Execute(IJobExecutionContext context)
+        public Task Execute(IJobExecutionContext context)
         {
             log.Info("TRIGGER: " + context.Trigger.Key);
+            return Task.FromResult(0);
         }
-
     }
 }

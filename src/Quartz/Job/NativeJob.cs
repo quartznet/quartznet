@@ -1,28 +1,28 @@
 #region License
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 #endregion
 
 using System;
 using System.Diagnostics;
-using System.Globalization;
 using System.IO;
-
-using Common.Logging;
+using System.Threading;
+using System.Threading.Tasks;
+using Quartz.Logging;
 
 namespace Quartz.Job
 {
@@ -48,39 +48,39 @@ namespace Quartz.Job
 	{
 	    private readonly ILog log;
 
-		/// <summary> 
-		/// Required parameter that specifies the name of the command (executable) 
+		/// <summary>
+		/// Required parameter that specifies the name of the command (executable)
 		/// to be ran.
 		/// </summary>
 		public const string PropertyCommand = "command";
 
-		/// <summary> 
+		/// <summary>
 		/// Optional parameter that specifies the parameters to be passed to the
 		/// executed command.
 		/// </summary>
 		public const string PropertyParameters = "parameters";
 
-		/// <summary> 
-		/// Optional parameter (value should be 'true' or 'false') that specifies 
-		/// whether the job should wait for the execution of the native process to 
+		/// <summary>
+		/// Optional parameter (value should be 'true' or 'false') that specifies
+		/// whether the job should wait for the execution of the native process to
 		/// complete before it completes.
-		/// 
-		/// <para>Defaults to <see langword="true" />.</para>  
+		///
+		/// <para>Defaults to <see langword="true" />.</para>
 		/// </summary>
 		public const string PropertyWaitForProcess = "waitForProcess";
 
-		/// <summary> 
-		/// Optional parameter (value should be 'true' or 'false') that specifies 
-		/// whether the spawned process's stdout and stderr streams should be 
+		/// <summary>
+		/// Optional parameter (value should be 'true' or 'false') that specifies
+		/// whether the spawned process's stdout and stderr streams should be
 		/// consumed.  If the process creates output, it is possible that it might
 		/// 'hang' if the streams are not consumed.
-		/// 
-		/// <para>Defaults to <see langword="false" />.</para>  
+		///
+		/// <para>Defaults to <see langword="false" />.</para>
 		/// </summary>
 		public const string PropertyConsumeStreams = "consumeStreams";
 
-        /// <summary> 
-        /// Optional parameter that specifies the working directory to be used by 
+        /// <summary>
+        /// Optional parameter that specifies the working directory to be used by
         /// the executed command.
         /// </summary>
         public const string PropertyWorkingDirectory = "workingDirectory";
@@ -103,7 +103,7 @@ namespace Quartz.Job
         /// </summary>
 	    public NativeJob()
 	    {
-            log = LogManager.GetLogger(typeof(NativeJob));
+            log = LogProvider.GetLogger(typeof(NativeJob));
 	    }
 
 		/// <summary>
@@ -119,7 +119,7 @@ namespace Quartz.Job
 		/// </para>
 		/// </summary>
 		/// <param name="context"></param>
-		public virtual void Execute(IJobExecutionContext context)
+		public virtual Task Execute(IJobExecutionContext context)
 		{
 			JobDataMap data = context.MergedJobDataMap;
 
@@ -142,7 +142,8 @@ namespace Quartz.Job
 
 			int exitCode = RunNativeCommand(command, parameters, workingDirectory, wait, consumeStreams);
 		    context.Result = exitCode;
-		}
+            return Task.FromResult(0);
+        }
 
 		private int RunNativeCommand(string command, string parameters, string workingDirectory, bool wait, bool consumeStreams)
 		{
@@ -171,16 +172,16 @@ namespace Quartz.Job
 						cmd[i + 2] = args[i];
 					}
 				}
-                else if (osName.ToLower().IndexOf("linux") > -1) 
+                else if (osName.ToLower().IndexOf("linux") > -1)
                 {
-                    cmd = new String[3];
+                    cmd = new string[3];
                     cmd[0] = "/bin/sh";
                     cmd[1] = "-c";
                     cmd[2] = args[0] + " " + args[1];
-                } 
-                else 
-                { 
-                    // try this... 
+                }
+                else
+                {
+                    // try this...
                     cmd = args;
                 }
 
@@ -193,19 +194,21 @@ namespace Quartz.Job
 
                 temp = temp.Trim();
 
-                Log.Info(string.Format(CultureInfo.InvariantCulture, "About to run {0} {1}...", cmd[0], temp));
+                Log.Info($"About to run {cmd[0]} {temp}...");
 
 				Process proc = new Process();
-			    
+
                 proc.StartInfo.FileName = cmd[0];
                 proc.StartInfo.Arguments = temp;
+#if WINDOWS_PROCESS
                 proc.StartInfo.WindowStyle = ProcessWindowStyle.Hidden;
-			    proc.StartInfo.CreateNoWindow = true;
+#endif // WINDOWS_PROCESS
+                proc.StartInfo.CreateNoWindow = true;
 			    proc.StartInfo.UseShellExecute = false;
 			    proc.StartInfo.RedirectStandardError = true;
                 proc.StartInfo.RedirectStandardOutput = true;
 
-                if (!String.IsNullOrEmpty(workingDirectory))
+                if (!string.IsNullOrEmpty(workingDirectory))
                 {
                     proc.StartInfo.WorkingDirectory = workingDirectory;
                 }
@@ -214,13 +217,15 @@ namespace Quartz.Job
 
 				// Consumes the stdout from the process
 			    StreamConsumer stdoutConsumer = new StreamConsumer(this, proc.StandardOutput.BaseStream, StreamTypeStandardOutput);
+                Thread stdoutConsumerThread = new Thread(stdoutConsumer.Run);
 
 				// Consumes the stderr from the process
 				if (consumeStreams)
 				{
 				    StreamConsumer stderrConsumer = new StreamConsumer(this, proc.StandardError.BaseStream, StreamTypeError);
-					stdoutConsumer.Start();
-					stderrConsumer.Start();
+                    Thread stderrConsumerThread = new Thread(stderrConsumer.Run);
+                    stdoutConsumerThread.Start();
+                    stderrConsumerThread.Start();
 				}
 
 				if (wait)
@@ -229,7 +234,7 @@ namespace Quartz.Job
                     result = proc.ExitCode;
 				}
 				// any error message?
-			    
+
 			}
 			catch (Exception x)
 			{
@@ -238,12 +243,12 @@ namespace Quartz.Job
             return result;
 		}
 
-		/// <summary> 
+		/// <summary>
 		/// Consumes data from the given input stream until EOF and prints the data to stdout
 		/// </summary>
 		/// <author>cooste</author>
 		/// <author>James House</author>
-		private class StreamConsumer : QuartzThread
+		private class StreamConsumer
 		{
 		    private readonly NativeJob enclosingInstance;
 		    private readonly Stream inputStream;
@@ -262,11 +267,11 @@ namespace Quartz.Job
 				this.type = type;
 			}
 
-			/// <summary> 
+			/// <summary>
 			/// Runs this object as a separate thread, printing the contents of the input stream
 			/// supplied during instantiation, to either Console. or stderr
 			/// </summary>
-			public override void Run()
+			public void Run()
 			{
 			    try
 			    {
@@ -278,11 +283,11 @@ namespace Quartz.Job
                         {
                             if (type == StreamTypeError)
                             {
-                                enclosingInstance.Log.Warn(string.Format(CultureInfo.InvariantCulture, "{0}>{1}", type, line));
+                                enclosingInstance.Log.Warn($"{type}>{line}");
                             }
                             else
                             {
-                                enclosingInstance.Log.Info(string.Format(CultureInfo.InvariantCulture, "{0}>{1}", type, line));
+                                enclosingInstance.Log.Info($"{type}>{line}");
                             }
                         }
                     }
@@ -290,7 +295,7 @@ namespace Quartz.Job
 			    }
 				catch (IOException ioe)
 				{
-					enclosingInstance.Log.Error(string.Format(CultureInfo.InvariantCulture, "Error consuming {0} stream of spawned process.", type), ioe);
+                    enclosingInstance.Log.ErrorException($"Error consuming {type} stream of spawned process.", ioe);
 				}
 			}
 		}

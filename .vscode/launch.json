@@ -1,0 +1,41 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Examples",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceRoot}/src/Quartz.Examples/bin/Debug/netcoreapp1.0/Quartz.Examples.dll",
+            "args": [],
+            "cwd": "${workspaceRoot}",
+            "stopAtEntry": false
+        },
+         {
+            "name": "Unit Tests",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceRoot}/src/Quartz.Tests.Unit/bin/Debug/netcoreapp1.0/Quartz.Tests.Unit.dll",
+            "args": [],
+            "cwd": "${workspaceRoot}",
+            "stopAtEntry": false
+        },
+        {
+            "name": "Integration Tests",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceRoot}/src/Quartz.Tests.Integration/bin/Debug/netcoreapp1.0/Quartz.Tests.Integration.dll",
+            "args": [],
+            "cwd": "${workspaceRoot}",
+            "stopAtEntry": false
+        },
+        {
+            "name": ".NET Core Attach",
+            "type": "coreclr",
+            "request": "attach",
+            "processName": "<example>"
+        }
+    ]
+}

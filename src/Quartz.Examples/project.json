@@ -1,0 +1,69 @@
+{
+  "version": "3.0.0-*",
+  "buildOptions": {
+    "debugType": "portable",
+    "emitEntryPoint": true,
+    "copyToOutput": [
+      "quartz_jobs.xml"
+    ]
+  },
+  "dependencies": {
+    "Quartz": {
+      "target": "project"
+    },
+    "Quartz.Serialization.Json": {
+      "target": "project"
+    }
+  },
+  "frameworks": {
+    "net45": {
+      "buildOptions": {
+        "define": [
+          "LOG4NET"
+        ]
+      },
+      "dependencies": {
+        "log4net": "2.0.5"
+      }
+    },
+    "netcoreapp1.0": {
+      "imports": [
+        "dotnet55",
+        "portable-net45+win8"
+      ],
+      "buildOptions": {
+        "emitEntryPoint": true,
+        "define": [
+          "NETCORE",
+          "NETSTANDARD_DBPROVIDERS"
+        ]
+      },
+      "dependencies": {
+        "Microsoft.NETCore.App": {
+          "type": "platform",
+          "version": "1.0.0"
+        },
+        "Microsoft.CSharp": "4.0.1",
+        "Microsoft.NETCore.Portable.Compatibility": "1.0.1",
+        "System.Collections.NonGeneric": "4.0.1",
+        "System.Collections.Specialized": "4.0.1",
+        "System.Data.SqlClient": "4.1.0",
+        "System.Diagnostics.Process": "4.1.0",
+        "System.Diagnostics.StackTrace": "4.0.1",
+        "System.Diagnostics.Tools": "4.0.1",
+        "System.Dynamic.Runtime": "4.0.11",
+        "System.Net.NameResolution": "4.0.0",
+        "System.Net.Requests": "4.0.11",
+        "System.Runtime.Serialization.Primitives": "4.1.1",
+        "System.Runtime.Serialization.Xml": "4.1.1",
+        "System.Threading.Tasks": "4.0.11",
+        "System.Threading.Tasks.Parallel": "4.0.1",
+        "System.Threading.Thread": "4.0.0",
+        "System.Threading.ThreadPool": "4.0.10",
+        "System.Xml.XmlDocument": "4.0.1",
+        "System.Xml.XmlSerializer": "4.0.11",
+        "System.Data.Common": "4.1.0"
+      }
+    }
+  }
+}

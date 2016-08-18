@@ -17,9 +17,11 @@
  */
 #endregion
 
-using Common.Logging;
+using System.Threading.Tasks;
 
+using Quartz.Logging;
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz.Listener
 {
@@ -41,24 +43,19 @@ namespace Quartz.Listener
     /// <seealso cref="IJobListener" />
     public abstract class JobListenerSupport : IJobListener
     {
-        private readonly ILog log;
-
         /// <summary>
         /// Initializes a new instance of the <see cref="JobListenerSupport"/> class.
         /// </summary>
         protected JobListenerSupport()
         {
-            log = LogManager.GetLogger(GetType());
+            Log = LogProvider.GetLogger(GetType());
         }
 
         /// <summary>
         /// Get the <see cref="ILog" /> for this  class's category.  
         /// This should be used by subclasses for logging.
         /// </summary>
-        protected ILog Log
-        {
-            get { return log; }
-        }
+        protected ILog Log { get; }
 
         /// <summary>
         /// Get the name of the <see cref="IJobListener"/>.
@@ -77,8 +74,9 @@ namespace Quartz.Listener
         /// </summary>
         /// <param name="context"></param>
         /// <seealso cref="JobExecutionVetoed(IJobExecutionContext)"/>
-        public virtual void JobToBeExecuted(IJobExecutionContext context)
+        public virtual Task JobToBeExecuted(IJobExecutionContext context)
         {
+            return TaskUtil.CompletedTask;
         }
 
         /// <summary>
@@ -89,8 +87,9 @@ namespace Quartz.Listener
         /// </summary>
         /// <param name="context"></param>
         /// <seealso cref="JobToBeExecuted(IJobExecutionContext)"/>
-        public virtual void JobExecutionVetoed(IJobExecutionContext context)
+        public virtual Task JobExecutionVetoed(IJobExecutionContext context)
         {
+            return TaskUtil.CompletedTask;
         }
 
         /// <summary>
@@ -100,8 +99,9 @@ namespace Quartz.Listener
         /// </summary>
         /// <param name="context"></param>
         /// <param name="jobException"></param>
-        public virtual void JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
+        public virtual Task JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
         {
+            return TaskUtil.CompletedTask;
         }
     }
 }

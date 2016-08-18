@@ -1,29 +1,30 @@
 #region License
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
+
 #endregion
 
 using System;
 using System.Collections.Specialized;
-using System.Threading;
-
-using Common.Logging;
+using System.Threading.Tasks;
 
 using Quartz.Impl;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example14
 {
@@ -33,29 +34,24 @@ namespace Quartz.Examples.Example14
     /// <author>Marko Lahma (.NET)</author>
     public class PriorityExample : IExample
     {
-        #region IExample Members
-
-        public string Name
+        public async Task Run()
         {
-            get { return GetType().Name; }
-        }
-
-        public void Run()
-        {
-            ILog log = LogManager.GetLogger(typeof (PriorityExample));
+            ILog log = LogProvider.GetLogger(typeof(PriorityExample));
 
             log.Info("------- Initializing ----------------------");
 
             // First we must get a reference to a scheduler
-            NameValueCollection properties = new NameValueCollection();
-            properties["quartz.scheduler.instanceName"] = "PriorityExampleScheduler";
-            // Set thread count to 1 to force Triggers scheduled for the same time to 
-            // to be ordered by priority.
-            properties["quartz.threadPool.threadCount"] = "1";
-            properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
-            properties["quartz.jobStore.type"] = "Quartz.Simpl.RAMJobStore, Quartz";
+            NameValueCollection properties = new NameValueCollection
+            {
+                ["quartz.scheduler.instanceName"] = "PriorityExampleScheduler",
+                // Set thread count to 1 to force Triggers scheduled for the same time to
+                // to be ordered by priority.
+                ["quartz.threadPool.threadCount"] = "1",
+                ["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz",
+                ["quartz.jobStore.type"] = "Quartz.Simpl.RAMJobStore, Quartz"
+            };
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
-            IScheduler sched = sf.GetScheduler();
+            IScheduler sched = await sf.GetScheduler();
 
             log.Info("------- Initialization Complete -----------");
 
@@ -65,8 +61,8 @@ namespace Quartz.Examples.Example14
                 .WithIdentity("TriggerEchoJob")
                 .Build();
 
-            // All three triggers will fire their first time at the same time, 
-            // ordered by their priority, and then repeat once, firing in a 
+            // All three triggers will fire their first time at the same time,
+            // ordered by their priority, and then repeat once, firing in a
             // staggered order that therefore ignores priority.
             //
             // We should see the following firing order:
@@ -107,33 +103,25 @@ namespace Quartz.Examples.Example14
                 .Build();
 
             // Tell quartz to schedule the job using our trigger
-            sched.ScheduleJob(job, trigger1);
-            sched.ScheduleJob(trigger2);
-            sched.ScheduleJob(trigger3);
+            await sched.ScheduleJob(job, trigger1);
+            await sched.ScheduleJob(trigger2);
+            await sched.ScheduleJob(trigger3);
 
-            // Start up the scheduler (nothing can actually run until the 
+            // Start up the scheduler (nothing can actually run until the
             // scheduler has been started)
-            sched.Start();
+            await sched.Start();
             log.Info("------- Started Scheduler -----------------");
 
-            // wait long enough so that the scheduler as an opportunity to 
+            // wait long enough so that the scheduler as an opportunity to
             // fire the triggers
             log.Info("------- Waiting 30 seconds... -------------");
 
-            try
-            {
-                Thread.Sleep(TimeSpan.FromSeconds(30));
-            }
-            catch (ThreadInterruptedException)
-            {
-            }
+            await Task.Delay(TimeSpan.FromSeconds(30));
 
             // shut down the scheduler
             log.Info("------- Shutting Down ---------------------");
-            sched.Shutdown(true);
+            await sched.Shutdown(true);
             log.Info("------- Shutdown Complete -----------------");
         }
-
-        #endregion
     }
 }

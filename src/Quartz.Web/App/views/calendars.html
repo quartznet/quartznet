@@ -1,0 +1,20 @@
+<template>
+    <h2>${heading}</h2>
+
+    <table class="table table-striped">
+        <thead>
+        <tr>
+            <th>Name</th>
+            <th>&nbsp;</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr repeat.for="calendar of calendars">
+            <td>${calendar}</td>
+            <td>
+                <a route-href="route: calendar-details; params.bind: { id: id, name: calendar }">Details</a>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</template>

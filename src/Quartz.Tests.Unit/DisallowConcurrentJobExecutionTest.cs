@@ -2,11 +2,13 @@
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Threading;
+using System.Threading.Tasks;
 
 using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Listener;
+using Quartz.Util;
 
 namespace Quartz.Tests.Unit
 {
@@ -25,17 +27,11 @@ namespace Quartz.Tests.Unit
         [DisallowConcurrentExecution]
         public class TestJob : IJob
         {
-            public void Execute(IJobExecutionContext context)
+            public async Task Execute(IJobExecutionContext context)
             {
                 jobExecDates.Add(DateTime.UtcNow);
-                try
-                {
-                    Thread.Sleep(jobBlockTime);
-                }
-                catch (ThreadInterruptedException)
-                {
-                    throw new JobExecutionException("Failed to pause job for testing.");
-                }
+
+                await Task.Delay(jobBlockTime);
             }
         }
 
@@ -49,12 +45,9 @@ namespace Quartz.Tests.Unit
                 this.jobExecutionCountToSyncAfter = jobExecutionCountToSyncAfter;
             }
 
-            public override string Name
-            {
-                get { return "TestJobListener"; }
-            }
+            public override string Name => "TestJobListener";
 
-            public override void JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
+            public override Task JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
             {
                 if (Interlocked.Increment(ref jobExCount) == jobExecutionCountToSyncAfter)
                 {
@@ -68,6 +61,7 @@ namespace Quartz.Tests.Unit
                         throw new AssertionException("Await on barrier was interrupted: " + e);
                     }
                 }
+                return TaskUtil.CompletedTask;
             }
         }
 
@@ -78,7 +72,7 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
-        public void TestNoConcurrentExecOnSameJob()
+        public async Task TestNoConcurrentExecOnSameJob()
         {
             DateTime startTime = DateTime.Now.AddMilliseconds(100).ToUniversalTime(); // make the triggers fire at the same time.
 
@@ -90,15 +84,16 @@ namespace Quartz.Tests.Unit
             NameValueCollection props = new NameValueCollection();
             props["quartz.scheduler.idleWaitTime"] = "1500";
             props["quartz.threadPool.threadCount"] = "2";
-            IScheduler scheduler = new StdSchedulerFactory(props).GetScheduler();
+            props["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
+            IScheduler scheduler = await new StdSchedulerFactory(props).GetScheduler();
             scheduler.ListenerManager.AddJobListener(new TestJobListener(2));
-            scheduler.ScheduleJob(job1, trigger1);
-            scheduler.ScheduleJob(trigger2);
+            await scheduler.ScheduleJob(job1, trigger1);
+            await scheduler.ScheduleJob(trigger2);
 
-            scheduler.Start();
-            
+            await scheduler.Start();
+
             barrier.WaitOne();
-            scheduler.Shutdown(true);
+            await scheduler.Shutdown(true);
 
             Assert.AreEqual(2, jobExecDates.Count);
             Assert.Greater(jobExecDates[1] - jobExecDates[0], jobBlockTime);
@@ -107,7 +102,7 @@ namespace Quartz.Tests.Unit
         /** QTZ-202 */
 
         [Test]
-        public void TestNoConcurrentExecOnSameJobWithBatching()
+        public async Task TestNoConcurrentExecOnSameJobWithBatching()
         {
             DateTime startTime = DateTime.Now.AddMilliseconds(300).ToUniversalTime(); // make the triggers fire at the same time.
 
@@ -120,14 +115,15 @@ namespace Quartz.Tests.Unit
             props["quartz.scheduler.idleWaitTime"] = "1500";
             props["quartz.scheduler.batchTriggerAcquisitionMaxCount"] = "2";
             props["quartz.threadPool.threadCount"] = "2";
-            IScheduler scheduler = new StdSchedulerFactory(props).GetScheduler();
+            props["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
+            IScheduler scheduler = await new StdSchedulerFactory(props).GetScheduler();
             scheduler.ListenerManager.AddJobListener(new TestJobListener(2));
-            scheduler.ScheduleJob(job1, trigger1);
-            scheduler.ScheduleJob(trigger2);
+            await scheduler.ScheduleJob(job1, trigger1);
+            await scheduler.ScheduleJob(trigger2);
 
-            scheduler.Start();
+            await scheduler.Start();
             barrier.WaitOne();
-            scheduler.Shutdown(true);
+            await scheduler.Shutdown(true);
 
             Assert.AreEqual(2, jobExecDates.Count);
             Assert.Greater(jobExecDates[1] - jobExecDates[0], jobBlockTime);

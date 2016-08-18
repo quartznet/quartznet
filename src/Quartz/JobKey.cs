@@ -19,8 +19,9 @@
 
 #endregion
 
-using Quartz.Util;
 using System;
+
+using Quartz.Util;
 
 namespace Quartz
 {
@@ -56,9 +57,15 @@ namespace Quartz
     /// </remarks>
     /// <seealso cref="IJob"/>
     /// <seealso cref="Key{T}.DefaultGroup" />
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
     public sealed class JobKey : Key<JobKey>
     {
+        private JobKey()
+        {
+        }
+
         public JobKey(string name) : base(name, null)
         {
         }

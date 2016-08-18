@@ -22,15 +22,17 @@ using System.Runtime.Serialization;
 
 namespace Quartz.Impl.AdoJobStore
 {
-	/// <summary>
-	/// Exception class for when there is a failure obtaining or releasing a
-	/// resource lock.
-	/// </summary>
-	/// <seealso cref="ISemaphore" />
-	/// <author>James House</author>
-	/// <author>Marko Lahma (.NET)</author>
-	[Serializable]
-	public class LockException : JobPersistenceException
+    /// <summary>
+    /// Exception class for when there is a failure obtaining or releasing a
+    /// resource lock.
+    /// </summary>
+    /// <seealso cref="ISemaphore" />
+    /// <author>James House</author>
+    /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
+    [Serializable]
+#endif // BINARY_SERIALIZATION
+    public class LockException : JobPersistenceException
 	{
 		public LockException(string msg) : base(msg)
 		{
@@ -40,6 +42,7 @@ namespace Quartz.Impl.AdoJobStore
 		{
 		}
 
+#if BINARY_SERIALIZATION
         /// <summary>
         /// Initializes a new instance of the <see cref="LockException"/> class.
         /// </summary>
@@ -50,5 +53,6 @@ namespace Quartz.Impl.AdoJobStore
         protected LockException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
-	}
+#endif // BINARY_SERIALIZATION
+    }
 }

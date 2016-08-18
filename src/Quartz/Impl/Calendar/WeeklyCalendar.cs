@@ -19,11 +19,12 @@
 
 #endregion
 
-using Quartz.Util;
-
 using System;
+using System.Linq;
 using System.Runtime.Serialization;
 using System.Security;
+
+using Quartz.Util;
 
 namespace Quartz.Impl.Calendar
 {
@@ -36,7 +37,9 @@ namespace Quartz.Impl.Calendar
     /// <seealso cref="BaseCalendar" />
     /// <author>Juergen Donnerstag</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
     public class WeeklyCalendar : BaseCalendar
     {
         // An array to store the week days which are to be excluded.
@@ -63,6 +66,8 @@ namespace Quartz.Impl.Calendar
             Init();
         }
 
+#if BINARY_SERIALIZATION // If this functionality is needed in the future with DCS serialization, it can ne added with [OnSerializing] and [OnDeserialized] methods
+
         /// <summary>
         /// Serialization constructor.
         /// </summary>
@@ -84,8 +89,8 @@ namespace Quartz.Impl.Calendar
             {
                 case 0:
                 case 1:
-                    excludeDays = (bool[]) info.GetValue("excludeDays", typeof (bool[]));
-                    excludeAll = (bool) info.GetValue("excludeAll", typeof (bool));
+                    excludeDays = (bool[]) info.GetValue("excludeDays", typeof(bool[]));
+                    excludeAll = (bool) info.GetValue("excludeAll", typeof(bool));
                     break;
                 default:
                     throw new NotSupportedException("Unknown serialization version");
@@ -96,10 +101,12 @@ namespace Quartz.Impl.Calendar
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
+
             info.AddValue("version", 1);
             info.AddValue("excludeDays", excludeDays);
             info.AddValue("excludeAll", excludeAll);
         }
+#endif // BINARY_SERIALIZATION
 
         /// <summary>
         /// Initialize internal variables
@@ -261,9 +268,10 @@ namespace Quartz.Impl.Calendar
             return d;
         }
 
-        public override object Clone()
+        public override ICalendar Clone()
         {
-            WeeklyCalendar clone = (WeeklyCalendar) base.Clone();
+            WeeklyCalendar clone = new WeeklyCalendar();
+            CloneFields(clone);
             bool[] excludeCopy = new bool[excludeDays.Length];
             Array.Copy(excludeDays, excludeCopy, excludeDays.Length);
             clone.excludeDays = excludeCopy;
@@ -289,7 +297,7 @@ namespace Quartz.Impl.Calendar
             }
             bool baseEqual = GetBaseCalendar() == null || GetBaseCalendar().Equals(obj.GetBaseCalendar());
 
-            return baseEqual && (ArraysEqualElementsOnEqualPlaces(obj.DaysExcluded, DaysExcluded));
+            return baseEqual && obj.DaysExcluded.SequenceEqual(DaysExcluded);
         }
 
         public override bool Equals(object obj)
@@ -298,10 +306,7 @@ namespace Quartz.Impl.Calendar
             {
                 return false;
             }
-            else
-            {
-                return Equals((WeeklyCalendar) obj);
-            }
+            return Equals((WeeklyCalendar) obj);
         }
     }
 }

@@ -1,0 +1,22 @@
+<template>
+    <h2>${heading}</h2>
+
+    <table class="table table-striped">
+        <thead>
+        <tr>
+            <th>Group</th>
+            <th>Name</th>
+            <th>&nbsp;</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr repeat.for="trigger of triggers">
+            <td>${trigger.group}</td>
+            <td>${trigger.name}</td>
+            <td>
+                <a route-href="route: trigger-details; params.bind: { id: id, group: trigger.group, name: trigger.name }">Details</a>
+            </td>
+        </tr>
+        </tbody>
+    </table>
+</template>

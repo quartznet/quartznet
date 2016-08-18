@@ -1,6 +1,6 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
-using System.Data;
 
 namespace Quartz.Collection
 {
@@ -17,7 +17,7 @@ namespace Quartz.Collection
         {
             if (internalSet == null)
             {
-                throw new ArgumentNullException("internalSet");
+                throw new ArgumentNullException(nameof(internalSet));
             }
 
             this.internalSet = internalSet;
@@ -25,12 +25,67 @@ namespace Quartz.Collection
 
         public void Add(T item)
         {
-            throw new ReadOnlyException();
+            throw new InvalidOperationException();
+        }
+
+        public void UnionWith(IEnumerable<T> other)
+        {
+            internalSet.UnionWith(other);
+        }
+
+        public void IntersectWith(IEnumerable<T> other)
+        {
+            internalSet.IntersectWith(other);
+        }
+
+        public void ExceptWith(IEnumerable<T> other)
+        {
+            internalSet.ExceptWith(other);
+        }
+
+        public void SymmetricExceptWith(IEnumerable<T> other)
+        {
+            internalSet.SymmetricExceptWith(other);
+        }
+
+        public bool IsSubsetOf(IEnumerable<T> other)
+        {
+            return internalSet.IsSubsetOf(other);
+        }
+
+        public bool IsSupersetOf(IEnumerable<T> other)
+        {
+            return internalSet.IsSupersetOf(other);
+        }
+
+        public bool IsProperSupersetOf(IEnumerable<T> other)
+        {
+            return internalSet.IsProperSupersetOf(other);
+        }
+
+        public bool IsProperSubsetOf(IEnumerable<T> other)
+        {
+            return internalSet.IsProperSubsetOf(other);
+        }
+
+        public bool Overlaps(IEnumerable<T> other)
+        {
+            return internalSet.Overlaps(other);
+        }
+
+        public bool SetEquals(IEnumerable<T> other)
+        {
+            return internalSet.SetEquals(other);
+        }
+
+        bool ISet<T>.Add(T item)
+        {
+            return internalSet.Add(item);
         }
 
         public void Clear()
         {
-            throw new ReadOnlyException();
+            throw new InvalidOperationException();
         }
 
         public bool Contains(T item)
@@ -43,19 +98,13 @@ namespace Quartz.Collection
             internalSet.CopyTo(array, arrayIndex);
         }
 
-        public int Count
-        {
-            get { return internalSet.Count; }
-        }
+        public int Count => internalSet.Count;
 
-        public bool IsReadOnly
-        {
-            get { return true; }
-        }
+        public bool IsReadOnly => true;
 
         public bool Remove(T item)
         {
-            throw new ReadOnlyException();
+            throw new InvalidOperationException();
         }
 
         public IEnumerator<T> GetEnumerator()
@@ -63,7 +112,7 @@ namespace Quartz.Collection
             return internalSet.GetEnumerator();
         }
 
-        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator()
+        IEnumerator IEnumerable.GetEnumerator()
         {
             return internalSet.GetEnumerator();
         }

@@ -21,22 +21,29 @@
 
 using System;
 using System.Collections.Generic;
-
-using Quartz.Collection;
+using System.Diagnostics;
 
 using NUnit.Framework;
 
+using Quartz.Simpl;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit
 {
     /// <author>Marko Lahma (.NET)</author>
-    [TestFixture]
+#if BINARY_SERIALIZATION
+    [TestFixture(typeof(BinaryObjectSerializer))]
+#endif
+    [TestFixture(typeof(JsonObjectSerializer))]
     public class CronExpressionTest : SerializationTestSupport
     {
         private static readonly string[] versions = new[] {"0.6.0"};
 
         private static readonly TimeZoneInfo testTimeZone = TimeZoneInfo.Local;
+
+        public CronExpressionTest(Type serializerType) : base(serializerType)
+        {
+        }
 
         /// <summary>
         /// Get the object to serialize when generating serialized file for future
@@ -218,7 +225,7 @@ namespace Quartz.Tests.Unit
             // test failed before because of improper trimming
             try
             {
-                string expr = string.Format(" * * * * * {0}", DateTime.Now.Year);
+                string expr = $" * * * * * {DateTime.Now.Year}";
                 CronExpression ce = new CronExpression(expr);
                 ce.IsSatisfiedBy(DateTime.UtcNow.AddMinutes(2));
                 Assert.Fail("Accepted wrong format");
@@ -257,39 +264,30 @@ namespace Quartz.Tests.Unit
             for (int i = 0; i < fireDays.Count; ++i)
             {
                 int idx = correctFireDays.IndexOf(fireDays[i]);
-                Assert.Greater(idx, -1,
-                               string.Format("CronExpression evaluated true for {0} even when it shouldn't have", fireDays[i]));
+                Assert.Greater(idx, -1, $"CronExpression evaluated true for {fireDays[i]} even when it shouldn't have");
                 correctFireDays.RemoveAt(idx);
             }
 
             // check that all fired
-            Assert.IsTrue(correctFireDays.Count == 0, string.Format("CronExpression did not evaluate true for all expected days (count: {0}).", correctFireDays.Count));
+            Assert.IsTrue(correctFireDays.Count == 0, $"CronExpression did not evaluate true for all expected days (count: {correctFireDays.Count}).");
         }
 
         [Test]
-        [ExpectedException(ExpectedException = typeof (FormatException),
-            ExpectedMessage = "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.")]
         public void TestFormatExceptionWildCardDayOfMonthAndDayOfWeek()
         {
-            CronExpression cronExpression = new CronExpression("0 0 * * * *");
+            Assert.Throws<FormatException>(() => new CronExpression("0 0 * * * *"), "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.");
         }
 
         [Test]
-        [ExpectedException(
-            ExpectedException = typeof (FormatException),
-            ExpectedMessage = "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.")]
         public void TestFormatExceptionSpecifiedDayOfMonthAndWildCardDayOfWeek()
         {
-            CronExpression cronExpression = new CronExpression("0 0 * 4 * *");
+            Assert.Throws<FormatException>(() => new CronExpression("0 0 * 4 * *"), "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.");
         }
 
         [Test]
-        [ExpectedException(
-            ExpectedException = typeof (FormatException),
-            ExpectedMessage = "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.")]
         public void TestFormatExceptionWildCardDayOfMonthAndSpecifiedDayOfWeek()
         {
-            CronExpression cronExpression = new CronExpression("0 0 * * * 4");
+            Assert.Throws<FormatException>(() => new CronExpression("0 0 * * * 4"), "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.");
         }
 
         [Test]
@@ -376,7 +374,7 @@ namespace Quartz.Tests.Unit
             try
             {
                 SimpleCronExpression cronExpression = new SimpleCronExpression(expression);
-                Collection.ISet<int> set = cronExpression.GetSetPublic(constant);
+                ICollection<int> set = cronExpression.GetSetPublic(constant);
                 if (set.Count == 0)
                 {
                     Assert.Fail("Empty field [" + constant + "] returned for " + expression);
@@ -453,9 +451,9 @@ namespace Quartz.Tests.Unit
             CronExpression expression = new CronExpression("0 5 13 5W 1-12 ?");
             DateTimeOffset test = new DateTimeOffset(2009, 3, 8, 0, 0, 0, TimeSpan.Zero);
             DateTimeOffset d = expression.GetNextValidTimeAfter(test).Value;
-			Assert.AreEqual(new DateTimeOffset(2009, 4, 6, 13, 5, 0, TimeZoneUtil.GetUtcOffset(d, TimeZoneInfo.Local)).ToUniversalTime(), d);
+            Assert.AreEqual(new DateTimeOffset(2009, 4, 6, 13, 5, 0, TimeZoneUtil.GetUtcOffset(d, TimeZoneInfo.Local)).ToUniversalTime(), d);
             d = expression.GetNextValidTimeAfter(d).Value;
-			Assert.AreEqual(new DateTimeOffset(2009, 5, 5, 13, 5, 0, TimeZoneUtil.GetUtcOffset(d, TimeZoneInfo.Local)), d);
+            Assert.AreEqual(new DateTimeOffset(2009, 5, 5, 13, 5, 0, TimeZoneUtil.GetUtcOffset(d, TimeZoneInfo.Local)), d);
         }
 
         [Test]
@@ -485,7 +483,7 @@ namespace Quartz.Tests.Unit
             while (++i < 26)
             {
                 DateTimeOffset? date = trigger.GetFireTimeAfter(pdate);
-                Console.WriteLine("fireTime: " + date + ", previousFireTime: " + pdate);
+                // Console.WriteLine("fireTime: " + date + ", previousFireTime: " + pdate);
                 Assert.False(pdate.Equals(date), "Next fire time is the same as previous fire time!");
                 pdate = date;
             }
@@ -504,12 +502,13 @@ namespace Quartz.Tests.Unit
             while (++i < 26)
             {
                 DateTimeOffset? date = trigger.GetFireTimeAfter(pdate);
-                Console.WriteLine("fireTime: " + date + ", previousFireTime: " + pdate);
+                // Console.WriteLine("fireTime: " + date + ", previousFireTime: " + pdate);
                 Assert.False(pdate.Equals(date), "Next fire time is the same as previous fire time!");
                 pdate = date;
             }
         }
 
+#if !NETCORE
         [Test]
         public void TestDaylightSaving_QRTZNETZ186()
         {
@@ -525,6 +524,7 @@ namespace Quartz.Tests.Unit
             DateTimeOffset expected = daylightChange.Start.Add(daylightChange.Delta).AddMinutes(15).ToUniversalTime();
             Assert.AreEqual(expected, after.Value);
         }
+#endif
 
         [Test]
         public void TestDaylightSavingsDoesNotMatchAnHourBefore()
@@ -534,7 +534,7 @@ namespace Quartz.Tests.Unit
             expression.TimeZone = est;
 
             DateTimeOffset startTime = new DateTimeOffset(2012, 11, 4, 0, 0, 0, TimeSpan.Zero);
-            
+
             var actualTime = expression.GetTimeAfter(startTime);
             DateTimeOffset expected = new DateTimeOffset(2012, 11, 5, 15, 15, 0, TimeSpan.FromHours(-5));
 
@@ -563,10 +563,32 @@ namespace Quartz.Tests.Unit
             {
             }
 
-            public ISortedSet<int> GetSetPublic(int constant)
+            public ISet<int> GetSetPublic(int constant)
             {
                 return base.GetSet(constant);
             }
+        }
+
+        [Test]
+        [Explicit]
+        public void PerformanceTest()
+        {
+            var quartz = new CronExpression("* * * * * ?");
+
+            var sw = new Stopwatch();
+            sw.Start();
+
+            DateTimeOffset? next = new DateTimeOffset(2012, 1, 1, 0, 0, 0, TimeSpan.Zero);
+
+            for (int i = 0; i < 1000000; i++)
+            {
+                next = quartz.GetNextValidTimeAfter(next.Value);
+
+                if (next == null)
+                    break;
+            }
+
+            Console.WriteLine("{0}ms", sw.ElapsedMilliseconds);
         }
     }
 }

@@ -1,37 +1,38 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 
-using Common.Logging;
-using Quartz.Collection;
 using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Logging;
 using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore
 {
     /// <summary>
-    /// Base class for database based lock handlers for providing thread/resource locking 
-    /// in order to protect resources from being altered by multiple threads at the 
+    /// Base class for database based lock handlers for providing thread/resource locking
+    /// in order to protect resources from being altered by multiple threads at the
     /// same time.
     /// </summary>
     /// <author>Marko Lahma (.NET)</author>
@@ -40,11 +41,11 @@ namespace Quartz.Impl.AdoJobStore
         private readonly ILog log;
         private const string ThreadContextKeyLockOwners = "qrtz_dbs_lck_owners";
         private string sql;
-        private String insertSql;
+        private string insertSql;
 
         private string tablePrefix;
 
-        private string schedName; 
+        private string schedName;
 
         private string expandedSQL;
         private string expandedInsertSQL;
@@ -61,7 +62,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="dbProvider">The db provider.</param>
         protected DBSemaphore(string tablePrefix, string schedName, string defaultSQL, string defaultInsertSQL, IDbProvider dbProvider)
         {
-            log = LogManager.GetLogger(GetType());
+            log = LogProvider.GetLogger(GetType());
             this.schedName = schedName;
             this.tablePrefix = tablePrefix;
             SQL = defaultSQL;
@@ -78,7 +79,6 @@ namespace Quartz.Impl.AdoJobStore
             get { return LogicalThreadContext.GetData<HashSet<string>>(ThreadContextKeyLockOwners); }
             set { LogicalThreadContext.SetData(ThreadContextKeyLockOwners, value); }
         }
-
 
         /// <summary>
         /// Gets the log.
@@ -106,10 +106,9 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="conn"></param>
         /// <param name="lockName"></param>
-        /// <param name="expandedSQL"></param>
-        /// <param name="expandedInsertSQL"></param>
-        protected abstract void ExecuteSQL(ConnectionAndTransactionHolder conn, string lockName, string expandedSQL, string expandedInsertSQL);
-
+        /// <param name="expandedSql"></param>
+        /// <param name="expandedInsertSql"></param>
+        protected abstract Task ExecuteSQL(ConnectionAndTransactionHolder conn, string lockName, string expandedSql, string expandedInsertSql);
 
         /// <summary>
         /// Grants a lock on the identified resource to the calling thread (blocking
@@ -119,17 +118,17 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn"></param>
         /// <param name="lockName"></param>
         /// <returns>true if the lock was obtained.</returns>
-        public bool ObtainLock(DbMetadata metadata, ConnectionAndTransactionHolder conn, string lockName)
+        public async Task<bool> ObtainLock(DbMetadata metadata, ConnectionAndTransactionHolder conn, string lockName)
         {
-            if (Log.IsDebugEnabled)
+            if (log.IsDebugEnabled())
             {
                 Log.DebugFormat("Lock '{0}' is desired by: {1}", lockName, Thread.CurrentThread.Name);
             }
             if (!IsLockOwner(lockName))
             {
-                ExecuteSQL(conn, lockName, expandedSQL, expandedInsertSQL);
+                await ExecuteSQL(conn, lockName, expandedSQL, expandedInsertSQL).ConfigureAwait(false);
 
-                if (Log.IsDebugEnabled)
+                if (log.IsDebugEnabled())
                 {
                     Log.DebugFormat("Lock '{0}' given to: {1}", lockName, Thread.CurrentThread.Name);
                 }
@@ -137,7 +136,7 @@ namespace Quartz.Impl.AdoJobStore
                 //getThreadLocksObtainer().put(lockName, new
                 // Exception("Obtainer..."));
             }
-            else if (log.IsDebugEnabled)
+            else if (log.IsDebugEnabled())
             {
                 Log.DebugFormat("Lock '{0}' Is already owned by: {1}", lockName, Thread.CurrentThread.Name);
             }
@@ -145,30 +144,29 @@ namespace Quartz.Impl.AdoJobStore
             return true;
         }
 
-
         /// <summary>
         /// Release the lock on the identified resource if it is held by the calling
         /// thread.
         /// </summary>
         /// <param name="lockName"></param>
-        public void ReleaseLock(string lockName)
+        public Task ReleaseLock(string lockName)
         {
             if (IsLockOwner(lockName))
             {
-                if (Log.IsDebugEnabled)
+                if (log.IsDebugEnabled())
                 {
                     Log.DebugFormat("Lock '{0}' returned by: {1}", lockName, Thread.CurrentThread.Name);
                 }
                 ThreadLocks.Remove(lockName);
                 //getThreadLocksObtainer().remove(lockName);
             }
-            else if (Log.IsDebugEnabled)
+            else if (log.IsDebugEnabled())
             {
-                Log.WarnFormat("Lock '{0}' attempt to return by: {1} -- but not owner!",
-                    new Exception("stack-trace of wrongful returner"),
-                    lockName, 
-                    Thread.CurrentThread.Name);
+                log.DebugException($"Lock '{lockName}' attempt to return by: {Thread.CurrentThread.Name} -- but not owner!",
+                    new Exception("stack-trace of wrongful returner"));
             }
+
+            return TaskUtil.CompletedTask;
         }
 
         /// <summary>
@@ -203,7 +201,6 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-
         protected string InsertSQL
         {
             set
@@ -217,8 +214,6 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-
-
         private void SetExpandedSql()
         {
             if (TablePrefix != null && SchedName != null && sql != null && insertSql != null)
@@ -228,7 +223,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        private String schedNameLiteral;
+        private string schedNameLiteral;
 
         protected string SchedulerNameLiteral
         {
@@ -245,7 +240,7 @@ namespace Quartz.Impl.AdoJobStore
         public string SchedName
         {
             get { return schedName; }
-            set 
+            set
             {
                 schedName = value;
                 SetExpandedSql();

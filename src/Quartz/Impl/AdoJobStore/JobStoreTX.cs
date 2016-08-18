@@ -18,8 +18,11 @@
 #endregion
 
 using System;
+using System.Threading.Tasks;
 
+using Quartz.Logging;
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -38,10 +41,11 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="loadHelper"></param>
         /// <param name="signaler"></param>
-        public override void Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler)
+        public override Task Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler)
         {
             base.Initialize(loadHelper, signaler);
             Log.Info("JobStoreTX initialized.");
+            return TaskUtil.CompletedTask;
         }
 
         /// <summary>
@@ -58,7 +62,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Execute the given callback having optionally acquired the given lock.
         /// For <see cref="JobStoreTX" />, because it manages its own transactions
         /// and only has the one datasource, this is the same behavior as 
-        /// <see cref="JobStoreSupport.ExecuteInNonManagedTXLock(string,System.Action{Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder})" />.
+        /// <see cref="JobStoreSupport.ExecuteInNonManagedTXLock" />.
         /// </summary>
         /// <param name="lockName">
         /// The name of the lock to acquire, for example "TRIGGER_ACCESS". 
@@ -67,11 +71,11 @@ namespace Quartz.Impl.AdoJobStore
         /// </param>
         /// <param name="txCallback">Callback to execute.</param>
         /// <returns></returns>
-        /// <seealso cref="JobStoreSupport.ExecuteInNonManagedTXLock(string,System.Action{Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder})" />
-        /// <seealso cref="JobStoreCMT.ExecuteInLock{T}(string, Func{ConnectionAndTransactionHolder, T})" />
+        /// <seealso cref="JobStoreSupport.ExecuteInNonManagedTXLock" />
+        /// <seealso cref="JobStoreCMT.ExecuteInLock{T}(string, Func{ConnectionAndTransactionHolder, Task{T}})" />
         /// <seealso cref="JobStoreSupport.GetNonManagedTXConnection()" />
         /// <seealso cref="JobStoreSupport.GetConnection()" />
-        protected override T ExecuteInLock<T>(string lockName, Func<ConnectionAndTransactionHolder, T> txCallback)
+        protected override Task<T> ExecuteInLock<T>(string lockName, Func<ConnectionAndTransactionHolder, Task<T>> txCallback)
         {
             return ExecuteInNonManagedTXLock(lockName, txCallback);
         }

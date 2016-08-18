@@ -18,83 +18,37 @@
 #endregion
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
-
-using C5;
 
 namespace Quartz.Collection
 {
     /// <summary>
-    /// Simple C5 wrapper for common interface.
+    /// Only for backwards compatibility with serialization!
     /// </summary>
     /// <typeparam name="T"></typeparam>
+#if BINARY_SERIALIZATION
     [Serializable]
-    public class TreeSet<T> : C5.TreeSet<T>, ISortedSet<T>
+#endif // BINARY_SERIALIZATION
+    internal class TreeSet<T> : SortedSet<T>
     {
-        /// <summary>
-        /// Default constructor.
-        /// </summary>
-        public TreeSet()
+        // No non-binary-formatter alternative is needed since this will not be deserialized by new .NET Core versions of Quartz.Net
+#if BINARY_SERIALIZATION
+        protected override void OnDeserialization(object sender)
         {
-            
+            base.OnDeserialization(sender);
         }
+#endif // BINARY_SERIALIZATION
 
-        /// <summary>
-        /// Constructor that accepts comparer.
-        /// </summary>
-        /// <param name="comparer">Comparer to use.</param>
-        public TreeSet(IComparer<T> comparer) : base(comparer)
-        {
-
-        }
-
-        /// <summary>
-        /// Constructor that prepopulates.
-        /// </summary>
-        /// <param name="items"></param>
-        public TreeSet(IEnumerable<T> items)
-        {
-            AddAll(items);
-        }
-
-        /// <summary>
-        /// Returns the first element.
-        /// </summary>
-        /// <returns></returns>
-        public T First()
-        {
-            return Count > 0 ? this[0] : default(T);
-        }
-
-        /// <summary>
-        /// Return items from given range.
-        /// </summary>
-        /// <param name="limit"></param>
-        /// <returns></returns>
-        public ISortedSet<T> TailSet(T limit)
-        {
-            TreeSet<T> retValue = new TreeSet<T>(Comparer);
-            IDirectedCollectionValue<T> directedCollectionValue = RangeFrom(limit);
-            retValue.AddAll(directedCollectionValue);
-            return retValue;
-        }
-
-        /// <summary>
-        /// Indexer.
-        /// </summary>
-        /// <param name="index"></param>
-        /// <returns></returns>
-        T ISortedSet<T>.this[int index]
-        {
-            get { return base[index]; }
-        }
     }
 
     /// <summary>
     /// Only for backwards compatibility with serialization!
     /// </summary>
+#if BINARY_SERIALIZATION
     [Serializable]
-    public class TreeSet : System.Collections.ArrayList
+#endif // BINARY_SERIALIZATION
+    internal class TreeSet : ArrayList
     {
     }
 }

@@ -23,6 +23,7 @@ using System.Collections.Specialized;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 
 namespace Quartz.Util
 {
@@ -140,7 +141,7 @@ namespace Quartz.Util
 				return false;
 			}
 
-			return val.ToUpper(CultureInfo.InvariantCulture).Equals("TRUE");
+			return CultureInfo.InvariantCulture.TextInfo.ToUpper(val).Equals("TRUE");
 		}
 
         /// <summary>
@@ -157,8 +158,8 @@ namespace Quartz.Util
 				return defaultValue;
 			}
 
-            return val.ToUpper(CultureInfo.InvariantCulture).Equals("TRUE");
-		}
+            return CultureInfo.InvariantCulture.TextInfo.ToUpper(val).Equals("TRUE");
+        }
 
         /// <summary>
         /// Gets the byte property.
@@ -175,11 +176,11 @@ namespace Quartz.Util
 
 			try
 			{
-                return Byte.Parse(val, CultureInfo.InvariantCulture);
+                return byte.Parse(val, CultureInfo.InvariantCulture);
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", val));
+				throw new FormatException($" '{val}'");
 			}
 		}
 
@@ -199,11 +200,11 @@ namespace Quartz.Util
 
 			try
 			{
-                return Byte.Parse(val, CultureInfo.InvariantCulture);
+                return byte.Parse(val, CultureInfo.InvariantCulture);
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", val));
+				throw new FormatException($" '{val}'");
 			}
 		}
 
@@ -265,11 +266,11 @@ namespace Quartz.Util
 
 			try
 			{
-                return Double.Parse(val, CultureInfo.InvariantCulture);
+                return double.Parse(val, CultureInfo.InvariantCulture);
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", val));
+				throw new FormatException($" '{val}'");
 			}
 		}
 
@@ -289,11 +290,11 @@ namespace Quartz.Util
 
 			try
 			{
-                return Double.Parse(val, CultureInfo.InvariantCulture);
+                return double.Parse(val, CultureInfo.InvariantCulture);
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", val));
+				throw new FormatException($" '{val}'");
 			}
 		}
 
@@ -312,11 +313,11 @@ namespace Quartz.Util
 
 			try
 			{
-                return Single.Parse(val, CultureInfo.InvariantCulture);
+                return float.Parse(val, CultureInfo.InvariantCulture);
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", val));
+				throw new FormatException($" '{val}'");
 			}
 		}
 
@@ -336,11 +337,11 @@ namespace Quartz.Util
 
 			try
 			{
-                return Single.Parse(val, CultureInfo.InvariantCulture);
+                return float.Parse(val, CultureInfo.InvariantCulture);
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", val));
+				throw new FormatException($" '{val}'");
 			}
 		}
 
@@ -359,11 +360,11 @@ namespace Quartz.Util
 
 			try
 			{
-                return Int32.Parse(val, CultureInfo.InvariantCulture);
+                return int.Parse(val, CultureInfo.InvariantCulture);
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", val));
+				throw new FormatException($" '{val}'");
 			}
 		}
 
@@ -383,11 +384,11 @@ namespace Quartz.Util
 
 			try
 			{
-                return Int32.Parse(val, CultureInfo.InvariantCulture);
+                return int.Parse(val, CultureInfo.InvariantCulture);
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", val));
+				throw new FormatException($" '{val}'");
 			}
 		}
 
@@ -425,11 +426,11 @@ namespace Quartz.Util
 					{
 						try
 						{
-                            ints.Add(Int32.Parse(s, CultureInfo.InvariantCulture));
+                            ints.Add(int.Parse(s, CultureInfo.InvariantCulture));
 						}
 						catch (FormatException)
 						{
-							throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", vals));
+							throw new FormatException($" '{vals}'");
 						}
 					}
 					return ints;
@@ -458,11 +459,11 @@ namespace Quartz.Util
 
 			try
 			{
-                return Int64.Parse(val, CultureInfo.InvariantCulture);
+                return long.Parse(val, CultureInfo.InvariantCulture);
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", val));
+				throw new FormatException($" '{val}'");
 			}
 		}
 
@@ -482,11 +483,11 @@ namespace Quartz.Util
 
 			try
 			{
-                return Int64.Parse(val, CultureInfo.InvariantCulture);
+                return long.Parse(val, CultureInfo.InvariantCulture);
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", val));
+				throw new FormatException($" '{val}'");
 			}
 		}
 
@@ -506,11 +507,11 @@ namespace Quartz.Util
 
             try
             {
-                return TimeSpan.FromMilliseconds(Int64.Parse(val, CultureInfo.InvariantCulture));
+                return TimeSpan.FromMilliseconds(long.Parse(val, CultureInfo.InvariantCulture));
             }
             catch (FormatException)
             {
-                throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", val));
+                throw new FormatException($" '{val}'");
             }
         }
 
@@ -529,11 +530,11 @@ namespace Quartz.Util
 
 			try
 			{
-                return Int16.Parse(val, CultureInfo.InvariantCulture);
+                return short.Parse(val, CultureInfo.InvariantCulture);
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", val));
+				throw new FormatException($" '{val}'");
 			}
 		}
 
@@ -553,11 +554,11 @@ namespace Quartz.Util
 
 			try
 			{
-                return Int16.Parse(val, CultureInfo.InvariantCulture);
+                return short.Parse(val, CultureInfo.InvariantCulture);
 			}
 			catch (FormatException)
 			{
-				throw new FormatException(string.Format(CultureInfo.InvariantCulture, " '{0}'", val));
+				throw new FormatException($" '{val}'");
 			}
 		}
 
@@ -568,7 +569,7 @@ namespace Quartz.Util
         /// <returns></returns>
         public virtual IList<string> GetPropertyGroups(string prefix)
 		{
-            var groups = new Collection.HashSet<string>();
+            var groups = new HashSet<string>();
 
 			if (!prefix.EndsWith("."))
 			{
@@ -665,7 +666,7 @@ namespace Quartz.Util
         /// <returns></returns>
         public static PropertiesParser ReadFromEmbeddedAssemblyResource(string resourceName)
         {
-            return ReadFromStream(typeof(IScheduler).Assembly.GetManifestResourceStream(resourceName));
+            return ReadFromStream(typeof(IScheduler).GetTypeInfo().Assembly.GetManifestResourceStream(resourceName));
         }
 
         /// <summary>

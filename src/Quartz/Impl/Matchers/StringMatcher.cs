@@ -30,11 +30,16 @@ namespace Quartz.Impl.Matchers
     /// </summary>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
     public abstract class StringMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
         private readonly string compareTo;
         private readonly StringOperator compareWith;
+
+        protected StringMatcher(){
+        }
 
         protected StringMatcher(string compareTo, StringOperator compareWith)
         {

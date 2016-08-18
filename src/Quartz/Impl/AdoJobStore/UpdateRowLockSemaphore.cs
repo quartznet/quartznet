@@ -20,11 +20,11 @@
 #endregion
 
 using System;
-using System.Data;
-using System.Globalization;
+using System.Data.Common;
 using System.Threading;
-
+using System.Threading.Tasks;
 using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Logging;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -47,12 +47,10 @@ namespace Quartz.Impl.AdoJobStore
     public class UpdateLockRowSemaphore : DBSemaphore
     {
         public static readonly string SqlUpdateForLock =
-            string.Format(CultureInfo.InvariantCulture, "UPDATE {0}{1} SET {2} = {3} WHERE {4} = {5} AND {6} = @lockName",
-                TablePrefixSubst, TableLocks, ColumnLockName, ColumnLockName, ColumnSchedulerName, SchedulerNameSubst, ColumnLockName);
+            $"UPDATE {TablePrefixSubst}{TableLocks} SET {ColumnLockName} = {ColumnLockName} WHERE {ColumnSchedulerName} = {SchedulerNameSubst} AND {ColumnLockName} = @lockName";
 
         public static readonly string SqlInsertLock =
-            string.Format("INSERT INTO {0}{1}({2}, {3}) VALUES ({4}, @lockName)",
-                TablePrefixSubst, TableLocks, ColumnSchedulerName, ColumnLockName, SchedulerNameSubst);
+            $"INSERT INTO {TablePrefixSubst}{TableLocks}({ColumnSchedulerName}, {ColumnLockName}) VALUES ({SchedulerNameSubst}, @lockName)";
 
         private const int RetryCount = 2;
 
@@ -69,18 +67,18 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="conn"></param>
         /// <param name="lockName"></param>
-        /// <param name="expandedSQL"></param>
-        /// <param name="expandedInsertSQL"></param>
-        protected override void ExecuteSQL(ConnectionAndTransactionHolder conn, string lockName, string expandedSQL, string expandedInsertSQL)
+        /// <param name="expandedSql"></param>
+        /// <param name="expandedInsertSql"></param>
+        protected override async Task ExecuteSQL(ConnectionAndTransactionHolder conn, string lockName, string expandedSql, string expandedInsertSql)
         {
             Exception lastFailure = null;
             for (int i = 0; i < RetryCount; i++)
             {
                 try
                 {
-                    if (!LockViaUpdate(conn, lockName, expandedSQL))
+                    if (!await LockViaUpdate(conn, lockName, expandedSql).ConfigureAwait(false))
                     {
-                        LockViaInsert(conn, lockName, expandedInsertSQL);
+                        await LockViaInsert(conn, lockName, expandedInsertSql).ConfigureAwait(false);
                     }
                     return;
                 }
@@ -95,14 +93,8 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         Log.DebugFormat("Lock '{0}' was not obtained by: {1} - will try again.", lockName, Thread.CurrentThread.Name);
                     }
-                    try
-                    {
-                        Thread.Sleep(TimeSpan.FromSeconds(1));
-                    }
-                    catch (ThreadInterruptedException)
-                    {
-                        Thread.CurrentThread.Interrupt();
-                    }
+
+                    await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
                 }
             }
             if (lastFailure != null)
@@ -111,27 +103,31 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        private bool LockViaUpdate(ConnectionAndTransactionHolder conn, string lockName, string sql)
+        private async Task<bool> LockViaUpdate(ConnectionAndTransactionHolder conn, string lockName, string sql)
         {
-            using (IDbCommand cmd = AdoUtil.PrepareCommand(conn, sql))
+            using (DbCommand cmd = AdoUtil.PrepareCommand(conn, sql))
             {
                 AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
 
                 Log.DebugFormat("Lock '{0}' is being obtained: {1}", lockName, Thread.CurrentThread.Name);
-                return cmd.ExecuteNonQuery() >= 1;
+                return await cmd.ExecuteNonQueryAsync().ConfigureAwait(false) >= 1;
             }
         }
 
-        private void LockViaInsert(ConnectionAndTransactionHolder conn, String lockName, String sql)
+        private async Task LockViaInsert(ConnectionAndTransactionHolder conn, string lockName, string sql)
         {
+            if (sql == null)
+            {
+                throw new ArgumentNullException(nameof(sql));
+            }
             Log.DebugFormat("Inserting new lock row for lock: '{0}' being obtained by thread: {1}", lockName, Thread.CurrentThread.Name);
-            using (IDbCommand cmd = AdoUtil.PrepareCommand(conn, sql))
+            using (var cmd = AdoUtil.PrepareCommand(conn, sql))
             {
                 AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
 
-                if (cmd.ExecuteNonQuery() != 1)
+                if (await cmd.ExecuteNonQueryAsync().ConfigureAwait(false) != 1)
                 {
-                    throw new DataException(
+                    throw new InvalidOperationException(
                         AdoJobStoreUtil.ReplaceTablePrefix("No row exists, and one could not be inserted in table " + TablePrefixSubst + TableLocks + " for lock named: " + lockName, TablePrefix, SchedulerNameLiteral));
                 }
             }

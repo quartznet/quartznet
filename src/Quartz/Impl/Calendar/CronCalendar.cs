@@ -45,18 +45,24 @@ namespace Quartz.Impl.Calendar
     /// </remarks>
     /// <author>Aaron Craven</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
     public class CronCalendar : BaseCalendar
     {
         private CronExpression cronExpression;
+
+        // ReSharper disable once UnusedMember.Local
+        private CronCalendar()
+        {
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="CronCalendar"/> class.
         /// </summary>
         /// <param name="expression">a string representation of the desired cron expression</param>
-        public CronCalendar(string expression)
+        public CronCalendar(string expression) : this(null, expression)
         {
-            cronExpression = new CronExpression(expression);
         }
 
         /// <summary>
@@ -69,9 +75,8 @@ namespace Quartz.Impl.Calendar
         /// calendar functionality
         /// </param>
         /// <param name="expression">a string representation of the desired cron expression</param>
-        public CronCalendar(ICalendar baseCalendar, string expression) : base(baseCalendar)
+        public CronCalendar(ICalendar baseCalendar, string expression) : this(baseCalendar, expression, null)
         {
-            cronExpression = new CronExpression(expression);
         }
 
         /// <summary>
@@ -89,6 +94,8 @@ namespace Quartz.Impl.Calendar
         {
             cronExpression = new CronExpression(expression);
         }
+
+#if BINARY_SERIALIZATION // If this functionality is needed in the future with DCS serialization, it can ne added with [OnSerializing] and [OnDeserialized] methods
 
         /// <summary>
         /// Serialization constructor.
@@ -111,7 +118,7 @@ namespace Quartz.Impl.Calendar
             {
                 case 0:
                 case 1:
-                    cronExpression = (CronExpression) info.GetValue("cronExpression", typeof (CronExpression));
+                    cronExpression = (CronExpression) info.GetValue("cronExpression", typeof(CronExpression));
                     break;
                 default:
                     throw new NotSupportedException("Unknown serialization version");
@@ -122,9 +129,11 @@ namespace Quartz.Impl.Calendar
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
+
             info.AddValue("version", 1);
             info.AddValue("cronExpression", cronExpression);
         }
+#endif // BINARY_SERIALIZATION
 
         public override TimeZoneInfo TimeZone
         {
@@ -191,10 +200,11 @@ namespace Quartz.Impl.Calendar
         /// Creates a new object that is a copy of the current instance.
         /// </summary>
         /// <returns>A new object that is a copy of this instance.</returns>
-        public override object Clone()
+        public override ICalendar Clone()
         {
-            CronCalendar clone = (CronCalendar) base.Clone();
+            var clone = new CronCalendar();
             clone.cronExpression = (CronExpression) cronExpression.Clone();
+            CloneFields(clone);
             return clone;
         }
 
@@ -269,7 +279,7 @@ namespace Quartz.Impl.Calendar
             }
             bool baseEqual = GetBaseCalendar() == null || GetBaseCalendar().Equals(obj.GetBaseCalendar());
 
-            return baseEqual && (CronExpression.Equals(obj.CronExpression));
+            return baseEqual && CronExpression.Equals(obj.CronExpression);
         }
 
         public override bool Equals(object obj)

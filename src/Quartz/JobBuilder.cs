@@ -111,6 +111,20 @@ namespace Quartz
             return b;
         }
 
+
+        /// <summary>
+        /// Create a JobBuilder with which to define a <see cref="IJobDetail" />,
+        /// and set the class name of the job to be executed.
+        /// </summary>
+        /// <returns>a new JobBuilder</returns>
+        public static JobBuilder CreateForAsync<T>() where T : IJob
+        {
+            JobBuilder b = new JobBuilder();
+            b.OfType(typeof(T));
+            return b;
+        }
+
+
         /// <summary>
         /// Produce the <see cref="IJobDetail" /> instance defined by this JobBuilder.
         /// </summary>

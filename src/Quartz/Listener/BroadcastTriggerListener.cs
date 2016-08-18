@@ -22,6 +22,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace Quartz.Listener
 {
@@ -99,38 +100,34 @@ namespace Quartz.Listener
             return false;
         }
 
-        public IList<ITriggerListener> Listeners
+        public IReadOnlyList<ITriggerListener> Listeners => listeners;
+
+        public Task TriggerFired(ITrigger trigger, IJobExecutionContext context)
         {
-            get { return listeners.AsReadOnly(); }
+            return Task.WhenAll(listeners.Select(l => l.TriggerFired(trigger, context)));
         }
 
-        public void TriggerFired(ITrigger trigger, IJobExecutionContext context)
+        public async Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context)
         {
-            foreach (ITriggerListener l in listeners)
+            foreach (var listener in listeners)
             {
-                l.TriggerFired(trigger, context);
+                if (await listener.VetoJobExecution(trigger, context).ConfigureAwait(false))
+                {
+                    return true;
+                }
             }
+
+            return false;
         }
 
-        public bool VetoJobExecution(ITrigger trigger, IJobExecutionContext context)
+        public Task TriggerMisfired(ITrigger trigger)
         {
-            return listeners.Any(l => l.VetoJobExecution(trigger, context));
+            return Task.WhenAll(listeners.Select(l => l.TriggerMisfired(trigger)));
         }
 
-        public void TriggerMisfired(ITrigger trigger)
+        public Task TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode)
         {
-            foreach (ITriggerListener l in listeners)
-            {
-                l.TriggerMisfired(trigger);
-            }
-        }
-
-        public void TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode)
-        {
-            foreach (ITriggerListener l in listeners)
-            {
-                l.TriggerComplete(trigger, context, triggerInstructionCode);
-            }
+            return Task.WhenAll(listeners.Select(l => l.TriggerComplete(trigger, context, triggerInstructionCode)));
         }
     }
 }

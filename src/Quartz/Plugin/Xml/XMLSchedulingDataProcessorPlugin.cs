@@ -21,18 +21,15 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Net;
-#if !ClientProfile
-using System.Web;
-#endif
-using Common.Logging;
+using System.Threading.Tasks;
 
 using Quartz.Impl;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
+using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
@@ -53,68 +50,43 @@ namespace Quartz.Plugin.Xml
     /// <author>Pierre Awaragi</author>
     public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListener
     {
-        private readonly ILog log;
         private const int MaxJobTriggerNameLength = 80;
         private const string JobInitializationPluginName = "XMLSchedulingDataProcessorPlugin";
         private const char FileNameDelimiter = ',';
 
-        private bool failOnFileNotFound = true;
-        private string fileNames = XMLSchedulingDataProcessor.QuartzXmlFileName;
-
         // Populated by initialization
         private readonly List<KeyValuePair<string, JobFile>> jobFiles = new List<KeyValuePair<string, JobFile>>();
-
-        private TimeSpan scanInterval = TimeSpan.Zero;
 
         private bool started;
 
         private ITypeLoadHelper typeLoadHelper;
 
-        private readonly Collection.HashSet<string> jobTriggerNameSet = new Collection.HashSet<string>();
-        private IScheduler scheduler;
-        private string name;
+        private readonly HashSet<string> jobTriggerNameSet = new HashSet<string>();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="XMLSchedulingDataProcessorPlugin"/> class.
         /// </summary>
         public XMLSchedulingDataProcessorPlugin()
         {
-            log = LogManager.GetLogger(typeof (XMLSchedulingDataProcessorPlugin));
+            Log = LogProvider.GetLogger(typeof (XMLSchedulingDataProcessorPlugin));
         }
 
         /// <summary>
         /// Gets the log.
         /// </summary>
         /// <value>The log.</value>
-        protected ILog Log
-        {
-            get { return log; }
-        }
+        protected ILog Log { get; }
 
+        public string Name { get; private set; }
 
-        public string Name
-        {
-            get { return name; }
-        }
+        public IScheduler Scheduler { get; private set; }
 
-        public IScheduler Scheduler
-        {
-            get { return scheduler; }
-        }
-
-        protected ITypeLoadHelper TypeLoadHelper
-        {
-            get { return typeLoadHelper; }
-        }
+        protected ITypeLoadHelper TypeLoadHelper => typeLoadHelper;
 
         /// <summary> 
         /// Comma separated list of file names (with paths) to the XML files that should be read.
         /// </summary>
-        public virtual string FileNames
-        {
-            get { return fileNames; }
-            set { fileNames = value; }
-        }
+        public string FileNames { get; set; } = XMLSchedulingDataProcessor.QuartzXmlFileName;
 
         /// <summary> 
         /// The interval at which to scan for changes to the file.  
@@ -122,37 +94,28 @@ namespace Quartz.Plugin.Xml
         /// value for the interval is 0, which disables scanning.
         /// </summary>
         [TimeSpanParseRule(TimeSpanParseRule.Seconds)]
-        public virtual TimeSpan ScanInterval
-        {
-            get { return scanInterval; }
-            set { scanInterval = value; }
-        }
+        public TimeSpan ScanInterval { get; set; } = TimeSpan.Zero;
 
         /// <summary> 
         /// Whether or not initialization of the plugin should fail (throw an
         /// exception) if the file cannot be found. Default is <see langword="true" />.
         /// </summary>
-        public virtual bool FailOnFileNotFound
-        {
-            get { return failOnFileNotFound; }
-            set { failOnFileNotFound = value; }
-        }
+        public bool FailOnFileNotFound { get; set; } = true;
 
-        public IEnumerable<KeyValuePair<string, JobFile>> JobFiles
-        {
-            get { return jobFiles; }
-        }
+        public IEnumerable<KeyValuePair<string, JobFile>> JobFiles => jobFiles;
 
         /// <summary>
         /// 
         /// </summary>
         /// <param name="fName"></param>
-        public virtual void FileUpdated(string fName)
+        public virtual Task FileUpdated(string fName)
         {
             if (started)
             {
-                ProcessFile(fName);
+                return ProcessFile(fName);
             }
+
+            return TaskUtil.CompletedTask;
         }
 
         /// <summary>
@@ -160,23 +123,24 @@ namespace Quartz.Plugin.Xml
         /// the <see cref="ISchedulerPlugin"/> a chance to initialize.
         /// </summary>
         /// <param name="pluginName">The name.</param>
-        /// <param name="sched">The scheduler.</param>
+        /// <param name="scheduler">The scheduler.</param>
         /// <throws>SchedulerConfigException </throws>
-        public virtual void Initialize(string pluginName, IScheduler sched)
+        public virtual async Task Initialize(string pluginName, IScheduler scheduler)
         {
-            name = pluginName;
-            scheduler = sched;
+            Name = pluginName;
+            Scheduler = scheduler;
             typeLoadHelper = new SimpleTypeLoadHelper();
             typeLoadHelper.Initialize();
 
             Log.Info("Registering Quartz Job Initialization Plug-in.");
 
             // Create JobFile objects
-            var tokens = fileNames.Split(FileNameDelimiter).Select(x => x.TrimStart());
+            var tokens = FileNames.Split(FileNameDelimiter).Select(x => x.TrimStart());
 
             foreach (string token in tokens)
             {
                 JobFile jobFile = new JobFile(this, token);
+                await jobFile.Initialize();
                 jobFiles.Add(new KeyValuePair<string, JobFile>(jobFile.FilePath, jobFile));
             }
         }
@@ -186,29 +150,29 @@ namespace Quartz.Plugin.Xml
         /// to let the plug-in know it can now make calls into the scheduler if it
         /// needs to.
         /// </summary>
-        public virtual void Start()
+        public virtual async Task Start()
         {
             try
             {
                 if (jobFiles.Count > 0)
                 {
-                    if (scanInterval > TimeSpan.Zero)
+                    if (ScanInterval > TimeSpan.Zero)
                     {
-                        scheduler.Context.Put(JobInitializationPluginName + '_' + Name, this);
+                        Scheduler.Context.Put(JobInitializationPluginName + '_' + Name, this);
                     }
 
                     foreach (KeyValuePair<string, JobFile> pair in jobFiles)
                     {
                         JobFile jobFile = pair.Value;
 
-                        if (scanInterval > TimeSpan.Zero)
+                        if (ScanInterval > TimeSpan.Zero)
                         {
                             string jobTriggerName = BuildJobTriggerName(jobFile.FileBasename);
 
                             TriggerKey tKey = new TriggerKey(jobTriggerName, JobInitializationPluginName);
 
                             // remove pre-existing job/trigger, if any
-                            Scheduler.UnscheduleJob(tKey);
+                            await Scheduler.UnscheduleJob(tKey).ConfigureAwait(false);
 
                             // TODO: convert to use builder
                             var trig = new SimpleTriggerImpl();
@@ -217,7 +181,7 @@ namespace Quartz.Plugin.Xml
                             trig.StartTimeUtc = SystemTime.UtcNow();
                             trig.EndTimeUtc = null;
                             trig.RepeatCount = SimpleTriggerImpl.RepeatIndefinitely;
-                            trig.RepeatInterval = scanInterval;
+                            trig.RepeatInterval = ScanInterval;
 
                             // TODO: convert to use builder
                             JobDetailImpl job = new JobDetailImpl(
@@ -228,17 +192,17 @@ namespace Quartz.Plugin.Xml
                             job.JobDataMap.Put(FileScanJob.FileName, jobFile.FilePath);
                             job.JobDataMap.Put(FileScanJob.FileScanListenerName, JobInitializationPluginName + '_' + Name);
 
-                            scheduler.ScheduleJob(job, trig);
-                            Log.DebugFormat("Scheduled file scan job for data file: {0}, at interval: {1}", jobFile.FileName, scanInterval);
+                            await Scheduler.ScheduleJob(job, trig).ConfigureAwait(false);
+                            Log.DebugFormat("Scheduled file scan job for data file: {0}, at interval: {1}", jobFile.FileName, ScanInterval);
                         }
 
-                        ProcessFile(jobFile);
+                        await ProcessFile(jobFile).ConfigureAwait(false);
                     }
                 }
             }
             catch (SchedulerException se)
             {
-                Log.Error("Error starting background-task for watching jobs file.", se);
+                Log.ErrorException("Error starting background-task for watching jobs file.", se);
             }
             finally
             {
@@ -297,12 +261,13 @@ namespace Quartz.Plugin.Xml
         /// should free up all of it's resources because the scheduler is shutting
         /// down.
         /// </summary>
-        public virtual void Shutdown()
+        public virtual Task Shutdown()
         {
             // nothing to do
+            return TaskUtil.CompletedTask;
         }
 
-        private void ProcessFile(JobFile jobFile)
+        private async Task ProcessFile(JobFile jobFile)
         {
             if ((jobFile == null) || (jobFile.FileFound == false))
             {
@@ -316,18 +281,18 @@ namespace Quartz.Plugin.Xml
                 processor.AddJobGroupToNeverDelete(JobInitializationPluginName);
                 processor.AddTriggerGroupToNeverDelete(JobInitializationPluginName);
 
-                processor.ProcessFileAndScheduleJobs(
+                await processor.ProcessFileAndScheduleJobs(
                     jobFile.FileName,
                     jobFile.FileName, // systemId 
-                    scheduler);
+                    Scheduler).ConfigureAwait(false);
             }
             catch (Exception e)
             {
-                Log.Error("Error scheduling jobs: " + e.Message, e);
+                Log.ErrorException("Error scheduling jobs: " + e.Message, e);
             }
         }
 
-        public void ProcessFile(string filePath)
+        public Task ProcessFile(string filePath)
         {
             JobFile file = null;
             int idx = jobFiles.FindIndex(pair => pair.Key == filePath);
@@ -335,7 +300,7 @@ namespace Quartz.Plugin.Xml
             {
                 file = jobFiles[idx].Value;
             }
-            ProcessFile(file);
+           return ProcessFile(file);
         }
 
         /// <summary>
@@ -343,42 +308,24 @@ namespace Quartz.Plugin.Xml
         /// </summary>
         public class JobFile
         {
-            private readonly string fileName;
-
             // These are set by initialize()
-            private string filePath;
-            private string fileBasename;
-            private bool fileFound;
             private readonly XMLSchedulingDataProcessorPlugin plugin;
 
             public JobFile(XMLSchedulingDataProcessorPlugin plugin, string fileName)
             {
                 this.plugin = plugin;
-                this.fileName = fileName;
-                Initialize();
+                FileName = fileName;
             }
 
-            public string FileName
-            {
-                get { return fileName; }
-            }
+            public string FileName { get; }
 
-            public bool FileFound
-            {
-                get { return fileFound; }
-            }
+            public bool FileFound { get; private set; }
 
-            public string FilePath
-            {
-                get { return filePath; }
-            }
+            public string FilePath { get; private set; }
 
-            public string FileBasename
-            {
-                get { return fileBasename; }
-            }
+            public string FileBasename { get; private set; }
 
-            public void Initialize()
+            public async Task Initialize()
             {
                 Stream f = null;
                 try
@@ -396,15 +343,13 @@ namespace Quartz.Plugin.Xml
                         Uri url = plugin.typeLoadHelper.GetResource(FileName);
                         if (url != null)
                         {
-#if !ClientProfile
-                            furl = HttpUtility.UrlDecode(url.AbsolutePath);
-#else
-                        furl = url.AbsolutePath;
-#endif
+                            furl = WebUtility.UrlDecode(url.AbsolutePath);
                             file = new FileInfo(furl);
                             try
                             {
-                                f = WebRequest.Create(url).GetResponse().GetResponseStream();
+                                var request = WebRequest.Create(url);
+                                var response = await request.GetResponseAsync().ConfigureAwait(false);
+                                f = response.GetResponseStream();
                             }
                             catch (IOException)
                             {
@@ -433,28 +378,25 @@ namespace Quartz.Plugin.Xml
                         }
                         else
                         {
-                            plugin.Log.Warn(string.Format(CultureInfo.InvariantCulture, "File named '{0}' does not exist.", FileName));
+                            plugin.Log.Warn($"File named '{FileName}' does not exist.");
                         }
                     }
                     else
                     {
-                        fileFound = true;
+                        FileFound = true;
                     }
-                    filePath = furl ?? file.FullName;
-                    fileBasename = file.Name;
+                    FilePath = furl ?? file.FullName;
+                    FileBasename = file.Name;
                 }
                 finally
                 {
                     try
                     {
-                        if (f != null)
-                        {
-                            f.Dispose();
-                        }
+                        f?.Dispose();
                     }
                     catch (IOException ioe)
                     {
-                        plugin.Log.Warn("Error closing jobs file " + FileName, ioe);
+                        plugin.Log.WarnException("Error closing jobs file " + FileName, ioe);
                     }
                 }
             }

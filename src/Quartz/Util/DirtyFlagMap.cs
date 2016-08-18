@@ -1,27 +1,32 @@
 #region License
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
+
 #endregion
 
 using System;
 using System.Collections;
 using System.Collections.Generic;
+
+#if BINARY_SERIALIZATION
 using System.Runtime.Serialization;
 using System.Security;
+#endif // BINARY_SERIALIZATION
 
 namespace Quartz.Util
 {
@@ -31,9 +36,17 @@ namespace Quartz.Util
     /// </summary>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
-    public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, ICloneable, ISerializable
+#endif // BINARY_SERIALIZATION
+    public class DirtyFlagMap<TKey, TValue> :
+        IDictionary<TKey, TValue>,
+        IDictionary
+#if BINARY_SERIALIZATION
+        ,ISerializable
+#endif // BINARY_SERIALIZATION
     {
+        // JsonProperty attributes are used since Json.Net's default behavior is to serialize public members and the properties wrapping these fields are read-only
         private bool dirty;
         private Dictionary<TKey, TValue> map;
         private readonly object syncRoot = new object();
@@ -55,11 +68,13 @@ namespace Quartz.Util
             map = new Dictionary<TKey, TValue>(initialCapacity);
         }
 
-        /// <summary>
-        /// Serialization constructor.
-        /// </summary>
-        /// <param name="info"></param>
-        /// <param name="context"></param>
+#if BINARY_SERIALIZATION // NetCore versions of Quartz can't use old serialized data.
+    // Make sure that future DirtyFlagMap version changes are done in a DCS-friendly way (with [OnSerializing] and [OnDeserialized] methods).
+    /// <summary>
+    /// Serialization constructor.
+    /// </summary>
+    /// <param name="info"></param>
+    /// <param name="context"></param>
         protected DirtyFlagMap(SerializationInfo info, StreamingContext context)
         {
             int version;
@@ -127,6 +142,7 @@ namespace Quartz.Util
             info.AddValue("dirty", dirty);
             info.AddValue("map", map);
         }
+#endif // BINARY_SERIALIZATION
 
         /// <summary>
         /// Determine whether the <see cref="IDictionary" /> is flagged dirty.
@@ -161,7 +177,7 @@ namespace Quartz.Util
         /// <returns>
         /// A new object that is a copy of this instance.
         /// </returns>
-        public virtual object Clone()
+        public virtual DirtyFlagMap<TKey, TValue> Clone()
         {
             DirtyFlagMap<TKey, TValue> copy;
             try
@@ -200,7 +216,7 @@ namespace Quartz.Util
         /// </summary>
         public virtual TValue this[TKey key]
         {
-            get 
+            get
             {
                 TValue temp;
                 map.TryGetValue(key, out temp);
@@ -393,10 +409,10 @@ namespace Quartz.Util
         {
             TKey[] keys = new TKey[Count];
             TValue[] values = new TValue[Count];
-            
+
             Keys.CopyTo(keys, index);
             Values.CopyTo(values, index);
-            
+
             for (int i = index; i < Count; i++)
             {
                 if (!Equals(keys[i], default(TKey)) || !Equals(values[i], default(TValue)))
@@ -527,7 +543,7 @@ namespace Quartz.Util
             {
                 return true;
             }
-            
+
             return false;
         }
 
@@ -554,7 +570,7 @@ namespace Quartz.Util
         /// <returns></returns>
         public virtual ICollection<TKey> KeySet()
         {
-            return new Collection.HashSet<TKey>(map.Keys);
+            return new HashSet<TKey>(map.Keys);
         }
 
         /// <summary>

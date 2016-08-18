@@ -1,4 +1,5 @@
 using System;
+using System.Threading.Tasks;
 
 using Quartz.Spi;
 
@@ -23,7 +24,7 @@ namespace Quartz.Simpl
         /// <summary>
         /// Returns the cluster wide value for this scheduler instance's id, based on a system property.
         /// </summary>
-        public string GenerateInstanceId()
+        public Task<string> GenerateInstanceId()
         {
             string property = Environment.GetEnvironmentVariable(SystemPropertyName);
             if (property == null)
@@ -40,7 +41,7 @@ namespace Quartz.Simpl
                 property = property + Postpend;
             }
 
-            return property;
+            return Task.FromResult(property);
         }
 
         /// <summary>

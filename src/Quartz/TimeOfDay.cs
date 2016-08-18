@@ -1,20 +1,20 @@
 ﻿#region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -27,7 +27,7 @@ namespace Quartz
     /// Represents a time in hour, minute and second of any given day.
     /// <remarks>
     /// <para>
-    /// The hour is in 24-hour convention, meaning values are from 0 to 23. 
+    /// The hour is in 24-hour convention, meaning values are from 0 to 23.
     /// </para>
     /// </remarks>
     /// </summary>
@@ -35,7 +35,9 @@ namespace Quartz
     /// <author>James House</author>
     /// <author>Zemian Deng saltnlight5@gmail.com</author>
     /// <author>Nuno Maia (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
     public class TimeOfDay
     {
         private readonly int hour;
@@ -111,7 +113,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// The hour of the day (between 0 and 23). 
+        /// The hour of the day (between 0 and 23).
         /// </summary>
         public int Hour
         {
@@ -119,7 +121,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// The minute of the hour (between 0 and 59). 
+        /// The minute of the hour (between 0 and 59).
         /// </summary>
         public int Minute
         {
@@ -127,7 +129,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// The second of the minute (between 0 and 59). 
+        /// The second of the minute (between 0 and 59).
         /// </summary>
         public int Second
         {
@@ -168,10 +170,10 @@ namespace Quartz
                 return false;
             }
 
-            return false; // must be equal...        
+            return false; // must be equal...
         }
 
-        public override bool Equals(Object obj)
+        public override bool Equals(object obj)
         {
             if (!(obj is TimeOfDay))
             {
@@ -189,7 +191,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Return a date with time of day reset to this object values. The millisecond value will be zero. 
+        /// Return a date with time of day reset to this object values. The millisecond value will be zero.
         /// </summary>
         /// <param name="dateTime"></param>
         public DateTimeOffset? GetTimeOfDayForDate(DateTimeOffset? dateTime)

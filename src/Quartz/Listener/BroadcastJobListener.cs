@@ -21,6 +21,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Quartz.Listener
 {
@@ -40,7 +42,6 @@ namespace Quartz.Listener
     /// <author>James House (jhouse AT revolition DOT net)</author>
     public class BroadcastJobListener : IJobListener
     {
-        private readonly string name;
         private readonly List<IJobListener> listeners;
 
         /// <summary>
@@ -54,9 +55,9 @@ namespace Quartz.Listener
         {
             if (name == null)
             {
-                throw new ArgumentNullException("name", "Listener name cannot be null!");
+                throw new ArgumentNullException(nameof(name), "Listener name cannot be null!");
             }
-            this.name = name;
+            Name = name;
             listeners = new List<IJobListener>();
         }
 
@@ -72,10 +73,7 @@ namespace Quartz.Listener
             this.listeners.AddRange(listeners);
         }
 
-        public string Name
-        {
-            get { return name; }
-        }
+        public string Name { get; }
 
         public void AddListener(IJobListener listener)
         {
@@ -98,33 +96,21 @@ namespace Quartz.Listener
             return false;
         }
 
-        public IList<IJobListener> Listeners
+        public IReadOnlyList<IJobListener> Listeners => listeners;
+
+        public Task JobToBeExecuted(IJobExecutionContext context)
         {
-            get { return listeners.AsReadOnly(); }
+            return Task.WhenAll(listeners.Select(l => l.JobToBeExecuted(context)));
         }
 
-        public void JobToBeExecuted(IJobExecutionContext context)
+        public Task JobExecutionVetoed(IJobExecutionContext context)
         {
-            foreach (IJobListener jl in listeners)
-            {
-                jl.JobToBeExecuted(context);
-            }
+            return Task.WhenAll(listeners.Select(l => l.JobExecutionVetoed(context)));
         }
 
-        public void JobExecutionVetoed(IJobExecutionContext context)
+        public Task JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
         {
-            foreach (IJobListener jl in listeners)
-            {
-                jl.JobExecutionVetoed(context);
-            }
-        }
-
-        public void JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
-        {
-            foreach (IJobListener jl in listeners)
-            {
-                jl.JobWasExecuted(context, jobException);
-            }
+            return Task.WhenAll(listeners.Select(l => l.JobWasExecuted(context, jobException)));
         }
     }
 }

@@ -21,6 +21,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 
 using Quartz.Impl.Matchers;
 using Quartz.Spi;
@@ -107,7 +108,7 @@ namespace Quartz
         /// </summary>
         /// <param name="groupName"></param>
         /// <returns></returns>
-        bool IsJobGroupPaused(string groupName);
+        Task<bool> IsJobGroupPaused(string groupName);
 
         /// <summary>
         /// returns true if the given TriggerGroup
@@ -115,7 +116,7 @@ namespace Quartz
         /// </summary>
         /// <param name="groupName"></param>
         /// <returns></returns>
-        bool IsTriggerGroupPaused(string groupName);
+        Task<bool> IsTriggerGroupPaused(string groupName);
 
         /// <summary> 
         /// Returns the name of the <see cref="IScheduler" />.
@@ -152,7 +153,7 @@ namespace Quartz
         /// Note that the data returned is an 'instantaneous' snap-shot, and that as
         /// soon as it's returned, the meta data values may be different.
         /// </remarks>
-        SchedulerMetaData GetMetaData();
+        Task<SchedulerMetaData> GetMetaData();
 
         /// <summary>
         /// Return a list of <see cref="IJobExecutionContext" /> objects that
@@ -172,7 +173,7 @@ namespace Quartz
         /// </para>
         /// </remarks>
         /// <seealso cref="IJobExecutionContext" />
-        IList<IJobExecutionContext> GetCurrentlyExecutingJobs();
+        Task<IReadOnlyList<IJobExecutionContext>> GetCurrentlyExecutingJobs();
 
         /// <summary>
         /// Set the <see cref="JobFactory" /> that will be responsible for producing 
@@ -200,17 +201,17 @@ namespace Quartz
         /// <summary>
         /// Get the names of all known <see cref="IJobDetail" /> groups.
         /// </summary>
-        IList<string> GetJobGroupNames();
+        Task<IReadOnlyList<string>> GetJobGroupNames();
 
         /// <summary>
         /// Get the names of all known <see cref="ITrigger" /> groups.
         /// </summary>
-        IList<string> GetTriggerGroupNames();
+        Task<IReadOnlyList<string>> GetTriggerGroupNames();
 
         /// <summary> 
         /// Get the names of all <see cref="ITrigger" /> groups that are paused.
         /// </summary>
-        Collection.ISet<string> GetPausedTriggerGroups();
+        Task<ISet<string>> GetPausedTriggerGroups();
 
         /// <summary>
         /// Starts the <see cref="IScheduler" />'s threads that fire <see cref="ITrigger" />s.
@@ -225,7 +226,7 @@ namespace Quartz
         /// <seealso cref="StartDelayed(TimeSpan)"/>
         /// <seealso cref="Standby"/>
         /// <seealso cref="Shutdown(bool)"/>
-        void Start();
+        Task Start();
 
         /// <summary>
         /// Calls <see cref="Start" /> after the indicated delay.
@@ -236,7 +237,7 @@ namespace Quartz
         /// <seealso cref="Start"/>
         /// <seealso cref="Standby"/>
         /// <seealso cref="Shutdown(bool)"/>
-        void StartDelayed(TimeSpan delay);
+        Task StartDelayed(TimeSpan delay);
 
         /// <summary>
         /// Whether the scheduler has been started.  
@@ -269,7 +270,7 @@ namespace Quartz
         /// </remarks>
         /// <seealso cref="Start()"/>
         /// <seealso cref="PauseAll()"/>
-        void Standby();
+        Task Standby();
 
         /// <summary> 
         /// Halts the <see cref="IScheduler" />'s firing of <see cref="ITrigger" />s,
@@ -279,7 +280,7 @@ namespace Quartz
         /// The scheduler cannot be re-started.
         /// </remarks>
         /// <seealso cref="Shutdown(bool)" />
-        void Shutdown();
+        Task Shutdown();
 
         /// <summary>
         /// Halts the <see cref="IScheduler" />'s firing of <see cref="ITrigger" />s,
@@ -293,7 +294,7 @@ namespace Quartz
         /// to return until all currently executing jobs have completed.
         /// </param>
         /// <seealso cref="Shutdown()" /> 
-        void Shutdown(bool waitForJobsToComplete);
+        Task Shutdown(bool waitForJobsToComplete);
 
 
         /// <summary>
@@ -305,13 +306,13 @@ namespace Quartz
         /// If the given Trigger does not reference any <see cref="IJob" />, then it
         /// will be set to reference the Job passed with it into this method.
         /// </remarks>
-        DateTimeOffset ScheduleJob(IJobDetail jobDetail, ITrigger trigger);
+        Task<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger);
 
         /// <summary>
         /// Schedule the given <see cref="ITrigger" /> with the
         /// <see cref="IJob" /> identified by the <see cref="ITrigger" />'s settings.
         /// </summary>
-        DateTimeOffset ScheduleJob(ITrigger trigger);
+        Task<DateTimeOffset> ScheduleJob(ITrigger trigger);
 
         /// <summary>
         /// Schedule all of the given jobs with the related set of triggers.
@@ -321,7 +322,7 @@ namespace Quartz
         /// specifically, if the keys are not unique) and the replace
         /// parameter is not set to true then an exception will be thrown.</para>
         /// </remarks>
-        void ScheduleJobs(IDictionary<IJobDetail, Collection.ISet<ITrigger>> triggersAndJobs, bool replace);
+        Task ScheduleJobs(IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, bool replace);
         
         /// <summary>
         /// Schedule the given job with the related set of triggers.
@@ -334,14 +335,14 @@ namespace Quartz
         /// <param name="jobDetail"></param>
         /// <param name="triggersForJob"></param>
         /// <param name="replace"></param>
-        void ScheduleJob(IJobDetail jobDetail, Collection.ISet<ITrigger> triggersForJob, bool replace);
+        Task ScheduleJob(IJobDetail jobDetail, ISet<ITrigger> triggersForJob, bool replace);
     
         /// <summary>
         /// Remove the indicated <see cref="ITrigger" /> from the scheduler.
         /// <para>If the related job does not have any other triggers, and the job is
         /// not durable, then the job will also be deleted.</para>
         /// </summary>
-        bool UnscheduleJob(TriggerKey triggerKey);
+        Task<bool> UnscheduleJob(TriggerKey triggerKey);
 
         /// <summary>
         /// Remove all of the indicated <see cref="ITrigger" />s from the scheduler.
@@ -355,7 +356,7 @@ namespace Quartz
         /// single long duration of time (rather than lots of small durations
         /// of time).
         /// </remarks>
-        bool UnscheduleJobs(IList<TriggerKey> triggerKeys);
+        Task<bool> UnscheduleJobs(IList<TriggerKey> triggerKeys);
 
         /// <summary>
         /// Remove (delete) the <see cref="ITrigger" /> with the
@@ -365,7 +366,7 @@ namespace Quartz
         /// </summary>
         /// <param name="triggerKey">The <see cref="ITrigger" /> to be replaced.</param>
         /// <param name="newTrigger">
-        /// The new <see cref="ITrigger" /> to be stored.
+        ///     The new <see cref="ITrigger" /> to be stored.
         /// </param>
         /// <returns> 
         /// <see langword="null" /> if a <see cref="ITrigger" /> with the given
@@ -373,7 +374,7 @@ namespace Quartz
         /// new trigger is therefore not stored),  otherwise
         /// the first fire time of the newly scheduled trigger.
         /// </returns>
-        DateTimeOffset? RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger);
+        Task<DateTimeOffset?> RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger);
 
         /// <summary>
         /// Add the given <see cref="IJob" /> to the Scheduler - with no associated
@@ -385,7 +386,7 @@ namespace Quartz
         /// The <see cref="IJob" /> must by definition be 'durable', if it is not,
         /// SchedulerException will be thrown.
         /// </remarks>
-        void AddJob(IJobDetail jobDetail, bool replace);
+        Task AddJob(IJobDetail jobDetail, bool replace);
 
         /// <summary>
         /// Add the given <see cref="IJob" /> to the Scheduler - with no associated
@@ -399,14 +400,14 @@ namespace Quartz
         /// scheduled, it will resume normal non-durable behavior (i.e. be deleted
         /// once there are no remaining associated triggers).
         /// </remarks>
-        void AddJob(IJobDetail jobDetail, bool replace, bool storeNonDurableWhileAwaitingScheduling);
+        Task AddJob(IJobDetail jobDetail, bool replace, bool storeNonDurableWhileAwaitingScheduling);
 
         /// <summary>
         /// Delete the identified <see cref="IJob" /> from the Scheduler - and any
         /// associated <see cref="ITrigger" />s.
         /// </summary>
         /// <returns> true if the Job was found and deleted.</returns>
-        bool DeleteJob(JobKey jobKey);
+        Task<bool> DeleteJob(JobKey jobKey);
 
         /// <summary>
         /// Delete the identified jobs from the Scheduler - and any
@@ -423,13 +424,13 @@ namespace Quartz
         /// true if all of the Jobs were found and deleted, false if
         /// one or more were not deleted.
         /// </returns>
-        bool DeleteJobs(IList<JobKey> jobKeys);
+        Task<bool> DeleteJobs(IList<JobKey> jobKeys);
 
         /// <summary>
         /// Trigger the identified <see cref="IJobDetail" />
         /// (Execute it now).
         /// </summary>
-        void TriggerJob(JobKey jobKey);
+        Task TriggerJob(JobKey jobKey);
 
         /// <summary>
         /// Trigger the identified <see cref="IJobDetail" /> (Execute it now).
@@ -441,13 +442,13 @@ namespace Quartz
         /// <param name="jobKey">
         /// The <see cref="JobKey"/> of the <see cref="IJob" /> to be executed.
         /// </param>
-        void TriggerJob(JobKey jobKey, JobDataMap data);
+        Task TriggerJob(JobKey jobKey, JobDataMap data);
 
         /// <summary>
         /// Pause the <see cref="IJobDetail" /> with the given
         /// key - by pausing all of its current <see cref="ITrigger" />s.
         /// </summary>
-        void PauseJob(JobKey jobKey);
+        Task PauseJob(JobKey jobKey);
 
         /// <summary>
         /// Pause all of the <see cref="IJobDetail" />s in the
@@ -472,12 +473,12 @@ namespace Quartz
         /// in that group, it will become paused.</para>
         /// </remarks>
         /// <seealso cref="ResumeJobs" />
-        void PauseJobs(GroupMatcher<JobKey> matcher);
+        Task PauseJobs(GroupMatcher<JobKey> matcher);
 
         /// <summary> 
         /// Pause the <see cref="ITrigger" /> with the given key.
         /// </summary>
-        void PauseTrigger(TriggerKey triggerKey);
+        Task PauseTrigger(TriggerKey triggerKey);
 
         /// <summary>
         /// Pause all of the <see cref="ITrigger" />s in the groups matching.
@@ -501,7 +502,7 @@ namespace Quartz
         /// in that group, it will become paused.</para>
         /// </remarks>
         /// <seealso cref="ResumeTriggers" />
-        void PauseTriggers(GroupMatcher<TriggerKey> matcher);
+        Task PauseTriggers(GroupMatcher<TriggerKey> matcher);
 
         /// <summary>
         /// Resume (un-pause) the <see cref="IJobDetail" /> with
@@ -512,7 +513,7 @@ namespace Quartz
         /// or more fire-times, then the <see cref="ITrigger" />'s misfire
         /// instruction will be applied.
         /// </remarks>
-        void ResumeJob(JobKey jobKey);
+        Task ResumeJob(JobKey jobKey);
 
         /// <summary>
         /// Resume (un-pause) all of the <see cref="IJobDetail" />s
@@ -524,7 +525,7 @@ namespace Quartz
         /// misfire instruction will be applied.
         /// </remarks>
         /// <seealso cref="PauseJobs" />
-        void ResumeJobs(GroupMatcher<JobKey> matcher);
+        Task ResumeJobs(GroupMatcher<JobKey> matcher);
 
         /// <summary>
         /// Resume (un-pause) the <see cref="ITrigger" /> with the given
@@ -534,7 +535,7 @@ namespace Quartz
         /// If the <see cref="ITrigger" /> missed one or more fire-times, then the
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </remarks>
-        void ResumeTrigger(TriggerKey triggerKey);
+        Task ResumeTrigger(TriggerKey triggerKey);
 
         /// <summary>
         /// Resume (un-pause) all of the <see cref="ITrigger" />s in matching groups.
@@ -544,7 +545,7 @@ namespace Quartz
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </remarks>
         /// <seealso cref="PauseTriggers" />
-        void ResumeTriggers(GroupMatcher<TriggerKey> matcher);
+        Task ResumeTriggers(GroupMatcher<TriggerKey> matcher);
 
         /// <summary>
         /// Pause all triggers - similar to calling <see cref="PauseTriggers" />
@@ -559,7 +560,7 @@ namespace Quartz
         /// <seealso cref="ResumeAll()" />
         /// <seealso cref="PauseTriggers" />
         /// <seealso cref="Standby()" />
-        void PauseAll();
+        Task PauseAll();
 
         /// <summary> 
         /// Resume (un-pause) all triggers - similar to calling 
@@ -570,12 +571,12 @@ namespace Quartz
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </remarks>
         /// <seealso cref="PauseAll()" />
-        void ResumeAll();
+        Task ResumeAll();
 
         /// <summary>
         /// Get the keys of all the <see cref="IJobDetail" />s in the matching groups.
         /// </summary>
-        Collection.ISet<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher);
+        Task<ISet<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher);
 
         /// <summary>
         /// Get all <see cref="ITrigger" /> s that are associated with the
@@ -586,13 +587,13 @@ namespace Quartz
         /// triggers.  If you wish to modify a trigger, you must re-store the
         /// trigger afterward (e.g. see <see cref="RescheduleJob(TriggerKey, ITrigger)" />).
         /// </remarks>
-        IList<ITrigger> GetTriggersOfJob(JobKey jobKey);
+        Task<IReadOnlyList<ITrigger>> GetTriggersOfJob(JobKey jobKey);
 
         /// <summary>
         /// Get the names of all the <see cref="ITrigger" />s in the given
         /// groups.
         /// </summary>
-        Collection.ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher);
+        Task<ISet<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher);
 
         /// <summary>
         /// Get the <see cref="IJobDetail" /> for the <see cref="IJob" />
@@ -603,7 +604,7 @@ namespace Quartz
         /// JobDetail.  If you wish to modify the JobDetail, you must re-store the
         /// JobDetail afterward (e.g. see <see cref="AddJob(IJobDetail, bool)" />).
         /// </remarks>
-        IJobDetail GetJobDetail(JobKey jobKey);
+        Task<IJobDetail> GetJobDetail(JobKey jobKey);
 
         /// <summary>
         /// Get the <see cref="ITrigger" /> instance with the given key.
@@ -613,7 +614,7 @@ namespace Quartz
         /// trigger.  If you wish to modify the trigger, you must re-store the
         /// trigger afterward (e.g. see <see cref="RescheduleJob(TriggerKey, ITrigger)" />).
         /// </remarks>
-        ITrigger GetTrigger(TriggerKey triggerKey);
+        Task<ITrigger> GetTrigger(TriggerKey triggerKey);
 
         /// <summary>
         /// Get the current state of the identified <see cref="ITrigger" />.
@@ -624,7 +625,7 @@ namespace Quartz
         /// <seealso cref="TriggerState.Blocked" />
         /// <seealso cref="TriggerState.Error" />
         /// <seealso cref="TriggerState.None" />
-        TriggerState GetTriggerState(TriggerKey triggerKey);
+        Task<TriggerState> GetTriggerState(TriggerKey triggerKey);
 
         /// <summary>
         /// Add (register) the given <see cref="ICalendar" /> to the Scheduler.
@@ -635,7 +636,7 @@ namespace Quartz
         /// <param name="updateTriggers">whether or not to update existing triggers that
         /// referenced the already existing calendar so that they are 'correct'
         /// based on the new trigger.</param>
-        void AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers);
+        Task AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers);
 
         /// <summary>
         /// Delete the identified <see cref="ICalendar" /> from the Scheduler.
@@ -647,28 +648,26 @@ namespace Quartz
         /// </remarks>
         /// <param name="calName">Name of the calendar.</param>
         /// <returns>true if the Calendar was found and deleted.</returns>
-        bool DeleteCalendar(string calName);
+        Task<bool> DeleteCalendar(string calName);
 
         /// <summary>
         /// Get the <see cref="ICalendar" /> instance with the given name.
         /// </summary>
-        ICalendar GetCalendar(string calName);
+        Task<ICalendar> GetCalendar(string calName);
 
         /// <summary>
         /// Get the names of all registered <see cref="ICalendar" />.
         /// </summary>
-        IList<string> GetCalendarNames();
+        Task<IReadOnlyList<string>> GetCalendarNames();
 
         /// <summary>
-        /// Request the interruption, within this Scheduler instance, of all 
-        /// currently executing instances of the identified <see cref="IJob" />, which 
-        /// must be an implementor of the <see cref="IInterruptableJob" /> interface.
+        /// Request the cancellation, within this Scheduler instance, of all 
+        /// currently executing instances of the identified <see cref="IJob" />.
         /// </summary>
         /// <remarks>
         /// <para>
         /// If more than one instance of the identified job is currently executing,
-        /// the <see cref="IInterruptableJob.Interrupt" /> method will be called on
-        /// each instance.  However, there is a limitation that in the case that  
+        /// the cancellation token will be set on each instance.  However, there is a limitation that in the case that  
         /// <see cref="Interrupt(JobKey)" /> on one instances throws an exception, all 
         /// remaining  instances (that have not yet been interrupted) will not have 
         /// their <see cref="Interrupt(JobKey)" /> method called.
@@ -690,21 +689,18 @@ namespace Quartz
         /// <returns> 
         /// true is at least one instance of the identified job was found and interrupted.
         /// </returns>
-        /// <seealso cref="IInterruptableJob" />
         /// <seealso cref="GetCurrentlyExecutingJobs" />
-        bool Interrupt(JobKey jobKey);
+        Task<bool> Interrupt(JobKey jobKey);
 
         /// <summary>
-        /// Request the interruption, within this Scheduler instance, of the 
-        /// identified executing job instance, which 
-        /// must be an implementor of the <see cref="IInterruptableJob" /> interface.
+        /// Request the cancellation, within this Scheduler instance, of the 
+        /// identified executing job instance.
         /// </summary>
         /// <remarks>
         /// This method is not cluster aware.  That is, it will only interrupt 
         /// instances of the identified InterruptableJob currently executing in this 
         /// Scheduler instance, not across the entire cluster.
         /// </remarks>
-        /// <seealso cref="IInterruptableJob.Interrupt()" />
         /// <seealso cref="GetCurrentlyExecutingJobs()" />
         /// <seealso cref="IJobExecutionContext.FireInstanceId" />
         /// <seealso cref="Interrupt(JobKey)" />
@@ -712,7 +708,7 @@ namespace Quartz
         /// the unique identifier of the job instance to  be interrupted (see <see cref="IJobExecutionContext.FireInstanceId" />)
         /// </param>
         /// <returns>true if the identified job instance was found and interrupted.</returns>
-        bool Interrupt(string fireInstanceId);
+        Task<bool> Interrupt(string fireInstanceId);
 
         /// <summary>
         /// Determine whether a <see cref="IJob" /> with the given identifier already 
@@ -720,7 +716,7 @@ namespace Quartz
         /// </summary>
         /// <param name="jobKey">the identifier to check for</param>
         /// <returns>true if a Job exists with the given identifier</returns>
-        bool CheckExists(JobKey jobKey);
+        Task<bool> CheckExists(JobKey jobKey);
 
         /// <summary>
         /// Determine whether a <see cref="ITrigger" /> with the given identifier already 
@@ -728,12 +724,12 @@ namespace Quartz
         /// </summary>
         /// <param name="triggerKey">the identifier to check for</param>
         /// <returns>true if a Trigger exists with the given identifier</returns>
-        bool CheckExists(TriggerKey triggerKey);
+        Task<bool> CheckExists(TriggerKey triggerKey);
 
         /// <summary>
         /// Clears (deletes!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
         /// <see cref="ICalendar"/>s.
         /// </summary>
-        void Clear();
+        Task Clear();
     }
 }

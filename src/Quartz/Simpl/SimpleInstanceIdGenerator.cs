@@ -19,6 +19,8 @@
 
 #endregion
 
+using System.Threading.Tasks;
+
 using Quartz.Spi;
 
 namespace Quartz.Simpl
@@ -39,9 +41,9 @@ namespace Quartz.Simpl
         /// Generate the instance id for a <see cref="IScheduler" />
         /// </summary>
         /// <returns>The clusterwide unique instance id.</returns>
-        public override string GenerateInstanceId()
+        public override async Task<string> GenerateInstanceId()
         {
-            string hostName = GetHostName(HostNameMaxLength);
+            string hostName = await GetHostName(HostNameMaxLength).ConfigureAwait(false);
             return hostName + SystemTime.UtcNow().Ticks;
         }
     }

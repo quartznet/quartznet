@@ -17,6 +17,8 @@
  */
 #endregion
 
+using System.Threading.Tasks;
+
 using Quartz.Impl.AdoJobStore.Common;
 
 namespace Quartz.Impl.AdoJobStore
@@ -35,12 +37,12 @@ namespace Quartz.Impl.AdoJobStore
 		/// </summary>
 		/// <returns> true if the lock was obtained.
 		/// </returns>
-		bool ObtainLock(DbMetadata metadata, ConnectionAndTransactionHolder conn, string lockName);
+		Task<bool> ObtainLock(DbMetadata metadata, ConnectionAndTransactionHolder conn, string lockName);
 
 		/// <summary> Release the lock on the identified resource if it is held by the calling
 		/// thread.
 		/// </summary>
-		void ReleaseLock(string lockName);
+		Task ReleaseLock(string lockName);
 
         /// <summary>
         /// Whether this Semaphore implementation requires a database connection for

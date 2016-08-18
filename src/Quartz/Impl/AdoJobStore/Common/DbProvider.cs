@@ -1,20 +1,20 @@
 #region License
 
-/* 
+/*
  * Copyright 2009- Marko Lahma
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -22,7 +22,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Globalization;
+using System.Data.Common;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -39,7 +39,12 @@ namespace Quartz.Impl.AdoJobStore.Common
     {
 		protected const string PropertyDbProvider = StdSchedulerFactory.PropertyDbProvider;
         protected const string DbProviderSectionName = StdSchedulerFactory.ConfigurationSectionName;
-        protected const string DbProviderResourceName = "Quartz.Impl.AdoJobStore.Common.dbproviders.properties";
+        protected const string DbProviderResourceName =
+#if NETSTANDARD_DBPROVIDERS
+            "Quartz.Impl.AdoJobStore.Common.dbproviders.netstandard.properties";
+#else // NETSTANDARD_DBPROVIDERS
+            "Quartz.Impl.AdoJobStore.Common.dbproviders.properties";
+#endif // NETSTANDARD_DBPROVIDERS
 
         private string connectionString;
         private readonly DbMetadata dbMetadata;
@@ -59,7 +64,7 @@ namespace Quartz.Impl.AdoJobStore.Common
                 new EmbeddedAssemblyResourceDbMetadataFactory(DbProviderResourceName, PropertyDbProvider),
             };
         }
-        
+
         /// <summary>
         /// Initializes a new instance of the <see cref="DbProvider"/> class.
         /// </summary>
@@ -72,9 +77,9 @@ namespace Quartz.Impl.AdoJobStore.Common
 
             if (dbMetadata == null)
             {
-                throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "Invalid DB provider name: {0}{1}{2}", dbProviderName, Environment.NewLine, GenerateValidProviderNamesInfo()));
+                throw new ArgumentException($"Invalid DB provider name: {dbProviderName}{Environment.NewLine}{GenerateValidProviderNamesInfo()}");
             }
-            
+
             // check if command supports direct setting of BindByName property, needed for Oracle Managed ODP diver at least
             var property = dbMetadata.CommandType.GetProperty("BindByName", BindingFlags.Instance | BindingFlags.Public);
             if (property != null && property.PropertyType == typeof (bool) && property.CanWrite)
@@ -142,13 +147,10 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// against the database.
         /// </summary>
         /// <returns>An new <see cref="IDbCommand"/></returns>
-        public virtual IDbCommand CreateCommand()
+        public virtual DbCommand CreateCommand()
         {
-            var command = ObjectUtils.InstantiateType<IDbCommand>(dbMetadata.CommandType);
-            if (commandBindByNamePropertySetter != null)
-            {
-                commandBindByNamePropertySetter.Invoke(command, new object[] { Metadata.BindByName });
-            }
+            var command = ObjectUtils.InstantiateType<DbCommand>(dbMetadata.CommandType);
+            commandBindByNamePropertySetter?.Invoke(command, new object[] { Metadata.BindByName });
             return command;
         }
 
@@ -168,9 +170,9 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// Returns a new connection object to communicate with the database.
         /// </summary>
         /// <returns>A new <see cref="IDbConnection"/></returns>
-        public virtual IDbConnection CreateConnection()
+        public virtual DbConnection CreateConnection()
         {
-            IDbConnection conn = ObjectUtils.InstantiateType<IDbConnection>(dbMetadata.ConnectionType);
+            var conn = ObjectUtils.InstantiateType<DbConnection>(dbMetadata.ConnectionType);
             conn.ConnectionString = ConnectionString;
             return conn;
         }
@@ -180,9 +182,9 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// placeholders in SQL statements or Stored Procedure variables.
         /// </summary>
         /// <returns>A new <see cref="IDbDataParameter"/></returns>
-        public virtual IDbDataParameter CreateParameter()
+        public virtual DbParameter CreateParameter()
         {
-            return ObjectUtils.InstantiateType<IDbDataParameter>(dbMetadata.ParameterType);
+            return ObjectUtils.InstantiateType<DbParameter>(dbMetadata.ParameterType);
         }
 
         /// <summary>
@@ -199,10 +201,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// Gets the metadata.
         /// </summary>
         /// <value>The metadata.</value>
-        public virtual DbMetadata Metadata
-        {
-            get { return dbMetadata; }
-        }
+        public virtual DbMetadata Metadata => dbMetadata;
 
         /// <summary>
         /// Shutdowns this instance.

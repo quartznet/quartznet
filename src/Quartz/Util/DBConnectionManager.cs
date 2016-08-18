@@ -19,12 +19,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Data;
-using System.Globalization;
-
-using Common.Logging;
+using System.Data.Common;
 
 using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Logging;
 
 namespace Quartz.Util
 {
@@ -40,7 +38,7 @@ namespace Quartz.Util
     public class DBConnectionManager : IDbConnectionManager
 	{        
         private static readonly DBConnectionManager instance = new DBConnectionManager();
-	    private static readonly ILog log = LogManager.GetLogger(typeof (DBConnectionManager));
+	    private static readonly ILog log = LogProvider.GetLogger(typeof (DBConnectionManager));
 
         private readonly Dictionary<string, IDbProvider> providers = new Dictionary<string, IDbProvider>();
 
@@ -74,7 +72,7 @@ namespace Quartz.Util
         /// <param name="provider">The provider.</param>
         public virtual void AddConnectionProvider(string dataSourceName, IDbProvider provider)
 		{
-            log.Info(string.Format("Registering datasource '{0}' with db provider: '{1}'", dataSourceName, provider));
+            log.Info($"Registering datasource '{dataSourceName}' with db provider: '{provider}'");
 			providers[dataSourceName] = provider;
 		}
 
@@ -82,10 +80,9 @@ namespace Quartz.Util
 		/// Get a database connection from the DataSource with the given name.
 		/// </summary>
 		/// <returns> a database connection </returns>
-        public virtual IDbConnection GetConnection(string dataSourceName)
+        public virtual DbConnection GetConnection(string dataSourceName)
 		{
-            IDbProvider provider = GetDbProvider(dataSourceName);
-
+            var provider = GetDbProvider(dataSourceName);
 			return provider.CreateConnection();
 		}
 
@@ -111,7 +108,7 @@ namespace Quartz.Util
         /// <returns></returns>
 	    public IDbProvider GetDbProvider(string dsName)
 	    {
-            if (String.IsNullOrEmpty(dsName))
+            if (string.IsNullOrEmpty(dsName))
             {
                 throw new ArgumentException("DataSource name cannot be null or empty", "dsName");
             }
@@ -120,7 +117,7 @@ namespace Quartz.Util
             providers.TryGetValue(dsName, out provider);
             if (provider == null)
             {
-                throw new Exception(string.Format(CultureInfo.InvariantCulture, "There is no DataSource named '{0}'", dsName));
+                throw new Exception($"There is no DataSource named '{dsName}'");
             }
             return provider;
         }

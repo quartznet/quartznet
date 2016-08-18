@@ -21,14 +21,15 @@
 
 using System;
 using System.Collections.Generic;
-
-using Quartz.Spi;
-using Quartz.Job;
-using Quartz.Impl;
-using Quartz.Impl.Triggers;
+using System.Collections.Specialized;
+using System.Threading.Tasks;
 
 using NUnit.Framework;
 
+using Quartz.Impl;
+using Quartz.Impl.Triggers;
+using Quartz.Job;
+using Quartz.Spi;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit
@@ -42,9 +43,13 @@ namespace Quartz.Tests.Unit
     public class DailyTimeIntervalScheduleBuilderTest
     {
         [Test]
-        public void TestScheduleActualTrigger()
+        public async Task TestScheduleActualTrigger()
         {
-            IScheduler scheduler = StdSchedulerFactory.GetDefaultScheduler();
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
+
+            var factory = new StdSchedulerFactory(properties);
+            IScheduler scheduler = await factory.GetScheduler();
             IJobDetail job = JobBuilder.Create(typeof (NoOpJob)).Build();
 
             ITrigger trigger = TriggerBuilder.Create()
@@ -52,12 +57,12 @@ namespace Quartz.Tests.Unit
                 .WithDailyTimeIntervalSchedule(x => x.WithIntervalInSeconds(3))
                 .Build();
 
-            scheduler.ScheduleJob(job, trigger); //We are not verify anything other than just run through the scheduler.
-            scheduler.Shutdown();
+            await scheduler.ScheduleJob(job, trigger); //We are not verify anything other than just run through the scheduler.
+            await scheduler.Shutdown();
         }
 
         [Test]
-        public void TestScheduleInMiddleOfDailyInterval()
+        public async Task TestScheduleInMiddleOfDailyInterval()
         {
             DateTimeOffset currTime = DateTimeOffset.UtcNow;
 
@@ -68,7 +73,11 @@ namespace Quartz.Tests.Unit
                 return;
             }
 
-            IScheduler scheduler = StdSchedulerFactory.GetDefaultScheduler();
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
+            ISchedulerFactory sf = new StdSchedulerFactory(properties);
+            IScheduler scheduler = await sf.GetScheduler();
+
             IJobDetail job = JobBuilder.Create<NoOpJob>().Build();
             ITrigger trigger = TriggerBuilder.Create().WithIdentity("test")
                 .WithDailyTimeIntervalSchedule(x => x
@@ -77,12 +86,12 @@ namespace Quartz.Tests.Unit
                 .StartAt(currTime)
                 .Build();
 
-            scheduler.ScheduleJob(job, trigger);
+            await scheduler.ScheduleJob(job, trigger);
 
-            trigger = scheduler.GetTrigger(trigger.Key);
+            trigger = await scheduler.GetTrigger(trigger.Key);
 
-            Console.WriteLine("testScheduleInMiddleOfDailyInterval: currTime = " + currTime);
-            Console.WriteLine("testScheduleInMiddleOfDailyInterval: computed first fire time = " + trigger.GetNextFireTimeUtc());
+            // Console.WriteLine("testScheduleInMiddleOfDailyInterval: currTime = " + currTime);
+            // Console.WriteLine("testScheduleInMiddleOfDailyInterval: computed first fire time = " + trigger.GetNextFireTimeUtc());
 
             Assert.That(trigger.GetNextFireTimeUtc() > currTime, "First fire time is not after now!");
 
@@ -96,16 +105,16 @@ namespace Quartz.Tests.Unit
                     .WithIntervalInMinutes(5))
                 .StartAt(startTime)
                 .Build();
-            scheduler.ScheduleJob(job, trigger);
+            await scheduler.ScheduleJob(job, trigger);
 
-            trigger = scheduler.GetTrigger(trigger.Key);
+            trigger = await scheduler.GetTrigger(trigger.Key);
 
-            Console.WriteLine("testScheduleInMiddleOfDailyInterval: startTime = " + startTime);
-            Console.WriteLine("testScheduleInMiddleOfDailyInterval: computed first fire time = " + trigger.GetNextFireTimeUtc());
+            // Console.WriteLine("testScheduleInMiddleOfDailyInterval: startTime = " + startTime);
+            // Console.WriteLine("testScheduleInMiddleOfDailyInterval: computed first fire time = " + trigger.GetNextFireTimeUtc());
 
             Assert.That(trigger.GetNextFireTimeUtc() == startTime);
 
-            scheduler.Shutdown();
+            await scheduler.Shutdown();
         }
 
         [Test]

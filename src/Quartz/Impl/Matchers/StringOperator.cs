@@ -26,7 +26,9 @@ namespace Quartz.Impl.Matchers
     /// <summary>
     /// Operators available for comparing string values.
     /// </summary>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
     public abstract class StringOperator : IEquatable<StringOperator>
     {
         public static readonly StringOperator Equality = new EqualityOperator();
@@ -37,7 +39,9 @@ namespace Quartz.Impl.Matchers
 
         public abstract bool Evaluate(string value, string compareTo);
 
+#if BINARY_SERIALIZATION
         [Serializable]
+#endif // BINARY_SERIALIZATION
         private class EqualityOperator : StringOperator
         {
             public override bool Evaluate(string value, string compareTo) {
@@ -45,7 +49,9 @@ namespace Quartz.Impl.Matchers
             }
         }
 
+#if BINARY_SERIALIZATION
         [Serializable]
+#endif // BINARY_SERIALIZATION
         private class StartsWithOperator : StringOperator
         {
             public override bool Evaluate(string value, string compareTo) {
@@ -53,7 +59,9 @@ namespace Quartz.Impl.Matchers
             }
         }
 
+#if BINARY_SERIALIZATION
         [Serializable]
+#endif // BINARY_SERIALIZATION
         private class EndsWithOperator : StringOperator
         {
              public override bool Evaluate(string value, string compareTo) {
@@ -61,7 +69,9 @@ namespace Quartz.Impl.Matchers
             }
         }
 
+#if BINARY_SERIALIZATION
         [Serializable]
+#endif // BINARY_SERIALIZATION
         private class ContainsOperator : StringOperator
         {
             public override bool Evaluate(string value, string compareTo) {
@@ -69,7 +79,9 @@ namespace Quartz.Impl.Matchers
             }
         }
 
+#if BINARY_SERIALIZATION
         [Serializable]
+#endif // BINARY_SERIALIZATION
         private class AnythingOperator : StringOperator
         {
             public override bool Evaluate(string value, string compareTo)

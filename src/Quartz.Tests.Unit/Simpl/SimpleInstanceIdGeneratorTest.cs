@@ -20,6 +20,7 @@
 #endregion
 
 using System.Net;
+using System.Threading.Tasks;
 
 using NUnit.Framework;
 
@@ -39,21 +40,20 @@ namespace Quartz.Tests.Unit.Simpl
         }
 
         [Test]
-        public void IdShouldNotExceed50Chars()
+        public async Task IdShouldNotExceed50Chars()
         {
-            string instanceId = generator.GenerateInstanceId();
+            string instanceId = await generator.GenerateInstanceId();
             Assert.That(instanceId.Length, Is.LessThanOrEqualTo(50));
         }
 
-
         private class TestInstanceIdGenerator : SimpleInstanceIdGenerator
         {
-            protected override IPHostEntry GetHostAddress()
+            protected override Task<IPHostEntry> GetHostAddress()
             {
-                return new IPHostEntry
-                           {
-                               HostName = "my-windows-machine-with-long-name.at.azurewebsites.net"
-                           };
+                return Task.FromResult(new IPHostEntry
+                {
+                    HostName = "my-windows-machine-with-long-name.at.azurewebsites.net"
+                });
             }
         }
     }

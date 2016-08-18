@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,14 +16,16 @@
  * under the License.
  * 
  */
+
 #endregion
 
+#if APPDOMAINS
 using System;
-using System.Globalization;
+using System.Threading.Tasks;
 
-using Common.Logging;
-
+using Quartz.Logging;
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz.Plugin.Management
 {
@@ -35,7 +38,7 @@ namespace Quartz.Plugin.Management
     /// <author>Marko Lahma (.NET)</author>
     public class ShutdownHookPlugin : ISchedulerPlugin
     {
-        private static readonly ILog log = LogManager.GetLogger(typeof (ShutdownHookPlugin));
+        private static readonly ILog log = LogProvider.GetLogger(typeof(ShutdownHookPlugin));
 
         public ShutdownHookPlugin()
         {
@@ -56,22 +59,22 @@ namespace Quartz.Plugin.Management
         /// Called during creation of the <see cref="IScheduler" /> in order to give
         /// the <see cref="ISchedulerPlugin" /> a chance to Initialize.
         /// </summary>
-        public virtual void Initialize(string pluginName, IScheduler scheduler)
+        public virtual Task Initialize(string pluginName, IScheduler scheduler)
         {
-            log.InfoFormat(CultureInfo.InvariantCulture, "Registering Quartz Shutdown hook '{0}.", pluginName);
-
+            log.InfoFormat("Registering Quartz Shutdown hook '{0}.", pluginName);
             AppDomain.CurrentDomain.ProcessExit += (sender, ea) =>
-                                            {
-                                                log.Info("Shutting down Quartz...");
-                                                try
-                                                {
-                                                    scheduler.Shutdown(CleanShutdown);
-                                                }
-                                                catch (SchedulerException e)
-                                                {
-                                                    log.Info("Error shutting down Quartz: " + e.Message, e);
-                                                }
-                                            };
+            {
+                log.Info("Shutting down Quartz...");
+                try
+                {
+                    scheduler.Shutdown(CleanShutdown);
+                }
+                catch (SchedulerException e)
+                {
+                    log.InfoException("Error shutting down Quartz: " + e.Message, e);
+                }
+            };
+            return TaskUtil.CompletedTask;
         }
 
         /// <summary>
@@ -79,9 +82,10 @@ namespace Quartz.Plugin.Management
         /// to let the plug-in know it can now make calls into the scheduler if it
         /// needs to.
         /// </summary>
-        public virtual void Start()
+        public virtual Task Start()
         {
             // do nothing.
+            return TaskUtil.CompletedTask;
         }
 
         /// <summary>
@@ -89,10 +93,12 @@ namespace Quartz.Plugin.Management
         /// should free up all of it's resources because the scheduler is shutting
         /// down.
         /// </summary>
-        public virtual void Shutdown()
+        public virtual Task Shutdown()
         {
             // nothing to do in this case (since the scheduler is already shutting
             // down)
+            return TaskUtil.CompletedTask;
         }
     }
 }
+#endif

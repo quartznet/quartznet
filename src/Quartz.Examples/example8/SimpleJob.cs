@@ -17,7 +17,9 @@
  */
 #endregion
 
-using Common.Logging;
+using System;
+using System.Threading.Tasks;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example8
 {
@@ -28,7 +30,7 @@ namespace Quartz.Examples.Example8
     /// <author>Marko Lahma (.NET)</author>
     public class SimpleJob : IJob
 	{
-		private static readonly ILog log = LogManager.GetLogger(typeof(SimpleJob));
+		private static readonly ILog log = LogProvider.GetLogger(typeof(SimpleJob));
 		
 		/// <summary>
 		/// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
@@ -43,12 +45,13 @@ namespace Quartz.Examples.Example8
 		/// </para>
 		/// </summary>
 		/// <param name="context"></param>
-		public virtual void Execute(IJobExecutionContext context)
+		public virtual Task Execute(IJobExecutionContext context)
 		{
 			// This job simply prints out its job name and the
 			// date and time that it is running
 			JobKey jobKey = context.JobDetail.Key;
-			log.InfoFormat("SimpleJob says: {0} executing at {1}", jobKey, System.DateTime.Now.ToString("r"));
+			log.InfoFormat("SimpleJob says: {0} executing at {1}", jobKey, DateTime.Now.ToString("r"));
+		    return Task.FromResult(0);
 		}
 	}
 }

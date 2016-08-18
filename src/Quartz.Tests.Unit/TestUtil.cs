@@ -40,7 +40,7 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(col1.Count, col2.Count, "Collection sizes differ");
             for (int i = 0; i < col1.Count; ++i)
             {
-                Assert.AreEqual(col1[i], col2[i], string.Format("Collection items differ at index {0}: {1} vs {2}", i, col1[i], col2[i]));
+                Assert.AreEqual(col1[i], col2[i], $"Collection items differ at index {i}: {col1[i]} vs {col2[i]}");
             }
         }
 

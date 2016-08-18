@@ -1,0 +1,78 @@
+﻿{
+  "version": "3.0.0-*",
+  "buildOptions": {
+    "emitEntryPoint": true
+  },
+  "dependencies": {
+    "bootbox.TypeScript.DefinitelyTyped": "1.2.0",
+    "bootstrap.TypeScript.DefinitelyTyped": "0.9.1",
+    "jQuery": "2.2.3",
+    "jquery.TypeScript.DefinitelyTyped": "3.0.6",
+    "Microsoft.AspNetCore.Mvc.Core": "1.0.0",
+    "Microsoft.AspNetCore.Mvc.Formatters.Json": "1.0.0",
+    "Microsoft.AspNetCore.Server.IISIntegration": "1.0.0",
+    "Microsoft.AspNetCore.Server.Kestrel": "1.0.0",
+    "Microsoft.Extensions.Logging.Console": "1.0.0",
+    "Microsoft.NETCore.App": {
+      "version": "1.0.0",
+      "type": "platform"
+    },
+    "moment.TypeScript.DefinitelyTyped": "1.7.9",
+    "Newtonsoft.Json": "9.0.1",
+    "Quartz": {
+      "target": "project"
+    },
+    "RequireJS": "2.1.17",
+    "signalr.TypeScript.DefinitelyTyped": "0.3.9",
+    "toastr.TypeScript.DefinitelyTyped": "0.3.0"
+  },
+  "tools": {
+    "Microsoft.AspNetCore.Razor.Tools": {
+      "version": "1.0.0-preview1-final",
+      "imports": "portable-net45+win8+dnxcore50"
+    }
+  },
+  "frameworks": {
+    "netcoreapp1.0": {
+      "imports": [
+        "dotnet5.6",
+        "dnxcore50",
+        "portable-net45+win8"
+      ],
+      "dependencies": {
+        "NETStandard.Library": "1.6.0",
+        "Microsoft.CSharp": "4.0.1",
+        "Microsoft.NETCore.Portable.Compatibility": "1.0.1",
+        "System.Collections.NonGeneric": "4.0.1",
+        "System.Collections.Specialized": "4.0.1",
+        "System.ComponentModel.TypeConverter": "4.1.0",
+        "System.Data.Common": "4.1.0",
+        "System.Data.SqlClient": "4.1.0",
+        "System.Diagnostics.Process": "4.1.0",
+        "System.Diagnostics.StackTrace": "4.0.1",
+        "System.Diagnostics.Tools": "4.0.1",
+        "System.Dynamic.Runtime": "4.0.11",
+        "System.Net.NameResolution": "4.0.0",
+        "System.Net.Requests": "4.0.11",
+        "System.Net.Http": "4.1.0",
+        "System.Runtime.Loader": "4.0.0",
+        "System.Runtime.Serialization.Primitives": "4.1.1",
+        "System.Runtime.Serialization.Xml": "4.1.1",
+        "System.Threading.Tasks": "4.0.11",
+        "System.Threading.Tasks.Parallel": "4.0.1",
+        "System.Threading.Thread": "4.0.0",
+        "System.Threading.ThreadPool": "4.0.10",
+        "System.Xml.XmlDocument": "4.0.1",
+        "System.Xml.XmlSerializer": "4.0.11"
+      }
+    }
+  },
+  "publishOptions": {
+    "include": [
+      "wwwroot",
+      "Views",
+      "appsettings.json",
+      "web.config"
+    ]
+  }
+}

@@ -18,7 +18,6 @@
 #endregion
 
 using System;
-using System.Globalization;
 using System.Runtime.Serialization;
 
 namespace Quartz
@@ -31,8 +30,10 @@ namespace Quartz
 	/// </summary>
 	/// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
-	public class ObjectAlreadyExistsException : JobPersistenceException
+#endif // BINARY_SERIALIZATION
+    public class ObjectAlreadyExistsException : JobPersistenceException
 	{
 		/// <summary> <para>
 		/// Create a <see cref="ObjectAlreadyExistsException" /> with the given
@@ -43,6 +44,7 @@ namespace Quartz
 		{
 		}
 
+#if BINARY_SERIALIZATION
         /// <summary>
         /// Initializes a new instance of the <see cref="ObjectAlreadyExistsException"/> class.
         /// </summary>
@@ -53,6 +55,7 @@ namespace Quartz
         protected ObjectAlreadyExistsException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
+#endif // BINARY_SERIALIZATION
 
 		/// <summary> <para>
 		/// Create a <see cref="ObjectAlreadyExistsException" /> and auto-generate a
@@ -65,7 +68,7 @@ namespace Quartz
 		/// </para>
 		/// </summary>
         public ObjectAlreadyExistsException(IJobDetail offendingJob)
-			: base(string.Format(CultureInfo.InvariantCulture, "Unable to store Job: '{0}', because one already exists with this identification.", offendingJob.Key))
+			: base($"Unable to store Job: '{offendingJob.Key}', because one already exists with this identification.")
 		{
 		}
 
@@ -80,7 +83,7 @@ namespace Quartz
 		/// </para>
 		/// </summary>
 		public ObjectAlreadyExistsException(ITrigger offendingTrigger)
-			: base(string.Format(CultureInfo.InvariantCulture, "Unable to store Trigger: '{0}', because one already exists with this identification.", offendingTrigger.Key))
+			: base($"Unable to store Trigger: '{offendingTrigger.Key}', because one already exists with this identification.")
 		{
 		}
 	}

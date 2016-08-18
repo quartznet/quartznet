@@ -22,17 +22,25 @@ using System;
 using NUnit.Framework;
 
 using Quartz.Impl.Calendar;
+using Quartz.Simpl;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl.Calendar
 {
     /// <author>Marko Lahma (.NET)</author>
-    [TestFixture]
+#if BINARY_SERIALIZATION
+    [TestFixture(typeof(BinaryObjectSerializer))]
+#endif
+    [TestFixture(typeof(JsonObjectSerializer))]
     public class HolidayCalendarTest : SerializationTestSupport
     {
         private HolidayCalendar cal;
 
-        private static readonly string[] versions = new[] { "1.5.1" };
+        private static readonly string[] versions = { "1.5.1" };
+
+        public HolidayCalendarTest(Type serializerType) : base(serializerType)
+        {
+        }
 
         [SetUp]
         public void Setup()

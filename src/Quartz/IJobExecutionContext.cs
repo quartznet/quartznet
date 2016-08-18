@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 
 namespace Quartz
 {
@@ -184,5 +185,11 @@ namespace Quartz
         /// <param name="key">
         /// </param>
         object Get(object key);
+
+        /// <summary>
+        /// Returns the cancellation token which will be cancelled when the job cancellation has been requested via <see cref="IScheduler.Interrupt(JobKey)"/>
+        /// or <see cref="IScheduler.Interrupt(string)"/>.
+        /// </summary>
+        CancellationToken CancellationToken { get; }
     }
 }

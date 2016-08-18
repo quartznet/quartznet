@@ -1,19 +1,19 @@
 #region License
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 #endregion
 
@@ -25,52 +25,54 @@ using Quartz.Spi;
 
 namespace Quartz
 {
-	/// <summary>
-	/// Describes the settings and capabilities of a given <see cref="IScheduler" />
-	/// instance.
-	/// </summary>
-	/// <author>James House</author>
+    /// <summary>
+    /// Describes the settings and capabilities of a given <see cref="IScheduler" />
+    /// instance.
+    /// </summary>
+    /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
-	public class SchedulerMetaData
+#endif // BINARY_SERIALIZATION
+    public class SchedulerMetaData
 	{
 		private readonly string schedName;
 		private readonly string schedInst;
-		private readonly Type schedType;
+		private Type schedType;
 		private readonly bool isRemote;
 		private readonly bool started;
 		private readonly bool isInStandbyMode;
 		private readonly bool shutdown;
         private readonly DateTimeOffset? startTime;
         private readonly int numberOfJobsExec;
-		private readonly Type jsType;
+		private Type jsType;
 		private readonly bool jsPersistent;
 	    private readonly bool jsClustered;
-		private readonly Type tpType;
+		private Type tpType;
 		private readonly int tpSize;
 		private readonly string version;
 
-		/// <summary>
-		/// Initializes a new instance of the <see cref="SchedulerMetaData"/> class.
-		/// </summary>
-		/// <param name="schedName">Name of the scheduler.</param>
-		/// <param name="schedInst">The scheduler instance.</param>
-		/// <param name="schedType">The scheduler type.</param>
-		/// <param name="isRemote">if set to <c>true</c>, scheduler is a remote scheduler.</param>
-		/// <param name="started">if set to <c>true</c>, scheduler is started.</param>
-		/// <param name="isInStandbyMode">if set to <c>true</c>, scheduler is in standby mode.</param>
-		/// <param name="shutdown">if set to <c>true</c>, scheduler is shutdown.</param>
-		/// <param name="startTime">The start time.</param>
-		/// <param name="numberOfJobsExec">The number of jobs executed.</param>
-		/// <param name="jsType">The job store type.</param>
-		/// <param name="jsPersistent">if set to <c>true</c>, job store is persistent.</param>
-		/// <param name="jsClustered">if set to <c>true</c>, the job store is clustered</param>
-		/// <param name="tpType">The thread pool type.</param>
-		/// <param name="tpSize">Size of the thread pool.</param>
-		/// <param name="version">The version string.</param>
-		public SchedulerMetaData(
+        /// <summary>
+        /// Initializes a new instance of the <see cref="SchedulerMetaData"/> class.
+        /// </summary>
+        /// <param name="schedName">Name of the scheduler.</param>
+        /// <param name="schedInst">The scheduler instance.</param>
+        /// <param name="schedType">The scheduler type.</param>
+        /// <param name="isRemote">if set to <c>true</c>, scheduler is a remote scheduler.</param>
+        /// <param name="started">if set to <c>true</c>, scheduler is started.</param>
+        /// <param name="isInStandbyMode">if set to <c>true</c>, scheduler is in standby mode.</param>
+        /// <param name="shutdown">if set to <c>true</c>, scheduler is shutdown.</param>
+        /// <param name="startTime">The start time.</param>
+        /// <param name="numberOfJobsExec">The number of jobs executed.</param>
+        /// <param name="jsType">The job store type.</param>
+        /// <param name="jsPersistent">if set to <c>true</c>, job store is persistent.</param>
+        /// <param name="jsClustered">if set to <c>true</c>, the job store is clustered</param>
+        /// <param name="tpType">The thread pool type.</param>
+        /// <param name="tpSize">Size of the thread pool.</param>
+        /// <param name="version">The version string.</param>
+        public SchedulerMetaData(
             string schedName, string schedInst, Type schedType, bool isRemote, bool started, bool isInStandbyMode,
-			bool shutdown, DateTimeOffset? startTime, int numberOfJobsExec, Type jsType, bool jsPersistent, bool jsClustered, 
+			bool shutdown, DateTimeOffset? startTime, int numberOfJobsExec, Type jsType, bool jsPersistent, bool jsClustered,
             Type tpType, int tpSize, string version)
 		{
 			this.schedName = schedName;
@@ -172,7 +174,7 @@ namespace Quartz
 			get { return tpType; }
 		}
 
-		/// <summary> 
+		/// <summary>
 		/// Returns the number of threads currently in the <see cref="IScheduler" />'s
 		/// </summary>
 		public virtual int ThreadPoolSize
@@ -288,7 +290,7 @@ namespace Quartz
 			return str.ToString();
 		}
 
-		/// <summary> 
+		/// <summary>
 		/// Returns the <see cref="DateTimeOffset" /> at which the Scheduler started running.
 		/// </summary>
 		/// <returns> null if the scheduler has not been started.

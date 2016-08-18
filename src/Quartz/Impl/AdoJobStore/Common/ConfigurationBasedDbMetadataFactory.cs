@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+#if CONFIGURATION
 using System.Configuration;
+#endif // CONFIGURATION
 
 using Quartz.Util;
 
@@ -38,7 +40,11 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <returns>The properties parser</returns>
         protected virtual PropertiesParser GetPropertiesParser()
         {
-            NameValueCollection settings = (NameValueCollection)ConfigurationManager.GetSection(sectionName) ?? new NameValueCollection();
+            NameValueCollection settings =
+#if CONFIGURATION
+                (NameValueCollection)ConfigurationManager.GetSection(sectionName) ??
+#endif // CONFIGURATION
+                new NameValueCollection();
             PropertiesParser result = new PropertiesParser(settings);
             return result;
         }

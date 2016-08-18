@@ -56,7 +56,9 @@ namespace Quartz
     /// <seealso cref="IJobExecutionContext" />
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
     public class JobDataMap : StringKeyDirtyFlagMap
     {
         /// <summary>
@@ -85,6 +87,7 @@ namespace Quartz
             }
         }
 
+#if BINARY_SERIALIZATION
         /// <summary>
         /// Serialization constructor.
         /// </summary>
@@ -93,6 +96,7 @@ namespace Quartz
         protected JobDataMap(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
+#endif // BINARY_SERIALIZATION
 
         /// <summary>
         /// Adds the given <see cref="bool" /> value as a string version to the
@@ -111,7 +115,7 @@ namespace Quartz
         /// </summary>
         public virtual void PutAsString(string key, char value)
         {
-            string strValue = value.ToString(CultureInfo.InvariantCulture);
+            string strValue = value.ToString();
             base.Put(key, strValue);
         }
 
@@ -194,7 +198,7 @@ namespace Quartz
         public virtual int GetIntValueFromString(string key)
         {
             object obj = Get(key);
-            return Int32.Parse((string) obj, CultureInfo.InvariantCulture);
+            return int.Parse((string) obj, CultureInfo.InvariantCulture);
         }
 
         /// <summary>
@@ -219,7 +223,7 @@ namespace Quartz
         {
             object obj = Get(key);
 
-            return ((string) obj).ToUpper(CultureInfo.InvariantCulture).Equals("TRUE");
+            return CultureInfo.InvariantCulture.TextInfo.ToUpper((string) obj).Equals("TRUE");
         }
 
         /// <summary>
@@ -254,7 +258,7 @@ namespace Quartz
         public virtual double GetDoubleValueFromString(string key)
         {
             object obj = Get(key);
-            return Double.Parse((string) obj, CultureInfo.InvariantCulture);
+            return double.Parse((string) obj, CultureInfo.InvariantCulture);
         }
 
         /// <summary>
@@ -278,7 +282,7 @@ namespace Quartz
         public virtual float GetFloatValueFromString(string key)
         {
             object obj = Get(key);
-            return Single.Parse((string) obj, CultureInfo.InvariantCulture);
+            return float.Parse((string) obj, CultureInfo.InvariantCulture);
         }
 
         /// <summary>
@@ -302,7 +306,7 @@ namespace Quartz
         public virtual long GetLongValueFromString(string key)
         {
             object obj = Get(key);
-            return Int64.Parse((string) obj, CultureInfo.InvariantCulture);
+            return long.Parse((string) obj, CultureInfo.InvariantCulture);
         }
 
         /// <summary>
@@ -329,11 +333,7 @@ namespace Quartz
         public virtual TimeSpan GetTimeSpanValueFromString(string key)
         {
             object obj = Get(key);
-#if NET_40
             return TimeSpan.Parse((string) obj, CultureInfo.InvariantCulture);
-#else
-            return TimeSpan.Parse((string) obj);
-#endif
         }
 
         /// <summary>

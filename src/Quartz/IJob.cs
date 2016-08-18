@@ -17,6 +17,8 @@
  */
 #endregion
 
+using System.Threading.Tasks;
+
 namespace Quartz
 {
 	/// <summary> 
@@ -51,6 +53,6 @@ namespace Quartz
 		/// execution.
 		/// </remarks>
 		/// <param name="context">The execution context.</param>
-        void Execute(IJobExecutionContext context);
+        Task Execute(IJobExecutionContext context);
 	}
 }

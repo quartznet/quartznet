@@ -1,34 +1,33 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
 
 using System;
-using System.Threading;
-
-using Common.Logging;
+using System.Threading.Tasks;
 
 using Quartz.Impl;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example6
 {
-    /// <summary> 
+    /// <summary>
     /// This job demonstrates how Quartz can handle JobExecutionExceptions that are
     /// thrown by jobs.
     /// </summary>
@@ -36,15 +35,15 @@ namespace Quartz.Examples.Example6
     /// <author>Marko Lahma (.NET)</author>
     public class JobExceptionExample : IExample
     {
-        public virtual void Run()
+        public virtual async Task Run()
         {
-            ILog log = LogManager.GetLogger(typeof (JobExceptionExample));
+            ILog log = LogProvider.GetLogger(typeof(JobExceptionExample));
 
             log.Info("------- Initializing ----------------------");
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory();
-            IScheduler sched = sf.GetScheduler();
+            IScheduler sched = await sf.GetScheduler();
 
             log.Info("------- Initialization Complete ------------");
 
@@ -64,12 +63,12 @@ namespace Quartz.Examples.Example6
                 .Build();
 
             ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                                                          .WithIdentity("trigger1", "group1")
-                                                          .StartAt(startTime)
-                                                          .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).RepeatForever())
-                                                          .Build();
+                .WithIdentity("trigger1", "group1")
+                .StartAt(startTime)
+                .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).RepeatForever())
+                .Build();
 
-            DateTimeOffset ft = sched.ScheduleJob(job, trigger);
+            DateTimeOffset ft = await sched.ScheduleJob(job, trigger);
             log.Info(job.Key + " will run at: " + ft + " and repeat: "
                      + trigger.RepeatCount + " times, every "
                      + trigger.RepeatInterval.TotalSeconds + " seconds");
@@ -82,42 +81,31 @@ namespace Quartz.Examples.Example6
                 .Build();
 
             trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                                           .WithIdentity("trigger2", "group1")
-                                           .StartAt(startTime)
-                                           .WithSimpleSchedule(x => x.WithIntervalInSeconds(5).RepeatForever())
-                                           .Build();
-            ft = sched.ScheduleJob(job, trigger);
-            log.Info(string.Format("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.Key, ft.ToString("r"), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds));
+                .WithIdentity("trigger2", "group1")
+                .StartAt(startTime)
+                .WithSimpleSchedule(x => x.WithIntervalInSeconds(5).RepeatForever())
+                .Build();
+            ft = await sched.ScheduleJob(job, trigger);
+            log.Info($"{job.Key} will run at: {ft.ToString("r")} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
 
             log.Info("------- Starting Scheduler ----------------");
 
             // jobs don't start firing until start() has been called...
-            sched.Start();
+            await sched.Start();
 
             log.Info("------- Started Scheduler -----------------");
 
             // sleep for 30 seconds
-            try
-            {
-                Thread.Sleep(TimeSpan.FromSeconds(30));
-            }
-            catch (ThreadInterruptedException)
-            {
-            }
+            await Task.Delay(TimeSpan.FromSeconds(30));
 
             log.Info("------- Shutting Down ---------------------");
 
-            sched.Shutdown(false);
+            await sched.Shutdown(false);
 
             log.Info("------- Shutdown Complete -----------------");
 
-            SchedulerMetaData metaData = sched.GetMetaData();
-            log.Info(string.Format("Executed {0} jobs.", metaData.NumberOfJobsExecuted));
-        }
-
-        public string Name
-        {
-            get { return GetType().Name; }
+            SchedulerMetaData metaData = await sched.GetMetaData();
+            log.Info($"Executed {metaData.NumberOfJobsExecuted} jobs.");
         }
     }
 }

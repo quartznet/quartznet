@@ -47,7 +47,7 @@ namespace Quartz
     /// <seealso cref="ITrigger"/>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-    public interface IJobDetail : ICloneable
+    public interface IJobDetail
     {
         /// <summary>
         /// The key that identifies this jobs uniquely.
@@ -110,5 +110,7 @@ namespace Quartz
         /// <see cref="IJobDetail" /> identical to this one.
         /// </summary>
         JobBuilder GetJobBuilder();
+
+        IJobDetail Clone();
     }
 }

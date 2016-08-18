@@ -1,0 +1,24 @@
+<template>
+    <h2>${heading}</h2>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Instance</th>
+                <th>Status</th>
+                <th>&nbsp;</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr repeat.for="scheduler of schedulers">
+                <td>${scheduler.name}</td>
+                <td>${scheduler.schedulerInstanceId}</td>
+                <td>${scheduler.status}</td>
+                <td>
+                    <a route-href="route: scheduler-details; params.bind: { schedulerName: scheduler.name }">Details</a>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</template>

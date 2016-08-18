@@ -18,7 +18,6 @@
 #endregion
 
 using System;
-using System.Globalization;
 using System.Runtime.Serialization;
 
 namespace Quartz
@@ -32,7 +31,9 @@ namespace Quartz
     /// </remarks>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
     public class SchedulerException : Exception
     {
         /// <summary>
@@ -50,6 +51,7 @@ namespace Quartz
         {
         }
 
+#if BINARY_SERIALIZATION
         /// <summary>
         /// Initializes a new instance of the <see cref="SchedulerException"/> class.
         /// </summary>
@@ -60,6 +62,7 @@ namespace Quartz
         protected SchedulerException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
+#endif // BINARY_SERIALIZATION
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SchedulerException"/> class.
@@ -91,7 +94,7 @@ namespace Quartz
             {
                 return base.ToString();
             }
-            return string.Format(CultureInfo.InvariantCulture, "{0} [See nested exception: {1}]", base.ToString(), InnerException);
+            return $"{base.ToString()} [See nested exception: {InnerException}]";
         }
     }
 }

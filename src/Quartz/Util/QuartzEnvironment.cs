@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Security;
 
-using Common.Logging;
+using Quartz.Logging;
 
 namespace Quartz.Util
 {
@@ -12,7 +12,7 @@ namespace Quartz.Util
     /// </summary>
     public static class QuartzEnvironment
     {
-        private static readonly ILog log = LogManager.GetLogger(typeof(QuartzEnvironment));
+        private static readonly ILog log = LogProvider.GetLogger(typeof(QuartzEnvironment));
         private static readonly bool isRunningOnMono = Type.GetType("Mono.Runtime") != null;
 
         /// <summary>

@@ -1,34 +1,34 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
 
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 
-using Common.Logging;
-
+using Quartz.Logging;
 using Quartz.Impl;
 
 namespace Quartz.Examples.Example2
 {
-    /// <summary> 
+    /// <summary>
     /// This example will demonstrate all of the basics of scheduling capabilities
     /// of Quartz using Simple Triggers.
     /// </summary>
@@ -36,20 +36,15 @@ namespace Quartz.Examples.Example2
     /// <author>Marko Lahma (.NET)</author>
     public class SimpleTriggerExample : IExample
     {
-        public string Name
+        public virtual async Task Run()
         {
-            get { return GetType().Name; }
-        }
-
-        public virtual void Run()
-        {
-            ILog log = LogManager.GetLogger(typeof (SimpleTriggerExample));
+            ILog log = LogProvider.GetLogger(typeof(SimpleTriggerExample));
 
             log.Info("------- Initializing -------------------");
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory();
-            IScheduler sched = sf.GetScheduler();
+            IScheduler sched = await sf.GetScheduler();
 
             log.Info("------- Initialization Complete --------");
 
@@ -66,12 +61,12 @@ namespace Quartz.Examples.Example2
                 .Build();
 
             ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                                                          .WithIdentity("trigger1", "group1")
-                                                          .StartAt(startTime)
-                                                          .Build();
+                .WithIdentity("trigger1", "group1")
+                .StartAt(startTime)
+                .Build();
 
             // schedule it to run!
-            DateTimeOffset? ft = sched.ScheduleJob(job, trigger);
+            DateTimeOffset? ft = await sched.ScheduleJob(job, trigger);
             log.Info(job.Key +
                      " will run at: " + ft +
                      " and repeat: " + trigger.RepeatCount +
@@ -83,11 +78,11 @@ namespace Quartz.Examples.Example2
                 .Build();
 
             trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                                           .WithIdentity("trigger2", "group1")
-                                           .StartAt(startTime)
-                                           .Build();
+                .WithIdentity("trigger2", "group1")
+                .StartAt(startTime)
+                .Build();
 
-            ft = sched.ScheduleJob(job, trigger);
+            ft = await sched.ScheduleJob(job, trigger);
             log.Info(job.Key +
                      " will run at: " + ft +
                      " and repeat: " + trigger.RepeatCount +
@@ -100,12 +95,12 @@ namespace Quartz.Examples.Example2
                 .Build();
 
             trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                                           .WithIdentity("trigger3", "group1")
-                                           .StartAt(startTime)
-                                           .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).WithRepeatCount(10))
-                                           .Build();
+                .WithIdentity("trigger3", "group1")
+                .StartAt(startTime)
+                .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).WithRepeatCount(10))
+                .Build();
 
-            ft = sched.ScheduleJob(job, trigger);
+            ft = await sched.ScheduleJob(job, trigger);
             log.Info(job.Key +
                      " will run at: " + ft +
                      " and repeat: " + trigger.RepeatCount +
@@ -115,13 +110,13 @@ namespace Quartz.Examples.Example2
             // this time will only repeat twice at a 70 second interval
 
             trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                                           .WithIdentity("trigger3", "group2")
-                                           .StartAt(startTime)
-                                           .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).WithRepeatCount(2))
-                                           .ForJob(job)
-                                           .Build();
+                .WithIdentity("trigger3", "group2")
+                .StartAt(startTime)
+                .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).WithRepeatCount(2))
+                .ForJob(job)
+                .Build();
 
-            ft = sched.ScheduleJob(trigger);
+            ft = await sched.ScheduleJob(trigger);
             log.Info(job.Key +
                      " will [also] run at: " + ft +
                      " and repeat: " + trigger.RepeatCount +
@@ -134,12 +129,12 @@ namespace Quartz.Examples.Example2
                 .Build();
 
             trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                                           .WithIdentity("trigger4", "group1")
-                                           .StartAt(startTime)
-                                           .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).WithRepeatCount(5))
-                                           .Build();
+                .WithIdentity("trigger4", "group1")
+                .StartAt(startTime)
+                .WithSimpleSchedule(x => x.WithIntervalInSeconds(10).WithRepeatCount(5))
+                .Build();
 
-            ft = sched.ScheduleJob(job, trigger);
+            ft = await sched.ScheduleJob(job, trigger);
             log.Info(job.Key +
                      " will run at: " + ft +
                      " and repeat: " + trigger.RepeatCount +
@@ -151,11 +146,11 @@ namespace Quartz.Examples.Example2
                 .Build();
 
             trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                                           .WithIdentity("trigger5", "group1")
-                                           .StartAt(DateBuilder.FutureDate(5, IntervalUnit.Minute))
-                                           .Build();
+                .WithIdentity("trigger5", "group1")
+                .StartAt(DateBuilder.FutureDate(5, IntervalUnit.Minute))
+                .Build();
 
-            ft = sched.ScheduleJob(job, trigger);
+            ft = await sched.ScheduleJob(job, trigger);
             log.Info(job.Key +
                      " will run at: " + ft +
                      " and repeat: " + trigger.RepeatCount +
@@ -167,12 +162,12 @@ namespace Quartz.Examples.Example2
                 .Build();
 
             trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                                           .WithIdentity("trigger6", "group1")
-                                           .StartAt(startTime)
-                                           .WithSimpleSchedule(x => x.WithIntervalInSeconds(40).RepeatForever())
-                                           .Build();
+                .WithIdentity("trigger6", "group1")
+                .StartAt(startTime)
+                .WithSimpleSchedule(x => x.WithIntervalInSeconds(40).RepeatForever())
+                .Build();
 
-            ft = sched.ScheduleJob(job, trigger);
+            ft = await sched.ScheduleJob(job, trigger);
             log.Info(job.Key +
                      " will run at: " + ft +
                      " and repeat: " + trigger.RepeatCount +
@@ -182,7 +177,7 @@ namespace Quartz.Examples.Example2
 
             // All of the jobs have been added to the scheduler, but none of the jobs
             // will run until the scheduler has been started
-            sched.Start();
+            await sched.Start();
 
             log.Info("------- Started Scheduler -----------------");
 
@@ -193,12 +188,12 @@ namespace Quartz.Examples.Example2
                 .Build();
 
             trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                                           .WithIdentity("trigger7", "group1")
-                                           .StartAt(startTime)
-                                           .WithSimpleSchedule(x => x.WithIntervalInMinutes(5).WithRepeatCount(20))
-                                           .Build();
+                .WithIdentity("trigger7", "group1")
+                .StartAt(startTime)
+                .WithSimpleSchedule(x => x.WithIntervalInMinutes(5).WithRepeatCount(20))
+                .Build();
 
-            ft = sched.ScheduleJob(job, trigger);
+            ft = await sched.ScheduleJob(job, trigger);
             log.Info(job.Key +
                      " will run at: " + ft +
                      " and repeat: " + trigger.RepeatCount +
@@ -210,55 +205,49 @@ namespace Quartz.Examples.Example2
                 .StoreDurably()
                 .Build();
 
-            sched.AddJob(job, true);
+            await sched.AddJob(job, true);
 
             log.Info("'Manually' triggering job8...");
-            sched.TriggerJob(new JobKey("job8", "group1"));
+            await sched.TriggerJob(new JobKey("job8", "group1"));
 
             log.Info("------- Waiting 30 seconds... --------------");
 
             try
             {
                 // wait 30 seconds to show jobs
-                Thread.Sleep(TimeSpan.FromSeconds(30));
+                await Task.Delay(TimeSpan.FromSeconds(30));
                 // executing...
             }
             catch (ThreadInterruptedException)
             {
             }
 
-            // jobs can be re-scheduled...  
+            // jobs can be re-scheduled...
             // job 7 will run immediately and repeat 10 times for every second
             log.Info("------- Rescheduling... --------------------");
             trigger = (ISimpleTrigger) TriggerBuilder.Create()
-                                           .WithIdentity("trigger7", "group1")
-                                           .StartAt(startTime)
-                                           .WithSimpleSchedule(x => x.WithIntervalInMinutes(5).WithRepeatCount(20))
-                                           .Build();
+                .WithIdentity("trigger7", "group1")
+                .StartAt(startTime)
+                .WithSimpleSchedule(x => x.WithIntervalInMinutes(5).WithRepeatCount(20))
+                .Build();
 
-            ft = sched.RescheduleJob(trigger.Key, trigger);
+            ft = await sched.RescheduleJob(trigger.Key, trigger);
             log.Info("job7 rescheduled to run at: " + ft);
 
             log.Info("------- Waiting five minutes... ------------");
-            try
-            {
-                // wait five minutes to show jobs
-                Thread.Sleep(TimeSpan.FromMinutes(5));
-                // executing...
-            }
-            catch (ThreadInterruptedException)
-            {
-            }
+            // wait five minutes to show jobs
+            await Task.Delay(TimeSpan.FromMinutes(5));
+            // executing...
 
             log.Info("------- Shutting Down ---------------------");
 
-            sched.Shutdown(true);
+            await sched.Shutdown(true);
 
             log.Info("------- Shutdown Complete -----------------");
 
             // display some stats about the schedule that just ran
-            SchedulerMetaData metaData = sched.GetMetaData();
-            log.Info(string.Format("Executed {0} jobs.", metaData.NumberOfJobsExecuted));
+            SchedulerMetaData metaData = await sched.GetMetaData();
+            log.Info($"Executed {metaData.NumberOfJobsExecuted} jobs.");
         }
     }
 }

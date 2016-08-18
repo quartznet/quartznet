@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Data;
+using System.Data.Common;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -15,7 +16,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="cth">Connection and transaction pair</param>
         /// <param name="commandText">SQL to run</param>
         /// <returns></returns>
-        IDbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText);
+        DbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText);
 
         /// <summary>
         /// Adds a parameter to <see cref="IDbCommand" />.
@@ -23,7 +24,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="cmd">Command to add parameter to</param>
         /// <param name="paramName">Parameter's name</param>
         /// <param name="paramValue">Parameter's value</param>
-        void AddCommandParameter(IDbCommand cmd, string paramName, object paramValue);
+        void AddCommandParameter(DbCommand cmd, string paramName, object paramValue);
 
         /// <summary>
         /// Adds a parameter to <see cref="IDbCommand" />.
@@ -32,7 +33,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="paramName">Parameter's name</param>
         /// <param name="paramValue">Parameter's value</param>
         /// <param name="dataType">Parameter's data type</param>
-        void AddCommandParameter(IDbCommand cmd, string paramName, object paramValue, Enum dataType);
+        void AddCommandParameter(DbCommand cmd, string paramName, object paramValue, Enum dataType);
 
         /// <summary>
         /// Gets the db presentation for boolean value. Subclasses can overwrite this behaviour.

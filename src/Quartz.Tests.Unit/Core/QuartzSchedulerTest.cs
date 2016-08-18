@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,19 +16,24 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
-using System.Threading;
-
+using System.Collections.Specialized;
+using System.Globalization;
+using System.Reflection;
+using System.Threading.Tasks;
+#if FAKE_IT_EASY
+using FakeItEasy;
+#endif
 using NUnit.Framework;
 
+using Quartz.Core;
 using Quartz.Impl;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Spi;
-
-using Rhino.Mocks;
 
 namespace Quartz.Tests.Unit.Core
 {
@@ -38,19 +44,21 @@ namespace Quartz.Tests.Unit.Core
         [Test]
         public void TestVersionInfo()
         {
-            var versionInfo = System.Diagnostics.FileVersionInfo.GetVersionInfo(System.Reflection.Assembly.GetAssembly(typeof(Quartz.Core.QuartzScheduler)).Location);
-            Assert.AreEqual(versionInfo.FileMajorPart.ToString(System.Globalization.CultureInfo.InvariantCulture), Quartz.Core.QuartzScheduler.VersionMajor);
-            Assert.AreEqual(versionInfo.FileMinorPart.ToString(System.Globalization.CultureInfo.InvariantCulture), Quartz.Core.QuartzScheduler.VersionMinor);
-            Assert.AreEqual(versionInfo.FileBuildPart.ToString(System.Globalization.CultureInfo.InvariantCulture), Quartz.Core.QuartzScheduler.VersionIteration);
+            var versionInfo = typeof(QuartzScheduler).GetTypeInfo().Assembly.GetName().Version;
+            Assert.AreEqual(versionInfo.Major.ToString(CultureInfo.InvariantCulture), QuartzScheduler.VersionMajor);
+            Assert.AreEqual(versionInfo.Minor.ToString(CultureInfo.InvariantCulture), QuartzScheduler.VersionMinor);
+            Assert.AreEqual(versionInfo.Build.ToString(CultureInfo.InvariantCulture), QuartzScheduler.VersionIteration);
         }
 
         [Test]
-        public void TestInvalidCalendarScheduling()
+        public async Task TestInvalidCalendarScheduling()
         {
             const string ExpectedError = "Calendar not found: FOOBAR";
 
-            ISchedulerFactory sf = new StdSchedulerFactory();
-            IScheduler sched = sf.GetScheduler();
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
+            ISchedulerFactory sf = new StdSchedulerFactory(properties);
+            IScheduler sched = await sf.GetScheduler();
 
             DateTime runTime = DateTime.Now.AddMinutes(10);
 
@@ -65,7 +73,7 @@ namespace Quartz.Tests.Unit.Core
 
             try
             {
-                sched.ScheduleJob(job, trigger);
+                await sched.ScheduleJob(job, trigger);
                 Assert.Fail("No error for non-existing calendar");
             }
             catch (SchedulerException ex)
@@ -75,56 +83,62 @@ namespace Quartz.Tests.Unit.Core
 
             try
             {
-                sched.ScheduleJob(trigger);
+                await sched.ScheduleJob(trigger);
                 Assert.Fail("No error for non-existing calendar");
             }
             catch (SchedulerException ex)
             {
                 Assert.AreEqual(ExpectedError, ex.Message);
             }
-            
-            sched.Shutdown(false);
+
+            await sched.Shutdown(false);
         }
 
         [Test]
-        public void TestStartDelayed()
+        public async Task TestStartDelayed()
         {
-            ISchedulerFactory sf = new StdSchedulerFactory();
-            IScheduler sched = sf.GetScheduler();
-            sched.StartDelayed(TimeSpan.FromSeconds(2));
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
+            var sf = new StdSchedulerFactory(properties);
+
+            IScheduler sched = await sf.GetScheduler();
+            var task = sched.StartDelayed(TimeSpan.FromSeconds(2));
             Assert.IsFalse(sched.IsStarted);
-            Thread.Sleep(TimeSpan.FromSeconds(3));
+            await task;
             Assert.IsTrue(sched.IsStarted);
         }
 
+#if FAKE_IT_EASY
         [Test]
-        public void TestRescheduleJob_SchedulerListenersCalledOnReschedule()
+        public async Task TestRescheduleJob_SchedulerListenersCalledOnReschedule()
         {
             const string TriggerName = "triggerName";
             const string TriggerGroup = "triggerGroup";
             const string JobName = "jobName";
             const string JobGroup = "jobGroup";
 
-            ISchedulerFactory sf = new StdSchedulerFactory();
-            IScheduler scheduler = sf.GetScheduler();
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
+            ISchedulerFactory sf = new StdSchedulerFactory(properties);
+            IScheduler scheduler = await sf.GetScheduler();
             DateTime startTimeUtc = DateTime.UtcNow.AddSeconds(2);
             JobDetailImpl jobDetail = new JobDetailImpl(JobName, JobGroup, typeof(NoOpJob));
             SimpleTriggerImpl jobTrigger = new SimpleTriggerImpl(TriggerName, TriggerGroup, JobName, JobGroup, startTimeUtc, null, 1, TimeSpan.FromMilliseconds(1000));
 
-            ISchedulerListener listener = MockRepository.GenerateMock<ISchedulerListener>();
+            ISchedulerListener listener = A.Fake<ISchedulerListener>();
 
-            scheduler.ScheduleJob(jobDetail, jobTrigger);
+            await scheduler.ScheduleJob(jobDetail, jobTrigger);
             // add listener after scheduled
             scheduler.ListenerManager.AddSchedulerListener(listener);
 
             // act
-            scheduler.RescheduleJob(new TriggerKey(TriggerName, TriggerGroup), jobTrigger);
+            await scheduler.RescheduleJob(new TriggerKey(TriggerName, TriggerGroup), jobTrigger);
 
             // assert
             // expect unschedule and schedule
-            listener.AssertWasCalled(l => l.JobUnscheduled(new TriggerKey(TriggerName, TriggerGroup)));
-            listener.AssertWasCalled(l => l.JobScheduled(jobTrigger));
-
+            A.CallTo(() => listener.JobUnscheduled(new TriggerKey(TriggerName, TriggerGroup))).MustHaveHappened();
+            A.CallTo(() => listener.JobScheduled(jobTrigger)).MustHaveHappened();
         }
+#endif
     }
 }

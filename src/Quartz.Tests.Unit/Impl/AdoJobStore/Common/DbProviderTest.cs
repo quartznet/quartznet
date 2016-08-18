@@ -39,14 +39,14 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore.Common
             }
             catch (Exception ex)
             {
-                Assert.That(ex.Message, Is.StringContaining("There is no metadata information for provider 'FooBar'"));
+                Assert.That(ex.Message, Does.Contain("There is no metadata information for provider 'FooBar'"));
             }
         }
 
         [Test]
-        public void TestValidProviderSqlServer20()
+        public void TestValidProviderSqlServer()
         {
-            DbProvider provider = new DbProvider("SqlServer-20", "foo");
+            DbProvider provider = new DbProvider(TestConstants.DefaultSqlServerProvider, "foo");
             Assert.IsNotNull(provider.ConnectionString);
             Assert.IsNotNull(provider.Metadata);
         }

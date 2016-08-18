@@ -28,7 +28,9 @@ namespace Quartz.Impl.AdoJobStore
     /// </summary>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
     public class FiredTriggerRecord
     {
         /// <summary>

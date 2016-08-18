@@ -1,4 +1,5 @@
 #region License
+
 /* 
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
  * 
@@ -15,6 +16,7 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
@@ -22,28 +24,38 @@ using System;
 using NUnit.Framework;
 
 using Quartz.Impl.Calendar;
+using Quartz.Simpl;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl.Calendar
 {
-	/// <summary>
-	/// Unit test for DailyCalendar.
-	/// </summary>
+    /// <summary>
+    /// Unit test for DailyCalendar.
+    /// </summary>
     /// <author>Marko Lahma (.NET)</author>
-    [TestFixture]
-	public class DailyCalendarTest : SerializationTestSupport
-	{
-		private static readonly string[] Versions = new string[] {"0.6.0"};
+#if BINARY_SERIALIZATION
+    [TestFixture(typeof(BinaryObjectSerializer))]
+#endif
+    [TestFixture(typeof(JsonObjectSerializer))]
+    public class DailyCalendarTest : SerializationTestSupport
+    {
+        private static readonly string[] Versions = {"0.6.0"};
 
-		[Test]
-		public void TestStringStartEndTimes()
-		{
-			DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50");
-			Assert.IsTrue(dailyCalendar.ToString().IndexOf("01:20:00:000 - 14:50:00:000") > 0);
+        public DailyCalendarTest(Type serializerType) : base(serializerType)
+        {
+        }
 
-			dailyCalendar = new DailyCalendar("1:20:1:456", "14:50:15:2");
-			Assert.IsTrue(dailyCalendar.ToString().IndexOf("01:20:01:456 - 14:50:15:002") > 0);
-		}
+        [Test]
+        public void TestStringStartEndTimes()
+        {
+            DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50");
+            var toString = dailyCalendar.ToString();
+            Assert.That(toString, Does.Contain("01:20:00:000 - 14:50:00:000"));
+
+            dailyCalendar = new DailyCalendar("1:20:1:456", "14:50:15:2");
+            toString = dailyCalendar.ToString();
+            Assert.That(toString, Does.Contain("01:20:01:456 - 14:50:15:002"));
+        }
 
         [Test]
         public void TestStartEndTimes()
@@ -59,17 +71,16 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             Assert.AreEqual(expectedEndTime, dailyCalendar.GetTimeRangeEndingTimeUtc(d).DateTime);
         }
 
+        [Test]
+        public void TestStringInvertTimeRange()
+        {
+            DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50");
+            dailyCalendar.InvertTimeRange = true;
+            Assert.IsTrue(dailyCalendar.ToString().IndexOf("inverted: True") > 0);
 
-		[Test]
-		public void TestStringInvertTimeRange()
-		{
-			DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50");
-			dailyCalendar.InvertTimeRange = true;
-			Assert.IsTrue(dailyCalendar.ToString().IndexOf("inverted: True") > 0);
-
-			dailyCalendar.InvertTimeRange = false;
-			Assert.IsTrue(dailyCalendar.ToString().IndexOf("inverted: False") > 0);
-		}
+            dailyCalendar.InvertTimeRange = false;
+            Assert.IsTrue(dailyCalendar.ToString().IndexOf("inverted: False") > 0);
+        }
 
         [Test]
         public void TestTimeZone()
@@ -79,54 +90,52 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             DailyCalendar dailyCalendar = new DailyCalendar("12:00:00", "14:00:00");
             dailyCalendar.InvertTimeRange = true; //inclusive calendar
             dailyCalendar.TimeZone = tz;
-            
+
             // 11/2/2012 17:00 (utc) is 11/2/2012 13:00 (est)
             DateTimeOffset timeToCheck = new DateTimeOffset(2012, 11, 2, 17, 0, 0, TimeSpan.FromHours(0));
             Assert.IsTrue(dailyCalendar.IsTimeIncluded(timeToCheck));
         }
 
+        /// <summary>
+        /// Get the object to serialize when generating serialized file for future
+        /// tests, and against which to validate deserialized object.
+        /// </summary>
+        /// <returns></returns>
+        protected override object GetTargetObject()
+        {
+            DailyCalendar c = new DailyCalendar("01:20:01:456", "14:50:15:002");
+            c.Description = "description";
+            c.InvertTimeRange = true;
 
-		/// <summary>
-		/// Get the object to serialize when generating serialized file for future
-		/// tests, and against which to validate deserialized object.
-		/// </summary>
-		/// <returns></returns>
-		protected override object GetTargetObject()
-		{
-			DailyCalendar c = new DailyCalendar("01:20:01:456", "14:50:15:002");
-			c.Description = "description";
-			c.InvertTimeRange = true;
+            return c;
+        }
 
-			return c;
-		}
+        /// <summary>
+        /// Get the Quartz versions for which we should verify
+        /// serialization backwards compatibility.
+        /// </summary>
+        /// <returns></returns>
+        protected override string[] GetVersions()
+        {
+            return Versions;
+        }
 
-		/// <summary>
-		/// Get the Quartz versions for which we should verify
-		/// serialization backwards compatibility.
-		/// </summary>
-		/// <returns></returns>
-		protected override string[] GetVersions()
-		{
-			return Versions;
-		}
+        /// <summary>
+        /// Verify that the target object and the object we just deserialized 
+        /// match.
+        /// </summary>
+        /// <param name="target"></param>
+        /// <param name="deserialized"></param>
+        protected override void VerifyMatch(object target, object deserialized)
+        {
+            DailyCalendar targetCalendar = (DailyCalendar) target;
+            DailyCalendar deserializedCalendar = (DailyCalendar) deserialized;
 
-
-		/// <summary>
-		/// Verify that the target object and the object we just deserialized 
-		/// match.
-		/// </summary>
-		/// <param name="target"></param>
-		/// <param name="deserialized"></param>
-		protected override void VerifyMatch(object target, object deserialized)
-		{
-			DailyCalendar targetCalendar = (DailyCalendar) target;
-			DailyCalendar deserializedCalendar = (DailyCalendar) deserialized;
-
-			Assert.IsNotNull(deserializedCalendar);
-			Assert.AreEqual(targetCalendar.Description, deserializedCalendar.Description);
-			Assert.IsTrue(deserializedCalendar.InvertTimeRange);
-			//Assert.IsNull(deserializedCalendar.TimeZone);
-			Assert.IsTrue(deserializedCalendar.ToString().IndexOf("01:20:01:456 - 14:50:15:002") > 0);
-		}
-	}
+            Assert.IsNotNull(deserializedCalendar);
+            Assert.AreEqual(targetCalendar.Description, deserializedCalendar.Description);
+            Assert.IsTrue(deserializedCalendar.InvertTimeRange);
+            //Assert.IsNull(deserializedCalendar.TimeZone);
+            Assert.IsTrue(deserializedCalendar.ToString().IndexOf("01:20:01:456 - 14:50:15:002") > 0);
+        }
+    }
 }

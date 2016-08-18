@@ -10,7 +10,9 @@ namespace Quartz
     /// value first), if the priorities are the same, then they are sorted
     /// by key.
     /// </summary>
+#if BINARY_SERIALIZATION
     [Serializable]
+#endif // BINARY_SERIALIZATION
     public class TriggerTimeComparator : IComparer<ITrigger>
     {
         public int Compare(ITrigger trig1, ITrigger trig2)
