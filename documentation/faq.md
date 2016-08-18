@@ -72,7 +72,7 @@ alterations and/or build the latest 'non-released' version of Quartz from
 Subversion. To do this, follow the instructions in the "README.TXT" file 
 that ships with Quartz.
 
-# Miscellaneous Questions</title>
+# Miscellaneous Questions
 
 ## How many jobs is Quartz capable of running?
 
