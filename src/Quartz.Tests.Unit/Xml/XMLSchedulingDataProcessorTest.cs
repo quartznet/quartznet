@@ -81,7 +81,7 @@ namespace Quartz.Tests.Unit.Xml
 #if TRANSACTIONS
             scope?.Dispose();
 #endif
-        }
+            }
 
 #if FAKE_IT_EASY
         [Test]
@@ -142,10 +142,10 @@ namespace Quartz.Tests.Unit.Xml
             {
                 ITrigger argumentTrigger = (ITrigger) args[1];
 
-                // replacement trigger should have same start time and next fire relative to old trigger's last fire time 
-                Assert.That(argumentTrigger, Is.Not.Null);
-                Assert.That(argumentTrigger.StartTimeUtc, Is.EqualTo(startTime));
-                Assert.That(argumentTrigger.GetNextFireTimeUtc(), Is.EqualTo(previousFireTime.AddSeconds(10)));
+            // replacement trigger should have same start time and next fire relative to old trigger's last fire time 
+            Assert.That(argumentTrigger, Is.Not.Null);
+            Assert.That(argumentTrigger.StartTimeUtc, Is.EqualTo(startTime));
+            Assert.That(argumentTrigger.GetNextFireTimeUtc(), Is.EqualTo(previousFireTime.AddSeconds(10)));
                 return true;
             }).MustHaveHappened();
         }

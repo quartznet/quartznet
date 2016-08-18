@@ -145,6 +145,9 @@
     <None Include="Serialized\HolidayCalendar_10.ser">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Include="Serialized\HolidayCalendar_23.ser">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Include="Serialized\JobDataMap_10.ser">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
