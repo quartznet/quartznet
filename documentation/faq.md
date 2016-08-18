@@ -137,11 +137,11 @@ confident that they can get the performance out of Quartz that they need.
 
 # Questions About Jobs
 
-## How can I control the instantiation of Jobs?</title>
+## How can I control the instantiation of Jobs?
 
 See Quartz.Spi.IJobFactory and the Quartz.IScheduler.JobFactory property.
 
-## How do I keep a Job from being removed after it completes?</title>
+## How do I keep a Job from being removed after it completes?
 
 Set the property JobDetail.Durable = true - which instructs Quartz not to 
 delete the Job when it becomes an "orphan" (when the Job not longer has a 
