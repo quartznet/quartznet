@@ -2,6 +2,24 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://www.quartz-scheduler.net
 
+Release 2.4, Aug 18, 2016
+--------------------------------
+
+Only minor changes and fixes but dependency updates which merits for a minor version upgrade.
+This version changes HolidayCalendar serialization not to depend on C5 library.
+Quartz v3 can only handle HolidayCalendars serialized in this 2.4 binary format.
+
+NEW FEATURE
+
+* Add SQL limit support for MySQLDelegate
+* Removed dbFailureRetryInterval since it is no longer used 
+* Update Common Logging to v3.3.1 
+
+FIXES
+
+* Batch acquisition can cause early firing of triggers
+* Should not rely on C5.TreeSet<T> on HolidayCalendar field serialization
+
 Release 2.3.3, Jul 9, 2015
 --------------------------------
 
