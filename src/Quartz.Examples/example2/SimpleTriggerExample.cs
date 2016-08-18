@@ -1,36 +1,34 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
 
 using System;
-using System.Collections.Specialized;
 using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Logging;
-
 using Quartz.Impl;
 
 namespace Quartz.Examples.Example2
 {
-    /// <summary> 
+    /// <summary>
     /// This example will demonstrate all of the basics of scheduling capabilities
     /// of Quartz using Simple Triggers.
     /// </summary>
@@ -38,23 +36,14 @@ namespace Quartz.Examples.Example2
     /// <author>Marko Lahma (.NET)</author>
     public class SimpleTriggerExample : IExample
     {
-        public string Name
-        {
-            get { return GetType().Name; }
-        }
-
         public virtual async Task Run()
         {
-            ILog log = LogProvider.GetLogger(typeof (SimpleTriggerExample));
+            ILog log = LogProvider.GetLogger(typeof(SimpleTriggerExample));
 
             log.Info("------- Initializing -------------------");
 
             // First we must get a reference to a scheduler
-            var properties = new NameValueCollection
-            {
-                ["quartz.serializer.type"] = "json"
-            };
-            ISchedulerFactory sf = new StdSchedulerFactory(properties);
+            ISchedulerFactory sf = new StdSchedulerFactory();
             IScheduler sched = await sf.GetScheduler();
 
             log.Info("------- Initialization Complete --------");
@@ -233,7 +222,7 @@ namespace Quartz.Examples.Example2
             {
             }
 
-            // jobs can be re-scheduled...  
+            // jobs can be re-scheduled...
             // job 7 will run immediately and repeat 10 times for every second
             log.Info("------- Rescheduling... --------------------");
             trigger = (ISimpleTrigger) TriggerBuilder.Create()

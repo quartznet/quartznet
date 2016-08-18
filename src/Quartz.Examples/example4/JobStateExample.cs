@@ -1,26 +1,25 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
 
 using System;
-using System.Collections.Specialized;
 using System.Threading.Tasks;
 
 using Quartz.Impl;
@@ -28,31 +27,22 @@ using Quartz.Logging;
 
 namespace Quartz.Examples.Example4
 {
-    /// <summary> 
-    /// This example will demonstrate how job parameters can be 
+    /// <summary>
+    /// This example will demonstrate how job parameters can be
     /// passed into jobs and how state can be maintained.
     /// </summary>
     /// <author>Bill Kratzer</author>
     /// <author>Marko Lahma (.NET)</author>
     public class JobStateExample : IExample
     {
-        public string Name
-        {
-            get { return GetType().Name; }
-        }
-
         public virtual async Task Run()
         {
-            ILog log = LogProvider.GetLogger(typeof (JobStateExample));
+            ILog log = LogProvider.GetLogger(typeof(JobStateExample));
 
             log.Info("------- Initializing -------------------");
 
             // First we must get a reference to a scheduler
-            var properties = new NameValueCollection
-            {
-                ["quartz.serializer.type"] = "json"
-            };
-            ISchedulerFactory sf = new StdSchedulerFactory(properties);
+            ISchedulerFactory sf = new StdSchedulerFactory();
             IScheduler sched = await sf.GetScheduler();
 
             log.Info("------- Initialization Complete --------");

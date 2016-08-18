@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -28,10 +28,10 @@ using Quartz.Logging;
 
 namespace Quartz.Examples.Example5
 {
-    /// <summary> 
-    /// Demonstrates the behavior of <see cref="PersistJobDataAfterExecutionAttribute" />, 
+    /// <summary>
+    /// Demonstrates the behavior of <see cref="PersistJobDataAfterExecutionAttribute" />,
     /// as well as how misfire instructions affect the firings of triggers of
-    /// that have <see cref="DisallowConcurrentExecutionAttribute" /> present - 
+    /// that have <see cref="DisallowConcurrentExecutionAttribute" /> present -
     /// when the jobs take longer to execute that the frequency of the trigger's
     /// repetition.
     /// </summary>
@@ -55,11 +55,6 @@ namespace Quartz.Examples.Example5
     /// <author>Marko Lahma (.NET)</author>
     public class MisfireExample : IExample
     {
-        public string Name
-        {
-            get { throw new NotImplementedException(); }
-        }
-
         public virtual async Task Run()
         {
             ILog log = LogProvider.GetLogger(typeof (MisfireExample));
@@ -67,11 +62,7 @@ namespace Quartz.Examples.Example5
             log.Info("------- Initializing -------------------");
 
             // First we must get a reference to a scheduler
-            var properties = new NameValueCollection
-            {
-                ["quartz.serializer.type"] = "json"
-            };
-            ISchedulerFactory sf = new StdSchedulerFactory(properties);
+            ISchedulerFactory sf = new StdSchedulerFactory();
             IScheduler sched = await sf.GetScheduler();
 
             log.Info("------- Initialization Complete -----------");

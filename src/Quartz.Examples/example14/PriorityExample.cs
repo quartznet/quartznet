@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -34,11 +34,9 @@ namespace Quartz.Examples.Example14
     /// <author>Marko Lahma (.NET)</author>
     public class PriorityExample : IExample
     {
-        public string Name => GetType().Name;
-
         public async Task Run()
         {
-            ILog log = LogProvider.GetLogger(typeof (PriorityExample));
+            ILog log = LogProvider.GetLogger(typeof(PriorityExample));
 
             log.Info("------- Initializing ----------------------");
 
@@ -46,12 +44,11 @@ namespace Quartz.Examples.Example14
             NameValueCollection properties = new NameValueCollection
             {
                 ["quartz.scheduler.instanceName"] = "PriorityExampleScheduler",
-                // Set thread count to 1 to force Triggers scheduled for the same time to 
+                // Set thread count to 1 to force Triggers scheduled for the same time to
                 // to be ordered by priority.
                 ["quartz.threadPool.threadCount"] = "1",
                 ["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz",
-                ["quartz.jobStore.type"] = "Quartz.Simpl.RAMJobStore, Quartz",
-                ["quartz.serializer.type"] = "json"
+                ["quartz.jobStore.type"] = "Quartz.Simpl.RAMJobStore, Quartz"
             };
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
             IScheduler sched = await sf.GetScheduler();
@@ -64,8 +61,8 @@ namespace Quartz.Examples.Example14
                 .WithIdentity("TriggerEchoJob")
                 .Build();
 
-            // All three triggers will fire their first time at the same time, 
-            // ordered by their priority, and then repeat once, firing in a 
+            // All three triggers will fire their first time at the same time,
+            // ordered by their priority, and then repeat once, firing in a
             // staggered order that therefore ignores priority.
             //
             // We should see the following firing order:
@@ -110,12 +107,12 @@ namespace Quartz.Examples.Example14
             await sched.ScheduleJob(trigger2);
             await sched.ScheduleJob(trigger3);
 
-            // Start up the scheduler (nothing can actually run until the 
+            // Start up the scheduler (nothing can actually run until the
             // scheduler has been started)
             await sched.Start();
             log.Info("------- Started Scheduler -----------------");
 
-            // wait long enough so that the scheduler as an opportunity to 
+            // wait long enough so that the scheduler as an opportunity to
             // fire the triggers
             log.Info("------- Waiting 30 seconds... -------------");
 

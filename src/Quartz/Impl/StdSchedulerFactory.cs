@@ -647,7 +647,8 @@ Please add configuration to your application config file to correctly initialize
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
             IObjectSerializer objectSerializer = null;
-            string objectSerializerType = cfg.GetStringProperty("quartz.serializer.type");
+            string serializerTypeKey = "quartz.serializer.type";
+            string objectSerializerType = cfg.GetStringProperty(serializerTypeKey);
             if (objectSerializerType != null)
             {
                 // some aliases
@@ -681,17 +682,18 @@ Please add configuration to your application config file to correctly initialize
                     throw initException;
                 }
             }
-            else if (jsType != typeof(RAMJobStore))
+            else if (js.GetType() != typeof(RAMJobStore))
             {
                 // when we know for sure that job store does not need serialization we can be a bit more relaxed
                 // otherwise it's an error to not define the serialization strategy
-                initException = new SchedulerException("Must define object serializer");
+                initException = new SchedulerException($"You must define object serializer using configuration key '{serializerTypeKey}' when using other than RAMJobStore. " +
+                    "Out of the box supported values are 'json' and 'binary'. JSON doesn't suffer from versioning as much as binary serialization but you cannot use it if you already have binary serialized data.");
                 throw initException;
             }
 
             SchedulerDetailsSetter.SetDetails(js, schedName, schedInstId);
 
-            tProps = cfg.GetPropertyGroup(PropertyJobStorePrefix, true, new string[] {PropertyJobStoreLockHandlerPrefix});
+            tProps = cfg.GetPropertyGroup(PropertyJobStorePrefix, true, new[] {PropertyJobStoreLockHandlerPrefix});
 
             try
             {
@@ -713,7 +715,7 @@ Please add configuration to your application config file to correctly initialize
                     try
                     {
                         ISemaphore lockHandler;
-                        ConstructorInfo cWithDbProvider = lockHandlerType.GetConstructor(new Type[] {typeof(DbProvider)});
+                        ConstructorInfo cWithDbProvider = lockHandlerType.GetConstructor(new[] {typeof(DbProvider)});
 
                         if (cWithDbProvider != null)
                         {

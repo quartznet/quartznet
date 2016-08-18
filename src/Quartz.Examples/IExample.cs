@@ -29,8 +29,6 @@ namespace Quartz.Examples
     /// <author>Marko Lahma (.NET)</author>
     public interface IExample
     {
-        string Name { get; }
-
         Task Run();
     }
 }

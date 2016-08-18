@@ -19,7 +19,8 @@
 
 #endregion
 
-using System;
+#if REMOTING
+ using System;
 using System.Collections.Specialized;
 using System.Threading.Tasks;
 using Quartz.Impl;
@@ -31,8 +32,6 @@ namespace Quartz.Examples.Example12
     /// <author>Marko Lahma (.NET)</author>
     public class RemoteServerExample : IExample
     {
-        public string Name => GetType().Name;
-
         /// <summary>
         /// This example will start a server that will allow clients to remotely schedule jobs.
         /// </summary>
@@ -87,3 +86,4 @@ namespace Quartz.Examples.Example12
         }
     }
 }
+ #endif

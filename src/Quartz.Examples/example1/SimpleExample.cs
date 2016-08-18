@@ -1,26 +1,25 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
 
 using System;
-using System.Collections.Specialized;
 using System.Threading.Tasks;
 
 using Quartz.Impl;
@@ -28,19 +27,14 @@ using Quartz.Logging;
 
 namespace Quartz.Examples.Example1
 {
-    /// <summary> 
-    /// This Example will demonstrate how to start and shutdown the Quartz 
+    /// <summary>
+    /// This Example will demonstrate how to start and shutdown the Quartz
     /// scheduler and how to schedule a job to run in Quartz.
     /// </summary>
     /// <author>Bill Kratzer</author>
     /// <author>Marko Lahma (.NET)</author>
     public class SimpleExample : IExample
     {
-        public string Name
-        {
-            get { throw new NotImplementedException(); }
-        }
-
         public virtual async Task Run()
         {
             ILog log = LogProvider.GetLogger(typeof (SimpleExample));
@@ -48,11 +42,7 @@ namespace Quartz.Examples.Example1
             log.Info("------- Initializing ----------------------");
 
             // First we must get a reference to a scheduler
-            var properties = new NameValueCollection
-            {
-                ["quartz.serializer.type"] = "json"
-            };
-            ISchedulerFactory sf = new StdSchedulerFactory(properties);
+            ISchedulerFactory sf = new StdSchedulerFactory();
             IScheduler sched = await sf.GetScheduler();
 
             log.Info("------- Initialization Complete -----------");
@@ -78,12 +68,12 @@ namespace Quartz.Examples.Example1
             await sched.ScheduleJob(job, trigger);
             log.Info($"{job.Key} will run at: {runTime.ToString("r")}");
 
-            // Start up the scheduler (nothing can actually run until the 
+            // Start up the scheduler (nothing can actually run until the
             // scheduler has been started)
             await sched.Start();
             log.Info("------- Started Scheduler -----------------");
 
-            // wait long enough so that the scheduler as an opportunity to 
+            // wait long enough so that the scheduler as an opportunity to
             // run the job!
             log.Info("------- Waiting 65 seconds... -------------");
 

@@ -17,7 +17,7 @@ namespace Quartz.Collection
         {
             if (internalSet == null)
             {
-                throw new ArgumentNullException("internalSet");
+                throw new ArgumentNullException(nameof(internalSet));
             }
 
             this.internalSet = internalSet;
@@ -98,15 +98,9 @@ namespace Quartz.Collection
             internalSet.CopyTo(array, arrayIndex);
         }
 
-        public int Count
-        {
-            get { return internalSet.Count; }
-        }
+        public int Count => internalSet.Count;
 
-        public bool IsReadOnly
-        {
-            get { return true; }
-        }
+        public bool IsReadOnly => true;
 
         public bool Remove(T item)
         {

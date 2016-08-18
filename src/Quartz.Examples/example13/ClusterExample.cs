@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -28,39 +28,39 @@ using Quartz.Logging;
 
 namespace Quartz.Examples.Example13
 {
-    /// <summary> 
+    /// <summary>
     /// Used to test/show the clustering features of AdoJobStore.
     /// </summary>
     /// <remarks>
-    /// 
+    ///
     /// <para>
     /// All instances MUST use a different properties file, because their instance
     /// Ids must be different, however all other properties should be the same.
     /// </para>
-    /// 
+    ///
     /// <para>
     /// If you want it to clear out existing jobs & triggers, pass a command-line
     /// argument called "clearJobs".
     /// </para>
-    /// 
+    ///
     /// <para>
     /// You should probably start with a "fresh" set of tables (assuming you may
     /// have some data lingering in it from other tests), since mixing data from a
     /// non-clustered setup with a clustered one can be bad.
     /// </para>
-    /// 
+    ///
     /// <para>
     /// Try killing one of the cluster instances while they are running, and see
     /// that the remaining instance(s) recover the in-progress jobs. Note that
     /// detection of the failure may take up to 15 or so seconds with the default
     /// settings.
     /// </para>
-    /// 
+    ///
     /// <para>
     /// Also try running it with/without the shutdown-hook plugin registered with
     /// the scheduler. (quartz.plugins.management.ShutdownHookPlugin).
     /// </para>
-    /// 
+    ///
     /// <para>
     /// <i>Note:</i> Never run clustering on separate machines, unless their
     /// clocks are synchronized using some form of time-sync service (daemon).
@@ -71,8 +71,6 @@ namespace Quartz.Examples.Example13
     public class ClusterExample : IExample
     {
         private static readonly ILog log = LogProvider.GetLogger(typeof (ClusterExample));
-
-        public string Name => GetType().Name;
 
         public virtual async Task Run(bool inClearJobs, bool inScheduleJobs)
         {

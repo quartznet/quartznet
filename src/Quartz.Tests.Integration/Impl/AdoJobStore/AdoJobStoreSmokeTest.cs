@@ -17,7 +17,6 @@ using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Simpl;
 using Quartz.Spi;
-using Quartz.Util;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore
 {
@@ -139,7 +138,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 #endif
             };
         }
-
 
         private Task RunAdoJobStoreTest(string dbProvider, string connectionStringId, string serializerType)
         {
@@ -531,57 +529,11 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
     }
 
-    internal class DummyTriggerListener : ITriggerListener
-    {
-        public string Name => GetType().FullName;
-
-        public Task TriggerFired(ITrigger trigger, IJobExecutionContext context)
-        {
-            return TaskUtil.CompletedTask;
-        }
-
-        public Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context)
-        {
-            return Task.FromResult(false);
-        }
-
-        public Task TriggerMisfired(ITrigger trigger)
-        {
-            return TaskUtil.CompletedTask;
-        }
-
-        public Task TriggerComplete(ITrigger trigger, IJobExecutionContext context,
-            SchedulerInstruction triggerInstructionCode)
-        {
-            return TaskUtil.CompletedTask;
-        }
-    }
-
-    internal class DummyJobListener : IJobListener
-    {
-        public string Name => GetType().FullName;
-
-        public Task JobToBeExecuted(IJobExecutionContext context)
-        {
-            return TaskUtil.CompletedTask;
-        }
-
-        public Task JobExecutionVetoed(IJobExecutionContext context)
-        {
-            return TaskUtil.CompletedTask;
-        }
-
-        public Task JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
-        {
-            return TaskUtil.CompletedTask;
-        }
-    }
-
     public class SimpleRecoveryJob : IJob
     {
         private const string Count = "count";
 
-        /// <summary> 
+        /// <summary>
         /// Called by the <see cref="IScheduler" /> when a
         /// <see cref="ITrigger" /> fires that is associated with
         /// the <see cref="IJob" />.
