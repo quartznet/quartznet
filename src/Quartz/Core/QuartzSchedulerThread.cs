@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -425,7 +425,7 @@ namespace Quartz.Core
                                     continue;
                                 }
 
-                                var threadPoolRunResult = qsRsrcs.ThreadPool.RunInThread(() => shell.Run());
+                                var threadPoolRunResult = qsRsrcs.ThreadPool.RunInThread(shell.Run);
                                 if (threadPoolRunResult == false)
                                 {
                                     // this case should never happen, as it is indicative of the
@@ -501,13 +501,13 @@ namespace Quartz.Core
             // that the new time is earlier than the trigger we have acquired).
             // In either case, we only want to abandon our acquired trigger and
             // go looking for a new one if "it's worth it".  It's only worth it if
-            // the time cost incurred to abandon the trigger and acquire a new one 
+            // the time cost incurred to abandon the trigger and acquire a new one
             // is less than the time until the currently acquired trigger will fire,
             // otherwise we're just "thrashing" the job store (e.g. database).
             //
             // So the question becomes when is it "worth it"?  This will depend on
             // the job store implementation (and of course the particular database
-            // or whatever behind it).  Ideally we would depend on the job store 
+            // or whatever behind it).  Ideally we would depend on the job store
             // implementation to tell us the amount of time in which it "thinks"
             // it can abandon the acquired trigger and acquire a new one.  However
             // we have no current facility for having it tell us that, so we make
