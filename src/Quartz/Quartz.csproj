@@ -226,9 +226,6 @@
     <Compile Include="ISchedulerListener.cs">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="IStatefulJob.cs">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="ITriggerListener.cs">
       <SubType>Code</SubType>
     </Compile>

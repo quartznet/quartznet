@@ -2,6 +2,14 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://www.quartz-scheduler.net
 
+Release 3.0 alpha 2, xxx x 2016
+--------------------------------
+
+BREAKING CHANGES
+
+* IStatefulJob was removed, been obsolete since 2.x
+
+
 Release 3.0 alpha 1, Aug 16 2016
 --------------------------------
 
