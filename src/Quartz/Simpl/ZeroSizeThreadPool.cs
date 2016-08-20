@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -66,7 +66,7 @@ namespace Quartz.Simpl
         public int AvailableThreadCount => 0;
 
         /// <summary>
-        /// Inform the <see cref="IThreadPool" /> of the Scheduler instance's Id, 
+        /// Inform the <see cref="IThreadPool" /> of the Scheduler instance's Id,
         /// prior to initialize being invoked.
         /// </summary>
         public virtual string InstanceId
@@ -75,7 +75,7 @@ namespace Quartz.Simpl
         }
 
         /// <summary>
-        /// Inform the <see cref="IThreadPool" /> of the Scheduler instance's name, 
+        /// Inform the <see cref="IThreadPool" /> of the Scheduler instance's name,
         /// prior to initialize being invoked.
         /// </summary>
         public virtual string InstanceName
@@ -103,23 +103,6 @@ namespace Quartz.Simpl
         }
 
         /// <summary>
-        /// Execute the given <see cref="Action"/> in the next
-        /// available <see cref="Thread"/>.
-        /// </summary>
-        /// <param name="runnable"></param>
-        /// <returns></returns>
-        /// <remarks>
-        /// The implementation of this interface should not throw exceptions unless
-        /// there is a serious problem (i.e. a serious misconfiguration). If there
-        /// are no available threads, rather it should either queue the Runnable, or
-        /// block until a thread is available, depending on the desired strategy.
-        /// </remarks>
-        public virtual bool RunInThread(Action runnable)
-        {
-            throw new NotSupportedException("This ThreadPool should not be used on Scheduler instances that are start()ed.");
-        }
-
-        /// <summary>
         /// Execute the given <see cref="Task" /> in the next
         /// available <see cref="Thread" />.
         /// </summary>
@@ -137,7 +120,7 @@ namespace Quartz.Simpl
         /// <summary>
         /// Determines the number of threads that are currently available in
         /// the pool.  Useful for determining the number of times
-        /// <see cref="RunInThread(Action)"/>  can be called before returning
+        /// <see cref="RunInThread"/>  can be called before returning
         /// false.
         /// </summary>
         /// <returns>

@@ -42,7 +42,7 @@ namespace Quartz.Simpl
         }
 
         /// <summary>
-        /// Implementers should override this to provide the TaskScheduler used 
+        /// Implementers should override this to provide the TaskScheduler used
         /// by their thread pool.
         /// </summary>
         /// <remarks>
@@ -84,7 +84,7 @@ namespace Quartz.Simpl
         public virtual string InstanceId { get; set; }
 
         public virtual string InstanceName { get; set; }
-        
+
         public TaskSchedulingThreadPool() : this(DefaultMaxConcurrency) { }
 
         public TaskSchedulingThreadPool(int maxConcurrency)
@@ -96,7 +96,7 @@ namespace Quartz.Simpl
         /// Initializes the tread pool for use
         /// </summary>
         /// <remarks>
-        /// Note that after invoking this method, neither 
+        /// Note that after invoking this method, neither
         /// </remarks>
         public virtual void Initialize()
         {
@@ -130,8 +130,8 @@ namespace Quartz.Simpl
                     // calls RunInThread. This could be avoided by 'reserving' threads for callers of
                     // BlockForAvailableThreads, but that would complicate this code and nothing should
                     // break functionally if threads are used for other tasks in between BlockForAvailableThreads
-                    // being called and RunInThread being called. 
-                    // 
+                    // being called and RunInThread being called.
+                    //
                     // The window of opportunity for such a race should be very small (unless the scheduler takes
                     // a very long time to call RunInThread).
                     //
@@ -146,48 +146,6 @@ namespace Quartz.Simpl
             }
 
             return 0;
-        }
-
-        /// <summary>
-        /// Schedules an action to run (using the task scheduler) as soon as concurrency rules allow it
-        /// </summary>
-        /// <param name="runnable">The action to be executed</param>
-        /// <returns>True if the task was successfully scheduled, false otherwise</returns>
-        public bool RunInThread(Action runnable)
-        {
-            if (runnable == null || !isInitialized || shutdownCancellation.IsCancellationRequested) return false;
-
-            // Acquire the semaphore (return false if shutdown occurs while waiting)
-            try
-            {
-                concurrencySemaphore.Wait(shutdownCancellation.Token);
-            }
-            catch (OperationCanceledException)
-            {
-                return false;
-            }
-
-            var task = new Task(runnable);
-            lock (taskListLock)
-            {
-                // Now that the taskListLock is held, shutdown can't proceed,
-                // so double-check that no shutdown has started since the initial check.
-                if (shutdownCancellation.IsCancellationRequested)
-                {
-                    concurrencySemaphore.Release();
-                    return false;
-                }
-
-                // Record the task as running
-                runningTasks.Add(task);
-            }
-            // Register a callback to remove the task from the running list once it has completed
-            task.ContinueWith(RemoveTaskFromRunningList);
-
-            // Start the task using the task scheduler
-            task.Start(Scheduler);
-
-            return true;
         }
 
         /// <summary>
