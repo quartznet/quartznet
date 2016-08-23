@@ -9,6 +9,8 @@ FIXES
 
 * fix schduler signaling not working with AdoJobStore
 * thread local state removed altogether
+* quartz.serializer.type was required even though non-serializing RAMJobStore was in use
+* JSON serialization incorrectly called serialization callbacks
 
 BREAKING CHANGES
 

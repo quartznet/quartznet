@@ -38,6 +38,7 @@
     "net45": {
       "buildOptions": {
         "define": [
+          "BINARY_SERIALIZATION"
         ]
       },
       "frameworkAssemblies": {

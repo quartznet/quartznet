@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -219,7 +219,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        /// <summary> 
+        /// <summary>
         /// Select all of the triggers in a given state.
         /// </summary>
         /// <param name="conn">The DB Connection</param>
@@ -833,20 +833,21 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        private Task<IDictionary> ReadMapFromReader(DbDataReader rs, int colIndex)
+        private async Task<IDictionary> ReadMapFromReader(DbDataReader rs, int colIndex)
         {
             if (CanUseProperties)
             {
                 try
                 {
-                    return GetMapFromProperties(rs, colIndex);
+                    var properties = await GetMapFromProperties(rs, colIndex);
+                    return properties;
                 }
                 catch (InvalidCastException)
                 {
                     // old data from user error?
                     try
                     {
-                        return GetObjectFromBlob<IDictionary>(rs, colIndex);
+                        return await GetObjectFromBlob<IDictionary>(rs, colIndex);
                     }
                     catch
                     {
@@ -860,7 +861,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    return GetObjectFromBlob<IDictionary>(rs, colIndex);
+                    return await GetObjectFromBlob<IDictionary>(rs, colIndex);
                 }
                 catch (InvalidCastException)
                 {
@@ -868,7 +869,7 @@ namespace Quartz.Impl.AdoJobStore
                     try
                     {
                         // we use this then
-                        return GetMapFromProperties(rs, colIndex);
+                        return await GetMapFromProperties(rs, colIndex);
                     }
                     catch
                     {
@@ -2212,7 +2213,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Select the next trigger which will fire to fire between the two given timestamps 
+        /// Select the next trigger which will fire to fire between the two given timestamps
         /// in ascending order of fire time, and then descending by priority.
         /// </summary>
         /// <param name="conn">The conn.</param>
@@ -2742,7 +2743,7 @@ namespace Quartz.Impl.AdoJobStore
             return retValue;
         }
 
-        /// <summary> 
+        /// <summary>
         /// Convert the JobDataMap into a list of properties.
         /// </summary>
         protected virtual IDictionary ConvertFromProperty(NameValueCollection properties)
@@ -2816,7 +2817,7 @@ namespace Quartz.Impl.AdoJobStore
 
         /// <summary>
         /// This method should be overridden by any delegate subclasses that need
-        /// special handling for BLOBs for job details. 
+        /// special handling for BLOBs for job details.
         /// </summary>
         /// <param name="rs">The result set, already queued to the correct row.</param>
         /// <param name="colIndex">The column index for the BLOB.</param>
