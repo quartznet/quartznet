@@ -1,18 +1,18 @@
-/* 
- * Copyright 2001-2010 Terracotta, Inc. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * Copyright 2001-2010 Terracotta, Inc.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 using System;
@@ -33,14 +33,14 @@ using Quartz.Xml.JobSchedulingData20;
 
 namespace Quartz.Xml
 {
-    /// <summary> 
+    /// <summary>
     /// Parses an XML file that declares Jobs and their schedules (Triggers).
     /// </summary>
     /// <remarks>
     /// <para>
     /// The xml document must conform to the format defined in "job_scheduling_data_2_0.xsd"
     /// </para>
-    /// 
+    ///
     /// <para>
     /// After creating an instance of this class, you should call one of the <see cref="ProcessFile()" />
     /// functions, after which you may call the ScheduledJobs()
@@ -49,7 +49,7 @@ namespace Quartz.Xml
     /// the <see cref="ProcessFileAndScheduleJobs(Quartz.IScheduler)" /> function to do all of this
     /// in one step.
     /// </para>
-    /// 
+    ///
     /// <para>
     /// The same instance can be used again and again, with the list of defined Jobs
     /// being cleared each time you call a <see cref="ProcessFile()" /> method,
@@ -68,8 +68,6 @@ namespace Quartz.Xml
         public const string QuartzXmlFileName = "quartz_jobs.xml";
         public const string QuartzSchema = "http://quartznet.sourceforge.net/xml/job_scheduling_data_2_0.xsd";
         public const string QuartzXsdResourceName = "Quartz.Xml.job_scheduling_data_2_0.xsd";
-
-        protected const string ThreadLocalKeyScheduler = "quartz_scheduler";
 
         // pre-processing commands
         private readonly IList<string> jobGroupsToDelete = new List<string>();
@@ -100,27 +98,27 @@ namespace Quartz.Xml
         }
 
         /// <summary>
-        /// Whether the existing scheduling data (with same identifiers) will be 
-        /// overwritten. 
+        /// Whether the existing scheduling data (with same identifiers) will be
+        /// overwritten.
         /// </summary>
         /// <remarks>
-        /// If false, and <see cref="IgnoreDuplicates" /> is not false, and jobs or 
-        /// triggers with the same names already exist as those in the file, an 
+        /// If false, and <see cref="IgnoreDuplicates" /> is not false, and jobs or
+        /// triggers with the same names already exist as those in the file, an
         /// error will occur.
-        /// </remarks> 
+        /// </remarks>
         /// <seealso cref="IgnoreDuplicates" />
         public bool OverWriteExistingData { get; set; }
 
         /// <summary>
-        /// If true (and <see cref="OverWriteExistingData" /> is false) then any 
-        /// job/triggers encountered in this file that have names that already exist 
+        /// If true (and <see cref="OverWriteExistingData" /> is false) then any
+        /// job/triggers encountered in this file that have names that already exist
         /// in the scheduler will be ignored, and no error will be produced.
         /// </summary>
         /// <seealso cref="OverWriteExistingData"/>
         public bool IgnoreDuplicates { get; set; }
 
         /// <summary>
-        /// If true (and <see cref="OverWriteExistingData" /> is true) then any 
+        /// If true (and <see cref="OverWriteExistingData" /> is true) then any
         /// job/triggers encountered in this file that already exist is scheduler
         /// will be updated with start time relative to old trigger. Effectively
         /// new trigger's last fire time will be updated to old trigger's last fire time
@@ -147,7 +145,7 @@ namespace Quartz.Xml
             get { return loadedTriggers.AsReadOnly(); }
         }
 
-        /// <summary> 
+        /// <summary>
         /// Process the xml file in the default location (a file named
         /// "quartz_jobs.xml" in the current working directory).
         /// </summary>
@@ -299,7 +297,7 @@ namespace Quartz.Xml
                 log.Debug("Found " + jobGroupsToDelete.Count + " delete job group commands.");
                 log.Debug("Found " + triggerGroupsToDelete.Count + " delete trigger group commands.");
                 log.Debug("Found " + jobsToDelete.Count + " delete job commands.");
-                log.Debug("Found " + triggersToDelete.Count + " delete trigger commands.");                
+                log.Debug("Found " + triggersToDelete.Count + " delete trigger commands.");
             }
 
             //
@@ -538,7 +536,7 @@ namespace Quartz.Xml
         {
             loadedTriggers.Add(trigger);
         }
-        
+
         protected virtual int ParseSimpleTriggerRepeatCount(string repeatcount)
         {
             int value = Convert.ToInt32(repeatcount, CultureInfo.InvariantCulture);
@@ -641,7 +639,7 @@ namespace Quartz.Xml
             await ScheduleJobs(sched).ConfigureAwait(false);
         }
 
-        /// <summary> 
+        /// <summary>
         /// Process the xml file in the default location, and schedule all of the
         /// jobs defined within it.
         /// </summary>
@@ -670,17 +668,9 @@ namespace Quartz.Xml
         /// <param name="sched">The sched.</param>
         public virtual async Task ProcessFileAndScheduleJobs(string fileName, string systemId, IScheduler sched)
         {
-            LogicalThreadContext.SetData(ThreadLocalKeyScheduler, sched);
-            try
-            {
-                await ProcessFile(fileName, systemId).ConfigureAwait(false);
-                await ExecutePreProcessCommands(sched).ConfigureAwait(false);
-                await ScheduleJobs(sched).ConfigureAwait(false);
-            }
-            finally
-            {
-                LogicalThreadContext.FreeNamedDataSlot(ThreadLocalKeyScheduler);
-            }
+            await ProcessFile(fileName, systemId).ConfigureAwait(false);
+            await ExecutePreProcessCommands(sched).ConfigureAwait(false);
+            await ScheduleJobs(sched).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -691,20 +681,12 @@ namespace Quartz.Xml
         /// <param name="sched">The sched.</param>
         public virtual async Task ProcessStreamAndScheduleJobs(Stream stream, IScheduler sched)
         {
-            LogicalThreadContext.SetData(ThreadLocalKeyScheduler, sched);
-            try
+            using (var sr = new StreamReader(stream))
             {
-                using (var sr = new StreamReader(stream))
-                {
-                    ProcessInternal(await sr.ReadToEndAsync().ConfigureAwait(false));
-                }
-                await ExecutePreProcessCommands(sched).ConfigureAwait(false);
-                await ScheduleJobs(sched).ConfigureAwait(false);
+                ProcessInternal(await sr.ReadToEndAsync().ConfigureAwait(false));
             }
-            finally
-            {
-                LogicalThreadContext.FreeNamedDataSlot(ThreadLocalKeyScheduler);
-            }
+            await ExecutePreProcessCommands(sched).ConfigureAwait(false);
+            await ScheduleJobs(sched).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -892,7 +874,7 @@ namespace Quartz.Xml
                     else if (IgnoreDuplicates)
                     {
                         log.Info("Not overwriting existing trigger: " + dupeT.Key);
-                        continue; // just ignore the trigger 
+                        continue; // just ignore the trigger
                     }
                     else
                     {
@@ -1070,7 +1052,7 @@ namespace Quartz.Xml
         /// Throws a ValidationException if the number of validationExceptions
         /// detected is greater than zero.
         /// </summary>
-        /// <exception cref="ValidationException"> 
+        /// <exception cref="ValidationException">
         /// DTD validation exception.
         /// </exception>
         protected virtual void MaybeThrowValidationException()

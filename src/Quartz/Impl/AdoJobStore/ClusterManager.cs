@@ -9,7 +9,10 @@ namespace Quartz.Impl.AdoJobStore
 {
     internal class ClusterManager
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof (ClusterManager));
+        private static readonly ILog log = LogProvider.GetLogger(typeof(ClusterManager));
+        // keep constant lock requestor id for manager's lifetime
+        private readonly Guid requestorId = Guid.NewGuid();
+
         private readonly JobStoreSupport jobStoreSupport;
 
         private QueuedTaskScheduler taskScheduler;
@@ -51,7 +54,7 @@ namespace Quartz.Impl.AdoJobStore
             bool res = false;
             try
             {
-                res = await jobStoreSupport.DoCheckin().ConfigureAwait(false);
+                res = await jobStoreSupport.DoCheckin(requestorId).ConfigureAwait(false);
 
                 numFails = 0;
                 log.Debug("Check-in complete.");

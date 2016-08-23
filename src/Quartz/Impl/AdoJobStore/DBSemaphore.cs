@@ -21,7 +21,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Impl.AdoJobStore.Common;
@@ -38,8 +37,10 @@ namespace Quartz.Impl.AdoJobStore
     /// <author>Marko Lahma (.NET)</author>
     public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAware
     {
+        private readonly object syncRoot = new object();
+        private readonly Dictionary<Guid, HashSet<string>> locks = new Dictionary<Guid, HashSet<string>>();
+
         private readonly ILog log;
-        private const string ThreadContextKeyLockOwners = "qrtz_dbs_lck_owners";
         private string sql;
         private string insertSql;
 
@@ -49,8 +50,6 @@ namespace Quartz.Impl.AdoJobStore
 
         private string expandedSQL;
         private string expandedInsertSQL;
-
-        private readonly AdoUtil adoUtil;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DBSemaphore"/> class.
@@ -67,78 +66,57 @@ namespace Quartz.Impl.AdoJobStore
             this.tablePrefix = tablePrefix;
             SQL = defaultSQL;
             InsertSQL = defaultInsertSQL;
-            adoUtil = new AdoUtil(dbProvider);
-        }
-
-        /// <summary>
-        /// Gets or sets the lock owners.
-        /// </summary>
-        /// <value>The lock owners.</value>
-        private static HashSet<string> LockOwners
-        {
-            get { return LogicalThreadContext.GetData<HashSet<string>>(ThreadContextKeyLockOwners); }
-            set { LogicalThreadContext.SetData(ThreadContextKeyLockOwners, value); }
+            AdoUtil = new AdoUtil(dbProvider);
         }
 
         /// <summary>
         /// Gets the log.
         /// </summary>
         /// <value>The log.</value>
-        protected ILog Log
-        {
-            get { return log; }
-        }
-
-        private static HashSet<string> ThreadLocks
-        {
-            get
-            {
-                if (LockOwners == null)
-                {
-                    LockOwners = new HashSet<string>();
-                }
-                return LockOwners;
-            }
-        }
+        protected ILog Log => log;
 
         /// <summary>
         /// Execute the SQL that will lock the proper database row.
         /// </summary>
-        /// <param name="conn"></param>
-        /// <param name="lockName"></param>
-        /// <param name="expandedSql"></param>
-        /// <param name="expandedInsertSql"></param>
-        protected abstract Task ExecuteSQL(ConnectionAndTransactionHolder conn, string lockName, string expandedSql, string expandedInsertSql);
+        protected abstract Task ExecuteSQL(Guid requestorId, ConnectionAndTransactionHolder conn, string lockName, string expandedSql, string expandedInsertSql);
 
         /// <summary>
         /// Grants a lock on the identified resource to the calling thread (blocking
         /// until it is available).
         /// </summary>
-        /// <param name="metadata"></param>
+        /// <param name="requestorId"></param>
         /// <param name="conn"></param>
         /// <param name="lockName"></param>
         /// <returns>true if the lock was obtained.</returns>
-        public async Task<bool> ObtainLock(DbMetadata metadata, ConnectionAndTransactionHolder conn, string lockName)
+        public async Task<bool> ObtainLock(Guid requestorId, ConnectionAndTransactionHolder conn, string lockName)
         {
             if (log.IsDebugEnabled())
             {
-                Log.DebugFormat("Lock '{0}' is desired by: {1}", lockName, Thread.CurrentThread.Name);
+                Log.DebugFormat("Lock '{0}' is desired by: {1}", lockName, requestorId);
             }
-            if (!IsLockOwner(lockName))
+            if (!IsLockOwner(requestorId, lockName))
             {
-                await ExecuteSQL(conn, lockName, expandedSQL, expandedInsertSQL).ConfigureAwait(false);
+                await ExecuteSQL(requestorId, conn, lockName, expandedSQL, expandedInsertSQL).ConfigureAwait(false);
 
                 if (log.IsDebugEnabled())
                 {
-                    Log.DebugFormat("Lock '{0}' given to: {1}", lockName, Thread.CurrentThread.Name);
+                    Log.DebugFormat("Lock '{0}' given to: {1}", lockName, requestorId);
                 }
-                ThreadLocks.Add(lockName);
-                //getThreadLocksObtainer().put(lockName, new
-                // Exception("Obtainer..."));
+
+                lock (syncRoot)
+                {
+                    HashSet<string> requestorLocks;
+                    if (!locks.TryGetValue(requestorId, out requestorLocks))
+                    {
+                        requestorLocks = new HashSet<string>();
+                        locks[requestorId] = requestorLocks;
+                    }
+                    requestorLocks.Add(lockName);
+                }
             }
             else if (log.IsDebugEnabled())
             {
-                Log.DebugFormat("Lock '{0}' Is already owned by: {1}", lockName, Thread.CurrentThread.Name);
+                Log.DebugFormat("Lock '{0}' Is already owned by: {1}", lockName, requestorId);
             }
 
             return true;
@@ -148,21 +126,32 @@ namespace Quartz.Impl.AdoJobStore
         /// Release the lock on the identified resource if it is held by the calling
         /// thread.
         /// </summary>
+        /// <param name="requestorId"></param>
         /// <param name="lockName"></param>
-        public Task ReleaseLock(string lockName)
+        public Task ReleaseLock(Guid requestorId, string lockName)
         {
-            if (IsLockOwner(lockName))
+            if (IsLockOwner(requestorId, lockName))
             {
+                lock (syncRoot)
+                {
+                    HashSet<string> requestorLocks;
+                    if (locks.TryGetValue(requestorId, out requestorLocks))
+                    {
+                        requestorLocks.Remove(lockName);
+                        if (requestorLocks.Count == 0)
+                        {
+                            locks.Remove(requestorId);
+                        }
+                    }
+                }
                 if (log.IsDebugEnabled())
                 {
-                    Log.DebugFormat("Lock '{0}' returned by: {1}", lockName, Thread.CurrentThread.Name);
+                    Log.DebugFormat("Lock '{0}' returned by: {1}", lockName, requestorId);
                 }
-                ThreadLocks.Remove(lockName);
-                //getThreadLocksObtainer().remove(lockName);
             }
-            else if (log.IsDebugEnabled())
+            else if (log.IsWarnEnabled())
             {
-                log.DebugException($"Lock '{lockName}' attempt to return by: {Thread.CurrentThread.Name} -- but not owner!",
+                log.WarnException($"Lock '{lockName}' attempt to return by: {requestorId} -- but not owner!",
                     new Exception("stack-trace of wrongful returner"));
             }
 
@@ -173,20 +162,19 @@ namespace Quartz.Impl.AdoJobStore
         /// Determine whether the calling thread owns a lock on the identified
         /// resource.
         /// </summary>
-        /// <param name="lockName"></param>
-        /// <returns></returns>
-        public bool IsLockOwner(string lockName)
+        private bool IsLockOwner(Guid requestorId, string lockName)
         {
-            return ThreadLocks.Contains(lockName);
+            lock (syncRoot)
+            {
+                HashSet<string> requestorLocks;
+                return locks.TryGetValue(requestorId, out requestorLocks) && requestorLocks.Contains(lockName);
+            }
         }
 
         /// <summary>
         /// This Semaphore implementation does use the database.
         /// </summary>
-        public bool RequiresConnection
-        {
-            get { return true; }
-        }
+        public bool RequiresConnection => true;
 
         protected string SQL
         {
@@ -261,9 +249,6 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        protected AdoUtil AdoUtil
-        {
-            get { return adoUtil; }
-        }
+        protected AdoUtil AdoUtil { get; }
     }
 }

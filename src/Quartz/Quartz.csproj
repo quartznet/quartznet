@@ -430,7 +430,6 @@
     <Compile Include="SPI\ISchedulerExporter.cs" />
     <Compile Include="TriggerState.cs" />
     <Compile Include="Util\FileUtil.cs" />
-    <Compile Include="Util\LogicalThreadContext.cs" />
     <Compile Include="Util\StringKeyDirtyFlagMap.cs" />
     <Compile Include="Util\TaskUtil.cs" />
     <Compile Include="Util\TimeZoneUtil.cs" />

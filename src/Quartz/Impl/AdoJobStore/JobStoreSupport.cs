@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -88,7 +88,7 @@ namespace Quartz.Impl.AdoJobStore
             delegateType = typeof (StdAdoDelegate);
         }
 
-        /// <summary> 
+        /// <summary>
         /// Get or set the datasource name.
         /// </summary>
         public virtual string DataSource
@@ -97,7 +97,7 @@ namespace Quartz.Impl.AdoJobStore
             set { dataSource = value; }
         }
 
-        /// <summary> 
+        /// <summary>
         /// Get or set the database connection manager.
         /// </summary>
         public virtual IDbConnectionManager ConnectionManager
@@ -115,7 +115,7 @@ namespace Quartz.Impl.AdoJobStore
             get { return log; }
         }
 
-        /// <summary> 
+        /// <summary>
         /// Get or sets the prefix that should be pre-pended to all table names.
         /// </summary>
         public virtual string TablePrefix
@@ -181,7 +181,7 @@ namespace Quartz.Impl.AdoJobStore
 
         public virtual long EstimatedTimeToReleaseAndAcquireTrigger { get; } = 70;
 
-        /// <summary> 
+        /// <summary>
         /// Get or set whether this instance is part of a cluster.
         /// </summary>
         public virtual bool Clustered { get; set; }
@@ -214,21 +214,21 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         public virtual bool UseDBLocks { get; set; }
 
-        /// <summary> 
-        /// Whether or not to obtain locks when inserting new jobs/triggers.  
+        /// <summary>
+        /// Whether or not to obtain locks when inserting new jobs/triggers.
         /// </summary>
         /// <remarks>
         /// <para>
-        /// Defaults to <see langword="true" />, which is safest - some db's (such as 
+        /// Defaults to <see langword="true" />, which is safest - some db's (such as
         /// MS SQLServer) seem to require this to avoid deadlocks under high load,
-        /// while others seem to do fine without.  Settings this to false means 
+        /// while others seem to do fine without.  Settings this to false means
         /// isolation guarantees between job scheduling and trigger acquisition are
         /// entirely enforced by the database.  Depending on the database and it's
         /// configuration this may cause unusual scheduling behaviors.
         /// </para>
         /// <para>
-        /// Setting this property to <see langword="false" /> will provide a 
-        /// significant performance increase during the addition of new jobs 
+        /// Setting this property to <see langword="false" /> will provide a
+        /// significant performance increase during the addition of new jobs
         /// and triggers.
         /// </para>
         /// </remarks>
@@ -238,7 +238,7 @@ namespace Quartz.Impl.AdoJobStore
             set { lockOnInsert = value; }
         }
 
-        /// <summary> 
+        /// <summary>
         /// The time span by which a trigger must have missed its
         /// next-fire-time, in order for it to be considered "misfired" and thus
         /// have its misfire instruction applied.
@@ -257,32 +257,32 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        /// <summary> 
+        /// <summary>
         /// Don't call set autocommit(false) on connections obtained from the
         /// DataSource. This can be helpful in a few situations, such as if you
         /// have a driver that complains if it is called when it is already off.
         /// </summary>
         public virtual bool DontSetAutoCommitFalse { get; set; }
 
-        /// <summary> 
+        /// <summary>
         /// Set the transaction isolation level of DB connections to sequential.
         /// </summary>
         public virtual bool TxIsolationLevelSerializable { get; set; }
 
         /// <summary>
         /// Whether or not the query and update to acquire a Trigger for firing
-        /// should be performed after obtaining an explicit DB lock (to avoid 
+        /// should be performed after obtaining an explicit DB lock (to avoid
         /// possible race conditions on the trigger's db row).  This is
         /// is considered unnecessary for most databases (due to the nature of
         ///  the SQL update that is performed), and therefore a superfluous performance hit.
         /// </summary>
         /// <remarks>
-        /// However, if batch acquisition is used, it is important for this behavior 
+        /// However, if batch acquisition is used, it is important for this behavior
         /// to be used for all dbs.
         /// </remarks>
         public bool AcquireTriggersWithinLock { get; set; }
 
-        /// <summary> 
+        /// <summary>
         /// Get or set the ADO.NET driver delegate class name.
         /// </summary>
         public virtual string DriverDelegateType
@@ -316,7 +316,7 @@ namespace Quartz.Impl.AdoJobStore
 
         /// <summary>
         /// Get whether the threads spawned by this JobStore should be
-        /// marked as daemon.  Possible threads include the <see cref="MisfireHandler" /> 
+        /// marked as daemon.  Possible threads include the <see cref="MisfireHandler" />
         /// and the <see cref="ClusterManager"/>.
         /// </summary>
         /// <returns></returns>
@@ -324,7 +324,7 @@ namespace Quartz.Impl.AdoJobStore
 
         /// <summary>
         /// Get whether to check to see if there are Triggers that have misfired
-        /// before actually acquiring the lock to recover them.  This should be 
+        /// before actually acquiring the lock to recover them.  This should be
         /// set to false if the majority of the time, there are misfired
         /// Triggers.
         /// </summary>
@@ -479,11 +479,11 @@ namespace Quartz.Impl.AdoJobStore
             typeLoadHelper = loadHelper;
             schedSignaler = s;
 
-            // If the user hasn't specified an explicit lock handler, then 
+            // If the user hasn't specified an explicit lock handler, then
             // choose one based on CMT/Clustered/UseDBLocks.
             if (LockHandler == null)
             {
-                // If the user hasn't specified an explicit lock handler, 
+                // If the user hasn't specified an explicit lock handler,
                 // then we *must* use DB locks with clustering
                 if (Clustered)
                 {
@@ -608,13 +608,13 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns></returns>
         public virtual bool SupportsPersistence => true;
 
-        protected virtual async Task ReleaseLock(string lockName, bool doIt)
+        protected virtual async Task ReleaseLock(Guid requestorId, string lockName, bool doIt)
         {
             if (doIt)
             {
                 try
                 {
-                    await LockHandler.ReleaseLock(lockName).ConfigureAwait(false);
+                    await LockHandler.ReleaseLock(requestorId, lockName).ConfigureAwait(false);
                 }
                 catch (LockException le)
                 {
@@ -704,8 +704,8 @@ namespace Quartz.Impl.AdoJobStore
             IList<TriggerKey> misfiredTriggers = new List<TriggerKey>();
             DateTimeOffset earliestNewTime = DateTimeOffset.MaxValue;
 
-            // We must still look for the MISFIRED state in case triggers were left 
-            // in this state when upgrading to this version that does not support it. 
+            // We must still look for the MISFIRED state in case triggers were left
+            // in this state when upgrading to this version that does not support it.
             bool hasMoreMisfiredTriggers =
                 await Delegate.HasMisfiredTriggersInState(conn, StateWaiting, MisfireTime, maxMisfiresToHandleAtATime, misfiredTriggers).ConfigureAwait(false);
 
@@ -966,8 +966,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 if (job == null)
                 {
-                    throw new JobPersistenceException("The job (" + newTrigger.JobKey +
-                                                      ") referenced by the trigger does not exist.");
+                    throw new JobPersistenceException($"The job ({newTrigger.JobKey}) referenced by the trigger does not exist.");
                 }
                 if (job.ConcurrentExecutionDisallowed && !recovering)
                 {
@@ -1010,7 +1009,7 @@ namespace Quartz.Impl.AdoJobStore
         /// name, and any <see cref="ITrigger" /> s that reference
         /// it.
         /// </summary>
-        /// 
+        ///
         /// <remarks>
         /// If removal of the <see cref="IJob" /> results in an empty group, the
         /// group should be removed from the <see cref="IJobStore" />'s list of
@@ -1153,14 +1152,14 @@ namespace Quartz.Impl.AdoJobStore
         /// Remove (delete) the <see cref="ITrigger" /> with the
         /// given name.
         /// </summary>
-        /// 
+        ///
         /// <remarks>
         /// <para>
         /// If removal of the <see cref="ITrigger" /> results in an empty group, the
         /// group should be removed from the <see cref="IJobStore" />'s list of
         /// known group names.
         /// </para>
-        /// 
+        ///
         /// <para>
         /// If removal of the <see cref="ITrigger" /> results in an 'orphaned' <see cref="IJob" />
         /// that is not 'durable', then the <see cref="IJob" /> should be deleted
@@ -1777,7 +1776,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Get the names of all of the <see cref="IJob" />
         /// groups.
         /// </summary>
-        /// 
+        ///
         /// <remarks>
         /// If there are no known group names, the result should be a zero-length
         /// array (not <see langword="null" />).
@@ -1808,7 +1807,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Get the names of all of the <see cref="ITrigger" />
         /// groups.
         /// </summary>
-        /// 
+        ///
         /// <remarks>
         /// If there are no known group names, the result should be a zero-length
         /// array (not <see langword="null" />).
@@ -1966,8 +1965,8 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Determines if a Trigger for the given job should be blocked.  
-        /// State can only transition to StatePausedBlocked/StateBlocked from 
+        /// Determines if a Trigger for the given job should be blocked.
+        /// State can only transition to StatePausedBlocked/StateBlocked from
         /// StatePaused/StateWaiting respectively.
         /// </summary>
         /// <returns>StatePausedBlocked, StateBlocked, or the currentState. </returns>
@@ -2161,7 +2160,7 @@ namespace Quartz.Impl.AdoJobStore
             return ExecuteWithoutLock(GetPausedTriggerGroups);
         }
 
-        /// <summary> 
+        /// <summary>
         /// Pause all of the <see cref="ITrigger" />s in the
         /// given group.
         /// </summary>
@@ -2214,25 +2213,25 @@ namespace Quartz.Impl.AdoJobStore
                 * int res =
                 * getDelegate().UpdateTriggerGroupStateFromOtherState(conn,
                 * groupName, StateWaiting, StatePaused);
-                * 
+                *
                 * if(res > 0) {
-                * 
+                *
                 * long misfireTime = System.currentTimeMillis();
                 * if(getMisfireThreshold() > 0) misfireTime -=
                 * getMisfireThreshold();
-                * 
+                *
                 * Key[] misfires =
                 * getDelegate().SelectMisfiredTriggersInGroupInState(conn,
                 * groupName, StateWaiting, misfireTime);
-                * 
+                *
                 * List blockedTriggers = findTriggersToBeBlocked(conn,
                 * groupName);
-                * 
+                *
                 * Iterator itr = blockedTriggers.iterator(); while(itr.hasNext()) {
                 * Key key = (Key)itr.next();
                 * getDelegate().UpdateTriggerState(conn, key.getName(),
                 * key.getGroup(), StateBlocked); }
-                * 
+                *
                 * for(int i=0; i < misfires.length; i++) {               String
                 * newState = StateWaiting;
                 * if(blockedTriggers.contains(misfires[i])) newState =
@@ -2700,7 +2699,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     if (!trigger.GetNextFireTimeUtc().HasValue)
                     {
-                        // double check for possible reschedule within job 
+                        // double check for possible reschedule within job
                         // execution, which would cancel the need to delete...
                         TriggerStatus stat = await Delegate.SelectTriggerStatus(conn, trigger.Key).ConfigureAwait(false);
                         if (stat != null && !stat.NextFireTimeUtc.HasValue)
@@ -2711,37 +2710,37 @@ namespace Quartz.Impl.AdoJobStore
                     else
                     {
                         await RemoveTrigger(conn, trigger.Key, jobDetail).ConfigureAwait(false);
-                        SignalSchedulingChangeOnTxCompletion(SchedulerConstants.SchedulingSignalDateTime);
+                        conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
                     }
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetTriggerComplete)
                 {
                     await Delegate.UpdateTriggerState(conn, trigger.Key, StateComplete).ConfigureAwait(false);
-                    SignalSchedulingChangeOnTxCompletion(SchedulerConstants.SchedulingSignalDateTime);
+                    conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetTriggerError)
                 {
                     Log.Info("Trigger " + trigger.Key + " set to ERROR state.");
                     await Delegate.UpdateTriggerState(conn, trigger.Key, StateError).ConfigureAwait(false);
-                    SignalSchedulingChangeOnTxCompletion(SchedulerConstants.SchedulingSignalDateTime);
+                    conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersComplete)
                 {
                     await Delegate.UpdateTriggerStatesForJob(conn, trigger.JobKey, StateComplete).ConfigureAwait(false);
-                    SignalSchedulingChangeOnTxCompletion(SchedulerConstants.SchedulingSignalDateTime);
+                    conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersError)
                 {
                     Log.Info("All triggers of Job " + trigger.JobKey + " set to ERROR state.");
                     await Delegate.UpdateTriggerStatesForJob(conn, trigger.JobKey, StateError).ConfigureAwait(false);
-                    SignalSchedulingChangeOnTxCompletion(SchedulerConstants.SchedulingSignalDateTime);
+                    conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
                 }
 
                 if (jobDetail.ConcurrentExecutionDisallowed)
                 {
                     await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StateWaiting, StateBlocked).ConfigureAwait(false);
                     await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jobDetail.Key, StatePaused, StatePausedBlocked).ConfigureAwait(false);
-                    SignalSchedulingChangeOnTxCompletion(SchedulerConstants.SchedulingSignalDateTime);
+                    conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
                 }
                 if (jobDetail.PersistJobDataAfterExecution)
                 {
@@ -2781,7 +2780,7 @@ namespace Quartz.Impl.AdoJobStore
         // Management methods
         //---------------------------------------------------------------------------
 
-        protected internal async Task<RecoverMisfiredJobsResult> DoRecoverMisfires()
+        protected internal async Task<RecoverMisfiredJobsResult> DoRecoverMisfires(Guid requestorId)
         {
             bool transOwner = false;
             ConnectionAndTransactionHolder conn = GetNonManagedTXConnection();
@@ -2789,21 +2788,21 @@ namespace Quartz.Impl.AdoJobStore
             {
                 RecoverMisfiredJobsResult result = RecoverMisfiredJobsResult.NoOp;
 
-                // Before we make the potentially expensive call to acquire the 
+                // Before we make the potentially expensive call to acquire the
                 // trigger lock, peek ahead to see if it is likely we would find
                 // misfired triggers requiring recovery.
                 int misfireCount = DoubleCheckLockMisfireHandler
                     ? await Delegate.CountMisfiredTriggersInState(conn, StateWaiting, MisfireTime).ConfigureAwait(false)
                     : int.MaxValue;
 
-                if (misfireCount == 0)
+                if (log.IsDebugEnabled())
                 {
-                    Log.Debug(
-                        "Found 0 triggers that missed their scheduled fire-time.");
+                    Log.DebugFormat("Found {0} triggers that missed their scheduled fire-time.", misfireCount);
                 }
-                else
+
+                if (misfireCount > 0)
                 {
-                    transOwner = await LockHandler.ObtainLock(DbProvider.Metadata, conn, LockTriggerAccess).ConfigureAwait(false);
+                    transOwner = await LockHandler.ObtainLock(requestorId, conn, LockTriggerAccess).ConfigureAwait(false);
 
                     result = await RecoverMisfiredJobs(conn, false).ConfigureAwait(false);
                 }
@@ -2825,38 +2824,13 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    await ReleaseLock(LockTriggerAccess, transOwner).ConfigureAwait(false);
+                    await ReleaseLock(requestorId, LockTriggerAccess, transOwner).ConfigureAwait(false);
                 }
                 finally
                 {
                     CleanupConnection(conn);
                 }
             }
-        }
-
-        private const string KeySignalChangeForTxCompletion = "sigChangeForTxCompletion";
-
-        protected virtual void SignalSchedulingChangeOnTxCompletion(DateTimeOffset? candidateNewNextFireTime)
-        {
-            DateTimeOffset? sigTime = LogicalThreadContext.GetData<DateTimeOffset?>(KeySignalChangeForTxCompletion);
-            if (sigTime == null && candidateNewNextFireTime.HasValue)
-            {
-                LogicalThreadContext.SetData(KeySignalChangeForTxCompletion, candidateNewNextFireTime);
-            }
-            else
-            {
-                if (sigTime == null || candidateNewNextFireTime < sigTime)
-                {
-                    LogicalThreadContext.SetData(KeySignalChangeForTxCompletion, candidateNewNextFireTime);
-                }
-            }
-        }
-
-        protected virtual DateTimeOffset? ClearAndGetSignalSchedulingChangeOnTxCompletion()
-        {
-            DateTimeOffset? t = LogicalThreadContext.GetData<DateTimeOffset?>(KeySignalChangeForTxCompletion);
-            LogicalThreadContext.FreeNamedDataSlot(KeySignalChangeForTxCompletion);
-            return t;
         }
 
         protected internal virtual void SignalSchedulingChangeImmediately(DateTimeOffset? candidateNewNextFireTime)
@@ -2872,7 +2846,7 @@ namespace Quartz.Impl.AdoJobStore
 
         protected internal DateTimeOffset LastCheckin { get; set; } = SystemTime.UtcNow();
 
-        protected internal virtual async Task<bool> DoCheckin()
+        protected internal virtual async Task<bool> DoCheckin(Guid requestorId)
         {
             bool transOwner = false;
             bool transStateOwner = false;
@@ -2881,8 +2855,8 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn = GetNonManagedTXConnection();
             try
             {
-                // Other than the first time, always checkin first to make sure there is 
-                // work to be done before we acquire the lock (since that is expensive, 
+                // Other than the first time, always checkin first to make sure there is
+                // work to be done before we acquire the lock (since that is expensive,
                 // and is almost never necessary).  This must be done in a separate
                 // transaction to prevent a deadlock under recovery conditions.
                 IReadOnlyList<SchedulerStateRecord> failedRecords = null;
@@ -2894,16 +2868,16 @@ namespace Quartz.Impl.AdoJobStore
 
                 if (firstCheckIn || (failedRecords != null && failedRecords.Count > 0))
                 {
-                    await LockHandler.ObtainLock(DbProvider.Metadata, conn, LockStateAccess).ConfigureAwait(false);
+                    await LockHandler.ObtainLock(requestorId, conn, LockStateAccess).ConfigureAwait(false);
                     transStateOwner = true;
 
-                    // Now that we own the lock, make sure we still have work to do. 
+                    // Now that we own the lock, make sure we still have work to do.
                     // The first time through, we also need to make sure we update/create our state record
                     failedRecords = firstCheckIn ? await ClusterCheckIn(conn).ConfigureAwait(false) : await FindFailedInstances(conn).ConfigureAwait(false);
 
                     if (failedRecords.Count > 0)
                     {
-                        await LockHandler.ObtainLock(DbProvider.Metadata, conn, LockTriggerAccess).ConfigureAwait(false);
+                        await LockHandler.ObtainLock(requestorId, conn, LockTriggerAccess).ConfigureAwait(false);
                         //getLockHandler().obtainLock(conn, LockJobAccess);
                         transOwner = true;
 
@@ -2923,13 +2897,13 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    await ReleaseLock(LockTriggerAccess, transOwner).ConfigureAwait(false);
+                    await ReleaseLock(requestorId, LockTriggerAccess, transOwner).ConfigureAwait(false);
                 }
                 finally
                 {
                     try
                     {
-                        await ReleaseLock(LockStateAccess, transStateOwner).ConfigureAwait(false);
+                        await ReleaseLock(requestorId, LockStateAccess, transStateOwner).ConfigureAwait(false);
                     }
                     finally
                     {
@@ -3216,12 +3190,12 @@ namespace Quartz.Impl.AdoJobStore
         /// any modified auto commit or transaction isolation connection
         /// attributes, and then closing the underlying connection.
         /// </summary>
-        /// 
+        ///
         /// <remarks>
-        /// This is separate from closeConnection() because the Spring 
+        /// This is separate from closeConnection() because the Spring
         /// integration relies on being able to overload closeConnection() and
         /// expects the same connection back that it originally returned
-        /// from the datasource. 
+        /// from the datasource.
         /// </remarks>
         /// <seealso cref="CloseConnection(ConnectionAndTransactionHolder)" />
         protected virtual void CleanupConnection(ConnectionAndTransactionHolder conn)
@@ -3232,25 +3206,13 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        /// <summary> 
+        /// <summary>
         /// Closes the supplied connection.
         /// </summary>
         /// <param name="cth">(Optional)</param>
         protected virtual void CloseConnection(ConnectionAndTransactionHolder cth)
         {
-            if (cth.Connection != null)
-            {
-                try
-                {
-                    cth.Connection.Close();
-                }
-                catch (Exception e)
-                {
-                    Log.ErrorException(
-                        "Unexpected exception closing Connection." +
-                        "  This is often due to a Connection being returned after or during shutdown.", e);
-                }
-            }
+            cth.Close();
         }
 
         /// <summary>
@@ -3269,19 +3231,7 @@ namespace Quartz.Impl.AdoJobStore
                 log.Info("ConnectionAndTransactionHolder passed to RollbackConnection was null, ignoring");
                 return;
             }
-
-            if (cth.Transaction != null)
-            {
-                try
-                {
-                    CheckNotZombied(cth);
-                    cth.Transaction.Rollback();
-                }
-                catch (Exception e)
-                {
-                    Log.ErrorException("Couldn't rollback ADO.NET connection. " + e.Message, e);
-                }
-            }
+            cth.Rollback();
         }
 
         /// <summary>
@@ -3297,31 +3247,13 @@ namespace Quartz.Impl.AdoJobStore
                 log.Debug("ConnectionAndTransactionHolder passed to CommitConnection was null, ignoring");
                 return;
             }
-
-            if (cth.Transaction != null)
-            {
-                try
-                {
-                    CheckNotZombied(cth);
-                    IsolationLevel il = cth.Transaction.IsolationLevel;
-                    cth.Transaction.Commit();
-                    if (openNewTransaction)
-                    {
-                        // open new transaction to go with
-                        cth.Transaction = cth.Connection.BeginTransaction(il);
-                    }
-                }
-                catch (Exception e)
-                {
-                    throw new JobPersistenceException("Couldn't commit ADO.NET transaction. " + e.Message, e);
-                }
-            }
+            cth.Commit(openNewTransaction);
         }
 
         /// <summary>
-        /// Execute the given callback in a transaction. Depending on the JobStore, 
-        /// the surrounding transaction may be assumed to be already present 
-        /// (managed).  
+        /// Execute the given callback in a transaction. Depending on the JobStore,
+        /// the surrounding transaction may be assumed to be already present
+        /// (managed).
         /// </summary>
         /// <remarks>
         /// This method just forwards to ExecuteInLock() with a null lockName.
@@ -3341,14 +3273,14 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Execute the given callback having acquired the given lock.  
-        /// Depending on the JobStore, the surrounding transaction may be 
+        /// Execute the given callback having acquired the given lock.
+        /// Depending on the JobStore, the surrounding transaction may be
         /// assumed to be already present (managed).
-        /// </summary> 
+        /// </summary>
         /// <param name="lockName">
-        /// The name of the lock to acquire, for example 
+        /// The name of the lock to acquire, for example
         /// "TRIGGER_ACCESS".  If null, then no lock is acquired, but the
-        /// lockCallback is still executed in a transaction. 
+        /// lockCallback is still executed in a transaction.
         /// </param>
         /// <param name="txCallback">
         /// The callback to execute after having acquired the given lock.
@@ -3410,9 +3342,9 @@ namespace Quartz.Impl.AdoJobStore
         /// This uses the non-managed transaction connection.
         /// </summary>
         /// <param name="lockName">
-        /// The name of the lock to acquire, for example 
+        /// The name of the lock to acquire, for example
         /// "TRIGGER_ACCESS".  If null, then no lock is acquired, but the
-        /// lockCallback is still executed in a non-managed transaction. 
+        /// lockCallback is still executed in a non-managed transaction.
         /// </param>
         /// <param name="txCallback">
         /// The callback to execute after having acquired the given lock.
@@ -3421,19 +3353,20 @@ namespace Quartz.Impl.AdoJobStore
         protected async Task<T> ExecuteInNonManagedTXLock<T>(string lockName, Func<ConnectionAndTransactionHolder, Task<T>> txCallback, Func<ConnectionAndTransactionHolder, T, Task<bool>> txValidator)
         {
             bool transOwner = false;
+            Guid requestorId = Guid.NewGuid();
             ConnectionAndTransactionHolder conn = null;
             try
             {
                 if (lockName != null)
                 {
-                    // If we aren't using db locks, then delay getting DB connection 
+                    // If we aren't using db locks, then delay getting DB connection
                     // until after acquiring the lock since it isn't needed.
                     if (LockHandler.RequiresConnection)
                     {
                         conn = GetNonManagedTXConnection();
                     }
 
-                    transOwner = await LockHandler.ObtainLock(DbProvider.Metadata, conn, lockName).ConfigureAwait(false);
+                    transOwner = await LockHandler.ObtainLock(requestorId, conn, lockName).ConfigureAwait(false);
                 }
 
                 if (conn == null)
@@ -3455,7 +3388,7 @@ namespace Quartz.Impl.AdoJobStore
                     }
                 }
 
-                DateTimeOffset? sigTime = ClearAndGetSignalSchedulingChangeOnTxCompletion();
+                DateTimeOffset? sigTime = conn.SignalSchedulingChangeOnTxCompletion;
                 if (sigTime != null)
                 {
                     SignalSchedulingChangeImmediately(sigTime);
@@ -3477,25 +3410,12 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    await ReleaseLock(lockName, transOwner).ConfigureAwait(false);
+                    await ReleaseLock(requestorId, lockName, transOwner).ConfigureAwait(false);
                 }
                 finally
                 {
                     CleanupConnection(conn);
                 }
-            }
-        }
-
-        private static void CheckNotZombied(ConnectionAndTransactionHolder cth)
-        {
-            if (cth == null)
-            {
-                throw new ArgumentNullException(nameof(cth), "Connection-transaction pair cannot be null");
-            }
-
-            if (cth.Transaction != null && cth.Transaction.Connection == null)
-            {
-                throw new InvalidOperationException("Transaction not connected, or was disconnected");
             }
         }
     }

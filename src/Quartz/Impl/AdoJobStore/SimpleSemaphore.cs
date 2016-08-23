@@ -21,14 +21,9 @@
 
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
-#if !ASYNCLOCAL
-using System.Runtime.Remoting.Messaging;
-#endif // ASYNCLOCAL
 using System.Threading;
 using System.Threading.Tasks;
 
-using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Logging;
 using Quartz.Util;
 
@@ -43,11 +38,8 @@ namespace Quartz.Impl.AdoJobStore
     /// <author>Marko Lahma (.NET)</author>
     public class SimpleSemaphore : ISemaphore
     {
-#if !ASYNCLOCAL
-        private const string KeyThreadLockOwners = "quartz_semaphore_lock_owners";
-#else // ASYNCLOCAL
-        private static readonly AsyncLocal<HashSet<string>> asyncThreadLocks = new AsyncLocal<HashSet<string>>();
-#endif // ASYNCLOCAL
+        private readonly object syncRoot = new object();
+        private readonly Dictionary<Guid, HashSet<string>> threadLocks = new Dictionary<Guid, HashSet<string>>();
 
         private readonly ILog log;
         private readonly HashSet<string> locks = new HashSet<string>();
@@ -58,75 +50,58 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Gets the thread locks.
-        /// </summary>
-        /// <returns>The thread locks.</returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static HashSet<string> GetThreadLocks()
-        {
-#if !ASYNCLOCAL
-            HashSet<string> threadLocks = (HashSet<string>) CallContext.LogicalGetData(KeyThreadLockOwners);
-            if (threadLocks == null)
-            {
-                threadLocks = new HashSet<string>();
-                CallContext.LogicalSetData(KeyThreadLockOwners, threadLocks);
-            }
-            return threadLocks;
-#else // ASYNCLOCAL
-            if (asyncThreadLocks.Value == null)
-            {
-                asyncThreadLocks.Value = new HashSet<string>();
-            }
-            return asyncThreadLocks.Value;
-#endif // ASYNCLOCAL
-        }
-
-        /// <summary>
         /// Grants a lock on the identified resource to the calling thread (blocking
         /// until it is available).
         /// </summary>
         /// <returns>True if the lock was obtained.</returns>
-        public virtual Task<bool> ObtainLock(DbMetadata metadata, ConnectionAndTransactionHolder conn, string lockName)
+        public virtual Task<bool> ObtainLock(Guid requestorId, ConnectionAndTransactionHolder conn, string lockName)
         {
-            lock (this)
+            if (log.IsDebugEnabled())
             {
-                if (log.IsDebugEnabled())
-                {
-                    log.Debug($"Lock '{lockName}' is desired by: {Thread.CurrentThread.Name}");
-                }
+                log.Debug($"Lock '{lockName}' is desired by: {requestorId}");
+            }
 
-                if (!IsLockOwner(lockName))
+            lock (syncRoot)
+            {
+                if (!IsLockOwner(requestorId, lockName))
                 {
                     if (log.IsDebugEnabled())
                     {
-                        log.Debug($"Lock '{lockName}' is being obtained: {Thread.CurrentThread.Name}");
+                        log.Debug($"Lock '{lockName}' is being obtained: {requestorId}");
                     }
 
                     while (locks.Contains(lockName))
                     {
                         try
                         {
-                            Monitor.Wait(this);
+                            Monitor.Wait(syncRoot);
                         }
                         catch (ThreadInterruptedException)
                         {
                             if (log.IsDebugEnabled())
                             {
-                                log.Debug($"Lock '{lockName}' was not obtained by: {Thread.CurrentThread.Name}");
+                                log.Debug($"Lock '{lockName}' was not obtained by: {requestorId}");
                             }
                         }
                     }
 
+                    HashSet<string> requestorLocks;
+                    if (!threadLocks.TryGetValue(requestorId, out requestorLocks))
+                    {
+                        requestorLocks = new HashSet<string>();
+                        threadLocks[requestorId] = requestorLocks;
+                    }
+                    requestorLocks.Add(lockName);
+                    locks.Add(lockName);
+
                     if (log.IsDebugEnabled())
                     {
-                        log.Debug($"Lock '{lockName}' given to: {Thread.CurrentThread.Name}");
+                        log.Debug($"Lock '{lockName}' given to: {requestorId}");
                     }
-                    GetThreadLocks().Add(lockName);
-                    locks.Add(lockName);
                 }
                 else if (log.IsDebugEnabled())
                 {
-                    log.DebugException($"Lock '{lockName}' already owned by: {Thread.CurrentThread.Name} -- but not owner!", new Exception("stack-trace of wrongful returner"));
+                    log.DebugException($"Lock '{lockName}' already owned by: {requestorId} -- but not owner!", new Exception("stack-trace of wrongful returner"));
                 }
 
                 return Task.FromResult(true);
@@ -136,23 +111,33 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary> Release the lock on the identified resource if it is held by the calling
         /// thread.
         /// </summary>
-        public virtual Task ReleaseLock(string lockName)
+        public virtual Task ReleaseLock(Guid requestorId, string lockName)
         {
-            lock (this)
+            lock (syncRoot)
             {
-                if (IsLockOwner(lockName))
+                if (IsLockOwner(requestorId, lockName))
                 {
+                    HashSet<string> requestorLocks;
+                    if (threadLocks.TryGetValue(requestorId, out requestorLocks))
+                    {
+                        requestorLocks.Remove(lockName);
+                        if (requestorLocks.Count == 0)
+                        {
+                            threadLocks.Remove(requestorId);
+                        }
+                    }
+                    locks.Remove(lockName);
+
                     if (log.IsDebugEnabled())
                     {
-                        log.Debug($"Lock '{lockName}' returned by: {Thread.CurrentThread.Name}");
+                        log.Debug($"Lock '{lockName}' returned by: {requestorId}");
                     }
-                    GetThreadLocks().Remove(lockName);
-                    locks.Remove(lockName);
-                    Monitor.PulseAll(this);
+
+                    Monitor.PulseAll(syncRoot);
                 }
-                else if (log.IsDebugEnabled())
+                else if (log.IsWarnEnabled())
                 {
-                    log.DebugException($"Lock '{lockName}' attempt to return by: {Thread.CurrentThread.Name} -- but not owner!", new Exception("stack-trace of wrongful returner"));
+                    log.WarnException($"Lock '{lockName}' attempt to return by: {requestorId} -- but not owner!", new Exception("stack-trace of wrongful returner"));
                 }
             }
             return TaskUtil.CompletedTask;
@@ -162,12 +147,10 @@ namespace Quartz.Impl.AdoJobStore
         /// Determine whether the calling thread owns a lock on the identified
         /// resource.
         /// </summary>
-        public virtual bool IsLockOwner(string lockName)
+        private bool IsLockOwner(Guid requestorId, string lockName)
         {
-            lock (this)
-            {
-                return GetThreadLocks().Contains(lockName);
-            }
+            HashSet<string> requestorLocks;
+            return threadLocks.TryGetValue(requestorId, out requestorLocks) && requestorLocks.Contains(lockName);
         }
 
         /// <summary>

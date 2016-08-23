@@ -10,6 +10,9 @@ namespace Quartz.Impl.AdoJobStore
     internal class MisfireHandler
     {
         private static readonly ILog log = LogProvider.GetLogger(typeof (MisfireHandler));
+        // keep constant lock requestor id for handler's lifetime
+        private readonly Guid requestorId = Guid.NewGuid();
+
         private readonly JobStoreSupport jobStoreSupport;
         private int numFails;
 
@@ -87,7 +90,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 log.Debug("Scanning for misfires...");
 
-                RecoverMisfiredJobsResult res = await jobStoreSupport.DoRecoverMisfires().ConfigureAwait(false);
+                RecoverMisfiredJobsResult res = await jobStoreSupport.DoRecoverMisfires(requestorId).ConfigureAwait(false);
                 numFails = 0;
                 return res;
             }

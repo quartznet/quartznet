@@ -1,27 +1,26 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
 
 using System;
 using System.Data.Common;
-using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Impl.AdoJobStore.Common;
@@ -29,9 +28,9 @@ using Quartz.Logging;
 
 namespace Quartz.Impl.AdoJobStore
 {
-    /// <summary> 
-    /// Internal database based lock handler for providing thread/resource locking 
-    /// in order to protect resources from being altered by multiple threads at the 
+    /// <summary>
+    /// Internal database based lock handler for providing thread/resource locking
+    /// in order to protect resources from being altered by multiple threads at the
     /// same time.
     /// </summary>
     /// <author>James House</author>
@@ -50,7 +49,7 @@ namespace Quartz.Impl.AdoJobStore
         public StdRowLockSemaphore(IDbProvider dbProvider)
             : base(DefaultTablePrefix, null, SelectForLock, InsertLock, dbProvider)
         {
-            
+
         }
 
         /// <summary>
@@ -68,7 +67,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Execute the SQL select for update that will lock the proper database row.
         /// </summary>
-        protected override async Task ExecuteSQL(ConnectionAndTransactionHolder conn, string lockName, string expandedSql, string expandedInsertSql)
+        protected override async Task ExecuteSQL(Guid requestorId, ConnectionAndTransactionHolder conn, string lockName, string expandedSql, string expandedInsertSql)
         {
             Exception initCause = null;
             // attempt lock two times (to work-around possible race conditions in inserting the lock row the first time running)
@@ -87,7 +86,7 @@ namespace Quartz.Impl.AdoJobStore
                         {
                             if (Log.IsDebugEnabled())
                             {
-                                Log.DebugFormat("Lock '{0}' is being obtained: {1}", lockName, Thread.CurrentThread.Name);
+                                Log.DebugFormat("Lock '{0}' is being obtained: {1}", lockName, requestorId);
                             }
 
                             found = await rs.ReadAsync().ConfigureAwait(false);
@@ -97,7 +96,7 @@ namespace Quartz.Impl.AdoJobStore
                         {
                             if (Log.IsDebugEnabled())
                             {
-                                Log.DebugFormat("Inserting new lock row for lock: '{0}' being obtained by thread: {1}", lockName, Thread.CurrentThread.Name);
+                                Log.DebugFormat("Inserting new lock row for lock: '{0}' being obtained by thread: {1}", lockName, requestorId);
                             }
 
                             using (DbCommand cmd2 = AdoUtil.PrepareCommand(conn, expandedInsertSql))
@@ -135,7 +134,7 @@ namespace Quartz.Impl.AdoJobStore
 
                     if (Log.IsDebugEnabled())
                     {
-                        Log.DebugFormat("Lock '{0}' was not obtained by: {1}{2}", lockName, Thread.CurrentThread.Name, (count < 3 ? " - will try again." : ""));
+                        Log.DebugFormat("Lock '{0}' was not obtained by: {1}{2}", lockName, requestorId, count < 3 ? " - will try again." : "");
                     }
 
                     if (count < 3)
