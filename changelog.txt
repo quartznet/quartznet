@@ -2,12 +2,12 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://www.quartz-scheduler.net
 
-Release 3.0 alpha 2, xxx x 2016
+Release 3.0 alpha 2, Aug 24 2016
 --------------------------------
 
 FIXES
 
-* fix schduler signaling not working with AdoJobStore
+* fix scheduler signaling not working with AdoJobStore due to thread local storage
 * thread local state removed altogether
 * quartz.serializer.type was required even though non-serializing RAMJobStore was in use
 * JSON serialization incorrectly called serialization callbacks

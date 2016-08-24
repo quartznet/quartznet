@@ -1,5 +1,5 @@
 ﻿{
-  "version": "3.0.0-alpha1-*",
+  "version": "3.0.0-alpha2-*",
   "title": "Quartz.NET JSON Serialization",
   "description": "Quartz.NET JSON Serialization Support",
   "copyright": "Copyright Marko Lahma",
