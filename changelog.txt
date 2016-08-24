@@ -2,6 +2,14 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://www.quartz-scheduler.net
 
+Release 2.4.1, Aug 24, 2016
+--------------------------------
+
+FIXES
+
+* Fix Common.Logging version 3.3.1 to be a true binary reference instead of just NuGet dependency
+
+
 Release 2.4, Aug 18, 2016
 --------------------------------
 

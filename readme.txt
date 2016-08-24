@@ -1,4 +1,4 @@
-QUARTZ JOB SCHEDULER .NET, 2.4, Aug 18, 2016
+QUARTZ JOB SCHEDULER .NET, 2.4.1, Aug 24, 2016
 -----------------------------------------------------------------
 
 http://www.quartz-scheduler.net/
