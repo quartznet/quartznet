@@ -4,7 +4,7 @@
   <property name="build.configuration" value="debug" overwrite="false" />
   <property name="build.optimize" value="false" overwrite="false" />
   <property name="build.debug" value="Full" overwrite="false" />
-  <property name="build.keyfile" value="quartz.public.snk" overwrite="false" />
+  <property name="build.keyfile" value="quartz.net.snk" />
 
   <property name="nuget.location" value="tools/NuGet/NuGet.exe" />
 
@@ -100,9 +100,7 @@
 
   <target name="build-quartz" >
 
-	<fail if="${file::exists(build.keyfile) == false}" message="You need to generate quartz.net.snk file before building. Use command &#xa;&#xa;&#x9; sn -k quartz.net.snk" />
-  
-     <mkdir dir="${buildoutputbasedir}" />
+    <mkdir dir="${buildoutputbasedir}" />
 
     <property name="target.dir" value="${buildoutputbasedir}" />
     <property name="client-profile" value="false" />
@@ -502,7 +500,6 @@
     <property name="build.optimize" value="true" />
     <property name="build.debug" value="PdbOnly" />
     <property name="build.defines" value="TRACE,STRONG" />
-	<property name="build.keyfile" value="quartz.net.snk" />
 
     <if test="${c5-collections}" >
       <property name="build.defines" value="${build.defines},C5" />
