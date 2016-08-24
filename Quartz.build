@@ -10,7 +10,7 @@
 
   <property name="version.major" value="2" overwrite="false" />
   <property name="version.minor" value="4" overwrite="false" />
-  <property name="version.revision" value="0" overwrite="false" />
+  <property name="version.revision" value="1" overwrite="false" />
   <property name="version.build" value="${environment::get-variable('BUILD_NUMBER')}" overwrite="false" if="${environment::variable-exists('BUILD_NUMBER')}" />
   <property name="version.build" value="0" overwrite="false" unless="${environment::variable-exists('BUILD_NUMBER')}" />
 
