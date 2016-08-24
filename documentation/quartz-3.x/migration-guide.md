@@ -63,6 +63,8 @@ If you don't have any async'ness in your job, you can just  return Task.Complete
 
 IInterruptableJob interface has been removed. You need to check for IJobExecutionContext's CancellationToken.IsCancellationRequested to determine whether job interruption has been requested.
 
+IStatefulJob interface that was obsoleted in 2.x has been removed, you should use DisallowConcurrentExecution and PersistJobDataAfterExecution attributes to achieve your goal.
+
 #### Other APIs
 
 If you have created custom implementations of services used by Quartz, you're going to need to adapt your code to be async-based.
