@@ -155,18 +155,6 @@ namespace Quartz.Impl.AdoJobStore.Common
         }
 
         /// <summary>
-        /// Returns a new instance of the providers CommandBuilder class.
-        /// </summary>
-        /// <returns>A new Command Builder</returns>
-        /// <remarks>In .NET 1.1 there was no common base class or interface
-        /// for command builders, hence the return signature is object to
-        /// be portable (but more loosely typed) across .NET 1.1/2.0</remarks>
-        public virtual object CreateCommandBuilder()
-        {
-            return ObjectUtils.InstantiateType<object>(dbMetadata.CommandBuilderType);
-        }
-
-        /// <summary>
         /// Returns a new connection object to communicate with the database.
         /// </summary>
         /// <returns>A new <see cref="IDbConnection"/></returns>

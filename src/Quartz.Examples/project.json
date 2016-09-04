@@ -28,8 +28,6 @@
     },
     "netcoreapp1.0": {
       "imports": [
-        "dotnet55",
-        "portable-net45+win8"
       ],
       "buildOptions": {
         "emitEntryPoint": true,

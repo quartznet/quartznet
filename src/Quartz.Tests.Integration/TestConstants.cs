@@ -2,6 +2,9 @@
 {
     public static class TestConstants
     {
+        // we cannot use trusted connection as it's not available for Linux provider
+        public static string DefaultSqlServerConnectionString = "Server=(local);Database=quartz;User Id=quartznet;Password=quartznet;";
+
 #if NETCORE
         public const string DefaultSerializerType = "json";
 #else

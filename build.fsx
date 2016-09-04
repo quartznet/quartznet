@@ -11,6 +11,7 @@ open System.IO
 let commitHash = Information.getCurrentHash()
 let configuration = getBuildParamOrDefault "configuration" "Release"
 let projectJsonFiles = !! "src/*/project.json" -- "src/*Web*/project.json"
+let testProjectJsonFiles = !! "src/Quartz.Tests.Integration/project.json" ++ "src/Quartz.Tests.Unit/project.json"
 
 Target "Clean" (fun _ ->
     !! "artifacts" ++ "src/*/bin" ++ "src/*/obj" ++ "test/*/bin" ++ "test/*/obj" ++ "build" ++ "deploy"
@@ -87,6 +88,25 @@ Target "Test" (fun _ ->
                         AdditionalArgs = ["--where \"cat != database && cat != fragile\""] })
 )
 
+Target "TestFull" (fun _ ->
+    testProjectJsonFiles
+        |>  DotNetCli.Test
+            (fun p ->
+                    { p with
+                        Configuration = configuration
+                        AdditionalArgs = ["--where \"cat != fragile\""] })
+)
+
+
+Target "TestLinux" (fun _ ->
+        testProjectJsonFiles
+        |>  DotNetCli.Test
+            (fun p ->
+                    { p with
+                        Configuration = configuration
+                        AdditionalArgs = ["--where \"cat != fragile && cat != sqlserver && cat != windowstimezoneid\""] })
+)
+
 Target "ApiDoc" (fun _ -> 
 
     let setParams defaults =
@@ -134,4 +154,14 @@ Target "ApiDoc" (fun _ ->
   ==> "GenerateAssemblyInfo"
   ==> "ApiDoc"  
 
+"Clean"
+  ==> "GenerateAssemblyInfo"
+  ==> "TestFull"
+  
+
+"Clean"
+  ==> "GenerateAssemblyInfo"
+  ==> "Build"
+  ==> "TestLinux"
+  
 RunTargetOrDefault "Test"

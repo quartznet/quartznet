@@ -20,3 +20,8 @@
 *.PDF	 diff=astextplain
 *.rtf	 diff=astextplain
 *.RTF	 diff=astextplain
+
+# make sure *nix stays *nix
+*.sh      eol=lf
+*.conf    eol=lf
+dotnet-test-nunit eol=lf

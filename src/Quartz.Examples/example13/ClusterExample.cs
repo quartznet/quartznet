@@ -87,7 +87,7 @@ namespace Quartz.Examples.Example13
                 ["quartz.jobStore.tablePrefix"] = "QRTZ_",
                 ["quartz.jobStore.clustered"] = "true",
                 ["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz",
-                ["quartz.dataSource.default.connectionString"] = "Server=(local);Database=quartz;Trusted_Connection=True;",
+                ["quartz.dataSource.default.connectionString"] = "Server=(local);Database=quartz;User Id=quartznet;Password=quartznet;",
                 ["quartz.dataSource.default.provider"] = "SqlServer-20",
                 ["quartz.serializer.type"] = "json"
             };

@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -142,7 +142,7 @@ namespace Quartz.Tests.Unit.Xml
             {
                 ITrigger argumentTrigger = (ITrigger) args[1];
 
-            // replacement trigger should have same start time and next fire relative to old trigger's last fire time 
+            // replacement trigger should have same start time and next fire relative to old trigger's last fire time
             Assert.That(argumentTrigger, Is.Not.Null);
             Assert.That(argumentTrigger.StartTimeUtc, Is.EqualTo(startTime));
             Assert.That(argumentTrigger.GetNextFireTimeUtc(), Is.EqualTo(previousFireTime.AddSeconds(10)));
@@ -158,7 +158,7 @@ namespace Quartz.Tests.Unit.Xml
         /// <remarks>
         /// Note that XMLSchedulingDataProcessor#processFileAndScheduleJobs(Scheduler,boolean) will only
         /// read default "quartz_data.xml" in current working directory. So to test this, we must create
-        /// this file. If this file already exist, it will be overwritten! 
+        /// this file. If this file already exist, it will be overwritten!
         /// </remarks>
         [Test]
         public async Task TestOverwriteFlag()
@@ -304,6 +304,7 @@ namespace Quartz.Tests.Unit.Xml
 
         [Test]
         [Category("database")]
+        [Category("sqlserver")]
         public async Task TestSimpleTriggerNoRepeat()
         {
             IScheduler scheduler = await CreateDbBackedScheduler();
@@ -334,6 +335,7 @@ namespace Quartz.Tests.Unit.Xml
 
         [Test]
         [Category("database")]
+        [Category("sqlserver")]
         public async Task TestRemoveJobTypeNotFound()
         {
             var scheduler = await CreateDbBackedScheduler();
@@ -400,6 +402,7 @@ namespace Quartz.Tests.Unit.Xml
 
         [Test]
         [Category("database")]
+        [Category("sqlserver")]
         public async Task TestOverwriteJobTypeNotFound()
         {
             IScheduler scheduler = await CreateDbBackedScheduler();

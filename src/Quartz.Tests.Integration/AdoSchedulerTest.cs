@@ -12,6 +12,7 @@ using Quartz.Util;
 
 namespace Quartz.Tests.Integration
 {
+    [Category("sqlserver")]
 #if BINARY_SERIALIZATION
     [TestFixture(typeof(BinaryObjectSerializer))]
 #endif
@@ -28,7 +29,7 @@ namespace Quartz.Tests.Integration
 
         protected override Task<IScheduler> CreateScheduler(string name, int threadPoolSize)
         {
-            DBConnectionManager.Instance.AddConnectionProvider("default", new DbProvider(TestConstants.DefaultSqlServerProvider, "Server=(local);Database=quartz;Trusted_Connection=True;"));
+            DBConnectionManager.Instance.AddConnectionProvider("default", new DbProvider(TestConstants.DefaultSqlServerProvider, TestConstants.DefaultSqlServerConnectionString));
 
             var jobStore = new JobStoreTX
             {

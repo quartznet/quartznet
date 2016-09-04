@@ -1,0 +1,37 @@
+version: '2'
+services:
+  quartz:
+    container_name: quartz
+    build: .
+    depends_on:
+     - mysql
+     - postgres
+     - firebird
+     - oracle
+    entrypoint: ./build.sh TestLinux
+
+  mysql:
+    container_name: mysql
+    build: docker/mysql
+    ports:
+     - "3306:3306"
+  
+  postgres:
+    container_name: postgres
+    build: docker/postgres
+    ports:
+     - "5432:5432"
+
+  firebird:
+    container_name: firebird
+    build: docker/firebird
+    ports:
+     - "3050:3050"
+
+  oracle:
+    container_name: oracle
+    build: docker/oracle
+    ports:
+     - "1521:1521"
+    environment:
+     - ORACLE_ALLOW_REMOTE:true

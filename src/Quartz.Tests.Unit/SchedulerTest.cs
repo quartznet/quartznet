@@ -179,7 +179,7 @@ namespace Quartz.Tests.Unit
 
             await sched.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("g1"));
 
-            // test that adding a trigger to a paused group causes the new trigger to be paused also... 
+            // test that adding a trigger to a paused group causes the new trigger to be paused also...
             job = JobBuilder.Create()
                 .OfType<TestJob>()
                 .WithIdentity("j4", "g1")
@@ -291,6 +291,7 @@ namespace Quartz.Tests.Unit
 #endif
 
         [Test]
+        [Category("fragile")] // TODO seems that we have some trouble on Linux with this
         public async Task ReschedulingTriggerShouldKeepOriginalNextFireTime()
         {
             NameValueCollection properties = new NameValueCollection();

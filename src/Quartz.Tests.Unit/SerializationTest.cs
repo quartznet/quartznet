@@ -222,8 +222,10 @@ namespace Quartz.Tests.Unit
         private static T Deserialize<T>(int version) where T : class
         {
             BinaryFormatter formatter = new BinaryFormatter();
-            object o = formatter.Deserialize(File.OpenRead(@"Serialized\" + typeof(T).Name + "_" + version + ".ser"));
-            return (T) o;
+            using (var stream = File.OpenRead(Path.Combine("Serialized", typeof(T).Name + "_" + version + ".ser")))
+            {
+                 return (T) formatter.Deserialize(stream);
+            }
         }
     }
 }

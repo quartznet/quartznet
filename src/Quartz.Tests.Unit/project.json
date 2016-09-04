@@ -1,14 +1,14 @@
 {
   "buildOptions": {
     "debugType": "portable",
-    "emitEntryPoint": true,
     "embed": {
       "include": [
         "Xml/TestData/*"
       ]
     },
     "copyToOutput": [
-       "Serialized/*"
+       "Serialized/*",
+       "dotnet-test-nunit"
     ]
   },
   "dependencies": {

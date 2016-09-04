@@ -20,8 +20,8 @@ using Quartz.Spi;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore
 {
-    [Category("integration")]
     [TestFixture]
+    [Category("database")]
     public class AdoJobStoreSmokeTest
     {
         private static readonly Dictionary<string, string> dbConnectionStrings = new Dictionary<string, string>();
@@ -58,6 +58,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
+        [Category("sqlserver")]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public Task TestSqlServer(string serializerType)
         {
@@ -201,6 +202,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
+        [Category("sqlserver")]
         public async Task ShouldBeAbleToUseMixedProperties()
         {
             NameValueCollection properties = new NameValueCollection();
@@ -314,6 +316,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
+        [Category("sqlserver")]
         public async Task TestGetTriggerKeysWithLike()
         {
             var sched = await CreateScheduler(null);
@@ -322,6 +325,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
+        [Category("sqlserver")]
         public async Task TestGetTriggerKeysWithEquals()
         {
             var sched = await CreateScheduler(null);
@@ -330,6 +334,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
+        [Category("sqlserver")]
         public async Task TestGetJobKeysWithLike()
         {
             var sched = await CreateScheduler(null);
@@ -338,6 +343,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
+        [Category("sqlserver")]
         public async Task TestGetJobKeysWithEquals()
         {
             var sched = await CreateScheduler(null);
@@ -346,6 +352,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
+        [Category("sqlserver")]
         public async Task JobTypeNotFoundShouldNotBlock()
         {
             NameValueCollection properties = new NameValueCollection();
@@ -405,8 +412,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.clustered"] = "false";
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
 
-            string connectionString = "Server=(local);Database=quartz;Trusted_Connection=True;";
-            properties["quartz.dataSource.default.connectionString"] = connectionString;
+            properties["quartz.dataSource.default.connectionString"] = TestConstants.DefaultSqlServerConnectionString;
             properties["quartz.dataSource.default.provider"] = TestConstants.DefaultSqlServerProvider;
 
             // First we must get a reference to a scheduler
@@ -435,8 +441,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.clustered"] = "false";
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
 
-            string connectionString = "Server=(local);Database=quartz;Trusted_Connection=True;";
-            properties["quartz.dataSource.default.connectionString"] = connectionString;
+            properties["quartz.dataSource.default.connectionString"] = TestConstants.DefaultSqlServerConnectionString;
             properties["quartz.dataSource.default.provider"] = TestConstants.DefaultSqlServerProvider;
 
             // First we must get a reference to a scheduler

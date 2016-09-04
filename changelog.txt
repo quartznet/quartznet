@@ -2,6 +2,18 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://www.quartz-scheduler.net
 
+Release 3.0 alpha 3, XXX XX 2016
+--------------------------------
+
+FIXES
+
+* fix PosgreSQL db provider configuration for .NET Core
+
+BREAKING CHANGES
+
+* 
+
+
 Release 3.0 alpha 2, Aug 24 2016
 --------------------------------
 
