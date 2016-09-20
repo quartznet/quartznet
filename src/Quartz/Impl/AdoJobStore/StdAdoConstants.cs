@@ -231,10 +231,10 @@ namespace Quartz.Impl.AdoJobStore
 
         public static readonly string SqlSelectJobForTrigger =
             string.Format(CultureInfo.InvariantCulture,
-                "SELECT J.{0}, J.{1}, J.{2}, J.{3}, J.{4} FROM {5}{6} T, {7}{8} J WHERE T.{9} = {10} AND T.{11} = {12} AND T.{13} = @triggerName AND T.{14} = @triggerGroup AND T.{15} = J.{16} AND T.{17} = J.{18}",
+                "SELECT J.{0}, J.{1}, J.{2}, J.{3}, J.{4} FROM {5}{6} T, {7}{8} J WHERE T.{9} = {10} AND T.{11} = J.{12} AND T.{13} = @triggerName AND T.{14} = @triggerGroup AND T.{15} = J.{16} AND T.{17} = J.{18}",
                 ColumnJobName, ColumnJobGroup, ColumnIsDurable,
                 ColumnJobClass, ColumnRequestsRecovery, TablePrefixSubst,
-                TableTriggers, TablePrefixSubst, TableJobDetails, ColumnSchedulerName, SchedulerNameSubst, ColumnSchedulerName, SchedulerNameSubst,
+                TableTriggers, TablePrefixSubst, TableJobDetails, ColumnSchedulerName, SchedulerNameSubst, ColumnSchedulerName, ColumnSchedulerName,
                 ColumnTriggerName, ColumnTriggerGroup, ColumnJobName,
                 ColumnJobName, ColumnJobGroup, ColumnJobGroup);
 
