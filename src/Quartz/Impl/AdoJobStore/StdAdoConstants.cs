@@ -171,7 +171,7 @@ namespace Quartz.Impl.AdoJobStore
             $"SELECT {ColumnJobName} FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = {SchedulerNameSubst} AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup";
 
         public static readonly string SqlSelectJobForTrigger =
-            $"SELECT J.{ColumnJobName}, J.{ColumnJobGroup}, J.{ColumnIsDurable}, J.{ColumnJobClass}, J.{ColumnRequestsRecovery} FROM {TablePrefixSubst}{TableTriggers} T, {TablePrefixSubst}{TableJobDetails} J WHERE T.{ColumnSchedulerName} = {SchedulerNameSubst} AND T.{ColumnSchedulerName} = {SchedulerNameSubst} AND T.{ColumnTriggerName} = @triggerName AND T.{ColumnTriggerGroup} = @triggerGroup AND T.{ColumnJobName} = J.{ColumnJobName} AND T.{ColumnJobGroup} = J.{ColumnJobGroup}";
+            $"SELECT J.{ColumnJobName}, J.{ColumnJobGroup}, J.{ColumnIsDurable}, J.{ColumnJobClass}, J.{ColumnRequestsRecovery} FROM {TablePrefixSubst}{TableTriggers} T, {TablePrefixSubst}{TableJobDetails} J WHERE T.{ColumnSchedulerName} = {SchedulerNameSubst} AND T.{ColumnSchedulerName} = J.{ColumnSchedulerName} AND T.{ColumnTriggerName} = @triggerName AND T.{ColumnTriggerGroup} = @triggerGroup AND T.{ColumnJobName} = J.{ColumnJobName} AND T.{ColumnJobGroup} = J.{ColumnJobGroup}";
 
         public static readonly string SqlSelectJobGroups =
             $"SELECT DISTINCT({ColumnJobGroup}) FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = {SchedulerNameSubst}";
