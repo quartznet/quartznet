@@ -43,6 +43,10 @@ namespace Quartz.Util
 
             timeZoneIdAliases["Hawaiian Standard Time"] = "US/Hawaii";
             timeZoneIdAliases["US/Hawaii"] = "Hawaiian Standard Time";
+
+            timeZoneIdAliases["China Standard Time"] = "Asia/Beijing";
+            timeZoneIdAliases["Asia/Shanghai"] = "China Standard Time";
+            timeZoneIdAliases["Asia/Beijing"] = "China Standard Time";
         }
 
         /// <summary>
