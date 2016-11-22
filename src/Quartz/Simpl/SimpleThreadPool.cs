@@ -305,7 +305,7 @@ namespace Quartz.Simpl
                 {
                     // If the thread pool is going down, execute the Runnable
                     // within a new additional worker thread (no thread from the pool).
-                    WorkerThread wt = new WorkerThread(this, "WorkerThread-LastJob", prio, MakeThreadsDaemons, runnable);
+                    WorkerThread wt = CreateWorkerThread("WorkerThread-LastJob", runnable);
                     busyWorkers.AddLast(wt);
                     workers.Add(wt);
                     wt.Start();
@@ -365,16 +365,16 @@ namespace Quartz.Simpl
                     threadPrefix = schedulerInstanceName + "_Worker";
                 }
                 
-                var workerThread = new WorkerThread(
-                    this,
-                    string.Format(CultureInfo.InvariantCulture, "{0}-{1}", threadPrefix, i),
-                    ThreadPriority,
-                    MakeThreadsDaemons);
-
+                var workerThread = CreateWorkerThread(string.Format(CultureInfo.InvariantCulture, "{0}-{1}", threadPrefix, i));
                 workers.Add(workerThread);
             }
 
             return workers;
+        }
+
+        protected virtual WorkerThread CreateWorkerThread(string name, IThreadRunnable runnable = null)
+        {
+            return new WorkerThread(this, name, ThreadPriority, MakeThreadsDaemons, runnable);
         }
 
         /// <summary>
