@@ -24,6 +24,7 @@ using System.Threading;
 
 using Common.Logging;
 
+using Quartz.Impl.AdoJobStore;
 using Quartz.Spi;
 
 namespace Quartz.Core
@@ -302,7 +303,8 @@ namespace Quartz.Core
                                 qs.NotifySchedulerListenersError("An error occurred while scanning for the next trigger to fire.", jpe);
                             }
                             lastAcquireFailed = true;
-                            continue;
+	                        HandleDbRetry();
+							continue;
                         }
                         catch (Exception e)
                         {
@@ -311,7 +313,8 @@ namespace Quartz.Core
                                 Log.Error("quartzSchedulerThreadLoop: RuntimeException " + e.Message, e);
                             }
                             lastAcquireFailed = true;
-                            continue;
+	                        HandleDbRetry();
+							continue;
                         }
 
                         if (triggers != null && triggers.Count > 0)
@@ -500,8 +503,14 @@ namespace Quartz.Core
             qsRsrcs = null;
         }
 
+        private void HandleDbRetry()
+        {
+            var jobStorSupport = qsRsrcs.JobStore as JobStoreSupport;
+            if (jobStorSupport != null)
+                Thread.Sleep(jobStorSupport.DbRetryInterval);
+        }
 
-        private bool ReleaseIfScheduleChangedSignificantly(IList<IOperableTrigger> triggers, DateTimeOffset triggerTime)
+		private bool ReleaseIfScheduleChangedSignificantly(IList<IOperableTrigger> triggers, DateTimeOffset triggerTime)
         {
             if (IsCandidateNewTimeEarlierWithinReason(triggerTime, true))
             {
