@@ -60,7 +60,8 @@ website
 /buildlog.txt
 /src/AssemblyInfo.cs
 
-project.lock.json
+*project.lock.json
+/.vs
 /.idea
 /.fake
 /*.iml
