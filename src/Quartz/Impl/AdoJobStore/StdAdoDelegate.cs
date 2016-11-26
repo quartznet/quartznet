@@ -824,7 +824,7 @@ namespace Quartz.Impl.AdoJobStore
 
                         if (map != null)
                         {
-                            job.JobDataMap = map as JobDataMap ?? new JobDataMap(map);
+                            job.JobDataMap = new JobDataMap(map);
                         }
                     }
 
@@ -1109,7 +1109,7 @@ namespace Quartz.Impl.AdoJobStore
             // save some clock cycles by unnecessarily writing job data blob ...
             bool updateJobData = trigger.JobDataMap.Dirty;
             byte[] baos = null;
-            if (updateJobData && trigger.JobDataMap.Count > 0)
+            if (updateJobData)
             {
                 baos = SerializeJobData(trigger.JobDataMap);
             }
@@ -1657,7 +1657,7 @@ namespace Quartz.Impl.AdoJobStore
 
                             if (map != null)
                             {
-                                tb.UsingJobData(map as JobDataMap ?? new JobDataMap(map));
+                                tb.UsingJobData(new JobDataMap(map));
                             }
 
                             trigger = (IOperableTrigger) tb.Build();

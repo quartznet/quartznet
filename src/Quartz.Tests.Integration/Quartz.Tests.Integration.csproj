@@ -84,6 +84,7 @@
     <Compile Include="Impl\RemoteSchedulerSmokeTest.cs" />
     <Compile Include="Impl\SmokeTestPerformer.cs" />
     <Compile Include="IntegrationTest.cs" />
+    <Compile Include="JobDataMapStorageTest.cs" />
     <Compile Include="RAMJobStoreTest.cs" />
     <Compile Include="RAMSchedulerTest.cs" />
     <Compile Include="TestConstants.cs" />
