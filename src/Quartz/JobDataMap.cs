@@ -49,6 +49,11 @@ namespace Quartz
     /// of merging the contents of the trigger's JobDataMap (if any) over the
     /// Job's JobDataMap (if any).  
     /// </para>
+    /// <para>
+    /// Update since 2.4.2 - We keep an dirty flag for this map so that whenever you modify(add/delete) any of the entries,
+    /// it will set to "true". However if you create new instance using an exising map with constructor, then
+    /// the dirty flag will NOT be set to "true" until you modify the instance.
+    /// </para>
     /// </remarks>
     /// <seealso cref="IJob" />
     /// <seealso cref="PersistJobDataAfterExecutionAttribute" />
@@ -72,6 +77,10 @@ namespace Quartz
         public JobDataMap(IDictionary<string, object> map) : this()
         {
             PutAll(map);
+
+            // When constructing a new data map from another existing map, we should NOT mark dirty flag as true
+            // Use case: loading JobDataMap from DB
+            ClearDirtyFlag();
         }
 
         /// <summary> 
@@ -83,6 +92,10 @@ namespace Quartz
             {
                 Put((string) entry.Key, entry.Value);
             }
+
+            // When constructing a new data map from another existing map, we should NOT mark dirty flag as true
+            // Use case: loading JobDataMap from DB
+            ClearDirtyFlag();
         }
 
         /// <summary>
