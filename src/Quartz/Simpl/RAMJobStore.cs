@@ -58,7 +58,7 @@ namespace Quartz.Simpl
         private readonly ConcurrentDictionary<string, ConcurrentDictionary<TriggerKey, TriggerWrapper>> triggersByGroup = new ConcurrentDictionary<string, ConcurrentDictionary<TriggerKey, TriggerWrapper>>();
         private readonly SortedSet<TriggerWrapper> timeTriggers = new SortedSet<TriggerWrapper>(new TriggerWrapperComparator());
         private readonly ConcurrentDictionary<string, ICalendar> calendarsByName = new ConcurrentDictionary<string, ICalendar>();
-        private readonly List<TriggerWrapper> triggers = new List<TriggerWrapper>(1000);
+        private readonly Dictionary<JobKey, List<TriggerWrapper>> triggersByJob = new Dictionary<JobKey, List<TriggerWrapper>>(1000);
         private readonly HashSet<string> pausedTriggerGroups = new HashSet<string>();
         private readonly HashSet<string> pausedJobGroups = new HashSet<string>();
         private readonly HashSet<JobKey> blockedJobs = new HashSet<JobKey>();
@@ -443,8 +443,14 @@ namespace Quartz.Simpl
                                                       ") referenced by the trigger does not exist.");
                 }
 
-                // add to triggers array
-                triggers.Add(tw);
+                // add to triggers by job
+                List<TriggerWrapper> jobList;
+                if (!triggersByJob.TryGetValue(tw.JobKey, out jobList))
+                {
+                    jobList = new List<TriggerWrapper>(1);
+                    triggersByJob.Add(tw.JobKey, jobList);
+                }
+                jobList.Add(tw);
 
                 // add to triggers by group
                 ConcurrentDictionary<TriggerKey, TriggerWrapper> grpMap;
@@ -499,32 +505,32 @@ namespace Quartz.Simpl
             lock (lockObject)
             {
                 // remove from triggers by FQN map
-                TriggerWrapper temp;
-                var found = triggersByKey.TryRemove(key, out temp);
+                TriggerWrapper tw;
+                var found = triggersByKey.TryRemove(key, out tw);
                 if (found)
                 {
-                    TriggerWrapper tw = null;
                     // remove from triggers by group
                     ConcurrentDictionary<TriggerKey, TriggerWrapper> grpMap;
                     if (triggersByGroup.TryGetValue(key.Group, out grpMap))
                     {
-                        grpMap.TryRemove(key, out temp);
+                        grpMap.TryRemove(key, out tw);
                         if (grpMap.Count == 0)
                         {
                             ConcurrentDictionary<TriggerKey, TriggerWrapper> tempDictionary;
                             triggersByGroup.TryRemove(key.Group, out tempDictionary);
                         }
                     }
-                    // remove from triggers array
-                    for (int i = 0; i < triggers.Count; ++i)
+                    //remove from triggers by job
+                    List<TriggerWrapper> jobList;
+                    if(triggersByJob.TryGetValue(tw.JobKey, out jobList))
                     {
-                        tw = triggers[i];
-                        if (key.Equals(tw.TriggerKey))
+                        jobList.Remove(tw);
+                        if(jobList.Count == 0)
                         {
-                            triggers.RemoveAt(i);
-                            break;
+                            triggersByJob.Remove(tw.JobKey);
                         }
                     }
+
                     timeTriggers.Remove(tw);
 
                     if (removeOrphanedJob)
@@ -568,7 +574,6 @@ namespace Quartz.Simpl
                         throw new JobPersistenceException("New trigger is not related to the same job as the old trigger.");
                     }
 
-                    tw = null;
                     // remove from triggers by group
                     ConcurrentDictionary<TriggerKey, TriggerWrapper> grpMap;
                     triggersByGroup.TryGetValue(triggerKey.Group, out grpMap);
@@ -582,16 +587,18 @@ namespace Quartz.Simpl
                             triggersByGroup.TryRemove(triggerKey.Group, out grpMap);
                         }
                     }
-                    // remove from triggers array
-                    for (int i = 0; i < triggers.Count; ++i)
+
+                    // remove from triggers by job
+                    List<TriggerWrapper> jobList;
+                    if(triggersByJob.TryGetValue(tw.JobKey, out jobList))
                     {
-                        tw = triggers[i];
-                        if (triggerKey.Equals(tw.TriggerKey))
+                        jobList.Remove(tw);
+                        if(jobList.Count == 0)
                         {
-                            triggers.RemoveAt(i);
-                            break;
+                            triggersByJob.Remove(tw.JobKey);
                         }
                     }
+
                     timeTriggers.Remove(tw);
 
                     try
@@ -795,7 +802,7 @@ namespace Quartz.Simpl
             lock (lockObject)
             {
                 int numRefs = 0;
-                foreach (TriggerWrapper triggerWrapper in triggers)
+                foreach (TriggerWrapper triggerWrapper in triggersByKey.Values)
                 {
                     IOperableTrigger trigg = triggerWrapper.Trigger;
                     if (trigg.CalendarName != null && trigg.CalendarName.Equals(calName))
@@ -803,14 +810,14 @@ namespace Quartz.Simpl
                         numRefs++;
                     }
                 }
-            if (numRefs > 0)
-            {
-                throw new JobPersistenceException("Calender cannot be removed if it referenced by a Trigger!");
-            }
+                if (numRefs > 0)
+                {
+                    throw new JobPersistenceException("Calender cannot be removed if it referenced by a Trigger!");
+                }
 
                 ICalendar temp;
                 return calendarsByName.TryRemove(calName, out temp);
-        }
+            }
         }
 
         /// <summary>
@@ -822,11 +829,11 @@ namespace Quartz.Simpl
         /// </returns>
         public virtual Task<ICalendar> RetrieveCalendar(string calName)
         {
-                ICalendar calendar;
-                calendarsByName.TryGetValue(calName, out calendar);
-            calendar = (ICalendar) calendar?.Clone();
+            ICalendar calendar;
+            calendarsByName.TryGetValue(calName, out calendar);
+            calendar = calendar?.Clone();
             return Task.FromResult(calendar);
-                }
+        }
 
         /// <summary>
         /// Get the number of <see cref="IJobDetail" /> s that are
@@ -843,8 +850,11 @@ namespace Quartz.Simpl
         /// </summary>
         public virtual Task<int> GetNumberOfTriggers()
         {
-            return Task.FromResult(triggers.Count);
+            lock (lockObject)
+            {
+                return Task.FromResult(triggersByKey.Count);
             }
+        }
 
         /// <summary>
         /// Get the number of <see cref="ICalendar" /> s that are
@@ -853,7 +863,7 @@ namespace Quartz.Simpl
         public virtual Task<int> GetNumberOfCalendars()
         {
             return Task.FromResult(calendarsByName.Count);
-            }
+        }
 
         /// <summary>
         /// Get the names of all of the <see cref="IJob" /> s that
@@ -1016,17 +1026,19 @@ namespace Quartz.Simpl
         {
             lock (lockObject)
             {
-                var trigList = new List<IOperableTrigger>();
-                for (int i = 0; i < triggers.Count; i++)
+                List<TriggerWrapper> jobList;
+                if (triggersByJob.TryGetValue(jobKey, out jobList))
                 {
-                    TriggerWrapper tw = triggers[i];
-                    if (tw.JobKey.Equals(jobKey))
+                    var trigList = new List<IOperableTrigger>(jobList.Count);
+                    foreach (var tw in jobList)
                     {
                         trigList.Add((IOperableTrigger) tw.Trigger.Clone());
                     }
+                    return trigList;
                 }
-            return trigList;
-        }
+            }
+
+            return new List<IOperableTrigger>();
         }
 
         /// <summary>
@@ -1037,15 +1049,14 @@ namespace Quartz.Simpl
         {
             lock (lockObject)
             {
-                for (int i = 0; i < triggers.Count; i++)
+                List<TriggerWrapper> jobList;
+                if (triggersByJob.TryGetValue(jobKey, out jobList))
                 {
-                    TriggerWrapper tw = triggers[i];
-                    if (tw.JobKey.Equals(jobKey))
-                    {
-                        yield return tw;
-                    }
+                    return new List<TriggerWrapper>(jobList);
                 }
             }
+
+            return new List<TriggerWrapper>();
         }
 
         /// <summary>
@@ -1057,9 +1068,8 @@ namespace Quartz.Simpl
         {
             lock (lockObject)
             {
-                for (int i = 0; i < triggers.Count; i++)
+                foreach (var tw in triggersByKey.Values)
                 {
-                    TriggerWrapper tw = triggers[i];
                     string tcalName = tw.Trigger.CalendarName;
                     if (tcalName != null && tcalName.Equals(calName))
                     {
