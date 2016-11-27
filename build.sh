@@ -1,6 +1,6 @@
 #!/bin/sh
 
-FAKE_VERSION="4.39"
+FAKE_VERSION="4.45.0"
 
 mono tools/NuGet/NuGet.exe install FAKE -Version $FAKE_VERSION -OutputDirectory packages -ExcludeVersion
 mono packages/FAKE/tools/FAKE.exe build.fsx $@

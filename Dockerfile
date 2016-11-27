@@ -22,4 +22,4 @@ WORKDIR app
 RUN chmod a+x ./build.sh
 
 # run default units tests only
-ENTRYPOINT ./build.sh Test
+RUN ./build.sh Test

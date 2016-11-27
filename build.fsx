@@ -37,14 +37,16 @@ Target "Build" (fun _ ->
                 { p with
                     AdditionalArgs = [f] })
 
+    let build f = DotNetCli.Build (fun p ->
+                { p with
+                    Configuration = configuration
+                    Project = f })    
+
     projectJsonFiles
         |> Seq.iter restore
 
     projectJsonFiles
-        |> DotNetCli.Build
-            (fun p ->
-                { p with
-                    Configuration = configuration })
+        |> Seq.iter build
 )
 
 Target "BuildSolutions" (fun _ ->
@@ -68,43 +70,51 @@ Target "BuildSolutions" (fun _ ->
 )
 
 Target "Pack" (fun _ ->
-    !! "src/Quartz/project.json" ++ "src/Quartz.Serialization.Json/project.json"
-        |> DotNetCli.Pack
-            (fun p ->
+
+    let pack f = DotNetCli.Pack (fun p ->
                 { p with
                     Configuration = "Release"
+                    Project = f
                 })
+
+    !! "src/Quartz/project.json" ++ "src/Quartz.Serialization.Json/project.json"
+        |> Seq.iter pack
 
     !! "src/*/bin/**/*.nupkg"
         |> Copy "artifacts"
 )
 
 Target "Test" (fun _ ->
-    !! "src/Quartz.Tests.Unit/project.json"
-        |>  DotNetCli.Test
+        DotNetCli.Test
             (fun p ->
-                    { p with
-                        Configuration = configuration
-                        AdditionalArgs = ["--where \"cat != database && cat != fragile\""] })
+                { p with
+                    Project = "src/Quartz.Tests.Unit/project.json"
+                    Configuration = configuration
+                    AdditionalArgs = ["--where \"cat != database && cat != fragile\""] })
 )
 
 Target "TestFull" (fun _ ->
-    testProjectJsonFiles
-        |>  DotNetCli.Test
-            (fun p ->
+
+    let test f = DotNetCli.Test (fun p ->
                     { p with
+                        Project = f
                         Configuration = configuration
                         AdditionalArgs = ["--where \"cat != fragile\""] })
+
+    testProjectJsonFiles
+        |> Seq.iter test
 )
 
 
 Target "TestLinux" (fun _ ->
-        testProjectJsonFiles
-        |>  DotNetCli.Test
-            (fun p ->
+    let test f = DotNetCli.Test (fun p ->
                     { p with
+                        Project = f
                         Configuration = configuration
                         AdditionalArgs = ["--where \"cat != fragile && cat != sqlserver && cat != windowstimezoneid\""] })
+                                
+    testProjectJsonFiles
+        |>  Seq.iter test
 )
 
 Target "ApiDoc" (fun _ -> 
