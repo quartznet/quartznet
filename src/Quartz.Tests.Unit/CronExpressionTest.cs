@@ -258,7 +258,7 @@ namespace Quartz.Tests.Unit
             {
                 int idx = correctFireDays.IndexOf(fireDays[i]);
                 Assert.Greater(idx, -1,
-                               string.Format("CronExpression evaluated true for {0} even when it shouldn't have", fireDays[i]));
+                    string.Format("CronExpression evaluated true for {0} even when it shouldn't have", fireDays[i]));
                 correctFireDays.RemoveAt(idx);
             }
 
@@ -267,8 +267,8 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
-        [ExpectedException(ExpectedException = typeof (FormatException),
-            ExpectedMessage = "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.")]
+        [ExpectedException(ExpectedException = typeof(FormatException),
+             ExpectedMessage = "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.")]
         public void TestFormatExceptionWildCardDayOfMonthAndDayOfWeek()
         {
             CronExpression cronExpression = new CronExpression("0 0 * * * *");
@@ -276,8 +276,8 @@ namespace Quartz.Tests.Unit
 
         [Test]
         [ExpectedException(
-            ExpectedException = typeof (FormatException),
-            ExpectedMessage = "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.")]
+             ExpectedException = typeof(FormatException),
+             ExpectedMessage = "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.")]
         public void TestFormatExceptionSpecifiedDayOfMonthAndWildCardDayOfWeek()
         {
             CronExpression cronExpression = new CronExpression("0 0 * 4 * *");
@@ -285,8 +285,8 @@ namespace Quartz.Tests.Unit
 
         [Test]
         [ExpectedException(
-            ExpectedException = typeof (FormatException),
-            ExpectedMessage = "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.")]
+             ExpectedException = typeof(FormatException),
+             ExpectedMessage = "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.")]
         public void TestFormatExceptionWildCardDayOfMonthAndSpecifiedDayOfWeek()
         {
             CronExpression cronExpression = new CronExpression("0 0 * * * 4");
@@ -453,9 +453,9 @@ namespace Quartz.Tests.Unit
             CronExpression expression = new CronExpression("0 5 13 5W 1-12 ?");
             DateTimeOffset test = new DateTimeOffset(2009, 3, 8, 0, 0, 0, TimeSpan.Zero);
             DateTimeOffset d = expression.GetNextValidTimeAfter(test).Value;
-			Assert.AreEqual(new DateTimeOffset(2009, 4, 6, 13, 5, 0, TimeZoneUtil.GetUtcOffset(d, TimeZoneInfo.Local)).ToUniversalTime(), d);
+            Assert.AreEqual(new DateTimeOffset(2009, 4, 6, 13, 5, 0, TimeZoneUtil.GetUtcOffset(d, TimeZoneInfo.Local)).ToUniversalTime(), d);
             d = expression.GetNextValidTimeAfter(d).Value;
-			Assert.AreEqual(new DateTimeOffset(2009, 5, 5, 13, 5, 0, TimeZoneUtil.GetUtcOffset(d, TimeZoneInfo.Local)), d);
+            Assert.AreEqual(new DateTimeOffset(2009, 5, 5, 13, 5, 0, TimeZoneUtil.GetUtcOffset(d, TimeZoneInfo.Local)), d);
         }
 
         [Test]
@@ -464,7 +464,7 @@ namespace Quartz.Tests.Unit
             try
             {
                 new CronExpression("0/5 * * 32W 1 ?");
-                Assert.Fail("Expected ParseException did not fire for W with value larger than 31");
+                Assert.Fail("Expected FormatException did not fire for W with value larger than 31");
             }
             catch (FormatException pe)
             {
@@ -534,7 +534,7 @@ namespace Quartz.Tests.Unit
             expression.TimeZone = est;
 
             DateTimeOffset startTime = new DateTimeOffset(2012, 11, 4, 0, 0, 0, TimeSpan.Zero);
-            
+
             var actualTime = expression.GetTimeAfter(startTime);
             DateTimeOffset expected = new DateTimeOffset(2012, 11, 5, 15, 15, 0, TimeSpan.FromHours(-5));
 
@@ -554,6 +554,126 @@ namespace Quartz.Tests.Unit
             var actualTime = expression.GetTimeAfter(startTime);
             DateTimeOffset expected = new DateTimeOffset(2012, 11, 8, 0, 0, 0, TimeSpan.FromHours(-5));
             Assert.AreEqual(expected, actualTime);
+        }
+
+        [Test]
+        public void TestSecRangeIntervalAfterSlash()
+        {
+            // Test case 1
+            var e = Assert.Throws<FormatException>(() => new CronExpression("/120 0 8-18 ? * 2-6"), "Cron did not validate bad range interval in '_blank/xxx' form");
+            Assert.That(e.Message, Is.EqualTo("Increment > 60 : 120"));
+
+            // Test case 2
+            e = Assert.Throws<FormatException>(() => new CronExpression("0/120 0 8-18 ? * 2-6"), "Cron did not validate bad range interval in in '0/xxx' form");
+            Assert.That(e.Message, Is.EqualTo("Increment > 60 : 120"));
+
+            // Test case 3
+            e = Assert.Throws<FormatException>(() => new CronExpression("/ 0 8-18 ? * 2-6"), "Cron did not validate bad range interval in '_blank/_blank'");
+            Assert.That(e.Message, Is.EqualTo("'/' must be followed by an integer."));
+
+            // Test case 4
+            e = Assert.Throws<FormatException>(() => new CronExpression("0/ 0 8-18 ? * 2-6"), "Cron did not validate bad range interval in '0/_blank'");
+            Assert.That(e.Message, Is.EqualTo("'/' must be followed by an integer."));
+        }
+
+        [Test]
+        public void TestMinRangeIntervalAfterSlash()
+        {
+            // Test case 1
+            var e = Assert.Throws<FormatException>(() => new CronExpression("0 /120 8-18 ? * 2-6"), "Cron did not validate bad range interval in '_blank/xxx' form");
+            Assert.That(e.Message, Is.EqualTo("Increment > 60 : 120"));
+
+            // Test case 2
+            e = Assert.Throws<FormatException>(() => new CronExpression("0 0/120 8-18 ? * 2-6"), "Cron did not validate bad range interval in in '0/xxx' form");
+            Assert.That(e.Message, Is.EqualTo("Increment > 60 : 120"));
+
+            // Test case 3
+            e = Assert.Throws<FormatException>(() => new CronExpression("0 / 8-18 ? * 2-6"), "Cron did not validate bad range interval in '_blank/_blank'");
+            Assert.That(e.Message, Is.EqualTo("'/' must be followed by an integer."));
+
+            // Test case 4
+            e = Assert.Throws<FormatException>(() => new CronExpression("0 0/ 8-18 ? * 2-6"), "Cron did not validate bad range interval in '0/_blank'");
+            Assert.That(e.Message, Is.EqualTo("'/' must be followed by an integer."));
+        }
+
+        [Test]
+        public void TestHourRangeIntervalAfterSlash()
+        {
+            // Test case 1
+            var e = Assert.Throws<FormatException>(() => new CronExpression("0 0 /120 ? * 2-6"), "Cron did not validate bad range interval in '_blank/xxx' form");
+            Assert.That(e.Message, Is.EqualTo("Increment > 24 : 120"));
+
+            // Test case 2
+            e = Assert.Throws<FormatException>(() => new CronExpression("0 0 0/120 ? * 2-6"), "Cron did not validate bad range interval in in '0/xxx' form");
+            Assert.That(e.Message, Is.EqualTo("Increment > 24 : 120"));
+
+            // Test case 3
+            e = Assert.Throws<FormatException>(() => new CronExpression("0 0 / ? * 2-6"), "Cron did not validate bad range interval in '_blank/_blank'");
+            Assert.That(e.Message, Is.EqualTo("'/' must be followed by an integer."));
+
+            // Test case 4
+            e = Assert.Throws<FormatException>(() => new CronExpression("0 0 0/ ? * 2-6"), "Cron did not validate bad range interval in '0/_blank'");
+            Assert.That(e.Message, Is.EqualTo("'/' must be followed by an integer."));
+        }
+
+        [Test]
+        public void TestDayOfMonthRangeIntervalAfterSlash()
+        {
+            // Test case 1
+            var e = Assert.Throws<FormatException>(() => new CronExpression("0 0 0 /120 * 2-6"), "Cron did not validate bad range interval in '_blank/xxx' form");
+            Assert.That(e.Message, Is.EqualTo("Increment > 31 : 120"));
+
+            // Test case 2
+            e = Assert.Throws<FormatException>(() => new CronExpression("0 0 0 0/120 * 2-6"), "Cron did not validate bad range interval in in '0/xxx' form");
+            Assert.That(e.Message, Is.EqualTo("Increment > 31 : 120"));
+
+            // Test case 3
+            e = Assert.Throws<FormatException>(() => new CronExpression("0 0 0 / * 2-6"), "Cron did not validate bad range interval in '_blank/_blank'");
+            Assert.That(e.Message, Is.EqualTo("'/' must be followed by an integer."));
+
+            // Test case 4
+            e = Assert.Throws<FormatException>(() => new CronExpression("0 0 0 0/ * 2-6"), "Cron did not validate bad range interval in '0/_blank'");
+            Assert.That(e.Message, Is.EqualTo("'/' must be followed by an integer."));
+        }
+
+        [Test]
+        public void TestMonthRangeIntervalAfterSlash()
+        {
+            // Test case 1
+            var e = Assert.Throws<FormatException>(() => new CronExpression("0 0 0 ? /120 2-6"), "Cron did not validate bad range interval in '_blank/xxx' form");
+            Assert.That(e.Message, Is.EqualTo("Increment > 12 : 120"));
+
+            // Test case 2
+            e = Assert.Throws<FormatException>(() => new CronExpression("0 0 0 ? 0/120 2-6"), "Cron did not validate bad range interval in in '0/xxx' form");
+            Assert.That(e.Message, Is.EqualTo("Increment > 12 : 120"));
+
+            // Test case 3
+            e = Assert.Throws<FormatException>(() => new CronExpression("0 0 0 ? / 2-6"), "Cron did not validate bad range interval in '_blank/_blank'");
+            Assert.That(e.Message, Is.EqualTo("'/' must be followed by an integer."));
+
+            // Test case 4
+            e = Assert.Throws<FormatException>(() => new CronExpression("0 0 0 ? 0/ 2-6"), "Cron did not validate bad range interval in '0/_blank'");
+            Assert.That(e.Message, Is.EqualTo("'/' must be followed by an integer."));
+        }
+
+        [Test]
+        public void TestDayOfWeekRangeIntervalAfterSlash()
+        {
+            // Test case 1
+            var e = Assert.Throws<FormatException>(() => new CronExpression("0 0 0 ? * /120"), "Cron did not validate bad range interval in '_blank/xxx' form");
+            Assert.That(e.Message, Is.EqualTo("Increment > 7 : 120"));
+
+            // Test case 2
+            e = Assert.Throws<FormatException>(() => new CronExpression("0 0 0 ? * 0/120"), "Cron did not validate bad range interval in in '0/xxx' form");
+            Assert.That(e.Message, Is.EqualTo("Increment > 7 : 120"));
+
+            // Test case 3
+            e = Assert.Throws<FormatException>(() => new CronExpression("0 0 0 ? * /"), "Cron did not validate bad range interval in '_blank/_blank'");
+            Assert.That(e.Message, Is.EqualTo("'/' must be followed by an integer."));
+
+            // Test case 4
+            e = Assert.Throws<FormatException>(() => new CronExpression("0 0 0 ? * 0/"), "Cron did not validate bad range interval in '0/_blank'");
+            Assert.That(e.Message, Is.EqualTo("'/' must be followed by an integer."));
         }
 
         private class SimpleCronExpression : CronExpression
