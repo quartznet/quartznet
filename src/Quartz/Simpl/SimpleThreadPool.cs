@@ -365,14 +365,14 @@ namespace Quartz.Simpl
                     threadPrefix = schedulerInstanceName + "_Worker";
                 }
                 
-                var workerThread = CreateWorkerThread(string.Format(CultureInfo.InvariantCulture, "{0}-{1}", threadPrefix, i));
+                var workerThread = CreateWorkerThread(string.Format(CultureInfo.InvariantCulture, "{0}-{1}", threadPrefix, i), null);
                 workers.Add(workerThread);
             }
 
             return workers;
         }
 
-        protected virtual WorkerThread CreateWorkerThread(string name, IThreadRunnable runnable = null)
+        protected virtual WorkerThread CreateWorkerThread(string name, IThreadRunnable runnable)
         {
             return new WorkerThread(this, name, ThreadPriority, MakeThreadsDaemons, runnable);
         }
