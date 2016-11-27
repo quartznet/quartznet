@@ -112,6 +112,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="AdoSchedulerTest.cs" />
+    <Compile Include="QuartzMemoryPauseAndResumeTest.cs" />
     <Compile Include="Core\MissSchedulingChangeSignalTest.cs" />
     <Compile Include="ExceptionPolicy\ExceptionJob.cs" />
     <Compile Include="ExceptionPolicy\ExceptionJobTest.cs" />
