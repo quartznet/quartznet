@@ -1325,13 +1325,33 @@ namespace Quartz.Simpl
                     }
                     ResumeTriggerInternal(triggerKey);
                 }
-                foreach (string group in groups)
+                // Find all matching paused trigger groups, and then remove them.
+                StringOperator op = matcher.CompareWithOperator;
+                var pausedGroups = new List<string>();
+                var matcherGroup = matcher.CompareToValue;
+                if (op.Equals(StringOperator.Equality))
                 {
-                    pausedTriggerGroups.Remove(@group);
+                    if (pausedTriggerGroups.Contains(matcherGroup))
+                    {
+                        pausedGroups.Add(matcher.CompareToValue);
+                    }
+                    else
+                    {
+                        foreach (string group in pausedTriggerGroups)
+                        {
+                            if (op.Evaluate(group, matcherGroup))
+                            {
+                                pausedGroups.Add(group);
+                            }
+                        }
+                    }
+                    foreach (string pausedGroup in pausedGroups)
+                    {
+                        pausedTriggerGroups.Remove(pausedGroup);
+                    }
                 }
-
                 return groups;
-        }
+            }
         }
 
         /// <summary>
