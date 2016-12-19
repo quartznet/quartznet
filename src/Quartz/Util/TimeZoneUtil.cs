@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using Quartz.Logging;
 
@@ -79,6 +80,19 @@ namespace Quartz.Util
             }
 
             return timeZoneInfo.GetUtcOffset(dateTimeOffset);
+        }
+
+        public static TimeSpan GetUtcOffset(DateTime dateTime, TimeZoneInfo timeZoneInfo)
+        {
+            // Unlike the default behavior of TimeZoneInfo.GetUtcOffset, it is prefered to choose
+            // the DAYLIGHT time when the input is ambiguous, because the daylight instance is the
+            // FIRST instance, and time moves in a forward direction.
+
+            TimeSpan offset = timeZoneInfo.IsAmbiguousTime(dateTime)
+                ? timeZoneInfo.GetAmbiguousTimeOffsets(dateTime).Max()
+                : timeZoneInfo.GetUtcOffset(dateTime);
+
+            return offset;
         }
 
         /// <summary>
