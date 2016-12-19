@@ -26,6 +26,21 @@ namespace Quartz.Tests.Unit
     [TestFixture]
     public class DaylightSavingTimeTest
     {
+        private Func<DateTimeOffset> OriginalUtcNow;
+
+        [OneTimeSetUp]
+        public void Init()
+        {
+            OriginalUtcNow = SystemTime.UtcNow;
+            SystemTime.UtcNow = () => new DateTimeOffset(2016, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        }
+
+        [OneTimeTearDown]
+        public void Dispose()
+        {
+            SystemTime.UtcNow = OriginalUtcNow;
+        }
+
         [Test]
         public void ShouldHandleDstSpringForwardTransition()
         {
