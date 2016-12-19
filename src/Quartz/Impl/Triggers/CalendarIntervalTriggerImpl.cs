@@ -769,7 +769,7 @@ namespace Quartz.Impl.Triggers
             {
                 //first apply the date, and then find the proper timezone offset
                 newTime = new DateTimeOffset(newTime.Year, newTime.Month, newTime.Day, initialHourOfDay, newTime.Minute, newTime.Second, newTime.Millisecond, TimeSpan.Zero);
-                newTime = new DateTimeOffset(newTime.DateTime, this.TimeZone.GetUtcOffset(newTime.DateTime));
+                newTime = new DateTimeOffset(newTime.DateTime, TimeZoneUtil.GetUtcOffset(newTime.DateTime, this.TimeZone));
 
                 //TimeZone.IsInvalidTime is true, if this hour does not exist in the specified timezone
                 bool isInvalid = this.TimeZone.IsInvalidTime(newTime.DateTime);
@@ -787,7 +787,7 @@ namespace Quartz.Impl.Triggers
                     }
 
                     //apply proper offset for the adjusted time
-                    newTime = new DateTimeOffset(newTime.DateTime, this.TimeZone.GetUtcOffset(newTime.DateTime));
+                    newTime = new DateTimeOffset(newTime.DateTime, TimeZoneUtil.GetUtcOffset(newTime.DateTime, this.TimeZone));
                 }
             }
             return false;
@@ -810,7 +810,7 @@ namespace Quartz.Impl.Triggers
             {
                 //first apply the date, and then find the proper timezone offset
                 sTime = new DateTimeOffset(initalYear, initalMonth, initialDay, initialHourOfDay, sTime.Minute, sTime.Second, sTime.Millisecond, TimeSpan.Zero);
-                sTime = new DateTimeOffset(sTime.DateTime, this.TimeZone.GetUtcOffset(sTime.DateTime));
+                sTime = new DateTimeOffset(sTime.DateTime, TimeZoneUtil.GetUtcOffset(sTime.DateTime, this.TimeZone));
             }
         }
 
