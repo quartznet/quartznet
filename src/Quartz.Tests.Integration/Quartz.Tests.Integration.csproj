@@ -74,6 +74,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AdoSchedulerTest.cs" />
+    <Compile Include="Core\RecoverJobsTest.cs" />
     <Compile Include="QuartzMemoryPauseAndResumeTest.cs" />
     <Compile Include="Core\MissSchedulingChangeSignalTest.cs" />
     <Compile Include="ExceptionPolicy\ExceptionJob.cs" />

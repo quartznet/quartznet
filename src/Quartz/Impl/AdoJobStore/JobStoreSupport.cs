@@ -799,7 +799,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             else
             {
-                await StoreTrigger(conn, trig, null, true, newStateIfNotComplete, forceState, false).ConfigureAwait(false);
+                await StoreTrigger(conn, trig, null, true, newStateIfNotComplete, forceState, recovering).ConfigureAwait(false);
             }
         }
 
