@@ -839,7 +839,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             else
             {
-                StoreTrigger(conn, trig, null, true, newStateIfNotComplete, forceState, false);
+                StoreTrigger(conn, trig, null, true, newStateIfNotComplete, forceState, recovering);
             }
         }
 
