@@ -35,3 +35,10 @@ services:
      - "1521:1521"
     environment:
      - ORACLE_ALLOW_REMOTE:true
+
+  sqlserver:
+    container_name: sqlserver
+    build: docker/sqlserver
+    ports:
+     - "1433:1433"
+
