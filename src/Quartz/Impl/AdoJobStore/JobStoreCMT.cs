@@ -1,19 +1,19 @@
 #region License
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 #endregion
 
@@ -22,13 +22,12 @@ using System.Data;
 using System.Data.SqlClient;
 
 using Quartz.Spi;
-using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore
 {
     ///<summary>
     /// <see cref="JobStoreCMT" /> is meant to be used in an application-server
-    /// or other software framework environment that provides 
+    /// or other software framework environment that provides
     /// container-managed-transactions. No commit / rollback will be handled by this class.
     /// </summary>
     /// <remarks>
@@ -56,7 +55,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             if (LockHandler == null)
             {
-                // If the user hasn't specified an explicit lock handler, 
+                // If the user hasn't specified an explicit lock handler,
                 // then we ///must/// use DB locks with CMT...
                 UseDBLocks = true;
             }
@@ -122,9 +121,9 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
-        /// Execute the given callback having optionally acquired the given lock.  
+        /// Execute the given callback having optionally acquired the given lock.
         /// Because CMT assumes that the connection is already part of a managed
-        /// transaction, it does not attempt to commit or rollback the 
+        /// transaction, it does not attempt to commit or rollback the
         /// enclosing transaction.
         /// </summary>
         /// <seealso cref="JobStoreSupport.ExecuteInNonManagedTXLock" />
@@ -132,7 +131,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <seealso cref="JobStoreSupport.GetNonManagedTXConnection()" />
         /// <seealso cref="JobStoreSupport.GetConnection()" />
         /// <param name="lockName">
-        /// The name of the lock to acquire, for example 
+        /// The name of the lock to acquire, for example
         /// "TRIGGER_ACCESS".  If null, then no lock is acquired, but the
         /// txCallback is still executed in a transaction.
         /// </param>
@@ -147,7 +146,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 if (lockName != null)
                 {
-                    // If we aren't using db locks, then delay getting DB connection 
+                    // If we aren't using db locks, then delay getting DB connection
                     // until after acquiring the lock since it isn't needed.
                     if (LockHandler.RequiresConnection)
                     {
@@ -168,7 +167,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    ReleaseLock(LockTriggerAccess, transOwner);
+                    ReleaseLock(lockName, transOwner);
                 }
                 finally
                 {
