@@ -34,14 +34,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
         {
-            string sqlSelectNextTriggerToAcquire = SqlSelectNextTriggerToAcquire;
-
-            int whereEndIdx = sqlSelectNextTriggerToAcquire.IndexOf("WHERE", StringComparison.OrdinalIgnoreCase) + 6;
-            string beginningAndWhere = sqlSelectNextTriggerToAcquire.Substring(0, whereEndIdx);
-            string theRest = sqlSelectNextTriggerToAcquire.Substring(whereEndIdx);
-
-            // add limit clause to correct place
-            return beginningAndWhere + " rownum <= " + maxCount + " AND " + theRest;
+            return "select * from ("+SqlSelectNextTriggerToAcquire+") where rownum<="+maxCount; 
         }
 
         protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
