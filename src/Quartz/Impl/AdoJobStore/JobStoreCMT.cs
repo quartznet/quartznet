@@ -172,7 +172,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    await ReleaseLock(requestorId, LockTriggerAccess, transOwner).ConfigureAwait(false);
+                    await ReleaseLock(requestorId, lockName, transOwner).ConfigureAwait(false);
                 }
                 finally
                 {
