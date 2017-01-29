@@ -6,7 +6,6 @@ namespace Quartz.Spi
     /// Interface for object serializers.
     /// </summary>
     /// <author>Marko Lahma</author>
-    /// <seealso cref="BinaryObjectSerializer" />
     public interface IObjectSerializer
     {
         void Initialize();

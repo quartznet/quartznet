@@ -4,17 +4,10 @@
     "version": "0.1.0",
     "command": "dotnet",
     "isShellCommand": true,
-    "args": [],
     "tasks": [
         {
             "taskName": "build",
-            "args":
-             [ 
-                "src/Quartz/project.json",
-                "src/Quartz.Examples/project.json",
-                "src/Quartz.Tests.Unit/project.json",
-                "src/Quartz.Tests.Integration/project.json"
-             ],
+            "args": ["Quartz.sln"],
             "isBuildCommand": true,
             "showOutput": "silent",
             "problemMatcher": "$msCompile"

@@ -1,3 +1,6 @@
+configuration: Release
+os: Visual Studio 2017
+
 version: '{build}'
 pull_requests:
   do_not_increment_build_number: true
