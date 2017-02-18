@@ -2,7 +2,7 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://www.quartz-scheduler.net
 
-Release 2.5, XXX XX, 2017
+Release 2.5, Feb 18, 2017
 --------------------------------
 
 This release contains mainly bug fixes but because there's a behavioural change in
