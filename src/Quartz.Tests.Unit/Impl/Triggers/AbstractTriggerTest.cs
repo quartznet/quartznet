@@ -33,7 +33,9 @@ namespace Quartz.Tests.Unit.Impl.Triggers
             Assert.That(cloned.Key, Is.EqualTo(trigger.Key));
         }
 
+#if BINARY_SERIALIZATION
         [Serializable]
+#endif
         private class TestTrigger : AbstractTrigger
         {
             public override IScheduleBuilder GetScheduleBuilder()

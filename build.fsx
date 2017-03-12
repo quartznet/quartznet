@@ -10,8 +10,6 @@ open System.IO
 
 let commitHash = Information.getCurrentHash()
 let configuration = getBuildParamOrDefault "configuration" "Release"
-let projectJsonFiles = !! "src/*/project.json" -- "src/*Web*/project.json"
-let testProjectJsonFiles = !! "src/Quartz.Tests.Integration/project.json" ++ "src/Quartz.Tests.Unit/project.json"
 
 Target "Clean" (fun _ ->
     !! "artifacts" ++ "src/*/bin" ++ "src/*/obj" ++ "test/*/bin" ++ "test/*/obj" ++ "build" ++ "deploy"
@@ -21,51 +19,23 @@ Target "Clean" (fun _ ->
 Target "GenerateAssemblyInfo" (fun _ ->
     CreateCSharpAssemblyInfo "./src/AssemblyInfo.cs"
         [
-            (Attribute.Product("Quarz.NET"))
-            (Attribute.Description("Quartz Scheduling Framework for .NET"))
-            (Attribute.Copyright("Copyright 2001-2016 Marko Lahma"))
-            (Attribute.Trademark("Apache License, Version 2.0"))
-            (Attribute.Company("http://www.quartz-scheduler.net/"))
-            (Attribute.CLSCompliant(true))
-            (Attribute.ComVisible(false))
             (Attribute.Metadata("githash", commitHash))]
 )
 
 Target "Build" (fun _ ->
 
-    let restore f = DotNetCli.Restore (fun p ->
-                { p with
-                    AdditionalArgs = [f] })
-
-    let build f = DotNetCli.Build (fun p ->
-                { p with
-                    Configuration = configuration
-                    Project = f })    
-
-    projectJsonFiles
-        |> Seq.iter restore
-
-    projectJsonFiles
-        |> Seq.iter build
-)
-
-Target "BuildSolutions" (fun _ ->
-
+    let buildMode = getBuildParamOrDefault "buildMode" "Release"
     let setParams defaults =
             { defaults with
                 Verbosity = Some(Quiet)
-                Targets = ["Build"]
+                Targets = ["Restore"; "Build"]
                 Properties =
                     [
                         "Optimize", "True"
-                        "DebugSymbols", "True"
-                        "Configuration", configuration
+                        "Configuration", buildMode
                     ]
             }
     build setParams "./Quartz.sln"
-        |> DoNothing
-
-    build setParams "./Quartz-DotNetCore.sln"
         |> DoNothing
 )
 
@@ -77,47 +47,20 @@ Target "Pack" (fun _ ->
                     Project = f
                 })
 
-    !! "src/Quartz/project.json" ++ "src/Quartz.Serialization.Json/project.json"
+    !! "src/Quartz/Quartz.csproj" ++ "src/Quartz.Serialization.Json/Quartz.Serialization.Json.csproj"
         |> Seq.iter pack
 
     !! "src/*/bin/**/*.nupkg"
         |> Copy "artifacts"
 )
 
-Target "Test" (fun _ ->
-        DotNetCli.Test
-            (fun p ->
-                { p with
-                    Project = "src/Quartz.Tests.Unit/project.json"
-                    Configuration = configuration
-                    AdditionalArgs = ["--where \"cat != database && cat != fragile\""] })
-)
+Target "Test" (fun () ->  trace " --- Test not implemented --- ")
 
-Target "TestFull" (fun _ ->
+Target "TestFull" (fun () ->  trace " --- TestFull not implemented --- ")
 
-    let test f = DotNetCli.Test (fun p ->
-                    { p with
-                        Project = f
-                        Configuration = configuration
-                        AdditionalArgs = ["--where \"cat != fragile\""] })
+Target "TestLinux" (fun () ->  trace " --- TestLinux not implemented --- ")
 
-    testProjectJsonFiles
-        |> Seq.iter test
-)
-
-
-Target "TestLinux" (fun _ ->
-    let test f = DotNetCli.Test (fun p ->
-                    { p with
-                        Project = f
-                        Configuration = configuration
-                        AdditionalArgs = ["--where \"cat != fragile && cat != sqlserver && cat != windowstimezoneid\""] })
-                                
-    testProjectJsonFiles
-        |>  Seq.iter test
-)
-
-Target "ApiDoc" (fun _ -> 
+Target "ApiDoc" (fun _ ->
 
     let setParams defaults =
             { defaults with
@@ -149,29 +92,28 @@ Target "ApiDoc" (fun _ ->
 
     !! "build/apidoc/**/*.htm" ++ "build/apidoc/**/*.html"
         |> ReplaceInFiles [("@HEADER@", footerContent);("@FOOTER@", headerContent)]
-    
+
 )
 
 "Clean"
   ==> "GenerateAssemblyInfo"
   ==> "Build"
-  =?> ("BuildSolutions", hasBuildParam "buildSolutions")
   ==> "Test"
   ==> "Pack"
 
 
 "Clean"
   ==> "GenerateAssemblyInfo"
-  ==> "ApiDoc"  
+  ==> "ApiDoc"
 
 "Clean"
   ==> "GenerateAssemblyInfo"
   ==> "TestFull"
-  
+
 
 "Clean"
   ==> "GenerateAssemblyInfo"
   ==> "Build"
   ==> "TestLinux"
-  
+
 RunTargetOrDefault "Test"

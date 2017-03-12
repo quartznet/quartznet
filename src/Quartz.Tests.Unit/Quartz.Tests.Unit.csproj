@@ -1,190 +1,33 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="14.0">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="..\common.props" />
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{3F8CA4D4-AE20-4767-8573-E39A17EC6F4E}</ProjectGuid>
-    <AssemblyName>Quartz.Tests.Unit</AssemblyName>
-    <DelaySign>false</DelaySign>
-    <OutputType>Library</OutputType>
-    <RootNamespace>Quartz.Tests.Unit</RootNamespace>
-    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-    <TargetFrameworkProfile />
-    <PlatformTarget>AnyCPU</PlatformTarget>
-    <CopyNuGetImplementations>true</CopyNuGetImplementations>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <DefineConstants>TRACE;DEBUG;BINARY_SERIALIZATION,MAIL,FAKE_IT_EASY,ICLONEABLE,TRANSACTIONS</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <OutputPath>../../build/4.5/Debug/Quartz.Tests.Unit/</OutputPath>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <DefineConstants>TRACE;BINARY_SERIALIZATION,MAIL,FAKE_IT_EASY,ICLONEABLE,TRANSACTIONS</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
-    <OutputPath>../../build/4.5/Release/Quartz.Tests.Unit/</OutputPath>
+    <TargetFrameworks>netcoreapp1.1;net452</TargetFrameworks>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="System">
-      <Name>System</Name>
-    </Reference>
-    <Reference Include="System.Core">
-      <RequiredTargetFramework>3.5</RequiredTargetFramework>
-    </Reference>
-    <Reference Include="System.Data">
-      <Name>System.Data</Name>
-    </Reference>
+    <EmbeddedResource Include="Xml\TestData\*" />
+    <Content Include="Serialized\*">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <None Include="App.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz.Serialization.Json\Quartz.Serialization.Json.csproj" />
+    <ProjectReference Include="..\Quartz\Quartz.csproj" />
+    <PackageReference Include="FakeItEasy" Version="3.1.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyModel" Version="1.1.1" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.0.0" />
+    <PackageReference Include="NUnit" Version="3.6.1" />
+    <PackageReference Include="NUnit3TestAdapter" Version="3.7.0" />
+  </ItemGroup>
+  <ItemGroup Condition=" '$(TargetFramework)' == 'netcoreapp1.1' ">
+  </ItemGroup>
+  <PropertyGroup Condition=" '$(TargetFramework)' == 'net452' ">
+    <DefineConstants>$(DefineConstants);TRANSACTIONS;BINARY_SERIALIZATION;FAKE_IT_EASY</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition=" '$(TargetFramework)' == 'net452' ">
     <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Data" />
     <Reference Include="System.Transactions" />
+    <Reference Include="Microsoft.CSharp" />
+    <PackageReference Include="Oracle.ManagedDataAccess" Version="12.1.24160419" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="CalendarIntervalTriggerTest.cs" />
-    <Compile Include="Core\ListenerManagerTest .cs" />
-    <Compile Include="Core\MissSchedulingChangeSignalTest.cs" />
-    <Compile Include="Core\SlowRAMJobStore.cs" />
-    <Compile Include="CronScheduleBuilderTest.cs" />
-    <Compile Include="CronTriggerTest.cs" />
-    <Compile Include="DailyTimeIntervalScheduleBuilderTest.cs" />
-    <Compile Include="DateBuilderTest.cs" />
-    <Compile Include="DaylightSavingTimeTests.cs" />
-    <Compile Include="DisallowConcurrentJobExecutionTest.cs" />
-    <Compile Include="Impl\AdoJobStore\JobStoreCMTTest.cs" />
-    <Compile Include="Impl\AdoJobStore\JobStoreSupportTest.cs" />
-    <Compile Include="Impl\AdoJobStore\UpdateTriggerTest.cs">
-      <SubType>Component</SubType>
-    </Compile>
-    <Compile Include="Impl\Calendar\BaseCalendarTest.cs" />
-    <Compile Include="Impl\StdSchedulerFactoryTest.cs" />
-    <Compile Include="Impl\Triggers\AbstractTriggerTest.cs" />
-    <Compile Include="Impl\Triggers\DailyTimeIntervalTriggerImplTest.cs" />
-    <Compile Include="InterrubtableJobTest.cs" />
-    <Compile Include="JobBuilderTest.cs" />
-    <Compile Include="Job\SendMailJobTest.cs" />
-    <Compile Include="Utils\ObjectExtensions.cs" />
-    <Compile Include="Plugin\Xml\XMLSchedulingDataProcessorPluginTest.cs" />
-    <Compile Include="QualityTest.cs" />
-    <Compile Include="SchedulerListenerTest.cs" />
-    <Compile Include="SchedulerTest.cs" />
-    <Compile Include="SerializationTest.cs" />
-    <Compile Include="Simpl\JsonObjectSerializerTest.cs" />
-    <Compile Include="Simpl\SimpleInstanceIdGeneratorTest.cs" />
-    <Compile Include="Simpl\SimpleJobFactoryTest.cs" />
-    <Compile Include="Simpl\SystemPropertyInstanceIdGeneratorTest.cs" />
-    <Compile Include="TestAssemblySetup.cs" />
-    <Compile Include="TestConstants.cs" />
-    <Compile Include="TestUtil.cs" />
-    <Compile Include="Core\QuartzSchedulerTest.cs" />
-    <Compile Include="CronExpressionTest.cs" />
-    <Compile Include="Impl\AdoJobStore\Common\DbMetadataTest.cs" />
-    <Compile Include="Impl\AdoJobStore\Common\DbProviderTest.cs" />
-    <Compile Include="Impl\AdoJobStore\StdAdoDelegateTest.cs" />
-    <Compile Include="Impl\Calendar\AnnualCalendarTest.cs" />
-    <Compile Include="Impl\Calendar\MonthlyCalendarTest.cs" />
-    <Compile Include="Impl\Calendar\WeeklyCalendarTest.cs" />
-    <Compile Include="Impl\Calendar\HolidayCalendarTest.cs" />
-    <Compile Include="Impl\Calendar\CronCalendarTest.cs" />
-    <Compile Include="Impl\Calendar\DailyCalendarTest.cs" />
-    <Compile Include="Impl\DirectSchedulerFactoryTest.cs" />
-    <Compile Include="JobDataMapTest.cs" />
-    <Compile Include="JobDetailTest.cs" />
-    <Compile Include="JobExecutionContextTest.cs" />
-    <Compile Include="Plugin\History\LoggingJobHistoryPluginTest.cs" />
-    <Compile Include="Plugin\History\LoggingTriggerHistoryPluginTest.cs" />
-    <Compile Include="PriorityTest.cs" />
-    <Compile Include="SerializationTestSupport.cs" />
-    <Compile Include="SimpleTriggerTest.cs" />
-    <Compile Include="Simpl\PropertySettingJobFactoryTest.cs" />
-    <Compile Include="Simpl\RAMJobStoreTest.cs" />
-    <Compile Include="TriggerBuilderTest.cs" />
-    <Compile Include="TriggerComparatorTest.cs" />
-    <Compile Include="TriggerKeyTest.cs" />
-    <Compile Include="Utils\DirtyFlagMapTest.cs" />
-    <Compile Include="Utils\ObjectUtilsTest.cs" />
-    <Compile Include="Utils\PropertiesParserTest.cs" />
-    <Compile Include="Utils\TimeZoneUtilTest.cs" />
-    <Compile Include="Xml\XMLSchedulingDataProcessorTest.cs" />
-    <EmbeddedResource Include="Xml\TestData\SimpleTriggerNoRepeat.xml" />
-    <EmbeddedResource Include="Xml\TestData\delete-no-job-class.xml" />
-    <EmbeddedResource Include="Xml\TestData\directives_overwrite_no-ignoredups.xml" />
-    <EmbeddedResource Include="Xml\TestData\RichConfiguration.xml" />
-    <EmbeddedResource Include="Xml\TestData\MinimalConfiguration.xml" />
-    <EmbeddedResource Include="Xml\TestData\RichConfiguration_20.xml" />
-    <EmbeddedResource Include="Xml\TestData\MinimalConfiguration_20.xml" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="app.config" />
-    <None Include="Quartz.Tests.Unit.project.json" />
-    <None Include="Serialized\AnnualCalendar_10.ser">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Serialized\BaseCalendar_10.ser">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Serialized\CronCalendar_10.ser">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Serialized\DailyCalendar_10.ser">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Serialized\HashSet_10.ser">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Serialized\HolidayCalendar_10.ser">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Serialized\HolidayCalendar_23.ser">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Serialized\JobDataMap_10.ser">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Serialized\MonthlyCalendar_10.ser">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Serialized\TreeSet_10.ser">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Serialized\WeeklyCalendar_10.ser">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="project.json" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\Quartz.Serialization.Json\Quartz.Serialization.Json.csproj">
-      <Project>{aef8823b-e45b-4b35-a4d0-c08c1111d017}</Project>
-      <Name>Quartz.Serialization.Json</Name>
-    </ProjectReference>
-    <ProjectReference Include="..\Quartz\Quartz.csproj">
-      <Project>{AEF8823B-E45B-4B35-A4D0-C08C1196D017}</Project>
-      <Name>Quartz.2010</Name>
-    </ProjectReference>
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Xml\TestData\QRTZNET250.xml">
-      <SubType>Designer</SubType>
-    </EmbeddedResource>
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Xml\TestData\SimpleJobTrigger.xml" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Xml\TestData\ScheduleRelativeToOldTrigger.xml" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="Xml\TestData\overwrite-no-jobclass.xml" />
-  </ItemGroup>
-  <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>
