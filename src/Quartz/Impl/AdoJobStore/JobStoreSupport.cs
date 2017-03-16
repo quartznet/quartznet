@@ -3015,7 +3015,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             TimeSpan passed = SystemTime.UtcNow() - LastCheckin;
             TimeSpan ts = rec.CheckinInterval > passed ? rec.CheckinInterval : passed;
-            return rec.CheckinTimestamp.Add(ts).Add(TimeSpan.FromMilliseconds(7500));
+            return rec.CheckinTimestamp.Add(ts).Add(ClusterCheckinInterval);
         }
 
         protected virtual async Task<IReadOnlyList<SchedulerStateRecord>> ClusterCheckIn(ConnectionAndTransactionHolder conn)
