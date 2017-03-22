@@ -34,4 +34,4 @@ The version 3.0 is a work in progress and things might still change a bit.
 
 For API documentation, please refer to Quartz.NET site: 
 
-   http://apidoc.quartz-scheduler.net/
+   http://quartznet.sourceforge.net/apidoc/3.0/html/
