@@ -101,7 +101,7 @@ namespace Quartz.Simpl
                 var props = CreateConfiguration();
 
                 // use binary formatter
-                var formatprovider = new BinaryServerFormatterSinkProvider(props, null);
+                var formatprovider = new BinaryServerFormatterSinkProvider();
                 formatprovider.TypeFilterLevel = TypeFilterLevel;
 
                 string channelRegistrationKey = ChannelType + "_" + Port;
