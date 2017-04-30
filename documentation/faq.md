@@ -286,4 +286,10 @@ Sencondly, use driver delegate implementation that is specific to your database,
 
 *You should also always prefer the latest version of the library. Quartz.NET 2.0 is much more efficient than 1.x series and 2.2.x line again has AdoJobStore related performance improvements over earlier 2.x releases*
 					
+# Quartz in web environment
 
+## Scheduler keeps stopping when application pool gets recycled
+
+By default IIS recycles and stops app pools from time to time. This means that even if you have Application_Start event to start Quartz when web app is being first accessed, the scheduler might get disposed later on due to site inactivity.
+
+If you have a IIS 8 available, you can configure your site to be preloaded and kept running. See [this blog post](https://blogs.msdn.microsoft.com/vijaysk/2012/10/11/iis-8-whats-new-website-settings/) for details.
