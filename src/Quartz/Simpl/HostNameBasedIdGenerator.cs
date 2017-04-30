@@ -56,7 +56,7 @@ namespace Quartz.Simpl
                 if (hostName != null && hostName.Length > maxLength)
                 {
                     string newName = hostName.Substring(0, maxLength);
-                    logger.WarnFormat("Host name '{0}' was too long, shortened to '{1}'", hostName, newName);
+                    logger.InfoFormat("Host name '{0}' was too long, shortened to '{1}'", hostName, newName);
                     hostName = newName;
                 }
                 return hostName;
