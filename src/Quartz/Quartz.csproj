@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="..\common.props" />
   <PropertyGroup>
     <AssemblyTitle>Quartz.NET</AssemblyTitle>
     <TargetFrameworks>netstandard1.3;net452</TargetFrameworks>

@@ -38,7 +38,7 @@
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(TargetFramework)' == 'net45' or '$(TargetFramework)' == 'net452' ">
-    <DefineConstants>$(DefineConstants);APPDOMAINS;BINARY_SERIALIZATION;CONFIGURATION;HTTPCONTEXT;MAIL;THREAD_APARTMENTSTATE;THREAD_INTERRUPTION;THREAD_PRIORITY;WINDOWS_PROCESS;XML_SCHEMA</DefineConstants>
+    <DefineConstants>$(DefineConstants);APPDOMAINS;BINARY_SERIALIZATION;CONFIGURATION;HTTPCONTEXT;MAIL;THREAD_APARTMENTSTATE;THREAD_INTERRUPTION;THREAD_PRIORITY;WINDOWS_PROCESS;XML_SCHEMA;REMOTING</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(TargetFramework)' == 'netstandard1.3' or '$(TargetFramework)' == 'netcoreapp1.1' ">

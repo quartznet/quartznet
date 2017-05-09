@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="..\common.props" />
   <PropertyGroup>
     <AssemblyTitle>Quartz.NET JSON Serialization</AssemblyTitle>
     <RootNamespace>Quartz</RootNamespace>

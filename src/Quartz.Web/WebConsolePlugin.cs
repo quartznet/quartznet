@@ -17,7 +17,7 @@ namespace Quartz.Web
         public string HostName { get; set; }
         public int? Port { get; set; }
 
-        public void Initialize(string pluginName, IScheduler scheduler)
+        public Task Initialize(string pluginName, IScheduler scheduler)
         {
             var liveLogPlugin = new LiveLogPlugin();
             scheduler.ListenerManager.AddJobListener(liveLogPlugin);
@@ -31,6 +31,8 @@ namespace Quartz.Web
             scheduler.AddCalendar(typeof (HolidayCalendar).Name, new HolidayCalendar(), false, false);
             scheduler.AddCalendar(typeof (MonthlyCalendar).Name, new MonthlyCalendar(), false, false);
             scheduler.AddCalendar(typeof (WeeklyCalendar).Name, new WeeklyCalendar(), false, false);
+
+            return Task.CompletedTask;
         }
 
         public Task Start()

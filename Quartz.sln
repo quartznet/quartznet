@@ -6,7 +6,12 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{7E6034DE-2AF7-42CE-B9E3-A1B3B582E6DA}"
 	ProjectSection(SolutionItems) = preProject
 		build.fsx = build.fsx
-		src\common.props = src\common.props
+		src\Directory.Build.targets = src\Directory.Build.targets
+		build.cmd = build.cmd
+		build.sh = build.sh
+		appveyor.yml = appveyor.yml
+		readme.txt = readme.txt
+		changelog.txt = changelog.txt
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz", "src\Quartz\Quartz.csproj", "{0545C4AC-45BE-47C3-81B7-1592579B9C31}"

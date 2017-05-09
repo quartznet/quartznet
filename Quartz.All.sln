@@ -1,4 +1,4 @@
-Microsoft Visual Studio Solution File, Format Version 12.00
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 14
 VisualStudioVersion = 14.0.23107.0
 MinimumVisualStudioVersion = 10.0.40219.1
@@ -6,7 +6,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		src\AssemblyInfo.cs = src\AssemblyInfo.cs
 		changelog.txt = changelog.txt
-		Quartz.build = Quartz.build
 		Quartz.nuspec = Quartz.nuspec
 		readme.txt = readme.txt
 	EndProjectSection
@@ -41,6 +40,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Server", "src\Quartz
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Web", "src\Quartz.Web\Quartz.Web.csproj", "{85E583B5-2D1E-4D08-8677-0D0851CBE2B6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Serialization.Json", "src\Quartz.Serialization.Json\Quartz.Serialization.Json.csproj", "{F0B58C00-50CF-48B2-94EA-07BFB71A2878}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -71,6 +72,10 @@ Global
 		{85E583B5-2D1E-4D08-8677-0D0851CBE2B6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{85E583B5-2D1E-4D08-8677-0D0851CBE2B6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{85E583B5-2D1E-4D08-8677-0D0851CBE2B6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F0B58C00-50CF-48B2-94EA-07BFB71A2878}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F0B58C00-50CF-48B2-94EA-07BFB71A2878}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F0B58C00-50CF-48B2-94EA-07BFB71A2878}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F0B58C00-50CF-48B2-94EA-07BFB71A2878}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -84,5 +89,6 @@ Global
 		{3F8CA4D4-AE20-4767-8573-E39A17EC6F4E} = {95F36186-4305-42A3-B57B-2F23769A5BB0}
 		{09082B9A-906C-4A17-A2E5-6C947DAC7C85} = {39DC81E9-C9CC-46E5-97EE-E8EC74A1B8D4}
 		{85E583B5-2D1E-4D08-8677-0D0851CBE2B6} = {39DC81E9-C9CC-46E5-97EE-E8EC74A1B8D4}
+		{F0B58C00-50CF-48B2-94EA-07BFB71A2878} = {6EBE10AB-07CE-4C04-AD4D-75660778D4C2}
 	EndGlobalSection
 EndGlobal

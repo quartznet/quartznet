@@ -1,6 +1,4 @@
-﻿using System;
-
-using Quartz.Spi;
+﻿using Quartz.Spi;
 
 namespace Quartz.Simpl
 {
@@ -22,7 +20,7 @@ namespace Quartz.Simpl
         public IRemotableQuartzScheduler GetProxy()
         {
 #if REMOTING
-            return (IRemotableQuartzScheduler) Activator.GetObject(typeof(IRemotableQuartzScheduler), Address);
+            return (IRemotableQuartzScheduler) System.Activator.GetObject(typeof(IRemotableQuartzScheduler), Address);
 #else // REMOTING
             // TODO (NetCore Port): Return a new 'HttpQuartzScheduler' type which is the client that will make requests to a remote scheduler
             //                      This new type would then be what is wrapped by RemoteScheduler to make remote calls.

@@ -1,5 +1,4 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="..\common.props" />
   <PropertyGroup>
     <TargetFrameworks>net452</TargetFrameworks>
     <OutputType>Exe</OutputType>
