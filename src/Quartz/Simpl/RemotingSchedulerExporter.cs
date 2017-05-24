@@ -44,6 +44,11 @@ namespace Quartz.Simpl
         private const string DefaultBindName = "QuartzScheduler";
         private const string DefaultChannelName = "http";
 
+        /// <summary>
+        /// BinaryServerFormatterSinkProvider allowed properties.        
+        /// </summary>
+        private static string[] formatProviderAllowedProperties = new string[] { "includeVersions", "strictBinding", "typeFilterLevel" };
+
         private readonly ILog log;
         private static readonly Dictionary<string, object> registeredChannels = new Dictionary<string, object>();
 
@@ -108,7 +113,8 @@ namespace Quartz.Simpl
 
 #if REMOTING
                 // use binary formatter
-                var formatprovider = new BinaryServerFormatterSinkProvider();
+                var formatProviderProps = ExtractFormatProviderConfiguration(props);
+                var formatprovider = new BinaryServerFormatterSinkProvider(formatProviderProps, null);
                 formatprovider.TypeFilterLevel = TypeFilterLevel;
 
                 string channelRegistrationKey = ChannelType + "_" + Port;
@@ -166,6 +172,26 @@ namespace Quartz.Simpl
                 props["rejectRemoteRequests"] = "true";
             }
             return props;
+        }
+
+        /// <summary>
+        /// Extract BinaryServerFormatterSinkProvider allowed properties from configuration properties.
+        /// </summary>
+        /// <param name="props">Configuration properties.</param>
+        /// <returns>BinaryServerFormatterSinkProvider allowed properties from configuration.</returns>
+        protected virtual IDictionary ExtractFormatProviderConfiguration(IDictionary props)
+        {
+            IDictionary formatProviderAllowedProps = new Hashtable();
+
+            foreach (var allowedProperty in formatProviderAllowedProps)
+            {
+                if (props.Contains(allowedProperty))
+                {
+                    formatProviderAllowedProps[allowedProperty] = props[allowedProperty];
+                }
+            }
+
+            return formatProviderAllowedProps;
         }
 
         public virtual void UnBind(IRemotableQuartzScheduler scheduler)
