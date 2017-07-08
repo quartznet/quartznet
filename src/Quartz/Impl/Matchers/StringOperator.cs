@@ -103,7 +103,7 @@ namespace Quartz.Impl.Matchers
             }
 
             // just check by type, equality based on behavior
-            return GetType().Equals(other.GetType());
+            return GetType() == other.GetType();
         }
 
         public override int GetHashCode()

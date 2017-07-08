@@ -1573,8 +1573,20 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>The <see cref="ITrigger" /> object</returns>
         public virtual async Task<IOperableTrigger> SelectTrigger(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
         {
-            IOperableTrigger trigger = null;
+            string jobName;
+            string jobGroup;
+            string description;
             string triggerType;
+            string calendarName;
+            int misFireInstr;
+            int priority;
+
+            IDictionary map;
+
+            DateTimeOffset? nextFireTimeUtc;
+            DateTimeOffset? previousFireTimeUtc;
+            DateTimeOffset startTimeUtc;
+            DateTimeOffset? endTimeUtc;
 
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTrigger)))
             {
@@ -1583,103 +1595,104 @@ namespace Quartz.Impl.AdoJobStore
 
                 using (var rs = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
                 {
-                    if (await rs.ReadAsync().ConfigureAwait(false))
+                    if (!await rs.ReadAsync().ConfigureAwait(false))
                     {
-                        string jobName = rs.GetString(ColumnJobName);
-                        string jobGroup = rs.GetString(ColumnJobGroup);
-                        string description = rs.GetString(ColumnDescription);
-                        triggerType = rs.GetString(ColumnTriggerType);
-                        string calendarName = rs.GetString(ColumnCalendarName);
-                        int misFireInstr = rs.GetInt32(ColumnMifireInstruction);
-                        int priority = rs.GetInt32(ColumnPriority);
+                        return null;
+                    }
 
-                        IDictionary map = await ReadMapFromReader(rs, 11).ConfigureAwait(false);
+                    jobName = rs.GetString(ColumnJobName);
+                    jobGroup = rs.GetString(ColumnJobGroup);
+                    description = rs.GetString(ColumnDescription);
+                    triggerType = rs.GetString(ColumnTriggerType);
+                    calendarName = rs.GetString(ColumnCalendarName);
+                    misFireInstr = rs.GetInt32(ColumnMifireInstruction);
+                    priority = rs.GetInt32(ColumnPriority);
 
-                        DateTimeOffset? nextFireTimeUtc = GetDateTimeFromDbValue(rs[ColumnNextFireTime]);
-                        DateTimeOffset? previousFireTimeUtc = GetDateTimeFromDbValue(rs[ColumnPreviousFireTime]);
-                        DateTimeOffset startTimeUtc = GetDateTimeFromDbValue(rs[ColumnStartTime]) ?? DateTimeOffset.MinValue;
-                        DateTimeOffset? endTimeUtc = GetDateTimeFromDbValue(rs[ColumnEndTime]);
+                    map = await ReadMapFromReader(rs, 11).ConfigureAwait(false);
 
-                        // done reading
-                        rs.Dispose();
+                    nextFireTimeUtc = GetDateTimeFromDbValue(rs[ColumnNextFireTime]);
+                    previousFireTimeUtc = GetDateTimeFromDbValue(rs[ColumnPreviousFireTime]);
+                    startTimeUtc = GetDateTimeFromDbValue(rs[ColumnStartTime]) ?? DateTimeOffset.MinValue;
+                    endTimeUtc = GetDateTimeFromDbValue(rs[ColumnEndTime]);
+                }
+            }
 
-                        if (triggerType.Equals(TriggerTypeBlob))
+            IOperableTrigger trigger = null;
+            if (triggerType.Equals(TriggerTypeBlob))
+            {
+                using (var cmd2 = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectBlobTrigger)))
+                {
+                    AddCommandParameter(cmd2, "triggerName", triggerKey.Name);
+                    AddCommandParameter(cmd2, "triggerGroup", triggerKey.Group);
+                    using (var rs2 = await cmd2.ExecuteReaderAsync().ConfigureAwait(false))
+                    {
+                        if (await rs2.ReadAsync().ConfigureAwait(false))
                         {
-                            using (var cmd2 = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectBlobTrigger)))
-                            {
-                                AddCommandParameter(cmd2, "triggerName", triggerKey.Name);
-                                AddCommandParameter(cmd2, "triggerGroup", triggerKey.Group);
-                                using (var rs2 = await cmd2.ExecuteReaderAsync().ConfigureAwait(false))
-                                {
-                                    if (await rs2.ReadAsync().ConfigureAwait(false))
-                                    {
-                                        trigger = await GetObjectFromBlob<IOperableTrigger>(rs2, 0).ConfigureAwait(false);
-                                    }
-                                }
-                            }
-                        }
-                        else
-                        {
-                            ITriggerPersistenceDelegate tDel = FindTriggerPersistenceDelegate(triggerType);
-
-                            if (tDel == null)
-                            {
-                                throw new JobPersistenceException("No TriggerPersistenceDelegate for trigger discriminator type: " + triggerType);
-                            }
-
-                            TriggerPropertyBundle triggerProps;
-                            try
-                            {
-                                triggerProps = await tDel.LoadExtendedTriggerProperties(conn, triggerKey).ConfigureAwait(false);
-                            }
-                            catch (InvalidOperationException)
-                            {
-                                if (await IsTriggerStillPresent(cmd).ConfigureAwait(false))
-                                {
-                                    throw;
-                                }
-                                else
-                                {
-                                    // QTZ-386 Trigger has been deleted
-                                    return null;
-                                }
-                            }
-
-                            TriggerBuilder tb = TriggerBuilder.Create()
-                                .WithDescription(description)
-                                .WithPriority(priority)
-                                .StartAt(startTimeUtc)
-                                .EndAt(endTimeUtc)
-                                .WithIdentity(triggerKey)
-                                .ModifiedByCalendar(calendarName)
-                                .WithSchedule(triggerProps.ScheduleBuilder)
-                                .ForJob(new JobKey(jobName, jobGroup));
-
-                            if (map != null)
-                            {
-                                tb.UsingJobData(new JobDataMap(map));
-                            }
-
-                            trigger = (IOperableTrigger) tb.Build();
-
-                            trigger.MisfireInstruction = misFireInstr;
-                            trigger.SetNextFireTimeUtc(nextFireTimeUtc);
-                            trigger.SetPreviousFireTimeUtc(previousFireTimeUtc);
-
-                            SetTriggerStateProperties(trigger, triggerProps);
+                            trigger = await GetObjectFromBlob<IOperableTrigger>(rs2, 0).ConfigureAwait(false);
                         }
                     }
                 }
+            }
+            else
+            {
+                ITriggerPersistenceDelegate tDel = FindTriggerPersistenceDelegate(triggerType);
+
+                if (tDel == null)
+                {
+                    throw new JobPersistenceException("No TriggerPersistenceDelegate for trigger discriminator type: " + triggerType);
+                }
+
+                TriggerPropertyBundle triggerProps;
+                try
+                {
+                    triggerProps = await tDel.LoadExtendedTriggerProperties(conn, triggerKey).ConfigureAwait(false);
+                }
+                catch (InvalidOperationException)
+                {
+                    if (await IsTriggerStillPresent(conn).ConfigureAwait(false))
+                    {
+                        throw;
+                    }
+
+                    // QTZ-386 Trigger has been deleted
+                    return null;
+                }
+
+                TriggerBuilder tb = TriggerBuilder.Create()
+                    .WithDescription(description)
+                    .WithPriority(priority)
+                    .StartAt(startTimeUtc)
+                    .EndAt(endTimeUtc)
+                    .WithIdentity(triggerKey)
+                    .ModifiedByCalendar(calendarName)
+                    .WithSchedule(triggerProps.ScheduleBuilder)
+                    .ForJob(new JobKey(jobName, jobGroup));
+
+                if (map != null)
+                {
+                    tb.UsingJobData(new JobDataMap(map));
+                }
+
+                trigger = (IOperableTrigger) tb.Build();
+
+                trigger.MisfireInstruction = misFireInstr;
+                trigger.SetNextFireTimeUtc(nextFireTimeUtc);
+                trigger.SetPreviousFireTimeUtc(previousFireTimeUtc);
+
+                SetTriggerStateProperties(trigger, triggerProps);
             }
 
             return trigger;
         }
 
-        private static async Task<bool> IsTriggerStillPresent(DbCommand command)
+        private async Task<bool> IsTriggerStillPresent(ConnectionAndTransactionHolder conn)
         {
-            using (var rs = await command.ExecuteReaderAsync().ConfigureAwait(false))
+            using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTrigger)))
             {
-                return await rs.ReadAsync().ConfigureAwait(false);
+                using (var rs = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
+                {
+                    return await rs.ReadAsync().ConfigureAwait(false);
+                }
             }
         }
 

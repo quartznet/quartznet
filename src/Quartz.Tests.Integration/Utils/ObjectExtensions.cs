@@ -1,8 +1,11 @@
 using System.IO;
+using System.Reflection;
+
 #if BINARY_SERIALIZATION
 using System.Runtime.Serialization.Formatters.Binary;
 #else // BINARY_SERIALIZATION
 using Newtonsoft.Json;
+using Newtonsoft.Json.Serialization;
 #endif // BINARY_SERIALIZATION
 
 namespace Quartz.Tests.Integration.Utils
@@ -34,6 +37,7 @@ namespace Quartz.Tests.Integration.Utils
                 using (var sw = new StreamWriter(ms))
                 {
                     var js = new JsonSerializer();
+                    js.ContractResolver = new PrimateSettersDefaultContractResolver();
                     js.TypeNameHandling = TypeNameHandling.All;
                     js.PreserveReferencesHandling = PreserveReferencesHandling.All;
                     js.Serialize(sw, obj);
@@ -41,11 +45,35 @@ namespace Quartz.Tests.Integration.Utils
                     ms.Seek(0, SeekOrigin.Begin);
                     using (var sr = new StreamReader(ms))
                     {
-                        return (T)js.Deserialize(sr, typeof(T));
+                        return (T) js.Deserialize(sr, typeof(T));
                     }
                 }
 #endif // BINARY_SERIALIZATION
             }
         }
+
+#if !BINARY_SERIALIZATION
+        private class PrimateSettersDefaultContractResolver : DefaultContractResolver
+        {
+            protected override JsonProperty CreateProperty(
+                MemberInfo member,
+                MemberSerialization memberSerialization)
+            {
+                var prop = base.CreateProperty(member, memberSerialization);
+
+                if (!prop.Writable)
+                {
+                    var property = member as PropertyInfo;
+                    if (property != null)
+                    {
+                        var hasPrivateSetter = property.GetSetMethod(true) != null;
+                        prop.Writable = hasPrivateSetter;
+                    }
+                }
+
+                return prop;
+            }
+        }
+#endif
     }
 }

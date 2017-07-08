@@ -3,7 +3,7 @@
 //
 // https://github.com/damianh/LibLog
 //===============================================================================
-// Copyright © 2011-2015 Damian Hickey.  All rights reserved.
+// Copyright Â© 2011-2015 Damian Hickey.  All rights reserved.
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -32,11 +32,16 @@
 // this can have unintended consequences of consumers of your library using your library to resolve a logger. If the
 // reason is because you want to open this functionality to other projects within your solution,
 // consider [InternalsVisibleTo] instead.
-// 
+//
 // Define LIBLOG_PROVIDERS_ONLY if your library provides its own logging API and you just want to use the
 // LibLog providers internally to provide built in support for popular logging frameworks.
 
 #pragma warning disable 1591
+
+using System.Diagnostics.CodeAnalysis;
+
+[assembly: SuppressMessage("Microsoft.Design", "CA1020:AvoidNamespacesWithFewTypes", Scope = "namespace", Target = "Quartz.Logging")]
+[assembly: SuppressMessage("Microsoft.Design", "CA1026:DefaultParametersShouldNotBeUsed", Scope = "member", Target = "Quartz.Logging.Logger.#Invoke(Quartz.Logging.LogLevel,System.Func`1<System.String>,System.Exception,System.Object[])")]
 
 // If you copied this file manually, you need to change all "YourRootNameSpace" so not to clash with other libraries
 // that use LibLog
@@ -47,6 +52,7 @@ namespace Quartz.Logging
 #endif
 {
     using System.Collections.Generic;
+    using System.Diagnostics.CodeAnalysis;
 #if LIBLOG_PROVIDERS_ONLY
     using Quartz.LibLog.LogProviders;
 #else
@@ -65,7 +71,7 @@ namespace Quartz.Logging
 #else
     public
 #endif
-    delegate bool Logger(LogLevel logLevel, Func<string> messageFunc, Exception exception = null, params object[] formatParameters);
+        delegate bool Logger(LogLevel logLevel, Func<string> messageFunc, Exception exception = null, params object[] formatParameters);
 
 #if !LIBLOG_PROVIDERS_ONLY
     /// <summary>
@@ -76,7 +82,7 @@ namespace Quartz.Logging
 #else
     internal
 #endif
-    interface ILog
+        interface ILog
     {
         /// <summary>
         /// Log a message the specified log level.
@@ -89,7 +95,7 @@ namespace Quartz.Logging
         /// <remarks>
         /// Note to implementers: the message func should not be called if the loglevel is not enabled
         /// so as not to incur performance penalties.
-        /// 
+        ///
         /// To check IsEnabled call Log with only LogLevel and check the return value, no event will be written.
         /// </remarks>
         bool Log(LogLevel logLevel, Func<string> messageFunc, Exception exception = null, params object[] formatParameters);
@@ -104,7 +110,7 @@ namespace Quartz.Logging
 #else
     public
 #endif
-    enum LogLevel
+        enum LogLevel
     {
         Trace,
         Debug,
@@ -120,7 +126,7 @@ namespace Quartz.Logging
 #else
     internal
 #endif
-    static partial class LogExtensions
+        static partial class LogExtensions
     {
         public static bool IsDebugEnabled(this ILog logger)
         {
@@ -380,7 +386,7 @@ namespace Quartz.Logging
 #else
     public
 #endif
-    interface ILogProvider
+        interface ILogProvider
     {
         /// <summary>
         /// Gets the specified named logger.
@@ -413,20 +419,16 @@ namespace Quartz.Logging
 #else
     public
 #endif
-    static class LogProvider
+        static class LogProvider
     {
 #if !LIBLOG_PROVIDERS_ONLY
-        /// <summary>
-        /// The disable logging environment variable. If the environment variable is set to 'true', then logging
-        /// will be disabled.
-        /// </summary>
-        public const string DisableLoggingEnvironmentVariable = "Quartz_LIBLOG_DISABLE";
         private const string NullLogProvider = "Current Log Provider is not set. Call SetCurrentLogProvider " +
                                                "with a non-null value first.";
         private static dynamic s_currentLogProvider;
         private static Action<ILogProvider> s_onCurrentLogProviderSet;
 
-       static LogProvider()
+        [SuppressMessage("Microsoft.Performance", "CA1810:InitializeReferenceTypeStaticFieldsInline")]
+        static LogProvider()
         {
             IsDisabled = false;
         }
@@ -451,10 +453,10 @@ namespace Quartz.Logging
         public static bool IsDisabled { get; set; }
 
         /// <summary>
-        /// Sets an action that is invoked when a consumer of your library has called SetCurrentLogProvider. It is 
+        /// Sets an action that is invoked when a consumer of your library has called SetCurrentLogProvider. It is
         /// important that hook into this if you are using child libraries (especially ilmerged ones) that are using
         /// LibLog (or other logging abstraction) so you adapt and delegate to them.
-        /// <see cref="SetCurrentLogProvider"/> 
+        /// <see cref="SetCurrentLogProvider"/>
         /// </summary>
         internal static Action<ILogProvider> OnCurrentLogProviderSet
         {
@@ -483,16 +485,16 @@ namespace Quartz.Logging
 #else
         internal
 #endif
-        static ILog For<T>()
+            static ILog For<T>()
         {
             return GetLogger(typeof(T));
         }
 
 #if !LIBLOG_PORTABLE
-        /// <summary>
-        /// Gets a logger for the current class.
-        /// </summary>
-        /// <returns>An instance of <see cref="ILog"/></returns>
+/// <summary>
+/// Gets a logger for the current class.
+/// </summary>
+/// <returns>An instance of <see cref="ILog"/></returns>
         [MethodImpl(MethodImplOptions.NoInlining)]
 #if LIBLOG_PUBLIC
         public
@@ -510,15 +512,17 @@ namespace Quartz.Logging
         /// Gets a logger for the specified type.
         /// </summary>
         /// <param name="type">The type whose name will be used for the logger.</param>
+        /// <param name="fallbackTypeName">If the type is null then this name will be used as the log name instead</param>
         /// <returns>An instance of <see cref="ILog"/></returns>
 #if LIBLOG_PUBLIC
         public
 #else
         internal
 #endif
-        static ILog GetLogger(Type type)
+            static ILog GetLogger(Type type, string fallbackTypeName = "System.Object")
         {
-            return GetLogger(type.FullName);
+            // If the type passed in is null then fallback to the type name specified
+            return GetLogger(type != null ? type.FullName : fallbackTypeName);
         }
 
         /// <summary>
@@ -531,7 +535,7 @@ namespace Quartz.Logging
 #else
         internal
 #endif
-        static ILog GetLogger(string name)
+            static ILog GetLogger(string name)
         {
             ILogProvider logProvider = CurrentLogProvider ?? ResolveLogProvider();
             return logProvider == null
@@ -544,12 +548,13 @@ namespace Quartz.Logging
         /// </summary>
         /// <param name="message">A message.</param>
         /// <returns>An <see cref="IDisposable"/> that closes context when disposed.</returns>
+        [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "SetCurrentLogProvider")]
 #if LIBLOG_PUBLIC
         public
 #else
         internal
 #endif
-        static IDisposable OpenNestedContext(string message)
+            static IDisposable OpenNestedContext(string message)
         {
             ILogProvider logProvider = CurrentLogProvider ?? ResolveLogProvider();
 
@@ -564,12 +569,13 @@ namespace Quartz.Logging
         /// <param name="key">A key.</param>
         /// <param name="value">A value.</param>
         /// <returns>An <see cref="IDisposable"/> that closes context when disposed.</returns>
+        [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "SetCurrentLogProvider")]
 #if LIBLOG_PUBLIC
         public
 #else
         internal
 #endif
-        static IDisposable OpenMappedContext(string key, string value)
+            static IDisposable OpenMappedContext(string key, string value)
         {
             ILogProvider logProvider = CurrentLogProvider ?? ResolveLogProvider();
 
@@ -584,29 +590,29 @@ namespace Quartz.Logging
 #else
         internal
 #endif
-    delegate bool IsLoggerAvailable();
+            delegate bool IsLoggerAvailable();
 
 #if LIBLOG_PROVIDERS_ONLY
     private
 #else
         internal
 #endif
-    delegate ILogProvider CreateLogProvider();
+            delegate ILogProvider CreateLogProvider();
 
 #if LIBLOG_PROVIDERS_ONLY
     private
 #else
         internal
 #endif
-    static readonly List<Tuple<IsLoggerAvailable, CreateLogProvider>> LogProviderResolvers =
+            static readonly List<Tuple<IsLoggerAvailable, CreateLogProvider>> LogProviderResolvers =
                 new List<Tuple<IsLoggerAvailable, CreateLogProvider>>
-            {
-            new Tuple<IsLoggerAvailable, CreateLogProvider>(SerilogLogProvider.IsLoggerAvailable, () => new SerilogLogProvider()),
-            new Tuple<IsLoggerAvailable, CreateLogProvider>(NLogLogProvider.IsLoggerAvailable, () => new NLogLogProvider()),
-            new Tuple<IsLoggerAvailable, CreateLogProvider>(Log4NetLogProvider.IsLoggerAvailable, () => new Log4NetLogProvider()),
-            new Tuple<IsLoggerAvailable, CreateLogProvider>(EntLibLogProvider.IsLoggerAvailable, () => new EntLibLogProvider()),
-            new Tuple<IsLoggerAvailable, CreateLogProvider>(LoupeLogProvider.IsLoggerAvailable, () => new LoupeLogProvider()),
-            };
+                {
+                    new Tuple<IsLoggerAvailable, CreateLogProvider>(SerilogLogProvider.IsLoggerAvailable, () => new SerilogLogProvider()),
+                    new Tuple<IsLoggerAvailable, CreateLogProvider>(NLogLogProvider.IsLoggerAvailable, () => new NLogLogProvider()),
+                    new Tuple<IsLoggerAvailable, CreateLogProvider>(Log4NetLogProvider.IsLoggerAvailable, () => new Log4NetLogProvider()),
+                    new Tuple<IsLoggerAvailable, CreateLogProvider>(EntLibLogProvider.IsLoggerAvailable, () => new EntLibLogProvider()),
+                    new Tuple<IsLoggerAvailable, CreateLogProvider>(LoupeLogProvider.IsLoggerAvailable, () => new LoupeLogProvider()),
+                };
 
 #if !LIBLOG_PROVIDERS_ONLY
         private static void RaiseOnCurrentLogProviderSet()
@@ -618,7 +624,9 @@ namespace Quartz.Logging
         }
 #endif
 
-      internal static ILogProvider ResolveLogProvider()
+        [SuppressMessage("Microsoft.Globalization", "CA1303:Do not pass literals as localized parameters", MessageId = "System.Console.WriteLine(System.String,System.Object,System.Object)")]
+        [SuppressMessage("Microsoft.Design", "CA1031:DoNotCatchGeneralExceptionTypes")]
+        internal static ILogProvider ResolveLogProvider()
         {
             try
             {
@@ -675,21 +683,13 @@ namespace Quartz.Logging
             get { return _logger; }
         }
 
+        [SuppressMessage("Microsoft.Design", "CA1031:DoNotCatchGeneralExceptionTypes")]
         public bool Log(LogLevel logLevel, Func<string> messageFunc, Exception exception = null, params object[] formatParameters)
         {
             if (_getIsDisabled())
             {
                 return false;
             }
-#if !LIBLOG_PORTABLE
-            var envVar = Environment.GetEnvironmentVariable(LogProvider.DisableLoggingEnvironmentVariable);
-
-            if (envVar != null && envVar.Equals("true", StringComparison.OrdinalIgnoreCase))
-            {
-                return false;
-            }
-#endif
-
             if (messageFunc == null)
             {
                 return _logger(logLevel, null);
@@ -721,6 +721,7 @@ namespace Quartz.Logging.LogProviders
 {
     using System;
     using System.Collections.Generic;
+    using System.Diagnostics.CodeAnalysis;
 #if !LIBLOG_PORTABLE
     using System.Diagnostics;
 #endif
@@ -729,11 +730,10 @@ namespace Quartz.Logging.LogProviders
     using System.Linq.Expressions;
     using System.Reflection;
 #if !LIBLOG_PORTABLE
-    using System.Text;
 #endif
     using System.Text.RegularExpressions;
 
-    public abstract class LogProviderBase : ILogProvider
+    internal abstract class LogProviderBase : ILogProvider
     {
         protected delegate IDisposable OpenNdc(string message);
         protected delegate IDisposable OpenMdc(string key, string value);
@@ -747,7 +747,7 @@ namespace Quartz.Logging.LogProviders
             _lazyOpenNdcMethod
                 = new Lazy<OpenNdc>(GetOpenNdcMethod);
             _lazyOpenMdcMethod
-               = new Lazy<OpenMdc>(GetOpenMdcMethod);
+                = new Lazy<OpenMdc>(GetOpenMdcMethod);
         }
 
         public abstract Logger GetLogger(string name);
@@ -778,6 +778,8 @@ namespace Quartz.Logging.LogProviders
         private readonly Func<string, object> _getLoggerByNameDelegate;
         private static bool s_providerIsAvailableOverride = true;
 
+        [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "LogManager")]
+        [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "NLog")]
         public NLogLogProvider()
         {
             if (!IsLoggerAvailable())
@@ -856,11 +858,61 @@ namespace Quartz.Logging.LogProviders
         {
             private readonly dynamic _logger;
 
+            private static Func<string, object, string, Exception, object> _logEventInfoFact;
+
+            private static readonly object _levelTrace;
+            private static readonly object _levelDebug;
+            private static readonly object _levelInfo;
+            private static readonly object _levelWarn;
+            private static readonly object _levelError;
+            private static readonly object _levelFatal;
+
+            static NLogLogger()
+            {
+                try
+                {
+                    var logEventLevelType = Type.GetType("NLog.LogLevel, NLog");
+                    if (logEventLevelType == null)
+                    {
+                        throw new InvalidOperationException("Type NLog.LogLevel was not found.");
+                    }
+
+                    var levelFields = logEventLevelType.GetFieldsPortable().ToList();
+                    _levelTrace = levelFields.First(x => x.Name == "Trace").GetValue(null);
+                    _levelDebug = levelFields.First(x => x.Name == "Debug").GetValue(null);
+                    _levelInfo = levelFields.First(x => x.Name == "Info").GetValue(null);
+                    _levelWarn = levelFields.First(x => x.Name == "Warn").GetValue(null);
+                    _levelError = levelFields.First(x => x.Name == "Error").GetValue(null);
+                    _levelFatal = levelFields.First(x => x.Name == "Fatal").GetValue(null);
+
+                    var logEventInfoType = Type.GetType("NLog.LogEventInfo, NLog");
+                    if (logEventInfoType == null)
+                    {
+                        throw new InvalidOperationException("Type NLog.LogEventInfo was not found.");
+                    }
+                    MethodInfo createLogEventInfoMethodInfo = logEventInfoType.GetMethodPortable("Create",
+                        logEventLevelType, typeof(string), typeof(Exception), typeof(IFormatProvider), typeof(string), typeof(object[]));
+                    ParameterExpression loggerNameParam = Expression.Parameter(typeof(string));
+                    ParameterExpression levelParam = Expression.Parameter(typeof(object));
+                    ParameterExpression messageParam = Expression.Parameter(typeof(string));
+                    ParameterExpression exceptionParam = Expression.Parameter(typeof(Exception));
+                    UnaryExpression levelCast = Expression.Convert(levelParam, logEventLevelType);
+                    MethodCallExpression createLogEventInfoMethodCall = Expression.Call(null,
+                        createLogEventInfoMethodInfo,
+                        levelCast, loggerNameParam, exceptionParam,
+                        Expression.Constant(null, typeof(IFormatProvider)), messageParam, Expression.Constant(null, typeof(object[])));
+                    _logEventInfoFact = Expression.Lambda<Func<string, object, string, Exception, object>>(createLogEventInfoMethodCall,
+                        loggerNameParam, levelParam, messageParam, exceptionParam).Compile();
+                }
+                catch { }
+            }
+
             internal NLogLogger(dynamic logger)
             {
                 _logger = logger;
             }
 
+            [SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
             public bool Log(LogLevel logLevel, Func<string> messageFunc, Exception exception, params object[] formatParameters)
             {
                 if (messageFunc == null)
@@ -868,6 +920,43 @@ namespace Quartz.Logging.LogProviders
                     return IsLogLevelEnable(logLevel);
                 }
                 messageFunc = LogMessageFormatter.SimulateStructuredLogging(messageFunc, formatParameters);
+
+                if (_logEventInfoFact != null)
+                {
+                    if (IsLogLevelEnable(logLevel))
+                    {
+                        var nlogLevel = this.TranslateLevel(logLevel);
+                        Type s_callerStackBoundaryType;
+#if !LIBLOG_PORTABLE
+                        StackTrace stack = new StackTrace();
+                        Type thisType = GetType();
+                        Type knownType0 = typeof(LoggerExecutionWrapper);
+                        Type knownType1 = typeof(LogExtensions);
+                        //Maybe inline, so we may can't found any LibLog classes in stack
+                        s_callerStackBoundaryType = null;
+                        for (var i = 0; i < stack.FrameCount; i++)
+                        {
+                            var declaringType = stack.GetFrame(i).GetMethod().DeclaringType;
+                            if (!IsInTypeHierarchy(thisType, declaringType) &&
+                                !IsInTypeHierarchy(knownType0, declaringType) &&
+                                !IsInTypeHierarchy(knownType1, declaringType))
+                            {
+                                if (i > 1)
+                                    s_callerStackBoundaryType = stack.GetFrame(i - 1).GetMethod().DeclaringType;
+                                break;
+                            }
+                        }
+#else
+                        s_callerStackBoundaryType = null;
+#endif
+                        if (s_callerStackBoundaryType != null)
+                            _logger.Log(s_callerStackBoundaryType, _logEventInfoFact(_logger.Name, nlogLevel, messageFunc(), exception));
+                        else
+                            _logger.Log(_logEventInfoFact(_logger.Name, nlogLevel, messageFunc(), exception));
+                        return true;
+                    }
+                    return false;
+                }
 
                 if (exception != null)
                 {
@@ -921,6 +1010,20 @@ namespace Quartz.Logging.LogProviders
                 return false;
             }
 
+            private static bool IsInTypeHierarchy(Type currentType, Type checkType)
+            {
+                while (currentType != null && currentType != typeof(object))
+                {
+                    if (currentType == checkType)
+                    {
+                        return true;
+                    }
+                    currentType = currentType.GetBaseTypePortable();
+                }
+                return false;
+            }
+
+            [SuppressMessage("Microsoft.Maintainability", "CA1502:AvoidExcessiveComplexity")]
             private bool LogException(LogLevel logLevel, Func<string> messageFunc, Exception exception)
             {
                 switch (logLevel)
@@ -989,6 +1092,27 @@ namespace Quartz.Logging.LogProviders
                         return _logger.IsTraceEnabled;
                 }
             }
+
+            private object TranslateLevel(LogLevel logLevel)
+            {
+                switch (logLevel)
+                {
+                    case LogLevel.Trace:
+                        return _levelTrace;
+                    case LogLevel.Debug:
+                        return _levelDebug;
+                    case LogLevel.Info:
+                        return _levelInfo;
+                    case LogLevel.Warn:
+                        return _levelWarn;
+                    case LogLevel.Error:
+                        return _levelError;
+                    case LogLevel.Fatal:
+                        return _levelFatal;
+                    default:
+                        throw new ArgumentOutOfRangeException("logLevel", logLevel, null);
+                }
+            }
         }
     }
 
@@ -997,6 +1121,7 @@ namespace Quartz.Logging.LogProviders
         private readonly Func<string, object> _getLoggerByNameDelegate;
         private static bool s_providerIsAvailableOverride = true;
 
+        [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "LogManager")]
         public Log4NetLogProvider()
         {
             if (!IsLoggerAvailable())
@@ -1038,14 +1163,14 @@ namespace Quartz.Logging.LogProviders
             MethodCallExpression callPushBody =
                 Expression.Call(
                     Expression.Property(Expression.Property(null, stacksProperty),
-                                        stacksIndexerProperty,
-                                        Expression.Constant("NDC")),
+                        stacksIndexerProperty,
+                        Expression.Constant("NDC")),
                     pushMethod,
                     messageParameter);
 
             OpenNdc result =
                 Expression.Lambda<OpenNdc>(callPushBody, messageParameter)
-                          .Compile();
+                    .Compile();
 
             return result;
         }
@@ -1111,8 +1236,11 @@ namespace Quartz.Logging.LogProviders
             private readonly object _levelError;
             private readonly object _levelFatal;
             private readonly Func<object, object, bool> _isEnabledForDelegate;
-            private readonly Action<object, Type, object, string, Exception> _logDelegate;
+            private readonly Action<object, object> _logDelegate;
+            private readonly Func<object, Type, object, string, Exception, object> _createLoggingEvent;
+            private Action<object, string, object> _loggingEventPropertySetter;
 
+            [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "ILogger")]
             internal Log4NetLogger(dynamic logger)
             {
                 _logger = logger.Logger;
@@ -1136,38 +1264,123 @@ namespace Quartz.Logging.LogProviders
                 {
                     throw new InvalidOperationException("Type log4net.Core.ILogger, was not found.");
                 }
-                MethodInfo isEnabledMethodInfo = loggerType.GetMethodPortable("IsEnabledFor", logEventLevelType);
                 ParameterExpression instanceParam = Expression.Parameter(typeof(object));
                 UnaryExpression instanceCast = Expression.Convert(instanceParam, loggerType);
-                ParameterExpression callerStackBoundaryDeclaringTypeParam = Expression.Parameter(typeof(Type));
                 ParameterExpression levelParam = Expression.Parameter(typeof(object));
-                ParameterExpression messageParam = Expression.Parameter(typeof(string));
                 UnaryExpression levelCast = Expression.Convert(levelParam, logEventLevelType);
-                MethodCallExpression isEnabledMethodCall = Expression.Call(instanceCast, isEnabledMethodInfo, levelCast);
-                _isEnabledForDelegate = Expression.Lambda<Func<object, object, bool>>(isEnabledMethodCall, instanceParam, levelParam).Compile();
+                _isEnabledForDelegate = GetIsEnabledFor(loggerType, logEventLevelType, instanceCast, levelCast, instanceParam, levelParam);
 
-                // Action<object, object, string, Exception> Log =
-                // (logger, callerStackBoundaryDeclaringType, level, message, exception) => { ((ILogger)logger).Write(callerStackBoundaryDeclaringType, level, message, exception); }
+                Type loggingEventType = Type.GetType("log4net.Core.LoggingEvent, log4net");
+
+                _createLoggingEvent = GetCreateLoggingEvent(instanceParam, instanceCast, levelParam, levelCast, loggingEventType);
+
+                _logDelegate = GetLogDelegate(loggerType, loggingEventType, instanceCast, instanceParam);
+
+                _loggingEventPropertySetter = GetLoggingEventPropertySetter(loggingEventType);
+            }
+
+            private static Action<object, object> GetLogDelegate(Type loggerType, Type loggingEventType, UnaryExpression instanceCast,
+                ParameterExpression instanceParam)
+            {
+                //Action<object, object, string, Exception> Log =
+                //(logger, callerStackBoundaryDeclaringType, level, message, exception) => { ((ILogger)logger).Log(new LoggingEvent(callerStackBoundaryDeclaringType, logger.Repository, logger.Name, level, message, exception)); }
                 MethodInfo writeExceptionMethodInfo = loggerType.GetMethodPortable("Log",
-                    typeof(Type),
-                    logEventLevelType,
-                    typeof(string),
-                    typeof(Exception));
-                ParameterExpression exceptionParam = Expression.Parameter(typeof(Exception));
+                    loggingEventType);
+
+                ParameterExpression loggingEventParameter =
+                    Expression.Parameter(typeof(object), "loggingEvent");
+
+                UnaryExpression loggingEventCasted =
+                    Expression.Convert(loggingEventParameter, loggingEventType);
+
                 var writeMethodExp = Expression.Call(
                     instanceCast,
                     writeExceptionMethodInfo,
-                    callerStackBoundaryDeclaringTypeParam,
-                    levelCast,
-                    messageParam,
-                    exceptionParam);
-                _logDelegate = Expression.Lambda<Action<object, Type, object, string, Exception>>(
+                    loggingEventCasted);
+
+                var logDelegate = Expression.Lambda<Action<object, object>>(
                     writeMethodExp,
                     instanceParam,
-                    callerStackBoundaryDeclaringTypeParam,
-                    levelParam,
-                    messageParam,
-                    exceptionParam).Compile();
+                    loggingEventParameter).Compile();
+
+                return logDelegate;
+            }
+
+            private static Func<object, Type, object, string, Exception, object> GetCreateLoggingEvent(ParameterExpression instanceParam, UnaryExpression instanceCast, ParameterExpression levelParam, UnaryExpression levelCast, Type loggingEventType)
+            {
+                ParameterExpression callerStackBoundaryDeclaringTypeParam = Expression.Parameter(typeof(Type));
+                ParameterExpression messageParam = Expression.Parameter(typeof(string));
+                ParameterExpression exceptionParam = Expression.Parameter(typeof(Exception));
+
+                PropertyInfo repositoryProperty = loggingEventType.GetPropertyPortable("Repository");
+                PropertyInfo levelProperty = loggingEventType.GetPropertyPortable("Level");
+
+                ConstructorInfo loggingEventConstructor =
+                    loggingEventType.GetConstructorPortable(typeof(Type), repositoryProperty.PropertyType, typeof(string), levelProperty.PropertyType, typeof(object), typeof(Exception));
+
+                //Func<object, object, string, Exception, object> Log =
+                //(logger, callerStackBoundaryDeclaringType, level, message, exception) => new LoggingEvent(callerStackBoundaryDeclaringType, ((ILogger)logger).Repository, ((ILogger)logger).Name, (Level)level, message, exception); }
+                NewExpression newLoggingEventExpression =
+                    Expression.New(loggingEventConstructor,
+                        callerStackBoundaryDeclaringTypeParam,
+                        Expression.Property(instanceCast, "Repository"),
+                        Expression.Property(instanceCast, "Name"),
+                        levelCast,
+                        messageParam,
+                        exceptionParam);
+
+                var createLoggingEvent =
+                    Expression.Lambda<Func<object, Type, object, string, Exception, object>>(
+                            newLoggingEventExpression,
+                            instanceParam,
+                            callerStackBoundaryDeclaringTypeParam,
+                            levelParam,
+                            messageParam,
+                            exceptionParam)
+                        .Compile();
+
+                return createLoggingEvent;
+            }
+
+            private static Func<object, object, bool> GetIsEnabledFor(Type loggerType, Type logEventLevelType,
+                UnaryExpression instanceCast,
+                UnaryExpression levelCast,
+                ParameterExpression instanceParam,
+                ParameterExpression levelParam)
+            {
+                MethodInfo isEnabledMethodInfo = loggerType.GetMethodPortable("IsEnabledFor", logEventLevelType);
+                MethodCallExpression isEnabledMethodCall = Expression.Call(instanceCast, isEnabledMethodInfo, levelCast);
+
+                Func<object, object, bool> result =
+                    Expression.Lambda<Func<object, object, bool>>(isEnabledMethodCall, instanceParam, levelParam)
+                        .Compile();
+
+                return result;
+            }
+
+            private static Action<object, string, object> GetLoggingEventPropertySetter(Type loggingEventType)
+            {
+                ParameterExpression loggingEventParameter = Expression.Parameter(typeof(object), "loggingEvent");
+                ParameterExpression keyParameter = Expression.Parameter(typeof(string), "key");
+                ParameterExpression valueParameter = Expression.Parameter(typeof(object), "value");
+
+                PropertyInfo propertiesProperty = loggingEventType.GetPropertyPortable("Properties");
+                PropertyInfo item = propertiesProperty.PropertyType.GetPropertyPortable("Item");
+
+                // ((LoggingEvent)loggingEvent).Properties[key] = value;
+                var body =
+                    Expression.Assign(
+                        Expression.Property(
+                            Expression.Property(Expression.Convert(loggingEventParameter, loggingEventType),
+                                propertiesProperty), item, keyParameter), valueParameter);
+
+                Action<object, string, object> result =
+                    Expression.Lambda<Action<object, string, object>>
+                        (body, loggingEventParameter, keyParameter,
+                            valueParameter)
+                        .Compile();
+
+                return result;
             }
 
             public bool Log(LogLevel logLevel, Func<string> messageFunc, Exception exception, params object[] formatParameters)
@@ -1182,7 +1395,14 @@ namespace Quartz.Logging.LogProviders
                     return false;
                 }
 
-                messageFunc = LogMessageFormatter.SimulateStructuredLogging(messageFunc, formatParameters);
+                string message = messageFunc();
+
+                IEnumerable<string> patternMatches;
+
+                string formattedMessage =
+                    LogMessageFormatter.FormatStructuredMessage(message,
+                        formatParameters,
+                        out patternMatches);
 
                 // determine correct caller - this might change due to jit optimizations with method inlining
                 if (s_callerStackBoundaryType == null)
@@ -1208,8 +1428,26 @@ namespace Quartz.Logging.LogProviders
                 }
 
                 var translatedLevel = TranslateLevel(logLevel);
-                _logDelegate(_logger, s_callerStackBoundaryType, translatedLevel, messageFunc(), exception);
+
+                object loggingEvent = _createLoggingEvent(_logger, s_callerStackBoundaryType, translatedLevel, formattedMessage, exception);
+
+                PopulateProperties(loggingEvent, patternMatches, formatParameters);
+
+                _logDelegate(_logger, loggingEvent);
+
                 return true;
+            }
+
+            private void PopulateProperties(object loggingEvent, IEnumerable<string> patternMatches, object[] formatParameters)
+            {
+                IEnumerable<KeyValuePair<string, object>> keyToValue =
+                    patternMatches.Zip(formatParameters,
+                        (key, value) => new KeyValuePair<string, object>(key, value));
+
+                foreach (KeyValuePair<string, object> keyValuePair in keyToValue)
+                {
+                    _loggingEventPropertySetter(loggingEvent, keyValuePair.Key, keyValuePair.Value);
+                }
             }
 
             private static bool IsInTypeHierarchy(Type currentType, Type checkType)
@@ -1263,14 +1501,15 @@ namespace Quartz.Logging.LogProviders
         private static readonly Action<string, string, int> WriteLogEntry;
         private static readonly Func<string, int, bool> ShouldLogEntry;
 
+        [SuppressMessage("Microsoft.Performance", "CA1810:InitializeReferenceTypeStaticFieldsInline")]
         static EntLibLogProvider()
         {
             LogEntryType = Type.GetType(string.Format(CultureInfo.InvariantCulture, TypeTemplate, "LogEntry"));
             LoggerType = Type.GetType(string.Format(CultureInfo.InvariantCulture, TypeTemplate, "Logger"));
             TraceEventTypeType = TraceEventTypeValues.Type;
             if (LogEntryType == null
-                 || TraceEventTypeType == null
-                 || LoggerType == null)
+                || TraceEventTypeType == null
+                || LoggerType == null)
             {
                 return;
             }
@@ -1278,6 +1517,7 @@ namespace Quartz.Logging.LogProviders
             ShouldLogEntry = GetShouldLogEntry();
         }
 
+        [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "EnterpriseLibrary")]
         public EntLibLogProvider()
         {
             if (!IsLoggerAvailable())
@@ -1300,8 +1540,8 @@ namespace Quartz.Logging.LogProviders
         internal static bool IsLoggerAvailable()
         {
             return ProviderIsAvailableOverride
-                 && TraceEventTypeType != null
-                 && LogEntryType != null;
+                   && TraceEventTypeType != null
+                   && LogEntryType != null;
         }
 
         private static Action<string, string, int> GetWriteLogEntry()
@@ -1430,6 +1670,7 @@ namespace Quartz.Logging.LogProviders
         private readonly Func<string, object> _getLoggerByNameDelegate;
         private static bool s_providerIsAvailableOverride = true;
 
+        [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "Serilog")]
         public SerilogLogProvider()
         {
             if (!IsLoggerAvailable())
@@ -1467,12 +1708,15 @@ namespace Quartz.Logging.LogProviders
 
         private static Func<string, string, IDisposable> GetPushProperty()
         {
-            Type ndcContextType = Type.GetType("Serilog.Context.LogContext, Serilog.FullNetFx");
+            Type ndcContextType = Type.GetType("Serilog.Context.LogContext, Serilog") ??
+                                  Type.GetType("Serilog.Context.LogContext, Serilog.FullNetFx");
+
             MethodInfo pushPropertyMethod = ndcContextType.GetMethodPortable(
                 "PushProperty",
                 typeof(string),
                 typeof(object),
                 typeof(bool));
+
             ParameterExpression nameParam = Expression.Parameter(typeof(string), "name");
             ParameterExpression valueParam = Expression.Parameter(typeof(object), "value");
             ParameterExpression destructureObjectParam = Expression.Parameter(typeof(bool), "destructureObjects");
@@ -1508,10 +1752,10 @@ namespace Quartz.Logging.LogProviders
                 destructureObjectsParam
             });
             var func = Expression.Lambda<Func<string, object, bool, object>>(
-                methodCall,
-                propertyNameParam,
-                valueParam,
-                destructureObjectsParam)
+                    methodCall,
+                    propertyNameParam,
+                    valueParam,
+                    destructureObjectsParam)
                 .Compile();
             return name => func("SourceContext", name, false);
         }
@@ -1529,6 +1773,11 @@ namespace Quartz.Logging.LogProviders
             private static readonly Action<object, object, string, object[]> Write;
             private static readonly Action<object, object, Exception, string, object[]> WriteException;
 
+            [SuppressMessage("Microsoft.Design", "CA1065:DoNotRaiseExceptionsInUnexpectedLocations")]
+            [SuppressMessage("Microsoft.Performance", "CA1810:InitializeReferenceTypeStaticFieldsInline")]
+            [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "ILogger")]
+            [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "LogEventLevel")]
+            [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "Serilog")]
             static SerilogLogger()
             {
                 var logEventLevelType = Type.GetType("Serilog.Events.LogEventLevel, Serilog");
@@ -1678,7 +1927,7 @@ namespace Quartz.Logging.LogProviders
             string caption,
             string description,
             params object[] args
-            );
+        );
 
         private static bool s_providerIsAvailableOverride = true;
         private readonly WriteDelegate _logWriteDelegate;
@@ -1802,6 +2051,7 @@ namespace Quartz.Logging.LogProviders
         internal static readonly int Error;
         internal static readonly int Critical;
 
+        [SuppressMessage("Microsoft.Performance", "CA1810:InitializeReferenceTypeStaticFieldsInline")]
         static TraceEventTypeValues()
         {
             var assembly = typeof(Uri).GetAssemblyPortable(); // This is to get to the System.dll assembly in a PCL compatible way.
@@ -1821,13 +2071,18 @@ namespace Quartz.Logging.LogProviders
 
     internal static class LogMessageFormatter
     {
-        private static readonly Regex Pattern = new Regex(@"\{@?\w{1,}\}");
+        //private static readonly Regex Pattern = new Regex(@"\{@?\w{1,}\}");
+#if LIBLOG_PORTABLE
+        private static readonly Regex Pattern = new Regex(@"(?<!{){@?(?<arg>[^\d{][^ }]*)}");
+#else
+        private static readonly Regex Pattern = new Regex(@"(?<!{){@?(?<arg>[^ :{}]+)(?<format>:[^}]+)?}", RegexOptions.Compiled);
+#endif
 
         /// <summary>
         /// Some logging frameworks support structured logging, such as serilog. This will allow you to add names to structured data in a format string:
-        /// For example: Log("Log message to {user}", user). This only works with serilog, but as the user of LibLog, you don't know if serilog is actually 
-        /// used. So, this class simulates that. it will replace any text in {curly braces} with an index number. 
-        /// 
+        /// For example: Log("Log message to {user}", user). This only works with serilog, but as the user of LibLog, you don't know if serilog is actually
+        /// used. So, this class simulates that. it will replace any text in {curly braces} with an index number.
+        ///
         /// "Log {message} to {user}" would turn into => "Log {0} to {1}". Then the format parameters are handled using regular .net string.Format.
         /// </summary>
         /// <param name="messageBuilder">The message builder.</param>
@@ -1843,24 +2098,8 @@ namespace Quartz.Logging.LogProviders
             return () =>
             {
                 string targetMessage = messageBuilder();
-                int argumentIndex = 0;
-                foreach (Match match in Pattern.Matches(targetMessage))
-                {
-                    int notUsed;
-                    if (!int.TryParse(match.Value.Substring(1, match.Value.Length - 2), out notUsed))
-                    {
-                        targetMessage = ReplaceFirst(targetMessage, match.Value,
-                            "{" + argumentIndex++ + "}");
-                    }
-                }
-                try
-                {
-                    return string.Format(CultureInfo.InvariantCulture, targetMessage, formatParameters);
-                }
-                catch (FormatException ex)
-                {
-                    throw new FormatException("The input string '" + targetMessage + "' could not be formatted using string.Format", ex);
-                }
+                IEnumerable<string> patternMatches;
+                return FormatStructuredMessage(targetMessage, formatParameters, out patternMatches);
             };
         }
 
@@ -1873,10 +2112,62 @@ namespace Quartz.Logging.LogProviders
             }
             return text.Substring(0, pos) + replace + text.Substring(pos + search.Length);
         }
+
+        public static string FormatStructuredMessage(string targetMessage, object[] formatParameters, out IEnumerable<string> patternMatches)
+        {
+            if (formatParameters.Length == 0)
+            {
+                patternMatches = Enumerable.Empty<string>();
+                return targetMessage;
+            }
+
+            List<string> processedArguments = new List<string>();
+            patternMatches = processedArguments;
+
+            foreach (Match match in Pattern.Matches(targetMessage))
+            {
+                var arg = match.Groups["arg"].Value;
+
+                int notUsed;
+                if (!int.TryParse(arg, out notUsed))
+                {
+                    int argumentIndex = processedArguments.IndexOf(arg);
+                    if (argumentIndex == -1)
+                    {
+                        argumentIndex = processedArguments.Count;
+                        processedArguments.Add(arg);
+                    }
+
+                    targetMessage = ReplaceFirst(targetMessage, match.Value,
+                        "{" + argumentIndex + match.Groups["format"].Value + "}");
+                }
+            }
+            try
+            {
+                return string.Format(CultureInfo.InvariantCulture, targetMessage, formatParameters);
+            }
+            catch (FormatException ex)
+            {
+                throw new FormatException("The input string '" + targetMessage + "' could not be formatted using string.Format", ex);
+            }
+        }
     }
 
     internal static class TypeExtensions
     {
+        internal static ConstructorInfo GetConstructorPortable(this Type type, params Type[] types)
+        {
+#if LIBLOG_PORTABLE
+            return type.GetTypeInfo().DeclaredConstructors.FirstOrDefault
+            (constructor =>
+                constructor.GetParameters()
+                    .Select(parameter => parameter.ParameterType)
+                    .SequenceEqual(types));
+#else
+            return type.GetConstructor(types);
+#endif
+        }
+
         internal static MethodInfo GetMethodPortable(this Type type, string name)
         {
 #if LIBLOG_PORTABLE
