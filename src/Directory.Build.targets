@@ -41,8 +41,12 @@
     <DefineConstants>$(DefineConstants);APPDOMAINS;BINARY_SERIALIZATION;CONFIGURATION;HTTPCONTEXT;MAIL;THREAD_APARTMENTSTATE;THREAD_INTERRUPTION;THREAD_PRIORITY;WINDOWS_PROCESS;XML_SCHEMA;REMOTING</DefineConstants>
   </PropertyGroup>
 
+  <PropertyGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'netcoreapp2.0' ">
+    <DefineConstants>$(DefineConstants);APPDOMAINS;BINARY_SERIALIZATION;CONFIGURATION;MAIL;THREAD_APARTMENTSTATE;THREAD_INTERRUPTION;THREAD_PRIORITY;WINDOWS_PROCESS;XML_SCHEMA;APPCONTEXT;NETSTANDARD_DBPROVIDERS</DefineConstants>
+  </PropertyGroup>
+
   <PropertyGroup Condition=" '$(TargetFramework)' == 'netstandard1.3' or '$(TargetFramework)' == 'netcoreapp1.1' ">
-    <DefineConstants>$(DefineConstants);NETCORE;APPCONTEXT;ASYNCLOCAL;BUG_7552;NETSTANDARD_DBPROVIDERS</DefineConstants>
+    <DefineConstants>$(DefineConstants);APPCONTEXT;BUG_7552;NETSTANDARD_DBPROVIDERS</DefineConstants>
   </PropertyGroup>
 
 </Project>
