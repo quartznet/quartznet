@@ -5,7 +5,7 @@
         // we cannot use trusted connection as it's not available for Linux provider
         public static string DefaultSqlServerConnectionString = "Server=(local);Database=quartz;User Id=quartznet;Password=quartznet;";
 
-#if NETCORE
+#if !BINARY_SERIALIZATION
         public const string DefaultSerializerType = "json";
 #else
         public const string DefaultSerializerType = "binary";

@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -37,15 +37,15 @@ using Quartz.Xml;
 
 namespace Quartz.Plugin.Xml
 {
-    /// <summary> 
+    /// <summary>
     /// This plugin loads XML file(s) to add jobs and schedule them with triggers
     /// as the scheduler is initialized, and can optionally periodically scan the
     /// file for changes.
     ///</summary>
     /// <remarks>
-    /// The periodically scanning of files for changes is not currently supported in a 
+    /// The periodically scanning of files for changes is not currently supported in a
     /// clustered environment.
-    /// </remarks> 
+    /// </remarks>
     /// <author>James House</author>
     /// <author>Pierre Awaragi</author>
     public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListener
@@ -83,20 +83,20 @@ namespace Quartz.Plugin.Xml
 
         protected ITypeLoadHelper TypeLoadHelper => typeLoadHelper;
 
-        /// <summary> 
+        /// <summary>
         /// Comma separated list of file names (with paths) to the XML files that should be read.
         /// </summary>
         public string FileNames { get; set; } = XMLSchedulingDataProcessor.QuartzXmlFileName;
 
-        /// <summary> 
-        /// The interval at which to scan for changes to the file.  
-        /// If the file has been changed, it is re-loaded and parsed.   The default 
+        /// <summary>
+        /// The interval at which to scan for changes to the file.
+        /// If the file has been changed, it is re-loaded and parsed.   The default
         /// value for the interval is 0, which disables scanning.
         /// </summary>
         [TimeSpanParseRule(TimeSpanParseRule.Seconds)]
         public TimeSpan ScanInterval { get; set; } = TimeSpan.Zero;
 
-        /// <summary> 
+        /// <summary>
         /// Whether or not initialization of the plugin should fail (throw an
         /// exception) if the file cannot be found. Default is <see langword="true" />.
         /// </summary>
@@ -105,7 +105,7 @@ namespace Quartz.Plugin.Xml
         public IEnumerable<KeyValuePair<string, JobFile>> JobFiles => jobFiles;
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="fName"></param>
         public virtual Task FileUpdated(string fName)
@@ -211,7 +211,7 @@ namespace Quartz.Plugin.Xml
         }
 
         /// <summary>
-        /// Helper method for generating unique job/trigger name for the  
+        /// Helper method for generating unique job/trigger name for the
         /// file scanning jobs (one per FileJob).  The unique names are saved
         /// in jobTriggerNameSet.
         /// </summary>
@@ -283,7 +283,7 @@ namespace Quartz.Plugin.Xml
 
                 await processor.ProcessFileAndScheduleJobs(
                     jobFile.FileName,
-                    jobFile.FileName, // systemId 
+                    jobFile.FileName, // systemId
                     Scheduler).ConfigureAwait(false);
             }
             catch (Exception e)
@@ -304,7 +304,7 @@ namespace Quartz.Plugin.Xml
         }
 
         /// <summary>
-        /// Information about a file that should be processed by <see cref="XMLSchedulingDataProcessor" />. 
+        /// Information about a file that should be processed by <see cref="XMLSchedulingDataProcessor" />.
         /// </summary>
         public class JobFile
         {
@@ -361,7 +361,7 @@ namespace Quartz.Plugin.Xml
                     {
                         try
                         {
-                            f = new FileStream(file.FullName, FileMode.Open, FileAccess.Read);
+                            f = new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
                         }
                         catch (FileNotFoundException)
                         {
