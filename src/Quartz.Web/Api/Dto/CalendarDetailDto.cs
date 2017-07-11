@@ -71,7 +71,7 @@ namespace Quartz.Web.Api.Dto
                 TimeZone = new TimeZoneDto(calendar.TimeZone);
             }
 
-            public IReadOnlyList<DateTimeOffset> DaysExcluded { get; }
+            public ISet<DateTime> DaysExcluded { get; }
             public TimeZoneDto TimeZone { get; }
         }
 

@@ -100,7 +100,7 @@ namespace Quartz.Web.History
                     Delegate.AddCommandParameter(command, "errorMessage", jobException?.ToString());
 
                     await command.ExecuteNonQueryAsync().ConfigureAwait(false);
-                    connection.Commit();
+                    connection.Commit(false);
                 }
             }
         }
