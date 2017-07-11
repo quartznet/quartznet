@@ -1,4 +1,4 @@
-﻿
+
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.26127.3
@@ -25,6 +25,10 @@ EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Serialization.Json", "src\Quartz.Serialization.Json\Quartz.Serialization.Json.csproj", "{CBDA9E9D-5C24-4597-96EC-C930A5F452AC}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Server", "src\Quartz.Server\Quartz.Server.csproj", "{09082B9A-906C-4A17-A2E5-6C947DAC7C85}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{EEA6E11D-5C26-4C28-8216-BB88B0DFB763}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Web", "src\Quartz.Web\Quartz.Web.csproj", "{69DA8576-BFB3-431B-B3B2-EB22850A147E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -56,8 +60,15 @@ Global
 		{09082B9A-906C-4A17-A2E5-6C947DAC7C85}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{09082B9A-906C-4A17-A2E5-6C947DAC7C85}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{09082B9A-906C-4A17-A2E5-6C947DAC7C85}.Release|Any CPU.Build.0 = Release|Any CPU
+		{69DA8576-BFB3-431B-B3B2-EB22850A147E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{69DA8576-BFB3-431B-B3B2-EB22850A147E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{69DA8576-BFB3-431B-B3B2-EB22850A147E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{69DA8576-BFB3-431B-B3B2-EB22850A147E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{69DA8576-BFB3-431B-B3B2-EB22850A147E} = {EEA6E11D-5C26-4C28-8216-BB88B0DFB763}
 	EndGlobalSection
 EndGlobal
