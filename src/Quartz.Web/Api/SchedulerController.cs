@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
-using System.Web.Http;
+
+using Microsoft.AspNetCore.Mvc;
 
 using Quartz.Impl;
 using Quartz.Web.Api.Dto;
@@ -13,8 +14,8 @@ namespace Quartz.Web.Api
     /// <summary>
     /// Web API endpoint for scheduler information.
     /// </summary>
-    [RoutePrefix("api/schedulers")]
-    public class SchedulerController : ApiController
+    [Route("api/schedulers")]
+    public class SchedulerController : Controller
     {
         [HttpGet]
         [Route("")]
@@ -77,7 +78,8 @@ namespace Quartz.Web.Api
             var scheduler = await SchedulerRepository.Instance.Lookup(schedulerName).ConfigureAwait(false);
             if (scheduler == null)
             {
-                throw new HttpResponseException(HttpStatusCode.NotFound);
+                //throw new HttpResponseException(HttpStatusCode.NotFound);
+                throw new KeyNotFoundException($"Scheduler {schedulerName} not found!");
             }
             return scheduler;
         }

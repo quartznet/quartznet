@@ -2,7 +2,7 @@
 {
     public static class TestConstants
     {
-#if NETCORE
+#if !BINARY_SERIALIZATION
         public const string DefaultSerializerType = "json";
 #else
         public const string DefaultSerializerType = "binary";

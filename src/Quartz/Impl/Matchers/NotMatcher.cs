@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -26,7 +26,7 @@ using Quartz.Util;
 namespace Quartz.Impl.Matchers
 {
     /// <summary>
-    /// Matches using an NOT operator on another Matcher. 
+    /// Matches using an NOT operator on another Matcher.
     /// </summary>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
@@ -35,16 +35,14 @@ namespace Quartz.Impl.Matchers
 #endif // BINARY_SERIALIZATION
     public class NotMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
-        private readonly IMatcher<TKey> operand;
+        // ReSharper disable once UnusedMember.Local
+        private NotMatcher()
+        {
+        }
 
         protected NotMatcher(IMatcher<TKey> operand)
         {
-            if (operand == null)
-            {
-                throw new ArgumentNullException("operand", "Non-null operand required!");
-            }
-
-            this.operand = operand;
+            Operand = operand ?? throw new ArgumentNullException(nameof(operand), "Non-null operand required!");
         }
 
         /// <summary>
@@ -61,19 +59,16 @@ namespace Quartz.Impl.Matchers
 
         public bool IsMatch(TKey key)
         {
-            return !operand.IsMatch(key);
+            return !Operand.IsMatch(key);
         }
 
-        public IMatcher<TKey> Operand
-        {
-            get { return operand; }
-        }
+        public IMatcher<TKey> Operand { get; private set; }
 
         public override int GetHashCode()
         {
             const int Prime = 31;
             int result = 1;
-            result = Prime*result + ((operand == null) ? 0 : operand.GetHashCode());
+            result = Prime*result + ((Operand == null) ? 0 : Operand.GetHashCode());
             return result;
         }
 
@@ -92,14 +87,14 @@ namespace Quartz.Impl.Matchers
                 return false;
             }
             NotMatcher<TKey> other = (NotMatcher<TKey>) obj;
-            if (operand == null)
+            if (Operand == null)
             {
-                if (other.operand != null)
+                if (other.Operand != null)
                 {
                     return false;
                 }
             }
-            else if (!operand.Equals(other.operand))
+            else if (!Operand.Equals(other.Operand))
             {
                 return false;
             }

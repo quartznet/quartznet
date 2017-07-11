@@ -1,7 +1,8 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using System.Web.Http;
+
+using Microsoft.AspNetCore.Mvc;
 
 using Quartz.Impl;
 using Quartz.Web.Api.Dto;
@@ -11,7 +12,7 @@ namespace Quartz.Web.Api
     /// <summary>
     /// Web API endpoint for scheduler information.
     /// </summary>
-    public class ServerController : ApiController
+    public class ServerController : Controller
     {
         [HttpGet]
         [Route("api/servers")]

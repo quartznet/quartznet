@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using System.Web.Http;
+
+using Microsoft.AspNetCore.Mvc;
+
 using Quartz.Logging;
 using Quartz.Web.Api.Dto;
 
@@ -10,7 +12,7 @@ namespace Quartz.Web.History
     /// <summary>
     /// Web API endpoint for job history. Requires persistent storage to work with.
     /// </summary>
-    public class JobExecutionHistoryController : ApiController
+    public class JobExecutionHistoryController : Controller
     {
         private static readonly ILog log = LogProvider.GetLogger(typeof (JobExecutionHistoryController));
 

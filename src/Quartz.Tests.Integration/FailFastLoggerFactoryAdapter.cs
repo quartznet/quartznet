@@ -2,17 +2,27 @@ using System;
 using System.Collections.Generic;
 
 using Quartz.Logging;
-using Quartz.Logging.LogProviders;
 
 namespace Quartz.Tests.Integration
 {
-    internal class FailFastLoggerFactoryAdapter : LogProviderBase
+    internal class FailFastLoggerFactoryAdapter : ILogProvider
     {
         private static readonly List<string> errors = new List<string>();
+        private static readonly IDisposable NoopDisposableInstance = new DisposableAction();
 
-        public override Logger GetLogger(string name)
+        public Logger GetLogger(string name)
         {
             return Log;
+        }
+
+        public IDisposable OpenNestedContext(string message)
+        {
+            return NoopDisposableInstance;
+        }
+
+        public IDisposable OpenMappedContext(string key, string value)
+        {
+            return NoopDisposableInstance;
         }
 
         private static bool Log(LogLevel logLevel, Func<string> messageFunc, Exception exception, object[] formatparameters)
@@ -26,9 +36,13 @@ namespace Quartz.Tests.Integration
             return true;
         }
 
-        public static List<string> Errors
+        public static List<string> Errors => errors;
+
+        private class DisposableAction : IDisposable
         {
-            get { return errors; }
+            public void Dispose()
+            {
+            }
         }
     }
 }

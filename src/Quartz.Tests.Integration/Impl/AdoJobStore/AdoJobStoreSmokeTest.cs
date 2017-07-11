@@ -75,6 +75,15 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             return RunAdoJobStoreTest("Npgsql", "PostgreSQL", serializerType, properties);
         }
 
+        [Test]
+        [TestCaseSource(nameof(GetSerializerTypes))]
+        public Task TestMySql(string serializerType)
+        {
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MySQLDelegate, Quartz";
+            return RunAdoJobStoreTest("MySql", "MySQL", serializerType, properties);
+        }
+
 #if !NETSTANDARD_DBPROVIDERS
 
         [Test]
@@ -93,15 +102,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.OracleDelegate, Quartz";
             return RunAdoJobStoreTest("OracleODPManaged", "Oracle", serializerType, properties);
-        }
-
-        [Test]
-        [TestCaseSource(nameof(GetSerializerTypes))]
-        public Task TestMySql(string serializerType)
-        {
-            NameValueCollection properties = new NameValueCollection();
-            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MySQLDelegate, Quartz";
-            return RunAdoJobStoreTest("MySql", "MySQL", serializerType, properties);
         }
 
         [Test]

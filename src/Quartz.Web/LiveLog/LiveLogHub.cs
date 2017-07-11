@@ -1,5 +1,5 @@
-﻿using System;
-using Microsoft.AspNet.SignalR;
+﻿/*using System;
+using Microsoft.AspNetCore.SignalR;
 
 namespace Quartz.Web.LiveLog
 {
@@ -8,3 +8,4 @@ namespace Quartz.Web.LiveLog
     {
     }
 }
+*/

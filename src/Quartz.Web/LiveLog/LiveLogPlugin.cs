@@ -1,6 +1,6 @@
-﻿using System;
+﻿/*using System;
 using System.Threading.Tasks;
-using Microsoft.AspNet.SignalR;
+using Microsoft.AspNetCore.SignalR;
 using Quartz.Util;
 using Quartz.Web.Api.Dto;
 
@@ -158,3 +158,4 @@ namespace Quartz.Web.LiveLog
         }
     }
 }
+*/

@@ -35,8 +35,10 @@ namespace Quartz.Impl.Matchers
 #endif // BINARY_SERIALIZATION
     public class AndMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
-        private readonly IMatcher<TKey> leftOperand;
-        private readonly IMatcher<TKey> rightOperand;
+        // ReSharper disable once UnusedMember.Local
+        private AndMatcher()
+        {
+        }
 
         protected AndMatcher(IMatcher<TKey> leftOperand, IMatcher<TKey> rightOperand)
         {
@@ -45,8 +47,8 @@ namespace Quartz.Impl.Matchers
                 throw new ArgumentException("Two non-null operands required!");
             }
 
-            this.leftOperand = leftOperand;
-            this.rightOperand = rightOperand;
+            LeftOperand = leftOperand;
+            RightOperand = rightOperand;
         }
 
         /// <summary>
@@ -63,25 +65,18 @@ namespace Quartz.Impl.Matchers
 
         public bool IsMatch(TKey key)
         {
-            return leftOperand.IsMatch(key) && rightOperand.IsMatch(key);
+            return LeftOperand.IsMatch(key) && RightOperand.IsMatch(key);
         }
 
-        public IMatcher<TKey> LeftOperand
-        {
-            get { return leftOperand; }
-        }
-
-        public IMatcher<TKey> RightOperand
-        {
-            get { return rightOperand; }
-        }
+        public IMatcher<TKey> LeftOperand { get; private set; }
+        public IMatcher<TKey> RightOperand { get; private set; }
 
         public override int GetHashCode()
         {
             const int Prime = 31;
             int result = 1;
-            result = Prime*result + ((leftOperand == null) ? 0 : leftOperand.GetHashCode());
-            result = Prime*result + ((rightOperand == null) ? 0 : rightOperand.GetHashCode());
+            result = Prime*result + ((LeftOperand == null) ? 0 : LeftOperand.GetHashCode());
+            result = Prime*result + ((RightOperand == null) ? 0 : RightOperand.GetHashCode());
             return result;
         }
 
@@ -100,25 +95,25 @@ namespace Quartz.Impl.Matchers
                 return false;
             }
             AndMatcher<TKey> other = (AndMatcher<TKey>) obj;
-            if (leftOperand == null)
+            if (LeftOperand == null)
             {
-                if (other.leftOperand != null)
+                if (other.LeftOperand != null)
                 {
                     return false;
                 }
             }
-            else if (!leftOperand.Equals(other.leftOperand))
+            else if (!LeftOperand.Equals(other.LeftOperand))
             {
                 return false;
             }
-            if (rightOperand == null)
+            if (RightOperand == null)
             {
-                if (other.rightOperand != null)
+                if (other.RightOperand != null)
                 {
                     return false;
                 }
             }
-            else if (!rightOperand.Equals(other.rightOperand))
+            else if (!RightOperand.Equals(other.RightOperand))
             {
                 return false;
             }
