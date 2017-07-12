@@ -24,6 +24,7 @@ using System.Collections.Specialized;
 using System.Data;
 using System.IO;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 #if TRANSACTIONS
 using System.Transactions;
@@ -67,8 +68,8 @@ namespace Quartz.Tests.Unit.Xml
             processor = new XMLSchedulingDataProcessor(new SimpleTypeLoadHelper());
 #if FAKE_IT_EASY
             mockScheduler = A.Fake<IScheduler>();
-            A.CallTo(() => mockScheduler.GetJobDetail(A<JobKey>._)).Returns(Task.FromResult<IJobDetail>(null));
-            A.CallTo(() => mockScheduler.GetTrigger(A<TriggerKey>._)).Returns(Task.FromResult<ITrigger>(null));
+            A.CallTo(() => mockScheduler.GetJobDetail(A<JobKey>._, A<CancellationToken>._)).Returns(Task.FromResult<IJobDetail>(null));
+            A.CallTo(() => mockScheduler.GetTrigger(A<TriggerKey>._, A<CancellationToken>._)).Returns(Task.FromResult<ITrigger>(null));
 #endif
 #if TRANSACTIONS
             scope = new TransactionScope();
@@ -107,7 +108,7 @@ namespace Quartz.Tests.Unit.Xml
 
             await processor.ScheduleJobs(mockScheduler);
 
-            A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Not.IsNull())).MustHaveHappened(Repeated.Exactly.Times(5));
+            A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Not.IsNull(), A<CancellationToken>._)).MustHaveHappened(Repeated.Exactly.Times(5));
         }
 
         [Test]
@@ -116,8 +117,8 @@ namespace Quartz.Tests.Unit.Xml
         {
             Stream s = ReadJobXmlFromEmbeddedResource("QRTZNET250.xml");
             await processor.ProcessStreamAndScheduleJobs(s, mockScheduler);
-            A.CallTo(() => mockScheduler.AddJob(A<IJobDetail>.That.Not.IsNull(), A<bool>.Ignored, A<bool>.That.IsEqualTo(true))).MustHaveHappened(Repeated.Exactly.Twice);
-            A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Not.IsNull())).MustHaveHappened(Repeated.Exactly.Twice);
+            A.CallTo(() => mockScheduler.AddJob(A<IJobDetail>.That.Not.IsNull(), A<bool>.Ignored, A<bool>.That.IsEqualTo(true), A<CancellationToken>._)).MustHaveHappened(Repeated.Exactly.Twice);
+            A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Not.IsNull(), A<CancellationToken>._)).MustHaveHappened(Repeated.Exactly.Twice);
             ;
         }
 
@@ -131,14 +132,14 @@ namespace Quartz.Tests.Unit.Xml
             existing.SetPreviousFireTimeUtc(previousFireTime);
             existing.GetNextFireTimeUtc();
 
-            A.CallTo(() => mockScheduler.GetTrigger(existing.Key)).Returns(existing);
+            A.CallTo(() => mockScheduler.GetTrigger(existing.Key, A<CancellationToken>._)).Returns(existing);
 
             Stream s = ReadJobXmlFromEmbeddedResource("ScheduleRelativeToOldTrigger.xml");
             await processor.ProcessStream(s, null);
             await processor.ScheduleJobs(mockScheduler);
 
             // check that last fire time was taken from existing trigger
-            A.CallTo(() => mockScheduler.RescheduleJob(null, null)).WhenArgumentsMatch(args =>
+            A.CallTo(() => mockScheduler.RescheduleJob(null, null, A<CancellationToken>._)).WhenArgumentsMatch(args =>
             {
                 ITrigger argumentTrigger = (ITrigger) args[1];
 
@@ -297,8 +298,8 @@ namespace Quartz.Tests.Unit.Xml
 
             await processor.ScheduleJobs(mockScheduler);
 
-            A.CallTo(() => mockScheduler.ScheduleJob(A<IJobDetail>.That.Matches(p => p.Key.Name == "sched2_job"), A<ITrigger>.Ignored));
-            A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Matches(p => p.Key.Name == "sched2_trig"))).MustHaveHappened();
+            A.CallTo(() => mockScheduler.ScheduleJob(A<IJobDetail>.That.Matches(p => p.Key.Name == "sched2_job"), A<ITrigger>.Ignored, A<CancellationToken>._));
+            A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Matches(p => p.Key.Name == "sched2_trig"), A<CancellationToken>._)).MustHaveHappened();
         }
 #endif
 

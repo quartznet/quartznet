@@ -21,6 +21,7 @@
 
 using System;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Logging;
@@ -46,15 +47,19 @@ namespace Quartz.Simpl
         /// <summary>
         /// Generate the instance id for a <see cref="IScheduler" />
         /// </summary>
+        /// <param name="cancellationToken"></param>
         /// <returns> The clusterwide unique instance id.
         /// </returns>
-        public abstract Task<string> GenerateInstanceId();
+        public abstract Task<string> GenerateInstanceId(
+            CancellationToken cancellationToken = default(CancellationToken));
 
-        protected async Task<string> GetHostName(int maxLength)
+        protected async Task<string> GetHostName(
+            int maxLength, 
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             try
             {
-                var hostAddress = await GetHostAddress().ConfigureAwait(false);
+                var hostAddress = await GetHostAddress(cancellationToken).ConfigureAwait(false);
                 string hostName = hostAddress.HostName;
                 if (hostName != null && hostName.Length > maxLength)
                 {
@@ -70,7 +75,8 @@ namespace Quartz.Simpl
             }
         }
 
-        protected virtual async Task<IPHostEntry> GetHostAddress()
+        protected virtual async Task<IPHostEntry> GetHostAddress(
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             var hostEntry = await Dns.GetHostEntryAsync(Dns.GetHostName()).ConfigureAwait(false);
             var firstAddressEntry = await Dns.GetHostEntryAsync(hostEntry.AddressList[0].ToString()).ConfigureAwait(false);

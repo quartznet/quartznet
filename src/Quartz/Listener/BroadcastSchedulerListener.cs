@@ -21,6 +21,7 @@
 
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Quartz.Listener
@@ -71,104 +72,121 @@ namespace Quartz.Listener
             return listeners;
         }
 
-        public Task JobAdded(IJobDetail jobDetail)
+        public Task JobAdded(IJobDetail jobDetail, CancellationToken cancellationToken = default(CancellationToken))
         {
-            return Task.WhenAll(listeners.Select(l => l.JobAdded(jobDetail)));
+            return Task.WhenAll(listeners.Select(l => l.JobAdded(jobDetail, cancellationToken)));
         }
 
-        public Task JobDeleted(JobKey jobKey)
+        public Task JobDeleted(JobKey jobKey, CancellationToken cancellationToken = default(CancellationToken))
         {
-            return Task.WhenAll(listeners.Select(l => l.JobDeleted(jobKey)));
+            return Task.WhenAll(listeners.Select(l => l.JobDeleted(jobKey, cancellationToken)));
         }
 
-        public Task JobScheduled(ITrigger trigger)
+        public Task JobScheduled(ITrigger trigger, CancellationToken cancellationToken = default(CancellationToken))
         {
-            return Task.WhenAll(listeners.Select(l => l.JobScheduled(trigger)));
+            return Task.WhenAll(listeners.Select(l => l.JobScheduled(trigger, cancellationToken)));
         }
 
-        public Task JobUnscheduled(TriggerKey triggerKey)
+        public Task JobUnscheduled(
+            TriggerKey triggerKey, 
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return Task.WhenAll(listeners.Select(l => l.JobUnscheduled(triggerKey)));
+            return Task.WhenAll(listeners.Select(l => l.JobUnscheduled(triggerKey, cancellationToken)));
         }
 
-        public Task TriggerFinalized(ITrigger trigger)
+        public Task TriggerFinalized(
+            ITrigger trigger, 
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return Task.WhenAll(listeners.Select(l => l.TriggerFinalized(trigger)));
+            return Task.WhenAll(listeners.Select(l => l.TriggerFinalized(trigger, cancellationToken)));
         }
 
-        public Task TriggersPaused(string triggerGroup)
+        public Task TriggersPaused(
+            string triggerGroup,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return Task.WhenAll(listeners.Select(l => l.TriggersPaused(triggerGroup)));
+            return Task.WhenAll(listeners.Select(l => l.TriggersPaused(triggerGroup, cancellationToken)));
         }
 
-        public Task TriggerPaused(TriggerKey triggerKey)
+        public Task TriggerPaused(
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return Task.WhenAll(listeners.Select(l => l.TriggerPaused(triggerKey)));
+            return Task.WhenAll(listeners.Select(l => l.TriggerPaused(triggerKey, cancellationToken)));
         }
 
-        public Task TriggersResumed(string triggerGroup)
+        public Task TriggersResumed(
+            string triggerGroup,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return Task.WhenAll(listeners.Select(l => l.TriggersResumed(triggerGroup)));
+            return Task.WhenAll(listeners.Select(l => l.TriggersResumed(triggerGroup, cancellationToken)));
         }
 
-        public Task SchedulingDataCleared()
+        public Task SchedulingDataCleared(CancellationToken cancellationToken = default(CancellationToken))
         {
-            return Task.WhenAll(listeners.Select(l => l.SchedulingDataCleared()));
+            return Task.WhenAll(listeners.Select(l => l.SchedulingDataCleared(cancellationToken)));
         }
 
-        public Task TriggerResumed(TriggerKey triggerKey)
+        public Task TriggerResumed(
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return Task.WhenAll(listeners.Select(l => l.TriggerResumed(triggerKey)));
+            return Task.WhenAll(listeners.Select(l => l.TriggerResumed(triggerKey, cancellationToken)));
         }
 
-        public Task JobsPaused(string jobGroup)
+        public Task JobsPaused(
+            string jobGroup,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return Task.WhenAll(listeners.Select(l => l.JobsPaused(jobGroup)));
+            return Task.WhenAll(listeners.Select(l => l.JobsPaused(jobGroup, cancellationToken)));
         }
 
-        public Task JobPaused(JobKey jobKey)
+        public Task JobPaused(JobKey jobKey, CancellationToken cancellationToken = default(CancellationToken))
         {
-            return Task.WhenAll(listeners.Select(l => l.JobPaused(jobKey)));
+            return Task.WhenAll(listeners.Select(l => l.JobPaused(jobKey, cancellationToken)));
         }
 
-        public Task JobsResumed(string jobGroup)
+        public Task JobsResumed(string jobGroup, CancellationToken cancellationToken = default(CancellationToken))
         {
-            return Task.WhenAll(listeners.Select(l => l.JobsResumed(jobGroup)));
+            return Task.WhenAll(listeners.Select(l => l.JobsResumed(jobGroup, cancellationToken)));
         }
 
-        public Task JobResumed(JobKey jobKey)
+        public Task JobResumed(JobKey jobKey, CancellationToken cancellationToken = default(CancellationToken))
         {
-            return Task.WhenAll(listeners.Select(l => l.JobResumed(jobKey)));
+            return Task.WhenAll(listeners.Select(l => l.JobResumed(jobKey, cancellationToken)));
         }
 
-        public Task SchedulerError(string msg, SchedulerException cause)
+        public Task SchedulerError(
+            string msg, 
+            SchedulerException cause, 
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return Task.WhenAll(listeners.Select(l => l.SchedulerError(msg, cause)));
+            return Task.WhenAll(listeners.Select(l => l.SchedulerError(msg, cause, cancellationToken)));
         }
 
-        public Task SchedulerStarted()
+        public Task SchedulerStarted(CancellationToken cancellationToken = default(CancellationToken))
         {
-            return Task.WhenAll(listeners.Select(l => l.SchedulerStarted()));
+            return Task.WhenAll(listeners.Select(l => l.SchedulerStarted(cancellationToken)));
         }
 
-        public Task SchedulerStarting()
+        public Task SchedulerStarting(CancellationToken cancellationToken = default(CancellationToken))
         {
-            return Task.WhenAll(listeners.Select(l => l.SchedulerStarting()));
+            return Task.WhenAll(listeners.Select(l => l.SchedulerStarting(cancellationToken)));
         }
 
-        public Task SchedulerInStandbyMode()
+        public Task SchedulerInStandbyMode(CancellationToken cancellationToken = default(CancellationToken))
         {
-            return Task.WhenAll(listeners.Select(l => l.SchedulerInStandbyMode()));
+            return Task.WhenAll(listeners.Select(l => l.SchedulerInStandbyMode(cancellationToken)));
         }
 
-        public Task SchedulerShutdown()
+        public Task SchedulerShutdown(CancellationToken cancellationToken = default(CancellationToken))
         {
-            return Task.WhenAll(listeners.Select(l => l.SchedulerShutdown()));
+            return Task.WhenAll(listeners.Select(l => l.SchedulerShutdown(cancellationToken)));
         }
 
-        public Task SchedulerShuttingdown()
+        public Task SchedulerShuttingdown(CancellationToken cancellationToken = default(CancellationToken))
         {
-            return Task.WhenAll(listeners.Select(l => l.SchedulerShuttingdown()));
+            return Task.WhenAll(listeners.Select(l => l.SchedulerShuttingdown(cancellationToken)));
         }
     }
 }

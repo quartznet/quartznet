@@ -105,17 +105,6 @@ namespace Quartz.Core
         /// with normal priority.
         /// </summary>
         internal QuartzSchedulerThread(QuartzScheduler qs, QuartzSchedulerResources qsRsrcs)
-            : this(qs, qsRsrcs, qsRsrcs.MakeSchedulerThreadDaemon, (int) ThreadPriority.Normal)
-        {
-        }
-
-        /// <summary>
-        /// Construct a new <see cref="QuartzSchedulerThread" /> for the given
-        /// <see cref="QuartzScheduler" /> as a <see cref="Thread" /> with the given
-        /// attributes.
-        /// </summary>
-        internal QuartzSchedulerThread(QuartzScheduler qs, QuartzSchedulerResources qsRsrcs,
-            bool setDaemon, int threadPrio)
         {
             Log = LogProvider.GetLogger(GetType());
             //ThreadGroup generatedAux = qs.SchedulerThreadGroup;
@@ -228,14 +217,13 @@ namespace Quartz.Core
         /// <summary>
         /// The main processing loop of the <see cref="QuartzSchedulerThread" />.
         /// </summary>
-        /// <param name="token"></param>
-        public async Task Run(CancellationToken token)
+        public async Task Run(CancellationToken cancellationToken)
         {
             bool lastAcquireFailed = false;
 
             while (!halted)
             {
-                token.ThrowIfCancellationRequested();
+                cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
                     // check if we're supposed to pause...
@@ -259,7 +247,7 @@ namespace Quartz.Core
                         }
                     }
 
-                    token.ThrowIfCancellationRequested();
+                    cancellationToken.ThrowIfCancellationRequested();
                     int availThreadCount = qsRsrcs.ThreadPool.BlockForAvailableThreads();
                     if (availThreadCount > 0)
                     {
@@ -272,7 +260,7 @@ namespace Quartz.Core
                         {
                             var noLaterThan = now + idleWaitTime;
                             var maxCount = Math.Min(availThreadCount, qsRsrcs.MaxBatchSize);
-                            triggers = new List<IOperableTrigger>(await qsRsrcs.JobStore.AcquireNextTriggers(noLaterThan, maxCount, qsRsrcs.BatchTimeWindow).ConfigureAwait(false));
+                            triggers = new List<IOperableTrigger>(await qsRsrcs.JobStore.AcquireNextTriggers(noLaterThan, maxCount, qsRsrcs.BatchTimeWindow, cancellationToken).ConfigureAwait(false));
                             lastAcquireFailed = false;
                             if (Log.IsDebugEnabled())
                             {
@@ -284,7 +272,7 @@ namespace Quartz.Core
                             if (!lastAcquireFailed)
                             {
                                 var msg = "An error occurred while scanning for the next trigger to fire.";
-                                await qs.NotifySchedulerListenersError(msg, jpe).ConfigureAwait(false);
+                                await qs.NotifySchedulerListenersError(msg, jpe, cancellationToken).ConfigureAwait(false);
                             }
                             lastAcquireFailed = true;
                             continue;
@@ -362,7 +350,7 @@ namespace Quartz.Core
                             {
                                 try
                                 {
-                                    var res = await qsRsrcs.JobStore.TriggersFired(triggers).ConfigureAwait(false);
+                                    var res = await qsRsrcs.JobStore.TriggersFired(triggers, cancellationToken).ConfigureAwait(false);
                                     if (res != null)
                                     {
                                         bndles = res;
@@ -371,12 +359,12 @@ namespace Quartz.Core
                                 catch (SchedulerException se)
                                 {
                                     var msg = "An error occurred while firing triggers '" + triggers + "'";
-                                    await qs.NotifySchedulerListenersError(msg, se).ConfigureAwait(false);
+                                    await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
                                     // QTZ-179 : a problem occurred interacting with the triggers from the db
                                     // we release them and loop again
                                     foreach (IOperableTrigger t in triggers)
                                     {
-                                        await qsRsrcs.JobStore.ReleaseAcquiredTrigger(t).ConfigureAwait(false);
+                                        await qsRsrcs.JobStore.ReleaseAcquiredTrigger(t, cancellationToken).ConfigureAwait(false);
                                     }
                                     continue;
                                 }
@@ -393,7 +381,7 @@ namespace Quartz.Core
                                 if (exception != null && (exception is DbException || exception.InnerException is DbException))
                                 {
                                     Log.ErrorException("DbException while firing trigger " + trigger, exception);
-                                    await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger).ConfigureAwait(false);
+                                    await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger, cancellationToken).ConfigureAwait(false);
                                     continue;
                                 }
 
@@ -402,7 +390,7 @@ namespace Quartz.Core
                                 // fired at this time...  or if the scheduler was shutdown (halted)
                                 if (bndle == null)
                                 {
-                                    await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger).ConfigureAwait(false);
+                                    await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger, cancellationToken).ConfigureAwait(false);
                                     continue;
                                 }
 
@@ -417,15 +405,15 @@ namespace Quartz.Core
                                 try
                                 {
                                     shell = qsRsrcs.JobRunShellFactory.CreateJobRunShell(bndle);
-                                    await shell.Initialize(qs).ConfigureAwait(false);
+                                    await shell.Initialize(qs, cancellationToken).ConfigureAwait(false);
                                 }
                                 catch (SchedulerException)
                                 {
-                                    await qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError).ConfigureAwait(false);
+                                    await qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError, cancellationToken).ConfigureAwait(false);
                                     continue;
                                 }
 
-                                var threadPoolRunResult = qsRsrcs.ThreadPool.RunInThread(shell.Run);
+                                var threadPoolRunResult = qsRsrcs.ThreadPool.RunInThread(() => shell.Run(cancellationToken));
                                 if (threadPoolRunResult == false)
                                 {
                                     // this case should never happen, as it is indicative of the
@@ -433,7 +421,7 @@ namespace Quartz.Core
                                     // a thread pool being used concurrently - which the docs
                                     // say not to do...
                                     Log.Error("ThreadPool.RunInThread() returned false!");
-                                    await qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError).ConfigureAwait(false);
+                                    await qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError, cancellationToken).ConfigureAwait(false);
                                 }
                             }
 

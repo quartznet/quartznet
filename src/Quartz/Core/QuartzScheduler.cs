@@ -30,6 +30,7 @@ using System.Runtime.Remoting;
 #endif // REMOTING
 using System.Security;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Impl;
@@ -355,34 +356,36 @@ namespace Quartz.Core
         /// be passed to the appropriate TriggerListener(s).
         /// </para>
         /// </summary>
-        public virtual async Task Start()
+        public virtual async Task Start(CancellationToken cancellationToken = default(CancellationToken))
         {
             if (shuttingDown || closed)
             {
                 throw new SchedulerException("The Scheduler cannot be restarted after Shutdown() has been called.");
             }
 
-            await NotifySchedulerListenersStarting().ConfigureAwait(false);
+            await NotifySchedulerListenersStarting(cancellationToken).ConfigureAwait(false);
 
             if (!initialStart.HasValue)
             {
                 initialStart = SystemTime.UtcNow();
-                await resources.JobStore.SchedulerStarted().ConfigureAwait(false);
-                await StartPlugins().ConfigureAwait(false);
+                await resources.JobStore.SchedulerStarted(cancellationToken).ConfigureAwait(false);
+                await StartPlugins(cancellationToken).ConfigureAwait(false);
             }
             else
             {
-                await resources.JobStore.SchedulerResumed().ConfigureAwait(false);
+                await resources.JobStore.SchedulerResumed(cancellationToken).ConfigureAwait(false);
             }
 
             schedThread.TogglePause(false);
 
             log.Info($"Scheduler {resources.GetUniqueIdentifier()} started.");
 
-            await NotifySchedulerListenersStarted().ConfigureAwait(false);
+            await NotifySchedulerListenersStarted(cancellationToken).ConfigureAwait(false);
         }
 
-        public virtual Task StartDelayed(TimeSpan delay)
+        public virtual Task StartDelayed(
+            TimeSpan delay,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             if (shuttingDown || closed)
             {
@@ -391,17 +394,17 @@ namespace Quartz.Core
             }
             return Task.Run(async () =>
             {
-                await Task.Delay(delay).ConfigureAwait(false);
+                await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
 
                 try
                 {
-                    await Start().ConfigureAwait(false);
+                    await Start(cancellationToken).ConfigureAwait(false);
                 }
                 catch (SchedulerException se)
                 {
                     log.ErrorException("Unable to start scheduler after startup delay.", se);
                 }
-            });
+            }, cancellationToken);
         }
 
         /// <summary>
@@ -410,12 +413,12 @@ namespace Quartz.Core
         /// The scheduler is not destroyed, and can be re-started at any time.
         /// </para>
         /// </summary>
-        public virtual async Task Standby()
+        public virtual async Task Standby(CancellationToken cancellationToken = default(CancellationToken))
         {
-            await resources.JobStore.SchedulerPaused().ConfigureAwait(false);
+            await resources.JobStore.SchedulerPaused(cancellationToken).ConfigureAwait(false);
             schedThread.TogglePause(true);
             log.Info($"Scheduler {resources.GetUniqueIdentifier()} paused.");
-            await NotifySchedulerListenersInStandbyMode().ConfigureAwait(false);
+            await NotifySchedulerListenersInStandbyMode(cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -441,14 +444,14 @@ namespace Quartz.Core
         /// <summary>
         /// Halts the <see cref="QuartzScheduler" />'s firing of <see cref="ITrigger" />s,
         /// and cleans up all resources associated with the QuartzScheduler.
-        /// Equivalent to <see cref="Shutdown(bool)" />.
+        /// Equivalent to <see cref="Shutdown(bool, CancellationToken)" />.
         /// <para>
         /// The scheduler cannot be re-started.
         /// </para>
         /// </summary>
-        public virtual Task Shutdown()
+        public virtual Task Shutdown(CancellationToken cancellationToken = default(CancellationToken))
         {
-            return Shutdown(false);
+            return Shutdown(false, cancellationToken);
         }
 
         /// <summary>
@@ -462,7 +465,10 @@ namespace Quartz.Core
         /// if <see langword="true" /> the scheduler will not allow this method
         /// to return until all currently executing jobs have completed.
         /// </param>
-        public virtual async Task Shutdown(bool waitForJobsToComplete)
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        public virtual async Task Shutdown(
+            bool waitForJobsToComplete, 
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             if (shuttingDown || closed)
             {
@@ -473,11 +479,11 @@ namespace Quartz.Core
 
             log.InfoFormat("Scheduler {0} shutting down.", resources.GetUniqueIdentifier());
 
-            await Standby().ConfigureAwait(false);
+            await Standby(cancellationToken).ConfigureAwait(false);
 
             await schedThread.Halt(waitForJobsToComplete).ConfigureAwait(false);
 
-            await NotifySchedulerListenersShuttingdown().ConfigureAwait(false);
+            await NotifySchedulerListenersShuttingdown(cancellationToken).ConfigureAwait(false);
 
             if ((resources.InterruptJobsOnShutdown && !waitForJobsToComplete) || (resources.InterruptJobsOnShutdownWithWait && waitForJobsToComplete))
             {
@@ -512,11 +518,11 @@ namespace Quartz.Core
                 }
             }
 
-            await ShutdownPlugins().ConfigureAwait(false);
+            await ShutdownPlugins(cancellationToken).ConfigureAwait(false);
 
-            await resources.JobStore.Shutdown().ConfigureAwait(false);
+            await resources.JobStore.Shutdown(cancellationToken).ConfigureAwait(false);
 
-            await NotifySchedulerListenersShutdown().ConfigureAwait(false);
+            await NotifySchedulerListenersShutdown(cancellationToken).ConfigureAwait(false);
 
             SchedulerRepository.Instance.Remove(resources.Name);
 
@@ -547,7 +553,10 @@ namespace Quartz.Core
         /// will be set to reference the Job passed with it into this method.
         /// </para>
         /// </summary>
-        public virtual async Task<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger)
+        public virtual async Task<DateTimeOffset> ScheduleJob(
+            IJobDetail jobDetail, 
+            ITrigger trigger,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
@@ -587,7 +596,7 @@ namespace Quartz.Core
             ICalendar cal = null;
             if (trigger.CalendarName != null)
             {
-                cal = await resources.JobStore.RetrieveCalendar(trigger.CalendarName).ConfigureAwait(false);
+                cal = await resources.JobStore.RetrieveCalendar(trigger.CalendarName, cancellationToken).ConfigureAwait(false);
                 if (cal == null)
                 {
                     throw new SchedulerException($"Calendar not found: {trigger.CalendarName}");
@@ -602,10 +611,10 @@ namespace Quartz.Core
                 throw new SchedulerException(message);
             }
 
-            await resources.JobStore.StoreJobAndTrigger(jobDetail, trig).ConfigureAwait(false);
-            await NotifySchedulerListenersJobAdded(jobDetail).ConfigureAwait(false);
+            await resources.JobStore.StoreJobAndTrigger(jobDetail, trig, cancellationToken).ConfigureAwait(false);
+            await NotifySchedulerListenersJobAdded(jobDetail, cancellationToken).ConfigureAwait(false);
             NotifySchedulerThread(trigger.GetNextFireTimeUtc());
-            await NotifySchedulerListenersScheduled(trigger).ConfigureAwait(false);
+            await NotifySchedulerListenersScheduled(trigger, cancellationToken).ConfigureAwait(false);
 
             return ft.Value;
         }
@@ -614,7 +623,9 @@ namespace Quartz.Core
         /// Schedule the given <see cref="ITrigger" /> with the
         /// <see cref="IJob" /> identified by the <see cref="ITrigger" />'s settings.
         /// </summary>
-        public virtual async Task<DateTimeOffset> ScheduleJob(ITrigger trigger)
+        public virtual async Task<DateTimeOffset> ScheduleJob(
+            ITrigger trigger, 
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
@@ -629,7 +640,7 @@ namespace Quartz.Core
             ICalendar cal = null;
             if (trigger.CalendarName != null)
             {
-                cal = await resources.JobStore.RetrieveCalendar(trigger.CalendarName).ConfigureAwait(false);
+                cal = await resources.JobStore.RetrieveCalendar(trigger.CalendarName, cancellationToken).ConfigureAwait(false);
                 if (cal == null)
                 {
                     throw new SchedulerException($"Calendar not found: {trigger.CalendarName}");
@@ -644,9 +655,9 @@ namespace Quartz.Core
                 throw new SchedulerException(message);
             }
 
-            await resources.JobStore.StoreTrigger(trig, false).ConfigureAwait(false);
+            await resources.JobStore.StoreTrigger(trig, false, cancellationToken).ConfigureAwait(false);
             NotifySchedulerThread(trigger.GetNextFireTimeUtc());
-            await NotifySchedulerListenersScheduled(trigger).ConfigureAwait(false);
+            await NotifySchedulerListenersScheduled(trigger, cancellationToken).ConfigureAwait(false);
 
             return ft.Value;
         }
@@ -654,19 +665,26 @@ namespace Quartz.Core
         /// <summary>
         /// Add the given <see cref="IJob" /> to the Scheduler - with no associated
         /// <see cref="ITrigger" />. The <see cref="IJob" /> will be 'dormant' until
-        /// it is scheduled with a <see cref="ITrigger" />, or <see cref="IScheduler.TriggerJob(Quartz.JobKey)" />
+        /// it is scheduled with a <see cref="ITrigger" />, or <see cref="IScheduler.TriggerJob(Quartz.JobKey, CancellationToken)" />
         /// is called for it.
         /// <para>
         /// The <see cref="IJob" /> must by definition be 'durable', if it is not,
         /// SchedulerException will be thrown.
         /// </para>
         /// </summary>
-        public virtual Task AddJob(IJobDetail jobDetail, bool replace)
+        public virtual Task AddJob(
+            IJobDetail jobDetail, 
+            bool replace, 
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return AddJob(jobDetail, replace, false);
+            return AddJob(jobDetail, replace, false, cancellationToken);
         }
 
-        public virtual async Task AddJob(IJobDetail jobDetail, bool replace, bool storeNonDurableWhileAwaitingScheduling)
+        public virtual async Task AddJob(
+            IJobDetail jobDetail,
+            bool replace,
+            bool storeNonDurableWhileAwaitingScheduling,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
@@ -675,9 +693,9 @@ namespace Quartz.Core
                 throw new SchedulerException("Jobs added with no trigger must be durable.");
             }
 
-            await resources.JobStore.StoreJob(jobDetail, replace).ConfigureAwait(false);
+            await resources.JobStore.StoreJob(jobDetail, replace, cancellationToken).ConfigureAwait(false);
             NotifySchedulerThread(null);
-            await NotifySchedulerListenersJobAdded(jobDetail).ConfigureAwait(false);
+            await NotifySchedulerListenersJobAdded(jobDetail, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -685,15 +703,17 @@ namespace Quartz.Core
         /// associated <see cref="ITrigger" />s.
         /// </summary>
         /// <returns> true if the Job was found and deleted.</returns>
-        public virtual async Task<bool> DeleteJob(JobKey jobKey)
+        public virtual async Task<bool> DeleteJob(
+            JobKey jobKey, 
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
             bool result = false;
-            var triggers = await GetTriggersOfJob(jobKey).ConfigureAwait(false);
+            var triggers = await GetTriggersOfJob(jobKey, cancellationToken).ConfigureAwait(false);
             foreach (ITrigger trigger in triggers)
             {
-                if (!await UnscheduleJob(trigger.Key).ConfigureAwait(false))
+                if (!await UnscheduleJob(trigger.Key, cancellationToken).ConfigureAwait(false))
                 {
                     StringBuilder sb = new StringBuilder()
                         .Append("Unable to unschedule trigger [")
@@ -704,29 +724,34 @@ namespace Quartz.Core
                 result = true;
             }
 
-            result = await resources.JobStore.RemoveJob(jobKey).ConfigureAwait(false) || result;
+            result = await resources.JobStore.RemoveJob(jobKey, cancellationToken).ConfigureAwait(false) || result;
             if (result)
             {
                 NotifySchedulerThread(null);
-                await NotifySchedulerListenersJobDeleted(jobKey).ConfigureAwait(false);
+                await NotifySchedulerListenersJobDeleted(jobKey, cancellationToken).ConfigureAwait(false);
             }
             return result;
         }
 
-        public virtual async Task<bool> DeleteJobs(IList<JobKey> jobKeys)
+        public virtual async Task<bool> DeleteJobs(
+            IList<JobKey> jobKeys, 
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
-            bool result = await resources.JobStore.RemoveJobs(jobKeys).ConfigureAwait(false);
+            bool result = await resources.JobStore.RemoveJobs(jobKeys, cancellationToken).ConfigureAwait(false);
             NotifySchedulerThread(null);
             foreach (JobKey key in jobKeys)
             {
-                await NotifySchedulerListenersJobDeleted(key).ConfigureAwait(false);
+                await NotifySchedulerListenersJobDeleted(key, cancellationToken).ConfigureAwait(false);
             }
             return result;
         }
 
-        public virtual async Task ScheduleJobs(IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, bool replace)
+        public virtual async Task ScheduleJobs(
+            IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, 
+            bool replace,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
@@ -751,7 +776,7 @@ namespace Quartz.Core
                     ICalendar cal = null;
                     if (trigger.CalendarName != null)
                     {
-                        cal = await resources.JobStore.RetrieveCalendar(trigger.CalendarName).ConfigureAwait(false);
+                        cal = await resources.JobStore.RetrieveCalendar(trigger.CalendarName, cancellationToken).ConfigureAwait(false);
                         if (cal == null)
                         {
                             throw new SchedulerException(
@@ -769,25 +794,31 @@ namespace Quartz.Core
                 }
             }
 
-            await resources.JobStore.StoreJobsAndTriggers(triggersAndJobs, replace).ConfigureAwait(false);
+            await resources.JobStore.StoreJobsAndTriggers(triggersAndJobs, replace, cancellationToken).ConfigureAwait(false);
             NotifySchedulerThread(null);
-            await Task.WhenAll(triggersAndJobs.Keys.Select(NotifySchedulerListenersJobAdded)).ConfigureAwait(false);
+            await Task.WhenAll(triggersAndJobs.Keys.Select(x => NotifySchedulerListenersJobAdded(x, cancellationToken))).ConfigureAwait(false);
         }
 
-        public virtual Task ScheduleJob(IJobDetail jobDetail, ISet<ITrigger> triggersForJob, bool replace)
+        public virtual Task ScheduleJob(
+            IJobDetail jobDetail, 
+            ISet<ITrigger> triggersForJob, 
+            bool replace,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             var triggersAndJobs = new Dictionary<IJobDetail, ISet<ITrigger>>();
             triggersAndJobs.Add(jobDetail, triggersForJob);
-            return ScheduleJobs(triggersAndJobs, replace);
+            return ScheduleJobs(triggersAndJobs, replace, cancellationToken);
         }
 
-        public virtual async Task<bool> UnscheduleJobs(IList<TriggerKey> triggerKeys)
+        public virtual async Task<bool> UnscheduleJobs(
+            IList<TriggerKey> triggerKeys,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
-            bool result = await resources.JobStore.RemoveTriggers(triggerKeys).ConfigureAwait(false);
+            bool result = await resources.JobStore.RemoveTriggers(triggerKeys, cancellationToken).ConfigureAwait(false);
             NotifySchedulerThread(null);
-            await Task.WhenAll(triggerKeys.Select(NotifySchedulerListenersUnscheduled)).ConfigureAwait(false);
+            await Task.WhenAll(triggerKeys.Select(x => NotifySchedulerListenersUnscheduled(x, cancellationToken))).ConfigureAwait(false);
             return result;
         }
 
@@ -795,14 +826,16 @@ namespace Quartz.Core
         /// Remove the indicated <see cref="ITrigger" /> from the
         /// scheduler.
         /// </summary>
-        public virtual async Task<bool> UnscheduleJob(TriggerKey triggerKey)
+        public virtual async Task<bool> UnscheduleJob(
+            TriggerKey triggerKey, 
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
-            if (await resources.JobStore.RemoveTrigger(triggerKey).ConfigureAwait(false))
+            if (await resources.JobStore.RemoveTrigger(triggerKey, cancellationToken).ConfigureAwait(false))
             {
                 NotifySchedulerThread(null);
-                await NotifySchedulerListenersUnscheduled(triggerKey).ConfigureAwait(false);
+                await NotifySchedulerListenersUnscheduled(triggerKey, cancellationToken).ConfigureAwait(false);
             }
             else
             {
@@ -819,12 +852,16 @@ namespace Quartz.Core
         /// </summary>
         /// <param name="triggerKey">the key of the trigger</param>
         /// <param name="newTrigger">The new <see cref="ITrigger" /> to be stored.</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>
         /// 	<see langword="null" /> if a <see cref="ITrigger" /> with the given
         /// name and group was not found and removed from the store, otherwise
         /// the first fire time of the newly scheduled trigger.
         /// </returns>
-        public virtual async Task<DateTimeOffset?> RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger)
+        public virtual async Task<DateTimeOffset?> RescheduleJob(
+            TriggerKey triggerKey,
+            ITrigger newTrigger,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
@@ -838,7 +875,7 @@ namespace Quartz.Core
             }
 
             var trigger = (IOperableTrigger) newTrigger;
-            ITrigger oldTrigger = await GetTrigger(triggerKey).ConfigureAwait(false);
+            ITrigger oldTrigger = await GetTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
             if (oldTrigger == null)
             {
                 return null;
@@ -850,7 +887,7 @@ namespace Quartz.Core
             ICalendar cal = null;
             if (newTrigger.CalendarName != null)
             {
-                cal = await resources.JobStore.RetrieveCalendar(newTrigger.CalendarName).ConfigureAwait(false);
+                cal = await resources.JobStore.RetrieveCalendar(newTrigger.CalendarName, cancellationToken).ConfigureAwait(false);
             }
 
             DateTimeOffset? ft;
@@ -871,11 +908,11 @@ namespace Quartz.Core
                 throw new SchedulerException(message);
             }
 
-            if (await resources.JobStore.ReplaceTrigger(triggerKey, trigger).ConfigureAwait(false))
+            if (await resources.JobStore.ReplaceTrigger(triggerKey, trigger, cancellationToken).ConfigureAwait(false))
             {
                 NotifySchedulerThread(newTrigger.GetNextFireTimeUtc());
-                await NotifySchedulerListenersUnscheduled(triggerKey).ConfigureAwait(false);
-                await NotifySchedulerListenersScheduled(newTrigger).ConfigureAwait(false);
+                await NotifySchedulerListenersUnscheduled(triggerKey, cancellationToken).ConfigureAwait(false);
+                await NotifySchedulerListenersScheduled(newTrigger, cancellationToken).ConfigureAwait(false);
             }
             else
             {
@@ -915,7 +952,10 @@ namespace Quartz.Core
         /// <summary>
         /// Trigger the identified <see cref="IJob" /> (Execute it now) - with a non-volatile trigger.
         /// </summary>
-        public virtual async Task TriggerJob(JobKey jobKey, JobDataMap data)
+        public virtual async Task TriggerJob(
+            JobKey jobKey, 
+            JobDataMap data,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
@@ -934,7 +974,7 @@ namespace Quartz.Core
             {
                 try
                 {
-                    await resources.JobStore.StoreTrigger(trig, false).ConfigureAwait(false);
+                    await resources.JobStore.StoreTrigger(trig, false, cancellationToken).ConfigureAwait(false);
                     collision = false;
                 }
                 catch (ObjectAlreadyExistsException)
@@ -944,14 +984,15 @@ namespace Quartz.Core
             }
 
             NotifySchedulerThread(trig.GetNextFireTimeUtc());
-            await NotifySchedulerListenersScheduled(trig).ConfigureAwait(false);
+            await NotifySchedulerListenersScheduled(trig, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Store and schedule the identified <see cref="IOperableTrigger"/>
         /// </summary>
-        /// <param name="trig"></param>
-        public virtual async Task TriggerJob(IOperableTrigger trig)
+        public virtual async Task TriggerJob(
+            IOperableTrigger trig,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
@@ -962,7 +1003,7 @@ namespace Quartz.Core
             {
                 try
                 {
-                    await resources.JobStore.StoreTrigger(trig, false).ConfigureAwait(false);
+                    await resources.JobStore.StoreTrigger(trig, false, cancellationToken).ConfigureAwait(false);
                     collision = false;
                 }
                 catch (ObjectAlreadyExistsException)
@@ -972,25 +1013,29 @@ namespace Quartz.Core
             }
 
             NotifySchedulerThread(trig.GetNextFireTimeUtc());
-            await NotifySchedulerListenersScheduled(trig).ConfigureAwait(false);
+            await NotifySchedulerListenersScheduled(trig, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Pause the <see cref="ITrigger" /> with the given name.
         /// </summary>
-        public virtual async Task PauseTrigger(TriggerKey triggerKey)
+        public virtual async Task PauseTrigger(
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
-            await resources.JobStore.PauseTrigger(triggerKey).ConfigureAwait(false);
+            await resources.JobStore.PauseTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
             NotifySchedulerThread(null);
-            await NotifySchedulerListenersPausedTrigger(triggerKey).ConfigureAwait(false);
+            await NotifySchedulerListenersPausedTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Pause all of the <see cref="ITrigger" />s in the given group.
         /// </summary>
-        public virtual async Task PauseTriggers(GroupMatcher<TriggerKey> matcher)
+        public virtual async Task PauseTriggers(
+            GroupMatcher<TriggerKey> matcher,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
@@ -999,29 +1044,33 @@ namespace Quartz.Core
                 matcher = GroupMatcher<TriggerKey>.GroupEquals(SchedulerConstants.DefaultGroup);
             }
 
-            ISet<string> pausedGroups = await resources.JobStore.PauseTriggers(matcher).ConfigureAwait(false);
+            ISet<string> pausedGroups = await resources.JobStore.PauseTriggers(matcher, cancellationToken).ConfigureAwait(false);
             NotifySchedulerThread(null);
-            await Task.WhenAll(pausedGroups.Select(NotifySchedulerListenersPausedTriggers)).ConfigureAwait(false);
+            await Task.WhenAll(pausedGroups.Select(x => NotifySchedulerListenersPausedTriggers(x, cancellationToken))).ConfigureAwait(false);
         }
 
         /// <summary> 
         /// Pause the <see cref="IJobDetail" /> with the given
         /// name - by pausing all of its current <see cref="ITrigger" />s.
         /// </summary>
-        public virtual async Task PauseJob(JobKey jobKey)
+        public virtual async Task PauseJob(
+            JobKey jobKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
-            await resources.JobStore.PauseJob(jobKey).ConfigureAwait(false);
+            await resources.JobStore.PauseJob(jobKey, cancellationToken).ConfigureAwait(false);
             NotifySchedulerThread(null);
-            NotifySchedulerListenersPausedJob(jobKey);
+            NotifySchedulerListenersPausedJob(jobKey, cancellationToken);
         }
 
         /// <summary>
         /// Pause all of the <see cref="IJobDetail" />s in the
         /// given group - by pausing all of their <see cref="ITrigger" />s.
         /// </summary>
-        public virtual async Task PauseJobs(GroupMatcher<JobKey> groupMatcher)
+        public virtual async Task PauseJobs(
+            GroupMatcher<JobKey> groupMatcher,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
@@ -1030,9 +1079,9 @@ namespace Quartz.Core
                 groupMatcher = GroupMatcher<JobKey>.GroupEquals(SchedulerConstants.DefaultGroup);
             }
 
-            var pausedGroups = await resources.JobStore.PauseJobs(groupMatcher).ConfigureAwait(false);
+            var pausedGroups = await resources.JobStore.PauseJobs(groupMatcher, cancellationToken).ConfigureAwait(false);
             NotifySchedulerThread(null);
-            await Task.WhenAll(pausedGroups.Select(NotifySchedulerListenersPausedJobs)).ConfigureAwait(false);
+            await Task.WhenAll(pausedGroups.Select(x => NotifySchedulerListenersPausedJobs(x, cancellationToken))).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1043,13 +1092,15 @@ namespace Quartz.Core
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </para>
         /// </summary>
-        public virtual async Task ResumeTrigger(TriggerKey triggerKey)
+        public virtual async Task ResumeTrigger(
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
-            await resources.JobStore.ResumeTrigger(triggerKey).ConfigureAwait(false);
+            await resources.JobStore.ResumeTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
             NotifySchedulerThread(null);
-            await NotifySchedulerListenersResumedTrigger(triggerKey).ConfigureAwait(false);
+            await NotifySchedulerListenersResumedTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1060,7 +1111,9 @@ namespace Quartz.Core
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </para>
         /// </summary>
-        public virtual async Task ResumeTriggers(GroupMatcher<TriggerKey> matcher)
+        public virtual async Task ResumeTriggers(
+            GroupMatcher<TriggerKey> matcher,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
@@ -1069,18 +1122,19 @@ namespace Quartz.Core
                 matcher = GroupMatcher<TriggerKey>.GroupEquals(SchedulerConstants.DefaultGroup);
             }
 
-            var pausedGroups = await resources.JobStore.ResumeTriggers(matcher).ConfigureAwait(false);
+            var pausedGroups = await resources.JobStore.ResumeTriggers(matcher, cancellationToken).ConfigureAwait(false);
             NotifySchedulerThread(null);
-            await Task.WhenAll(pausedGroups.Select(NotifySchedulerListenersResumedTriggers)).ConfigureAwait(false);
+            await Task.WhenAll(pausedGroups.Select(x => NotifySchedulerListenersResumedTriggers(x, cancellationToken))).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Gets the paused trigger groups.
         /// </summary>
         /// <returns></returns>
-        public virtual Task<ISet<string>> GetPausedTriggerGroups()
+        public virtual Task<ISet<string>> GetPausedTriggerGroups(
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return resources.JobStore.GetPausedTriggerGroups();
+            return resources.JobStore.GetPausedTriggerGroups(cancellationToken);
         }
 
         /// <summary>
@@ -1092,13 +1146,15 @@ namespace Quartz.Core
         /// instruction will be applied.
         /// </para>
         /// </summary>
-        public virtual async Task ResumeJob(JobKey jobKey)
+        public virtual async Task ResumeJob(
+            JobKey jobKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
-            await resources.JobStore.ResumeJob(jobKey).ConfigureAwait(false);
+            await resources.JobStore.ResumeJob(jobKey, cancellationToken).ConfigureAwait(false);
             NotifySchedulerThread(null);
-            await NotifySchedulerListenersResumedJob(jobKey).ConfigureAwait(false);
+            await NotifySchedulerListenersResumedJob(jobKey, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1110,7 +1166,9 @@ namespace Quartz.Core
         /// misfire instruction will be applied.
         /// </para>
         /// </summary>
-        public virtual async Task ResumeJobs(GroupMatcher<JobKey> matcher)
+        public virtual async Task ResumeJobs(
+            GroupMatcher<JobKey> matcher,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
@@ -1119,9 +1177,9 @@ namespace Quartz.Core
                 matcher = GroupMatcher<JobKey>.GroupEquals(SchedulerConstants.DefaultGroup);
             }
 
-            ISet<string> resumedGroups = await resources.JobStore.ResumeJobs(matcher).ConfigureAwait(false);
+            ISet<string> resumedGroups = await resources.JobStore.ResumeJobs(matcher, cancellationToken).ConfigureAwait(false);
             NotifySchedulerThread(null);
-            await Task.WhenAll(resumedGroups.Select(NotifySchedulerListenersResumedJobs)).ConfigureAwait(false);
+            await Task.WhenAll(resumedGroups.Select(x => NotifySchedulerListenersResumedJobs(x, cancellationToken))).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1132,15 +1190,15 @@ namespace Quartz.Core
         /// instructions WILL be applied.
         /// </para>
         /// </summary>
-        /// <seealso cref="ResumeAll()" />
+        /// <seealso cref="ResumeAll" />
         /// <seealso cref="PauseJob" />
-        public virtual async Task PauseAll()
+        public virtual async Task PauseAll(CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
-            await resources.JobStore.PauseAll().ConfigureAwait(false);
+            await resources.JobStore.PauseAll(cancellationToken).ConfigureAwait(false);
             NotifySchedulerThread(null);
-            await NotifySchedulerListenersPausedTriggers(null).ConfigureAwait(false);
+            await NotifySchedulerListenersPausedTriggers(null, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1151,31 +1209,34 @@ namespace Quartz.Core
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </para>
         /// </summary>
-        /// <seealso cref="PauseAll()" />
-        public virtual async Task ResumeAll()
+        /// <seealso cref="PauseAll" />
+        public virtual async Task ResumeAll(CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
-            await resources.JobStore.ResumeAll().ConfigureAwait(false);
+            await resources.JobStore.ResumeAll(cancellationToken).ConfigureAwait(false);
             NotifySchedulerThread(null);
-            await NotifySchedulerListenersResumedTriggers(null).ConfigureAwait(false);
+            await NotifySchedulerListenersResumedTriggers(null, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Get the names of all known <see cref="IJob" /> groups.
         /// </summary>
-        public virtual Task<IReadOnlyList<string>> GetJobGroupNames()
+        public virtual Task<IReadOnlyList<string>> GetJobGroupNames(
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
-            return resources.JobStore.GetJobGroupNames();
+            return resources.JobStore.GetJobGroupNames(cancellationToken);
         }
 
         /// <summary>
         /// Get the names of all the <see cref="IJob" />s in the
         /// given group.
         /// </summary>
-        public virtual Task<ISet<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher)
+        public virtual Task<ISet<JobKey>> GetJobKeys(
+            GroupMatcher<JobKey> matcher,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
@@ -1184,18 +1245,20 @@ namespace Quartz.Core
                 matcher = GroupMatcher<JobKey>.GroupEquals(SchedulerConstants.DefaultGroup);
             }
 
-            return resources.JobStore.GetJobKeys(matcher);
+            return resources.JobStore.GetJobKeys(matcher, cancellationToken);
         }
 
         /// <summary> 
         /// Get all <see cref="ITrigger" /> s that are associated with the
         /// identified <see cref="IJobDetail" />.
         /// </summary>
-        public virtual async Task<IReadOnlyList<ITrigger>> GetTriggersOfJob(JobKey jobKey)
+        public virtual async Task<IReadOnlyList<ITrigger>> GetTriggersOfJob(
+            JobKey jobKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
-            var triggersForJob = await resources.JobStore.GetTriggersForJob(jobKey).ConfigureAwait(false);
+            var triggersForJob = await resources.JobStore.GetTriggersForJob(jobKey, cancellationToken).ConfigureAwait(false);
 
             var retValue = new List<ITrigger>(triggersForJob.Count);
             foreach (var trigger in triggersForJob)
@@ -1209,17 +1272,20 @@ namespace Quartz.Core
         /// Get the names of all known <see cref="ITrigger" />
         /// groups.
         /// </summary>
-        public virtual Task<IReadOnlyList<string>> GetTriggerGroupNames()
+        public virtual Task<IReadOnlyList<string>> GetTriggerGroupNames(
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
-            return resources.JobStore.GetTriggerGroupNames();
+            return resources.JobStore.GetTriggerGroupNames(cancellationToken);
         }
 
         /// <summary>
         /// Get the names of all the <see cref="ITrigger" />s in
         /// the matching groups.
         /// </summary>
-        public virtual Task<ISet<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher)
+        public virtual Task<ISet<TriggerKey>> GetTriggerKeys(
+            GroupMatcher<TriggerKey> matcher,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
@@ -1228,18 +1294,20 @@ namespace Quartz.Core
                 matcher = GroupMatcher<TriggerKey>.GroupEquals(SchedulerConstants.DefaultGroup);
             }
 
-            return resources.JobStore.GetTriggerKeys(matcher);
+            return resources.JobStore.GetTriggerKeys(matcher, cancellationToken);
         }
 
         /// <summary> 
         /// Get the <see cref="IJobDetail" /> for the <see cref="IJob" />
         /// instance with the given name and group.
         /// </summary>
-        public virtual Task<IJobDetail> GetJobDetail(JobKey jobKey)
+        public virtual Task<IJobDetail> GetJobDetail(
+            JobKey jobKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
-            return resources.JobStore.RetrieveJob(jobKey);
+            return resources.JobStore.RetrieveJob(jobKey, cancellationToken);
         }
 
 #pragma warning disable AsyncFixer01 // Unnecessary async/await usage
@@ -1247,11 +1315,13 @@ namespace Quartz.Core
         /// Get the <see cref="ITrigger" /> instance with the given name and
         /// group.
         /// </summary>
-        public virtual async Task<ITrigger> GetTrigger(TriggerKey triggerKey)
+        public virtual async Task<ITrigger> GetTrigger(
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
-            return await resources.JobStore.RetrieveTrigger(triggerKey).ConfigureAwait(false);
+            return await resources.JobStore.RetrieveTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
         }
 #pragma warning restore AsyncFixer01 // Unnecessary async/await usage
 
@@ -1262,12 +1332,15 @@ namespace Quartz.Core
         /// <remarks>
         /// </remarks>
         /// <param name="jobKey">the identifier to check for</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>true if a Job exists with the given identifier</returns>
-        public virtual Task<bool> CheckExists(JobKey jobKey)
+        public virtual Task<bool> CheckExists(
+            JobKey jobKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
-            return resources.JobStore.CheckExists(jobKey);
+            return resources.JobStore.CheckExists(jobKey, cancellationToken);
         }
 
         /// <summary>
@@ -1277,72 +1350,87 @@ namespace Quartz.Core
         /// <remarks>
         /// </remarks>
         /// <param name="triggerKey">the identifier to check for</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>true if a Trigger exists with the given identifier</returns>
-        public virtual Task<bool> CheckExists(TriggerKey triggerKey)
+        public virtual Task<bool> CheckExists(
+            TriggerKey triggerKey, 
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
-            return resources.JobStore.CheckExists(triggerKey);
+            return resources.JobStore.CheckExists(triggerKey, cancellationToken);
         }
 
         /// <summary>
         /// Clears (deletes!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
         /// <see cref="ICalendar" />s.
         /// </summary>
-        public virtual async Task Clear()
+        public virtual async Task Clear(CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
-            await resources.JobStore.ClearAllSchedulingData().ConfigureAwait(false);
-            await NotifySchedulerListenersUnscheduled(null).ConfigureAwait(false);
+            await resources.JobStore.ClearAllSchedulingData(cancellationToken).ConfigureAwait(false);
+            await NotifySchedulerListenersUnscheduled(null, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
         /// Get the current state of the identified <see cref="ITrigger" />.  
         /// </summary>
         /// <seealso cref="TriggerState" />
-        public virtual Task<TriggerState> GetTriggerState(TriggerKey triggerKey)
+        public virtual Task<TriggerState> GetTriggerState(
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
 
-            return resources.JobStore.GetTriggerState(triggerKey);
+            return resources.JobStore.GetTriggerState(triggerKey, cancellationToken);
         }
 
         /// <summary>
         /// Add (register) the given <see cref="ICalendar" /> to the Scheduler.
         /// </summary>
-        public virtual Task AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers)
+        public virtual Task AddCalendar(
+            string calName, 
+            ICalendar calendar, 
+            bool replace, 
+            bool updateTriggers,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
-            return resources.JobStore.StoreCalendar(calName, calendar, replace, updateTriggers);
+            return resources.JobStore.StoreCalendar(calName, calendar, replace, updateTriggers, cancellationToken);
         }
 
         /// <summary>
         /// Delete the identified <see cref="ICalendar" /> from the Scheduler.
         /// </summary>
         /// <returns> true if the Calendar was found and deleted.</returns>
-        public virtual Task<bool> DeleteCalendar(string calName)
+        public virtual Task<bool> DeleteCalendar(
+            string calName,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
-            return resources.JobStore.RemoveCalendar(calName);
+            return resources.JobStore.RemoveCalendar(calName, cancellationToken);
         }
 
         /// <summary> 
         /// Get the <see cref="ICalendar" /> instance with the given name.
         /// </summary>
-        public virtual Task<ICalendar> GetCalendar(string calName)
+        public virtual Task<ICalendar> GetCalendar(
+            string calName,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
-            return resources.JobStore.RetrieveCalendar(calName);
+            return resources.JobStore.RetrieveCalendar(calName, cancellationToken);
         }
 
         /// <summary>
         /// Get the names of all registered <see cref="ICalendar" />s.
         /// </summary>
-        public virtual Task<IReadOnlyList<string>> GetCalendarNames()
+        public virtual Task<IReadOnlyList<string>> GetCalendarNames(
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ValidateState();
-            return resources.JobStore.GetCalendarNames();
+            return resources.JobStore.GetCalendarNames(cancellationToken);
         }
 
         public IListenerManager ListenerManager { get; } = new ListenerManagerImpl();
@@ -1356,7 +1444,7 @@ namespace Quartz.Core
         {
             if (jobListener.Name.IsNullOrWhiteSpace())
             {
-                throw new ArgumentException("JobListener name cannot be empty.", "jobListener");
+                throw new ArgumentException("JobListener name cannot be empty.", nameof(jobListener));
             }
             internalJobListeners[jobListener.Name] = jobListener;
         }
@@ -1423,17 +1511,12 @@ namespace Quartz.Core
         /// Get a list containing all of the <see cref="ITriggerListener" />s
         /// in the <see cref="IScheduler" />'s <i>internal</i> list.
         /// </summary>
-        public IReadOnlyList<ITriggerListener> InternalTriggerListeners
-        {
-            get { return new List<ITriggerListener>(internalTriggerListeners.Values); }
-        }
+        public IReadOnlyList<ITriggerListener> InternalTriggerListeners => new List<ITriggerListener>(internalTriggerListeners.Values);
 
         /// <summary>
         /// Get the <i>internal</i> <see cref="ITriggerListener" /> that
         /// has the given name.
         /// </summary>
-        /// <param name="name"></param>
-        /// <returns></returns>
         public ITriggerListener GetInternalTriggerListener(string name)
         {
             ITriggerListener triggerListener;
@@ -1441,20 +1524,25 @@ namespace Quartz.Core
             return triggerListener;
         }
 
-        public virtual Task NotifyJobStoreJobVetoed(IOperableTrigger trigger, IJobDetail detail, SchedulerInstruction instCode)
+        public virtual Task NotifyJobStoreJobVetoed(
+            IOperableTrigger trigger,
+            IJobDetail detail, 
+            SchedulerInstruction instCode,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return resources.JobStore.TriggeredJobComplete(trigger, detail, instCode);
+            return resources.JobStore.TriggeredJobComplete(trigger, detail, instCode, cancellationToken);
         }
 
         /// <summary>
         /// Notifies the job store job complete.
         /// </summary>
-        /// <param name="trigger">The trigger.</param>
-        /// <param name="detail">The detail.</param>
-        /// <param name="instCode">The instruction code.</param>
-        public virtual Task NotifyJobStoreJobComplete(IOperableTrigger trigger, IJobDetail detail, SchedulerInstruction instCode)
+        public virtual Task NotifyJobStoreJobComplete(
+            IOperableTrigger trigger, 
+            IJobDetail detail,
+            SchedulerInstruction instCode,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return resources.JobStore.TriggeredJobComplete(trigger, detail, instCode);
+            return resources.JobStore.TriggeredJobComplete(trigger, detail, instCode, cancellationToken);
         }
 
         /// <summary>
@@ -1523,8 +1611,11 @@ namespace Quartz.Core
         /// Notifies the trigger listeners about fired trigger.
         /// </summary>
         /// <param name="jec">The job execution context.</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns></returns>
-        public virtual async Task<bool> NotifyTriggerListenersFired(IJobExecutionContext jec)
+        public virtual async Task<bool> NotifyTriggerListenersFired(
+            IJobExecutionContext jec,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             bool vetoedExecution = false;
 
@@ -1540,9 +1631,9 @@ namespace Quartz.Core
                 }
                 try
                 {
-                    await tl.TriggerFired(jec.Trigger, jec).ConfigureAwait(false);
+                    await tl.TriggerFired(jec.Trigger, jec, cancellationToken).ConfigureAwait(false);
 
-                    if (await tl.VetoJobExecution(jec.Trigger, jec).ConfigureAwait(false))
+                    if (await tl.VetoJobExecution(jec.Trigger, jec, cancellationToken).ConfigureAwait(false))
                     {
                         vetoedExecution = true;
                     }
@@ -1561,7 +1652,10 @@ namespace Quartz.Core
         /// Notifies the trigger listeners about misfired trigger.
         /// </summary>
         /// <param name="trigger">The trigger.</param>
-        public virtual async Task NotifyTriggerListenersMisfired(ITrigger trigger)
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        public virtual async Task NotifyTriggerListenersMisfired(
+            ITrigger trigger,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             // build a list of all trigger listeners that are to be notified...
             var listeners = BuildTriggerListenerList();
@@ -1575,7 +1669,7 @@ namespace Quartz.Core
                 }
                 try
                 {
-                    await tl.TriggerMisfired(trigger).ConfigureAwait(false);
+                    await tl.TriggerMisfired(trigger, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -1590,7 +1684,11 @@ namespace Quartz.Core
         /// </summary>
         /// <param name="jec">The job execution context.</param>
         /// <param name="instCode">The instruction code to report to triggers.</param>
-        public virtual async Task NotifyTriggerListenersComplete(IJobExecutionContext jec, SchedulerInstruction instCode)
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        public virtual async Task NotifyTriggerListenersComplete(
+            IJobExecutionContext jec, 
+            SchedulerInstruction instCode,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             // build a list of all trigger listeners that are to be notified...
             var listeners = BuildTriggerListenerList();
@@ -1604,7 +1702,7 @@ namespace Quartz.Core
                 }
                 try
                 {
-                    await tl.TriggerComplete(jec.Trigger, jec, instCode).ConfigureAwait(false);
+                    await tl.TriggerComplete(jec.Trigger, jec, instCode, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -1618,7 +1716,10 @@ namespace Quartz.Core
         /// Notifies the job listeners about job to be executed.
         /// </summary>
         /// <param name="jec">The jec.</param>
-        public virtual async Task NotifyJobListenersToBeExecuted(IJobExecutionContext jec)
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        public virtual async Task NotifyJobListenersToBeExecuted(
+            IJobExecutionContext jec,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             // build a list of all job listeners that are to be notified...
             IEnumerable<IJobListener> listeners = BuildJobListenerList();
@@ -1632,7 +1733,7 @@ namespace Quartz.Core
                 }
                 try
                 {
-                    await jl.JobToBeExecuted(jec).ConfigureAwait(false);
+                    await jl.JobToBeExecuted(jec, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -1646,7 +1747,10 @@ namespace Quartz.Core
         /// Notifies the job listeners that job execution was vetoed.
         /// </summary>
         /// <param name="jec">The job execution context.</param>
-        public virtual async Task NotifyJobListenersWasVetoed(IJobExecutionContext jec)
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        public virtual async Task NotifyJobListenersWasVetoed(
+            IJobExecutionContext jec,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             // build a list of all job listeners that are to be notified...
             IEnumerable<IJobListener> listeners = BuildJobListenerList();
@@ -1660,7 +1764,7 @@ namespace Quartz.Core
                 }
                 try
                 {
-                    await jl.JobExecutionVetoed(jec).ConfigureAwait(false);
+                    await jl.JobExecutionVetoed(jec, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -1675,7 +1779,11 @@ namespace Quartz.Core
         /// </summary>
         /// <param name="jec">The jec.</param>
         /// <param name="je">The je.</param>
-        public virtual async Task NotifyJobListenersWasExecuted(IJobExecutionContext jec, JobExecutionException je)
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        public virtual async Task NotifyJobListenersWasExecuted(
+            IJobExecutionContext jec, 
+            JobExecutionException je,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             // build a list of all job listeners that are to be notified...
             IEnumerable<IJobListener> listeners = BuildJobListenerList();
@@ -1689,7 +1797,7 @@ namespace Quartz.Core
                 }
                 try
                 {
-                    await jl.JobWasExecuted(jec, je).ConfigureAwait(false);
+                    await jl.JobWasExecuted(jec, je, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -1704,7 +1812,11 @@ namespace Quartz.Core
         /// </summary>
         /// <param name="msg">The MSG.</param>
         /// <param name="se">The se.</param>
-        public virtual async Task NotifySchedulerListenersError(string msg, SchedulerException se)
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        public virtual async Task NotifySchedulerListenersError(
+            string msg, 
+            SchedulerException se,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             // build a list of all scheduler listeners that are to be notified...
             IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
@@ -1714,7 +1826,7 @@ namespace Quartz.Core
             {
                 try
                 {
-                    await sl.SchedulerError(msg, se).ConfigureAwait(false);
+                    await sl.SchedulerError(msg, se, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -1728,15 +1840,20 @@ namespace Quartz.Core
         /// Notifies the scheduler listeners about job that was scheduled.
         /// </summary>
         /// <param name="trigger">The trigger.</param>
-        public virtual Task NotifySchedulerListenersScheduled(ITrigger trigger)
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        public virtual Task NotifySchedulerListenersScheduled(
+            ITrigger trigger,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return NotifySchedulerListeners(l => l.JobScheduled(trigger), $"scheduled job. Trigger={trigger.Key}");
+            return NotifySchedulerListeners(l => l.JobScheduled(trigger, cancellationToken), $"scheduled job. Trigger={trigger.Key}");
         }
 
         /// <summary>
         /// Notifies the scheduler listeners about job that was unscheduled.
         /// </summary>
-        public virtual async Task NotifySchedulerListenersUnscheduled(TriggerKey triggerKey)
+        public virtual async Task NotifySchedulerListenersUnscheduled(
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             // build a list of all scheduler listeners that are to be notified...
             IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
@@ -1748,11 +1865,11 @@ namespace Quartz.Core
                 {
                     if (triggerKey == null)
                     {
-                        await sl.SchedulingDataCleared().ConfigureAwait(false);
+                        await sl.SchedulingDataCleared(cancellationToken).ConfigureAwait(false);
                     }
                     else
                     {
-                        await sl.JobUnscheduled(triggerKey).ConfigureAwait(false);
+                        await sl.JobUnscheduled(triggerKey, cancellationToken).ConfigureAwait(false);
                     }
                 }
                 catch (Exception e)
@@ -1769,16 +1886,22 @@ namespace Quartz.Core
         /// Notifies the scheduler listeners about finalized trigger.
         /// </summary>
         /// <param name="trigger">The trigger.</param>
-        public virtual Task NotifySchedulerListenersFinalized(ITrigger trigger)
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        public virtual Task NotifySchedulerListenersFinalized(
+            ITrigger trigger,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return NotifySchedulerListeners(l => l.TriggerFinalized(trigger), $"finalized trigger. Trigger={trigger.Key}");
+            return NotifySchedulerListeners(l => l.TriggerFinalized(trigger, cancellationToken), $"finalized trigger. Trigger={trigger.Key}");
         }
 
         /// <summary>
         /// Notifies the scheduler listeners about paused trigger.
         /// </summary>
         /// <param name="group">The group.</param>
-        public virtual async Task NotifySchedulerListenersPausedTriggers(string group)
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        public virtual async Task NotifySchedulerListenersPausedTriggers(
+            string group,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             // build a list of all job listeners that are to be notified...
             IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
@@ -1788,7 +1911,7 @@ namespace Quartz.Core
             {
                 try
                 {
-                    await sl.TriggersPaused(group).ConfigureAwait(false);
+                    await sl.TriggersPaused(group, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -1800,7 +1923,9 @@ namespace Quartz.Core
         /// <summary>
         /// Notifies the scheduler listeners about paused trigger.
         /// </summary>
-        public virtual async Task NotifySchedulerListenersPausedTrigger(TriggerKey triggerKey)
+        public virtual async Task NotifySchedulerListenersPausedTrigger(
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             // build a list of all job listeners that are to be notified...
             IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
@@ -1810,7 +1935,7 @@ namespace Quartz.Core
             {
                 try
                 {
-                    await sl.TriggerPaused(triggerKey).ConfigureAwait(false);
+                    await sl.TriggerPaused(triggerKey, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -1823,15 +1948,20 @@ namespace Quartz.Core
         /// Notifies the scheduler listeners resumed trigger.
         /// </summary>
         /// <param name="group">The group.</param>
-        public virtual Task NotifySchedulerListenersResumedTriggers(string group)
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        public virtual Task NotifySchedulerListenersResumedTriggers(
+            string group,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return NotifySchedulerListeners(l => l.TriggersResumed(group), $"resumed group: {@group}");
+            return NotifySchedulerListeners(l => l.TriggersResumed(group, cancellationToken), $"resumed group: {@group}");
         }
 
         /// <summary>
         /// Notifies the scheduler listeners resumed trigger.
         /// </summary>
-        public virtual async Task NotifySchedulerListenersResumedTrigger(TriggerKey triggerKey)
+        public virtual async Task NotifySchedulerListenersResumedTrigger(
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             // build a list of all job listeners that are to be notified...
             IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
@@ -1841,7 +1971,7 @@ namespace Quartz.Core
             {
                 try
                 {
-                    await sl.TriggerResumed(triggerKey).ConfigureAwait(false);
+                    await sl.TriggerResumed(triggerKey, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -1853,7 +1983,9 @@ namespace Quartz.Core
         /// <summary>
         /// Notifies the scheduler listeners about paused job.
         /// </summary>
-        public virtual void NotifySchedulerListenersPausedJob(JobKey jobKey)
+        public virtual void NotifySchedulerListenersPausedJob(
+            JobKey jobKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             // build a list of all job listeners that are to be notified...
             IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
@@ -1863,7 +1995,7 @@ namespace Quartz.Core
             {
                 try
                 {
-                    sl.JobPaused(jobKey);
+                    sl.JobPaused(jobKey, cancellationToken);
                 }
                 catch (Exception e)
                 {
@@ -1875,8 +2007,9 @@ namespace Quartz.Core
         /// <summary>
         /// Notifies the scheduler listeners about paused job.
         /// </summary>
-        /// <param name="group">The group.</param>
-        public virtual async Task NotifySchedulerListenersPausedJobs(string group)
+        public virtual async Task NotifySchedulerListenersPausedJobs(
+            string group,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             // build a list of all job listeners that are to be notified...
             IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
@@ -1886,7 +2019,7 @@ namespace Quartz.Core
             {
                 try
                 {
-                    await sl.JobsPaused(@group).ConfigureAwait(false);
+                    await sl.JobsPaused(@group, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -1898,7 +2031,9 @@ namespace Quartz.Core
         /// <summary>
         /// Notifies the scheduler listeners about resumed job.
         /// </summary>
-        public virtual async Task NotifySchedulerListenersResumedJob(JobKey jobKey)
+        public virtual async Task NotifySchedulerListenersResumedJob(
+            JobKey jobKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             // build a list of all job listeners that are to be notified...
             IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
@@ -1908,7 +2043,7 @@ namespace Quartz.Core
             {
                 try
                 {
-                    await sl.JobResumed(jobKey).ConfigureAwait(false);
+                    await sl.JobResumed(jobKey, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -1920,8 +2055,9 @@ namespace Quartz.Core
         /// <summary>
         /// Notifies the scheduler listeners about resumed job.
         /// </summary>
-        /// <param name="group">The group.</param>
-        public virtual async Task NotifySchedulerListenersResumedJobs(string group)
+        public virtual async Task NotifySchedulerListenersResumedJobs(
+            string group,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             // build a list of all job listeners that are to be notified...
             IList<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
@@ -1931,7 +2067,7 @@ namespace Quartz.Core
             {
                 try
                 {
-                    await sl.JobsResumed(group).ConfigureAwait(false);
+                    await sl.JobsResumed(group, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
@@ -1940,45 +2076,55 @@ namespace Quartz.Core
             }
         }
 
-        public virtual Task NotifySchedulerListenersInStandbyMode()
+        public virtual Task NotifySchedulerListenersInStandbyMode(
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return NotifySchedulerListeners(l => l.SchedulerInStandbyMode(), "inStandByMode");
+            return NotifySchedulerListeners(l => l.SchedulerInStandbyMode(cancellationToken), "inStandByMode");
         }
 
-        public virtual Task NotifySchedulerListenersStarted()
+        public virtual Task NotifySchedulerListenersStarted(
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return NotifySchedulerListeners(l => l.SchedulerStarted(), "startup");
+            return NotifySchedulerListeners(l => l.SchedulerStarted(cancellationToken), "startup");
         }
 
-        public virtual Task NotifySchedulerListenersStarting()
+        public virtual Task NotifySchedulerListenersStarting(
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return NotifySchedulerListeners(l => l.SchedulerStarting(), "scheduler starting");
+            return NotifySchedulerListeners(l => l.SchedulerStarting(cancellationToken), "scheduler starting");
         }
 
         /// <summary>
         /// Notifies the scheduler listeners about scheduler shutdown.
         /// </summary>
-        public virtual Task NotifySchedulerListenersShutdown()
+        public virtual Task NotifySchedulerListenersShutdown(
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return NotifySchedulerListeners(l => l.SchedulerShutdown(), "shutdown");
+            return NotifySchedulerListeners(l => l.SchedulerShutdown(cancellationToken), "shutdown");
         }
 
-        public virtual Task NotifySchedulerListenersShuttingdown()
+        public virtual Task NotifySchedulerListenersShuttingdown(
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return NotifySchedulerListeners(l => l.SchedulerShuttingdown(), "shutting down");
+            return NotifySchedulerListeners(l => l.SchedulerShuttingdown(cancellationToken), "shutting down");
         }
 
-        public virtual Task NotifySchedulerListenersJobAdded(IJobDetail jobDetail)
+        public virtual Task NotifySchedulerListenersJobAdded(
+            IJobDetail jobDetail,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return NotifySchedulerListeners(l => l.JobAdded(jobDetail), "job addition");
+            return NotifySchedulerListeners(l => l.JobAdded(jobDetail, cancellationToken), "job addition");
         }
 
-        public virtual Task NotifySchedulerListenersJobDeleted(JobKey jobKey)
+        public virtual Task NotifySchedulerListenersJobDeleted(
+            JobKey jobKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return NotifySchedulerListeners(l => l.JobDeleted(jobKey), "job deletion");
+            return NotifySchedulerListeners(l => l.JobDeleted(jobKey, cancellationToken), "job deletion");
         }
 
-        protected virtual async Task NotifySchedulerListeners(Func<ISchedulerListener, Task> notifier, string action)
+        protected virtual async Task NotifySchedulerListeners(
+            Func<ISchedulerListener, Task> notifier, string action)
         {
             // notify all scheduler listeners
             var listeners = BuildSchedulerListenerList();
@@ -1998,7 +2144,9 @@ namespace Quartz.Core
         /// <summary>
         /// Interrupt all instances of the identified InterruptableJob.
         /// </summary>
-        public virtual Task<bool> Interrupt(JobKey jobKey)
+        public virtual Task<bool> Interrupt(
+            JobKey jobKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             var cancellableJobs = CurrentlyExecutingJobs.OfType<ICancellableJobExecutionContext>();
 
@@ -2006,6 +2154,8 @@ namespace Quartz.Core
 
             foreach (var cancellableJobExecutionContext in cancellableJobs)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+                
                 var jobDetail = cancellableJobExecutionContext.JobDetail;
                 if (jobKey.Equals(jobDetail.Key))
                 {
@@ -2026,10 +2176,13 @@ namespace Quartz.Core
         /// instances of the identified InterruptableJob currently executing in this 
         /// Scheduler instance, not across the entire cluster.
         /// </remarks>
-        /// <seealso cref="IRemotableQuartzScheduler.Interrupt(JobKey)" />
+        /// <seealso cref="IRemotableQuartzScheduler.Interrupt(JobKey, CancellationToken)" />
         /// <param name="fireInstanceId"></param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns></returns>
-        public Task<bool> Interrupt(string fireInstanceId)
+        public Task<bool> Interrupt(
+            string fireInstanceId,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             var cancellableJobs = CurrentlyExecutingJobs.OfType<ICancellableJobExecutionContext>();
 
@@ -2037,6 +2190,8 @@ namespace Quartz.Core
 
             foreach (var cancellableJobExecutionContext in cancellableJobs)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+                
                 if (cancellableJobExecutionContext.FireInstanceId.Equals(fireInstanceId))
                 {
                     cancellableJobExecutionContext.Cancel();
@@ -2048,30 +2203,36 @@ namespace Quartz.Core
             return Task.FromResult(interrupted);
         }
 
-        private async Task ShutdownPlugins()
+        private async Task ShutdownPlugins(
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             foreach (ISchedulerPlugin plugin in resources.SchedulerPlugins)
             {
-                await plugin.Shutdown().ConfigureAwait(false);
+                await plugin.Shutdown(cancellationToken).ConfigureAwait(false);
             }
         }
 
-        private async Task StartPlugins()
+        private async Task StartPlugins(
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             foreach (ISchedulerPlugin plugin in resources.SchedulerPlugins)
             {
-                await plugin.Start().ConfigureAwait(false);
+                await plugin.Start(cancellationToken).ConfigureAwait(false);
             }
         }
 
-        public virtual Task<bool> IsJobGroupPaused(string groupName)
+        public virtual Task<bool> IsJobGroupPaused(
+            string groupName, 
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return resources.JobStore.IsJobGroupPaused(groupName);
+            return resources.JobStore.IsJobGroupPaused(groupName, cancellationToken);
         }
 
-        public virtual Task<bool> IsTriggerGroupPaused(string groupName)
+        public virtual Task<bool> IsTriggerGroupPaused(
+            string groupName, 
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return resources.JobStore.IsTriggerGroupPaused(groupName);
+            return resources.JobStore.IsTriggerGroupPaused(groupName, cancellationToken);
         }
 
         ///<summary>

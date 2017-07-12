@@ -1,5 +1,4 @@
 using System.IO;
-using System.Reflection;
 
 #if BINARY_SERIALIZATION
 using System.Runtime.Serialization.Formatters.Binary;
@@ -56,14 +55,14 @@ namespace Quartz.Tests.Integration.Utils
         private class PrimateSettersDefaultContractResolver : DefaultContractResolver
         {
             protected override JsonProperty CreateProperty(
-                MemberInfo member,
+                System.Reflection.MemberInfo member,
                 MemberSerialization memberSerialization)
             {
                 var prop = base.CreateProperty(member, memberSerialization);
 
                 if (!prop.Writable)
                 {
-                    var property = member as PropertyInfo;
+                    var property = member as System.Reflection.PropertyInfo;
                     if (property != null)
                     {
                         var hasPrivateSetter = property.GetSetMethod(true) != null;

@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Spi;
@@ -24,7 +25,7 @@ namespace Quartz.Simpl
         /// <summary>
         /// Returns the cluster wide value for this scheduler instance's id, based on a system property.
         /// </summary>
-        public Task<string> GenerateInstanceId()
+        public Task<string> GenerateInstanceId(CancellationToken cancellationToken = default(CancellationToken))
         {
             string property = Environment.GetEnvironmentVariable(SystemPropertyName);
             if (property == null)
@@ -49,8 +50,8 @@ namespace Quartz.Simpl
         /// </summary>
         public string Prepend
         {
-            get { return prepend; }
-            set { prepend = value == null ? null : value.Trim(); }
+            get => prepend;
+            set => prepend = value?.Trim();
         }
 
         /// <summary>
@@ -58,8 +59,8 @@ namespace Quartz.Simpl
         /// </summary>
         public string Postpend
         {
-            get { return postpend; }
-            set { postpend = value == null ? null : value.Trim(); }
+            get => postpend;
+            set => postpend = value?.Trim();
         }
 
         /// <summary>
@@ -70,8 +71,8 @@ namespace Quartz.Simpl
         /// </remarks>
         public string SystemPropertyName
         {
-            get { return systemPropertyName; }
-            set { systemPropertyName = value == null ? SystemProperty : value.Trim(); }
+            get => systemPropertyName;
+            set => systemPropertyName = value?.Trim() ?? SystemProperty;
         }
     }
 }

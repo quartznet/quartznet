@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Impl.Triggers;
@@ -53,18 +54,26 @@ namespace Quartz.Impl.AdoJobStore
             return ((trigger is SimpleTriggerImpl) && !((SimpleTriggerImpl) trigger).HasAdditionalProperties);
         }
 
-        public async Task<int> DeleteExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
+        public async Task<int> DeleteExtendedTriggerProperties(
+            ConnectionAndTransactionHolder conn, 
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlDeleteSimpleTrigger, TablePrefix, SchedNameLiteral)))
             {
                 DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
                 DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
-                return await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
         }
 
-        public async Task<int> InsertExtendedTriggerProperties(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail)
+        public async Task<int> InsertExtendedTriggerProperties(
+            ConnectionAndTransactionHolder conn, 
+            IOperableTrigger trigger, 
+            string state, 
+            IJobDetail jobDetail,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ISimpleTrigger simpleTrigger = (ISimpleTrigger) trigger;
 
@@ -76,20 +85,23 @@ namespace Quartz.Impl.AdoJobStore
                 DbAccessor.AddCommandParameter(cmd, "triggerRepeatInterval", DbAccessor.GetDbTimeSpanValue(simpleTrigger.RepeatInterval));
                 DbAccessor.AddCommandParameter(cmd, "triggerTimesTriggered", simpleTrigger.TimesTriggered);
 
-                return await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
         }
 
-        public async Task<TriggerPropertyBundle> LoadExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey)
+        public async Task<TriggerPropertyBundle> LoadExtendedTriggerProperties(
+            ConnectionAndTransactionHolder conn,
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, TablePrefix, SchedNameLiteral)))
             {
                 DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
                 DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
-                using (var rs = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
+                using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
                 {
-                    if (await rs.ReadAsync().ConfigureAwait(false))
+                    if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
                     {
                         int repeatCount = rs.GetInt32(AdoConstants.ColumnRepeatCount);
                         TimeSpan repeatInterval = DbAccessor.GetTimeSpanFromDbValue(rs[AdoConstants.ColumnRepeatInterval]) ?? TimeSpan.Zero;
@@ -109,7 +121,12 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public async Task<int> UpdateExtendedTriggerProperties(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail)
+        public async Task<int> UpdateExtendedTriggerProperties(
+            ConnectionAndTransactionHolder conn, 
+            IOperableTrigger trigger,
+            string state, 
+            IJobDetail jobDetail,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ISimpleTrigger simpleTrigger = (ISimpleTrigger) trigger;
 
@@ -121,7 +138,7 @@ namespace Quartz.Impl.AdoJobStore
                 DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
                 DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
 
-                return await cmd.ExecuteNonQueryAsync().ConfigureAwait(false);
+                return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
         }
     }

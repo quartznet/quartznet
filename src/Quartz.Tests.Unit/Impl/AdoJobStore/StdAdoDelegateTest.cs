@@ -197,7 +197,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
 
             var persistenceDelegate = A.Fake<ITriggerPersistenceDelegate>();
             var exception = new InvalidOperationException();
-            A.CallTo(() => persistenceDelegate.LoadExtendedTriggerProperties(A<ConnectionAndTransactionHolder>.Ignored, A<TriggerKey>.Ignored)).Throws(exception);
+            A.CallTo(() => persistenceDelegate.LoadExtendedTriggerProperties(A<ConnectionAndTransactionHolder>.Ignored, A<TriggerKey>.Ignored, CancellationToken.None)).Throws(exception);
 
             StdAdoDelegate adoDelegate = new TestStdAdoDelegate(persistenceDelegate);
 
@@ -230,7 +230,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
                 Assert.That(e, Is.SameAs(exception));
             }
 
-            A.CallTo(() => persistenceDelegate.LoadExtendedTriggerProperties(A<ConnectionAndTransactionHolder>.Ignored, A<TriggerKey>.Ignored)).MustHaveHappened();
+            A.CallTo(() => persistenceDelegate.LoadExtendedTriggerProperties(A<ConnectionAndTransactionHolder>.Ignored, A<TriggerKey>.Ignored, CancellationToken.None)).MustHaveHappened();
         }
 
         [Test]
@@ -263,7 +263,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
 
             var persistenceDelegate = A.Fake<ITriggerPersistenceDelegate>();
             var exception = new InvalidOperationException();
-            A.CallTo(() => persistenceDelegate.LoadExtendedTriggerProperties(A<ConnectionAndTransactionHolder>.Ignored, A<TriggerKey>.Ignored)).Throws(exception);
+            A.CallTo(() => persistenceDelegate.LoadExtendedTriggerProperties(A<ConnectionAndTransactionHolder>.Ignored, A<TriggerKey>.Ignored, CancellationToken.None)).Throws(exception);
 
             StdAdoDelegate adoDelegate = new TestStdAdoDelegate(persistenceDelegate);
 
@@ -289,7 +289,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             IOperableTrigger trigger = await adoDelegate.SelectTrigger(conn, new TriggerKey("test"));
             Assert.That(trigger, Is.Null);
 
-            A.CallTo(() => persistenceDelegate.LoadExtendedTriggerProperties(A<ConnectionAndTransactionHolder>.Ignored, A<TriggerKey>.Ignored)).MustHaveHappened();
+            A.CallTo(() => persistenceDelegate.LoadExtendedTriggerProperties(A<ConnectionAndTransactionHolder>.Ignored, A<TriggerKey>.Ignored, CancellationToken.None)).MustHaveHappened();
         }
 
         [Test]

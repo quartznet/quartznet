@@ -22,6 +22,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Quartz.Listener
@@ -42,7 +43,6 @@ namespace Quartz.Listener
     /// <author>James House (jhouse AT revolition DOT net)</author>
     public class BroadcastTriggerListener : ITriggerListener
     {
-        private readonly string name;
         private readonly List<ITriggerListener> listeners;
 
         /// <summary>
@@ -54,11 +54,7 @@ namespace Quartz.Listener
         /// <param name="name">the name of this instance</param>
         public BroadcastTriggerListener(string name)
         {
-            if (name == null)
-            {
-                throw new ArgumentNullException("name", "Listener name cannot be null!");
-            }
-            this.name = name;
+            this.Name = name ?? throw new ArgumentNullException(nameof(name), "Listener name cannot be null!");
             listeners = new List<ITriggerListener>();
         }
 
@@ -74,10 +70,7 @@ namespace Quartz.Listener
             this.listeners.AddRange(listeners);
         }
 
-        public string Name
-        {
-            get { return name; }
-        }
+        public string Name { get; }
 
         public void AddListener(ITriggerListener listener)
         {
@@ -102,16 +95,22 @@ namespace Quartz.Listener
 
         public IReadOnlyList<ITriggerListener> Listeners => listeners;
 
-        public Task TriggerFired(ITrigger trigger, IJobExecutionContext context)
+        public Task TriggerFired(
+            ITrigger trigger, 
+            IJobExecutionContext context, 
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return Task.WhenAll(listeners.Select(l => l.TriggerFired(trigger, context)));
+            return Task.WhenAll(listeners.Select(l => l.TriggerFired(trigger, context, cancellationToken)));
         }
 
-        public async Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context)
+        public async Task<bool> VetoJobExecution(
+            ITrigger trigger, 
+            IJobExecutionContext context,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             foreach (var listener in listeners)
             {
-                if (await listener.VetoJobExecution(trigger, context).ConfigureAwait(false))
+                if (await listener.VetoJobExecution(trigger, context, cancellationToken).ConfigureAwait(false))
                 {
                     return true;
                 }
@@ -120,14 +119,18 @@ namespace Quartz.Listener
             return false;
         }
 
-        public Task TriggerMisfired(ITrigger trigger)
+        public Task TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = default(CancellationToken))
         {
-            return Task.WhenAll(listeners.Select(l => l.TriggerMisfired(trigger)));
+            return Task.WhenAll(listeners.Select(l => l.TriggerMisfired(trigger, cancellationToken)));
         }
 
-        public Task TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode)
+        public Task TriggerComplete(
+            ITrigger trigger, 
+            IJobExecutionContext context, 
+            SchedulerInstruction triggerInstructionCode,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return Task.WhenAll(listeners.Select(l => l.TriggerComplete(trigger, context, triggerInstructionCode)));
+            return Task.WhenAll(listeners.Select(l => l.TriggerComplete(trigger, context, triggerInstructionCode, cancellationToken)));
         }
     }
 }

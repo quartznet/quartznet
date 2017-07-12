@@ -17,9 +17,7 @@
  */
 #endregion
 
-using System;
 using System.Collections.Generic;
-using System.Runtime.Serialization;
 
 using Quartz.Util;
 
@@ -38,7 +36,7 @@ namespace Quartz
 	/// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
 #if BINARY_SERIALIZATION
-    [Serializable]
+    [System.Serializable]
 #endif // BINARY_SERIALIZATION
     public class SchedulerContext : StringKeyDirtyFlagMap
 	{
@@ -64,7 +62,9 @@ namespace Quartz
         /// </summary>
         /// <param name="info"></param>
         /// <param name="context"></param>
-        protected SchedulerContext(SerializationInfo info, StreamingContext context) : base(info, context)
+        protected SchedulerContext(
+			System.Runtime.Serialization.SerializationInfo info, 
+			System.Runtime.Serialization.StreamingContext context) : base(info, context)
         {
         }
 #endif // BINARY_SERIALIZATION

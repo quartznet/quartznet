@@ -20,6 +20,7 @@
 #endregion
 
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 
 using NUnit.Framework;
@@ -48,7 +49,8 @@ namespace Quartz.Tests.Unit.Simpl
 
         private class TestInstanceIdGenerator : SimpleInstanceIdGenerator
         {
-            protected override Task<IPHostEntry> GetHostAddress()
+            protected override Task<IPHostEntry> GetHostAddress(
+                CancellationToken cancellationToken = default(CancellationToken))
             {
                 return Task.FromResult(new IPHostEntry
                 {

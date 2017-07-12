@@ -20,10 +20,6 @@
 #endregion
 
 using System;
-using System.Runtime.Serialization;
-using System.Security;
-
-using Quartz.Util;
 
 namespace Quartz.Impl.Calendar
 {
@@ -48,7 +44,7 @@ namespace Quartz.Impl.Calendar
 #endif // BINARY_SERIALIZATION
     public class BaseCalendar : ICalendar
 #if BINARY_SERIALIZATION
-        , ISerializable, IEquatable<BaseCalendar>
+        , System.Runtime.Serialization.ISerializable, IEquatable<BaseCalendar>
 #endif // BINARY_SERIALIZATION
     {
         // A optional base calendar.
@@ -98,7 +94,9 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         /// <param name="info"></param>
         /// <param name="context"></param>
-        protected BaseCalendar(SerializationInfo info, StreamingContext context)
+        protected BaseCalendar(
+			System.Runtime.Serialization.SerializationInfo info, 
+			System.Runtime.Serialization.StreamingContext context)
         {
             int version;
             try
@@ -136,7 +134,7 @@ namespace Quartz.Impl.Calendar
                     var timeZoneId = (string) info.GetValue(prefix + "timeZoneId", typeof(string));
                     if (!string.IsNullOrEmpty(timeZoneId))
                     {
-                        timeZone = TimeZoneUtil.FindTimeZoneById(timeZoneId);
+                        timeZone = Util.TimeZoneUtil.FindTimeZoneById(timeZoneId);
                     }
                     break;
                 default:
@@ -147,8 +145,10 @@ namespace Quartz.Impl.Calendar
             description = (string) info.GetValue(prefix + "description", typeof(string));
         }
 
-        [SecurityCritical]
-        public virtual void GetObjectData(SerializationInfo info, StreamingContext context)
+        [System.Security.SecurityCritical]
+        public virtual void GetObjectData(
+            System.Runtime.Serialization.SerializationInfo info, 
+            System.Runtime.Serialization.StreamingContext context)
         {
             info.AddValue("baseCalendarVersion", 1);
             info.AddValue("baseCalendar", baseCalendar);

@@ -18,7 +18,6 @@
 #endregion
 
 using System;
-using System.Runtime.Serialization;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -50,7 +49,9 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="context">The <see cref="T:System.Runtime.Serialization.StreamingContext"></see> that contains contextual information about the source or destination.</param>
         /// <exception cref="T:System.Runtime.Serialization.SerializationException">The class name is null or <see cref="P:System.Exception.HResult"></see> is zero (0). </exception>
         /// <exception cref="T:System.ArgumentNullException">The info parameter is null. </exception>
-        protected LockException(SerializationInfo info, StreamingContext context) : base(info, context)
+        protected LockException(
+			System.Runtime.Serialization.SerializationInfo info, 
+			System.Runtime.Serialization.StreamingContext context) : base(info, context)
         {
         }
 #endif // BINARY_SERIALIZATION

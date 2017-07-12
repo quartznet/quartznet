@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Logging;
@@ -46,21 +47,16 @@ namespace Quartz.Listener
     /// <seealso cref="ITriggerListener" />
     public abstract class TriggerListenerSupport : ITriggerListener
     {
-        private readonly ILog log;
-
         protected TriggerListenerSupport()
         {
-            log = LogProvider.GetLogger(GetType());
+            Log = LogProvider.GetLogger(GetType());
         }
 
         /// <summary>
         /// Get the <see cref="ILog" /> for this
         /// class's category.  This should be used by subclasses for logging.
         /// </summary>
-        protected ILog Log
-        {
-            get { return log; }
-        }
+        protected ILog Log { get; }
 
         /// <summary>
         /// Get the name of the <see cref="ITriggerListener"/>.
@@ -68,22 +64,34 @@ namespace Quartz.Listener
         /// <value></value>
         public abstract string Name { get; }
 
-        public virtual Task TriggerFired(ITrigger trigger, IJobExecutionContext context)
+        public virtual Task TriggerFired(
+            ITrigger trigger,
+            IJobExecutionContext context,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context)
+        public virtual Task<bool> VetoJobExecution(
+            ITrigger trigger,
+            IJobExecutionContext context,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             return Task.FromResult(false);
         }
 
-        public virtual Task TriggerMisfired(ITrigger trigger)
+        public virtual Task TriggerMisfired(
+            ITrigger trigger,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode)
+        public virtual Task TriggerComplete(
+            ITrigger trigger, 
+            IJobExecutionContext context, 
+            SchedulerInstruction triggerInstructionCode,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             return TaskUtil.CompletedTask;
         }

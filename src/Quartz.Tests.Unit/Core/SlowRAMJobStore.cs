@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Simpl;
@@ -12,12 +13,16 @@ namespace Quartz.Tests.Unit.Core
     /// </summary>
     public class SlowRAMJobStore : RAMJobStore
     {
-        public override async Task<IReadOnlyList<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow)
+        public override async Task<IReadOnlyList<IOperableTrigger>> AcquireNextTriggers(
+            DateTimeOffset noLaterThan, 
+            int maxCount, 
+            TimeSpan timeWindow,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            var nextTriggers = await base.AcquireNextTriggers(noLaterThan, maxCount, timeWindow);
+            var nextTriggers = await base.AcquireNextTriggers(noLaterThan, maxCount, timeWindow, cancellationToken);
 
             // Wait just a bit for hopefully having a context switch leading to the race condition
-            await Task.Delay(10);
+            await Task.Delay(10, cancellationToken);
 
             return nextTriggers;
         }

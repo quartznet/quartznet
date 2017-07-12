@@ -1,5 +1,3 @@
-using System;
-
 using Quartz.Util;
 
 namespace Quartz
@@ -40,7 +38,7 @@ namespace Quartz
     /// <seealso cref="ITrigger" />
     /// <seealso cref="Key{T}.DefaultGroup" />
 #if BINARY_SERIALIZATION
-    [Serializable]
+    [System.Serializable]
 #endif // BINARY_SERIALIZATION
     public sealed class TriggerKey : Key<TriggerKey>
     {

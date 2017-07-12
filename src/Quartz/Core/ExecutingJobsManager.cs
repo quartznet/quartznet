@@ -25,21 +25,28 @@ namespace Quartz.Core
 
         private int numJobsFired;
 
-        public virtual Task JobToBeExecuted(IJobExecutionContext context)
+        public virtual Task JobToBeExecuted(
+            IJobExecutionContext context, 
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             Interlocked.Increment(ref numJobsFired);
             executingJobs[((IOperableTrigger) context.Trigger).FireInstanceId] = context;
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
+        public virtual Task JobWasExecuted(
+            IJobExecutionContext context, 
+            JobExecutionException jobException,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             IJobExecutionContext temp;
             executingJobs.TryRemove(((IOperableTrigger) context.Trigger).FireInstanceId, out temp);
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task JobExecutionVetoed(IJobExecutionContext context)
+        public virtual Task JobExecutionVetoed(
+            IJobExecutionContext context,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             return TaskUtil.CompletedTask;
         }

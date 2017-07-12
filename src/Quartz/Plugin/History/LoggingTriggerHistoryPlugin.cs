@@ -20,6 +20,7 @@
 #endregion
 
 using System.Globalization;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Impl.Matchers;
@@ -210,66 +211,43 @@ namespace Quartz.Plugin.History
     /// <author>Marko Lahma (.NET)</author>
     public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
     {
-        private string name;
-        private string triggerFiredMessage = "Trigger {1}.{0} fired job {6}.{5} at: {4:HH:mm:ss MM/dd/yyyy}";
-        private string triggerMisfiredMessage = "Trigger {1}.{0} misfired job {6}.{5} at: {4:HH:mm:ss MM/dd/yyyy}.  Should have fired at: {3:HH:mm:ss MM/dd/yyyy}";
-        private string triggerCompleteMessage = "Trigger {1}.{0} completed firing job {6}.{5} at {4:HH:mm:ss MM/dd/yyyy} with resulting trigger instruction code: {9}";
-
-        private ILog log = LogProvider.GetLogger(typeof (LoggingTriggerHistoryPlugin));
-
         /// <summary>
         /// Logger instance to use. Defaults to common logging.
         /// </summary>
-        public ILog Log
-        {
-            get { return log; }
-            set { log = value; }
-        }
+        public ILog Log { get; set; } = LogProvider.GetLogger(typeof (LoggingTriggerHistoryPlugin));
 
         /// <summary> 
         /// Get or set the message that is printed upon the completion of a trigger's
         /// firing.
         /// </summary>
-        public virtual string TriggerCompleteMessage
-        {
-            get { return triggerCompleteMessage; }
-            set { triggerCompleteMessage = value; }
-        }
+        public virtual string TriggerCompleteMessage { get; set; } = "Trigger {1}.{0} completed firing job {6}.{5} at {4:HH:mm:ss MM/dd/yyyy} with resulting trigger instruction code: {9}";
 
         /// <summary> 
         /// Get or set the message that is printed upon a trigger's firing.
         /// </summary>
-        public virtual string TriggerFiredMessage
-        {
-            get { return triggerFiredMessage; }
-            set { triggerFiredMessage = value; }
-        }
+        public virtual string TriggerFiredMessage { get; set; } = "Trigger {1}.{0} fired job {6}.{5} at: {4:HH:mm:ss MM/dd/yyyy}";
 
         /// <summary> 
         /// Get or set the message that is printed upon a trigger's mis-firing.
         /// </summary>
-        public virtual string TriggerMisfiredMessage
-        {
-            get { return triggerMisfiredMessage; }
-            set { triggerMisfiredMessage = value; }
-        }
+        public virtual string TriggerMisfiredMessage { get; set; } = "Trigger {1}.{0} misfired job {6}.{5} at: {4:HH:mm:ss MM/dd/yyyy}.  Should have fired at: {3:HH:mm:ss MM/dd/yyyy}";
 
         /// <summary>
         /// Get the name of the <see cref="ITriggerListener" />.
         /// </summary>
         /// <value></value>
-        public virtual string Name
-        {
-            get { return name; }
-        }
+        public virtual string Name { get; set; }
 
         /// <summary>
         /// Called during creation of the <see cref="IScheduler" /> in order to give
         /// the <see cref="ISchedulerPlugin" /> a chance to Initialize.
         /// </summary>
-        public virtual Task Initialize(string pluginName, IScheduler scheduler)
+        public virtual Task Initialize(
+            string pluginName,
+            IScheduler scheduler, 
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            name = pluginName;
+            Name = pluginName;
             scheduler.ListenerManager.AddTriggerListener(this, EverythingMatcher<TriggerKey>.AllTriggers());
             return TaskUtil.CompletedTask;
         }
@@ -279,7 +257,7 @@ namespace Quartz.Plugin.History
         /// to let the plug-in know it can now make calls into the scheduler if it
         /// needs to.
         /// </summary>
-        public virtual Task Start()
+        public virtual Task Start(CancellationToken cancellationToken = default(CancellationToken))
         {
             // do nothing...
             return TaskUtil.CompletedTask;
@@ -290,7 +268,7 @@ namespace Quartz.Plugin.History
         /// should free up all of it's resources because the scheduler is shutting
         /// down.
         /// </summary>
-        public virtual Task Shutdown()
+        public virtual Task Shutdown(CancellationToken cancellationToken = default(CancellationToken))
         {
             // nothing to do...
             return TaskUtil.CompletedTask;
@@ -307,7 +285,11 @@ namespace Quartz.Plugin.History
         /// </summary>
         /// <param name="trigger">The <see cref="ITrigger" /> that has fired.</param>
         /// <param name="context">The <see cref="IJobExecutionContext" /> that will be passed to the <see cref="IJob" />'s <see cref="IJob.Execute" /> method.</param>
-        public virtual Task TriggerFired(ITrigger trigger, IJobExecutionContext context)
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        public virtual Task TriggerFired(
+            ITrigger trigger, 
+            IJobExecutionContext context,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             if (!Log.IsInfoEnabled())
             {
@@ -341,7 +323,10 @@ namespace Quartz.Plugin.History
         /// </para>
         /// </summary>
         /// <param name="trigger">The <see cref="ITrigger" /> that has misfired.</param>
-        public virtual Task TriggerMisfired(ITrigger trigger)
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        public virtual Task TriggerMisfired(
+            ITrigger trigger, 
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             if (!Log.IsInfoEnabled())
             {
@@ -373,7 +358,12 @@ namespace Quartz.Plugin.History
         /// <param name="context">The <see cref="IJobExecutionContext" /> that was passed to the
         /// <see cref="IJob" />'s <see cref="IJob.Execute" /> method.</param>
         /// <param name="triggerInstructionCode">The result of the call on the <see cref="IOperableTrigger" />'s <see cref="IOperableTrigger.Triggered" />  method.</param>
-        public virtual Task TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode)
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        public virtual Task TriggerComplete(
+            ITrigger trigger, 
+            IJobExecutionContext context, 
+            SchedulerInstruction triggerInstructionCode,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             if (!Log.IsInfoEnabled())
             {
@@ -432,8 +422,11 @@ namespace Quartz.Plugin.History
         /// <param name="trigger">The <see cref="ITrigger" /> that has fired.</param>
         /// <param name="context">The <see cref="IJobExecutionContext" /> that will be passed to
         /// the <see cref="IJob" />'s <see cref="IJob.Execute" /> method.</param>
-        /// <returns></returns>
-        public virtual Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context)
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        public virtual Task<bool> VetoJobExecution(
+            ITrigger trigger,
+            IJobExecutionContext context,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             return Task.FromResult(false);
         }

@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Spi;
@@ -40,10 +41,12 @@ namespace Quartz.Simpl
         /// <summary>
         /// Generate the instance id for a <see cref="IScheduler" />
         /// </summary>
+        /// <param name="cancellationToken"></param>
         /// <returns>The clusterwide unique instance id.</returns>
-        public override async Task<string> GenerateInstanceId()
+        public override async Task<string> GenerateInstanceId(
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            string hostName = await GetHostName(HostNameMaxLength).ConfigureAwait(false);
+            string hostName = await GetHostName(HostNameMaxLength, cancellationToken).ConfigureAwait(false);
             return hostName + SystemTime.UtcNow().Ticks;
         }
     }
