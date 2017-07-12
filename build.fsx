@@ -24,18 +24,11 @@ Target "GenerateAssemblyInfo" (fun _ ->
 
 Target "Build" (fun _ ->
 
-    let buildMode = getBuildParamOrDefault "buildMode" "Release"
-    let setParams defaults =
-            { defaults with
-                Verbosity = Some(Quiet)
-                Targets = ["Restore"; "Build"]
-                Properties =
-                    [
-                        "Optimize", "True"
-                        "Configuration", buildMode
-                    ]
-            }
-    build setParams "./Quartz.sln"
+    DotNetCli.Build
+        (fun p ->
+            { p with
+                 Configuration = configuration
+                 Project = "Quartz.sln" })
         |> DoNothing
 )
 

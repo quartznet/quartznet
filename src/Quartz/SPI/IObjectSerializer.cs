@@ -1,6 +1,4 @@
-﻿using Quartz.Simpl;
-
-namespace Quartz.Spi
+﻿namespace Quartz.Spi
 {
     /// <summary>
     /// Interface for object serializers.
