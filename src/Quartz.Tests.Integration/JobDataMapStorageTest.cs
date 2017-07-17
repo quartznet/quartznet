@@ -17,7 +17,7 @@ namespace Quartz.Tests.Integration
         [Test]
         public async Task TestJobDataMapDirtyFlag()
         {
-            IScheduler scheduler = await CreateScheduler("testBasicStorageFunctions", 2);
+            IScheduler scheduler = await CreateScheduler("testBasicStorageFunctions");
             await scheduler.Clear();
 
             IJobDetail jobDetail = JobBuilder.Create<NoOpJob>()
@@ -42,7 +42,7 @@ namespace Quartz.Tests.Integration
             Assert.That(storedTriggerMap.Dirty, Is.False);
         }
 
-        private Task<IScheduler> CreateScheduler(string name, int threadPoolSize)
+        private Task<IScheduler> CreateScheduler(string name)
         {
             DBConnectionManager.Instance.AddConnectionProvider("default", new DbProvider("SqlServer-20", "Server=(local);Database=quartz;Trusted_Connection=True;"));
 

@@ -17,6 +17,7 @@
  */
 #endregion
 
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Impl;
@@ -40,7 +41,7 @@ namespace Quartz.Spi
     /// If you need direct access your plugin, you can have it explicitly put a 
     /// reference to itself in the <see cref="IScheduler" />'s 
     /// <see cref="SchedulerContext" /> as part of its
-    /// <see cref="Initialize(string, IScheduler)" /> method.
+    /// <see cref="Initialize" /> method.
     /// </para>
     /// </remarks>
     /// <author>James House</author>
@@ -57,7 +58,7 @@ namespace Quartz.Spi
         /// If you need direct access your plugin, you can have it explicitly put a 
         /// reference to itself in the <see cref="IScheduler" />'s 
         /// <see cref="SchedulerContext" /> as part of its
-        /// <see cref="Initialize(string, IScheduler)" /> method.
+        /// <see cref="Initialize" /> method.
         /// </para>
         /// </remarks>
         /// <param name="pluginName">
@@ -66,20 +67,24 @@ namespace Quartz.Spi
         /// <param name="scheduler">
         /// The scheduler to which the plugin is registered.
         /// </param>
-        Task Initialize(string pluginName, IScheduler scheduler);
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        Task Initialize(
+            string pluginName,
+            IScheduler scheduler, 
+            CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
         /// Called when the associated <see cref="IScheduler" /> is started, in order
         /// to let the plug-in know it can now make calls into the scheduler if it
         /// needs to.
         /// </summary>
-        Task Start();
+        Task Start(CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
         /// Called in order to inform the <see cref="ISchedulerPlugin" /> that it
         /// should free up all of it's resources because the scheduler is shutting
         /// down.
         /// </summary>
-        Task Shutdown();
+        Task Shutdown(CancellationToken cancellationToken = default(CancellationToken));
     }
 }

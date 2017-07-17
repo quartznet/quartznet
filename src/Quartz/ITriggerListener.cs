@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Spi;
@@ -57,7 +58,11 @@ namespace Quartz
         /// <param name="context">
         ///     The <see cref="IJobExecutionContext" /> that will be passed to the <see cref="IJob" />'s<see cref="IJob.Execute" /> method.
         /// </param>
-        Task TriggerFired(ITrigger trigger, IJobExecutionContext context);
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        Task TriggerFired(
+            ITrigger trigger, 
+            IJobExecutionContext context,
+            CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
         /// Called by the <see cref="IScheduler"/> when a <see cref="ITrigger"/>
@@ -72,8 +77,12 @@ namespace Quartz
         /// <param name="trigger">The <see cref="ITrigger"/> that has fired.</param>
         /// <param name="context">The <see cref="IJobExecutionContext"/> that will be passed to
         /// the <see cref="IJob"/>'s<see cref="IJob.Execute"/> method.</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>Returns true if job execution should be vetoed, false otherwise.</returns>
-        Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context);
+        Task<bool> VetoJobExecution(
+            ITrigger trigger,
+            IJobExecutionContext context,
+            CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
@@ -86,7 +95,10 @@ namespace Quartz
         /// </para>
         /// </summary>
         /// <param name="trigger">The <see cref="ITrigger" /> that has misfired.</param>
-        Task TriggerMisfired(ITrigger trigger);
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        Task TriggerMisfired(
+            ITrigger trigger,
+            CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
@@ -102,6 +114,11 @@ namespace Quartz
         /// <param name="triggerInstructionCode">
         /// The result of the call on the <see cref="ITrigger" />'s<see cref="IOperableTrigger.Triggered" />  method.
         /// </param>
-        Task TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode);
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        Task TriggerComplete(
+            ITrigger trigger, 
+            IJobExecutionContext context, 
+            SchedulerInstruction triggerInstructionCode,
+            CancellationToken cancellationToken = default(CancellationToken));
     }
 }

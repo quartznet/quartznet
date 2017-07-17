@@ -20,12 +20,7 @@
 #endregion
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.Serialization;
-using System.Security;
-
 using Quartz.Util;
 
 namespace Quartz.Impl.Calendar
@@ -71,7 +66,9 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         /// <param name="info"></param>
         /// <param name="context"></param>
-        protected AnnualCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
+        protected AnnualCalendar(
+			System.Runtime.Serialization.SerializationInfo info, 
+			System.Runtime.Serialization.StreamingContext context) : base(info, context)
         {
             int version;
             try
@@ -88,7 +85,7 @@ namespace Quartz.Impl.Calendar
                 case 0:
                     // 1.x
                     object o = info.GetValue("excludeDays", typeof(object));
-                    ArrayList oldFormat = o as ArrayList;
+                    var oldFormat = o as System.Collections.ArrayList;
                     if (oldFormat != null)
                     {
                         foreach (DateTime dateTime in oldFormat)
@@ -99,13 +96,20 @@ namespace Quartz.Impl.Calendar
                     else
                     {
                         // must be new..
-                        var timeOffsets = (List<DateTimeOffset>) o;
-                        excludeDays = new SortedSet<DateTime>(timeOffsets.Select(x => x.Date));
+                        excludeDays = new SortedSet<DateTime>();
+                        foreach (var offset in (List<DateTimeOffset>) o)
+                        {
+                            excludeDays.Add(offset.Date);
+                        }
                     }
                     break;
                 case 1:
                     var dateTimeOffsets = (List<DateTimeOffset>) info.GetValue("excludeDays", typeof(List<DateTimeOffset>));
-                    excludeDays = new SortedSet<DateTime>(dateTimeOffsets.Select(x => x.Date));
+                    excludeDays = new SortedSet<DateTime>();
+                    foreach (var offset in dateTimeOffsets)
+                    {
+                        excludeDays.Add(offset.Date);
+                    }
                     break;
                 case 2:
                     excludeDays = (SortedSet<DateTime>) info.GetValue("excludeDays", typeof(SortedSet<DateTime>));
@@ -115,8 +119,10 @@ namespace Quartz.Impl.Calendar
             }
         }
 
-        [SecurityCritical]
-        public override void GetObjectData(SerializationInfo info, StreamingContext context)
+        [System.Security.SecurityCritical]
+        public override void GetObjectData(
+            System.Runtime.Serialization.SerializationInfo info, 
+            System.Runtime.Serialization.StreamingContext context)
         {
             base.GetObjectData(info, context);
 

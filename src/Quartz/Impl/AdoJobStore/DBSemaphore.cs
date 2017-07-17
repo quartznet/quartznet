@@ -21,6 +21,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Impl.AdoJobStore.Common;
@@ -59,7 +60,12 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="defaultInsertSQL">The SQL.</param>
         /// <param name="defaultSQL">The default SQL.</param>
         /// <param name="dbProvider">The db provider.</param>
-        protected DBSemaphore(string tablePrefix, string schedName, string defaultSQL, string defaultInsertSQL, IDbProvider dbProvider)
+        protected DBSemaphore(
+            string tablePrefix, 
+            string schedName, 
+            string defaultSQL, 
+            string defaultInsertSQL, 
+            IDbProvider dbProvider)
         {
             log = LogProvider.GetLogger(GetType());
             this.schedName = schedName;
@@ -78,17 +84,24 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Execute the SQL that will lock the proper database row.
         /// </summary>
-        protected abstract Task ExecuteSQL(Guid requestorId, ConnectionAndTransactionHolder conn, string lockName, string expandedSql, string expandedInsertSql);
+        protected abstract Task ExecuteSQL(
+            Guid requestorId,
+            ConnectionAndTransactionHolder conn, 
+            string lockName, 
+            string expandedSql, 
+            string expandedInsertSql,
+            CancellationToken cancellationToken);
 
         /// <summary>
         /// Grants a lock on the identified resource to the calling thread (blocking
         /// until it is available).
         /// </summary>
-        /// <param name="requestorId"></param>
-        /// <param name="conn"></param>
-        /// <param name="lockName"></param>
         /// <returns>true if the lock was obtained.</returns>
-        public async Task<bool> ObtainLock(Guid requestorId, ConnectionAndTransactionHolder conn, string lockName)
+        public async Task<bool> ObtainLock(
+            Guid requestorId, 
+            ConnectionAndTransactionHolder conn,
+            string lockName,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             if (log.IsDebugEnabled())
             {
@@ -96,7 +109,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             if (!IsLockOwner(requestorId, lockName))
             {
-                await ExecuteSQL(requestorId, conn, lockName, expandedSQL, expandedInsertSQL).ConfigureAwait(false);
+                await ExecuteSQL(requestorId, conn, lockName, expandedSQL, expandedInsertSQL, cancellationToken).ConfigureAwait(false);
 
                 if (log.IsDebugEnabled())
                 {
@@ -126,9 +139,10 @@ namespace Quartz.Impl.AdoJobStore
         /// Release the lock on the identified resource if it is held by the calling
         /// thread.
         /// </summary>
-        /// <param name="requestorId"></param>
-        /// <param name="lockName"></param>
-        public Task ReleaseLock(Guid requestorId, string lockName)
+        public Task ReleaseLock(
+            Guid requestorId, 
+            string lockName,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             if (IsLockOwner(requestorId, lockName))
             {
@@ -178,7 +192,7 @@ namespace Quartz.Impl.AdoJobStore
 
         protected string SQL
         {
-            get { return sql; }
+            get => sql;
             set
             {
                 if (!value.IsNullOrWhiteSpace())
@@ -227,7 +241,7 @@ namespace Quartz.Impl.AdoJobStore
 
         public string SchedName
         {
-            get { return schedName; }
+            get => schedName;
             set
             {
                 schedName = value;
@@ -241,7 +255,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <value>The table prefix.</value>
         public string TablePrefix
         {
-            get { return tablePrefix; }
+            get => tablePrefix;
             set
             {
                 tablePrefix = value;

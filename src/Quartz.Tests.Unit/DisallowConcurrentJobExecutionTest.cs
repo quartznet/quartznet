@@ -47,7 +47,10 @@ namespace Quartz.Tests.Unit
 
             public override string Name => "TestJobListener";
 
-            public override Task JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
+            public override Task JobWasExecuted(
+                IJobExecutionContext context, 
+                JobExecutionException jobException,
+                CancellationToken cancellationToken = default(CancellationToken))
             {
                 if (Interlocked.Increment(ref jobExCount) == jobExecutionCountToSyncAfter)
                 {

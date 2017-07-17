@@ -19,6 +19,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Quartz.Impl
@@ -32,17 +33,13 @@ namespace Quartz.Impl
 	public class SchedulerRepository
 	{
         private readonly Dictionary<string, IScheduler> schedulers;
-        private static readonly SchedulerRepository inst = new SchedulerRepository();
-        private readonly object syncRoot = new object();
+		private readonly object syncRoot = new object();
         
         /// <summary>
 		/// Gets the singleton instance.
 		/// </summary>
 		/// <value>The instance.</value>
-		public static SchedulerRepository Instance
-		{
-			get { return inst; }
-		}
+		public static SchedulerRepository Instance { get; } = new SchedulerRepository();
 
 		private SchedulerRepository()
 		{
@@ -82,9 +79,9 @@ namespace Quartz.Impl
 	    /// <summary>
 	    /// Lookups the specified sched name.
 	    /// </summary>
-	    /// <param name="schedName">Name of the sched.</param>
-	    /// <returns></returns>
-	    public virtual Task<IScheduler> Lookup(string schedName)
+	    public virtual Task<IScheduler> Lookup(
+		    string schedName, 
+		    CancellationToken cancellationToken = default(CancellationToken))
 		{
 			lock (syncRoot)
 			{
@@ -98,7 +95,8 @@ namespace Quartz.Impl
 	    /// Lookups all.
 	    /// </summary>
 	    /// <returns></returns>
-	    public virtual Task<IReadOnlyList<IScheduler>> LookupAll()
+	    public virtual Task<IReadOnlyList<IScheduler>> LookupAll(
+		    CancellationToken cancellationToken = default(CancellationToken))
 		{
 			lock (syncRoot)
 			{

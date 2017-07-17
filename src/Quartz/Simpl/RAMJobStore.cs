@@ -108,9 +108,12 @@ namespace Quartz.Simpl
         /// Called by the QuartzScheduler before the <see cref="IJobStore" /> is
         /// used, in order to give the it a chance to Initialize.
         /// </summary>
-        public virtual Task Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler s)
+        public virtual Task Initialize(
+            ITypeLoadHelper loadHelper, 
+            ISchedulerSignaler signaler, 
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            signaler = s;
+            this.signaler = signaler;
             Log.Info("RAMJobStore initialized.");
             return TaskUtil.CompletedTask;
         }
@@ -119,7 +122,7 @@ namespace Quartz.Simpl
         /// Called by the QuartzScheduler to inform the <see cref="IJobStore" /> that
         /// the scheduler has started.
         /// </summary>
-        public virtual Task SchedulerStarted()
+        public virtual Task SchedulerStarted(CancellationToken cancellationToken = default(CancellationToken))
         {
             // nothing to do
             return TaskUtil.CompletedTask;
@@ -129,7 +132,7 @@ namespace Quartz.Simpl
         /// Called by the QuartzScheduler to inform the JobStore that
         /// the scheduler has been paused.
         /// </summary>
-        public Task SchedulerPaused()
+        public Task SchedulerPaused(CancellationToken cancellationToken = default(CancellationToken))
         {
             // nothing to do
             return TaskUtil.CompletedTask;
@@ -139,7 +142,7 @@ namespace Quartz.Simpl
         /// Called by the QuartzScheduler to inform the JobStore that
         /// the scheduler has resumed after being paused.
         /// </summary>
-        public Task SchedulerResumed()
+        public Task SchedulerResumed(CancellationToken cancellationToken = default(CancellationToken))
         {
             // nothing to do
             return TaskUtil.CompletedTask;
@@ -150,7 +153,7 @@ namespace Quartz.Simpl
         /// it should free up all of it's resources because the scheduler is
         /// shutting down.
         /// </summary>
-        public virtual Task Shutdown()
+        public virtual Task Shutdown(CancellationToken cancellationToken = default(CancellationToken))
         {
             return TaskUtil.CompletedTask;
         }
@@ -166,7 +169,7 @@ namespace Quartz.Simpl
         /// Clears (deletes!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
         /// <see cref="ICalendar"/>s.
         /// </summary>
-        public Task ClearAllSchedulingData()
+        public Task ClearAllSchedulingData(CancellationToken cancellationToken = default(CancellationToken))
         {
             lock (lockObject)
             {
@@ -205,7 +208,11 @@ namespace Quartz.Simpl
         /// </summary>
         /// <param name="newJob">The <see cref="IJobDetail" /> to be stored.</param>
         /// <param name="newTrigger">The <see cref="ITrigger" /> to be stored.</param>
-        public virtual Task StoreJobAndTrigger(IJobDetail newJob, IOperableTrigger newTrigger)
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        public virtual Task StoreJobAndTrigger(
+            IJobDetail newJob,
+            IOperableTrigger newTrigger,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             StoreJobInternal(newJob, false);
             StoreTriggerInternal(newTrigger, false);
@@ -216,18 +223,22 @@ namespace Quartz.Simpl
         /// Returns true if the given job group is paused.
         /// </summary>
         /// <param name="groupName">Job group name</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns></returns>
-        public virtual Task<bool> IsJobGroupPaused(string groupName)
+        public virtual Task<bool> IsJobGroupPaused(
+            string groupName,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             return Task.FromResult(pausedJobGroups.Contains(groupName));
         }
 
         /// <summary>
-        /// returns true if the given TriggerGroup is paused.
+        /// Returns true if the given TriggerGroup is paused.
         /// </summary>
-        /// <param name="groupName"></param>
         /// <returns></returns>
-        public virtual Task<bool> IsTriggerGroupPaused(string groupName)
+        public virtual Task<bool> IsTriggerGroupPaused(
+            string groupName,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             return Task.FromResult(pausedTriggerGroups.Contains(groupName));
         }
@@ -239,7 +250,11 @@ namespace Quartz.Simpl
         /// <param name="replaceExisting">If <see langword="true" />, any <see cref="IJob" /> existing in the
         /// <see cref="IJobStore" /> with the same name and group should be
         /// over-written.</param>
-        public virtual Task StoreJob(IJobDetail newJob, bool replaceExisting)
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        public virtual Task StoreJob(
+            IJobDetail newJob,
+            bool replaceExisting,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             StoreJobInternal(newJob, replaceExisting);
             return TaskUtil.CompletedTask;
@@ -249,7 +264,7 @@ namespace Quartz.Simpl
         {
             lock (lockObject)
             {
-                JobWrapper jw = new JobWrapper((IJobDetail) newJob.Clone());
+                JobWrapper jw = new JobWrapper(newJob.Clone());
 
                 bool repl = false;
 
@@ -294,7 +309,9 @@ namespace Quartz.Simpl
         /// 	<see langword="true" /> if a <see cref="IJob" /> with the given name and
         /// group was found and removed from the store.
         /// </returns>
-        public virtual Task<bool> RemoveJob(JobKey jobKey)
+        public virtual Task<bool> RemoveJob(
+            JobKey jobKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             return Task.FromResult(RemoveJobInternal(jobKey));
         }
@@ -328,11 +345,13 @@ namespace Quartz.Simpl
                         }
                     }
                 }
-            return found;
-        }
+                return found;
+            }
         }
 
-        public Task<bool> RemoveJobs(IList<JobKey> jobKeys)
+        public Task<bool> RemoveJobs(
+            IList<JobKey> jobKeys,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             lock (lockObject)
             {
@@ -345,7 +364,9 @@ namespace Quartz.Simpl
             }
         }
 
-        public Task<bool> RemoveTriggers(IList<TriggerKey> triggerKeys)
+        public Task<bool> RemoveTriggers(
+            IList<TriggerKey> triggerKeys,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             lock (lockObject)
             {
@@ -358,7 +379,10 @@ namespace Quartz.Simpl
             }
         }
 
-        public Task StoreJobsAndTriggers(IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, bool replace)
+        public Task StoreJobsAndTriggers(
+            IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs,
+            bool replace,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             lock (lockObject)
             {
@@ -402,7 +426,9 @@ namespace Quartz.Simpl
         /// 	<see langword="true" /> if a <see cref="ITrigger" /> with the given
         /// name and group was found and removed from the store.
         /// </returns>
-        public virtual Task<bool> RemoveTrigger(TriggerKey triggerKey)
+        public virtual Task<bool> RemoveTrigger(
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             return RemoveTrigger(triggerKey, true);
         }
@@ -414,13 +440,19 @@ namespace Quartz.Simpl
         /// <param name="replaceExisting">If <see langword="true" />, any <see cref="ITrigger" /> existing in
         /// the <see cref="IJobStore" /> with the same name and group should
         /// be over-written.</param>
-        public virtual Task StoreTrigger(IOperableTrigger newTrigger, bool replaceExisting)
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        public virtual Task StoreTrigger(
+            IOperableTrigger newTrigger,
+            bool replaceExisting,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             StoreTriggerInternal(newTrigger, replaceExisting);
             return TaskUtil.CompletedTask;
         }
 
-        private void StoreTriggerInternal(IOperableTrigger newTrigger, bool replaceExisting)
+        private void StoreTriggerInternal(
+            IOperableTrigger newTrigger,
+            bool replaceExisting)
         {
             lock (lockObject)
             {
@@ -495,7 +527,9 @@ namespace Quartz.Simpl
         /// </returns>
         /// <param name="key">The <see cref="ITrigger" /> to be removed.</param>
         /// <param name="removeOrphanedJob">Whether to delete orphaned job details from scheduler if job becomes orphaned from removing the trigger.</param>
-        public virtual Task<bool> RemoveTrigger(TriggerKey key, bool removeOrphanedJob)
+        protected virtual Task<bool> RemoveTrigger(
+            TriggerKey key,
+            bool removeOrphanedJob)
         {
             return Task.FromResult(RemoveTriggerInternal(key, removeOrphanedJob));
         }
@@ -522,10 +556,10 @@ namespace Quartz.Simpl
                     }
                     //remove from triggers by job
                     List<TriggerWrapper> jobList;
-                    if(triggersByJob.TryGetValue(tw.JobKey, out jobList))
+                    if (triggersByJob.TryGetValue(tw.JobKey, out jobList))
                     {
                         jobList.Remove(tw);
-                        if(jobList.Count == 0)
+                        if (jobList.Count == 0)
                         {
                             triggersByJob.Remove(tw.JobKey);
                         }
@@ -546,8 +580,8 @@ namespace Quartz.Simpl
                         }
                     }
                 }
-            return found;
-        }
+                return found;
+            }
         }
 
         /// <summary>
@@ -555,8 +589,11 @@ namespace Quartz.Simpl
         /// </summary>
         /// <param name="triggerKey">The <see cref="TriggerKey"/> of the <see cref="ITrigger" /> to be replaced.</param>
         /// <param name="newTrigger">The new trigger.</param>
-        /// <returns></returns>
-        public virtual Task<bool> ReplaceTrigger(TriggerKey triggerKey, IOperableTrigger newTrigger)
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        public virtual Task<bool> ReplaceTrigger(
+            TriggerKey triggerKey,
+            IOperableTrigger newTrigger,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             bool found;
 
@@ -590,10 +627,10 @@ namespace Quartz.Simpl
 
                     // remove from triggers by job
                     List<TriggerWrapper> jobList;
-                    if(triggersByJob.TryGetValue(tw.JobKey, out jobList))
+                    if (triggersByJob.TryGetValue(tw.JobKey, out jobList))
                     {
                         jobList.Remove(tw);
-                        if(jobList.Count == 0)
+                        if (jobList.Count == 0)
                         {
                             triggersByJob.Remove(tw.JobKey);
                         }
@@ -622,18 +659,20 @@ namespace Quartz.Simpl
         /// <returns>
         /// The desired <see cref="IJob" />, or null if there is no match.
         /// </returns>
-        public virtual Task<IJobDetail> RetrieveJob(JobKey jobKey)
+        public virtual Task<IJobDetail> RetrieveJob(
+            JobKey jobKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             return Task.FromResult(RetrieveJobInternal(jobKey));
         }
 
         private IJobDetail RetrieveJobInternal(JobKey jobKey)
-            {
-                JobWrapper jw;
-                jobsByKey.TryGetValue(jobKey, out jw);
-            var job = (jw != null) ? (IJobDetail) jw.JobDetail.Clone() : null;
+        {
+            JobWrapper jw;
+            jobsByKey.TryGetValue(jobKey, out jw);
+            var job = jw?.JobDetail.Clone();
             return job;
-            }
+        }
 
         /// <summary>
         /// Retrieve the given <see cref="ITrigger" />.
@@ -641,13 +680,15 @@ namespace Quartz.Simpl
         /// <returns>
         /// The desired <see cref="ITrigger" />, or null if there is no match.
         /// </returns>
-        public virtual Task<IOperableTrigger> RetrieveTrigger(TriggerKey triggerKey)
+        public virtual Task<IOperableTrigger> RetrieveTrigger(
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-                TriggerWrapper tw;
-                triggersByKey.TryGetValue(triggerKey, out tw);
-            var trigger = (tw != null) ? (IOperableTrigger) tw.Trigger.Clone() : null;
+            TriggerWrapper tw;
+            triggersByKey.TryGetValue(triggerKey, out tw);
+            var trigger = (IOperableTrigger) tw?.Trigger.Clone();
             return Task.FromResult(trigger);
-            }
+        }
 
         /// <summary>
         /// Determine whether a <see cref="ICalendar" /> with the given identifier already
@@ -656,33 +697,42 @@ namespace Quartz.Simpl
         /// <remarks>
         /// </remarks>
         /// <param name="calName">the identifier to check for</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>true if a calendar exists with the given identifier</returns>
-        public Task<bool> CalendarExists(string calName)
+        public Task<bool> CalendarExists(
+            string calName,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             return Task.FromResult(calendarsByName.ContainsKey(calName));
-            }
+        }
 
         /// <summary>
         /// Determine whether a <see cref="IJob"/> with the given identifier already
         /// exists within the scheduler.
         /// </summary>
         /// <param name="jobKey">the identifier to check for</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>true if a Job exists with the given identifier</returns>
-        public Task<bool> CheckExists(JobKey jobKey)
+        public Task<bool> CheckExists(
+            JobKey jobKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             return Task.FromResult(jobsByKey.ContainsKey(jobKey));
-            }
+        }
 
         /// <summary>
         /// Determine whether a <see cref="ITrigger" /> with the given identifier already
         /// exists within the scheduler.
         /// </summary>
         /// <param name="triggerKey">triggerKey the identifier to check for</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>true if a Trigger exists with the given identifier</returns>
-        public Task<bool> CheckExists(TriggerKey triggerKey)
+        public Task<bool> CheckExists(
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             return Task.FromResult(triggersByKey.ContainsKey(triggerKey));
-            }
+        }
 
         /// <summary>
         /// Get the current state of the identified <see cref="ITrigger" />.
@@ -693,37 +743,39 @@ namespace Quartz.Simpl
         /// <seealso cref="TriggerState.Error" />
         /// <seealso cref="TriggerState.Blocked" />
         /// <seealso cref="TriggerState.None"/>
-        public virtual Task<TriggerState> GetTriggerState(TriggerKey triggerKey)
+        public virtual Task<TriggerState> GetTriggerState(
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-                TriggerWrapper tw;
-                triggersByKey.TryGetValue(triggerKey, out tw);
+            TriggerWrapper tw;
+            triggersByKey.TryGetValue(triggerKey, out tw);
 
-                if (tw == null)
-                {
+            if (tw == null)
+            {
                 return Task.FromResult(TriggerState.None);
-                }
-                if (tw.state == InternalTriggerState.Complete)
-                {
-                return Task.FromResult(TriggerState.Complete);
-                }
-                if (tw.state == InternalTriggerState.Paused)
-                {
-                return Task.FromResult(TriggerState.Paused);
-                }
-                if (tw.state == InternalTriggerState.PausedAndBlocked)
-                {
-                return Task.FromResult(TriggerState.Paused);
-                }
-                if (tw.state == InternalTriggerState.Blocked)
-                {
-                return Task.FromResult(TriggerState.Blocked);
-                }
-                if (tw.state == InternalTriggerState.Error)
-                {
-                return Task.FromResult(TriggerState.Error);
-                }
-            return Task.FromResult(TriggerState.Normal);
             }
+            if (tw.state == InternalTriggerState.Complete)
+            {
+                return Task.FromResult(TriggerState.Complete);
+            }
+            if (tw.state == InternalTriggerState.Paused)
+            {
+                return Task.FromResult(TriggerState.Paused);
+            }
+            if (tw.state == InternalTriggerState.PausedAndBlocked)
+            {
+                return Task.FromResult(TriggerState.Paused);
+            }
+            if (tw.state == InternalTriggerState.Blocked)
+            {
+                return Task.FromResult(TriggerState.Blocked);
+            }
+            if (tw.state == InternalTriggerState.Error)
+            {
+                return Task.FromResult(TriggerState.Error);
+            }
+            return Task.FromResult(TriggerState.Normal);
+        }
 
         /// <summary>
         /// Store the given <see cref="ICalendar" />.
@@ -737,7 +789,13 @@ namespace Quartz.Simpl
         /// in the <see cref="IJobStore" /> that reference an existing
         /// Calendar with the same name with have their next fire time
         /// re-computed with the new <see cref="ICalendar" />.</param>
-        public virtual Task StoreCalendar(string name, ICalendar calendar, bool replaceExisting, bool updateTriggers)
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        public virtual Task StoreCalendar(
+            string name, 
+            ICalendar calendar, 
+            bool replaceExisting, 
+            bool updateTriggers,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             calendar = (ICalendar) calendar.Clone();
 
@@ -788,11 +846,14 @@ namespace Quartz.Simpl
         /// <see cref="JobPersistenceException" /> will be thrown.</para>
         /// </summary>
         /// <param name="calName">The name of the <see cref="ICalendar" /> to be removed.</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>
         /// 	<see langword="true" /> if a <see cref="ICalendar" /> with the given name
         /// was found and removed from the store.
         /// </returns>
-        public virtual Task<bool> RemoveCalendar(string calName)
+        public virtual Task<bool> RemoveCalendar(
+            string calName,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             return Task.FromResult(RemoveCalendarInternal(calName));
         }
@@ -824,10 +885,13 @@ namespace Quartz.Simpl
         /// Retrieve the given <see cref="ITrigger" />.
         /// </summary>
         /// <param name="calName">The name of the <see cref="ICalendar" /> to be retrieved.</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>
         /// The desired <see cref="ICalendar" />, or null if there is no match.
         /// </returns>
-        public virtual Task<ICalendar> RetrieveCalendar(string calName)
+        public virtual Task<ICalendar> RetrieveCalendar(
+            string calName,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ICalendar calendar;
             calendarsByName.TryGetValue(calName, out calendar);
@@ -839,16 +903,16 @@ namespace Quartz.Simpl
         /// Get the number of <see cref="IJobDetail" /> s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
-        public virtual Task<int> GetNumberOfJobs()
+        public virtual Task<int> GetNumberOfJobs(CancellationToken cancellationToken = default(CancellationToken))
         {
             return Task.FromResult(jobsByKey.Count);
-            }
+        }
 
         /// <summary>
         /// Get the number of <see cref="ITrigger" /> s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
-        public virtual Task<int> GetNumberOfTriggers()
+        public virtual Task<int> GetNumberOfTriggers(CancellationToken cancellationToken = default(CancellationToken))
         {
             lock (lockObject)
             {
@@ -860,7 +924,7 @@ namespace Quartz.Simpl
         /// Get the number of <see cref="ICalendar" /> s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
-        public virtual Task<int> GetNumberOfCalendars()
+        public virtual Task<int> GetNumberOfCalendars(CancellationToken cancellationToken = default(CancellationToken))
         {
             return Task.FromResult(calendarsByName.Count);
         }
@@ -869,7 +933,9 @@ namespace Quartz.Simpl
         /// Get the names of all of the <see cref="IJob" /> s that
         /// match the given group matcher.
         /// </summary>
-        public virtual Task<ISet<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher)
+        public virtual Task<ISet<JobKey>> GetJobKeys(
+            GroupMatcher<JobKey> matcher,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             return Task.FromResult(GetJobKeysInternal(matcher));
         }
@@ -931,16 +997,19 @@ namespace Quartz.Simpl
         /// a zero-length array (not <see langword="null" />).
         /// </para>
         /// </summary>
-        public virtual Task<IReadOnlyList<string>> GetCalendarNames()
+        public virtual Task<IReadOnlyList<string>> GetCalendarNames(
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             return Task.FromResult<IReadOnlyList<string>>(new List<string>(calendarsByName.Keys));
-            }
+        }
 
         /// <summary>
         /// Get the names of all of the <see cref="ITrigger" /> s
         /// that have the given group name.
         /// </summary>
-        public virtual Task<ISet<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher)
+        public virtual Task<ISet<TriggerKey>> GetTriggerKeys(
+            GroupMatcher<TriggerKey> matcher,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             return Task.FromResult(GetTriggerKeysInternal(matcher));
         }
@@ -998,18 +1067,20 @@ namespace Quartz.Simpl
         /// Get the names of all of the <see cref="IJob" />
         /// groups.
         /// </summary>
-        public virtual Task<IReadOnlyList<string>> GetJobGroupNames()
+        public virtual Task<IReadOnlyList<string>> GetJobGroupNames(
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             return Task.FromResult((IReadOnlyList<string>) new List<string>(jobsByGroup.Keys));
-            }
+        }
 
         /// <summary>
         /// Get the names of all of the <see cref="ITrigger" /> groups.
         /// </summary>
-        public virtual Task<IReadOnlyList<string>> GetTriggerGroupNames()
+        public virtual Task<IReadOnlyList<string>> GetTriggerGroupNames(
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             return Task.FromResult<IReadOnlyList<string>>(new List<string>(triggersByGroup.Keys));
-            }
+        }
 
         /// <summary>
         /// Get all of the Triggers that are associated to the given Job.
@@ -1017,7 +1088,9 @@ namespace Quartz.Simpl
         /// If there are no matches, a zero-length array should be returned.
         /// </para>
         /// </summary>
-        public virtual Task<IReadOnlyList<IOperableTrigger>> GetTriggersForJob(JobKey jobKey)
+        public virtual Task<IReadOnlyList<IOperableTrigger>> GetTriggersForJob(
+            JobKey jobKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             return Task.FromResult(GetTriggersForJobInternal(jobKey));
         }
@@ -1045,7 +1118,8 @@ namespace Quartz.Simpl
         /// Gets the trigger wrappers for job.
         /// </summary>
         /// <returns></returns>
-        protected virtual IEnumerable<TriggerWrapper> GetTriggerWrappersForJob(JobKey jobKey)
+        protected virtual IEnumerable<TriggerWrapper> GetTriggerWrappersForJob(
+            JobKey jobKey)
         {
             lock (lockObject)
             {
@@ -1082,7 +1156,9 @@ namespace Quartz.Simpl
         /// <summary>
         /// Pause the <see cref="ITrigger" /> with the given name.
         /// </summary>
-        public virtual Task PauseTrigger(TriggerKey triggerKey)
+        public virtual Task PauseTrigger(
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             PauseTriggerInternal(triggerKey);
             return TaskUtil.CompletedTask;
@@ -1124,7 +1200,9 @@ namespace Quartz.Simpl
         /// paused.
         /// </para>
         /// </summary>
-        public virtual Task<ISet<string>> PauseTriggers(GroupMatcher<TriggerKey> matcher)
+        public virtual Task<ISet<string>> PauseTriggers(
+            GroupMatcher<TriggerKey> matcher,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             return Task.FromResult<ISet<string>>(PauseTriggersInternal(matcher));
         }
@@ -1175,7 +1253,7 @@ namespace Quartz.Simpl
         /// Pause the <see cref="IJobDetail" /> with the given
         /// name - by pausing all of its current <see cref="ITrigger" />s.
         /// </summary>
-        public virtual Task PauseJob(JobKey jobKey)
+        public virtual Task PauseJob(JobKey jobKey, CancellationToken cancellationToken = default(CancellationToken))
         {
             lock (lockObject)
             {
@@ -1197,7 +1275,9 @@ namespace Quartz.Simpl
         /// paused.
         /// </para>
         /// </summary>
-        public virtual Task<IReadOnlyList<string>> PauseJobs(GroupMatcher<JobKey> matcher)
+        public virtual Task<IReadOnlyList<string>> PauseJobs(
+            GroupMatcher<JobKey> matcher,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             lock (lockObject)
             {
@@ -1246,7 +1326,9 @@ namespace Quartz.Simpl
         /// If the <see cref="ITrigger" /> missed one or more fire-times, then the
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </remarks>
-        public virtual Task ResumeTrigger(TriggerKey triggerKey)
+        public virtual Task ResumeTrigger(
+            TriggerKey triggerKey, 
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ResumeTriggerInternal(triggerKey);
             return TaskUtil.CompletedTask;
@@ -1299,7 +1381,9 @@ namespace Quartz.Simpl
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </para>
         /// </summary>
-        public virtual Task<IReadOnlyList<string>> ResumeTriggers(GroupMatcher<TriggerKey> matcher)
+        public virtual Task<IReadOnlyList<string>> ResumeTriggers(
+            GroupMatcher<TriggerKey> matcher,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             return Task.FromResult<IReadOnlyList<string>>(ResumeTriggersInternal(matcher).ToList());
         }
@@ -1363,7 +1447,7 @@ namespace Quartz.Simpl
         /// instruction will be applied.
         /// </para>
         /// </summary>
-        public virtual Task ResumeJob(JobKey jobKey)
+        public virtual Task ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default(CancellationToken))
         {
             lock (lockObject)
             {
@@ -1385,7 +1469,9 @@ namespace Quartz.Simpl
         /// misfire instruction will be applied.
         /// </para>
         /// </summary>
-        public virtual Task<ISet<string>> ResumeJobs(GroupMatcher<JobKey> matcher)
+        public virtual Task<ISet<string>> ResumeJobs(
+            GroupMatcher<JobKey> matcher,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             lock (lockObject)
             {
@@ -1425,8 +1511,8 @@ namespace Quartz.Simpl
         /// instructions WILL be applied.
         /// </para>
         /// </summary>
-        /// <seealso cref="ResumeAll()" />
-        public virtual Task PauseAll()
+        /// <seealso cref="ResumeAll(CancellationToken)" />
+        public virtual Task PauseAll(CancellationToken cancellationToken = default(CancellationToken))
         {
             lock (lockObject)
             {
@@ -1446,8 +1532,8 @@ namespace Quartz.Simpl
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </para>
         /// </summary>
-        /// <seealso cref="PauseAll()" />
-        public virtual Task ResumeAll()
+        /// <seealso cref="PauseAll(CancellationToken)" />
+        public virtual Task ResumeAll(CancellationToken cancellationToken = default(CancellationToken))
         {
             lock (lockObject)
             {
@@ -1472,7 +1558,7 @@ namespace Quartz.Simpl
             DateTimeOffset misfireTime = SystemTime.UtcNow();
             if (MisfireThreshold > TimeSpan.Zero)
             {
-                misfireTime = misfireTime.AddMilliseconds(-1*MisfireThreshold.TotalMilliseconds);
+                misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold.TotalMilliseconds);
             }
 
             DateTimeOffset? tnft = tw.Trigger.GetNextFireTimeUtc();
@@ -1488,14 +1574,16 @@ namespace Quartz.Simpl
                 calendarsByName.TryGetValue(tw.Trigger.CalendarName, out cal);
             }
 
-            signaler.NotifyTriggerListenersMisfired((IOperableTrigger) tw.Trigger.Clone()).ConfigureAwait(false).GetAwaiter().GetResult(); ;
+            signaler.NotifyTriggerListenersMisfired((IOperableTrigger) tw.Trigger.Clone()).ConfigureAwait(false).GetAwaiter().GetResult();
+            ;
 
             tw.Trigger.UpdateAfterMisfire(cal);
 
             if (!tw.Trigger.GetNextFireTimeUtc().HasValue)
             {
                 tw.state = InternalTriggerState.Complete;
-                signaler.NotifySchedulerListenersFinalized(tw.Trigger).ConfigureAwait(false).GetAwaiter().GetResult(); ;
+                signaler.NotifySchedulerListenersFinalized(tw.Trigger).ConfigureAwait(false).GetAwaiter().GetResult();
+                ;
                 lock (lockObject)
                 {
                     timeTriggers.Remove(tw);
@@ -1514,7 +1602,11 @@ namespace Quartz.Simpl
         /// by the calling scheduler.
         /// </summary>
         /// <seealso cref="ITrigger" />
-        public virtual Task<IReadOnlyList<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow)
+        public virtual Task<IReadOnlyList<IOperableTrigger>> AcquireNextTriggers(
+            DateTimeOffset noLaterThan, 
+            int maxCount, 
+            TimeSpan timeWindow,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             lock (lockObject)
             {
@@ -1605,10 +1697,10 @@ namespace Quartz.Simpl
                     foreach (var excludedTrigger in excludedTriggers)
                     {
                         timeTriggers.Add(excludedTrigger);
+                    }
                 }
-            }
                 return Task.FromResult<IReadOnlyList<IOperableTrigger>>(result);
-        }
+            }
         }
 
         /// <summary>
@@ -1616,7 +1708,9 @@ namespace Quartz.Simpl
         /// fire the given <see cref="ITrigger" />, that it had previously acquired
         /// (reserved).
         /// </summary>
-        public virtual Task ReleaseAcquiredTrigger(IOperableTrigger trigger)
+        public virtual Task ReleaseAcquiredTrigger(
+            IOperableTrigger trigger,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             lock (lockObject)
             {
@@ -1635,7 +1729,9 @@ namespace Quartz.Simpl
         /// given <see cref="ITrigger" /> (executing its associated <see cref="IJob" />),
         /// that it had previously acquired (reserved).
         /// </summary>
-        public virtual Task<IReadOnlyList<TriggerFiredResult>> TriggersFired(IList<IOperableTrigger> triggers)
+        public virtual Task<IReadOnlyList<TriggerFiredResult>> TriggersFired(
+            IList<IOperableTrigger> triggers,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             lock (lockObject)
             {
@@ -1676,11 +1772,11 @@ namespace Quartz.Simpl
                     var jobDetail = RetrieveJobInternal(trigger.JobKey);
                     TriggerFiredBundle bndle = new TriggerFiredBundle(
                         jobDetail,
-                                                                      trigger,
-                                                                      cal,
-                                                                      false, SystemTime.UtcNow(),
-                                                                      trigger.GetPreviousFireTimeUtc(), prevFireTime,
-                                                                      trigger.GetNextFireTimeUtc());
+                        trigger,
+                        cal,
+                        false, SystemTime.UtcNow(),
+                        trigger.GetPreviousFireTimeUtc(), prevFireTime,
+                        trigger.GetNextFireTimeUtc());
 
                     IJobDetail job = bndle.JobDetail;
 
@@ -1725,7 +1821,8 @@ namespace Quartz.Simpl
         public virtual Task TriggeredJobComplete(
             IOperableTrigger trigger,
             IJobDetail jobDetail,
-                                                 SchedulerInstruction triggerInstCode)
+            SchedulerInstruction triggerInstCode,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             lock (lockObject)
             {
@@ -1770,7 +1867,7 @@ namespace Quartz.Simpl
                             }
                         }
 
-                        signaler.SignalSchedulingChange(null);
+                        signaler.SignalSchedulingChange(null, cancellationToken);
                     }
                 }
                 else
@@ -1803,31 +1900,31 @@ namespace Quartz.Simpl
                         else
                         {
                             RemoveTriggerInternal(trigger.Key);
-                            signaler.SignalSchedulingChange(null);
+                            signaler.SignalSchedulingChange(null, cancellationToken);
                         }
                     }
                     else if (triggerInstCode == SchedulerInstruction.SetTriggerComplete)
                     {
                         tw.state = InternalTriggerState.Complete;
                         timeTriggers.Remove(tw);
-                        signaler.SignalSchedulingChange(null);
+                        signaler.SignalSchedulingChange(null, cancellationToken);
                     }
                     else if (triggerInstCode == SchedulerInstruction.SetTriggerError)
                     {
                         Log.Info($"Trigger {trigger.Key} set to ERROR state.");
                         tw.state = InternalTriggerState.Error;
-                        signaler.SignalSchedulingChange(null);
+                        signaler.SignalSchedulingChange(null, cancellationToken);
                     }
                     else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersError)
                     {
                         Log.Info($"All triggers of Job {trigger.JobKey} set to ERROR state.");
                         SetAllTriggersOfJobToState(trigger.JobKey, InternalTriggerState.Error);
-                        signaler.SignalSchedulingChange(null);
+                        signaler.SignalSchedulingChange(null, cancellationToken);
                     }
                     else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersComplete)
                     {
                         SetAllTriggersOfJobToState(trigger.JobKey, InternalTriggerState.Complete);
-                        signaler.SignalSchedulingChange(null);
+                        signaler.SignalSchedulingChange(null, cancellationToken);
                     }
                 }
             }
@@ -1892,7 +1989,7 @@ namespace Quartz.Simpl
                     str.Append("/");
                 }
 
-            str.Append(" | ");
+                str.Append(" | ");
 
                 foreach (TriggerWrapper tw in timeTriggers)
                 {
@@ -1904,8 +2001,9 @@ namespace Quartz.Simpl
             return Task.FromResult(str.ToString());
         }
 
-        /// <seealso cref="IJobStore.GetPausedTriggerGroups()" />
-        public virtual Task<ISet<string>> GetPausedTriggerGroups()
+        /// <seealso cref="IJobStore.GetPausedTriggerGroups" />
+        public virtual Task<ISet<string>> GetPausedTriggerGroups(
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             ISet<string> data = new HashSet<string>(pausedTriggerGroups);
             return Task.FromResult(data);

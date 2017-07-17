@@ -23,6 +23,7 @@ using System;
 using System.Collections.Specialized;
 using System.Globalization;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 #if FAKE_IT_EASY
 using FakeItEasy;
@@ -136,8 +137,8 @@ namespace Quartz.Tests.Unit.Core
 
             // assert
             // expect unschedule and schedule
-            A.CallTo(() => listener.JobUnscheduled(new TriggerKey(TriggerName, TriggerGroup))).MustHaveHappened();
-            A.CallTo(() => listener.JobScheduled(jobTrigger)).MustHaveHappened();
+            A.CallTo(() => listener.JobUnscheduled(new TriggerKey(TriggerName, TriggerGroup), A<CancellationToken>._)).MustHaveHappened();
+            A.CallTo(() => listener.JobScheduled(jobTrigger, A<CancellationToken>._)).MustHaveHappened();
         }
 #endif
     }

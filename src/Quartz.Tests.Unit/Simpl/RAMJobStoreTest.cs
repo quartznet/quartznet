@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 using NUnit.Framework;
@@ -419,27 +420,38 @@ namespace Quartz.Tests.Unit.Simpl
         {
             internal int fMisfireCount = 0;
 
-            public Task NotifyTriggerListenersMisfired(ITrigger trigger)
+            public Task NotifyTriggerListenersMisfired(
+                ITrigger trigger, 
+                CancellationToken cancellationToken = default(CancellationToken))
             {
                 fMisfireCount++;
                 return TaskUtil.CompletedTask;
             }
 
-            public Task NotifySchedulerListenersFinalized(ITrigger trigger)
+            public Task NotifySchedulerListenersFinalized(
+                ITrigger trigger, 
+                CancellationToken cancellationToken = default(CancellationToken))
             {
                 return TaskUtil.CompletedTask;
             }
 
-            public void SignalSchedulingChange(DateTimeOffset? candidateNewNextFireTimeUtc)
+            public void SignalSchedulingChange(
+                DateTimeOffset? candidateNewNextFireTimeUtc, 
+                CancellationToken cancellationToken = default(CancellationToken))
             {
             }
 
-            public Task NotifySchedulerListenersError(string message, SchedulerException jpe)
+            public Task NotifySchedulerListenersError(
+                string message,
+                SchedulerException jpe, 
+                CancellationToken cancellationToken = default(CancellationToken))
             {
                 return TaskUtil.CompletedTask;
             }
 
-            public Task NotifySchedulerListenersJobDeleted(JobKey jobKey)
+            public Task NotifySchedulerListenersJobDeleted(
+                JobKey jobKey, 
+                CancellationToken cancellationToken = default(CancellationToken))
             {
                 return TaskUtil.CompletedTask;
             }

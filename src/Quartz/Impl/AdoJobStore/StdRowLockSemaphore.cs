@@ -21,6 +21,7 @@
 
 using System;
 using System.Data.Common;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Impl.AdoJobStore.Common;
@@ -67,7 +68,13 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Execute the SQL select for update that will lock the proper database row.
         /// </summary>
-        protected override async Task ExecuteSQL(Guid requestorId, ConnectionAndTransactionHolder conn, string lockName, string expandedSql, string expandedInsertSql)
+        protected override async Task ExecuteSQL(
+            Guid requestorId, 
+            ConnectionAndTransactionHolder conn, 
+            string lockName,
+            string expandedSql, 
+            string expandedInsertSql,
+            CancellationToken cancellationToken)
         {
             Exception initCause = null;
             // attempt lock two times (to work-around possible race conditions in inserting the lock row the first time running)
@@ -82,14 +89,14 @@ namespace Quartz.Impl.AdoJobStore
                         AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
 
                         bool found;
-                        using (var rs = await cmd.ExecuteReaderAsync().ConfigureAwait(false))
+                        using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
                         {
                             if (Log.IsDebugEnabled())
                             {
                                 Log.DebugFormat("Lock '{0}' is being obtained: {1}", lockName, requestorId);
                             }
 
-                            found = await rs.ReadAsync().ConfigureAwait(false);
+                            found = await rs.ReadAsync(cancellationToken).ConfigureAwait(false);
                         }
 
                         if (!found)
@@ -102,14 +109,14 @@ namespace Quartz.Impl.AdoJobStore
                             using (DbCommand cmd2 = AdoUtil.PrepareCommand(conn, expandedInsertSql))
                             {
                                 AdoUtil.AddCommandParameter(cmd2, "lockName", lockName);
-                                int res = await cmd2.ExecuteNonQueryAsync().ConfigureAwait(false);
+                                int res = await cmd2.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
                                 if (res != 1)
                                 {
                                     if (count < 3)
                                     {
                                         // pause a bit to give another thread some time to commit the insert of the new lock row
-                                        await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+                                        await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
 
                                         // try again ...
                                         continue;
@@ -140,7 +147,7 @@ namespace Quartz.Impl.AdoJobStore
                     if (count < 3)
                     {
                         // pause a bit to give another thread some time to commit the insert of the new lock row
-                        await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+                        await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
 
                         // try again ...
                         continue;

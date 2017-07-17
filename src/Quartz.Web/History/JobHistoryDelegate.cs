@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Reflection;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Impl.AdoJobStore;
@@ -80,7 +81,10 @@ namespace Quartz.Web.History
 
         public ITypeLoadHelper TypeLoadHelper { get; set; }
 
-        public async Task InsertJobHistoryEntry(IJobExecutionContext context, JobExecutionException jobException)
+        public async Task InsertJobHistoryEntry(
+            IJobExecutionContext context,
+            JobExecutionException jobException,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             var sql = AdoJobStoreUtil.ReplaceTablePrefix(SqlInsertJobExecuted, tablePrefix, null);
             using (var connection = GetConnection(IsolationLevel.ReadUncommitted))
@@ -99,13 +103,15 @@ namespace Quartz.Web.History
                     Delegate.AddCommandParameter(command, "error", Delegate.GetDbBooleanValue(jobException != null));
                     Delegate.AddCommandParameter(command, "errorMessage", jobException?.ToString());
 
-                    await command.ExecuteNonQueryAsync().ConfigureAwait(false);
+                    await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
                     connection.Commit(false);
                 }
             }
         }
 
-        public async Task<IReadOnlyList<JobHistoryEntryDto>> SelectJobHistoryEntries(string schedulerName)
+        public async Task<IReadOnlyList<JobHistoryEntryDto>> SelectJobHistoryEntries(
+            string schedulerName, 
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             var sql = AdoJobStoreUtil.ReplaceTablePrefix(SqlSelectHistoryEntry, tablePrefix, null);
             List<JobHistoryEntryDto> entries = new List<JobHistoryEntryDto>();
@@ -114,9 +120,9 @@ namespace Quartz.Web.History
                 using (var dbCommand = Delegate.PrepareCommand(dbConnection, sql))
                 {
                     Delegate.AddCommandParameter(dbCommand, "schedulerName", schedulerName);
-                    using (var reader = await dbCommand.ExecuteReaderAsync().ConfigureAwait(false))
+                    using (var reader = await dbCommand.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
                     {
-                        while (await reader.ReadAsync().ConfigureAwait(false))
+                        while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
                         {
                             JobHistoryEntryDto entry = new JobHistoryEntryDto
                             {

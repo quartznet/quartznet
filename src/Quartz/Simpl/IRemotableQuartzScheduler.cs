@@ -21,6 +21,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Impl.Matchers;
@@ -52,28 +53,28 @@ namespace Quartz.Simpl
 
         int ThreadPoolSize { get; }
 
-        Task Clear();
+        Task Clear(CancellationToken cancellationToken = default(CancellationToken));
 
         IReadOnlyList<IJobExecutionContext> CurrentlyExecutingJobs { get; }
 
         /// <summary>
         /// Starts this instance.
         /// </summary>
-        Task Start();
+        Task Start(CancellationToken cancellationToken = default(CancellationToken));
 
-        Task StartDelayed(TimeSpan delay);
+        Task StartDelayed(TimeSpan delay, CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
         /// Standbies this instance.
         /// </summary>
-        Task Standby();
+        Task Standby(CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
         /// Shutdowns this instance.
         /// </summary>
-        Task Shutdown();
+        Task Shutdown(CancellationToken cancellationToken = default(CancellationToken));
 
-        Task Shutdown(bool waitForJobsToComplete);
+        Task Shutdown(bool waitForJobsToComplete, CancellationToken cancellationToken = default(CancellationToken));
 
         DateTimeOffset? RunningSince { get; }
 
@@ -83,100 +84,155 @@ namespace Quartz.Simpl
 
         bool Clustered { get; }
 
-        Task<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger);
+        Task<DateTimeOffset> ScheduleJob(
+            IJobDetail jobDetail, 
+            ITrigger trigger, 
+            CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<DateTimeOffset> ScheduleJob(ITrigger trigger);
+        Task<DateTimeOffset> ScheduleJob(
+            ITrigger trigger, 
+            CancellationToken cancellationToken = default(CancellationToken));
 
-        Task AddJob(IJobDetail jobDetail, bool replace);
+        Task AddJob(
+            IJobDetail jobDetail, 
+            bool replace,
+            CancellationToken cancellationToken = default(CancellationToken));
 
-        Task AddJob(IJobDetail jobDetail, bool replace, bool storeNonDurableWhileAwaitingScheduling);
+        Task AddJob(
+            IJobDetail jobDetail, 
+            bool replace, 
+            bool storeNonDurableWhileAwaitingScheduling,
+            CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
         /// returns true if the given JobGroup
         /// is paused
         /// </summary>
-        /// <param name="groupName"></param>
-        /// <returns></returns>
-        Task<bool> IsJobGroupPaused(string groupName);
+        Task<bool> IsJobGroupPaused(
+            string groupName, 
+            CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
         /// returns true if the given TriggerGroup
         /// is paused
         /// </summary>
-        /// <param name="groupName"></param>
-        /// <returns></returns>
-        Task<bool> IsTriggerGroupPaused(string groupName);
+        Task<bool> IsTriggerGroupPaused(
+            string groupName, 
+            CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<bool> DeleteJob(JobKey jobKey);
+        Task<bool> DeleteJob(JobKey jobKey, CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<bool> UnscheduleJob(TriggerKey triggerKey);
+        Task<bool> UnscheduleJob(
+            TriggerKey triggerKey, 
+            CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<DateTimeOffset?> RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger);
+        Task<DateTimeOffset?> RescheduleJob(
+            TriggerKey triggerKey, 
+            ITrigger newTrigger,
+            CancellationToken cancellationToken = default(CancellationToken));
 
-        Task TriggerJob(JobKey jobKey, JobDataMap data);
+        Task TriggerJob(
+            JobKey jobKey,
+            JobDataMap data,
+            CancellationToken cancellationToken = default(CancellationToken));
 
-        Task TriggerJob(IOperableTrigger trig);
+        Task TriggerJob(
+            IOperableTrigger trig,
+            CancellationToken cancellationToken = default(CancellationToken));
 
-        Task PauseTrigger(TriggerKey triggerKey);
+        Task PauseTrigger(
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default(CancellationToken));
 
-        Task PauseTriggers(GroupMatcher<TriggerKey> matcher);
+        Task PauseTriggers(
+            GroupMatcher<TriggerKey> matcher,
+            CancellationToken cancellationToken = default(CancellationToken));
 
-        Task PauseJob(JobKey jobKey);
+        Task PauseJob(JobKey jobKey, CancellationToken cancellationToken = default(CancellationToken));
 
-        Task PauseJobs(GroupMatcher<JobKey> matcher);
+        Task PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default(CancellationToken));
 
-        Task ResumeTrigger(TriggerKey triggerKey);
+        Task ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default(CancellationToken));
 
-        Task ResumeTriggers(GroupMatcher<TriggerKey> matcher);
+        Task ResumeTriggers(
+            GroupMatcher<TriggerKey> matcher,
+            CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<ISet<string>> GetPausedTriggerGroups();
+        Task<ISet<string>> GetPausedTriggerGroups(CancellationToken cancellationToken = default(CancellationToken));
 
-        Task ResumeJob(JobKey jobKey);
+        Task ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default(CancellationToken));
 
-        Task ResumeJobs(GroupMatcher<JobKey> matcher);
+        Task ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default(CancellationToken));
 
-        Task PauseAll();
+        Task PauseAll(CancellationToken cancellationToken = default(CancellationToken));
 
-        Task ResumeAll();
+        Task ResumeAll(CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<IReadOnlyList<string>> GetJobGroupNames();
+        Task<IReadOnlyList<string>> GetJobGroupNames(CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<ISet<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher);
+        Task<ISet<JobKey>> GetJobKeys(
+            GroupMatcher<JobKey> matcher, 
+            CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<IReadOnlyList<ITrigger>> GetTriggersOfJob(JobKey jobKey);
+        Task<IReadOnlyList<ITrigger>> GetTriggersOfJob(
+            JobKey jobKey,
+            CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<IReadOnlyList<string>> GetTriggerGroupNames();
+        Task<IReadOnlyList<string>> GetTriggerGroupNames(
+            CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<ISet<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher);
+        Task<ISet<TriggerKey>> GetTriggerKeys(
+            GroupMatcher<TriggerKey> matcher,
+            CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<IJobDetail> GetJobDetail(JobKey jobKey);
+        Task<IJobDetail> GetJobDetail(
+            JobKey jobKey,
+            CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<ITrigger> GetTrigger(TriggerKey triggerKey);
+        Task<ITrigger> GetTrigger(
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<TriggerState> GetTriggerState(TriggerKey triggerKey);
+        Task<TriggerState> GetTriggerState(
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default(CancellationToken));
 
-        Task AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers);
+        Task AddCalendar(
+            string calName, 
+            ICalendar calendar, 
+            bool replace, 
+            bool updateTriggers,
+            CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<bool> DeleteCalendar(string calName);
+        Task<bool> DeleteCalendar(string calName, CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<ICalendar> GetCalendar(string calName);
+        Task<ICalendar> GetCalendar(string calName, CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<IReadOnlyList<string>> GetCalendarNames();
+        Task<IReadOnlyList<string>> GetCalendarNames(CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<bool> Interrupt(JobKey jobKey);
+        Task<bool> Interrupt(JobKey jobKey, CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<bool> Interrupt(string fireInstanceId);
+        Task<bool> Interrupt(string fireInstanceId, CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<bool> CheckExists(JobKey jobKey);
+        Task<bool> CheckExists(JobKey jobKey, CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<bool> CheckExists(TriggerKey triggerKey);
+        Task<bool> CheckExists(TriggerKey triggerKey, CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<bool> DeleteJobs(IList<JobKey> jobKeys);
+        Task<bool> DeleteJobs(IList<JobKey> jobKeys, CancellationToken cancellationToken = default(CancellationToken));
 
-        Task ScheduleJobs(IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, bool replace);
+        Task ScheduleJobs(
+            IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, 
+            bool replace, 
+            CancellationToken cancellationToken = default(CancellationToken));
         
-        Task ScheduleJob(IJobDetail jobDetail, ISet<ITrigger> triggersForJob, bool replace);
+        Task ScheduleJob(
+            IJobDetail jobDetail, 
+            ISet<ITrigger> triggersForJob, 
+            bool replace,
+            CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<bool> UnscheduleJobs(IList<TriggerKey> triggerKeys);
+        Task<bool> UnscheduleJobs(
+            IList<TriggerKey> triggerKeys,
+            CancellationToken cancellationToken = default(CancellationToken));
     }
 }

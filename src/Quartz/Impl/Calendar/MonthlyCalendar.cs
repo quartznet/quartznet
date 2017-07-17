@@ -21,8 +21,6 @@
 
 using System;
 using System.Linq;
-using System.Runtime.Serialization;
-using System.Security;
 
 using Quartz.Util;
 
@@ -75,7 +73,9 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         /// <param name="info"></param>
         /// <param name="context"></param>
-        protected MonthlyCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
+        protected MonthlyCalendar(
+			System.Runtime.Serialization.SerializationInfo info, 
+			System.Runtime.Serialization.StreamingContext context) : base(info, context)
         {
             int version;
             try
@@ -99,8 +99,10 @@ namespace Quartz.Impl.Calendar
             }
         }
 
-        [SecurityCritical]
-        public override void GetObjectData(SerializationInfo info, StreamingContext context)
+        [System.Security.SecurityCritical]
+        public override void GetObjectData(
+            System.Runtime.Serialization.SerializationInfo info, 
+            System.Runtime.Serialization.StreamingContext context)
         {
             base.GetObjectData(info, context);
 

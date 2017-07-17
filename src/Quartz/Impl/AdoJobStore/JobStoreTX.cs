@@ -18,6 +18,7 @@
 #endregion
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Logging;
@@ -39,11 +40,12 @@ namespace Quartz.Impl.AdoJobStore
         /// Called by the QuartzScheduler before the <see cref="IJobStore"/> is
         /// used, in order to give the it a chance to Initialize.
         /// </summary>
-        /// <param name="loadHelper"></param>
-        /// <param name="signaler"></param>
-        public override Task Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler)
+        public override Task Initialize(
+            ITypeLoadHelper loadHelper, 
+            ISchedulerSignaler signaler,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            base.Initialize(loadHelper, signaler);
+            base.Initialize(loadHelper, signaler, cancellationToken);
             Log.Info("JobStoreTX initialized.");
             return TaskUtil.CompletedTask;
         }
@@ -70,14 +72,17 @@ namespace Quartz.Impl.AdoJobStore
         /// executed in a transaction.
         /// </param>
         /// <param name="txCallback">Callback to execute.</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns></returns>
         /// <seealso cref="JobStoreSupport.ExecuteInNonManagedTXLock" />
-        /// <seealso cref="JobStoreCMT.ExecuteInLock{T}(string, Func{ConnectionAndTransactionHolder, Task{T}})" />
         /// <seealso cref="JobStoreSupport.GetNonManagedTXConnection()" />
         /// <seealso cref="JobStoreSupport.GetConnection()" />
-        protected override Task<T> ExecuteInLock<T>(string lockName, Func<ConnectionAndTransactionHolder, Task<T>> txCallback)
+        protected override Task<T> ExecuteInLock<T>(
+            string lockName, 
+            Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return ExecuteInNonManagedTXLock(lockName, txCallback);
+            return ExecuteInNonManagedTXLock(lockName, txCallback, cancellationToken);
         }
     }
 }

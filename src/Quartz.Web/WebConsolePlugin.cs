@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Microsoft.AspNetCore;
@@ -20,7 +21,7 @@ namespace Quartz.Web
         public string HostName { get; set; }
         public int? Port { get; set; }
 
-        public Task Initialize(string pluginName, IScheduler scheduler)
+        public Task Initialize(string pluginName, IScheduler scheduler, CancellationToken cancellationToken)
         {
             // var liveLogPlugin = new LiveLogPlugin();
             // scheduler.ListenerManager.AddJobListener(liveLogPlugin);
@@ -28,17 +29,17 @@ namespace Quartz.Web
             // scheduler.ListenerManager.AddSchedulerListener(liveLogPlugin);
 
             // TODO REMOVE
-            scheduler.AddCalendar(typeof (AnnualCalendar).Name, new AnnualCalendar(), false, false);
-            scheduler.AddCalendar(typeof (CronCalendar).Name, new CronCalendar("0 0/5 * * * ?"), false, false);
-            scheduler.AddCalendar(typeof (DailyCalendar).Name, new DailyCalendar("12:01", "13:04"), false, false);
-            scheduler.AddCalendar(typeof (HolidayCalendar).Name, new HolidayCalendar(), false, false);
-            scheduler.AddCalendar(typeof (MonthlyCalendar).Name, new MonthlyCalendar(), false, false);
-            scheduler.AddCalendar(typeof (WeeklyCalendar).Name, new WeeklyCalendar(), false, false);
+            scheduler.AddCalendar(typeof (AnnualCalendar).Name, new AnnualCalendar(), false, false, cancellationToken);
+            scheduler.AddCalendar(typeof (CronCalendar).Name, new CronCalendar("0 0/5 * * * ?"), false, false, cancellationToken);
+            scheduler.AddCalendar(typeof (DailyCalendar).Name, new DailyCalendar("12:01", "13:04"), false, false, cancellationToken);
+            scheduler.AddCalendar(typeof (HolidayCalendar).Name, new HolidayCalendar(), false, false, cancellationToken);
+            scheduler.AddCalendar(typeof (MonthlyCalendar).Name, new MonthlyCalendar(), false, false, cancellationToken);
+            scheduler.AddCalendar(typeof (WeeklyCalendar).Name, new WeeklyCalendar(), false, false, cancellationToken);
 
             return Task.CompletedTask;
         }
 
-        public Task Start()
+        public Task Start(CancellationToken cancellationToken)
         {
             string baseAddress = $"http://{HostName ?? "localhost"}:{Port ?? 28682}/";
 
@@ -51,7 +52,7 @@ namespace Quartz.Web
             return TaskUtil.CompletedTask;
         }
 
-        public Task Shutdown()
+        public Task Shutdown(CancellationToken cancellationToken)
         {
             host?.Dispose();
             return TaskUtil.CompletedTask;

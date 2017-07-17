@@ -40,6 +40,7 @@ using Quartz.Spi;
 using Quartz.Util;
 
 using System.Globalization;
+using System.Threading;
 
 namespace Quartz.Impl
 {
@@ -62,7 +63,7 @@ namespace Quartz.Impl
     /// </para>
     /// <para>
     /// Alternatively, you can explicitly Initialize the factory by calling one of
-    /// the <see cref="Initialize()" /> methods before calling <see cref="GetScheduler()" />.
+    /// the <see cref="Initialize()" /> methods before calling <see cref="GetScheduler(CancellationToken)" />.
     /// </para>
     /// <para>
     /// Instances of the specified <see cref="IJobStore" />,
@@ -156,10 +157,11 @@ namespace Quartz.Impl
         /// </summary>
         /// <seealso cref="Initialize()">
         /// </seealso>
-        public static Task<IScheduler> GetDefaultScheduler()
+        public static Task<IScheduler> GetDefaultScheduler(
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             StdSchedulerFactory fact = new StdSchedulerFactory();
-            return fact.GetScheduler();
+            return fact.GetScheduler(cancellationToken);
         }
 
         /// <summary> <para>
@@ -167,9 +169,10 @@ namespace Quartz.Impl
         /// StdSchedulerFactory instance.).
         /// </para>
         /// </summary>
-        public virtual Task<IReadOnlyList<IScheduler>> AllSchedulers
+        public virtual Task<IReadOnlyList<IScheduler>> GetAllSchedulers(
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            get { return SchedulerRepository.Instance.LookupAll(); }
+            return SchedulerRepository.Instance.LookupAll(cancellationToken);
         }
 
         /// <summary>
@@ -1095,7 +1098,8 @@ Please add configuration to your application config file to correctly initialize
         /// called, then the default (no-arg) <see cref="Initialize()" /> method
         /// will be called by this method.
         /// </remarks>
-        public virtual async Task<IScheduler> GetScheduler()
+        public virtual async Task<IScheduler> GetScheduler(
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             if (cfg == null)
             {
@@ -1104,7 +1108,7 @@ Please add configuration to your application config file to correctly initialize
 
             SchedulerRepository schedRep = SchedulerRepository.Instance;
 
-            IScheduler sched = await schedRep.Lookup(SchedulerName).ConfigureAwait(false);
+            IScheduler sched = await schedRep.Lookup(SchedulerName, cancellationToken).ConfigureAwait(false);
 
             if (sched != null)
             {
@@ -1128,9 +1132,11 @@ Please add configuration to your application config file to correctly initialize
         /// it has already been instantiated).
         /// </para>
         /// </summary>
-        public virtual Task<IScheduler> GetScheduler(string schedName)
+        public virtual Task<IScheduler> GetScheduler(
+            string schedName, 
+            CancellationToken cancellationToken = default(CancellationToken))
         {
-            return SchedulerRepository.Instance.Lookup(schedName);
+            return SchedulerRepository.Instance.Lookup(schedName, cancellationToken);
         }
     }
 }

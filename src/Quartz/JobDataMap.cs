@@ -23,7 +23,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Runtime.Serialization;
 
 using Quartz.Util;
 
@@ -106,7 +105,9 @@ namespace Quartz
         /// </summary>
         /// <param name="info"></param>
         /// <param name="context"></param>
-        protected JobDataMap(SerializationInfo info, StreamingContext context) : base(info, context)
+        protected JobDataMap(
+            System.Runtime.Serialization.SerializationInfo info, 
+            System.Runtime.Serialization.StreamingContext context) : base(info, context)
         {
         }
 #endif // BINARY_SERIALIZATION

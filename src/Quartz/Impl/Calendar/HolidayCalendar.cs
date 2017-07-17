@@ -22,8 +22,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Runtime.Serialization;
-using System.Security;
 
 using Quartz.Collection;
 using Quartz.Util;
@@ -54,8 +52,8 @@ namespace Quartz.Impl.Calendar
 		/// </summary>
         public virtual ISet<DateTime> ExcludedDates
 		{
-            get { return new SortedSet<DateTime>(dates); }
-            internal set { dates = new SortedSet<DateTime>(value); }
+            get => new SortedSet<DateTime>(dates);
+			internal set { dates = new SortedSet<DateTime>(value); }
 		}
 
 		// A sorted set to store the holidays
@@ -84,7 +82,9 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         /// <param name="info"></param>
         /// <param name="context"></param>
-        protected HolidayCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
+        protected HolidayCalendar(
+			System.Runtime.Serialization.SerializationInfo info, 
+			System.Runtime.Serialization.StreamingContext context) : base(info, context)
         {
             int version;
             try
@@ -125,8 +125,10 @@ namespace Quartz.Impl.Calendar
             }
         }
 
-        [SecurityCritical]
-        public override void GetObjectData(SerializationInfo info, StreamingContext context)
+        [System.Security.SecurityCritical]
+        public override void GetObjectData(
+            System.Runtime.Serialization.SerializationInfo info, 
+            System.Runtime.Serialization.StreamingContext context)
         {
             base.GetObjectData(info, context);
 

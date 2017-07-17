@@ -19,6 +19,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Logging;
@@ -49,7 +50,6 @@ namespace Quartz.Listener
     /// <author>Marko Lahma (.NET)</author>
     public class JobChainingJobListener : JobListenerSupport
     {
-        private readonly string name;
         private readonly IDictionary<JobKey, JobKey> chainLinks;
 
         /// <summary>
@@ -58,18 +58,11 @@ namespace Quartz.Listener
         /// <param name="name">The name of this instance.</param>
         public JobChainingJobListener(string name)
         {
-            if (name == null)
-            {
-                throw new ArgumentException("Listener name cannot be null!");
-            }
-            this.name = name;
+            Name = name ?? throw new ArgumentException("Listener name cannot be null!");
             chainLinks = new Dictionary<JobKey, JobKey>();
         }
 
-        public override string Name
-        {
-            get { return name; }
-        }
+        public override string Name { get; }
 
         /// <summary>
         /// Add a chain mapping - when the Job identified by the first key completes
@@ -91,7 +84,10 @@ namespace Quartz.Listener
             chainLinks.Add(firstJob, secondJob);
         }
 
-        public override async Task JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
+        public override async Task JobWasExecuted(
+            IJobExecutionContext context, 
+            JobExecutionException jobException,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             JobKey sj;
             chainLinks.TryGetValue(context.JobDetail.Key, out sj);
@@ -105,7 +101,7 @@ namespace Quartz.Listener
 
             try
             {
-                await context.Scheduler.TriggerJob(sj).ConfigureAwait(false);
+                await context.Scheduler.TriggerJob(sj, cancellationToken).ConfigureAwait(false);
             }
             catch (SchedulerException se)
             {

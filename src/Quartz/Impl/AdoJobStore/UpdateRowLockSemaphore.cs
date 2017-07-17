@@ -21,6 +21,7 @@
 
 using System;
 using System.Data.Common;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Impl.AdoJobStore.Common;
@@ -65,16 +66,22 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Execute the SQL that will lock the proper database row.
         /// </summary>
-        protected override async Task ExecuteSQL(Guid requestorId, ConnectionAndTransactionHolder conn, string lockName, string expandedSql, string expandedInsertSql)
+        protected override async Task ExecuteSQL(
+            Guid requestorId, 
+            ConnectionAndTransactionHolder conn,
+            string lockName, 
+            string expandedSql, 
+            string expandedInsertSql,
+            CancellationToken cancellationToken)
         {
             Exception lastFailure = null;
             for (int i = 0; i < RetryCount; i++)
             {
                 try
                 {
-                    if (!await LockViaUpdate(requestorId, conn, lockName, expandedSql).ConfigureAwait(false))
+                    if (!await LockViaUpdate(requestorId, conn, lockName, expandedSql, cancellationToken).ConfigureAwait(false))
                     {
-                        await LockViaInsert(requestorId, conn, lockName, expandedInsertSql).ConfigureAwait(false);
+                        await LockViaInsert(requestorId, conn, lockName, expandedInsertSql, cancellationToken).ConfigureAwait(false);
                     }
                     return;
                 }
@@ -90,7 +97,7 @@ namespace Quartz.Impl.AdoJobStore
                         Log.DebugFormat("Lock '{0}' was not obtained by: {1} - will try again.", lockName, requestorId);
                     }
 
-                    await Task.Delay(TimeSpan.FromSeconds(1)).ConfigureAwait(false);
+                    await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
                 }
             }
             if (lastFailure != null)
@@ -99,18 +106,28 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        private async Task<bool> LockViaUpdate(Guid requestorId, ConnectionAndTransactionHolder conn, string lockName, string sql)
+        private async Task<bool> LockViaUpdate(
+            Guid requestorId,
+            ConnectionAndTransactionHolder conn, 
+            string lockName, 
+            string sql,
+            CancellationToken cancellationToken)
         {
             using (DbCommand cmd = AdoUtil.PrepareCommand(conn, sql))
             {
                 AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
 
                 Log.DebugFormat("Lock '{0}' is being obtained: {1}", lockName, requestorId);
-                return await cmd.ExecuteNonQueryAsync().ConfigureAwait(false) >= 1;
+                return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) >= 1;
             }
         }
 
-        private async Task LockViaInsert(Guid requestorId, ConnectionAndTransactionHolder conn, string lockName, string sql)
+        private async Task LockViaInsert(
+            Guid requestorId, 
+            ConnectionAndTransactionHolder conn, 
+            string lockName, 
+            string sql,
+            CancellationToken cancellationToken)
         {
             if (sql == null)
             {
@@ -121,7 +138,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
 
-                if (await cmd.ExecuteNonQueryAsync().ConfigureAwait(false) != 1)
+                if (await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) != 1)
                 {
                     throw new InvalidOperationException(
                         AdoJobStoreUtil.ReplaceTablePrefix("No row exists, and one could not be inserted in table " + TablePrefixSubst + TableLocks + " for lock named: " + lockName, TablePrefix, SchedulerNameLiteral));

@@ -54,7 +54,11 @@ namespace Quartz.Impl.AdoJobStore
         /// until it is available).
         /// </summary>
         /// <returns>True if the lock was obtained.</returns>
-        public virtual Task<bool> ObtainLock(Guid requestorId, ConnectionAndTransactionHolder conn, string lockName)
+        public virtual Task<bool> ObtainLock(
+            Guid requestorId, 
+            ConnectionAndTransactionHolder conn, 
+            string lockName,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             if (log.IsDebugEnabled())
             {
@@ -111,7 +115,10 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary> Release the lock on the identified resource if it is held by the calling
         /// thread.
         /// </summary>
-        public virtual Task ReleaseLock(Guid requestorId, string lockName)
+        public virtual Task ReleaseLock(
+            Guid requestorId, 
+            string lockName,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             lock (syncRoot)
             {

@@ -21,11 +21,9 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
-using System.Runtime.Serialization;
 using System.Text;
 using System.Text.RegularExpressions;
 
-using Quartz.Collection;
 using Quartz.Util;
 
 namespace Quartz
@@ -213,7 +211,7 @@ namespace Quartz
 #endif // BINARY_SERIALIZATION
     public class CronExpression : object
 #if BINARY_SERIALIZATION
-        , IDeserializationCallback
+        , System.Runtime.Serialization.IDeserializationCallback
 #endif // BINARY_SERIALIZATION
     {
         /// <summary>
@@ -589,31 +587,31 @@ namespace Quartz
             {
                 if (seconds == null)
                 {
-                    seconds = new TreeSet<int>();
+                    seconds = new SortedSet<int>();
                 }
                 if (minutes == null)
                 {
-                    minutes = new TreeSet<int>();
+                    minutes = new SortedSet<int>();
                 }
                 if (hours == null)
                 {
-                    hours = new TreeSet<int>();
+                    hours = new SortedSet<int>();
                 }
                 if (daysOfMonth == null)
                 {
-                    daysOfMonth = new TreeSet<int>();
+                    daysOfMonth = new SortedSet<int>();
                 }
                 if (months == null)
                 {
-                    months = new TreeSet<int>();
+                    months = new SortedSet<int>();
                 }
                 if (daysOfWeek == null)
                 {
-                    daysOfWeek = new TreeSet<int>();
+                    daysOfWeek = new SortedSet<int>();
                 }
                 if (years == null)
                 {
-                    years = new TreeSet<int>();
+                    years = new SortedSet<int>();
                 }
 
                 int exprOn = Second;
@@ -936,7 +934,8 @@ namespace Quartz
             return i;
         }
 
-        private void CheckIncrementRange(int incr, int type)
+        // ReSharper disable once UnusedParameter.Local
+        private static void CheckIncrementRange(int incr, int type)
         {
             if (incr > 59 && (type == Second || type == Minute))
             {

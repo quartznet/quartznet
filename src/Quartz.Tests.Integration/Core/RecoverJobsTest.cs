@@ -114,7 +114,9 @@ namespace Quartz.Tests.Integration.Core
 
             public override string Name => typeof(RecoverJobsTest).Name;
 
-            public override Task JobToBeExecuted(IJobExecutionContext context)
+            public override Task JobToBeExecuted(
+                IJobExecutionContext context, 
+                CancellationToken cancellationToken = new CancellationToken())
             {
                 isJobRecovered.Set();
                 return TaskUtil.CompletedTask;

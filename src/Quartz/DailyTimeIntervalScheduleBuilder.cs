@@ -488,6 +488,7 @@ namespace Quartz
             return this;
         }
 
+        // ReSharper disable once UnusedParameter.Local
         private static void ValidateInterval(int interval)
         {
             if (interval <= 0)

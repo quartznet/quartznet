@@ -24,6 +24,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Impl;
@@ -104,15 +105,13 @@ namespace Quartz.Plugin.Xml
 
         public IEnumerable<KeyValuePair<string, JobFile>> JobFiles => jobFiles;
 
-        /// <summary>
-        ///
-        /// </summary>
-        /// <param name="fName"></param>
-        public virtual Task FileUpdated(string fName)
+        public virtual Task FileUpdated(
+            string fName,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             if (started)
             {
-                return ProcessFile(fName);
+                return ProcessFile(fName, cancellationToken);
             }
 
             return TaskUtil.CompletedTask;
@@ -122,10 +121,10 @@ namespace Quartz.Plugin.Xml
         /// Called during creation of the <see cref="IScheduler"/> in order to give
         /// the <see cref="ISchedulerPlugin"/> a chance to initialize.
         /// </summary>
-        /// <param name="pluginName">The name.</param>
-        /// <param name="scheduler">The scheduler.</param>
-        /// <throws>SchedulerConfigException </throws>
-        public virtual async Task Initialize(string pluginName, IScheduler scheduler)
+        public virtual async Task Initialize(
+            string pluginName,
+            IScheduler scheduler,
+            CancellationToken cancellationToken = default(CancellationToken))
         {
             Name = pluginName;
             Scheduler = scheduler;
@@ -140,7 +139,7 @@ namespace Quartz.Plugin.Xml
             foreach (string token in tokens)
             {
                 JobFile jobFile = new JobFile(this, token);
-                await jobFile.Initialize();
+                await jobFile.Initialize(cancellationToken);
                 jobFiles.Add(new KeyValuePair<string, JobFile>(jobFile.FilePath, jobFile));
             }
         }
@@ -150,7 +149,7 @@ namespace Quartz.Plugin.Xml
         /// to let the plug-in know it can now make calls into the scheduler if it
         /// needs to.
         /// </summary>
-        public virtual async Task Start()
+        public virtual async Task Start(CancellationToken cancellationToken = default(CancellationToken))
         {
             try
             {
@@ -172,7 +171,7 @@ namespace Quartz.Plugin.Xml
                             TriggerKey tKey = new TriggerKey(jobTriggerName, JobInitializationPluginName);
 
                             // remove pre-existing job/trigger, if any
-                            await Scheduler.UnscheduleJob(tKey).ConfigureAwait(false);
+                            await Scheduler.UnscheduleJob(tKey, cancellationToken).ConfigureAwait(false);
 
                             // TODO: convert to use builder
                             var trig = new SimpleTriggerImpl();
@@ -192,11 +191,11 @@ namespace Quartz.Plugin.Xml
                             job.JobDataMap.Put(FileScanJob.FileName, jobFile.FilePath);
                             job.JobDataMap.Put(FileScanJob.FileScanListenerName, JobInitializationPluginName + '_' + Name);
 
-                            await Scheduler.ScheduleJob(job, trig).ConfigureAwait(false);
+                            await Scheduler.ScheduleJob(job, trig, cancellationToken).ConfigureAwait(false);
                             Log.DebugFormat("Scheduled file scan job for data file: {0}, at interval: {1}", jobFile.FileName, ScanInterval);
                         }
 
-                        await ProcessFile(jobFile).ConfigureAwait(false);
+                        await ProcessFile(jobFile, cancellationToken).ConfigureAwait(false);
                     }
                 }
             }
@@ -261,13 +260,13 @@ namespace Quartz.Plugin.Xml
         /// should free up all of it's resources because the scheduler is shutting
         /// down.
         /// </summary>
-        public virtual Task Shutdown()
+        public virtual Task Shutdown(CancellationToken cancellationToken = default(CancellationToken))
         {
             // nothing to do
             return TaskUtil.CompletedTask;
         }
 
-        private async Task ProcessFile(JobFile jobFile)
+        private async Task ProcessFile(JobFile jobFile, CancellationToken cancellationToken = default(CancellationToken))
         {
             if ((jobFile == null) || (jobFile.FileFound == false))
             {
@@ -284,7 +283,8 @@ namespace Quartz.Plugin.Xml
                 await processor.ProcessFileAndScheduleJobs(
                     jobFile.FileName,
                     jobFile.FileName, // systemId
-                    Scheduler).ConfigureAwait(false);
+                    Scheduler, 
+                    cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
             {
@@ -292,7 +292,7 @@ namespace Quartz.Plugin.Xml
             }
         }
 
-        public Task ProcessFile(string filePath)
+        public Task ProcessFile(string filePath, CancellationToken cancellationToken = default(CancellationToken))
         {
             JobFile file = null;
             int idx = jobFiles.FindIndex(pair => pair.Key == filePath);
@@ -300,7 +300,7 @@ namespace Quartz.Plugin.Xml
             {
                 file = jobFiles[idx].Value;
             }
-           return ProcessFile(file);
+           return ProcessFile(file, cancellationToken);
         }
 
         /// <summary>
@@ -325,7 +325,7 @@ namespace Quartz.Plugin.Xml
 
             public string FileBasename { get; private set; }
 
-            public async Task Initialize()
+            public async Task Initialize(CancellationToken cancellationToken = default(CancellationToken))
             {
                 Stream f = null;
                 try

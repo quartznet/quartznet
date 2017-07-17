@@ -23,7 +23,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Runtime.Serialization;
 
 namespace Quartz.Util
 {
@@ -81,9 +80,12 @@ namespace Quartz.Util
         /// </summary>
         /// <param name="info"></param>
         /// <param name="context"></param>
-        protected StringKeyDirtyFlagMap(SerializationInfo info, StreamingContext context) : base(info, context)
+        protected StringKeyDirtyFlagMap(
+			System.Runtime.Serialization.SerializationInfo info, 
+			System.Runtime.Serialization.StreamingContext context) : base(info, context)
         {
         }
+    
 #endif // BINARY_SERIALIZATION
 
         /// <summary>

@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Impl.Matchers;
@@ -49,7 +50,7 @@ namespace Quartz.Web.History
         /// Called during creation of the <see cref="IScheduler" /> in order to give
         /// the <see cref="ISchedulerPlugin" /> a chance to Initialize.
         /// </summary>
-        public virtual Task Initialize(string pluginName, IScheduler scheduler)
+        public virtual Task Initialize(string pluginName, IScheduler scheduler, CancellationToken cancellationToken)
         {
             Name = pluginName;
             Delegate = new JobHistoryDelegate(DataSource, DriverDelegateType, TablePrefix);
@@ -62,7 +63,7 @@ namespace Quartz.Web.History
         /// to let the plug-in know it can now make calls into the scheduler if it
         /// needs to.
         /// </summary>
-        public virtual Task Start()
+        public virtual Task Start(CancellationToken cancellationToken)
         {
             // do nothing...
             return TaskUtil.CompletedTask;
@@ -73,7 +74,7 @@ namespace Quartz.Web.History
         /// should free up all of it's resources because the scheduler is shutting
         /// down.
         /// </summary>
-        public virtual Task Shutdown()
+        public virtual Task Shutdown(CancellationToken cancellationToken)
         {
             // nothing to do...
             return TaskUtil.CompletedTask;
@@ -87,8 +88,8 @@ namespace Quartz.Web.History
         ///         <see cref="ITriggerListener"/>.
         ///     </para>
         /// </summary>
-        /// <seealso cref="JobExecutionVetoed(IJobExecutionContext)"/>
-        public virtual Task JobToBeExecuted(IJobExecutionContext context)
+        /// <seealso cref="JobExecutionVetoed(IJobExecutionContext, CancellationToken)"/>
+        public virtual Task JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken)
         {
             return TaskUtil.CompletedTask;
         }
@@ -98,11 +99,12 @@ namespace Quartz.Web.History
         /// has been executed, and be for the associated <see cref="ITrigger" />'s
         /// <see cref="IOperableTrigger.Triggered" /> method has been called.
         /// </summary>
-        /// <param name="context"></param>
-        /// <param name="jobException"></param>
-        public virtual Task JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
+        public virtual Task JobWasExecuted(
+            IJobExecutionContext context,
+            JobExecutionException jobException, 
+            CancellationToken cancellationToken)
         {
-            return Delegate.InsertJobHistoryEntry(context, jobException);
+            return Delegate.InsertJobHistoryEntry(context, jobException, cancellationToken);
         }
 
         /// <summary>
@@ -111,9 +113,8 @@ namespace Quartz.Web.History
         /// has occurred), but a <see cref="ITriggerListener" /> vetoed it's
         /// execution.
         /// </summary>
-        /// <param name="context"></param>
-        /// <seealso cref="JobToBeExecuted(IJobExecutionContext)"/>
-        public virtual Task JobExecutionVetoed(IJobExecutionContext context)
+        /// <seealso cref="JobToBeExecuted(IJobExecutionContext, CancellationToken)"/>
+        public virtual Task JobExecutionVetoed(IJobExecutionContext context, CancellationToken cancellationToken)
         {
             return TaskUtil.CompletedTask;
         }

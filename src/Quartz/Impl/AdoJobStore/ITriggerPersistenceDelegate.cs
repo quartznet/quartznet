@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Spi;
@@ -50,21 +51,37 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Inserts trigger's special properties.
         /// </summary>
-        Task<int> InsertExtendedTriggerProperties(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail);
+        Task<int> InsertExtendedTriggerProperties(
+            ConnectionAndTransactionHolder conn, 
+            IOperableTrigger trigger, 
+            string state,
+            IJobDetail jobDetail,
+            CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
         /// Updates trigger's special properties.
         /// </summary>
-        Task<int> UpdateExtendedTriggerProperties(ConnectionAndTransactionHolder conn, IOperableTrigger trigger, string state, IJobDetail jobDetail);
+        Task<int> UpdateExtendedTriggerProperties(
+            ConnectionAndTransactionHolder conn, 
+            IOperableTrigger trigger,
+            string state, 
+            IJobDetail jobDetail,
+            CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
         /// Deletes trigger's special properties.
         /// </summary>
-        Task<int> DeleteExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey);
+        Task<int> DeleteExtendedTriggerProperties(
+            ConnectionAndTransactionHolder conn,
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default(CancellationToken));
         
         /// <summary>
         /// Loads trigger's special properties.
         /// </summary>
-        Task<TriggerPropertyBundle> LoadExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey triggerKey);
+        Task<TriggerPropertyBundle> LoadExtendedTriggerProperties(
+            ConnectionAndTransactionHolder conn,
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default(CancellationToken));
     }
 }

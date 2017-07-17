@@ -5,6 +5,9 @@
 // When running on a platform that already exposes the type (desktop .NET, for example), redirect references
 // to the actual implementation.
 
+// ReSharper disable UnusedMember.Global
+// ReSharper disable UnusedParameter.Local
+
 #if THREAD_INTERRUPTION
 [assembly: System.Runtime.CompilerServices.TypeForwardedTo(typeof(System.Threading.ThreadInterruptedException))]
 #else // THREAD_INTERRUPTION

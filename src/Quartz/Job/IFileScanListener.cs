@@ -17,6 +17,7 @@
  */
 #endregion
 
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Quartz.Job
@@ -33,7 +34,6 @@ namespace Quartz.Job
 	    /// <summary>
 	    /// Informs that certain file has been updated.
 	    /// </summary>
-	    /// <param name="fileName">Name of the file.</param>
-	    Task FileUpdated(string fileName);
+	    Task FileUpdated(string fileName, CancellationToken cancellationToken = default(CancellationToken));
 	}
 }

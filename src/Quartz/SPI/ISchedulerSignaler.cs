@@ -18,6 +18,7 @@
 #endregion
 
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Core;
@@ -36,24 +37,37 @@ namespace Quartz.Spi
 		/// Notifies the scheduler about misfired trigger.
 		/// </summary>
 		/// <param name="trigger">The trigger that misfired.</param>
-        Task NotifyTriggerListenersMisfired(ITrigger trigger);
+		/// <param name="cancellationToken">The cancellation instruction.</param>
+		Task NotifyTriggerListenersMisfired(
+			ITrigger trigger,
+			CancellationToken cancellationToken = default(CancellationToken));
 
-        /// <summary>
-        /// Notifies the scheduler about finalized trigger.
-        /// </summary>
-        /// <param name="trigger">The trigger that has finalized.</param>
-        Task NotifySchedulerListenersFinalized(ITrigger trigger);
+		/// <summary>
+		/// Notifies the scheduler about finalized trigger.
+		/// </summary>
+		/// <param name="trigger">The trigger that has finalized.</param>
+		/// <param name="cancellationToken">The cancellation instruction.</param>
+		Task NotifySchedulerListenersFinalized(
+	        ITrigger trigger,
+	        CancellationToken cancellationToken = default(CancellationToken));
 
-        Task NotifySchedulerListenersJobDeleted(JobKey jobKey);
+        Task NotifySchedulerListenersJobDeleted(
+	        JobKey jobKey,
+	        CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
         /// Signals the scheduling change.
         /// </summary>
-        void SignalSchedulingChange(DateTimeOffset? candidateNewNextFireTimeUtc);
+        void SignalSchedulingChange(
+	        DateTimeOffset? candidateNewNextFireTimeUtc,
+	        CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
         /// Informs scheduler listeners about an exception that has occurred.
         /// </summary>
-        Task NotifySchedulerListenersError(string message, SchedulerException jpe);
+        Task NotifySchedulerListenersError(
+	        string message, 
+	        SchedulerException jpe,
+	        CancellationToken cancellationToken = default(CancellationToken));
 	}
 }

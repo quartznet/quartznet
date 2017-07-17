@@ -18,6 +18,7 @@
 #endregion
 
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Impl;
@@ -38,16 +39,16 @@ namespace Quartz
 		/// Returns handles to all known Schedulers (made by any SchedulerFactory
 		/// within this app domain.).
 		/// </summary>
-		Task<IReadOnlyList<IScheduler>> AllSchedulers { get; }
+		Task<IReadOnlyList<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default(CancellationToken));
 
 		/// <summary>
 		/// Returns a client-usable handle to a <see cref="IScheduler" />.
 		/// </summary>
-		Task<IScheduler> GetScheduler();
+		Task<IScheduler> GetScheduler(CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
         /// Returns a handle to the Scheduler with the given name, if it exists.
         /// </summary>
-        Task<IScheduler> GetScheduler(string schedName);
+        Task<IScheduler> GetScheduler(string schedName, CancellationToken cancellationToken = default(CancellationToken));
 	}
 }

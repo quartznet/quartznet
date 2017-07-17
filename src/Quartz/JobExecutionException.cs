@@ -19,7 +19,6 @@
 
 using System;
 using System.Globalization;
-using System.Runtime.Serialization;
 
 namespace Quartz
 {
@@ -44,21 +43,13 @@ namespace Quartz
 #endif // BINARY_SERIALIZATION
     public class JobExecutionException : SchedulerException
 	{
-		private bool refire;
-		private bool unscheduleTrigg;
-		private bool unscheduleAllTriggs;
-
 		/// <summary>
 		/// Gets or sets a value indicating whether to unschedule firing trigger.
 		/// </summary>
 		/// <value>
 		/// 	<c>true</c> if firing trigger should be unscheduled; otherwise, <c>false</c>.
 		/// </value>
-		public virtual bool UnscheduleFiringTrigger
-		{
-			set { unscheduleTrigg = value; }
-			get { return unscheduleTrigg; }
-		}
+		public virtual bool UnscheduleFiringTrigger { set; get; }
 
 		/// <summary>
 		/// Gets or sets a value indicating whether to unschedule all triggers.
@@ -66,12 +57,7 @@ namespace Quartz
 		/// <value>
 		/// 	<c>true</c> if all triggers should be unscheduled; otherwise, <c>false</c>.
 		/// </value>
-		public virtual bool UnscheduleAllTriggers
-		{
-			set { unscheduleAllTriggs = value; }
-			get { return unscheduleAllTriggs; }
-		}
-
+		public virtual bool UnscheduleAllTriggers { set; get; }
 
 		/// <summary>
 		/// Create a JobExecutionException, with the 're-fire immediately' flag set
@@ -111,7 +97,7 @@ namespace Quartz
 		/// </summary>
 		public JobExecutionException(bool refireImmediately)
 		{
-			refire = refireImmediately;
+			RefireImmediately = refireImmediately;
 		}
 
 		/// <summary>
@@ -120,7 +106,7 @@ namespace Quartz
 		/// </summary>
 		public JobExecutionException(Exception cause, bool refireImmediately) : base(cause)
 		{
-			refire = refireImmediately;
+			RefireImmediately = refireImmediately;
 		}
 
 		/// <summary>
@@ -129,7 +115,7 @@ namespace Quartz
 		/// </summary>
 		public JobExecutionException(string msg, Exception cause, bool refireImmediately) : base(msg, cause)
 		{
-			refire = refireImmediately;
+			RefireImmediately = refireImmediately;
 		}
 
 #if BINARY_SERIALIZATION
@@ -140,7 +126,9 @@ namespace Quartz
         /// <param name="context">The <see cref="T:System.Runtime.Serialization.StreamingContext"></see> that contains contextual information about the source or destination.</param>
         /// <exception cref="T:System.Runtime.Serialization.SerializationException">The class name is null or <see cref="P:System.Exception.HResult"></see> is zero (0). </exception>
         /// <exception cref="T:System.ArgumentNullException">The info parameter is null. </exception>
-        protected JobExecutionException(SerializationInfo info, StreamingContext context) : base(info, context)
+        protected JobExecutionException(
+			System.Runtime.Serialization.SerializationInfo info, 
+			System.Runtime.Serialization.StreamingContext context) : base(info, context)
         {
         }
 #endif // BINARY_SERIALIZATION
@@ -149,11 +137,7 @@ namespace Quartz
 		/// Gets or sets a value indicating whether to refire immediately.
 		/// </summary>
 		/// <value><c>true</c> if to refire immediately; otherwise, <c>false</c>.</value>
-		public virtual bool RefireImmediately
-		{
-			get { return refire; }
-            set { refire = value; }
-		}
+		public bool RefireImmediately { get; set; }
 
         /// <summary>
         /// Creates and returns a string representation of the current exception.
