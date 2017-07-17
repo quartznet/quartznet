@@ -26,6 +26,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Logging;
+using Quartz.Impl.AdoJobStore;
 using Quartz.Spi;
 
 namespace Quartz.Core
@@ -57,7 +58,7 @@ namespace Quartz.Core
         private static readonly TimeSpan DefaultIdleWaitTime = TimeSpan.FromSeconds(30);
 
         private TimeSpan idleWaitTime = DefaultIdleWaitTime;
-        private int idleWaitVariableness = 7*1000;
+        private int idleWaitVariableness = 7 * 1000;
         private CancellationTokenSource cancellationTokenSource;
         private Task task;
 
@@ -77,7 +78,7 @@ namespace Quartz.Core
             set
             {
                 idleWaitTime = value;
-                idleWaitVariableness = (int) (value.TotalMilliseconds*0.2);
+                idleWaitVariableness = (int) (value.TotalMilliseconds * 0.2);
             }
         }
 
@@ -275,6 +276,7 @@ namespace Quartz.Core
                                 await qs.NotifySchedulerListenersError(msg, jpe, cancellationToken).ConfigureAwait(false);
                             }
                             lastAcquireFailed = true;
+                            await HandleDbRetry(cancellationToken);
                             continue;
                         }
                         catch (Exception e)
@@ -284,6 +286,7 @@ namespace Quartz.Core
                                 Log.ErrorException("quartzSchedulerThreadLoop: RuntimeException " + e.Message, e);
                             }
                             lastAcquireFailed = true;
+                            await HandleDbRetry(cancellationToken);
                             continue;
                         }
 
@@ -343,7 +346,7 @@ namespace Quartz.Core
                             bool goAhead;
                             lock (sigLock)
                             {
-                        	    goAhead = !halted;
+                                goAhead = !halted;
                             }
 
                             if (goAhead)
@@ -463,6 +466,15 @@ namespace Quartz.Core
                     Log.ErrorException("Runtime error occurred in main trigger firing loop.", re);
                 }
             } // while (!halted)
+        }
+
+        protected virtual async Task HandleDbRetry(CancellationToken cancellationToken)
+        {
+            var jobStorSupport = qsRsrcs.JobStore as JobStoreSupport;
+            if (jobStorSupport != null)
+            {
+                await Task.Delay(jobStorSupport.DbRetryInterval, cancellationToken);
+            }
         }
 
         private async Task<bool> ReleaseIfScheduleChangedSignificantly(List<IOperableTrigger> triggers, DateTimeOffset triggerTime)
