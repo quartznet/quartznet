@@ -184,7 +184,7 @@ namespace Quartz.Tests.Integration.Impl
                     await scheduler.ScheduleJob(intervalTrigger);
 
                     // bulk operations
-                    var info = new Dictionary<IJobDetail, ISet<ITrigger>>();
+                    var info = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>();
                     IJobDetail detail = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
                     ITrigger simple = new SimpleTriggerImpl("trig_" + count, schedId, 20, TimeSpan.FromMilliseconds(4500));
                     var triggers = new HashSet<ITrigger>();
@@ -305,7 +305,7 @@ namespace Quartz.Tests.Integration.Impl
             trigger = TriggerBuilder.Create().WithIdentity("trig2", "xxxyyyzzz").WithSchedule(schedule).ForJob(job).Build();
             await scheduler.ScheduleJob(trigger);
 
-            ISet<JobKey> jkeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.AnyGroup());
+            var jkeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.AnyGroup());
             Assert.That(jkeys.Count, Is.EqualTo(3), "Wrong number of jobs found by anything matcher");
 
             jkeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("xxxyyyzzz"));
@@ -332,7 +332,7 @@ namespace Quartz.Tests.Integration.Impl
             jkeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupContains("yz"));
             Assert.That(jkeys.Count, Is.EqualTo(2), "Wrong number of jobs found by contains with matcher");
 
-            ISet<TriggerKey> tkeys = await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.AnyGroup());
+            var tkeys = await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.AnyGroup());
             Assert.That(tkeys.Count, Is.EqualTo(3), "Wrong number of triggers found by anything matcher");
 
             tkeys = await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("xxxyyyzzz"));

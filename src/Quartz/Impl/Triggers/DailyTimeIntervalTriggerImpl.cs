@@ -92,7 +92,7 @@ namespace Quartz.Impl.Triggers
         private DateTimeOffset? previousFireTimeUtc; // Making a public property which called GetPreviousFireTime/SetPreviousFireTime would make the json attribute unnecessary
         private int repeatInterval = 1;
         private IntervalUnit repeatIntervalUnit = IntervalUnit.Minute;
-        private ISet<DayOfWeek> daysOfWeek;
+        private HashSet<DayOfWeek> daysOfWeek;
         private TimeOfDay startTimeOfDay;
         private TimeOfDay endTimeOfDay;
         private int timesTriggered;
@@ -772,7 +772,7 @@ namespace Quartz.Impl.Triggers
             DayOfWeek dayOfWeekOfFireTime = fireTimeStartDateCal.DayOfWeek;
 
             // b2. We need to advance to another day if isAfterTimePassEndTimeOfDay is true, or dayOfWeek is not set.
-            ISet<DayOfWeek> daysOfWeek = DaysOfWeek;
+            var daysOfWeek = new HashSet<DayOfWeek>(DaysOfWeek);
             if (forceToAdvanceNextDay || !daysOfWeek.Contains(dayOfWeekOfFireTime))
             {
                 // Advance one day at a time until next available date.
@@ -884,7 +884,7 @@ namespace Quartz.Impl.Triggers
         /// A Set containing the integers representing the days of the week, per the values 0-6 as defined by
         /// DayOfWees.Sunday - DayOfWeek.Saturday.
         /// </returns>
-        public ISet<DayOfWeek> DaysOfWeek
+        public IReadOnlyCollection<DayOfWeek> DaysOfWeek
         {
             get
             {
@@ -906,7 +906,7 @@ namespace Quartz.Impl.Triggers
                     throw new ArgumentException("DaysOfWeek set must contain at least one day.");
                 }
 
-                daysOfWeek = value;
+                daysOfWeek = new HashSet<DayOfWeek>(value);
             }
         }
 

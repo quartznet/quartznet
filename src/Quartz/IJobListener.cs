@@ -31,7 +31,7 @@ namespace Quartz
     /// <see cref="IJobDetail" /> executes. In general,  applications that use a 
     /// <see cref="IScheduler" /> will not have use for this mechanism.
     /// </summary>
-    /// <seealso cref="IListenerManager.AddJobListener(Quartz.IJobListener,System.Collections.Generic.IList{Quartz.IMatcher{Quartz.JobKey}})" />
+    /// <seealso cref="IListenerManager.AddJobListener(Quartz.IJobListener,System.Collections.Generic.IReadOnlyCollection{Quartz.IMatcher{Quartz.JobKey}})" />
     /// <seealso cref="IMatcher{T}" />
     /// <seealso cref="IJob" />
     /// <seealso cref="IJobExecutionContext" />

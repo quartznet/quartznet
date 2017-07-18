@@ -141,15 +141,9 @@ namespace Quartz.Impl
 
         private static readonly ILog log = LogProvider.GetLogger(typeof(StdSchedulerFactory));
 
-        private string SchedulerName
-        {
-            get { return cfg.GetStringProperty(PropertySchedulerInstanceName, "QuartzScheduler"); }
-        }
+        private string SchedulerName => cfg.GetStringProperty(PropertySchedulerInstanceName, "QuartzScheduler");
 
-        protected ILog Log
-        {
-            get { return log; }
-        }
+        private ILog Log => log;
 
         /// <summary>
         /// Returns a handle to the default Scheduler, creating it if it does not

@@ -6,8 +6,6 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
-using Quartz.Logging;
-
 using NUnit.Framework;
 
 using Quartz.Impl;
@@ -378,7 +376,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                 .StartAt(now)
                 .Build();
 
-            var toSchedule = new Dictionary<IJobDetail, ISet<ITrigger>>();
+            var toSchedule = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>();
             toSchedule.Add(badJob, new HashSet<ITrigger>()
             {
                 badTrigger

@@ -13,7 +13,6 @@ using NUnit.Framework;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Triggers;
-using Quartz.Logging;
 using Quartz.Simpl;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore
@@ -42,8 +41,8 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
 
         public override string ConnectionString
         {
-            get { throw new NotImplementedException(); }
-            set { throw new NotImplementedException(); }
+            get => throw new NotImplementedException();
+            set => throw new NotImplementedException();
         }
 
         public override string Database
@@ -123,7 +122,6 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             A.CallTo(() => metaData.GetParameterName(A<string>.Ignored)).ReturnsLazily(paramFunc);
 
             DelegateInitializationArgs args = new DelegateInitializationArgs();
-            args.Logger = LogProvider.GetLogger(GetType());
             args.TablePrefix = "QRTZ_";
             args.InstanceName = "TESTSCHED";
             args.InstanceId = "INSTANCE";

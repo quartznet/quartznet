@@ -119,7 +119,6 @@ namespace Quartz.Tests.Unit.Xml
             await processor.ProcessStreamAndScheduleJobs(s, mockScheduler);
             A.CallTo(() => mockScheduler.AddJob(A<IJobDetail>.That.Not.IsNull(), A<bool>.Ignored, A<bool>.That.IsEqualTo(true), A<CancellationToken>._)).MustHaveHappened(Repeated.Exactly.Twice);
             A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Not.IsNull(), A<CancellationToken>._)).MustHaveHappened(Repeated.Exactly.Twice);
-            ;
         }
 
         [Test]

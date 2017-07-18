@@ -12,7 +12,7 @@ namespace Quartz.Web.Api
     {
         [HttpGet]
         [Route("")]
-        public async Task<IReadOnlyList<string>> Calendars(string schedulerName)
+        public async Task<IReadOnlyCollection<string>> Calendars(string schedulerName)
         {
             var scheduler = await GetScheduler(schedulerName).ConfigureAwait(false);
             var calendarNames = await scheduler.GetCalendarNames().ConfigureAwait(false);

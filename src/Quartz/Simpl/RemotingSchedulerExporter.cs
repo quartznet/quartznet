@@ -49,7 +49,6 @@ namespace Quartz.Simpl
         /// </summary>
         private static string[] formatProviderAllowedProperties = new string[] { "includeVersions", "strictBinding", "typeFilterLevel" };
 
-        private readonly ILog log;
         private static readonly Dictionary<string, object> registeredChannels = new Dictionary<string, object>();
 
         public RemotingSchedulerExporter()
@@ -60,7 +59,7 @@ namespace Quartz.Simpl
 #endif // REMOTING
             ChannelName = DefaultChannelName;
             BindName = DefaultBindName;
-            log = LogProvider.GetLogger(GetType());
+            Log = LogProvider.GetLogger(GetType());
         }
 
         public virtual void Bind(IRemotableQuartzScheduler scheduler)
@@ -158,7 +157,7 @@ namespace Quartz.Simpl
             }
             else
             {
-                log.Error("Cannot register remoting if port or channel type not specified");
+                Log.Error("Cannot register remoting if port or channel type not specified");
             }
         }
 
@@ -230,10 +229,7 @@ namespace Quartz.Simpl
             }
         }
 
-        protected virtual ILog Log
-        {
-            get { return log; }
-        }
+        internal ILog Log { get; }
 
         /// <summary>
         /// Gets or sets the port used for remoting.

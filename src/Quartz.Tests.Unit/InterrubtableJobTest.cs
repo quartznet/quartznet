@@ -18,6 +18,7 @@
 #endregion
 
 using System.Collections.Specialized;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -106,7 +107,7 @@ namespace Quartz.Tests.Unit
 
             Assert.AreEqual(1, executingJobs.Count, "Number of executing jobs should be 1 ");
 
-            IJobExecutionContext jec = executingJobs[0];
+            IJobExecutionContext jec = executingJobs.First();
 
             bool interruptResult = await sched.Interrupt(jec.FireInstanceId);
 

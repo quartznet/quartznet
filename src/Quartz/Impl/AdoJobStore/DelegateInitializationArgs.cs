@@ -1,7 +1,6 @@
 using System.Collections.Specialized;
 
 using Quartz.Impl.AdoJobStore.Common;
-using Quartz.Logging;
 using Quartz.Spi;
 
 namespace Quartz.Impl.AdoJobStore
@@ -15,11 +14,6 @@ namespace Quartz.Impl.AdoJobStore
         /// Whether simple <see cref="NameValueCollection"/> should be used (for serialization safety).
         /// </summary>
         public bool UseProperties { get; set; }
-
-        /// <summary>
-        /// The logger to use during execution.
-        /// </summary>
-        public ILog Logger { get; set; }
 
         /// <summary>
         /// The prefix of all table names.

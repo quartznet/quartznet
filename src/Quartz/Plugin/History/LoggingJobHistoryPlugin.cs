@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -140,8 +140,8 @@ namespace Quartz.Plugin.History
     /// 			<tr>
     /// 				<td>8</td>
     /// 				<td>Object</td>
-    /// 				<td>The string value (toString() having been called) of the result (if any) 
-    /// that the Job set on the JobExecutionContext, with on it.  "NULL" if no 
+    /// 				<td>The string value (toString() having been called) of the result (if any)
+    /// that the Job set on the JobExecutionContext, with on it.  "NULL" if no
     /// result was set.</td>
     /// 			</tr>
     /// 		</table>
@@ -251,7 +251,7 @@ namespace Quartz.Plugin.History
     /// 				<td>The re-fire count from the JobExecutionContext.</td>
     /// 			</tr>
     /// 		</table>
-    /// The default message text is <i>"Job {1}.{0} was vetoed.  It was to be fired 
+    /// The default message text is <i>"Job {1}.{0} was vetoed.  It was to be fired
     /// (by trigger {4}.{3}) at: {2:HH:mm:ss MM/dd/yyyy}"</i>
     /// 	</para>
     /// </remarks>
@@ -261,26 +261,26 @@ namespace Quartz.Plugin.History
         /// <summary>
         /// Logger instance to use. Defaults to common logging.
         /// </summary>
-        public ILog Log { get; set; } = LogProvider.GetLogger(typeof (LoggingJobHistoryPlugin));
+        private ILog Log { get; set; } = LogProvider.GetLogger(typeof(LoggingJobHistoryPlugin));
 
-        /// <summary> 
-        /// Get or sets the message that is logged when a Job successfully completes its 
+        /// <summary>
+        /// Get or sets the message that is logged when a Job successfully completes its
         /// execution.
         /// </summary>
         public virtual string JobSuccessMessage { get; set; } = "Job {1}.{0} execution complete at {2:HH:mm:ss MM/dd/yyyy} and reports: {8}";
 
-        /// <summary> 
-        /// Get or sets the message that is logged when a Job fails its 
+        /// <summary>
+        /// Get or sets the message that is logged when a Job fails its
         /// execution.
         /// </summary>
         public virtual string JobFailedMessage { get; set; } = "Job {1}.{0} execution failed at {2:HH:mm:ss MM/dd/yyyy} and reports: {8}";
 
-        /// <summary> 
+        /// <summary>
         /// Gets or sets the message that is logged when a Job is about to Execute.
         /// </summary>
         public virtual string JobToBeFiredMessage { get; set; } = "Job {1}.{0} fired (by trigger {4}.{3}) at: {2:HH:mm:ss MM/dd/yyyy}";
 
-        /// <summary> 
+        /// <summary>
         /// Gets or sets the message that is logged when a Job execution is vetoed by a
         /// trigger listener.
         /// </summary>
@@ -297,7 +297,7 @@ namespace Quartz.Plugin.History
         /// the <see cref="ISchedulerPlugin" /> a chance to Initialize.
         /// </summary>
         public virtual Task Initialize(
-            string pluginName, 
+            string pluginName,
             IScheduler scheduler,
             CancellationToken cancellationToken = default(CancellationToken))
         {
@@ -317,7 +317,7 @@ namespace Quartz.Plugin.History
             return TaskUtil.CompletedTask;
         }
 
-        /// <summary> 
+        /// <summary>
         /// Called in order to inform the <see cref="ISchedulerPlugin" /> that it
         /// should free up all of it's resources because the scheduler is shutting
         /// down.
@@ -330,7 +330,7 @@ namespace Quartz.Plugin.History
 
         /// <summary>
         ///     Called by the <see cref="IScheduler"/> when a <see cref="IJobDetail"/> is
-        ///     about to be executed (an associated <see cref="ITrigger"/> has occurred). 
+        ///     about to be executed (an associated <see cref="ITrigger"/> has occurred).
         ///     <para>
         ///         This method will not be invoked if the execution of the Job was vetoed by a
         ///         <see cref="ITriggerListener"/>.
@@ -341,7 +341,7 @@ namespace Quartz.Plugin.History
             IJobExecutionContext context,
             CancellationToken cancellationToken = default(CancellationToken))
         {
-            if (!Log.IsInfoEnabled())
+            if (!IsInfoEnabled)
             {
                 return TaskUtil.CompletedTask;
             }
@@ -360,7 +360,7 @@ namespace Quartz.Plugin.History
                 context.RefireCount
             };
 
-            Log.Info(string.Format(CultureInfo.InvariantCulture, JobToBeFiredMessage, args));
+            WriteInfo(string.Format(CultureInfo.InvariantCulture, JobToBeFiredMessage, args));
             return TaskUtil.CompletedTask;
         }
 
@@ -380,7 +380,7 @@ namespace Quartz.Plugin.History
 
             if (jobException != null)
             {
-                if (!Log.IsWarnEnabled())
+                if (!IsWarnEnabled)
                 {
                     return TaskUtil.CompletedTask;
                 }
@@ -393,11 +393,11 @@ namespace Quartz.Plugin.History
                         trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, errMsg
                     };
 
-                Log.WarnException(string.Format(CultureInfo.InvariantCulture, JobFailedMessage, args), jobException);
+                WriteWarning(string.Format(CultureInfo.InvariantCulture, JobFailedMessage, args), jobException);
             }
             else
             {
-                if (!Log.IsInfoEnabled())
+                if (!IsInfoEnabled)
                 {
                     return TaskUtil.CompletedTask;
                 }
@@ -410,7 +410,7 @@ namespace Quartz.Plugin.History
                         trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, result
                     };
 
-                Log.Info(string.Format(CultureInfo.InvariantCulture, JobSuccessMessage, args));
+                WriteInfo(string.Format(CultureInfo.InvariantCulture, JobSuccessMessage, args));
             }
             return TaskUtil.CompletedTask;
         }
@@ -426,7 +426,7 @@ namespace Quartz.Plugin.History
             IJobExecutionContext context,
             CancellationToken cancellationToken = default(CancellationToken))
         {
-            if (!Log.IsInfoEnabled())
+            if (!IsInfoEnabled)
             {
                 return TaskUtil.CompletedTask;
             }
@@ -445,8 +445,22 @@ namespace Quartz.Plugin.History
                 context.RefireCount
             };
 
-            Log.Info(string.Format(CultureInfo.InvariantCulture, JobWasVetoedMessage, args));
+            WriteInfo(string.Format(CultureInfo.InvariantCulture, JobWasVetoedMessage, args));
             return TaskUtil.CompletedTask;
+        }
+
+        protected virtual bool IsInfoEnabled => Log.IsInfoEnabled();
+
+        protected virtual void WriteInfo(string message)
+        {
+            Log.Info(message);
+        }
+
+        protected virtual bool IsWarnEnabled => Log.IsWarnEnabled();
+
+        protected virtual void WriteWarning(string message, Exception ex)
+        {
+            Log.WarnException(message, ex);
         }
     }
 }

@@ -65,7 +65,7 @@ namespace Quartz.Listener
         /// </remarks>
         /// <param name="name">the name of this instance</param>
         /// <param name="listeners">the initial List of TriggerListeners to broadcast to.</param>
-        public BroadcastTriggerListener(string name, IList<ITriggerListener> listeners) : this(name)
+        public BroadcastTriggerListener(string name, IReadOnlyCollection<ITriggerListener> listeners) : this(name)
         {
             this.listeners.AddRange(listeners);
         }

@@ -19,7 +19,7 @@ namespace Quartz.Core
 
         public virtual int NumJobsFired => numJobsFired;
 
-        public virtual IReadOnlyList<IJobExecutionContext> ExecutingJobs => new List<IJobExecutionContext>(executingJobs.Values);
+        public virtual IReadOnlyCollection<IJobExecutionContext> ExecutingJobs => new List<IJobExecutionContext>(executingJobs.Values);
 
         private readonly ConcurrentDictionary<string, IJobExecutionContext> executingJobs = new ConcurrentDictionary<string, IJobExecutionContext>();
 

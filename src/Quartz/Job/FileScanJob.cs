@@ -64,23 +64,18 @@ namespace Quartz.Job
 	    
 	    private const string LastModifiedTime = "LAST_MODIFIED_TIME";
 
-        private readonly ILog log;
-
-        /// <summary>
+		/// <summary>
         /// Gets the log.
         /// </summary>
         /// <value>The log.</value>
-	    protected ILog Log
-	    {
-	        get { return log; }
-	    }
+        private ILog Log { get; }
 
-        /// <summary>
+		/// <summary>
         /// Initializes a new instance of the <see cref="FileScanJob"/> class.
         /// </summary>
 	    public FileScanJob()
 	    {
-	        log = LogProvider.GetLogger(typeof (FileScanJob));
+	        Log = LogProvider.GetLogger(typeof (FileScanJob));
 	    }
 
 	    /// <summary>

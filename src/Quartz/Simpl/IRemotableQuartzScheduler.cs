@@ -55,7 +55,7 @@ namespace Quartz.Simpl
 
         Task Clear(CancellationToken cancellationToken = default(CancellationToken));
 
-        IReadOnlyList<IJobExecutionContext> CurrentlyExecutingJobs { get; }
+        IReadOnlyCollection<IJobExecutionContext> CurrentlyExecutingJobs { get; }
 
         /// <summary>
         /// Starts this instance.
@@ -158,7 +158,7 @@ namespace Quartz.Simpl
             GroupMatcher<TriggerKey> matcher,
             CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<ISet<string>> GetPausedTriggerGroups(CancellationToken cancellationToken = default(CancellationToken));
+        Task<IReadOnlyCollection<string>> GetPausedTriggerGroups(CancellationToken cancellationToken = default(CancellationToken));
 
         Task ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default(CancellationToken));
 
@@ -168,20 +168,20 @@ namespace Quartz.Simpl
 
         Task ResumeAll(CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<IReadOnlyList<string>> GetJobGroupNames(CancellationToken cancellationToken = default(CancellationToken));
+        Task<IReadOnlyCollection<string>> GetJobGroupNames(CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<ISet<JobKey>> GetJobKeys(
+        Task<IReadOnlyCollection<JobKey>> GetJobKeys(
             GroupMatcher<JobKey> matcher, 
             CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<IReadOnlyList<ITrigger>> GetTriggersOfJob(
+        Task<IReadOnlyCollection<ITrigger>> GetTriggersOfJob(
             JobKey jobKey,
             CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<IReadOnlyList<string>> GetTriggerGroupNames(
+        Task<IReadOnlyCollection<string>> GetTriggerGroupNames(
             CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<ISet<TriggerKey>> GetTriggerKeys(
+        Task<IReadOnlyCollection<TriggerKey>> GetTriggerKeys(
             GroupMatcher<TriggerKey> matcher,
             CancellationToken cancellationToken = default(CancellationToken));
 
@@ -208,7 +208,7 @@ namespace Quartz.Simpl
 
         Task<ICalendar> GetCalendar(string calName, CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<IReadOnlyList<string>> GetCalendarNames(CancellationToken cancellationToken = default(CancellationToken));
+        Task<IReadOnlyCollection<string>> GetCalendarNames(CancellationToken cancellationToken = default(CancellationToken));
 
         Task<bool> Interrupt(JobKey jobKey, CancellationToken cancellationToken = default(CancellationToken));
 
@@ -218,21 +218,21 @@ namespace Quartz.Simpl
 
         Task<bool> CheckExists(TriggerKey triggerKey, CancellationToken cancellationToken = default(CancellationToken));
 
-        Task<bool> DeleteJobs(IList<JobKey> jobKeys, CancellationToken cancellationToken = default(CancellationToken));
+        Task<bool> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default(CancellationToken));
 
         Task ScheduleJobs(
-            IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, 
+            IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, 
             bool replace, 
             CancellationToken cancellationToken = default(CancellationToken));
         
         Task ScheduleJob(
             IJobDetail jobDetail, 
-            ISet<ITrigger> triggersForJob, 
+            IReadOnlyCollection<ITrigger> triggersForJob, 
             bool replace,
             CancellationToken cancellationToken = default(CancellationToken));
 
         Task<bool> UnscheduleJobs(
-            IList<TriggerKey> triggerKeys,
+            IReadOnlyCollection<TriggerKey> triggerKeys,
             CancellationToken cancellationToken = default(CancellationToken));
     }
 }

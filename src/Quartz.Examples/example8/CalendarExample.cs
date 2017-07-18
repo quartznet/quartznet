@@ -24,7 +24,6 @@ using System.Threading.Tasks;
 
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
-using Quartz.Logging;
 
 namespace Quartz.Examples.Example8
 {

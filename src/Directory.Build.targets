@@ -9,7 +9,7 @@
     <NeutralLanguage>en-US</NeutralLanguage>
 
     <Authors>Marko Lahma</Authors>
-    <DefineConstants>$(DefineConstants);LIBLOG_PUBLIC;LIBLOG_PORTABLE</DefineConstants>
+    <DefineConstants>$(DefineConstants);LIBLOG_PORTABLE</DefineConstants>
     <WarningsAsErrors>True</WarningsAsErrors>
 
     <AssemblyOriginatorKeyFile>../../quartz.net.snk</AssemblyOriginatorKeyFile>
@@ -37,7 +37,7 @@
 
   </PropertyGroup>
 
-  <PropertyGroup Condition=" '$(TargetFramework)' == 'net45' or '$(TargetFramework)' == 'net452' ">
+  <PropertyGroup Condition=" '$(TargetFramework)' == 'net46' ">
     <DefineConstants>$(DefineConstants);APPDOMAINS;BINARY_SERIALIZATION;CONFIGURATION;HTTPCONTEXT;MAIL;THREAD_APARTMENTSTATE;THREAD_INTERRUPTION;THREAD_PRIORITY;WINDOWS_PROCESS;XML_SCHEMA;REMOTING</DefineConstants>
   </PropertyGroup>
 

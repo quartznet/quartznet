@@ -57,7 +57,6 @@ namespace Quartz.Web.History
 
                             IDbProvider dbProvider = DBConnectionManager.Instance.GetDbProvider(dataSource);
                             var args = new DelegateInitializationArgs();
-                            args.Logger = log;
                             args.DbProvider = dbProvider;
 
                             ConstructorInfo ctor = delegateType.GetConstructor(new Type[0]);
@@ -110,7 +109,7 @@ namespace Quartz.Web.History
         }
 
         public async Task<IReadOnlyList<JobHistoryEntryDto>> SelectJobHistoryEntries(
-            string schedulerName, 
+            string schedulerName,
             CancellationToken cancellationToken = default(CancellationToken))
         {
             var sql = AdoJobStoreUtil.ReplaceTablePrefix(SqlSelectHistoryEntry, tablePrefix, null);

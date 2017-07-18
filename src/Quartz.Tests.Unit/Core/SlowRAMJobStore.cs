@@ -13,7 +13,7 @@ namespace Quartz.Tests.Unit.Core
     /// </summary>
     public class SlowRAMJobStore : RAMJobStore
     {
-        public override async Task<IReadOnlyList<IOperableTrigger>> AcquireNextTriggers(
+        public override async Task<IReadOnlyCollection<IOperableTrigger>> AcquireNextTriggers(
             DateTimeOffset noLaterThan, 
             int maxCount, 
             TimeSpan timeWindow,

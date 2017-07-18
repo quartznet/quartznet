@@ -30,7 +30,7 @@ namespace Quartz.Web.Api.Dto
         public DateTimeOffset StartTimeUtc { get; set; }
         public DateTimeOffset? EndTimeUtc { get; set; }
 
-        public IList<DateTimeOffset> NextFireTimes { get; set; }
+        public IReadOnlyList<DateTimeOffset> NextFireTimes { get; set; }
 
         public static TriggerDetailDto Create(ITrigger trigger, ICalendar calendar)
         {

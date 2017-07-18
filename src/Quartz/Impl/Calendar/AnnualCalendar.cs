@@ -136,20 +136,10 @@ namespace Quartz.Impl.Calendar
         /// Setting will redefine the array of days excluded. The array must of size greater or
         /// equal 31.
         /// </summary>
-        public virtual ISet<DateTime> DaysExcluded
+        public virtual IReadOnlyCollection<DateTime> DaysExcluded
         {
-            get { return new SortedSet<DateTime>(excludeDays); }
-            set
-            {
-                if (value == null)
-                {
-                    excludeDays = new SortedSet<DateTime>();
-                }
-                else
-                {
-                    excludeDays = new SortedSet<DateTime>(value);
-                }
-            }
+            get => new SortedSet<DateTime>(excludeDays);
+            set { excludeDays = value == null ? new SortedSet<DateTime>() : new SortedSet<DateTime>(value); }
         }
 
         /// <summary>

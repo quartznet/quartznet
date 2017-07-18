@@ -128,7 +128,7 @@ namespace Quartz.Xml
         /// Gets the log.
         /// </summary>
         /// <value>The log.</value>
-        protected ILog Log { get; }
+        private ILog Log { get; }
 
         protected IReadOnlyList<IJobDetail> LoadedJobs => loadedJobs.AsReadOnly();
 

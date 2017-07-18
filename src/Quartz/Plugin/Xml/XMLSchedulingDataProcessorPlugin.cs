@@ -76,7 +76,7 @@ namespace Quartz.Plugin.Xml
         /// Gets the log.
         /// </summary>
         /// <value>The log.</value>
-        protected ILog Log { get; }
+        private ILog Log { get; }
 
         public string Name { get; private set; }
 

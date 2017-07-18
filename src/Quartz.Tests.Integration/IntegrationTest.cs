@@ -17,8 +17,6 @@
  */
 #endregion
 
-using Quartz.Logging;
-
 using NUnit.Framework;
 
 namespace Quartz.Tests.Integration
@@ -31,23 +29,19 @@ namespace Quartz.Tests.Integration
     public abstract class IntegrationTest
     {
         protected IScheduler sched;
-        private readonly ILog log;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="IntegrationTest"/> class.
         /// </summary>
         protected IntegrationTest()
         {
-            log = LogProvider.GetLogger(GetType());
+            Log = LogProvider.GetLogger(GetType());
         }
 
         /// <summary>
         /// Gets the log.
         /// </summary>
         /// <value>The log.</value>
-        protected ILog Log
-        {
-            get { return log; }
-        }
+        internal ILog Log { get; }
     }
 }

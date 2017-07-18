@@ -1,8 +1,6 @@
 using System;
 using System.Collections.Generic;
 
-using Quartz.Logging;
-
 namespace Quartz.Tests.Integration
 {
     internal class FailFastLoggerFactoryAdapter : ILogProvider

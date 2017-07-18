@@ -22,7 +22,6 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-using Quartz.Logging;
 using Quartz.Util;
 
 namespace Quartz.Listener
@@ -47,17 +46,6 @@ namespace Quartz.Listener
     /// <seealso cref="ITriggerListener" />
     public abstract class TriggerListenerSupport : ITriggerListener
     {
-        protected TriggerListenerSupport()
-        {
-            Log = LogProvider.GetLogger(GetType());
-        }
-
-        /// <summary>
-        /// Get the <see cref="ILog" /> for this
-        /// class's category.  This should be used by subclasses for logging.
-        /// </summary>
-        protected ILog Log { get; }
-
         /// <summary>
         /// Get the name of the <see cref="ITriggerListener"/>.
         /// </summary>

@@ -55,7 +55,7 @@ namespace Quartz.Simpl
         /// Gets the log.
         /// </summary>
         /// <value>The log.</value>
-        protected virtual ILog Log { get; }
+        private ILog Log { get; }
 
         /// <summary>
         /// Gets the size of the pool.

@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 
 using NUnit.Framework;
 
@@ -35,7 +34,7 @@ namespace Quartz.Tests.Unit
 
             DateTimeOffset targetCalendar = startCalendar.AddYears(4);
 
-            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 4);
+            var fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 4);
             DateTimeOffset thirdTime = fireTimes[2]; // get the third fire time
 
             Assert.AreEqual(targetCalendar, thirdTime, "Year increment result not as expected.");
@@ -55,7 +54,7 @@ namespace Quartz.Tests.Unit
 
             DateTimeOffset targetCalendar = startCalendar.AddMonths(25); // jump 25 five months (5 intervals)
 
-            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 6);
+            var fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 6);
             DateTimeOffset sixthTime = fireTimes[5]; // get the sixth fire time
 
             Assert.AreEqual(targetCalendar, sixthTime, "Month increment result not as expected.");
@@ -75,7 +74,7 @@ namespace Quartz.Tests.Unit
 
             DateTimeOffset targetCalendar = startCalendar.AddDays(7*6*4); // jump 24 weeks (4 intervals)
 
-            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 7);
+            var fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 7);
             DateTimeOffset fifthTime = fireTimes[4]; // get the fifth fire time
 
             Assert.AreEqual(targetCalendar, fifthTime, "Week increment result not as expected.");
@@ -95,7 +94,7 @@ namespace Quartz.Tests.Unit
 
             DateTimeOffset targetCalendar = startCalendar.AddDays(360); // jump 360 days (4 intervals)
 
-            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
+            var fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
             DateTimeOffset fifthTime = fireTimes[4]; // get the fifth fire time
 
             Assert.AreEqual(targetCalendar, fifthTime, "Day increment result not as expected.");
@@ -115,7 +114,7 @@ namespace Quartz.Tests.Unit
 
             DateTimeOffset targetCalendar = startCalendar.AddHours(400); // jump 400 hours (4 intervals)
 
-            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 6);
+            var fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 6);
             DateTimeOffset fifthTime = fireTimes[4]; // get the fifth fire time
 
             Assert.AreEqual(targetCalendar, fifthTime, "Hour increment result not as expected.");
@@ -135,7 +134,7 @@ namespace Quartz.Tests.Unit
 
             DateTimeOffset targetCalendar = startCalendar.AddMinutes(400); // jump 400 minutes (4 intervals)
 
-            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 6);
+            var fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 6);
             DateTimeOffset fifthTime = fireTimes[4]; // get the fifth fire time
 
             Assert.AreEqual(targetCalendar, fifthTime, "Minutes increment result not as expected.");
@@ -155,7 +154,7 @@ namespace Quartz.Tests.Unit
 
             DateTimeOffset targetCalendar = startCalendar.AddSeconds(400); // jump 400 seconds (4 intervals)
 
-            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 6);
+            var fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 6);
             DateTimeOffset fifthTime = fireTimes[4]; // get the third fire time
 
             Assert.AreEqual(targetCalendar, fifthTime, "Seconds increment result not as expected.");
@@ -177,7 +176,7 @@ namespace Quartz.Tests.Unit
 
             DateTimeOffset targetCalendar = startCalendar.AddDays(10); // jump 10 days (2 intervals)
 
-            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
+            var fireTimes = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 6);
             DateTimeOffset testTime = fireTimes[2]; // get the third fire time
 
             Assert.AreEqual(targetCalendar, testTime, "Day increment result not as expected over spring 2010 daylight savings transition.");

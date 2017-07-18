@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 
 using Quartz.Impl;
-using Quartz.Logging;
 using Quartz.Util;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore

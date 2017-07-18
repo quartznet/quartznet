@@ -146,7 +146,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public Task<IReadOnlyList<IJobExecutionContext>> GetCurrentlyExecutingJobs(
+        public Task<IReadOnlyCollection<IJobExecutionContext>> GetCurrentlyExecutingJobs(
             CancellationToken cancellationToken = default(CancellationToken))
         {
             return Task.FromResult(sched.CurrentlyExecutingJobs);
@@ -164,7 +164,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public Task<ISet<string>> GetPausedTriggerGroups(
+        public Task<IReadOnlyCollection<string>> GetPausedTriggerGroups(
             CancellationToken cancellationToken = default(CancellationToken))
         {
             return sched.GetPausedTriggerGroups(cancellationToken);
@@ -178,7 +178,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<IReadOnlyList<string>> GetJobGroupNames(
+        public virtual Task<IReadOnlyCollection<string>> GetJobGroupNames(
             CancellationToken cancellationToken = default(CancellationToken))
         {
             return sched.GetJobGroupNames(cancellationToken);
@@ -187,7 +187,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<IReadOnlyList<string>> GetTriggerGroupNames(
+        public virtual Task<IReadOnlyCollection<string>> GetTriggerGroupNames(
             CancellationToken cancellationToken = default(CancellationToken))
         {
             return sched.GetTriggerGroupNames(cancellationToken);
@@ -287,14 +287,14 @@ namespace Quartz.Impl
         }
 
         public Task<bool> DeleteJobs(
-            IList<JobKey> jobKeys,
+            IReadOnlyCollection<JobKey> jobKeys,
             CancellationToken cancellationToken = default(CancellationToken))
         {
             return sched.DeleteJobs(jobKeys, cancellationToken);
         }
 
         public Task ScheduleJobs(
-            IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, 
+            IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, 
             bool replace,
             CancellationToken cancellationToken = default(CancellationToken))
         {
@@ -303,7 +303,7 @@ namespace Quartz.Impl
 
         public Task ScheduleJob(
             IJobDetail jobDetail, 
-            ISet<ITrigger> triggersForJob, 
+            IReadOnlyCollection<ITrigger> triggersForJob, 
             bool replace,
             CancellationToken cancellationToken = default(CancellationToken))
         {
@@ -311,7 +311,7 @@ namespace Quartz.Impl
         }
 
         public Task<bool> UnscheduleJobs(
-            IList<TriggerKey> triggerKeys,
+            IReadOnlyCollection<TriggerKey> triggerKeys,
             CancellationToken cancellationToken = default(CancellationToken))
         {
             return sched.UnscheduleJobs(triggerKeys, cancellationToken);
@@ -488,7 +488,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<IReadOnlyList<ITrigger>> GetTriggersOfJob(
+        public virtual Task<IReadOnlyCollection<ITrigger>> GetTriggersOfJob(
             JobKey jobKey,
             CancellationToken cancellationToken = default(CancellationToken))
         {
@@ -498,7 +498,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<ISet<JobKey>> GetJobKeys(
+        public virtual Task<IReadOnlyCollection<JobKey>> GetJobKeys(
             GroupMatcher<JobKey> matcher,
             CancellationToken cancellationToken = default(CancellationToken))
         {
@@ -508,7 +508,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<ISet<TriggerKey>> GetTriggerKeys(
+        public virtual Task<IReadOnlyCollection<TriggerKey>> GetTriggerKeys(
             GroupMatcher<TriggerKey> matcher,
             CancellationToken cancellationToken = default(CancellationToken))
         {
@@ -582,7 +582,7 @@ namespace Quartz.Impl
         /// Get the names of all registered <see cref="ICalendar"/>.
         /// </summary>
         /// <returns></returns>
-        public Task<IReadOnlyList<string>> GetCalendarNames(
+        public Task<IReadOnlyCollection<string>> GetCalendarNames(
             CancellationToken cancellationToken = default(CancellationToken))
         {
             return sched.GetCalendarNames(cancellationToken);

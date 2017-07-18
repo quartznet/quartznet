@@ -68,7 +68,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         public virtual void Initialize(DelegateInitializationArgs args)
         {
-            logger = args.Logger;
+            logger = LogProvider.GetLogger(GetType());
             tablePrefix = args.TablePrefix;
             schedName = args.InstanceName;
             instanceId = args.InstanceId;
@@ -148,10 +148,7 @@ namespace Quartz.Impl.AdoJobStore
             AddTriggerPersistenceDelegate(new DailyTimeIntervalTriggerPersistenceDelegate());
         }
 
-        protected virtual bool CanUseProperties
-        {
-            get { return useProperties; }
-        }
+        protected virtual bool CanUseProperties => useProperties;
 
         public virtual void AddTriggerPersistenceDelegate(ITriggerPersistenceDelegate del)
         {
@@ -206,7 +203,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="ts">The ts.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>an array of <see cref="TriggerKey" /> objects</returns>
-        public virtual async Task<IReadOnlyList<TriggerKey>> SelectMisfiredTriggers(
+        public virtual async Task<IReadOnlyCollection<TriggerKey>> SelectMisfiredTriggers(
             ConnectionAndTransactionHolder conn,
             DateTimeOffset ts,
             CancellationToken cancellationToken = default(CancellationToken))
@@ -235,7 +232,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="state">The state the triggers must be in</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns> an array of trigger <see cref="TriggerKey" />s </returns>
-        public virtual async Task<IReadOnlyList<TriggerKey>> SelectTriggersInState(
+        public virtual async Task<IReadOnlyCollection<TriggerKey>> SelectTriggersInState(
             ConnectionAndTransactionHolder conn,
             string state,
             CancellationToken cancellationToken = default(CancellationToken))
@@ -265,7 +262,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="ts">The time stamp.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>An array of <see cref="TriggerKey" /> objects</returns>
-        public virtual async Task<IReadOnlyList<TriggerKey>> HasMisfiredTriggersInState(
+        public virtual async Task<IReadOnlyCollection<TriggerKey>> HasMisfiredTriggersInState(
             ConnectionAndTransactionHolder conn, 
             string state, 
             DateTimeOffset ts,
@@ -309,7 +306,7 @@ namespace Quartz.Impl.AdoJobStore
             string state1, 
             DateTimeOffset ts,
             int count,
-            IList<TriggerKey> resultList,
+            ICollection<TriggerKey> resultList,
             CancellationToken cancellationToken = default(CancellationToken))
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(GetSelectNextMisfiredTriggersInStateToAcquireSql(count))))
@@ -386,7 +383,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="ts">The timestamp.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>an array of <see cref="TriggerKey" /> objects</returns>
-        public virtual async Task<IReadOnlyList<TriggerKey>> SelectMisfiredTriggersInGroupInState(
+        public virtual async Task<IReadOnlyCollection<TriggerKey>> SelectMisfiredTriggersInGroupInState(
             ConnectionAndTransactionHolder conn, 
             string groupName, 
             string state,
@@ -428,7 +425,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns> an array of <see cref="ITrigger" /> objects</returns>
-        public virtual async Task<IReadOnlyList<IOperableTrigger>> SelectTriggersForRecoveringJobs(
+        public virtual async Task<IReadOnlyCollection<IOperableTrigger>> SelectTriggersForRecoveringJobs(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default(CancellationToken))
         {
@@ -736,7 +733,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="jobKey">The key identifying the job.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>An array of <see cref="TriggerKey" /> objects</returns>
-        public virtual async Task<IReadOnlyList<TriggerKey>> SelectTriggerNamesForJob(
+        public virtual async Task<IReadOnlyCollection<TriggerKey>> SelectTriggerNamesForJob(
             ConnectionAndTransactionHolder conn, 
             JobKey jobKey,
             CancellationToken cancellationToken = default(CancellationToken))
@@ -992,7 +989,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>An array of <see cref="String" /> group names.</returns>
-        public virtual async Task<IReadOnlyList<string>> SelectJobGroups(
+        public virtual async Task<IReadOnlyCollection<string>> SelectJobGroups(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default(CancellationToken))
         {
@@ -1018,7 +1015,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="matcher"></param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>An array of <see cref="String" /> job names.</returns>
-        public virtual async Task<ISet<JobKey>> SelectJobsInGroup(
+        public virtual async Task<IReadOnlyCollection<JobKey>> SelectJobsInGroup(
             ConnectionAndTransactionHolder conn,
             GroupMatcher<JobKey> matcher,
             CancellationToken cancellationToken = default(CancellationToken))
@@ -1678,7 +1675,7 @@ namespace Quartz.Impl.AdoJobStore
         /// an array of <see cref="ITrigger" /> objects
         /// associated with a given job.
         /// </returns>
-        public virtual async Task<IReadOnlyList<IOperableTrigger>> SelectTriggersForJob(
+        public virtual async Task<IReadOnlyCollection<IOperableTrigger>> SelectTriggersForJob(
             ConnectionAndTransactionHolder conn, 
             JobKey jobKey,
             CancellationToken cancellationToken = default(CancellationToken))
@@ -1722,7 +1719,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>
         /// An array of <see cref="ITrigger" /> objects associated with a given job.
         /// </returns>
-        public virtual async Task<IReadOnlyList<IOperableTrigger>> SelectTriggersForCalendar(
+        public virtual async Task<IReadOnlyCollection<IOperableTrigger>> SelectTriggersForCalendar(
             ConnectionAndTransactionHolder conn,
             string calName,
             CancellationToken cancellationToken = default(CancellationToken))
@@ -2035,7 +2032,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>
         /// an array of <see cref="String" /> group names
         /// </returns>
-        public virtual async Task<IReadOnlyList<string>> SelectTriggerGroups(
+        public virtual async Task<IReadOnlyCollection<string>> SelectTriggerGroups(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default(CancellationToken))
         {
@@ -2054,7 +2051,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public virtual async Task<IReadOnlyList<string>> SelectTriggerGroups(
+        public virtual async Task<IReadOnlyCollection<string>> SelectTriggerGroups(
             ConnectionAndTransactionHolder conn, 
             GroupMatcher<TriggerKey> matcher,
             CancellationToken cancellationToken = default(CancellationToken))
@@ -2084,7 +2081,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>
         /// an array of <see cref="String" /> trigger names
         /// </returns>
-        public virtual async Task<ISet<TriggerKey>> SelectTriggersInGroup(
+        public virtual async Task<IReadOnlyCollection<TriggerKey>> SelectTriggersInGroup(
             ConnectionAndTransactionHolder conn, 
             GroupMatcher<TriggerKey> matcher,
             CancellationToken cancellationToken = default(CancellationToken))
@@ -2440,7 +2437,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>
         /// an array of <see cref="String" /> calendar names
         /// </returns>
-        public virtual async Task<IReadOnlyList<string>> SelectCalendars(
+        public virtual async Task<IReadOnlyCollection<string>> SelectCalendars(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default(CancellationToken))
         {
@@ -2505,7 +2502,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="maxCount">maximum number of trigger keys allow to acquired in the returning list.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>A (never null, possibly empty) list of the identifiers (Key objects) of the next triggers to be fired.</returns>
-        public virtual async Task<IReadOnlyList<TriggerKey>> SelectTriggerToAcquire(
+        public virtual async Task<IReadOnlyCollection<TriggerKey>> SelectTriggerToAcquire(
             ConnectionAndTransactionHolder conn, 
             DateTimeOffset noLaterThan, 
             DateTimeOffset noEarlierThan,
@@ -2643,7 +2640,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="groupName">Name of the group.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>a List of <see cref="FiredTriggerRecord" /> objects.</returns>
-        public virtual async Task<IReadOnlyList<FiredTriggerRecord>> SelectFiredTriggerRecords(
+        public virtual async Task<IReadOnlyCollection<FiredTriggerRecord>> SelectFiredTriggerRecords(
             ConnectionAndTransactionHolder conn, 
             string triggerName,
             string groupName,
@@ -2699,7 +2696,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="groupName">Name of the group.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>a List of <see cref="FiredTriggerRecord" /> objects.</returns>
-        public virtual async Task<IReadOnlyList<FiredTriggerRecord>> SelectFiredTriggerRecordsByJob(
+        public virtual async Task<IReadOnlyCollection<FiredTriggerRecord>> SelectFiredTriggerRecordsByJob(
             ConnectionAndTransactionHolder conn, 
             string jobName,
             string groupName,
@@ -2753,7 +2750,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="instanceName">Name of the instance.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>A list of FiredTriggerRecord objects.</returns>
-        public virtual async Task<IReadOnlyList<FiredTriggerRecord>> SelectInstancesFiredTriggerRecords(
+        public virtual async Task<IReadOnlyCollection<FiredTriggerRecord>> SelectInstancesFiredTriggerRecords(
             ConnectionAndTransactionHolder conn, 
             string instanceName,
             CancellationToken cancellationToken = default(CancellationToken))
@@ -2799,7 +2796,7 @@ namespace Quartz.Impl.AdoJobStore
         /// This is useful when trying to identify orphaned fired triggers (a
         /// fired trigger without a scheduler state record.)
         /// </remarks>
-        public virtual async Task<ISet<string>> SelectFiredTriggerInstanceNames(
+        public virtual async Task<IReadOnlyCollection<string>> SelectFiredTriggerInstanceNames(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default(CancellationToken))
         {
@@ -2946,7 +2943,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="instanceName">The instance id.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns></returns>
-        public virtual async Task<IReadOnlyList<SchedulerStateRecord>> SelectSchedulerStateRecords(
+        public virtual async Task<IReadOnlyCollection<SchedulerStateRecord>> SelectSchedulerStateRecords(
             ConnectionAndTransactionHolder conn, 
             string instanceName,
             CancellationToken cancellationToken = default(CancellationToken))
@@ -3187,7 +3184,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Selects the paused trigger groups.
         /// </summary>
-        public virtual async Task<ISet<string>> SelectPausedTriggerGroups(
+        public virtual async Task<IReadOnlyCollection<string>> SelectPausedTriggerGroups(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default(CancellationToken))
         {

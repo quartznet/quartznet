@@ -7,10 +7,13 @@
 * FIXES
 
     * fix PosgreSQL db provider configuration for .NET Core
+	* CancellationToken is now supported in async methods
 
 * BREAKING CHANGES
 
-    * 
+    * .NET 4.6 required instead of old 4.5
+    * API methods have been revisited to mainly use IReadOnlyCollection<T>, this hides both HashSet<T>s and List<T>s
+	* LibLog has been hidden as internal (ILog etc), like it was originally intended to be
 
 ## Release 3.0 alpha 2, Aug 24 2016
 

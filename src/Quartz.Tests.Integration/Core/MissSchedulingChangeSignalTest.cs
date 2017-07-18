@@ -7,7 +7,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 
 using Quartz.Impl;
-using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
 
@@ -99,7 +98,7 @@ namespace Quartz.Tests.Integration.Core
     /// </summary>
     public class SlowRAMJobStore : RAMJobStore
     {
-        public override async Task<IReadOnlyList<IOperableTrigger>> AcquireNextTriggers(
+        public override async Task<IReadOnlyCollection<IOperableTrigger>> AcquireNextTriggers(
             DateTimeOffset noLaterThan, 
             int maxCount, 
             TimeSpan timeWindow,

@@ -149,7 +149,7 @@ namespace Quartz.Spi
             CancellationToken cancellationToken = default(CancellationToken));
 
         Task StoreJobsAndTriggers(
-            IDictionary<IJobDetail, ISet<ITrigger>> triggersAndJobs, 
+            IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, 
             bool replace,
             CancellationToken cancellationToken = default(CancellationToken));
 
@@ -172,7 +172,7 @@ namespace Quartz.Spi
             CancellationToken cancellationToken = default(CancellationToken));
 
         Task<bool> RemoveJobs(
-            IList<JobKey> jobKeys,
+            IReadOnlyCollection<JobKey> jobKeys,
             CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
@@ -224,7 +224,7 @@ namespace Quartz.Spi
             CancellationToken cancellationToken = default(CancellationToken));
 
         Task<bool> RemoveTriggers(
-            IList<TriggerKey> triggerKeys,
+            IReadOnlyCollection<TriggerKey> triggerKeys,
             CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
@@ -383,7 +383,7 @@ namespace Quartz.Spi
         /// <param name="matcher"></param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns></returns>
-        Task<ISet<JobKey>> GetJobKeys(
+        Task<IReadOnlyCollection<JobKey>> GetJobKeys(
             GroupMatcher<JobKey> matcher,
             CancellationToken cancellationToken = default(CancellationToken));
 
@@ -395,7 +395,7 @@ namespace Quartz.Spi
         /// zero-length array (not <see langword="null" />).
         /// </para>
         /// </summary>
-        Task<ISet<TriggerKey>> GetTriggerKeys(
+        Task<IReadOnlyCollection<TriggerKey>> GetTriggerKeys(
             GroupMatcher<TriggerKey> matcher,
             CancellationToken cancellationToken = default(CancellationToken));
 
@@ -407,7 +407,7 @@ namespace Quartz.Spi
         /// array (not <see langword="null" />).
         /// </para>
         /// </summary>
-        Task<IReadOnlyList<string>> GetJobGroupNames(CancellationToken cancellationToken = default(CancellationToken));
+        Task<IReadOnlyCollection<string>> GetJobGroupNames(CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
         /// Get the names of all of the <see cref="ITrigger" />
@@ -417,7 +417,7 @@ namespace Quartz.Spi
         /// array (not <see langword="null" />).
         /// </para>
         /// </summary>
-        Task<IReadOnlyList<string>> GetTriggerGroupNames(CancellationToken cancellationToken = default(CancellationToken));
+        Task<IReadOnlyCollection<string>> GetTriggerGroupNames(CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
         /// Get the names of all of the <see cref="ICalendar" /> s
@@ -428,7 +428,7 @@ namespace Quartz.Spi
         /// a zero-length array (not <see langword="null" />).
         /// </para>
         /// </summary>
-        Task<IReadOnlyList<string>> GetCalendarNames(CancellationToken cancellationToken = default(CancellationToken));
+        Task<IReadOnlyCollection<string>> GetCalendarNames(CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
         /// Get all of the Triggers that are associated to the given Job.
@@ -436,7 +436,7 @@ namespace Quartz.Spi
         /// <remarks>
         /// If there are no matches, a zero-length array should be returned.
         /// </remarks>
-        Task<IReadOnlyList<IOperableTrigger>> GetTriggersForJob(
+        Task<IReadOnlyCollection<IOperableTrigger>> GetTriggersForJob(
             JobKey jobKey, 
             CancellationToken cancellationToken = default(CancellationToken));
 
@@ -468,7 +468,7 @@ namespace Quartz.Spi
         /// pause on any new triggers that are added to the group while the group is
         /// paused.
         /// </remarks>
-        Task<ISet<string>> PauseTriggers(
+        Task<IReadOnlyCollection<string>> PauseTriggers(
             GroupMatcher<TriggerKey> matcher,
             CancellationToken cancellationToken = default(CancellationToken));
 
@@ -489,7 +489,7 @@ namespace Quartz.Spi
         /// </summary>
         /// <seealso cref="string">
         /// </seealso>
-        Task<IReadOnlyList<string>> PauseJobs(
+        Task<IReadOnlyCollection<string>> PauseJobs(
             GroupMatcher<JobKey> matcher,
             CancellationToken cancellationToken = default(CancellationToken));
 
@@ -516,7 +516,7 @@ namespace Quartz.Spi
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </para>
         /// </summary>
-        Task<IReadOnlyList<string>> ResumeTriggers(
+        Task<IReadOnlyCollection<string>> ResumeTriggers(
             GroupMatcher<TriggerKey> matcher,
             CancellationToken cancellationToken = default(CancellationToken));
 
@@ -524,7 +524,8 @@ namespace Quartz.Spi
         /// Gets the paused trigger groups.
         /// </summary>
         /// <returns></returns>
-        Task<ISet<string>> GetPausedTriggerGroups(CancellationToken cancellationToken = default(CancellationToken));
+        Task<IReadOnlyCollection<string>> GetPausedTriggerGroups(
+            CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary> 
         /// Resume (un-pause) the <see cref="IJob" /> with the
@@ -546,7 +547,7 @@ namespace Quartz.Spi
         /// misfire instruction will be applied.
         /// </para> 
         /// </summary>
-        Task<ISet<string>> ResumeJobs(
+        Task<IReadOnlyCollection<string>> ResumeJobs(
             GroupMatcher<JobKey> matcher,
             CancellationToken cancellationToken = default(CancellationToken));
 
@@ -586,7 +587,7 @@ namespace Quartz.Spi
         /// <returns></returns>
         /// <seealso cref="ITrigger">
         /// </seealso>
-        Task<IReadOnlyList<IOperableTrigger>> AcquireNextTriggers(
+        Task<IReadOnlyCollection<IOperableTrigger>> AcquireNextTriggers(
             DateTimeOffset noLaterThan, 
             int maxCount, 
             TimeSpan timeWindow,
@@ -612,8 +613,8 @@ namespace Quartz.Spi
         /// state.  Preference is to return an empty list if none of the triggers
         /// could be fired.
         /// </returns>
-        Task<IReadOnlyList<TriggerFiredResult>> TriggersFired(
-            IList<IOperableTrigger> triggers,
+        Task<IReadOnlyCollection<TriggerFiredResult>> TriggersFired(
+            IReadOnlyCollection<IOperableTrigger> triggers,
             CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>

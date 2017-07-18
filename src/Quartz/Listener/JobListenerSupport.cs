@@ -20,7 +20,6 @@
 using System.Threading;
 using System.Threading.Tasks;
 
-using Quartz.Logging;
 using Quartz.Spi;
 using Quartz.Util;
 
@@ -44,20 +43,6 @@ namespace Quartz.Listener
     /// <seealso cref="IJobListener" />
     public abstract class JobListenerSupport : IJobListener
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="JobListenerSupport"/> class.
-        /// </summary>
-        protected JobListenerSupport()
-        {
-            Log = LogProvider.GetLogger(GetType());
-        }
-
-        /// <summary>
-        /// Get the <see cref="ILog" /> for this  class's category.  
-        /// This should be used by subclasses for logging.
-        /// </summary>
-        protected ILog Log { get; }
-
         /// <summary>
         /// Get the name of the <see cref="IJobListener"/>.
         /// </summary>

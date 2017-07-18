@@ -50,10 +50,10 @@ namespace Quartz.Impl.Calendar
 		/// days. Only the month, day and year of the returned dates are
 		/// significant.
 		/// </summary>
-        public virtual ISet<DateTime> ExcludedDates
+        public virtual IReadOnlyCollection<DateTime> ExcludedDates
 		{
             get => new SortedSet<DateTime>(dates);
-			internal set { dates = new SortedSet<DateTime>(value); }
+			internal set => dates = new SortedSet<DateTime>(value);
 		}
 
 		// A sorted set to store the holidays
