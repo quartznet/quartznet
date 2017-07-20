@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Diagnostics;
+#if BINARY_SERIALIZATION
 using System.IO;
+#endif
 using System.Linq;
 using System.Threading.Tasks;
 

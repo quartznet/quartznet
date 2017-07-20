@@ -30,7 +30,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz";
             properties["quartz.jobStore.dataSource"] = "default";
             properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
-            properties["quartz.dataSource.default.connectionString"] = TestConstants.DefaultSqlServerConnectionString;
+            properties["quartz.dataSource.default.connectionString"] = TestConstants.SqlServerConnectionString;
             properties["quartz.dataSource.default.provider"] = TestConstants.DefaultSqlServerProvider;
             properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
 

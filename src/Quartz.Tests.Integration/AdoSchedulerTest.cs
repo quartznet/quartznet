@@ -29,7 +29,7 @@ namespace Quartz.Tests.Integration
 
         protected override Task<IScheduler> CreateScheduler(string name, int threadPoolSize)
         {
-            DBConnectionManager.Instance.AddConnectionProvider("default", new DbProvider(TestConstants.DefaultSqlServerProvider, TestConstants.DefaultSqlServerConnectionString));
+            DBConnectionManager.Instance.AddConnectionProvider("default", new DbProvider(TestConstants.DefaultSqlServerProvider, TestConstants.SqlServerConnectionString));
 
             var jobStore = new JobStoreTX
             {

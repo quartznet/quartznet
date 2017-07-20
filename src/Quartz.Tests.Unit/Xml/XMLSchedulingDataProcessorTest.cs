@@ -29,16 +29,13 @@ using System.Threading.Tasks;
 #if TRANSACTIONS
 using System.Transactions;
 #endif
-#if FAKE_IT_EASY
+
 using FakeItEasy;
-#endif
 using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
-#if FAKE_IT_EASY
 using Quartz.Impl.Triggers;
-#endif
 using Quartz.Job;
 using Quartz.Simpl;
 using Quartz.Spi;
@@ -55,9 +52,7 @@ namespace Quartz.Tests.Unit.Xml
     public class XMLSchedulingDataProcessorTest
     {
         private XMLSchedulingDataProcessor processor;
-#if FAKE_IT_EASY
         private IScheduler mockScheduler;
-#endif
 #if TRANSACTIONS
         private TransactionScope scope;
 #endif
@@ -66,11 +61,9 @@ namespace Quartz.Tests.Unit.Xml
         public void SetUp()
         {
             processor = new XMLSchedulingDataProcessor(new SimpleTypeLoadHelper());
-#if FAKE_IT_EASY
             mockScheduler = A.Fake<IScheduler>();
             A.CallTo(() => mockScheduler.GetJobDetail(A<JobKey>._, A<CancellationToken>._)).Returns(Task.FromResult<IJobDetail>(null));
             A.CallTo(() => mockScheduler.GetTrigger(A<TriggerKey>._, A<CancellationToken>._)).Returns(Task.FromResult<ITrigger>(null));
-#endif
 #if TRANSACTIONS
             scope = new TransactionScope();
 #endif
@@ -84,7 +77,6 @@ namespace Quartz.Tests.Unit.Xml
 #endif
             }
 
-#if FAKE_IT_EASY
         [Test]
         [Category("database")]
         public async Task TestScheduling_MinimalConfiguration()
@@ -149,7 +141,6 @@ namespace Quartz.Tests.Unit.Xml
                 return true;
             }).MustHaveHappened();
         }
-#endif
 
         /// <summary>
         /// The default XMLSchedulingDataProcessor will setOverWriteExistingData(true), and we want to
@@ -288,7 +279,6 @@ namespace Quartz.Tests.Unit.Xml
             }
         }
 
-#if FAKE_IT_EASY
         [Test]
         public async Task MultipleScheduleElementsShouldBeSupported()
         {
@@ -300,7 +290,6 @@ namespace Quartz.Tests.Unit.Xml
             A.CallTo(() => mockScheduler.ScheduleJob(A<IJobDetail>.That.Matches(p => p.Key.Name == "sched2_job"), A<ITrigger>.Ignored, A<CancellationToken>._));
             A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Matches(p => p.Key.Name == "sched2_trig"), A<CancellationToken>._)).MustHaveHappened();
         }
-#endif
 
         [Test]
         [Category("database")]
@@ -388,7 +377,7 @@ namespace Quartz.Tests.Unit.Xml
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz";
             properties["quartz.jobStore.dataSource"] = "default";
             properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
-            properties["quartz.dataSource.default.connectionString"] = "Server=(local);Database=quartz;User Id=quartznet;Password=quartznet;";
+            properties["quartz.dataSource.default.connectionString"] = TestConstants.SqlServerConnectionString;
             properties["quartz.dataSource.default.provider"] = TestConstants.DefaultSqlServerProvider;
             properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
 

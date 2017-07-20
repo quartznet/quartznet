@@ -1,4 +1,3 @@
-#if FAKE_IT_EASY
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -49,7 +48,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             }
 
             protected override Task<T> ExecuteInLock<T>(
-                string lockName, 
+                string lockName,
                 Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
                 CancellationToken cancellationToken = default(CancellationToken))
             {
@@ -71,5 +70,3 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         }
     }
 }
-
-#endif

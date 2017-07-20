@@ -86,17 +86,14 @@ namespace Quartz.Examples.Example13
                 ["quartz.jobStore.tablePrefix"] = "QRTZ_",
                 ["quartz.jobStore.clustered"] = "true",
                 ["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz",
-                ["quartz.dataSource.default.connectionString"] = "Server=(local);Database=quartz;User Id=quartznet;Password=quartznet;",
-                ["quartz.dataSource.default.provider"] = "SqlServer-20",
+                ["quartz.dataSource.default.connectionString"] = TestConstants.SqlServerConnectionString,
+                ["quartz.dataSource.default.provider"] = TestConstants.DefaultSqlServerProvider,
                 ["quartz.serializer.type"] = "json"
             };
 
             // if running SQLite we need this
             // properties["quartz.jobStore.lockHandler.type"] = "Quartz.Impl.AdoJobStore.UpdateLockRowSemaphore, Quartz";
-#if NETSTANDARD_DBPROVIDERS
-            properties["quartz.dataSource.default.provider"] = "SqlServer-41";
-#else
-#endif
+
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
             IScheduler sched = await sf.GetScheduler();

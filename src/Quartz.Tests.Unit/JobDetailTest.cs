@@ -23,7 +23,9 @@ using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Job;
+#if REMOTING
 using Quartz.Tests.Unit.Utils;
+#endif
 
 namespace Quartz.Tests.Unit
 {

@@ -5,12 +5,13 @@
   <ItemGroup>
     <EmbeddedResource Include="**\TestData\*" />
     <Compile Include="..\AssemblyInfo.cs" />
+    <Compile Include="..\Quartz.Tests.Unit\TestConstants.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.0.0" />
     <PackageReference Include="NUnit" Version="3.7.1" />
-    <PackageReference Include="NUnit3TestAdapter" Version="3.8.0-alpha1" />
-    <PackageReference Include="Npgsql" Version="3.1.7" />
+    <PackageReference Include="NUnit3TestAdapter" Version="3.8.0" />
+    <PackageReference Include="Npgsql" Version="3.2.4.1" />
     <PackageReference Include="MySql.Data" Version="6.10.1-beta" />
   </ItemGroup>
   <PropertyGroup Condition=" '$(TargetFramework)' == 'netcoreapp1.1' or '$(TargetFramework)' == 'netcoreapp2.0' ">

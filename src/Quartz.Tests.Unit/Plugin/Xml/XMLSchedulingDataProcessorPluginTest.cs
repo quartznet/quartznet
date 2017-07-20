@@ -1,9 +1,8 @@
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-#if FAKE_IT_EASY
+
 using FakeItEasy;
-#endif
 
 using NUnit.Framework;
 
@@ -15,14 +14,17 @@ namespace Quartz.Tests.Unit.Plugin.Xml
     [TestFixture]
     public class XMLSchedulingDataProcessorPluginTest
     {
-#if FAKE_IT_EASY
         [Test]
         public async Task WhenFullPathFilesAreSeparatedByCommaSpaceThenPurgeSpaces()
         {
             string fp1 = Path.GetTempFileName();
-            File.Create(fp1).Close();
+            using (File.Create(fp1))
+            {
+            }
             string fp2 = Path.GetTempFileName();
-            File.Create(fp2).Close();
+            using (File.Create(fp2))
+            {
+            }
 
             var dataProcessor = new XMLSchedulingDataProcessorPlugin();
             dataProcessor.FileNames = fp1 + ", " + fp2;
@@ -31,7 +33,7 @@ namespace Quartz.Tests.Unit.Plugin.Xml
             await dataProcessor.Initialize("something", mockScheduler);
 
             Assert.That(dataProcessor.JobFiles.Count(), Is.EqualTo(2));
-            Assert.That(dataProcessor.JobFiles.Select(x => x.Key), Is.EqualTo(new[] { fp1, fp2 }));
+            Assert.That(dataProcessor.JobFiles.Select(x => x.Key), Is.EqualTo(new[] {fp1, fp2}));
         }
 
         [Test]
@@ -59,8 +61,7 @@ namespace Quartz.Tests.Unit.Plugin.Xml
             await dataProcessor.Initialize("something", mockScheduler);
 
             Assert.That(dataProcessor.JobFiles.Count(), Is.EqualTo(2));
-            Assert.That(dataProcessor.JobFiles.Select(x => x.Key).ToArray(), Is.EqualTo(new[] { expectedPathFile1, expectedPathFile2 }));
+            Assert.That(dataProcessor.JobFiles.Select(x => x.Key).ToArray(), Is.EqualTo(new[] {expectedPathFile1, expectedPathFile2}));
         }
-#endif
     }
 }

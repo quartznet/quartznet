@@ -26,9 +26,8 @@ using System.Data.SqlClient;
 using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
-#if FAKE_IT_EASY
+
 using FakeItEasy;
-#endif
 using NUnit.Framework;
 
 using Quartz.Impl.AdoJobStore;
@@ -111,7 +110,6 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         {
         }
 
-#if FAKE_IT_EASY
         [Test]
         public async Task TestSelectBlobTriggerWithNoBlobContent()
         {
@@ -304,8 +302,6 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             };
             adoDelegate.Initialize(delegateInitializationArgs);
         }
-
-#endif
 
         private class TestStdAdoDelegate : StdAdoDelegate
         {

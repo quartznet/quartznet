@@ -1,5 +1,4 @@
-﻿#if FAKE_IT_EASY
-using System.Data.Common;
+﻿using System.Data.Common;
 
 using FakeItEasy;
 
@@ -56,5 +55,3 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         }
     }
 }
-
-#endif

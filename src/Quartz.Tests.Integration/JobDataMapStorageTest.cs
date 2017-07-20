@@ -44,7 +44,7 @@ namespace Quartz.Tests.Integration
 
         private Task<IScheduler> CreateScheduler(string name)
         {
-            DBConnectionManager.Instance.AddConnectionProvider("default", new DbProvider("SqlServer-20", "Server=(local);Database=quartz;Trusted_Connection=True;"));
+            DBConnectionManager.Instance.AddConnectionProvider("default", new DbProvider(TestConstants.DefaultSqlServerProvider, TestConstants.SqlServerConnectionString));
 
             var serializer = new JsonObjectSerializer();
             serializer.Initialize();

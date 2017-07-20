@@ -5,9 +5,8 @@ using System.Data.Common;
 using System.Data.SqlClient;
 using System.Linq;
 using System.Threading.Tasks;
-#if FAKE_IT_EASY
+
 using FakeItEasy;
-#endif
 using NUnit.Framework;
 
 using Quartz.Impl.AdoJobStore;
@@ -74,7 +73,6 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
     [TestFixture]
     public class UpdateTriggerTest
     {
-#if FAKE_IT_EASY
         [Test]
         public async Task CronTrigger_AfterTriggerUpdate_Retains_Cron_Type()
         {
@@ -145,6 +143,5 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             var resultDataParameters = dataParameterCollectionOutputs.Select(x => x as IDataParameter).Where(x => x.ParameterName == "triggerType").FirstOrDefault();
             Assert.AreEqual("CRON", resultDataParameters.Value);
         }
-#endif
     }
 }

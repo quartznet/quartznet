@@ -25,9 +25,8 @@ using System.Globalization;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-#if FAKE_IT_EASY
+
 using FakeItEasy;
-#endif
 using NUnit.Framework;
 
 using Quartz.Core;
@@ -109,7 +108,6 @@ namespace Quartz.Tests.Unit.Core
             Assert.IsTrue(sched.IsStarted);
         }
 
-#if FAKE_IT_EASY
         [Test]
         public async Task TestRescheduleJob_SchedulerListenersCalledOnReschedule()
         {
@@ -140,6 +138,5 @@ namespace Quartz.Tests.Unit.Core
             A.CallTo(() => listener.JobUnscheduled(new TriggerKey(TriggerName, TriggerGroup), A<CancellationToken>._)).MustHaveHappened();
             A.CallTo(() => listener.JobScheduled(jobTrigger, A<CancellationToken>._)).MustHaveHappened();
         }
-#endif
     }
 }
