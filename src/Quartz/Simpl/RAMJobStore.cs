@@ -1765,8 +1765,10 @@ namespace Quartz.Simpl
                         jobDetail,
                         trigger,
                         cal,
-                        false, SystemTime.UtcNow(),
-                        trigger.GetPreviousFireTimeUtc(), prevFireTime,
+                        false,
+                        SystemTime.UtcNow(),
+                        trigger.GetPreviousFireTimeUtc(),
+                        prevFireTime,
                         trigger.GetNextFireTimeUtc());
 
                     IJobDetail job = bndle.JobDetail;

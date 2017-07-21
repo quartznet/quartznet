@@ -1,4 +1,5 @@
 #region License
+
 /*
  * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
  *
@@ -15,6 +16,7 @@
  * under the License.
  *
  */
+
 #endregion
 
 using System;
@@ -35,6 +37,37 @@ namespace Quartz.Spi
 #endif // BINARY_SERIALIZATION
     public class TriggerFiredBundle
     {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TriggerFiredBundle"/> class.
+        /// </summary>
+        /// <param name="job">The job.</param>
+        /// <param name="trigger">The trigger.</param>
+        /// <param name="cal">The calendar.</param>
+        /// <param name="jobIsRecovering">if set to <c>true</c> [job is recovering].</param>
+        /// <param name="fireTimeUtc">The fire time.</param>
+        /// <param name="scheduledFireTimeUtc">The scheduled fire time.</param>
+        /// <param name="prevFireTimeUtc">The previous fire time.</param>
+        /// <param name="nextFireTimeUtc">The next fire time.</param>
+        public TriggerFiredBundle(
+            IJobDetail job,
+            IOperableTrigger trigger,
+            ICalendar cal,
+            bool jobIsRecovering,
+            DateTimeOffset fireTimeUtc,
+            DateTimeOffset? scheduledFireTimeUtc,
+            DateTimeOffset? prevFireTimeUtc,
+            DateTimeOffset? nextFireTimeUtc)
+        {
+            JobDetail = job;
+            Trigger = trigger;
+            Calendar = cal;
+            Recovering = jobIsRecovering;
+            FireTimeUtc = fireTimeUtc;
+            ScheduledFireTimeUtc = scheduledFireTimeUtc;
+            PrevFireTimeUtc = prevFireTimeUtc;
+            NextFireTimeUtc = nextFireTimeUtc;
+        }
+
         // JsonProperty attributes are used since Json.Net's default behavior is to serialize public members and the properties wrapping these fields are read-only
 
         /// <summary>
@@ -64,7 +97,7 @@ namespace Quartz.Spi
         /// <returns>
         /// Returns the UTC fire time.
         /// </returns>
-        public virtual DateTimeOffset? FireTimeUtc { get; }
+        public virtual DateTimeOffset FireTimeUtc { get; }
 
         /// <summary>
         /// Gets the next UTC fire time.
@@ -84,32 +117,5 @@ namespace Quartz.Spi
         /// Returns the scheduled UTC fire time.
         /// </returns>
         public virtual DateTimeOffset? ScheduledFireTimeUtc { get; }
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="TriggerFiredBundle"/> class.
-        /// </summary>
-        /// <param name="job">The job.</param>
-        /// <param name="trigger">The trigger.</param>
-        /// <param name="cal">The calendar.</param>
-        /// <param name="jobIsRecovering">if set to <c>true</c> [job is recovering].</param>
-        /// <param name="fireTimeUtc">The fire time.</param>
-        /// <param name="scheduledFireTimeUtc">The scheduled fire time.</param>
-        /// <param name="prevFireTimeUtc">The previous fire time.</param>
-        /// <param name="nextFireTimeUtc">The next fire time.</param>
-        public TriggerFiredBundle(IJobDetail job, IOperableTrigger trigger, ICalendar cal, bool jobIsRecovering,
-                                  DateTimeOffset? fireTimeUtc,
-                                  DateTimeOffset? scheduledFireTimeUtc,
-                                  DateTimeOffset? prevFireTimeUtc,
-                                  DateTimeOffset? nextFireTimeUtc)
-        {
-            JobDetail = job;
-            Trigger = trigger;
-            Calendar = cal;
-            Recovering = jobIsRecovering;
-            FireTimeUtc = fireTimeUtc;
-            ScheduledFireTimeUtc = scheduledFireTimeUtc;
-            PrevFireTimeUtc = prevFireTimeUtc;
-            NextFireTimeUtc = nextFireTimeUtc;
-        }
     }
 }

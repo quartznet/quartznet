@@ -82,7 +82,7 @@ namespace Quartz.Impl
         private readonly JobDataMap jobDataMap;
 
         private int numRefires;
-        private TimeSpan jobRunTime = TimeSpan.MinValue;
+        private TimeSpan? jobRunTime;
 
         private readonly IDictionary<object, object> data = new Dictionary<object, object>();
         private readonly CancellationTokenSource cancellationTokenSource;
@@ -199,7 +199,7 @@ namespace Quartz.Impl
         /// </summary>
         /// <returns> Returns the fireTimeUtc.</returns>
         /// <seealso cref="ScheduledFireTimeUtc" />
-        public DateTimeOffset? FireTimeUtc { get; }
+        public DateTimeOffset FireTimeUtc { get; }
 
         /// <summary>
         /// The scheduled time the trigger fired for. For instance the scheduled
@@ -257,13 +257,13 @@ namespace Quartz.Impl
         {
             get
             {
-                if (jobRunTime == TimeSpan.MinValue && FireTimeUtc != null)
+                if (jobRunTime == null)
                 {
                     // we are still in progress, calculate dynamically
-                    return DateTimeOffset.UtcNow - FireTimeUtc.Value;
+                    return DateTimeOffset.UtcNow - FireTimeUtc;
                 }
 
-                return jobRunTime;
+                return jobRunTime.Value;
             }
             set => jobRunTime = value;
         }
