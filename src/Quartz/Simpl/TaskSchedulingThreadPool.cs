@@ -22,10 +22,12 @@ namespace Quartz.Simpl
 
         // A list of running tasks (needed to optionally wait for executing tasks at shutdown)
         private readonly List<Task> runningTasks = new List<Task>();
+
         private readonly object taskListLock = new object();
 
         // The semaphore used to limit concurrency and integers representing maximim concurrent tasks
         private SemaphoreSlim concurrencySemaphore;
+
         private int maxConcurrency;
         protected const int DefaultMaxConcurrency = 10;
 
@@ -38,7 +40,10 @@ namespace Quartz.Simpl
         public TaskScheduler Scheduler
         {
             get => scheduler;
-            set { if (!isInitialized) scheduler = value; }
+            set
+            {
+                if (!isInitialized) scheduler = value;
+            }
         }
 
         /// <summary>
@@ -61,7 +66,10 @@ namespace Quartz.Simpl
         public int MaxConcurency
         {
             get => maxConcurrency;
-            set { if (!isInitialized) maxConcurrency = value; }
+            set
+            {
+                if (!isInitialized) maxConcurrency = value;
+            }
         }
 
         /// <summary>
@@ -71,9 +79,16 @@ namespace Quartz.Simpl
         /// This alias for MaximumConcurrency is meant to make config files previously used with
         /// SimpleThreadPool or CLRThreadPool work more directly.
         /// </remarks>
-        public int ThreadCount {
+        public int ThreadCount
+        {
             get => MaxConcurency;
             set => MaxConcurency = value;
+        }
+
+        // ReSharper disable once UnusedMember.Global
+        public string ThreadPriority
+        {
+            set => log.Warn("Thread priority is no longer supported for thread pool, ignoring");
         }
 
         /// <summary>
@@ -85,7 +100,9 @@ namespace Quartz.Simpl
 
         public virtual string InstanceName { get; set; }
 
-        public TaskSchedulingThreadPool() : this(DefaultMaxConcurrency) { }
+        public TaskSchedulingThreadPool() : this(DefaultMaxConcurrency)
+        {
+        }
 
         public TaskSchedulingThreadPool(int maxConcurrency)
         {

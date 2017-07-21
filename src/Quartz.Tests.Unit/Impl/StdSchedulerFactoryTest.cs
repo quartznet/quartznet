@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -106,6 +106,21 @@ namespace Quartz.Tests.Unit.Impl
             collection["quartz.scheduler.idleWaitTime"] = "123";
             collection["quartz.scheduler.test"] = "foo";
             StdSchedulerFactory factory = new TestStdSchedulerFactory(collection);
+        }
+
+        [Test]
+        public async Task ShouldBeAbleToDefineThreadPriority()
+        {
+            var properties = new NameValueCollection
+            {
+                ["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz",
+                ["quartz.threadPool.threadCount"] = "3",
+                ["quartz.threadPool.threadPriority"] = "Normal"
+            };
+
+            ISchedulerFactory schedulerFactory = new StdSchedulerFactory(properties);
+
+            await schedulerFactory.GetScheduler();
         }
 
         private class TestStdSchedulerFactory : StdSchedulerFactory
