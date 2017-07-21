@@ -136,7 +136,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public void Rollback()
+        public void Rollback(bool transientError)
         {
             if (transaction != null)
             {
@@ -147,7 +147,16 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (Exception e)
                 {
-                    log.ErrorException("Couldn't rollback ADO.NET connection. " + e.Message, e);
+                    if (transientError)
+                    {
+                        // original error was transient, ones we have in Azure, don't complain too much about it
+                        // we will try again anyway
+                        log.Debug("Rollback failed due to transient error");
+                    }
+                    else
+                    {
+                        log.ErrorException("Couldn't rollback ADO.NET connection. " + e.Message, e);
+                    }
                 }
             }
         }

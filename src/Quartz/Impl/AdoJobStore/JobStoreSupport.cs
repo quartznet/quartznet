@@ -2997,14 +2997,14 @@ namespace Quartz.Impl.AdoJobStore
                 CommitConnection(conn, false);
                 return result;
             }
-            catch (JobPersistenceException)
+            catch (JobPersistenceException jpe)
             {
-                RollbackConnection(conn);
+                RollbackConnection(conn, jpe);
                 throw;
             }
             catch (Exception e)
             {
-                RollbackConnection(conn);
+                RollbackConnection(conn, e);
                 throw new JobPersistenceException("Database error recovering from misfires.", e);
             }
             finally
@@ -3084,9 +3084,9 @@ namespace Quartz.Impl.AdoJobStore
 
                 CommitConnection(conn, false);
             }
-            catch (JobPersistenceException)
+            catch (JobPersistenceException jpe)
             {
-                RollbackConnection(conn);
+                RollbackConnection(conn, jpe);
                 throw;
             }
             finally
@@ -3426,12 +3426,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Rollback the supplied connection.
         /// </summary>
-        /// <param name="cth">(Optional)
-        /// </param>
-        /// <throws>  JobPersistenceException thrown if a SQLException occurs when the </throws>
-        /// <summary> connection is rolled back
-        /// </summary>
-        protected virtual void RollbackConnection(ConnectionAndTransactionHolder cth)
+        protected virtual void RollbackConnection(ConnectionAndTransactionHolder cth, Exception cause)
         {
             if (cth == null)
             {
@@ -3439,7 +3434,27 @@ namespace Quartz.Impl.AdoJobStore
                 Log.Info("ConnectionAndTransactionHolder passed to RollbackConnection was null, ignoring");
                 return;
             }
-            cth.Rollback();
+
+            cth.Rollback(IsTransient(cause));
+        }
+
+        protected virtual bool IsTransient(Exception ex)
+        {
+            SqlException sqlException = ex as SqlException ?? ex?.InnerException as SqlException;
+            if (sqlException != null)
+            {
+                switch (sqlException.Number)
+                {
+                    // SQL Error Code: 11001
+                    // A network-related or instance-specific error occurred while establishing a connection to SQL Server.
+                    // The server was not found or was not accessible. Verify that the instance name is correct and that SQL
+                    // Server is configured to allow remote connections. (provider: TCP Provider, error: 0 - No such host is known.)
+                    case 11001:
+                        return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -3613,9 +3628,9 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     CommitConnection(conn, false);
                 }
-                catch (JobPersistenceException)
+                catch (JobPersistenceException jpe)
                 {
-                    RollbackConnection(conn);
+                    RollbackConnection(conn, jpe);
                     if (txValidator == null)
                     {
                         throw;
@@ -3637,14 +3652,14 @@ namespace Quartz.Impl.AdoJobStore
 
                 return result;
             }
-            catch (JobPersistenceException)
+            catch (JobPersistenceException jpe)
             {
-                RollbackConnection(conn);
+                RollbackConnection(conn, jpe);
                 throw;
             }
             catch (Exception e)
             {
-                RollbackConnection(conn);
+                RollbackConnection(conn, e);
                 throw new JobPersistenceException("Unexpected runtime exception: " + e.Message, e);
             }
             finally
