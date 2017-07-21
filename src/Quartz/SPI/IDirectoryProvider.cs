@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+
 using Quartz.Job;
 
 namespace Quartz.Spi

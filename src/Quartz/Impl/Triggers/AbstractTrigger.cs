@@ -61,16 +61,12 @@ namespace Quartz.Impl.Triggers
         private string group = SchedulerConstants.DefaultGroup;
         private string jobName;
         private string jobGroup = SchedulerConstants.DefaultGroup;
-        private string description;
-        private JobDataMap jobDataMap;
-        private string calendarName;
-        private string fireInstanceId;
+	    private JobDataMap jobDataMap;
 
-        private int misfireInstruction = Quartz.MisfireInstruction.InstructionNotSet;
+	    private int misfireInstruction = Quartz.MisfireInstruction.InstructionNotSet;
 
         private DateTimeOffset? endTimeUtc;
         private DateTimeOffset startTimeUtc;
-		private int priority = TriggerConstants.DefaultPriority;
 
 #if BINARY_SERIALIZATION
         [NonSerialized] // we have the key in string fields
@@ -83,9 +79,9 @@ namespace Quartz.Impl.Triggers
 		/// <exception cref="ArgumentException">If name is null or empty.</exception>
 		public virtual string Name
 		{
-			get { return name; }
+			get => name;
 
-			set
+		    set
 			{
 				if (value == null || value.Trim().Length == 0)
 				{
@@ -105,9 +101,9 @@ namespace Quartz.Impl.Triggers
 		/// </exception>
 		public virtual string Group
 		{
-			get { return group; }
+			get => group;
 
-			set
+		    set
 			{
 				if (value != null && value.Trim().Length == 0)
 				{
@@ -132,9 +128,9 @@ namespace Quartz.Impl.Triggers
 		/// </exception>
 		public virtual string JobName
 		{
-			get { return jobName; }
+			get => jobName;
 
-			set
+		    set
 			{
 				if (value == null || value.Trim().Length == 0)
 				{
@@ -154,9 +150,9 @@ namespace Quartz.Impl.Triggers
 		/// </exception>
 		public virtual string JobGroup
 		{
-			get { return jobGroup; }
+			get => jobGroup;
 
-			set
+		    set
 			{
 				if (value != null && value.Trim().Length == 0)
 				{
@@ -176,12 +172,9 @@ namespace Quartz.Impl.Triggers
 		/// Returns the 'full name' of the <see cref="ITrigger" /> in the format
 		/// "group.name".
 		/// </summary>
-		public virtual string FullName
-		{
-			get { return group + "." + name; }
-		}
+		public virtual string FullName => group + "." + name;
 
-		/// <summary>
+	    /// <summary>
 		/// Gets the key.
 		/// </summary>
 		/// <value>The key.</value>
@@ -226,10 +219,7 @@ namespace Quartz.Impl.Triggers
 		/// Returns the 'full name' of the <see cref="IJob" /> that the <see cref="ITrigger" />
 		/// points to, in the format "group.name".
 		/// </summary>
-		public virtual string FullJobName
-		{
-			get { return jobGroup + "." + jobName; }
-		}
+		public virtual string FullJobName => jobGroup + "." + jobName;
 
 	    public TriggerBuilder GetTriggerBuilder()
 	    {
@@ -251,23 +241,15 @@ namespace Quartz.Impl.Triggers
 		/// Get or set the description given to the <see cref="ITrigger" /> instance by
 		/// its creator (if any).
 		/// </summary>
-		public virtual string Description
-		{
-			get { return description; }
-			set { description = value; }
-		}
+		public virtual string Description { get; set; }
 
-		/// <summary>
+	    /// <summary>
 		/// Get or set  the <see cref="ICalendar" /> with the given name with
 		/// this Trigger. Use <see langword="null" /> when setting to dis-associate a Calendar.
 		/// </summary>
-		public virtual string CalendarName
-		{
-			get { return calendarName; }
-			set { calendarName = value; }
-		}
+		public virtual string CalendarName { get; set; }
 
-		/// <summary>
+	    /// <summary>
 		/// Get or set the <see cref="JobDataMap" /> that is associated with the
 		/// <see cref="ITrigger" />.
 		/// <para>
@@ -286,7 +268,7 @@ namespace Quartz.Impl.Triggers
 				return jobDataMap;
 			}
 
-			set { jobDataMap = value; }
+			set => jobDataMap = value;
 		}
 
 		/// <summary>
@@ -314,9 +296,9 @@ namespace Quartz.Impl.Triggers
 		/// <seealso cref="ICronTrigger" />
 		public virtual int MisfireInstruction
 		{
-			get { return misfireInstruction; }
+			get => misfireInstruction;
 
-			set
+            set
 			{
 				if (!ValidateMisfireInstruction(value))
 				{
@@ -334,13 +316,9 @@ namespace Quartz.Impl.Triggers
         /// implementations, in order to facilitate 'recognizing' instances of fired
         /// <see cref="ITrigger" /> s as their jobs complete execution.
         /// </remarks>
-        public virtual string FireInstanceId
-		{
-			get { return fireInstanceId; }
-			set { fireInstanceId = value; }
-		}
+        public virtual string FireInstanceId { get; set; }
 
-        public abstract void SetNextFireTimeUtc(DateTimeOffset? nextFireTime);
+	    public abstract void SetNextFireTimeUtc(DateTimeOffset? nextFireTime);
 
         public abstract void SetPreviousFireTimeUtc(DateTimeOffset? previousFireTime);
 
@@ -358,9 +336,9 @@ namespace Quartz.Impl.Triggers
         /// </summary>
         public virtual DateTimeOffset? EndTimeUtc
 		{
-			get { return endTimeUtc; }
+			get => endTimeUtc;
 
-			set
+	        set
 			{
                 DateTimeOffset sTime = StartTimeUtc;
 
@@ -386,9 +364,9 @@ namespace Quartz.Impl.Triggers
         /// </remarks>
         public virtual DateTimeOffset StartTimeUtc
 		{
-			get { return startTimeUtc; }
+			get => startTimeUtc;
 
-			set
+		    set
 			{
 				if (EndTimeUtc.HasValue && EndTimeUtc.Value < value)
 				{
@@ -488,13 +466,9 @@ namespace Quartz.Impl.Triggers
 		/// </remarks>
 		/// <returns></returns>
 		/// <see cref="TriggerConstants.DefaultPriority" />
-		public virtual int Priority
-		{
-			get { return priority; }
-			set { priority = value; }
-		}
+		public virtual int Priority { get; set; } = TriggerConstants.DefaultPriority;
 
-		/// <summary>
+	    /// <summary>
 		/// This method should not be used by the Quartz client.
 		/// </summary>
 		/// <remarks>
@@ -678,12 +652,9 @@ namespace Quartz.Impl.Triggers
         /// <value>
         /// 	<c>true</c> if this instance has additional properties; otherwise, <c>false</c>.
         /// </value>
-	    public virtual bool HasAdditionalProperties
-	    {
-	        get { return false; }
-	    }
+	    public virtual bool HasAdditionalProperties => false;
 
-		/// <summary>
+	    /// <summary>
 		/// Return a simple string representation of this object.
 		/// </summary>
 		public override string ToString()
@@ -739,12 +710,7 @@ namespace Quartz.Impl.Triggers
         /// <returns>true if the key of this Trigger equals that of the given Trigger</returns>
         public virtual bool Equals(AbstractTrigger trigger)
         {
-            if (trigger == null)
-            {
-                return false;
-            }
-
-            if (trigger.Key == null || Key == null)
+            if (trigger?.Key == null || Key == null)
             {
                 return false;
             }

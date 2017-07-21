@@ -22,6 +22,7 @@
 using System;
 
 using FakeItEasy;
+
 using NUnit.Framework;
 
 using Quartz.Impl.Calendar;
@@ -156,13 +157,13 @@ namespace Quartz.Tests.Unit
             SimpleTriggerImpl simpleTrigger = new SimpleTriggerImpl();
 
             // Make sure empty sub-objects are cloned okay
-            ITrigger clone = (ITrigger) simpleTrigger.Clone();
+            ITrigger clone = simpleTrigger.Clone();
             Assert.AreEqual(0, clone.JobDataMap.Count);
 
             // Make sure non-empty sub-objects are cloned okay
             simpleTrigger.JobDataMap.Put("K1", "V1");
             simpleTrigger.JobDataMap.Put("K2", "V2");
-            clone = (ITrigger) simpleTrigger.Clone();
+            clone = simpleTrigger.Clone();
             Assert.AreEqual(2, clone.JobDataMap.Count);
             Assert.AreEqual("V1", clone.JobDataMap.Get("K1"));
             Assert.AreEqual("V2", clone.JobDataMap.Get("K2"));

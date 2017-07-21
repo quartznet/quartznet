@@ -125,7 +125,7 @@ namespace Quartz.Util
         /// <summary>
         /// Adds the name-value pairs in the given <see cref="IDictionary" /> to the <see cref="JobDataMap" />.
         /// <para>
-        /// All keys must be <see cref="String" />s, and all values must be serializable.
+        /// All keys must be <see cref="string" />s, and all values must be serializable.
         /// </para>
         /// </summary>
         public override void PutAll(IDictionary<string, object> map)
@@ -192,7 +192,7 @@ namespace Quartz.Util
         }
 
         /// <summary>
-        /// Adds the given <see cref="String" /> value to the <see cref="IJob" />'s
+        /// Adds the given <see cref="string" /> value to the <see cref="IJob" />'s
         /// data map.
         /// </summary>
         public virtual void Put(string key, string value)
@@ -303,7 +303,7 @@ namespace Quartz.Util
         }
 
         /// <summary>
-        /// Retrieve the identified <see cref="String" /> value from the <see cref="JobDataMap" />.
+        /// Retrieve the identified <see cref="string" /> value from the <see cref="JobDataMap" />.
         /// </summary>
         public virtual string GetString(string key)
         {

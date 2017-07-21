@@ -32,10 +32,6 @@ namespace Quartz.Impl.AdoJobStore
     {
         // TODO: Repackage under spi or root pkg ?, put status constants here.
 
-        private readonly string status;
-
-        private readonly DateTimeOffset? nextFireTime;
-
         /// <summary>
         /// Construct a new TriggerStatus with the status name and nextFireTime.
         /// </summary>
@@ -43,23 +39,17 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="nextFireTime">The next time trigger will fire</param>
         public TriggerStatus(string status, DateTimeOffset? nextFireTime)
         {
-            this.status = status;
-            this.nextFireTime = nextFireTime;
+            Status = status;
+            NextFireTimeUtc = nextFireTime;
         }
 
         public JobKey JobKey { get; set; }
 
         public TriggerKey Key { get; set; }
 
-        public string Status
-        {
-            get { return status; }
-        }
+        public string Status { get; }
 
-        public DateTimeOffset? NextFireTimeUtc
-        {
-            get { return nextFireTime; }
-        }
+        public DateTimeOffset? NextFireTimeUtc { get; }
 
         /// <summary>
         /// Return the string representation of the TriggerStatus.

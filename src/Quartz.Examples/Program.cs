@@ -25,10 +25,9 @@ using System.Globalization;
 using System.Reflection;
 
 using log4net;
+using log4net.Config;
 
 using Quartz.Util;
-
-using log4net.Config;
 
 namespace Quartz.Examples
 {

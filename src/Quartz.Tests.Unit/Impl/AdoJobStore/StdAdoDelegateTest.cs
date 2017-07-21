@@ -28,6 +28,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using FakeItEasy;
+
 using NUnit.Framework;
 
 using Quartz.Impl.AdoJobStore;
@@ -374,31 +375,16 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         {
         }
 
-        public override int Count
-        {
-            get { throw new NotImplementedException(); }
-        }
+        public override int Count => throw new NotImplementedException();
 
-        public override object SyncRoot
-        {
-            get { throw new NotImplementedException(); }
-        }
+        public override object SyncRoot => throw new NotImplementedException();
 
 #if !NETCORE
-        public override bool IsFixedSize
-        {
-            get { throw new NotImplementedException(); }
-        }
+        public override bool IsFixedSize => throw new NotImplementedException();
 
-        public override bool IsReadOnly
-        {
-            get { throw new NotImplementedException(); }
-        }
+        public override bool IsReadOnly => throw new NotImplementedException();
 
-        public override bool IsSynchronized
-        {
-            get { throw new NotImplementedException(); }
-        }
+        public override bool IsSynchronized => throw new NotImplementedException();
 #endif
 
         public override int IndexOf(string parameterName)

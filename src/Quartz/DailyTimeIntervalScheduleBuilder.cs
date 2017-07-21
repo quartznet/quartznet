@@ -212,7 +212,7 @@ namespace Quartz
 
             ValidateInterval(interval);
             this.interval = interval;
-            this.intervalUnit = unit;
+            intervalUnit = unit;
             return this;
         }
 
@@ -330,12 +330,7 @@ namespace Quartz
         /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
         public DailyTimeIntervalScheduleBuilder StartingDailyAt(TimeOfDay timeOfDayUtc)
         {
-            if (timeOfDayUtc == null)
-            {
-                throw new ArgumentException("Start time of day cannot be null!");
-            }
-
-            startTimeOfDayUtc = timeOfDayUtc;
+            startTimeOfDayUtc = timeOfDayUtc ?? throw new ArgumentException("Start time of day cannot be null!");
             return this;
         }
 
@@ -479,7 +474,7 @@ namespace Quartz
         /// <seealso cref="ICalendarIntervalTrigger.TimeZone" />
         public DailyTimeIntervalScheduleBuilder InTimeZone(TimeZoneInfo timezone)
         {
-            this.timeZone = timezone;
+            timeZone = timezone;
             return this;
         }
 

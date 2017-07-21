@@ -36,23 +36,7 @@ namespace Quartz
 #endif // BINARY_SERIALIZATION
     public class SchedulerMetaData
 	{
-		private readonly string schedName;
-		private readonly string schedInst;
-		private Type schedType;
-		private readonly bool isRemote;
-		private readonly bool started;
-		private readonly bool isInStandbyMode;
-		private readonly bool shutdown;
-        private readonly DateTimeOffset? startTime;
-        private readonly int numberOfJobsExec;
-		private Type jsType;
-		private readonly bool jsPersistent;
-	    private readonly bool jsClustered;
-		private Type tpType;
-		private readonly int tpSize;
-		private readonly string version;
-
-        /// <summary>
+	    /// <summary>
         /// Initializes a new instance of the <see cref="SchedulerMetaData"/> class.
         /// </summary>
         /// <param name="schedName">Name of the scheduler.</param>
@@ -75,122 +59,89 @@ namespace Quartz
 			bool shutdown, DateTimeOffset? startTime, int numberOfJobsExec, Type jsType, bool jsPersistent, bool jsClustered,
             Type tpType, int tpSize, string version)
 		{
-			this.schedName = schedName;
-			this.schedInst = schedInst;
-			this.schedType = schedType;
-			this.isRemote = isRemote;
-			this.started = started;
-			this.isInStandbyMode = isInStandbyMode;
-			this.shutdown = shutdown;
-			this.startTime = startTime;
-			this.numberOfJobsExec = numberOfJobsExec;
-			this.jsType = jsType;
-			this.jsPersistent = jsPersistent;
-		    this.jsClustered = jsClustered;
-		    this.tpType = tpType;
-			this.tpSize = tpSize;
-			this.version = version;
+			SchedulerName = schedName;
+			SchedulerInstanceId = schedInst;
+			SchedulerType = schedType;
+			SchedulerRemote = isRemote;
+			Started = started;
+			InStandbyMode = isInStandbyMode;
+			Shutdown = shutdown;
+			RunningSince = startTime;
+			NumberOfJobsExecuted = numberOfJobsExec;
+			JobStoreType = jsType;
+			JobStoreSupportsPersistence = jsPersistent;
+		    JobStoreClustered = jsClustered;
+		    ThreadPoolType = tpType;
+			ThreadPoolSize = tpSize;
+			Version = version;
 		}
 
 		/// <summary>
 		/// Returns the name of the <see cref="IScheduler" />.
 		/// </summary>
-		public virtual string SchedulerName
-		{
-			get { return schedName; }
-		}
+		public virtual string SchedulerName { get; }
 
-		/// <summary>
+	    /// <summary>
 		/// Returns the instance Id of the <see cref="IScheduler" />.
 		/// </summary>
-		public virtual string SchedulerInstanceId
-		{
-			get { return schedInst; }
-		}
+		public virtual string SchedulerInstanceId { get; }
 
-		/// <summary>
+	    /// <summary>
 		/// Returns the class-name of the <see cref="IScheduler" /> instance.
 		/// </summary>
-		public virtual Type SchedulerType
-		{
-			get { return schedType; }
-		}
+		public virtual Type SchedulerType { get; }
 
-		/// <summary>
+	    /// <summary>
 		/// Returns whether the <see cref="IScheduler" /> is being used remotely (via remoting).
 		/// </summary>
-		public virtual bool SchedulerRemote
-		{
-			get { return isRemote; }
-		}
+		public virtual bool SchedulerRemote { get; }
 
-		/// <summary>
+	    /// <summary>
 		/// Returns whether the scheduler has been started.
 		/// </summary>
 		/// <remarks>
 		/// Note: <see cref="Started" /> may return <see langword="true" /> even if
         /// <see cref="InStandbyMode" /> returns <see langword="true" />.
 		/// </remarks>
-		public virtual bool Started
-		{
-			get { return started; }
-		}
+		public virtual bool Started { get; }
 
-		/// <summary>
+	    /// <summary>
         /// Reports whether the <see cref="IScheduler" /> is in standby mode.
 		/// </summary>
 		/// <remarks>
 		/// Note: <see cref="Started" /> may return <see langword="true" /> even if
 		/// <see cref="InStandbyMode" /> returns <see langword="true" />.
 		/// </remarks>
-        public virtual bool InStandbyMode
-		{
-			get { return isInStandbyMode; }
-		}
+        public virtual bool InStandbyMode { get; }
 
-		/// <summary>
+	    /// <summary>
 		/// Reports whether the <see cref="IScheduler" /> has been Shutdown.
 		/// </summary>
-		public virtual bool Shutdown
-		{
-			get { return shutdown; }
-		}
+		public virtual bool Shutdown { get; }
 
-		/// <summary>
+	    /// <summary>
 		/// Returns the class-name of the <see cref="IJobStore" /> instance that is
 		/// being used by the <see cref="IScheduler" />.
 		/// </summary>
-		public virtual Type JobStoreType
-		{
-			get { return jsType; }
-		}
+		public virtual Type JobStoreType { get; }
 
-		/// <summary>
+	    /// <summary>
 		/// Returns the type name of the <see cref="ThreadPool" /> instance that is
 		/// being used by the <see cref="IScheduler" />.
 		/// </summary>
-		public virtual Type ThreadPoolType
-		{
-			get { return tpType; }
-		}
+		public virtual Type ThreadPoolType { get; }
 
-		/// <summary>
+	    /// <summary>
 		/// Returns the number of threads currently in the <see cref="IScheduler" />'s
 		/// </summary>
-		public virtual int ThreadPoolSize
-		{
-			get { return tpSize; }
-		}
+		public virtual int ThreadPoolSize { get; }
 
-		/// <summary>
+	    /// <summary>
 		/// Returns the version of Quartz that is running.
 		/// </summary>
-		public virtual string Version
-		{
-			get { return version; }
-		}
+		public virtual string Version { get; }
 
-		/// <summary>
+	    /// <summary>
 		/// Returns a formatted (human readable) string describing all the <see cref="IScheduler" />'s
 		/// meta-data values.
 		/// </summary>
@@ -295,39 +246,27 @@ namespace Quartz
 		/// </summary>
 		/// <returns> null if the scheduler has not been started.
 		/// </returns>
-        public virtual DateTimeOffset? RunningSince
-		{
-			get { return startTime; }
-		}
+        public virtual DateTimeOffset? RunningSince { get; }
 
-		/// <summary>
+	    /// <summary>
 		/// Returns the number of jobs executed since the <see cref="IScheduler" />
 		/// started..
 		/// </summary>
-		public virtual int NumberOfJobsExecuted
-		{
-			get { return numberOfJobsExec; }
-		}
+		public virtual int NumberOfJobsExecuted { get; }
 
-		/// <summary>
+	    /// <summary>
 		/// Returns whether or not the <see cref="IScheduler" />'s<see cref="IJobStore" />
 		/// instance supports persistence.
 		/// </summary>
-		public virtual bool JobStoreSupportsPersistence
-		{
-			get { return jsPersistent; }
-		}
+		public virtual bool JobStoreSupportsPersistence { get; }
 
-        /// <summary>
+	    /// <summary>
         /// Returns whether or not the <see cref="IScheduler" />'s <see cref="IJobStore" />
         /// is clustered.
         /// </summary>
-        public virtual bool JobStoreClustered
-        {
-            get { return jsClustered; }
-        }
+        public virtual bool JobStoreClustered { get; }
 
-		/// <summary>
+	    /// <summary>
 		/// Return a simple string representation of this object.
 		/// </summary>
 		public override string ToString()

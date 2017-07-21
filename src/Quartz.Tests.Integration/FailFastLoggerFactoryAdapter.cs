@@ -5,7 +5,6 @@ namespace Quartz.Tests.Integration
 {
     internal class FailFastLoggerFactoryAdapter : ILogProvider
     {
-        private static readonly List<string> errors = new List<string>();
         private static readonly IDisposable NoopDisposableInstance = new DisposableAction();
 
         public Logger GetLogger(string name)
@@ -28,13 +27,13 @@ namespace Quartz.Tests.Integration
             if (logLevel == LogLevel.Error || logLevel == LogLevel.Fatal)
             {
                 var message = messageFunc == null ? string.Empty : messageFunc();
-                errors.Add(message);
+                Errors.Add(message);
             }
 
             return true;
         }
 
-        public static List<string> Errors => errors;
+        public static List<string> Errors { get; } = new List<string>();
 
         private class DisposableAction : IDisposable
         {

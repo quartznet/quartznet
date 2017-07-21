@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Text;
 
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -9,8 +11,6 @@ using Newtonsoft.Json.Serialization;
 
 using Quartz.Impl.Calendar;
 using Quartz.Spi;
-using System.Reflection;
-using System.Text;
 using Quartz.Util;
 
 namespace Quartz.Simpl
@@ -48,13 +48,7 @@ namespace Quartz.Simpl
                 },
                 ConstructorHandling = ConstructorHandling.AllowNonPublicDefaultConstructor,
                 TypeNameHandling = TypeNameHandling.All,
-                ContractResolver = new DefaultContractResolver
-                {
-#if BINARY_SERIALIZATION
-                    IgnoreSerializableAttribute = true,
-                    IgnoreSerializableInterface = true
-#endif
-                },
+                ContractResolver = new DefaultContractResolver(),
                 NullValueHandling = NullValueHandling.Ignore
             };
         }

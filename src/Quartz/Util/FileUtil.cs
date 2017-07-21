@@ -22,6 +22,7 @@ using System.IO;
 using System.Security;
 
 using Quartz.Logging;
+
 #if HTTPCONTEXT
 using System.Web;
 #endif

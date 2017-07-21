@@ -37,7 +37,7 @@ namespace Quartz.Tests.Unit
     [TestFixture(typeof(JsonObjectSerializer))]
     public class CronExpressionTest : SerializationTestSupport
     {
-        private static readonly string[] versions = new[] {"0.6.0"};
+        private static readonly string[] versions = {"0.6.0"};
 
         private static readonly TimeZoneInfo testTimeZone = TimeZoneInfo.Local;
 
@@ -164,7 +164,7 @@ namespace Quartz.Tests.Unit
         {
             CronExpression cronExpression = new CronExpression("0 0 12 ? * MON-FRI");
             int[] arrJuneDaysThatShouldFire =
-                new int[] {1, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 18, 19, 20, 22, 21, 25, 26, 27, 28, 29};
+                {1, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 18, 19, 20, 22, 21, 25, 26, 27, 28, 29};
             List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
 
             TestCorrectWeekFireDays(cronExpression, juneDays);
@@ -175,7 +175,7 @@ namespace Quartz.Tests.Unit
         {
             CronExpression cronExpression = new CronExpression("0 0 12 ? * FRI");
             int[] arrJuneDaysThatShouldFire =
-                new int[] {1, 8, 15, 22, 29};
+                {1, 8, 15, 22, 29};
             List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
 
             TestCorrectWeekFireDays(cronExpression, juneDays);
@@ -185,7 +185,7 @@ namespace Quartz.Tests.Unit
         public void TestCronExpressionLastDayOfMonth()
         {
             CronExpression cronExpression = new CronExpression("0 0 12 L * ?");
-            int[] arrJuneDaysThatShouldFire = new int[] {30};
+            int[] arrJuneDaysThatShouldFire = {30};
             List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
 
             TestCorrectWeekFireDays(cronExpression, juneDays);
@@ -685,7 +685,7 @@ namespace Quartz.Tests.Unit
 
             public ISet<int> GetSetPublic(int constant)
             {
-                return base.GetSet(constant);
+                return GetSet(constant);
             }
         }
 

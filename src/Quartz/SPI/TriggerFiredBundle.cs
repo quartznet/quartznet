@@ -18,6 +18,7 @@
 #endregion
 
 using System;
+
 using Quartz.Core;
 
 namespace Quartz.Spi
@@ -35,86 +36,55 @@ namespace Quartz.Spi
     public class TriggerFiredBundle
     {
         // JsonProperty attributes are used since Json.Net's default behavior is to serialize public members and the properties wrapping these fields are read-only
-        private readonly IJobDetail job;
-        private readonly IOperableTrigger trigger;
-        private readonly ICalendar cal;
-        private readonly bool jobIsRecovering;
-        private readonly DateTimeOffset? fireTimeUtc;
-        private readonly DateTimeOffset? scheduledFireTimeUtc;
-        private readonly DateTimeOffset? prevFireTimeUtc;
-        private readonly DateTimeOffset? nextFireTimeUtc;
 
         /// <summary>
         /// Gets the job detail.
         /// </summary>
         /// <value>The job detail.</value>
-        public virtual IJobDetail JobDetail
-        {
-            get { return job; }
-        }
+        public virtual IJobDetail JobDetail { get; }
 
         /// <summary>
         /// Gets the trigger.
         /// </summary>
         /// <value>The trigger.</value>
-        public virtual IOperableTrigger Trigger
-        {
-            get { return trigger; }
-        }
+        public virtual IOperableTrigger Trigger { get; }
 
         /// <summary>
         /// Gets the calendar.
         /// </summary>
         /// <value>The calendar.</value>
-        public virtual ICalendar Calendar
-        {
-            get { return cal; }
-        }
+        public virtual ICalendar Calendar { get; }
 
         /// <summary>
         /// Gets a value indicating whether this <see cref="TriggerFiredBundle"/> is recovering.
         /// </summary>
         /// <value><c>true</c> if recovering; otherwise, <c>false</c>.</value>
-        public virtual bool Recovering
-        {
-            get { return jobIsRecovering; }
-        }
+        public virtual bool Recovering { get; }
 
         /// <returns>
         /// Returns the UTC fire time.
         /// </returns>
-        public virtual DateTimeOffset? FireTimeUtc
-        {
-            get { return fireTimeUtc; }
-        }
+        public virtual DateTimeOffset? FireTimeUtc { get; }
 
         /// <summary>
         /// Gets the next UTC fire time.
         /// </summary>
         /// <value>The next fire time.</value>
         /// <returns> Returns the nextFireTimeUtc.</returns>
-        public virtual DateTimeOffset? NextFireTimeUtc
-        {
-            get { return nextFireTimeUtc; }
-        }
+        public virtual DateTimeOffset? NextFireTimeUtc { get; }
 
         /// <summary>
         /// Gets the previous UTC fire time.
         /// </summary>
         /// <value>The previous fire time.</value>
         /// <returns> Returns the previous fire time. </returns>
-        public virtual DateTimeOffset? PrevFireTimeUtc
-        {
-            get { return prevFireTimeUtc; }
-        }
+        public virtual DateTimeOffset? PrevFireTimeUtc { get; }
 
         /// <returns>
         /// Returns the scheduled UTC fire time.
         /// </returns>
-        public virtual DateTimeOffset? ScheduledFireTimeUtc
-        {
-            get { return scheduledFireTimeUtc; }
-        }
+        public virtual DateTimeOffset? ScheduledFireTimeUtc { get; }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="TriggerFiredBundle"/> class.
         /// </summary>
@@ -132,14 +102,14 @@ namespace Quartz.Spi
                                   DateTimeOffset? prevFireTimeUtc,
                                   DateTimeOffset? nextFireTimeUtc)
         {
-            this.job = job;
-            this.trigger = trigger;
-            this.cal = cal;
-            this.jobIsRecovering = jobIsRecovering;
-            this.fireTimeUtc = fireTimeUtc;
-            this.scheduledFireTimeUtc = scheduledFireTimeUtc;
-            this.prevFireTimeUtc = prevFireTimeUtc;
-            this.nextFireTimeUtc = nextFireTimeUtc;
+            JobDetail = job;
+            Trigger = trigger;
+            Calendar = cal;
+            Recovering = jobIsRecovering;
+            FireTimeUtc = fireTimeUtc;
+            ScheduledFireTimeUtc = scheduledFireTimeUtc;
+            PrevFireTimeUtc = prevFireTimeUtc;
+            NextFireTimeUtc = nextFireTimeUtc;
         }
     }
 }

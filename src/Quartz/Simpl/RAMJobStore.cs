@@ -81,7 +81,7 @@ namespace Quartz.Simpl
         [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
         public virtual TimeSpan MisfireThreshold
         {
-            get { return misfireThreshold; }
+            get => misfireThreshold;
             set
             {
                 if (value.TotalMilliseconds < 1)
@@ -109,8 +109,8 @@ namespace Quartz.Simpl
         /// used, in order to give the it a chance to Initialize.
         /// </summary>
         public virtual Task Initialize(
-            ITypeLoadHelper loadHelper, 
-            ISchedulerSignaler signaler, 
+            ITypeLoadHelper loadHelper,
+            ISchedulerSignaler signaler,
             CancellationToken cancellationToken = default(CancellationToken))
         {
             this.signaler = signaler;
@@ -340,8 +340,7 @@ namespace Quartz.Simpl
                         grpMap.TryRemove(jobKey, out tempObject);
                         if (grpMap.Count == 0)
                         {
-                            ConcurrentDictionary<JobKey, JobWrapper> temp;
-                            jobsByGroup.TryRemove(jobKey.Group, out temp);
+                            jobsByGroup.TryRemove(jobKey.Group, out _);
                         }
                     }
                 }
@@ -457,8 +456,7 @@ namespace Quartz.Simpl
             lock (lockObject)
             {
                 TriggerWrapper tw = new TriggerWrapper((IOperableTrigger) newTrigger.Clone());
-                TriggerWrapper wrapper;
-                if (triggersByKey.TryGetValue(tw.TriggerKey, out wrapper))
+                if (triggersByKey.TryGetValue(tw.TriggerKey, out _))
                 {
                     if (!replaceExisting)
                     {
@@ -550,8 +548,7 @@ namespace Quartz.Simpl
                         grpMap.TryRemove(key, out tw);
                         if (grpMap.Count == 0)
                         {
-                            ConcurrentDictionary<TriggerKey, TriggerWrapper> tempDictionary;
-                            triggersByGroup.TryRemove(key.Group, out tempDictionary);
+                            triggersByGroup.TryRemove(key.Group, out _);
                         }
                     }
                     //remove from triggers by job
@@ -617,8 +614,7 @@ namespace Quartz.Simpl
 
                     if (grpMap != null)
                     {
-                        TriggerWrapper temp;
-                        grpMap.TryRemove(triggerKey, out temp);
+                        grpMap.TryRemove(triggerKey, out _);
                         if (grpMap.Count == 0)
                         {
                             triggersByGroup.TryRemove(triggerKey.Group, out grpMap);
@@ -791,13 +787,13 @@ namespace Quartz.Simpl
         /// re-computed with the new <see cref="ICalendar" />.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         public virtual Task StoreCalendar(
-            string name, 
-            ICalendar calendar, 
-            bool replaceExisting, 
+            string name,
+            ICalendar calendar,
+            bool replaceExisting,
             bool updateTriggers,
             CancellationToken cancellationToken = default(CancellationToken))
         {
-            calendar = (ICalendar) calendar.Clone();
+            calendar = calendar.Clone();
 
             lock (lockObject)
             {
@@ -810,8 +806,7 @@ namespace Quartz.Simpl
                 }
                 if (obj != null)
                 {
-                    ICalendar temp;
-                    calendarsByName.TryRemove(name, out temp);
+                    calendarsByName.TryRemove(name, out _);
                 }
 
                 calendarsByName[name] = calendar;
@@ -876,8 +871,7 @@ namespace Quartz.Simpl
                     throw new JobPersistenceException("Calender cannot be removed if it referenced by a Trigger!");
                 }
 
-                ICalendar temp;
-                return calendarsByName.TryRemove(calName, out temp);
+                return calendarsByName.TryRemove(calName, out _);
             }
         }
 
@@ -1225,11 +1219,11 @@ namespace Quartz.Simpl
                 {
                     foreach (string group in triggersByGroup.Keys)
                     {
-                        if (op.Evaluate(@group, matcher.CompareToValue))
+                        if (op.Evaluate(group, matcher.CompareToValue))
                         {
                             if (pausedTriggerGroups.Add(matcher.CompareToValue))
                             {
-                                pausedGroups.Add(@group);
+                                pausedGroups.Add(group);
                             }
                         }
                     }
@@ -1327,7 +1321,7 @@ namespace Quartz.Simpl
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </remarks>
         public virtual Task ResumeTrigger(
-            TriggerKey triggerKey, 
+            TriggerKey triggerKey,
             CancellationToken cancellationToken = default(CancellationToken))
         {
             ResumeTriggerInternal(triggerKey);
@@ -1603,8 +1597,8 @@ namespace Quartz.Simpl
         /// </summary>
         /// <seealso cref="ITrigger" />
         public virtual Task<IReadOnlyCollection<IOperableTrigger>> AcquireNextTriggers(
-            DateTimeOffset noLaterThan, 
-            int maxCount, 
+            DateTimeOffset noLaterThan,
+            int maxCount,
             TimeSpan timeWindow,
             CancellationToken cancellationToken = default(CancellationToken))
         {
@@ -1664,10 +1658,7 @@ namespace Quartz.Simpl
                             excludedTriggers.Add(tw);
                             continue; // go to next trigger in store.
                         }
-                        else
-                        {
-                            acquiredJobKeysForNoConcurrentExec.Add(jobKey);
-                        }
+                        acquiredJobKeysForNoConcurrentExec.Add(jobKey);
                     }
 
                     tw.state = InternalTriggerState.Acquired;

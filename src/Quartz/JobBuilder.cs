@@ -253,7 +253,7 @@ namespace Quartz
         /// <seealso cref="IJobDetail.RequestsRecovery" />
         public JobBuilder RequestRecovery()
         {
-            this.shouldRecover = true;
+            shouldRecover = true;
             return this;
         }
 
@@ -285,7 +285,7 @@ namespace Quartz
         /// <seealso cref="IJobDetail.Durable" />
         public JobBuilder StoreDurably()
         {
-            this.durability = true;
+            durability = true;
             return this;
         }
 

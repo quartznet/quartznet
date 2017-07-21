@@ -185,7 +185,7 @@ namespace Quartz.Impl.Triggers
         /// <seealso cref="RepeatIndefinitely" />
         public int RepeatCount
         {
-            get { return repeatCount; }
+            get => repeatCount;
 
             set
             {
@@ -203,7 +203,7 @@ namespace Quartz.Impl.Triggers
         /// </summary>
         public TimeSpan RepeatInterval
         {
-            get { return repeatInterval; }
+            get => repeatInterval;
 
             set
             {
@@ -222,8 +222,8 @@ namespace Quartz.Impl.Triggers
         /// </summary>
         public virtual int TimesTriggered
         {
-            get { return timesTriggered; }
-            set { timesTriggered = value; }
+            get => timesTriggered;
+            set => timesTriggered = value;
         }
 
 	    public override IScheduleBuilder GetScheduleBuilder()
@@ -274,7 +274,7 @@ namespace Quartz.Impl.Triggers
                 {
                     return null;
                 }
-                else if (repeatCount == RepeatIndefinitely)
+                if (repeatCount == RepeatIndefinitely)
                 {
                     return GetFireTimeBefore(EndTimeUtc);
                 }
@@ -285,10 +285,7 @@ namespace Quartz.Impl.Triggers
                 {
                     return lastTrigger;
                 }
-                else
-                {
-                    return GetFireTimeBefore(EndTimeUtc);
-                }
+                return GetFireTimeBefore(EndTimeUtc);
             }
         }
 
@@ -297,13 +294,9 @@ namespace Quartz.Impl.Triggers
         /// in millisecond precision.
         /// </summary>
         /// <value></value>
-        public override bool HasMillisecondPrecision
-        {
-            get { return true; }
-        }
+        public override bool HasMillisecondPrecision => true;
 
-
-		/// <summary>
+	    /// <summary>
 		/// Validates the misfire instruction.
 		/// </summary>
 		/// <param name="misfireInstruction">The misfire instruction.</param>

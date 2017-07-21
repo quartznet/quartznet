@@ -27,6 +27,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using FakeItEasy;
+
 using NUnit.Framework;
 
 using Quartz.Core;

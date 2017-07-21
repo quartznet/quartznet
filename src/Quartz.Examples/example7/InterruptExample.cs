@@ -62,7 +62,7 @@ namespace Quartz.Examples.Example7
                 .Build();
 
             DateTimeOffset ft = await sched.ScheduleJob(job, trigger);
-            log.Info($"{job.Key} will run at: {ft.ToString("r")} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
+            log.Info($"{job.Key} will run at: {ft:r} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
 
             // start up the scheduler (jobs do not start to fire until
             // the scheduler has been started)

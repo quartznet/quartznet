@@ -118,7 +118,7 @@ namespace Quartz.Impl.AdoJobStore
 
         internal virtual DateTimeOffset? SignalSchedulingChangeOnTxCompletion
         {
-            get { return sigChangeForTxCompletion; }
+            get => sigChangeForTxCompletion;
             set
             {
                 DateTimeOffset? sigTime = sigChangeForTxCompletion;

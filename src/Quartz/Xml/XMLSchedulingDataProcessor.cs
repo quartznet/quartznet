@@ -23,9 +23,6 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
-#if XML_SCHEMA
-using System.Xml.Schema;
-#endif
 using System.Xml.Serialization;
 
 using Quartz.Impl.Matchers;
@@ -33,6 +30,9 @@ using Quartz.Logging;
 using Quartz.Spi;
 using Quartz.Util;
 using Quartz.Xml.JobSchedulingData20;
+#if XML_SCHEMA
+using System.Xml.Schema;
+#endif
 
 namespace Quartz.Xml
 {
@@ -152,7 +152,7 @@ namespace Quartz.Xml
         /// <param name="fileName">meta data file name.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         public virtual Task ProcessFile(
-            string fileName, 
+            string fileName,
             CancellationToken cancellationToken = default(CancellationToken))
         {
             return ProcessFile(fileName, fileName, cancellationToken);
@@ -166,7 +166,7 @@ namespace Quartz.Xml
         /// <param name="systemId">The system id.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         public virtual async Task ProcessFile(
-            string fileName, 
+            string fileName,
             string systemId,
             CancellationToken cancellationToken = default(CancellationToken))
         {
@@ -190,7 +190,7 @@ namespace Quartz.Xml
         /// <param name="systemId">The system id.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         public virtual async Task ProcessStream(
-            Stream stream, 
+            Stream stream,
             string systemId,
             CancellationToken cancellationToken = default(CancellationToken))
         {
@@ -347,12 +347,9 @@ namespace Quartz.Xml
             {
                 foreach (var schedule in data.schedule)
                 {
-                    if (schedule != null)
+                    if (schedule?.job != null)
                     {
-                        if (schedule.job != null)
-                        {
-                            jobNodes.AddRange(schedule.job);
-                        }
+                        jobNodes.AddRange(schedule.job);
                     }
                 }
             }
@@ -648,7 +645,7 @@ namespace Quartz.Xml
         /// jobs defined within it.
         /// </summary>
         public virtual Task ProcessFileAndScheduleJobs(
-            IScheduler sched, 
+            IScheduler sched,
             CancellationToken cancellationToken = default(CancellationToken))
         {
             return ProcessFileAndScheduleJobs(QuartzXmlFileName, sched, cancellationToken);
@@ -662,7 +659,7 @@ namespace Quartz.Xml
         /// <param name="sched">The scheduler.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         public virtual Task ProcessFileAndScheduleJobs(
-            string fileName, 
+            string fileName,
             IScheduler sched,
             CancellationToken cancellationToken = default(CancellationToken))
         {
@@ -678,8 +675,8 @@ namespace Quartz.Xml
         /// <param name="sched">The sched.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         public virtual async Task ProcessFileAndScheduleJobs(
-            string fileName, 
-            string systemId, 
+            string fileName,
+            string systemId,
             IScheduler sched,
             CancellationToken cancellationToken = default(CancellationToken))
         {
@@ -940,8 +937,8 @@ namespace Quartz.Xml
         }
 
         private Task DoRescheduleJob(
-            IScheduler sched, 
-            IMutableTrigger trigger, 
+            IScheduler sched,
+            IMutableTrigger trigger,
             ITrigger oldTrigger,
             CancellationToken cancellationToken = default(CancellationToken))
         {
@@ -1002,7 +999,7 @@ namespace Quartz.Xml
                     if (!jobGroupsToNeverDelete.Contains(group))
                     {
                         Log.InfoFormat("Deleting all jobs in group: {0}", group);
-                        foreach (JobKey key in await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(@group), cancellationToken).ConfigureAwait(false))
+                        foreach (JobKey key in await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(group), cancellationToken).ConfigureAwait(false))
                         {
                             await scheduler.DeleteJob(key, cancellationToken).ConfigureAwait(false);
                         }
@@ -1031,7 +1028,7 @@ namespace Quartz.Xml
                     if (!triggerGroupsToNeverDelete.Contains(group))
                     {
                         Log.InfoFormat("Deleting all triggers in group: {0}", group);
-                        foreach (TriggerKey key in await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(@group), cancellationToken).ConfigureAwait(false))
+                        foreach (TriggerKey key in await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(group), cancellationToken).ConfigureAwait(false))
                         {
                             await scheduler.UnscheduleJob(key, cancellationToken).ConfigureAwait(false);
                         }

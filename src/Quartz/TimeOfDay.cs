@@ -40,10 +40,6 @@ namespace Quartz
 #endif // BINARY_SERIALIZATION
     public class TimeOfDay
     {
-        private readonly int hour;
-        private readonly int minute;
-        private readonly int second;
-
         /// <summary>
         /// Create a TimeOfDay instance for the given hour, minute and second.
         /// </summary>
@@ -52,9 +48,9 @@ namespace Quartz
         /// <param name="second">The second of the minute, between 0 and 59.</param>
         public TimeOfDay(int hour, int minute, int second)
         {
-            this.hour = hour;
-            this.minute = minute;
-            this.second = second;
+            Hour = hour;
+            Minute = minute;
+            Second = second;
             Validate();
         }
 
@@ -65,25 +61,25 @@ namespace Quartz
         /// <param name="minute">The minute of the hour, between 0 and 59.</param>
         public TimeOfDay(int hour, int minute)
         {
-            this.hour = hour;
-            this.minute = minute;
-            this.second = 0;
+            Hour = hour;
+            Minute = minute;
+            Second = 0;
             Validate();
         }
 
         private void Validate()
         {
-            if (hour < 0 || hour > 23)
+            if (Hour < 0 || Hour > 23)
             {
                 throw new ArgumentException("Hour must be from 0 to 23");
             }
 
-            if (minute < 0 || minute > 59)
+            if (Minute < 0 || Minute > 59)
             {
                 throw new ArgumentException("Minute must be from 0 to 59");
             }
 
-            if (second < 0 || second > 59)
+            if (Second < 0 || Second > 59)
             {
                 throw new ArgumentException("Second must be from 0 to 59");
             }
@@ -115,26 +111,17 @@ namespace Quartz
         /// <summary>
         /// The hour of the day (between 0 and 23).
         /// </summary>
-        public int Hour
-        {
-            get { return hour; }
-        }
+        public int Hour { get; }
 
         /// <summary>
         /// The minute of the hour (between 0 and 59).
         /// </summary>
-        public int Minute
-        {
-            get { return minute; }
-        }
+        public int Minute { get; }
 
         /// <summary>
         /// The second of the minute (between 0 and 59).
         /// </summary>
-        public int Second
-        {
-            get { return second; }
-        }
+        public int Second { get; }
 
         /// <summary>
         /// Determine with this time of day is before the given time of day.
@@ -143,29 +130,29 @@ namespace Quartz
         /// <returns>True this time of day is before the given time of day.</returns>
         public bool Before(TimeOfDay timeOfDay)
         {
-            if (timeOfDay.hour > hour)
+            if (timeOfDay.Hour > Hour)
             {
                 return true;
             }
-            if (timeOfDay.hour < hour)
+            if (timeOfDay.Hour < Hour)
             {
                 return false;
             }
 
-            if (timeOfDay.minute > minute)
+            if (timeOfDay.Minute > Minute)
             {
                 return true;
             }
-            if (timeOfDay.minute < minute)
+            if (timeOfDay.Minute < Minute)
             {
                 return false;
             }
 
-            if (timeOfDay.second > second)
+            if (timeOfDay.Second > Second)
             {
                 return true;
             }
-            if (timeOfDay.second < second)
+            if (timeOfDay.Second < Second)
             {
                 return false;
             }
@@ -182,12 +169,12 @@ namespace Quartz
 
             TimeOfDay other = (TimeOfDay) obj;
 
-            return (other.hour == hour && other.minute == minute && other.second == second);
+            return (other.Hour == Hour && other.Minute == Minute && other.Second == Second);
         }
 
         public override int GetHashCode()
         {
-            return (hour + 1) ^ (minute + 1) ^ (second + 1);
+            return (Hour + 1) ^ (Minute + 1) ^ (Second + 1);
         }
 
         /// <summary>
@@ -202,13 +189,13 @@ namespace Quartz
             }
 
             DateTimeOffset cal = new DateTimeOffset(dateTime.Value.Date, dateTime.Value.Offset);
-            TimeSpan t = new TimeSpan(0, hour, minute, second);
+            TimeSpan t = new TimeSpan(0, Hour, Minute, Second);
             return cal.Add(t);
         }
 
         public override string ToString()
         {
-            return "TimeOfDay[" + hour + ":" + minute + ":" + second + "]";
+            return "TimeOfDay[" + Hour + ":" + Minute + ":" + Second + "]";
         }
     }
 }

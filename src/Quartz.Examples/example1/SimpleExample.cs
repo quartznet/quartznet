@@ -65,7 +65,7 @@ namespace Quartz.Examples.Example1
 
             // Tell quartz to schedule the job using our trigger
             await sched.ScheduleJob(job, trigger);
-            log.Info($"{job.Key} will run at: {runTime.ToString("r")}");
+            log.Info($"{job.Key} will run at: {runTime:r}");
 
             // Start up the scheduler (nothing can actually run until the
             // scheduler has been started)

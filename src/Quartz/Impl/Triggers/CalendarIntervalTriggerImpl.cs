@@ -65,10 +65,6 @@ namespace Quartz.Impl.Triggers
         private DateTimeOffset? nextFireTimeUtc; // Making a public property which called GetNextFireTime/SetNextFireTime would make the json attribute unnecessary
         private DateTimeOffset? previousFireTimeUtc; // Making a public property which called GetPreviousFireTime/SetPreviousFireTime would make the json attribute unnecessary
         private int repeatInterval;
-        private IntervalUnit repeatIntervalUnit = IntervalUnit.Day;
-        private bool preserveHourOfDayAcrossDaylightSavings; // false is backward-compatible with behavior
-        private bool skipDayIfHourDoesNotExist;
-        private int timesTriggered;
         private TimeZoneInfo timeZone;
 
         // Serializing TimeZones is tricky in .NET Core. This helper will ensure that we get the same timezone on a given platform,
@@ -78,8 +74,8 @@ namespace Quartz.Impl.Triggers
         // More info: https://github.com/dotnet/corefx/issues/7757
         private string timeZoneInfoId
         {
-            get { return timeZone?.Id; }
-            set { timeZone = (value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value)); }
+            get => timeZone?.Id;
+            set => timeZone = (value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value));
         }
 
         /// <summary>
@@ -207,10 +203,7 @@ namespace Quartz.Impl.Triggers
         /// Tells whether this Trigger instance can handle events
         /// in millisecond precision.
         /// </summary>
-        public override bool HasMillisecondPrecision
-        {
-            get { return true; }
-        }
+        public override bool HasMillisecondPrecision => true;
 
         /// <summary>
         /// Get the time at which the <see cref="ICalendarIntervalTrigger" /> should quit
@@ -218,7 +211,7 @@ namespace Quartz.Impl.Triggers
         /// </summary>
         public override DateTimeOffset? EndTimeUtc
         {
-            get { return endTime; }
+            get => endTime;
             set
             {
                 DateTimeOffset sTime = StartTimeUtc;
@@ -234,11 +227,7 @@ namespace Quartz.Impl.Triggers
         /// <summary>
         /// Get or set the interval unit - the time unit on with the interval applies.
         /// </summary>
-        public IntervalUnit RepeatIntervalUnit
-        {
-            get { return repeatIntervalUnit; }
-            set { this.repeatIntervalUnit = value; }
-        }
+        public IntervalUnit RepeatIntervalUnit { get; set; } = IntervalUnit.Day;
 
         /// <summary>
         /// Get the time interval that will be added to the <see cref="ICalendarIntervalTrigger" />'s
@@ -247,7 +236,7 @@ namespace Quartz.Impl.Triggers
         /// </summary>
         public int RepeatInterval
         {
-            get { return repeatInterval; }
+            get => repeatInterval;
             set
             {
                 if (value < 0)
@@ -270,7 +259,7 @@ namespace Quartz.Impl.Triggers
                 return timeZone;
             }
 
-            set { timeZone = value; }
+            set => timeZone = value;
         }
 
         ///<summary>
@@ -298,11 +287,7 @@ namespace Quartz.Impl.Triggers
         /// <seealso cref="ICalendarIntervalTrigger.SkipDayIfHourDoesNotExist"/>
         /// <seealso cref="ICalendarIntervalTrigger.TimeZone"/>
         /// <seealso cref="TriggerBuilder.StartAt"/>
-        public bool PreserveHourOfDayAcrossDaylightSavings
-        {
-            get { return preserveHourOfDayAcrossDaylightSavings; }
-            set { preserveHourOfDayAcrossDaylightSavings = value; }
-        }
+        public bool PreserveHourOfDayAcrossDaylightSavings { get; set; }
 
         /// <summary>
         /// If intervals are a day or greater, and
@@ -322,20 +307,12 @@ namespace Quartz.Impl.Triggers
         /// occur).
         /// </remarks>
         /// <seealso cref="ICalendarIntervalTrigger.PreserveHourOfDayAcrossDaylightSavings"/>
-        public bool SkipDayIfHourDoesNotExist
-        {
-            get { return skipDayIfHourDoesNotExist; }
-            set { skipDayIfHourDoesNotExist = value; }
-        }
+        public bool SkipDayIfHourDoesNotExist { get; set; }
 
         /// <summary>
         /// Get the number of times the <see cref="ICalendarIntervalTrigger" /> has already fired.
         /// </summary>
-        public int TimesTriggered
-        {
-            get { return timesTriggered; }
-            set { this.timesTriggered = value; }
-        }
+        public int TimesTriggered { get; set; }
 
         /// <summary>
         /// Validates the misfire instruction.
@@ -415,7 +392,7 @@ namespace Quartz.Impl.Triggers
         /// <seealso cref="JobExecutionException" />
         public override void Triggered(ICalendar calendar)
         {
-            timesTriggered++;
+            TimesTriggered++;
             previousFireTimeUtc = nextFireTimeUtc;
             nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 
@@ -769,39 +746,36 @@ namespace Quartz.Impl.Triggers
                 return null;
             }
 
-            sTime = TimeZoneUtil.ConvertTime(sTime, this.TimeZone); //apply the timezone before we return the time.
+            sTime = TimeZoneUtil.ConvertTime(sTime, TimeZone); //apply the timezone before we return the time.
             return time;
         }
 
         private bool DaylightSavingHourShiftOccurredAndAdvanceNeeded(ref DateTimeOffset newTime, int initialHourOfDay)
         {
             //need to apply timezone again to properly check if initialHourOfDay has changed.
-            DateTimeOffset toCheck = TimeZoneUtil.ConvertTime(newTime, this.TimeZone);
+            DateTimeOffset toCheck = TimeZoneUtil.ConvertTime(newTime, TimeZone);
 
             if (PreserveHourOfDayAcrossDaylightSavings && toCheck.Hour != initialHourOfDay)
             {
                 //first apply the date, and then find the proper timezone offset
                 newTime = new DateTimeOffset(newTime.Year, newTime.Month, newTime.Day, initialHourOfDay, newTime.Minute, newTime.Second, newTime.Millisecond, TimeSpan.Zero);
-                newTime = new DateTimeOffset(newTime.DateTime, TimeZoneUtil.GetUtcOffset(newTime.DateTime, this.TimeZone));
+                newTime = new DateTimeOffset(newTime.DateTime, TimeZoneUtil.GetUtcOffset(newTime.DateTime, TimeZone));
 
                 //TimeZone.IsInvalidTime is true, if this hour does not exist in the specified timezone
-                bool isInvalid = this.TimeZone.IsInvalidTime(newTime.DateTime);
+                bool isInvalid = TimeZone.IsInvalidTime(newTime.DateTime);
 
-                if (isInvalid && skipDayIfHourDoesNotExist)
+                if (isInvalid && SkipDayIfHourDoesNotExist)
                 {
-                    return skipDayIfHourDoesNotExist;
+                    return SkipDayIfHourDoesNotExist;
                 }
-                else
+                //don't skip this day, instead find closest valid time by adding minutes.
+                while (TimeZone.IsInvalidTime(newTime.DateTime))
                 {
-                    //don't skip this day, instead find closest valid time by adding minutes.
-                    while (this.TimeZone.IsInvalidTime(newTime.DateTime))
-                    {
-                        newTime = newTime.AddMinutes(1);
-                    }
+                    newTime = newTime.AddMinutes(1);
+                }
 
-                    //apply proper offset for the adjusted time
-                    newTime = new DateTimeOffset(newTime.DateTime, TimeZoneUtil.GetUtcOffset(newTime.DateTime, this.TimeZone));
-                }
+                //apply proper offset for the adjusted time
+                newTime = new DateTimeOffset(newTime.DateTime, TimeZoneUtil.GetUtcOffset(newTime.DateTime, TimeZone));
             }
             return false;
         }
@@ -817,13 +791,13 @@ namespace Quartz.Impl.Triggers
             int initalMonth = sTime.Month;
             int initialDay = sTime.Day;
 
-            sTime = TimeZoneUtil.ConvertTime(sTime, this.TimeZone);
+            sTime = TimeZoneUtil.ConvertTime(sTime, TimeZone);
 
             if (PreserveHourOfDayAcrossDaylightSavings && sTime.Hour != initialHourOfDay)
             {
                 //first apply the date, and then find the proper timezone offset
                 sTime = new DateTimeOffset(initalYear, initalMonth, initialDay, initialHourOfDay, sTime.Minute, sTime.Second, sTime.Millisecond, TimeSpan.Zero);
-                sTime = new DateTimeOffset(sTime.DateTime, TimeZoneUtil.GetUtcOffset(sTime.DateTime, this.TimeZone));
+                sTime = new DateTimeOffset(sTime.DateTime, TimeZoneUtil.GetUtcOffset(sTime.DateTime, TimeZone));
             }
         }
 
@@ -908,7 +882,7 @@ namespace Quartz.Impl.Triggers
         {
             base.Validate();
 
-            if (repeatIntervalUnit == IntervalUnit.Millisecond)
+            if (RepeatIntervalUnit == IntervalUnit.Millisecond)
             {
                 throw new SchedulerException("Invalid repeat IntervalUnit (must be Second, Minute, Hour, Day, Month, Week or Year).");
             }
@@ -940,9 +914,6 @@ namespace Quartz.Impl.Triggers
             return cb;
         }
 
-        public override bool HasAdditionalProperties
-        {
-            get { return false; }
-        }
+        public override bool HasAdditionalProperties => false;
     }
 }

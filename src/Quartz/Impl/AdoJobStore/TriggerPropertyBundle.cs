@@ -5,30 +5,17 @@
     /// </summary>
     public class TriggerPropertyBundle
     {
-        private readonly IScheduleBuilder sb;
-        private readonly string[] statePropertyNames;
-        private readonly object[] statePropertyValues;
-
         public TriggerPropertyBundle(IScheduleBuilder sb, string[] statePropertyNames, object[] statePropertyValues)
         {
-            this.sb = sb;
-            this.statePropertyNames = statePropertyNames;
-            this.statePropertyValues = statePropertyValues;
+            ScheduleBuilder = sb;
+            StatePropertyNames = statePropertyNames;
+            StatePropertyValues = statePropertyValues;
         }
 
-        public IScheduleBuilder ScheduleBuilder
-        {
-            get { return sb; }
-        }
+        public IScheduleBuilder ScheduleBuilder { get; }
 
-        public string[] StatePropertyNames
-        {
-            get { return statePropertyNames; }
-        }
+        public string[] StatePropertyNames { get; }
 
-        public object[] StatePropertyValues
-        {
-            get { return statePropertyValues; }
-        }
+        public object[] StatePropertyValues { get; }
     }
 }

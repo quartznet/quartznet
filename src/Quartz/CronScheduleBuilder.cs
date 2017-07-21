@@ -68,12 +68,7 @@ namespace Quartz
 
         protected CronScheduleBuilder(CronExpression cronExpression)
         {
-            if (cronExpression == null)
-            {
-                throw new ArgumentNullException("cronExpression", "cronExpression cannot be null");
-            }            
-            
-            this.cronExpression = cronExpression;
+            this.cronExpression = cronExpression ?? throw new ArgumentNullException("cronExpression", "cronExpression cannot be null");
         }
 
         /// <summary>

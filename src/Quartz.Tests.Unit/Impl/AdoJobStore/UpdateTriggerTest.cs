@@ -7,6 +7,7 @@ using System.Linq;
 using System.Threading.Tasks;
 
 using FakeItEasy;
+
 using NUnit.Framework;
 
 using Quartz.Impl.AdoJobStore;
@@ -44,25 +45,13 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             set => throw new NotImplementedException();
         }
 
-        public override string Database
-        {
-            get { throw new NotImplementedException(); }
-        }
+        public override string Database => throw new NotImplementedException();
 
-        public override ConnectionState State
-        {
-            get { throw new NotImplementedException(); }
-        }
+        public override ConnectionState State => throw new NotImplementedException();
 
-        public override string DataSource
-        {
-            get { throw new NotImplementedException(); }
-        }
+        public override string DataSource => throw new NotImplementedException();
 
-        public override string ServerVersion
-        {
-            get { throw new NotImplementedException(); }
-        }
+        public override string ServerVersion => throw new NotImplementedException();
 
         protected override DbCommand CreateDbCommand()
         {

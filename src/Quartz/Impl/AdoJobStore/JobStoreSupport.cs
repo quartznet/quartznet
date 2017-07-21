@@ -2599,10 +2599,7 @@ namespace Quartz.Impl.AdoJobStore
                             {
                                 continue; // next trigger
                             }
-                            else
-                            {
-                                acquiredJobKeysForNoConcurrentExec.Add(jobKey);
-                            }
+                            acquiredJobKeysForNoConcurrentExec.Add(jobKey);
                         }
 
                         if (nextTrigger.GetNextFireTimeUtc() > batchEnd)
@@ -3566,7 +3563,7 @@ namespace Quartz.Impl.AdoJobStore
             Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
             CancellationToken cancellationToken)
         {
-            return ExecuteInNonManagedTXLock<T>(lockName, txCallback, null, cancellationToken);
+            return ExecuteInNonManagedTXLock(lockName, txCallback, null, cancellationToken);
         }
 
         /// <summary>

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+
 using Quartz.Simpl;
 using Quartz.Spi;
 
@@ -24,7 +25,7 @@ namespace Quartz.Job
         internal IReadOnlyList<string> DirectoriesToScan { get; private set; }
         internal IDirectoryScanListener DirectoryScanListener { get; private set; }
         internal DateTime LastModTime { get; private set; }
-        internal DateTime MaxAgeDate => DateTime.Now - this.MinUpdateAge;
+        internal DateTime MaxAgeDate => DateTime.Now - MinUpdateAge;
         private TimeSpan MinUpdateAge { get; set; }
         private JobDataMap JobDetailJobDataMap { get; set; }
 
@@ -70,12 +71,12 @@ namespace Quartz.Job
         /// <param name="lastWriteTimeFromFiles">Latest LastWriteTime of the files scanned</param>
         internal void UpdateLastModifiedDate(DateTime lastWriteTimeFromFiles)
         {
-            DateTime newLastModifiedDate = lastWriteTimeFromFiles > this.LastModTime
+            DateTime newLastModifiedDate = lastWriteTimeFromFiles > LastModTime
                 ? lastWriteTimeFromFiles
-                : this.LastModTime;
+                : LastModTime;
 
             // It is the JobDataMap on the JobDetail which is actually stateful
-            this.JobDetailJobDataMap.Put(DirectoryScanJob.LastModifiedTime, newLastModifiedDate);
+            JobDetailJobDataMap.Put(DirectoryScanJob.LastModifiedTime, newLastModifiedDate);
         }
 
 
@@ -89,12 +90,8 @@ namespace Quartz.Job
                 object temp;
                 schedCtxt.TryGetValue(explicitDirProviderName, out temp);
                 IDirectoryProvider explicitProvider = (IDirectoryProvider)temp;
-                if (explicitProvider == null)
-                {
-                    throw new JobExecutionException("IDirectoryProvider named '" +
+                directoryProvider = explicitProvider ?? throw new JobExecutionException("IDirectoryProvider named '" +
                                                     explicitDirProviderName + "' not found in SchedulerContext");
-                }
-                directoryProvider = explicitProvider;
             }
 
             return directoryProvider.GetDirectoriesToScan(mergedJobDataMap).ToList();

@@ -87,7 +87,7 @@ namespace Quartz.Examples.Example5
                 .Build();
 
             DateTimeOffset ft = await sched.ScheduleJob(job, trigger);
-            log.Info($"{job.Key} will run at: {ft.ToString("r")} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
+            log.Info($"{job.Key} will run at: {ft:r} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
 
             // statefulJob2 will run every three seconds
             // (but it will delay for ten seconds - and therefore purposely misfire after a few iterations)
@@ -106,7 +106,7 @@ namespace Quartz.Examples.Example5
                 .Build();
             ft = await sched.ScheduleJob(job, trigger);
 
-            log.Info($"{job.Key} will run at: {ft.ToString("r")} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
+            log.Info($"{job.Key} will run at: {ft:r} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
 
             log.Info("------- Starting Scheduler ----------------");
 

@@ -200,8 +200,8 @@ namespace Quartz.Impl.Triggers
         // More info: https://github.com/dotnet/corefx/issues/7757
         private string timeZoneInfoId
         {
-            get { return timeZone?.Id; }
-            set { timeZone = (value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value)); }
+            get => timeZone?.Id;
+            set => timeZone = (value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value));
         }
 
         /// <summary>
@@ -431,7 +431,7 @@ namespace Quartz.Impl.Triggers
 				cronEx = new CronExpression(value);
 				cronEx.TimeZone = originalTimeZone;
 			}
-			get { return cronEx == null ? null : cronEx.CronExpressionString; }
+			get => cronEx == null ? null : cronEx.CronExpressionString;
 		}
 
 		/// <summary>
@@ -456,8 +456,8 @@ namespace Quartz.Impl.Triggers
 		/// <value></value>
         public override DateTimeOffset StartTimeUtc
 		{
-			get {  return startTimeUtc; }
-			set
+			get => startTimeUtc;
+		    set
 			{
                 DateTimeOffset? eTime = EndTimeUtc;
 				if (eTime.HasValue && eTime.Value < value)
@@ -478,8 +478,8 @@ namespace Quartz.Impl.Triggers
 		/// </summary>
         public override DateTimeOffset? EndTimeUtc
 		{
-			get { return endTimeUtc; }
-			set
+			get => endTimeUtc;
+		    set
 			{
                 DateTimeOffset sTime = StartTimeUtc;
 				if (value.HasValue && sTime > value.Value)
@@ -666,12 +666,9 @@ namespace Quartz.Impl.Triggers
 		/// in millisecond precision.
 		/// </summary>
 		/// <value></value>
-		public override bool HasMillisecondPrecision
-		{
-			get { return false; }
-		}
+		public override bool HasMillisecondPrecision => false;
 
-		/// <summary>
+	    /// <summary>
 		/// Used by the <see cref="IScheduler" /> to determine whether or not
 		/// it is possible for this <see cref="ITrigger" /> to fire again.
 		/// <para>
@@ -926,12 +923,7 @@ namespace Quartz.Impl.Triggers
 		/// <returns></returns>
         protected DateTimeOffset? GetTimeAfter(DateTimeOffset afterTime)
 		{
-		    if (cronEx != null)
-            {
-                return cronEx.GetTimeAfter(afterTime);
-            }
-
-            return null;
+		    return cronEx?.GetTimeAfter(afterTime);
 		}
 
 	    /// <summary>

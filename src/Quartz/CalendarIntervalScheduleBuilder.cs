@@ -95,7 +95,7 @@ namespace Quartz
         {
             ValidateInterval(interval);
             this.interval = interval;
-            this.intervalUnit = unit;
+            intervalUnit = unit;
             return this;
         }
 
@@ -112,8 +112,8 @@ namespace Quartz
         public CalendarIntervalScheduleBuilder WithIntervalInSeconds(int intervalInSeconds)
         {
             ValidateInterval(intervalInSeconds);
-            this.interval = intervalInSeconds;
-            this.intervalUnit = IntervalUnit.Second;
+            interval = intervalInSeconds;
+            intervalUnit = IntervalUnit.Second;
             return this;
         }
 
@@ -130,8 +130,8 @@ namespace Quartz
         public CalendarIntervalScheduleBuilder WithIntervalInMinutes(int intervalInMinutes)
         {
             ValidateInterval(intervalInMinutes);
-            this.interval = intervalInMinutes;
-            this.intervalUnit = IntervalUnit.Minute;
+            interval = intervalInMinutes;
+            intervalUnit = IntervalUnit.Minute;
             return this;
         }
 
@@ -148,8 +148,8 @@ namespace Quartz
         public CalendarIntervalScheduleBuilder WithIntervalInHours(int intervalInHours)
         {
             ValidateInterval(intervalInHours);
-            this.interval = intervalInHours;
-            this.intervalUnit = IntervalUnit.Hour;
+            interval = intervalInHours;
+            intervalUnit = IntervalUnit.Hour;
             return this;
         }
 
@@ -166,8 +166,8 @@ namespace Quartz
         public CalendarIntervalScheduleBuilder WithIntervalInDays(int intervalInDays)
         {
             ValidateInterval(intervalInDays);
-            this.interval = intervalInDays;
-            this.intervalUnit = IntervalUnit.Day;
+            interval = intervalInDays;
+            intervalUnit = IntervalUnit.Day;
             return this;
         }
 
@@ -202,8 +202,8 @@ namespace Quartz
         public CalendarIntervalScheduleBuilder WithIntervalInMonths(int intervalInMonths)
         {
             ValidateInterval(intervalInMonths);
-            this.interval = intervalInMonths;
-            this.intervalUnit = IntervalUnit.Month;
+            interval = intervalInMonths;
+            intervalUnit = IntervalUnit.Month;
             return this;
         }
 
@@ -220,8 +220,8 @@ namespace Quartz
         public CalendarIntervalScheduleBuilder WithIntervalInYears(int intervalInYears)
         {
             ValidateInterval(intervalInYears);
-            this.interval = intervalInYears;
-            this.intervalUnit = IntervalUnit.Year;
+            interval = intervalInYears;
+            intervalUnit = IntervalUnit.Year;
             return this;
         }
 
@@ -276,7 +276,7 @@ namespace Quartz
         /// <seealso cref="ICalendarIntervalTrigger.TimeZone" />
         public CalendarIntervalScheduleBuilder InTimeZone(TimeZoneInfo timezone)
         {
-            this.timeZone = timezone;
+            timeZone = timezone;
             return this;
         }
 

@@ -22,6 +22,7 @@
 using System;
 using System.Collections.Specialized;
 using System.Threading.Tasks;
+
 using NUnit.Framework;
 
 using Quartz.Spi;
@@ -199,10 +200,7 @@ namespace Quartz.Tests.Unit.Utils
             throw new NotImplementedException();
         }
 
-        int IThreadPool.PoolSize
-        {
-            get { throw new NotImplementedException(); }
-        }
+        int IThreadPool.PoolSize => throw new NotImplementedException();
 
         public string InstanceId { get; set; }
         public string InstanceName { get; set; }

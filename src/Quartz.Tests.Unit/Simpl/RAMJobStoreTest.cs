@@ -421,7 +421,7 @@ namespace Quartz.Tests.Unit.Simpl
 
         public class SampleSignaler : ISchedulerSignaler
         {
-            internal int fMisfireCount = 0;
+            internal int fMisfireCount;
 
             public Task NotifyTriggerListenersMisfired(
                 ITrigger trigger, 

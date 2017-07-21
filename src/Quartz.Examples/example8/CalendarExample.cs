@@ -89,7 +89,7 @@ namespace Quartz.Examples.Example8
             // print out the first execution date.
             // Note:  Since Halloween (Oct 31) is a holiday, then
             // we will not run until the next day! (Nov 1)
-            log.Info($"{job.Key} will run at: {firstRunTime.ToString("r")} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
+            log.Info($"{job.Key} will run at: {firstRunTime:r} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
 
             // All of the jobs have been added to the scheduler, but none of the jobs
             // will run until the scheduler has been started

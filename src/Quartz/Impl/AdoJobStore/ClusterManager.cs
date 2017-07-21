@@ -10,6 +10,7 @@ namespace Quartz.Impl.AdoJobStore
     internal class ClusterManager
     {
         private static readonly ILog log = LogProvider.GetLogger(typeof(ClusterManager));
+
         // keep constant lock requestor id for manager's lifetime
         private readonly Guid requestorId = Guid.NewGuid();
 
@@ -61,7 +62,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                if (numFails%jobStoreSupport.RetryableActionErrorLogThreshold == 0)
+                if (numFails % jobStoreSupport.RetryableActionErrorLogThreshold == 0)
                 {
                     log.ErrorException("Error managing cluster: " + e.Message, e);
                 }

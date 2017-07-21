@@ -931,27 +931,24 @@ namespace Quartz.Impl.AdoJobStore
                     throw;
                 }
             }
-            else
+            try
             {
+                return await GetObjectFromBlob<IDictionary>(rs, colIndex);
+            }
+            catch (InvalidCastException)
+            {
+                // old data from user error?
                 try
                 {
-                    return await GetObjectFromBlob<IDictionary>(rs, colIndex);
+                    // we use this then
+                    return await GetMapFromProperties(rs, colIndex);
                 }
-                catch (InvalidCastException)
+                catch
                 {
-                    // old data from user error?
-                    try
-                    {
-                        // we use this then
-                        return await GetMapFromProperties(rs, colIndex);
-                    }
-                    catch
-                    {
-                    }
-
-                    // throw original exception
-                    throw;
                 }
+
+                // throw original exception
+                throw;
             }
         }
 

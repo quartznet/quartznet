@@ -145,7 +145,7 @@ namespace Quartz.Simpl
 										   ? ObjectUtils.GetTimeSpanValueForProperty(prop, o)
 										   : ConvertValueIfNecessary(paramType, o);
 
-					prop.GetSetMethod().Invoke(obj, new object[] {goodValue});
+					prop.GetSetMethod().Invoke(obj, new[] {goodValue});
 				}
 				catch (FormatException nfe)
 				{

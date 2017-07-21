@@ -12,25 +12,20 @@ namespace Quartz
     /// <seealso cref="TimeSpanParseRuleAttribute" />
     public class TimeSpanParseRuleAttribute : Attribute
     {
-        private readonly TimeSpanParseRule rule;
-
         /// <summary>
         /// Initializes a new instance of the <see cref="TimeSpanParseRuleAttribute"/> class.
         /// </summary>
         /// <param name="rule">The rule.</param>
         public TimeSpanParseRuleAttribute(TimeSpanParseRule rule)
         {
-            this.rule = rule;
+            Rule = rule;
         }
 
         /// <summary>
         /// Gets the rule.
         /// </summary>
         /// <value>The rule.</value>
-        public TimeSpanParseRule Rule
-        {
-            get { return rule; }
-        }
+        public TimeSpanParseRule Rule { get; }
     }
 
     /// <summary>

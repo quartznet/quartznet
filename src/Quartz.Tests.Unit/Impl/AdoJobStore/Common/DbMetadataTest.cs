@@ -19,11 +19,10 @@
 
 using NUnit.Framework;
 
+using Quartz.Impl.AdoJobStore.Common;
 #if !NETCORE
 using Oracle.ManagedDataAccess.Client;
 #endif
-
-using Quartz.Impl.AdoJobStore.Common;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore.Common
 {

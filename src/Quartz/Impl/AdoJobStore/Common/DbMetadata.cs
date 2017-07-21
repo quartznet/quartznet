@@ -1,4 +1,5 @@
 #region License
+
 /*
  * Copyright 2009- Marko Lahma
  *
@@ -15,6 +16,7 @@
  * under the License.
  *
  */
+
 #endregion
 
 using System;
@@ -34,7 +36,6 @@ namespace Quartz.Impl.AdoJobStore.Common
 
         private string dbBinaryTypeName;
         private Enum dbBinaryType;
-
 
         /// <summary>
         /// Initializes this instance. Parses information and initializes startup
@@ -126,16 +127,12 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <value>The type of the db binary.</value>
         public virtual string DbBinaryTypeName
         {
-            set { dbBinaryTypeName = value; }
+            set => dbBinaryTypeName = value;
         }
 
         /// <summary>Gets the type of the db binary.</summary>
         /// <value>The type of the db binary.</value>
-        public virtual Enum DbBinaryType
-        {
-            get { return dbBinaryType; }
-        }
-
+        public virtual Enum DbBinaryType => dbBinaryType;
 
         /// <summary>
         /// Sets the name of the parameter db type property.
@@ -143,7 +140,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <value>The name of the parameter db type property.</value>
         public virtual string ParameterDbTypePropertyName
         {
-            set { parameterDbTypePropertyName = value; }
+            set => parameterDbTypePropertyName = value;
         }
 
         /// <summary>
@@ -163,6 +160,5 @@ namespace Quartz.Impl.AdoJobStore.Common
         {
             return ParameterNamePrefix + parameterName;
         }
-
     }
 }

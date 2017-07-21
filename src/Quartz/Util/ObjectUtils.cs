@@ -200,7 +200,7 @@ namespace Quartz.Util
                 value = ConvertValueIfNecessary(mi.GetParameters()[0].ParameterType, value);
             }
 
-            mi.Invoke(target, new object[] {value});
+            mi.Invoke(target, new[] {value});
         }
 
         public static TimeSpan GetTimeSpanValueForProperty(PropertyInfo pi, object value)

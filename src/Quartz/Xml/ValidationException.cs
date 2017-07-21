@@ -33,18 +33,13 @@ namespace Quartz.Xml
 #endif // BINARY_SERIALIZATION
     public class ValidationException : Exception
 	{
-		private readonly ICollection<Exception> validationExceptions = new List<Exception>();
-
-		/// <summary>
+	    /// <summary>
 		/// Gets the validation exceptions.
 		/// </summary>
 		/// <value>The validation exceptions.</value>
-		public virtual ICollection<Exception> ValidationExceptions
-		{
-			get { return validationExceptions; }
-		}
+		public virtual ICollection<Exception> ValidationExceptions { get; } = new List<Exception>();
 
-		/// <summary>
+	    /// <summary>
 		/// Returns the detail message string.
 		/// </summary>
 		public override string Message
@@ -88,7 +83,7 @@ namespace Quartz.Xml
 		/// <param name="errors">collection of validation exceptions.</param>
 		public ValidationException(IEnumerable<Exception> errors) : this()
 		{
-			validationExceptions = new List<Exception>(errors).AsReadOnly();
+			ValidationExceptions = new List<Exception>(errors).AsReadOnly();
 		}
 
 #if BINARY_SERIALIZATION

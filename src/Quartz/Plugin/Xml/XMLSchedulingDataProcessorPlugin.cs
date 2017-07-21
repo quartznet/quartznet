@@ -60,8 +60,6 @@ namespace Quartz.Plugin.Xml
 
         private bool started;
 
-        private ITypeLoadHelper typeLoadHelper;
-
         private readonly HashSet<string> jobTriggerNameSet = new HashSet<string>();
 
         /// <summary>
@@ -82,7 +80,7 @@ namespace Quartz.Plugin.Xml
 
         public IScheduler Scheduler { get; private set; }
 
-        protected ITypeLoadHelper TypeLoadHelper => typeLoadHelper;
+        protected ITypeLoadHelper TypeLoadHelper { get; private set; }
 
         /// <summary>
         /// Comma separated list of file names (with paths) to the XML files that should be read.
@@ -128,8 +126,8 @@ namespace Quartz.Plugin.Xml
         {
             Name = pluginName;
             Scheduler = scheduler;
-            typeLoadHelper = new SimpleTypeLoadHelper();
-            typeLoadHelper.Initialize();
+            TypeLoadHelper = new SimpleTypeLoadHelper();
+            TypeLoadHelper.Initialize();
 
             Log.Info("Registering Quartz Job Initialization Plug-in.");
 
@@ -340,7 +338,7 @@ namespace Quartz.Plugin.Xml
                     FileInfo file = new FileInfo(fName); // files in filesystem
                     if (!file.Exists)
                     {
-                        Uri url = plugin.typeLoadHelper.GetResource(FileName);
+                        Uri url = plugin.TypeLoadHelper.GetResource(FileName);
                         if (url != null)
                         {
                             furl = WebUtility.UrlDecode(url.AbsolutePath);

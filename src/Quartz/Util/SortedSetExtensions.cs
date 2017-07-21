@@ -9,4 +9,4 @@ namespace Quartz.Util
             return set.GetViewBetween(value, 9999999);
         }
     }
-};
+}

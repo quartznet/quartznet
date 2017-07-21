@@ -54,7 +54,7 @@ namespace Quartz.Listener
         /// <param name="name">the name of this instance</param>
         public BroadcastTriggerListener(string name)
         {
-            this.Name = name ?? throw new ArgumentNullException(nameof(name), "Listener name cannot be null!");
+            Name = name ?? throw new ArgumentNullException(nameof(name), "Listener name cannot be null!");
             listeners = new List<ITriggerListener>();
         }
 

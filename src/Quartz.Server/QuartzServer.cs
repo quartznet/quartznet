@@ -56,10 +56,7 @@ namespace Quartz.Server
         /// Returns the current scheduler instance (usually created in <see cref="Initialize" />
         /// using the <see cref="GetScheduler" /> method).
         /// </summary>
-	    protected virtual IScheduler Scheduler
-	    {
-	        get { return scheduler; }
-	    }
+	    protected virtual IScheduler Scheduler => scheduler;
 
 	    /// <summary>
         /// Creates the scheduler factory that will be the factory

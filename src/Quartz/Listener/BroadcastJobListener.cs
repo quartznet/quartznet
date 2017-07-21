@@ -54,11 +54,7 @@ namespace Quartz.Listener
         /// <param name="name">the name of this instance</param>
         public BroadcastJobListener(string name)
         {
-            if (name == null)
-            {
-                throw new ArgumentNullException(nameof(name), "Listener name cannot be null!");
-            }
-            Name = name;
+            Name = name ?? throw new ArgumentNullException(nameof(name), "Listener name cannot be null!");
             listeners = new List<IJobListener>();
         }
 

@@ -30,14 +30,14 @@ namespace Quartz.Simpl
         protected const int DefaultMaxConcurrency = 10;
 
         private TaskScheduler scheduler;
-        private bool isInitialized = false;
+        private bool isInitialized;
 
         /// <summary>
         /// The TaskScheduler used to schedule tasks queued by users
         /// </summary>
         public TaskScheduler Scheduler
         {
-            get { return scheduler; }
+            get => scheduler;
             set { if (!isInitialized) scheduler = value; }
         }
 
@@ -60,7 +60,7 @@ namespace Quartz.Simpl
         /// </summary>
         public int MaxConcurency
         {
-            get { return maxConcurrency; }
+            get => maxConcurrency;
             set { if (!isInitialized) maxConcurrency = value; }
         }
 
@@ -72,8 +72,8 @@ namespace Quartz.Simpl
         /// SimpleThreadPool or CLRThreadPool work more directly.
         /// </remarks>
         public int ThreadCount {
-            get { return MaxConcurency; }
-            set { MaxConcurency = value; }
+            get => MaxConcurency;
+            set => MaxConcurency = value;
         }
 
         /// <summary>

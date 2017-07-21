@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -26,18 +26,18 @@ namespace Quartz.Impl.Calendar
 {
     /// <summary>
     /// This implementation of the Calendar excludes the set of times expressed by a
-    /// given CronExpression. 
+    /// given CronExpression.
     /// </summary>
     /// <remarks>
-    /// For example, you could use this calendar to exclude all but business hours (8AM - 5PM) every 
-    /// day using the expression &quot;* * 0-7,18-23 ? * *&quot;. 
+    /// For example, you could use this calendar to exclude all but business hours (8AM - 5PM) every
+    /// day using the expression &quot;* * 0-7,18-23 ? * *&quot;.
     /// <para>
     /// It is important to remember that the cron expression here describes a set of
-    /// times to be <i>excluded</i> from firing. Whereas the cron expression in 
+    /// times to be <i>excluded</i> from firing. Whereas the cron expression in
     /// CronTrigger describes a set of times that can
-    /// be <i>included</i> for firing. Thus, if a <see cref="ICronTrigger" /> has a 
+    /// be <i>included</i> for firing. Thus, if a <see cref="ICronTrigger" /> has a
     /// given cron expression and is associated with a <see cref="CronCalendar" /> with
-    /// the <i>same</i> expression, the calendar will exclude all the times the 
+    /// the <i>same</i> expression, the calendar will exclude all the times the
     /// trigger includes, and they will cancel each other out.
     /// </para>
     /// </remarks>
@@ -64,11 +64,11 @@ namespace Quartz.Impl.Calendar
         }
 
         /// <summary>
-        /// Create a <see cref="CronCalendar" /> with the given cron expression and 
-        /// <see cref="BaseCalendar" />. 
+        /// Create a <see cref="CronCalendar" /> with the given cron expression and
+        /// <see cref="BaseCalendar" />.
         /// </summary>
         /// <param name="baseCalendar">
-        /// the base calendar for this calendar instance 
+        /// the base calendar for this calendar instance
         /// see BaseCalendar for more information on base
         /// calendar functionality
         /// </param>
@@ -78,11 +78,11 @@ namespace Quartz.Impl.Calendar
         }
 
         /// <summary>
-        /// Create a <see cref="CronCalendar" /> with the given cron expression and 
-        /// <see cref="BaseCalendar" />. 
+        /// Create a <see cref="CronCalendar" /> with the given cron expression and
+        /// <see cref="BaseCalendar" />.
         /// </summary>
         /// <param name="baseCalendar">
-        /// the base calendar for this calendar instance 
+        /// the base calendar for this calendar instance
         /// see BaseCalendar for more information on base
         /// calendar functionality
         /// </param>
@@ -101,7 +101,7 @@ namespace Quartz.Impl.Calendar
         /// <param name="info"></param>
         /// <param name="context"></param>
         protected CronCalendar(
-			System.Runtime.Serialization.SerializationInfo info, 
+			System.Runtime.Serialization.SerializationInfo info,
 			System.Runtime.Serialization.StreamingContext context) : base(info, context)
         {
             int version;
@@ -127,7 +127,7 @@ namespace Quartz.Impl.Calendar
 
         [System.Security.SecurityCritical]
         public override void GetObjectData(
-            System.Runtime.Serialization.SerializationInfo info, 
+            System.Runtime.Serialization.SerializationInfo info,
             System.Runtime.Serialization.StreamingContext context)
         {
             base.GetObjectData(info, context);
@@ -139,8 +139,8 @@ namespace Quartz.Impl.Calendar
 
         public override TimeZoneInfo TimeZone
         {
-            get { return cronExpression.TimeZone; }
-            set { cronExpression.TimeZone = value; }
+            get => cronExpression.TimeZone;
+            set => cronExpression.TimeZone = value;
         }
 
         /// <summary>
@@ -151,8 +151,8 @@ namespace Quartz.Impl.Calendar
         /// <returns>a boolean indicating whether the specified time is 'included' by the CronCalendar</returns>
         public override bool IsTimeIncluded(DateTimeOffset timeUtc)
         {
-            if ((GetBaseCalendar() != null) &&
-                (GetBaseCalendar().IsTimeIncluded(timeUtc) == false))
+            if ((CalendarBase != null) &&
+                (CalendarBase.IsTimeIncluded(timeUtc) == false))
             {
                 return false;
             }
@@ -183,11 +183,11 @@ namespace Quartz.Impl.Calendar
                 {
                     nextIncludedTime = cronExpression.GetNextValidTimeAfter(nextIncludedTime).Value;
                 }
-                else if ((GetBaseCalendar() != null) &&
-                         (!GetBaseCalendar().IsTimeIncluded(nextIncludedTime)))
+                else if ((CalendarBase != null) &&
+                         (!CalendarBase.IsTimeIncluded(nextIncludedTime)))
                 {
                     nextIncludedTime =
-                        GetBaseCalendar().GetNextIncludedTimeUtc(nextIncludedTime);
+                        CalendarBase.GetNextIncludedTimeUtc(nextIncludedTime);
                 }
                 else
                 {
@@ -220,9 +220,9 @@ namespace Quartz.Impl.Calendar
         {
             StringBuilder buffer = new StringBuilder();
             buffer.Append("base calendar: [");
-            if (GetBaseCalendar() != null)
+            if (CalendarBase != null)
             {
-                buffer.Append(GetBaseCalendar());
+                buffer.Append(CalendarBase);
             }
             else
             {
@@ -240,16 +240,8 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         public CronExpression CronExpression
         {
-            get { return cronExpression; }
-            set
-            {
-                if (value == null)
-                {
-                    throw new ArgumentException("expression cannot be null");
-                }
-
-                cronExpression = value;
-            }
+            get => cronExpression;
+            set => cronExpression = value ?? throw new ArgumentException("expression cannot be null");
         }
 
         /// <summary>
@@ -265,9 +257,9 @@ namespace Quartz.Impl.Calendar
         public override int GetHashCode()
         {
             int baseHash = 0;
-            if (GetBaseCalendar() != null)
+            if (CalendarBase != null)
             {
-                baseHash = GetBaseCalendar().GetHashCode();
+                baseHash = CalendarBase.GetHashCode();
             }
 
             return CronExpression.GetHashCode() + 5*baseHash;
@@ -279,7 +271,7 @@ namespace Quartz.Impl.Calendar
             {
                 return false;
             }
-            bool baseEqual = GetBaseCalendar() == null || GetBaseCalendar().Equals(obj.GetBaseCalendar());
+            bool baseEqual = CalendarBase == null || CalendarBase.Equals(obj.CalendarBase);
 
             return baseEqual && CronExpression.Equals(obj.CronExpression);
         }

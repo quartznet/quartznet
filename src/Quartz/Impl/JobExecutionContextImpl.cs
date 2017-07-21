@@ -76,24 +76,13 @@ namespace Quartz.Impl
 #if BINARY_SERIALIZATION
         [NonSerialized]
 #endif // BINARY_SERIALIZATION
-        private readonly IScheduler scheduler;
-
-#if BINARY_SERIALIZATION
-        [NonSerialized]
-#endif // BINARY_SERIALIZATION
-        private readonly IJob job;
 
         private readonly ITrigger trigger;
         private readonly IJobDetail jobDetail;
         private readonly JobDataMap jobDataMap;
 
-        private readonly ICalendar calendar;
-        private readonly bool recovering;
         private int numRefires;
-        private readonly DateTimeOffset? prevFireTimeUtc;
-        private readonly DateTimeOffset? nextFireTimeUtc;
         private TimeSpan jobRunTime = TimeSpan.MinValue;
-        private object result;
 
         private readonly IDictionary<object, object> data = new Dictionary<object, object>();
         private readonly CancellationTokenSource cancellationTokenSource;
@@ -103,16 +92,16 @@ namespace Quartz.Impl
         /// </summary>
         public JobExecutionContextImpl(IScheduler scheduler, TriggerFiredBundle firedBundle, IJob job)
         {
-            this.scheduler = scheduler;
+            Scheduler = scheduler;
             trigger = firedBundle.Trigger;
-            calendar = firedBundle.Calendar;
+            Calendar = firedBundle.Calendar;
             jobDetail = firedBundle.JobDetail;
-            this.job = job;
-            recovering = firedBundle.Recovering;
+            JobInstance = job;
+            Recovering = firedBundle.Recovering;
             FireTimeUtc = firedBundle.FireTimeUtc;
             ScheduledFireTimeUtc = firedBundle.ScheduledFireTimeUtc;
-            prevFireTimeUtc = firedBundle.PrevFireTimeUtc;
-            nextFireTimeUtc = firedBundle.NextFireTimeUtc;
+            PreviousFireTimeUtc = firedBundle.PrevFireTimeUtc;
+            NextFireTimeUtc = firedBundle.NextFireTimeUtc;
 
             jobDataMap = new JobDataMap();
             jobDataMap.PutAll(jobDetail.JobDataMap);
@@ -125,7 +114,7 @@ namespace Quartz.Impl
         /// Get a handle to the <see cref="IScheduler" /> instance that fired the
         /// <see cref="IJob" />.
         /// </summary>
-        public virtual IScheduler Scheduler => scheduler;
+        public virtual IScheduler Scheduler { get; }
 
         /// <summary>
         /// Get a handle to the <see cref="ITrigger" /> instance that fired the
@@ -137,13 +126,13 @@ namespace Quartz.Impl
         /// Get a handle to the <see cref="ICalendar" /> referenced by the <see cref="ITrigger" />
         /// instance that fired the <see cref="IJob" />.
         /// </summary>
-        public virtual ICalendar Calendar => calendar;
+        public virtual ICalendar Calendar { get; }
 
         /// <summary>
         /// If the <see cref="IJob" /> is being re-executed because of a 'recovery'
         /// situation, this method will return <see langword="true" />.
         /// </summary>
-        public virtual bool Recovering => recovering;
+        public virtual bool Recovering { get; }
 
         public TriggerKey RecoveringTriggerKey
         {
@@ -201,7 +190,7 @@ namespace Quartz.Impl
         /// interfaces.
         /// </para>
         /// </summary>
-        public virtual IJob JobInstance => job;
+        public virtual IJob JobInstance { get; }
 
         /// <summary>
         /// The actual time the trigger fired. For instance the scheduled time may
@@ -225,13 +214,13 @@ namespace Quartz.Impl
         /// Gets the previous fire time.
         /// </summary>
         /// <value>The previous fire time.</value>
-        public DateTimeOffset? PreviousFireTimeUtc => prevFireTimeUtc;
+        public DateTimeOffset? PreviousFireTimeUtc { get; }
 
         /// <summary>
         /// Gets the next fire time.
         /// </summary>
         /// <value>The next fire time.</value>
-        public DateTimeOffset? NextFireTimeUtc => nextFireTimeUtc;
+        public DateTimeOffset? NextFireTimeUtc { get; }
 
         /// <summary>
         /// Returns the result (if any) that the <see cref="IJob" /> set before its
@@ -256,11 +245,7 @@ namespace Quartz.Impl
         /// execution.
         /// </para>
         /// </remarks>
-        public virtual object Result
-        {
-            get { return result; }
-            set { result = value; }
-        }
+        public virtual object Result { get; set; }
 
         /// <summary>
         /// The amount of time the job ran for.  The returned
@@ -280,7 +265,7 @@ namespace Quartz.Impl
 
                 return jobRunTime;
             }
-            set { jobRunTime = value; }
+            set => jobRunTime = value;
         }
 
         /// <summary>

@@ -20,6 +20,7 @@
 using System;
 using System.IO;
 using System.Threading.Tasks;
+
 using Quartz.Logging;
 
 namespace Quartz.Job
@@ -183,10 +184,7 @@ namespace Quartz.Job
 			{
 				return DateTime.MinValue;
 			}
-			else
-			{
-				return file.LastWriteTime;
-			}
+		    return file.LastWriteTime;
 		}
 	}
 }

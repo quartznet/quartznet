@@ -26,11 +26,9 @@ using System.IO;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-#if TRANSACTIONS
-using System.Transactions;
-#endif
 
 using FakeItEasy;
+
 using NUnit.Framework;
 
 using Quartz.Impl;
@@ -41,6 +39,9 @@ using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
 using Quartz.Xml;
+#if TRANSACTIONS
+using System.Transactions;
+#endif
 
 namespace Quartz.Tests.Unit.Xml
 {

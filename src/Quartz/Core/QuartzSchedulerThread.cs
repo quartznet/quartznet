@@ -26,8 +26,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-using Quartz.Logging;
 using Quartz.Impl.AdoJobStore;
+using Quartz.Logging;
 using Quartz.Spi;
 
 namespace Quartz.Core
@@ -96,10 +96,7 @@ namespace Quartz.Core
         /// Gets a value indicating whether this <see cref="QuartzSchedulerThread"/> is paused.
         /// </summary>
         /// <value><c>true</c> if paused; otherwise, <c>false</c>.</value>
-        internal virtual bool Paused
-        {
-            get { return paused; }
-        }
+        internal virtual bool Paused => paused;
 
         /// <summary>
         /// Construct a new <see cref="QuartzSchedulerThread" /> for the given

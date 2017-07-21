@@ -52,11 +52,7 @@ namespace Quartz.Util
         /// <param name="group">the group</param>
         public Key(string name, string group)
         {
-            if (name == null)
-            {
-                throw new ArgumentNullException("name", "Name cannot be null.");
-            }
-            this.name = name;
+            this.name = name ?? throw new ArgumentNullException("name", "Name cannot be null.");
             if (group != null)
             {
                 this.group = group;
@@ -74,8 +70,8 @@ namespace Quartz.Util
         /// </returns>
         public virtual string Name
         {
-            get { return name; }
-            set { name = value; }
+            get => name;
+            set => name = value;
         }
 
         /// <summary> <para>
@@ -87,8 +83,8 @@ namespace Quartz.Util
         /// </returns>
         public virtual string Group
         {
-            get { return group; }
-            set { group = value; }
+            get => group;
+            set => group = value;
         }
 
         /// <summary> <para>

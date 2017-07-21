@@ -1,11 +1,11 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+
+using Quartz.Util;
 #if CONFIGURATION
 using System.Configuration;
 #endif // CONFIGURATION
-
-using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore.Common
 {

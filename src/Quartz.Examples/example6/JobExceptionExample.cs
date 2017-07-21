@@ -85,7 +85,7 @@ namespace Quartz.Examples.Example6
                 .WithSimpleSchedule(x => x.WithIntervalInSeconds(5).RepeatForever())
                 .Build();
             ft = await sched.ScheduleJob(job, trigger);
-            log.Info($"{job.Key} will run at: {ft.ToString("r")} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
+            log.Info($"{job.Key} will run at: {ft:r} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
 
             log.Info("------- Starting Scheduler ----------------");
 

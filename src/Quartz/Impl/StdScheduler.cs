@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -57,7 +57,7 @@ namespace Quartz.Impl
         /// is paused
         /// </summary>
         public Task<bool> IsJobGroupPaused(
-            string groupName, 
+            string groupName,
             CancellationToken cancellationToken = default(CancellationToken))
         {
             return sched.IsJobGroupPaused(groupName, cancellationToken);
@@ -68,7 +68,7 @@ namespace Quartz.Impl
         /// is paused
         /// </summary>
         public Task<bool> IsTriggerGroupPaused(
-            string groupName, 
+            string groupName,
             CancellationToken cancellationToken = default(CancellationToken))
         {
             return sched.IsTriggerGroupPaused(groupName, cancellationToken);
@@ -236,7 +236,7 @@ namespace Quartz.Impl
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual Task Shutdown(
-            bool waitForJobsToComplete, 
+            bool waitForJobsToComplete,
             CancellationToken cancellationToken = default(CancellationToken))
         {
             return sched.Shutdown(waitForJobsToComplete, cancellationToken);
@@ -246,7 +246,7 @@ namespace Quartz.Impl
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual Task<DateTimeOffset> ScheduleJob(
-            IJobDetail jobDetail, 
+            IJobDetail jobDetail,
             ITrigger trigger,
             CancellationToken cancellationToken = default(CancellationToken))
         {
@@ -267,8 +267,8 @@ namespace Quartz.Impl
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual Task AddJob(
-            IJobDetail jobDetail, 
-            bool replace, 
+            IJobDetail jobDetail,
+            bool replace,
             bool storeNonDurableWhileAwaitingScheduling,
             CancellationToken cancellationToken = default(CancellationToken))
         {
@@ -279,7 +279,7 @@ namespace Quartz.Impl
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual Task AddJob(
-            IJobDetail jobDetail, 
+            IJobDetail jobDetail,
             bool replace,
             CancellationToken cancellationToken = default(CancellationToken))
         {
@@ -294,7 +294,7 @@ namespace Quartz.Impl
         }
 
         public Task ScheduleJobs(
-            IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, 
+            IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs,
             bool replace,
             CancellationToken cancellationToken = default(CancellationToken))
         {
@@ -302,8 +302,8 @@ namespace Quartz.Impl
         }
 
         public Task ScheduleJob(
-            IJobDetail jobDetail, 
-            IReadOnlyCollection<ITrigger> triggersForJob, 
+            IJobDetail jobDetail,
+            IReadOnlyCollection<ITrigger> triggersForJob,
             bool replace,
             CancellationToken cancellationToken = default(CancellationToken))
         {
@@ -341,7 +341,7 @@ namespace Quartz.Impl
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual Task<DateTimeOffset?> RescheduleJob(
-            TriggerKey triggerKey, 
+            TriggerKey triggerKey,
             ITrigger newTrigger,
             CancellationToken cancellationToken = default(CancellationToken))
         {
@@ -362,7 +362,7 @@ namespace Quartz.Impl
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual Task TriggerJob(
-            JobKey jobKey, 
+            JobKey jobKey,
             JobDataMap data,
             CancellationToken cancellationToken = default(CancellationToken))
         {

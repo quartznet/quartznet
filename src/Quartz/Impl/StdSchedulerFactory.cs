@@ -22,12 +22,11 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
-#if CONFIGURATION
-using System.Configuration;
-#endif // CONFIGURATION
+using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Security;
+using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Core;
@@ -38,9 +37,9 @@ using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
-
-using System.Globalization;
-using System.Threading;
+#if CONFIGURATION
+using System.Configuration;
+#endif // CONFIGURATION
 
 namespace Quartz.Impl
 {

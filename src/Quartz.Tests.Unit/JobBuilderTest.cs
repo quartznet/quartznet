@@ -1,4 +1,5 @@
 using System.Threading.Tasks;
+
 using NUnit.Framework;
 
 namespace Quartz.Tests.Unit

@@ -15,7 +15,7 @@ namespace Quartz.Core
         private readonly ILog log = LogProvider.GetLogger(typeof(ErrorLogger));
 
         public override Task SchedulerError(
-            string msg, 
+            string msg,
             SchedulerException cause,
             CancellationToken cancellationToken = default(CancellationToken))
         {

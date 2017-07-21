@@ -1,5 +1,4 @@
 using System.IO;
-
 #if BINARY_SERIALIZATION
 using System.Runtime.Serialization.Formatters.Binary;
 #else // BINARY_SERIALIZATION

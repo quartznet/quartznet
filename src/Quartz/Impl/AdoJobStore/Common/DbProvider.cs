@@ -46,8 +46,6 @@ namespace Quartz.Impl.AdoJobStore.Common
             "Quartz.Impl.AdoJobStore.Common.dbproviders.properties";
 #endif // NETSTANDARD_DBPROVIDERS
 
-        private string connectionString;
-        private readonly DbMetadata dbMetadata;
         private readonly MethodInfo commandBindByNamePropertySetter;
 
         private static readonly IList<DbMetadataFactory> dbMetadataFactories;
@@ -61,7 +59,7 @@ namespace Quartz.Impl.AdoJobStore.Common
             dbMetadataFactories = new List<DbMetadataFactory>
             {
                 new ConfigurationBasedDbMetadataFactory(DbProviderSectionName, PropertyDbProvider),
-                new EmbeddedAssemblyResourceDbMetadataFactory(DbProviderResourceName, PropertyDbProvider),
+                new EmbeddedAssemblyResourceDbMetadataFactory(DbProviderResourceName, PropertyDbProvider)
             };
         }
 
@@ -72,16 +70,16 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <param name="connectionString">The connection string.</param>
         public DbProvider(string dbProviderName, string connectionString)
         {
-            this.connectionString = connectionString;
-            dbMetadata = GetDbMetadata(dbProviderName);
+            ConnectionString = connectionString;
+            Metadata = GetDbMetadata(dbProviderName);
 
-            if (dbMetadata == null)
+            if (Metadata == null)
             {
                 throw new ArgumentException($"Invalid DB provider name: {dbProviderName}{Environment.NewLine}{GenerateValidProviderNamesInfo()}");
             }
 
             // check if command supports direct setting of BindByName property, needed for Oracle Managed ODP diver at least
-            var property = dbMetadata.CommandType.GetProperty("BindByName", BindingFlags.Instance | BindingFlags.Public);
+            var property = Metadata.CommandType.GetProperty("BindByName", BindingFlags.Instance | BindingFlags.Public);
             if (property != null && property.PropertyType == typeof (bool) && property.CanWrite)
             {
                 commandBindByNamePropertySetter = property.GetSetMethod();
@@ -142,25 +140,18 @@ namespace Quartz.Impl.AdoJobStore.Common
             return sb.ToString();
         }
 
-        /// <summary>
-        /// Returns a new command object for executing SQL statements/Stored Procedures
-        /// against the database.
-        /// </summary>
-        /// <returns>An new <see cref="IDbCommand"/></returns>
+        /// <inheritdoc />
         public virtual DbCommand CreateCommand()
         {
-            var command = ObjectUtils.InstantiateType<DbCommand>(dbMetadata.CommandType);
+            var command = ObjectUtils.InstantiateType<DbCommand>(Metadata.CommandType);
             commandBindByNamePropertySetter?.Invoke(command, new object[] { Metadata.BindByName });
             return command;
         }
 
-        /// <summary>
-        /// Returns a new connection object to communicate with the database.
-        /// </summary>
-        /// <returns>A new <see cref="IDbConnection"/></returns>
+        /// <inheritdoc />
         public virtual DbConnection CreateConnection()
         {
-            var conn = ObjectUtils.InstantiateType<DbConnection>(dbMetadata.ConnectionType);
+            var conn = ObjectUtils.InstantiateType<DbConnection>(Metadata.ConnectionType);
             conn.ConnectionString = ConnectionString;
             return conn;
         }
@@ -172,28 +163,16 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <returns>A new <see cref="IDbDataParameter"/></returns>
         public virtual DbParameter CreateParameter()
         {
-            return ObjectUtils.InstantiateType<DbParameter>(dbMetadata.ParameterType);
+            return ObjectUtils.InstantiateType<DbParameter>(Metadata.ParameterType);
         }
 
-        /// <summary>
-        /// Connection string used to create connections.
-        /// </summary>
-        /// <value></value>
-        public virtual string ConnectionString
-        {
-            get { return connectionString; }
-            set { connectionString = value; }
-        }
+        /// <inheritdoc />
+        public string ConnectionString { get; set; }
 
-        /// <summary>
-        /// Gets the metadata.
-        /// </summary>
-        /// <value>The metadata.</value>
-        public virtual DbMetadata Metadata => dbMetadata;
+        /// <inheritdoc />
+        public DbMetadata Metadata { get; }
 
-        /// <summary>
-        /// Shutdowns this instance.
-        /// </summary>
+        /// <inheritdoc />
         public virtual void Shutdown()
         {
         }

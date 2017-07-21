@@ -377,11 +377,11 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                 .Build();
 
             var toSchedule = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>();
-            toSchedule.Add(badJob, new HashSet<ITrigger>()
+            toSchedule.Add(badJob, new HashSet<ITrigger>
             {
                 badTrigger
             });
-            toSchedule.Add(goodJob, new HashSet<ITrigger>()
+            toSchedule.Add(goodJob, new HashSet<ITrigger>
             {
                 goodTrigger
             });

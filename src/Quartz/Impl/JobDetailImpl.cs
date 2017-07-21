@@ -59,8 +59,6 @@ namespace Quartz.Impl
         private string group = SchedulerConstants.DefaultGroup;
         private string description;
         private JobDataMap jobDataMap;
-        private bool durability;
-        private bool shouldRecover;
         private Type jobType;
 
 #if BINARY_SERIALIZATION
@@ -138,7 +136,7 @@ namespace Quartz.Impl
         /// </exception>
         public virtual string Name
         {
-            get { return name; }
+            get => name;
 
             set
             {
@@ -160,7 +158,7 @@ namespace Quartz.Impl
         /// </exception>
         public virtual string Group
         {
-            get { return group; }
+            get => group;
 
             set
             {
@@ -182,10 +180,7 @@ namespace Quartz.Impl
         /// Returns the 'full name' of the <see cref="ITrigger" /> in the format
         /// "group.name".
         /// </summary>
-        public virtual string FullName
-        {
-            get { return group + "." + name; }
-        }
+        public virtual string FullName => group + "." + name;
 
         /// <summary>
         /// Gets the key.
@@ -224,8 +219,8 @@ namespace Quartz.Impl
         /// </remarks>
         public virtual string Description
         {
-            get { return description; }
-            set { description = value; }
+            get => description;
+            set => description = value;
         }
 
         /// <summary>
@@ -236,7 +231,7 @@ namespace Quartz.Impl
         /// </exception>
         public virtual Type JobType
         {
-            get { return jobType; }
+            get => jobType;
 
             set
             {
@@ -268,7 +263,7 @@ namespace Quartz.Impl
                 return jobDataMap;
             }
 
-            set { jobDataMap = value; }
+            set => jobDataMap = value;
         }
 
         /// <summary>
@@ -280,11 +275,7 @@ namespace Quartz.Impl
         /// </para>
         /// </summary>
         /// <seealso cref="IJobExecutionContext.Recovering" />
-        public virtual bool RequestsRecovery
-        {
-            set { shouldRecover = value; }
-            get { return shouldRecover; }
-        }
+        public virtual bool RequestsRecovery { set; get; }
 
         /// <summary>
         /// Whether or not the <see cref="IJob" /> should remain stored after it is
@@ -297,27 +288,17 @@ namespace Quartz.Impl
         /// <see langword="true" /> if the Job should remain persisted after
         /// being orphaned.
         /// </returns>
-        public virtual bool Durable
-        {
-            get { return durability; }
-            set { durability = value; }
-        }
+        public virtual bool Durable { get; set; }
 
         /// <summary>
         /// Whether the associated Job class carries the <see cref="PersistJobDataAfterExecution" /> attribute.
         /// </summary>
-        public virtual bool PersistJobDataAfterExecution
-        {
-            get { return ObjectUtils.IsAttributePresent(jobType, typeof (PersistJobDataAfterExecutionAttribute)); }
-        }
+        public virtual bool PersistJobDataAfterExecution => ObjectUtils.IsAttributePresent(jobType, typeof (PersistJobDataAfterExecutionAttribute));
 
         /// <summary>
         /// Whether the associated Job class carries the <see cref="DisallowConcurrentExecutionAttribute" /> attribute.
         /// </summary>
-        public virtual bool ConcurrentExecutionDisallowed
-        {
-            get { return ObjectUtils.IsAttributePresent(jobType, typeof (DisallowConcurrentExecutionAttribute)); }
-        }
+        public virtual bool ConcurrentExecutionDisallowed => ObjectUtils.IsAttributePresent(jobType, typeof (DisallowConcurrentExecutionAttribute));
 
         /// <summary>
         /// Validates whether the properties of the <see cref="IJobDetail" /> are

@@ -68,7 +68,7 @@ namespace Quartz.Examples.Example4
 
             // schedule the job to run
             DateTimeOffset scheduleTime1 = await sched.ScheduleJob(job1, trigger1);
-            log.Info($"{job1.Key} will run at: {scheduleTime1.ToString("r")} and repeat: {trigger1.RepeatCount} times, every {trigger1.RepeatInterval.TotalSeconds} seconds");
+            log.Info($"{job1.Key} will run at: {scheduleTime1:r} and repeat: {trigger1.RepeatCount} times, every {trigger1.RepeatInterval.TotalSeconds} seconds");
 
             // job2 will also run 5 times, every 10 seconds
 
@@ -89,7 +89,7 @@ namespace Quartz.Examples.Example4
 
             // schedule the job to run
             DateTimeOffset scheduleTime2 = await sched.ScheduleJob(job2, trigger2);
-            log.Info($"{job2.Key} will run at: {scheduleTime2.ToString("r")} and repeat: {trigger2.RepeatCount} times, every {trigger2.RepeatInterval.TotalSeconds} seconds");
+            log.Info($"{job2.Key} will run at: {scheduleTime2:r} and repeat: {trigger2.RepeatCount} times, every {trigger2.RepeatInterval.TotalSeconds} seconds");
 
             log.Info("------- Starting Scheduler ----------------");
 

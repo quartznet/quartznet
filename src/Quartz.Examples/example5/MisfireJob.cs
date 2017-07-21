@@ -47,7 +47,7 @@ namespace Quartz.Examples.Example5
         public virtual async Task Execute(IJobExecutionContext context)
         {
             JobKey jobKey = context.JobDetail.Key;
-            log.Info($"---{jobKey} executing at {DateTime.Now.ToString("r")}");
+            log.Info($"---{jobKey} executing at {DateTime.Now:r}");
 
             // default delay to five seconds
             int delay = 5;
@@ -61,7 +61,7 @@ namespace Quartz.Examples.Example5
 
             await Task.Delay(TimeSpan.FromSeconds(delay));
 
-            log.Info($"---{jobKey} completed at {DateTime.Now.ToString("r")}");
+            log.Info($"---{jobKey} completed at {DateTime.Now:r}");
         }
     }
 }

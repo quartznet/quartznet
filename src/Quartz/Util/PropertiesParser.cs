@@ -1,19 +1,19 @@
 #region License
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 #endregion
 
@@ -40,12 +40,9 @@ namespace Quartz.Util
         /// Gets the underlying properties.
         /// </summary>
         /// <value>The underlying properties.</value>
-		public virtual NameValueCollection UnderlyingProperties
-		{
-			get { return props; }
-		}
+		public virtual NameValueCollection UnderlyingProperties => props;
 
-        /// <summary>
+	    /// <summary>
         /// Initializes a new instance of the <see cref="PropertiesParser"/> class.
         /// </summary>
         /// <param name="props">The props.</param>
@@ -62,11 +59,7 @@ namespace Quartz.Util
 		public virtual string GetStringProperty(string name)
 		{
 			string val = props.Get(name);
-			if (val == null)
-			{
-				return null;
-			}
-			return val.Trim();
+		    return val?.Trim();
 		}
 
         /// <summary>
@@ -611,7 +604,7 @@ namespace Quartz.Util
 
 
         /// <summary>
-        /// Get all properties that start with the given prefix.  
+        /// Get all properties that start with the given prefix.
         /// </summary>
         /// <param name="prefix">The prefix for which to search.  If it does not end in a "." then one will be added to it for search purposes.</param>
         /// <param name="stripPrefix">Whether to strip off the given <paramref name="prefix" /> in the result's keys.</param>
@@ -691,7 +684,7 @@ namespace Quartz.Util
 
 	                if (line.StartsWith("#"))
 	                {
-	                    // comment line 
+	                    // comment line
 	                    continue;
 	                }
 	                if (line.StartsWith("!END"))
@@ -699,7 +692,7 @@ namespace Quartz.Util
 	                    // special end condition
 	                    break;
 	                }
-	                string[] lineItems = line.Split(new char[] { '=' }, 2);
+	                string[] lineItems = line.Split(new[] { '=' }, 2);
 	                if (lineItems.Length == 2)
 	                {
 	                    props[lineItems[0].Trim()] = lineItems[1].Trim();

@@ -44,10 +44,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
             }
 
             [JsonIgnore]
-            public override DateTimeOffset? FinalFireTimeUtc
-            {
-                get { throw new NotImplementedException(); }
-            }
+            public override DateTimeOffset? FinalFireTimeUtc => throw new NotImplementedException();
 
             public override void Triggered(ICalendar cal)
             {
@@ -107,16 +104,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
                 throw new NotImplementedException();
             }
 
-            public override bool HasMillisecondPrecision
-            {
-                get
-                {
-                    // This method must be implemented because it's used in AbstractTrigger.StartTimeUtc's setter
-                    // and JSON serialization serializes at the property level (as opposed to the binary formatter which
-                    // serialized at the field level and, therefore, did not need this implemented).
-                    return false;
-                }
-            }
+            public override bool HasMillisecondPrecision => false;
         }
     }
 }

@@ -22,15 +22,15 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
-#if REMOTING
-using System.Runtime.Remoting;
-#endif // REMOTING
 using System.Threading.Tasks;
 
 using Quartz.Core;
 using Quartz.Impl.Matchers;
 using Quartz.Simpl;
 using Quartz.Spi;
+#if REMOTING
+using System.Runtime.Remoting;
+#endif // REMOTING
 
 namespace Quartz.Impl
 {

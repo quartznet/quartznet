@@ -672,13 +672,13 @@ namespace Quartz.Tests.Unit.Impl.Triggers
         public void DayOfWeekPropertyShouldNotAffectOtherTriggers()
         {
             //make 2 trigger exactly the same
-            DailyTimeIntervalTriggerImpl trigger1 = new DailyTimeIntervalTriggerImpl()
+            DailyTimeIntervalTriggerImpl trigger1 = new DailyTimeIntervalTriggerImpl
             {
                 RepeatInterval = 1,
                 RepeatIntervalUnit = IntervalUnit.Hour
             };
 
-            DailyTimeIntervalTriggerImpl trigger2 = new DailyTimeIntervalTriggerImpl()
+            DailyTimeIntervalTriggerImpl trigger2 = new DailyTimeIntervalTriggerImpl
             {
                 RepeatInterval = 1,
                 RepeatIntervalUnit = IntervalUnit.Hour

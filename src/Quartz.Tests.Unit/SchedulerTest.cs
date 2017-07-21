@@ -2,9 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Diagnostics;
-#if BINARY_SERIALIZATION
-using System.IO;
-#endif
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -14,6 +11,9 @@ using Quartz.Impl;
 using Quartz.Impl.Matchers;
 using Quartz.Job;
 using Quartz.Spi;
+#if BINARY_SERIALIZATION
+using System.IO;
+#endif
 
 namespace Quartz.Tests.Unit
 {

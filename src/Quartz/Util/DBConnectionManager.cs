@@ -47,18 +47,9 @@ namespace Quartz.Util
 		/// </summary>
 		/// <returns> an instance of this class
 		/// </returns>
-		public static IDbConnectionManager Instance
-		{
-			get
-			{
-				// since the instance variable is initialized at class loading time,
-				// it's not necessary to synchronize this method */
-				return instance;
-			}
-		}
+		public static IDbConnectionManager Instance => instance;
 
-
-		/// <summary>
+	    /// <summary>
 		/// Private constructor
 		/// </summary>
 		private DBConnectionManager()

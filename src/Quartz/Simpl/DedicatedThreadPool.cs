@@ -1,4 +1,5 @@
 ﻿using System.Threading.Tasks;
+
 using Quartz.Util;
 
 namespace Quartz.Simpl

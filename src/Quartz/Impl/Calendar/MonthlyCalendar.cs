@@ -128,7 +128,7 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         public virtual bool[] DaysExcluded
         {
-            get { return excludeDays; }
+            get => excludeDays;
 
             set
             {
@@ -271,9 +271,9 @@ namespace Quartz.Impl.Calendar
         public override int GetHashCode()
         {
             int baseHash = 0;
-            if (GetBaseCalendar() != null)
+            if (CalendarBase != null)
             {
-                baseHash = GetBaseCalendar().GetHashCode();
+                baseHash = CalendarBase.GetHashCode();
             }
 
             return DaysExcluded.GetHashCode() + 5*baseHash;
@@ -292,7 +292,7 @@ namespace Quartz.Impl.Calendar
             {
                 return false;
             }
-            bool baseEqual = GetBaseCalendar() == null || GetBaseCalendar().Equals(obj.GetBaseCalendar());
+            bool baseEqual = CalendarBase == null || CalendarBase.Equals(obj.CalendarBase);
 
             return baseEqual && DaysExcluded.SequenceEqual(obj.DaysExcluded);
         }
@@ -303,10 +303,7 @@ namespace Quartz.Impl.Calendar
             {
                 return false;
             }
-            else
-            {
-                return Equals((MonthlyCalendar) obj);
-            }
+            return Equals((MonthlyCalendar) obj);
         }
     }
 }
