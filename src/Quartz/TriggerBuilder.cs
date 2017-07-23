@@ -473,11 +473,10 @@ namespace Quartz
         public TriggerBuilder UsingJobData(JobDataMap newJobDataMap)
         {
             // add data from new map to existing map (overrides old values)
-            foreach (string dataKey in jobDataMap.Keys)
+            foreach (string k in newJobDataMap.Keys)
             {
-                newJobDataMap.Put(dataKey, jobDataMap.Get(dataKey));
+                jobDataMap.Put(k, newJobDataMap.Get(k));
             }
-            jobDataMap = newJobDataMap; // set new map as the map to use
             return this;
         }
     }
