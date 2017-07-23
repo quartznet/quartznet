@@ -86,6 +86,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         public void TestPostgreSQL20()
         {
             NameValueCollection properties = new NameValueCollection();
+            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.PostgreSQLDelegate, Quartz";
             RunAdoJobStoreTest("Npgsql-20", "PostgreSQL", properties);
         }
 

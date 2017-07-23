@@ -90,6 +90,12 @@
     <Reference Include="FirebirdSql.Data.FirebirdClient">
       <HintPath>..\..\packages\FirebirdSql.Data.FirebirdClient.4.5.0.0\lib\net40-client\FirebirdSql.Data.FirebirdClient.dll</HintPath>
     </Reference>
+    <Reference Include="Mono.Security, Version=2.0.0.0, Culture=neutral, PublicKeyToken=0738eb9f132ed756, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Npgsql.2.0.11\lib\Net40\Mono.Security.dll</HintPath>
+    </Reference>
+    <Reference Include="Npgsql, Version=2.0.11.0, Culture=neutral, PublicKeyToken=5d8b90d52f46fda7, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Npgsql.2.0.11\lib\Net40\Npgsql.dll</HintPath>
+    </Reference>
     <Reference Include="nunit.framework, Version=2.6.3.13283, Culture=neutral, PublicKeyToken=96d09a1eb7f44a77, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\packages\NUnit.2.6.3\lib\nunit.framework.dll</HintPath>

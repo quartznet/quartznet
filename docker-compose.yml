@@ -12,6 +12,10 @@ services:
     build: docker/postgres
     ports:
      - "5432:5432"
+    environment:
+     POSTGRES_USER: quartznet
+     POSTGRES_PASSWORD: quartznet
+     POSTGRES_DB: quartznet
 
   firebird:
     container_name: firebird

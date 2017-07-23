@@ -132,6 +132,7 @@
     <Compile Include="Impl\AdoJobStore\Common\DbMetadataFactory.cs" />
     <Compile Include="Impl\AdoJobStore\Common\EmbeddedAssemblyResourceDbMetadataFactory.cs" />
     <Compile Include="Impl\AdoJobStore\IDbAccessor.cs" />
+    <Compile Include="Impl\AdoJobStore\PostgreSQLDelegate.cs" />
     <Compile Include="IntervalUnit.cs" />
     <Compile Include="Core\ListenerManagerImpl.cs" />
     <Compile Include="CronScheduleBuilder.cs" />
