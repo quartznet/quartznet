@@ -27,6 +27,7 @@ using System.Text;
 
 using Quartz.Impl.Triggers;
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -42,14 +43,11 @@ namespace Quartz.Impl.AdoJobStore
     {
         public override bool CanHandleTriggerType(IOperableTrigger trigger)
         {
-            return ((trigger is DailyTimeIntervalTriggerImpl) &&
-                    !((DailyTimeIntervalTriggerImpl) trigger).HasAdditionalProperties);
+            var dailyTimeIntervalTrigger = trigger as DailyTimeIntervalTriggerImpl;
+            return dailyTimeIntervalTrigger != null &&
+                   !dailyTimeIntervalTrigger.HasAdditionalProperties;
         }
 
-        /// <summary>
-        ///
-        /// </summary>
-        /// <returns></returns>
         public override string GetHandledTriggerTypeDiscriminator()
         {
             return AdoConstants.TriggerTypeDailyTimeInterval;
@@ -94,6 +92,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             props.String3 = timeOfDayBuffer.ToString();
             props.Long1 = dailyTrigger.RepeatCount;
+            props.TimeZoneId = dailyTrigger.TimeZone.Id;
             return props;
         }
 
@@ -109,6 +108,11 @@ namespace Quartz.Impl.AdoJobStore
             DailyTimeIntervalScheduleBuilder scheduleBuilder = DailyTimeIntervalScheduleBuilder.Create()
                 .WithInterval(interval, intervalUnit)
                 .WithRepeatCount(repeatCount);
+
+            if (!string.IsNullOrEmpty(props.TimeZoneId))
+            {
+                scheduleBuilder.InTimeZone(TimeZoneUtil.FindTimeZoneById(props.TimeZoneId));
+            }
 
             if (daysOfWeekStr != null)
             {

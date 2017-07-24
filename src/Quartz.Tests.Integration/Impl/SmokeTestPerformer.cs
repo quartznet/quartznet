@@ -13,6 +13,7 @@ using Quartz.Job;
 using Quartz.Spi;
 using Quartz.Tests.Integration.Impl.AdoJobStore;
 using Quartz.Tests.Integration.Utils;
+using Quartz.Util;
 
 namespace Quartz.Tests.Integration.Impl
 {
@@ -141,10 +142,24 @@ namespace Quartz.Tests.Integration.Impl
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
                     job.RequestsRecovery = (true);
+
+                    var timeZone1 = TimeZoneUtil.FindTimeZoneById("Central European Standard Time");
+                    var timeZone2 = TimeZoneUtil.FindTimeZoneById("Mountain Standard Time");
+
                     DailyTimeIntervalTriggerImpl nt = new DailyTimeIntervalTriggerImpl("nth_trig_" + count, schedId, new TimeOfDay(1, 1, 1), new TimeOfDay(23, 30, 0), IntervalUnit.Hour, 1);
                     nt.StartTimeUtc = DateTime.Now.Date.AddMilliseconds(1000);
+                    nt.TimeZone = timeZone1;
 
                     await scheduler.ScheduleJob(job, nt);
+
+                    var loadedNt = (IDailyTimeIntervalTrigger) await scheduler.GetTrigger(nt.Key);
+                    Assert.That(loadedNt.TimeZone.Id, Is.EqualTo(timeZone1.Id));
+
+                    nt.TimeZone = timeZone2;
+                    await scheduler.RescheduleJob(nt.Key, nt);
+
+                    loadedNt = (IDailyTimeIntervalTrigger) await scheduler.GetTrigger(nt.Key);
+                    Assert.That(loadedNt.TimeZone.Id, Is.EqualTo(timeZone2.Id));
 
                     DailyTimeIntervalTriggerImpl nt2 = new DailyTimeIntervalTriggerImpl();
                     nt2.Key = new TriggerKey("nth_trig2_" + count, schedId);

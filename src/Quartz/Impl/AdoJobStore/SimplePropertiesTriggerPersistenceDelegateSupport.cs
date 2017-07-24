@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -53,6 +53,7 @@ namespace Quartz.Impl.AdoJobStore
         protected const string ColumnDecProp2 = "DEC_PROP_2";
         protected const string ColumnBoolProp1 = "BOOL_PROP_1";
         protected const string ColumnBoolProp2 = "BOOL_PROP_2";
+        protected const string ColumnTimeZoneId = "TIME_ZONE_ID";
 
         protected const string SelectSimplePropsTrigger = "SELECT *" + " FROM "
                                                           + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " WHERE "
@@ -72,8 +73,8 @@ namespace Quartz.Impl.AdoJobStore
                                                           + ColumnIntProp1 + ", " + ColumnIntProp2 + ", "
                                                           + ColumnLongProp1 + ", " + ColumnLongProp2 + ", "
                                                           + ColumnDecProp1 + ", " + ColumnDecProp2 + ", "
-                                                          + ColumnBoolProp1 + ", " + ColumnBoolProp2
-                                                          + ") " + " VALUES(" + StdAdoConstants.SchedulerNameSubst + ", @triggerName, @triggerGroup, @string1, @string2, @string3, @int1, @int2, @long1, @long2, @decimal1, @decimal2, @boolean1, @boolean2)";
+                                                          + ColumnBoolProp1 + ", " + ColumnBoolProp2 + ", " + ColumnTimeZoneId
+                                                          + ") " + " VALUES(" + StdAdoConstants.SchedulerNameSubst + ", @triggerName, @triggerGroup, @string1, @string2, @string3, @int1, @int2, @long1, @long2, @decimal1, @decimal2, @boolean1, @boolean2, @timeZoneId)";
 
         protected const string UpdateSimplePropsTrigger = "UPDATE "
                                                           + StdAdoConstants.TablePrefixSubst + TableSimplePropertiesTriggers + " SET "
@@ -82,7 +83,7 @@ namespace Quartz.Impl.AdoJobStore
                                                           + ColumnLongProp1 + " = @long1, " + ColumnLongProp2 + " = @long2, "
                                                           + ColumnDecProp1 + " = @decimal1, " + ColumnDecProp2 + " = @decimal2, "
                                                           + ColumnBoolProp1 + " = @boolean1, " + ColumnBoolProp2
-                                                          + " = @boolean2 WHERE " + AdoConstants.ColumnSchedulerName + " = " + StdAdoConstants.SchedulerNameSubst
+                                                          + " = @boolean2, " + ColumnTimeZoneId + " = @timeZoneId WHERE " + AdoConstants.ColumnSchedulerName + " = " + StdAdoConstants.SchedulerNameSubst
                                                           + " AND " + AdoConstants.ColumnTriggerName
                                                           + " = @triggerName AND " + AdoConstants.ColumnTriggerGroup + " = @triggerGroup";
 
@@ -152,6 +153,7 @@ namespace Quartz.Impl.AdoJobStore
                 DbAccessor.AddCommandParameter(cmd, "decimal2", properties.Decimal2);
                 DbAccessor.AddCommandParameter(cmd, "boolean1", DbAccessor.GetDbBooleanValue(properties.Boolean1));
                 DbAccessor.AddCommandParameter(cmd, "boolean2", DbAccessor.GetDbBooleanValue(properties.Boolean2));
+                DbAccessor.AddCommandParameter(cmd, "timeZoneId", properties.TimeZoneId);
 
                 return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
@@ -184,6 +186,7 @@ namespace Quartz.Impl.AdoJobStore
                         properties.Decimal2 = rs.GetDecimal(ColumnDecProp2);
                         properties.Boolean1 = DbAccessor.GetBooleanFromDbValue(rs[ColumnBoolProp1]);
                         properties.Boolean2 = DbAccessor.GetBooleanFromDbValue(rs[ColumnBoolProp2]);
+                        properties.TimeZoneId = rs.GetString(ColumnTimeZoneId);
 
                         return GetTriggerPropertyBundle(properties);
                     }
@@ -217,6 +220,7 @@ namespace Quartz.Impl.AdoJobStore
                 DbAccessor.AddCommandParameter(cmd, "boolean2", DbAccessor.GetDbBooleanValue(properties.Boolean2));
                 DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
                 DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
+                DbAccessor.AddCommandParameter(cmd, "timeZoneId", properties.TimeZoneId);
 
                 return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }

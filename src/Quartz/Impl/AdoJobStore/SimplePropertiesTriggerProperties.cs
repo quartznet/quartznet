@@ -23,5 +23,7 @@ namespace Quartz.Impl.AdoJobStore
         public bool Boolean1 { get; set; }
 
         public bool Boolean2 { get; set; }
+
+        public string TimeZoneId { get; set; }
     }
 }
