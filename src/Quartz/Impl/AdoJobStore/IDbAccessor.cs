@@ -5,7 +5,7 @@ using System.Data.Common;
 namespace Quartz.Impl.AdoJobStore
 {
     /// <summary>
-    /// Service interface or modifying <see cref="IDbCommand" /> parameters 
+    /// Service interface or modifying <see cref="IDbCommand" /> parameters
     /// and resultset values.
     /// </summary>
     public interface IDbAccessor
@@ -24,16 +24,9 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="cmd">Command to add parameter to</param>
         /// <param name="paramName">Parameter's name</param>
         /// <param name="paramValue">Parameter's value</param>
-        void AddCommandParameter(DbCommand cmd, string paramName, object paramValue);
-
-        /// <summary>
-        /// Adds a parameter to <see cref="IDbCommand" />.
-        /// </summary>
-        /// <param name="cmd">Command to add parameter to</param>
-        /// <param name="paramName">Parameter's name</param>
-        /// <param name="paramValue">Parameter's value</param>
         /// <param name="dataType">Parameter's data type</param>
-        void AddCommandParameter(DbCommand cmd, string paramName, object paramValue, Enum dataType);
+        /// <param name="size">Parameter's optional size</param>
+        void AddCommandParameter(DbCommand cmd, string paramName, object paramValue, Enum dataType = null, int? size = null);
 
         /// <summary>
         /// Gets the db presentation for boolean value. Subclasses can overwrite this behaviour.

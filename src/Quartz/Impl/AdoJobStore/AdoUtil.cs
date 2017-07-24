@@ -42,16 +42,28 @@ namespace Quartz.Impl.AdoJobStore
 
         public void AddCommandParameter(IDbCommand cmd, string paramName, object paramValue)
         {
-            AddCommandParameter(cmd, paramName, paramValue, null);
+            AddCommandParameter(cmd, paramName, paramValue, null, null);
         }
 
-        public void AddCommandParameter(IDbCommand cmd, string paramName, object paramValue, Enum dataType)
+        public void AddCommandParameter(
+            IDbCommand cmd,
+            string paramName,
+            object paramValue,
+            Enum dataType,
+            int? size)
         {
+
             IDbDataParameter param = cmd.CreateParameter();
             if (dataType != null)
             {
                 SetDataTypeToCommandParameter(param, dataType);
             }
+
+            if (size != null)
+            {
+                param.Size = size.Value;
+            }
+
             param.ParameterName = dbProvider.Metadata.GetParameterName(paramName);
             param.Value = paramValue ?? DBNull.Value;
             cmd.Parameters.Add(param);
@@ -66,7 +78,6 @@ namespace Quartz.Impl.AdoJobStore
                 cmd.CommandText = cmd.CommandText.Replace("@" + paramName, dbProvider.Metadata.ParameterNamePrefix + paramName);
             }
         }
-
         private void SetDataTypeToCommandParameter(IDbDataParameter param, object parameterType)
         {
             dbProvider.Metadata.ParameterDbTypeProperty.SetMethod.Invoke(param, new[] { parameterType });

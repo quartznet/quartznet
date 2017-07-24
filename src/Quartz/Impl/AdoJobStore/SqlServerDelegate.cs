@@ -1,20 +1,20 @@
 #region License
 
-/* 
+/*
  * Copyright 2009- Marko Lahma
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -59,15 +59,26 @@ namespace Quartz.Impl.AdoJobStore
             return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
         }
 
-        public override void AddCommandParameter(DbCommand cmd, string paramName, object paramValue, Enum dataType)
+        public override void AddCommandParameter(
+            DbCommand cmd,
+            string paramName,
+            object paramValue,
+            Enum dataType = null,
+            int? size = null)
         {
             // deeded for SQL Server CE
-            if (paramValue is bool && dataType == default(Enum))
+            if (paramValue is bool && dataType == null)
             {
                 paramValue = (bool) paramValue ? 1 : 0;
             }
 
-            base.AddCommandParameter(cmd, paramName, paramValue, dataType);
+            // varbinary support
+            if (size == null && dataType != null && dataType.Equals(DbProvider.Metadata.DbBinaryType))
+            {
+                size = -1;
+            }
+
+            base.AddCommandParameter(cmd, paramName, paramValue, dataType, size);
         }
     }
 }
