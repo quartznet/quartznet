@@ -110,6 +110,21 @@
       </simple>
     </trigger>
 
+
+    <trigger>
+      <simple>
+        <name>IgnoreMisfirePolicyTrigger</name>
+        <job-name>sched2_job</job-name>
+        <start-time>1982-06-28T18:15:00.0Z</start-time>
+        <end-time>2020-05-04T18:13:51.0Z</end-time>
+
+        <misfire-instruction>IgnoreMisfirePolicy</misfire-instruction>
+        <repeat-count>100</repeat-count>
+        <repeat-interval>3000</repeat-interval>
+
+      </simple>
+    </trigger>
+
     <trigger>
       <cron>
         <name>QTZ-329</name>
