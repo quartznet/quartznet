@@ -551,6 +551,8 @@ namespace Quartz.Impl.AdoJobStore
             await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             ps = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteAllPausedTriggerGrps));
             await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            ps = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteFiredTriggers));
+            ps.ExecuteNonQuery();
         }
 
         //---------------------------------------------------------------------------
