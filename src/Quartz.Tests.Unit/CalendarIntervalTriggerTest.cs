@@ -1,9 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 using NUnit.Framework;
 
 using Quartz.Impl.Triggers;
+using Quartz.Spi;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit
@@ -703,6 +705,21 @@ namespace Quartz.Tests.Unit
             Assert.That(cloned.RepeatIntervalUnit, Is.EqualTo(trigger.RepeatIntervalUnit));
             Assert.That(cloned.MisfireInstruction, Is.EqualTo(trigger.MisfireInstruction));
             Assert.That(cloned.TimeZone, Is.EqualTo(trigger.TimeZone));
+        }
+
+        [Test(Description = "https://github.com/quartznet/quartznet/issues/505")]
+        public void ShouldRespectTimeZoneForFirstFireTime()
+        {
+            var tz = TimeZoneUtil.FindTimeZoneById("E. South America Standard Time");
+            var dailyTrigger = (IOperableTrigger) TriggerBuilder.Create()
+                .StartAt(new DateTime(2017, 1, 4, 15, 0, 0, DateTimeKind.Utc))
+                .WithCalendarIntervalSchedule(x => x
+                    .WithIntervalInDays(2)
+                    .InTimeZone(tz))
+                .Build();
+
+            var firstFireTime = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 1).First();
+            Assert.That(firstFireTime, Is.EqualTo(new DateTimeOffset(2017, 1, 4, 13, 0, 0, TimeSpan.FromHours(-2))));
         }
 
         protected override object GetTargetObject()
