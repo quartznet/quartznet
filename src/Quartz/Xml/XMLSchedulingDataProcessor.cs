@@ -591,7 +591,7 @@ namespace Quartz.Xml
                 settings.ValidationFlags |= XmlSchemaValidationFlags.ProcessSchemaLocation;
                 settings.ValidationFlags |= XmlSchemaValidationFlags.ReportValidationWarnings;
 
-                Stream stream = GetType().Assembly.GetManifestResourceStream(QuartzXsdResourceName);
+                Stream stream = typeof(XMLSchedulingDataProcessor).Assembly.GetManifestResourceStream(QuartzXsdResourceName);
                 XmlSchema schema = XmlSchema.Read(stream, XmlValidationCallBack);
                 settings.Schemas.Add(schema);
                 settings.ValidationEventHandler += XmlValidationCallBack;
