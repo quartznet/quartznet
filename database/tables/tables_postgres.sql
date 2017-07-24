@@ -78,6 +78,7 @@ CREATE TABLE QRTZ_SIMPROP_TRIGGERS
     dec_prop_2 NUMERIC NULL,
     bool_prop_1 BOOL NULL,
     bool_prop_2 BOOL NULL,
+	time_zone_id VARCHAR(80) NULL,
 	PRIMARY KEY (sched_name,trigger_name,trigger_group),
     FOREIGN KEY (sched_name,trigger_name,trigger_group) 
 		REFERENCES qrtz_triggers(sched_name,trigger_name,trigger_group) ON DELETE CASCADE

@@ -2,6 +2,27 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://www.quartz-scheduler.net
 
+Release 2.6, Jul XX, 2017
+--------------------------------
+
+Some changes that require database schema changes, so a minor version bump.
+
+This release fixes a long standing issue, DailyTimeIntervalTrigger's time zone is now finally persisted
+to database. This requires running schema_25_to_26_upgrade.sql to add new column to QRTZ_SIMPROP_TRIGGERS table.
+
+A slight performance boost can also be unlocked when using PostgreSQL by switching PostgreSqlDelegate.
+
+FIXES
+
+* Regression in 2.5, TriggerBuilder.UsingJobData(JobDataMap newJobDataMap) should ovewrite existing values in map
+* Add back PostgreSqlDelegate to support database LIMIT in trigger acquiring
+* Quartz is logging transient faults related to azure db connection as errors
+* QRTZ_FIRED_TRIGGERS.ENTRY_ID column length too small area/adojobstore
+* No wait time between db connection failures with AcquireNextTriggers
+* RemotingSchedulerExporter can't create remoting channel on Mono
+* Decrease log level to INFO for message when host name is too long
+
+
 Release 2.5, Feb 18, 2017
 --------------------------------
 
