@@ -34,7 +34,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         {
             dbConnectionStrings["Oracle"] = "Data Source=(DESCRIPTION=(ADDRESS_LIST=(ADDRESS=(PROTOCOL=TCP)(HOST=localhost)(PORT=1521)))(CONNECT_DATA=(SERVICE_NAME=xe)));User Id=system;Password=oracle;";
             dbConnectionStrings["SQLServer"] = TestConstants.SqlServerConnectionString;
-            dbConnectionStrings["MySQL"] = "Server = localhost; Database = quartz; Uid = root; Pwd = Password12!";
+            dbConnectionStrings["MySQL"] = "Server = localhost; Database = quartznet; Uid = quartznet; Pwd = quartznet";
             dbConnectionStrings["PostgreSQL"] = "Server=127.0.0.1;Port=5432;Userid=quartznet;Password=quartznet;Pooling=true;MinPoolSize=1;MaxPoolSize=20;Timeout=15;SslMode=Disable;Database=quartznet";
             dbConnectionStrings["SQLite"] = "Data Source=test.db;Version=3;";
             dbConnectionStrings["Firebird"] = "User=SYSDBA;Password=masterkey;Database=/quartz.fdb;DataSource=localhost;Port=3050;Dialect=3;Charset=NONE;Role=;Connection lifetime=15;Pooling=true;MinPoolSize=0;MaxPoolSize=50;Packet Size=8192;ServerType=0;";
