@@ -507,6 +507,8 @@ namespace Quartz.Impl.AdoJobStore
             ps.ExecuteNonQuery();
             ps = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteAllPausedTriggerGrps));
             ps.ExecuteNonQuery();
+            ps = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteFiredTriggers));
+            ps.ExecuteNonQuery();
         }
 
         //---------------------------------------------------------------------------
