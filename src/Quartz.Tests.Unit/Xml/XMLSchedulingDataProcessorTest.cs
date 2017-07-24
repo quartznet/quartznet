@@ -80,7 +80,7 @@ namespace Quartz.Tests.Unit.Xml
 
             processor.ScheduleJobs(mockScheduler);
 
-            mockScheduler.AssertWasCalled(x => x.ScheduleJob(Arg<ITrigger>.Is.NotNull), options => options.Repeat.Times(5));
+            mockScheduler.AssertWasCalled(x => x.ScheduleJob(Arg<ITrigger>.Is.NotNull), options => options.Repeat.Times(7));
         }
 
         [Test]
