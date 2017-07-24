@@ -21,12 +21,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 using NUnit.Framework;
 
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
+using Quartz.Job;
 using Quartz.Spi;
 using Quartz.Util;
 
@@ -84,20 +84,12 @@ namespace Quartz.Tests.Unit.Impl.Triggers
         [Test]
         public void TestValidateTimeOfDayOrder()
         {
-            var trigger = new DailyTimeIntervalTriggerImpl
-            {
-                StartTimeOfDay = new TimeOfDay(12, 0, 0),
-                EndTimeOfDay = new TimeOfDay(8, 0, 0)
-            };
-            try
-            {
-                trigger.Validate();
-                Assert.Fail("Trigger should be invalidate when time of day is not in order.");
-            }
-            catch (SchedulerException)
-            {
-                // expected.
-            }
+            Assert.Throws<ArgumentException>(() =>
+                new DailyTimeIntervalTriggerImpl
+                {
+                    StartTimeOfDay = new TimeOfDay(12, 0, 0),
+                    EndTimeOfDay = new TimeOfDay(8, 0, 0)
+                }, "End time of day cannot be before start time of day");
         }
 
         [Test]
@@ -846,6 +838,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
         }
 
         [Test]
+        [Explicit]
         public void TestPassingMidnight()
         {
             IOperableTrigger trigger = (IOperableTrigger) DailyTimeIntervalScheduleBuilder.Create()
@@ -890,6 +883,26 @@ namespace Quartz.Tests.Unit.Impl.Triggers
             Assert.That(cloned.StartTimeOfDay, Is.EqualTo(trigger.StartTimeOfDay));
             Assert.That(cloned.EndTimeOfDay, Is.EqualTo(trigger.EndTimeOfDay));
             Assert.That(cloned.TimeZone, Is.EqualTo(trigger.TimeZone));
+        }
+
+        [Test(Description = "https://github.com/quartznet/quartznet/issues/382")]
+        public void ShouldAllowAlteringToLaterTimeInDay()
+        {
+            IJobDetail job = JobBuilder.Create<NoOpJob>()
+                .WithIdentity("DummyJob", "DEFAULT")
+                .Build();
+
+            ITrigger myTrigger = TriggerBuilder.Create()
+                .ForJob(job)
+                .WithIdentity("MyIdentity", "DEFAULT")
+                .WithDailyTimeIntervalSchedule(s => s
+                    .StartingDailyAt(new TimeOfDay(12, 0, 0))
+                    .EndingDailyAt(new TimeOfDay(15, 0, 0))
+                    .OnEveryDay()
+                )
+                .Build();
+
+            ((DailyTimeIntervalTriggerImpl)myTrigger).EndTimeOfDay = new TimeOfDay(16, 0, 0);
         }
     }
 }

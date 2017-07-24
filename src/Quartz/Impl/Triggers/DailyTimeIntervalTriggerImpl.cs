@@ -918,7 +918,7 @@ namespace Quartz.Impl.Triggers
                 }
 
                 TimeOfDay eTime = EndTimeOfDay;
-                if (eTime != null && value != null && eTime.Before(value))
+                if (eTime != null && eTime.Before(value))
                 {
                     throw new ArgumentException(
                         "End time of day cannot be before start time of day");
@@ -942,7 +942,7 @@ namespace Quartz.Impl.Triggers
                 }
 
                 TimeOfDay sTime = StartTimeOfDay;
-                if (sTime != null && endTimeOfDay != null && endTimeOfDay.Before(value))
+                if (sTime != null && value.Before(sTime))
                 {
                     throw new ArgumentException("End time of day cannot be before start time of day");
                 }
