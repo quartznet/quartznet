@@ -483,7 +483,7 @@ namespace Quartz.Impl.Triggers
         /// </returns>
         public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar calendar)
         {
-            nextFireTimeUtc = StartTimeUtc;
+            nextFireTimeUtc = TimeZoneUtil.ConvertTime(StartTimeUtc, TimeZone);
 
             while (nextFireTimeUtc != null && calendar != null
                    && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))

@@ -1,9 +1,11 @@
 using System;
+using System.Linq;
 
 using NUnit.Framework;
 
 using Quartz.Impl.Triggers;
 using Quartz.Simpl;
+using Quartz.Spi;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit
@@ -359,9 +361,9 @@ namespace Quartz.Tests.Unit
             //March 11, 2012, EST DST starts at 2am and jumps to 3.
             // 3/11/2012 2:00:00 AM is an invalid time
 
-            //------------------------------------------------- 
+            //-------------------------------------------------
             // DAILY
-            //------------------------------------------------- 
+            //-------------------------------------------------
             CalendarIntervalTriggerImpl trigger = new CalendarIntervalTriggerImpl();
             trigger.TimeZone = timeZone;
             trigger.RepeatInterval = 1;
@@ -381,9 +383,9 @@ namespace Quartz.Tests.Unit
             DateTimeOffset expectedTarget = new DateTimeOffset(2012, 3, 12, 2, 0, 0, TimeSpan.FromHours(-4)); // 3/12/2012 2am
             Assert.AreEqual(expectedTarget, targetTime);
 
-            //------------------------------------------------- 
+            //-------------------------------------------------
             // WEEKLY
-            //------------------------------------------------- 
+            //-------------------------------------------------
             trigger = new CalendarIntervalTriggerImpl();
             trigger.TimeZone = timeZone;
             trigger.RepeatInterval = 1;
@@ -403,9 +405,9 @@ namespace Quartz.Tests.Unit
             expectedTarget = new DateTimeOffset(2012, 3, 18, 2, 0, 0, TimeSpan.FromHours(-4)); // 3/18/2012 2am
             Assert.AreEqual(expectedTarget, targetTime);
 
-            //------------------------------------------------- 
+            //-------------------------------------------------
             // MONTHLY
-            //------------------------------------------------- 
+            //-------------------------------------------------
 
             trigger = new CalendarIntervalTriggerImpl();
             trigger.TimeZone = timeZone;
@@ -426,9 +428,9 @@ namespace Quartz.Tests.Unit
             expectedTarget = new DateTimeOffset(2012, 4, 11, 2, 0, 0, TimeSpan.FromHours(-4)); // 4/11/2012 2am
             Assert.AreEqual(expectedTarget, targetTime);
 
-            //------------------------------------------------- 
+            //-------------------------------------------------
             // YEARLY
-            //------------------------------------------------- 
+            //-------------------------------------------------
 
             trigger = new CalendarIntervalTriggerImpl();
             trigger.TimeZone = timeZone;
@@ -461,9 +463,9 @@ namespace Quartz.Tests.Unit
             //expected target will always be the on the next valid time, (3/11/2012 3am) in this case
             DateTimeOffset expectedTarget = new DateTimeOffset(2012, 3, 11, 3, 0, 0, TimeSpan.FromHours(-4));
 
-            //------------------------------------------------- 
+            //-------------------------------------------------
             // DAILY
-            //------------------------------------------------- 
+            //-------------------------------------------------
 
             CalendarIntervalTriggerImpl trigger = new CalendarIntervalTriggerImpl();
             trigger.TimeZone = timeZone;
@@ -482,9 +484,9 @@ namespace Quartz.Tests.Unit
             Assert.IsFalse(timeZone.IsInvalidTime(targetTime.DateTime), "did not seem to skip the day with an hour that doesn't exist.");
             Assert.AreEqual(expectedTarget, targetTime);
 
-            //------------------------------------------------- 
+            //-------------------------------------------------
             // WEEKLY
-            //------------------------------------------------- 
+            //-------------------------------------------------
             trigger = new CalendarIntervalTriggerImpl();
             trigger.TimeZone = timeZone;
             trigger.RepeatInterval = 1;
@@ -502,9 +504,9 @@ namespace Quartz.Tests.Unit
             Assert.IsFalse(timeZone.IsInvalidTime(targetTime.DateTime), "did not seem to skip the day with an hour that doesn't exist.");
             Assert.AreEqual(expectedTarget, targetTime);
 
-            //------------------------------------------------- 
+            //-------------------------------------------------
             // MONTHLY
-            //------------------------------------------------- 
+            //-------------------------------------------------
             trigger = new CalendarIntervalTriggerImpl();
             trigger.TimeZone = timeZone;
             trigger.RepeatInterval = 1;
@@ -522,9 +524,9 @@ namespace Quartz.Tests.Unit
             Assert.IsFalse(timeZone.IsInvalidTime(targetTime.DateTime), "did not seem to skip the day with an hour that doesn't exist.");
             Assert.AreEqual(expectedTarget, targetTime);
 
-            //------------------------------------------------- 
+            //-------------------------------------------------
             // YEARLY
-            //------------------------------------------------- 
+            //-------------------------------------------------
 
             trigger = new CalendarIntervalTriggerImpl();
             trigger.TimeZone = timeZone;
@@ -709,6 +711,21 @@ namespace Quartz.Tests.Unit
             Assert.That(cloned.RepeatIntervalUnit, Is.EqualTo(trigger.RepeatIntervalUnit));
             Assert.That(cloned.MisfireInstruction, Is.EqualTo(trigger.MisfireInstruction));
             Assert.That(cloned.TimeZone, Is.EqualTo(trigger.TimeZone));
+        }
+
+        [Test(Description = "https://github.com/quartznet/quartznet/issues/505")]
+        public void ShouldRespectTimeZoneForFirstFireTime()
+        {
+            var tz = TimeZoneUtil.FindTimeZoneById("E. South America Standard Time");
+            var dailyTrigger = (IOperableTrigger) TriggerBuilder.Create()
+                .StartAt(new DateTime(2017, 1, 4, 15, 0, 0, DateTimeKind.Utc))
+                .WithCalendarIntervalSchedule(x => x
+                    .WithIntervalInDays(2)
+                    .InTimeZone(tz))
+                .Build();
+
+            var firstFireTime = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 1).First();
+            Assert.That(firstFireTime, Is.EqualTo(new DateTimeOffset(2017, 1, 4, 13, 0, 0, TimeSpan.FromHours(-2))));
         }
 
         protected override object GetTargetObject()
