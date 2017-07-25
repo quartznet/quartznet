@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -22,6 +22,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Text.RegularExpressions;
 
 using NUnit.Framework;
 
@@ -69,7 +70,7 @@ namespace Quartz.Tests.Unit
         }
 
         /// <summary>
-        /// Verify that the target object and the object we just deserialized 
+        /// Verify that the target object and the object we just deserialized
         /// match.
         /// </summary>
         /// <param name="target"></param>
@@ -674,6 +675,20 @@ namespace Quartz.Tests.Unit
             // Test case 4
             e = Assert.Throws<FormatException>(() => new CronExpression("0 0 0 ? * 0/"), "Cron did not validate bad range interval in '0/_blank'");
             Assert.That(e.Message, Is.EqualTo("'/' must be followed by an integer."));
+        }
+
+        [Test]
+        public void TestInvalidCharactersAfterAsterisk()
+        {
+            Assert.That(CronExpression.IsValidExpression("* * * ? * *A&/5:"), Is.False);
+            Assert.That(CronExpression.IsValidExpression("* * * ? *14 "), Is.False);
+            Assert.That(CronExpression.IsValidExpression(" * * ? *A&/5 *"), Is.False);
+            Assert.That(CronExpression.IsValidExpression("* * ? */5 *"), Is.False);
+            Assert.That(CronExpression.IsValidExpression("* * ? */52 *"), Is.False);
+
+            Assert.That(CronExpression.IsValidExpression("0 0/30 * * * ?"), Is.True);
+            Assert.That(CronExpression.IsValidExpression("0 0/1 * * * ?"), Is.True);
+            Assert.That(CronExpression.IsValidExpression("0 0/30 * * */2 ?"), Is.True);
         }
 
         private class SimpleCronExpression : CronExpression
