@@ -32,6 +32,7 @@ using Common.Logging;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
+using Quartz.Job;
 using Quartz.Spi;
 using Quartz.Util;
 
@@ -846,7 +847,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (InvalidCastException)
                 {
-                    // old data from user error?
+                    // old data from user error or XML scheduling plugin data
                     try
                     {
                         var blobData = GetObjectFromBlob<IDictionary>(rs, colIndex);
@@ -2707,7 +2708,8 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>the serialized data as byte array</returns>
         public virtual byte[] SerializeJobData(JobDataMap data)
         {
-            if (CanUseProperties)
+            bool skipStringPropertySerialization = data.ContainsKey(FileScanJob.FileScanListenerName);
+            if (CanUseProperties && !skipStringPropertySerialization)
             {
                 return SerializeProperties(data);
             }
