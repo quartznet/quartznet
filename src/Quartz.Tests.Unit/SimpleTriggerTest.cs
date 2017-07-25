@@ -20,7 +20,6 @@
 using System;
 using NUnit.Framework;
 
-using Quartz.Impl;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
 using Quartz.Spi;

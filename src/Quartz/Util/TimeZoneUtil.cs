@@ -46,6 +46,8 @@ namespace Quartz.Util
             timeZoneIdAliases["US/Hawaii"] = "Hawaiian Standard Time";
         }
 
+        public static Func<string, TimeZoneInfo> CustomResolver = id => null;
+
         /// <summary>
         /// TimeZoneInfo.ConvertTime is not supported under mono
         /// </summary>
@@ -116,6 +118,11 @@ namespace Quartz.Util
                     {
                         logger.ErrorFormat("Could not find time zone using alias id " + aliasedId);
                     }
+                }
+
+                if (info == null)
+                {
+                    info = CustomResolver(id);
                 }
 
                 if (info == null)

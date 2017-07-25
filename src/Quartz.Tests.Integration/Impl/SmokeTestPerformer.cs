@@ -195,6 +195,34 @@ namespace Quartz.Tests.Integration.Impl
                     intervalTrigger.JobKey = job.Key;
 
                     scheduler.ScheduleJob(intervalTrigger);
+                    
+                    // custom time zone
+                    const string CustomTimeZoneId = "Custom TimeZone";
+                    var webTimezone = TimeZoneInfo.CreateCustomTimeZone(
+                        CustomTimeZoneId, 
+                        TimeSpan.FromMinutes(22),
+                        null, 
+                        null);
+
+                    TimeZoneUtil.CustomResolver = id =>
+                    {
+                        if (id == CustomTimeZoneId)
+                        {
+                            return webTimezone;
+                        }
+                        return null;
+                    };
+                    
+                    var customTimeZoneTrigger = TriggerBuilder.Create()
+                        .WithIdentity("customTimeZoneTrigger")
+                        .WithCronSchedule("0/5 * * * * ?", x => x.InTimeZone(webTimezone))
+                        .StartNow()
+                        .ForJob(job)
+                        .Build();
+
+                    scheduler.ScheduleJob(customTimeZoneTrigger);
+                    var loadedCustomTimeZoneTrigger = (ICronTrigger) scheduler.GetTrigger(customTimeZoneTrigger.Key);
+                    Assert.That(loadedCustomTimeZoneTrigger.TimeZone.BaseUtcOffset, Is.EqualTo(TimeSpan.FromMinutes(22)));
 
                     // bulk operations
                     var info = new Dictionary<IJobDetail, Collection.ISet<ITrigger>>();
