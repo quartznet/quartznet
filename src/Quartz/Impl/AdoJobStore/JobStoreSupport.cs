@@ -541,6 +541,12 @@ namespace Quartz.Impl.AdoJobStore
                     Log.Warn("Detected usage of SQL Server provider without SqlServerDelegate, SqlServerDelegate would provide better performance");
                 }
             }
+
+            if (Delegate is SQLiteDelegate && !TxIsolationLevelSerializable)
+            {
+                Log.Info("Detected usage of SQLiteDelegate - defaulting 'txIsolationLevelSerializable' to 'true'");
+                TxIsolationLevelSerializable = true;
+            }
         }
 
         /// <seealso cref="IJobStore.SchedulerStarted()" />
