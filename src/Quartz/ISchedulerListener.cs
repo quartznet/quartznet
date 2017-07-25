@@ -110,6 +110,12 @@ namespace Quartz
         Task JobPaused(JobKey jobKey, CancellationToken cancellationToken = default(CancellationToken));
 
         /// <summary>
+        /// Called by the <see cref="IScheduler"/> when a <see cref="IJobDetail"/>
+        /// has been interrupted.
+        /// </summary>
+        Task JobInterrupted(JobKey jobKey, CancellationToken cancellationToken = default(CancellationToken));
+
+        /// <summary>
         /// Called by the <see cref="IScheduler"/> when a
         /// group of <see cref="IJobDetail"/>s has been  paused.
         /// <para>
@@ -134,7 +140,7 @@ namespace Quartz
         /// <param name="jobGroup">The job group.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         Task JobsResumed(string jobGroup, CancellationToken cancellationToken = default(CancellationToken));
-
+       
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a serious error has
         /// occurred within the scheduler - such as repeated failures in the <see cref="IJobStore" />,

@@ -99,6 +99,13 @@ namespace Quartz.Listener
             return TaskUtil.CompletedTask;
         }
 
+        public Task JobInterrupted(
+            JobKey jobKey,
+            CancellationToken cancellationToken = new CancellationToken())
+        {
+            return TaskUtil.CompletedTask;
+        }
+
         public virtual Task JobsPaused(
             string jobGroup,
             CancellationToken cancellationToken = default(CancellationToken))

@@ -2141,7 +2141,7 @@ namespace Quartz.Core
         /// <summary>
         /// Interrupt all instances of the identified InterruptableJob.
         /// </summary>
-        public virtual Task<bool> Interrupt(
+        public virtual async Task<bool> Interrupt(
             JobKey jobKey,
             CancellationToken cancellationToken = default(CancellationToken))
         {
@@ -2162,7 +2162,12 @@ namespace Quartz.Core
                 }
             }
 
-            return Task.FromResult(interrupted);
+            if (interrupted)
+            {
+                await NotifySchedulerListeners(l => l.JobInterrupted(jobKey, cancellationToken), "job interruption");
+            }
+            
+            return interrupted;
         }
 
         /// <summary>

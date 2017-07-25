@@ -134,6 +134,11 @@ namespace Quartz.Listener
             return Task.WhenAll(listeners.Select(l => l.TriggerResumed(triggerKey, cancellationToken)));
         }
 
+        public Task JobInterrupted(JobKey jobKey, CancellationToken cancellationToken = new CancellationToken())
+        {
+            return Task.WhenAll(listeners.Select(l => l.JobInterrupted(jobKey, cancellationToken)));
+        }
+
         public Task JobsPaused(
             string jobGroup,
             CancellationToken cancellationToken = default(CancellationToken))
