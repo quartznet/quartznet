@@ -273,6 +273,11 @@
   <ItemGroup>
     <EmbeddedResource Include="Xml\TestData\overwrite-no-jobclass.xml" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="Xml\TestData\JobTypeNotFound.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
     <PreBuildEvent>

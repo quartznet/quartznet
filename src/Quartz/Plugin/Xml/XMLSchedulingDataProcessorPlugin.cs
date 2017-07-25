@@ -138,6 +138,12 @@ namespace Quartz.Plugin.Xml
             set { failOnFileNotFound = value; }
         }
 
+        /// <summary>
+        /// Whether or not starting of the plugin should fail (throw an
+        /// exception) if the file cannot be handled. Default is <see langword="false" />.
+        /// </summary>
+        public virtual bool FailOnSchedulingError { get; set; }
+
         public IEnumerable<KeyValuePair<string, JobFile>> JobFiles
         {
             get { return jobFiles; }
@@ -238,6 +244,10 @@ namespace Quartz.Plugin.Xml
             }
             catch (SchedulerException se)
             {
+                if (FailOnSchedulingError)
+                {
+                    throw;
+                }
                 Log.Error("Error starting background-task for watching jobs file.", se);
             }
             finally
@@ -323,7 +333,15 @@ namespace Quartz.Plugin.Xml
             }
             catch (Exception e)
             {
-                Log.Error("Error scheduling jobs: " + e.Message, e);
+                var message = "Could not schedule jobs and triggers from file " + jobFile.FileName + ": " + e.Message;
+                if (FailOnSchedulingError)
+                {
+                    throw new SchedulerException(message, e);
+                }
+                else
+                {
+                    Log.Error(message, e);
+                }
             }
         }
 

@@ -57,5 +57,19 @@ namespace Quartz.Tests.Unit.Plugin.Xml
             Assert.That(dataProcessor.JobFiles.Count(), Is.EqualTo(2));
             Assert.That(dataProcessor.JobFiles.Select(x => x.Key).ToArray(), Is.EqualTo(new[] {expectedPathFile1, expectedPathFile2}));
         }
+
+        [Test]
+        public void ShouldValidateInputXmlWhenConfigured()
+        {
+            var dataProcessor = new XMLSchedulingDataProcessorPlugin();
+            dataProcessor.FileNames = "Xml/TestData/JobTypeNotFound.xml";
+            var mockScheduler = MockRepository.GenerateMock<IScheduler>();
+
+            dataProcessor.Initialize("something", mockScheduler);
+            dataProcessor.Start();
+
+            dataProcessor.FailOnSchedulingError = true;
+            Assert.Throws<SchedulerException>(() => dataProcessor.Start());
+        }
     }
 }
