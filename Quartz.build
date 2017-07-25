@@ -586,7 +586,7 @@
 	<property name="common-logging-dll" value="packages/Common.Logging.3.3.1/lib/${nuget-framework}/Common.Logging.dll" />
 	<property name="common-logging-core-dll" value="packages/Common.Logging.Core.3.3.1/lib/${nuget-framework}/Common.Logging.Core.dll" />
 	<property name="common-logging-log4net-dll" value="packages/Common.Logging.Log4Net1213.3.3.1/lib/${nuget-framework}/Common.Logging.Log4Net1213.dll" />
-	<property name="nunit-dll" value="packages/NUnit.2.6.3/lib/nunit.framework.dll" />
+	<property name="nunit-dll" value="packages/NUnit.3.7.1/lib/${nuget-framework}/nunit.framework.dll" />
 	<property name="rhino-mocks-dll" value="packages/RhinoMocks.3.6.1/lib/net/Rhino.Mocks.dll" />
     <property name="topshelf-dll" value="packages/TopShelf.3.1.4/lib/net40-full/Topshelf.dll" />
 	<property name="oracle-odp-managed-dll" value="packages/Oracle.ManagedDataAccess.12.1.2400/lib/net40/Oracle.ManagedDataAccess.dll" />

@@ -41,7 +41,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             dbConnectionStrings["Firebird"] = "User=SYSDBA;Password=masterkey;Database=C:/Temp/quartznet/quartznet.fdb;DataSource=localhost;Port=3050;Dialect=3;Charset=NONE;Role=;Connection lifetime=15;Pooling=true;MinPoolSize=0;MaxPoolSize=50;Packet Size=8192;ServerType=0;";
         }
 
-        [TestFixtureSetUp]
+        [OneTimeSetUp]
         public void FixtureSetUp()
         {
             // set Adapter to report problems
@@ -49,7 +49,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             LogManager.Adapter = new FailFastLoggerFactoryAdapter();
         }
 
-        [TestFixtureTearDown]
+        [OneTimeTearDown]
         public void FixtureTearDown()
         {
             // default back to old

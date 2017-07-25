@@ -28,14 +28,14 @@ namespace Quartz.Tests.Unit
     {
         private Func<DateTimeOffset> OriginalUtcNow;
 
-        [TestFixtureSetUp]
+        [OneTimeSetUp]
         public void Init()
         {
             OriginalUtcNow = SystemTime.UtcNow;
             SystemTime.UtcNow = () => new DateTimeOffset(2016, 1, 1, 0, 0, 0, TimeSpan.Zero);
         }
 
-        [TestFixtureTearDown]
+        [OneTimeTearDown]
         public void Dispose()
         {
             SystemTime.UtcNow = OriginalUtcNow;

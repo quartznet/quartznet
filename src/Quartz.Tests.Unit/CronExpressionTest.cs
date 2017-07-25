@@ -21,11 +21,11 @@
 
 using System;
 using System.Collections.Generic;
-
-using Quartz.Collection;
+using System.Diagnostics;
 
 using NUnit.Framework;
 
+using Quartz.Collection;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit
@@ -267,29 +267,21 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
-        [ExpectedException(ExpectedException = typeof(FormatException),
-             ExpectedMessage = "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.")]
         public void TestFormatExceptionWildCardDayOfMonthAndDayOfWeek()
         {
-            CronExpression cronExpression = new CronExpression("0 0 * * * *");
+            Assert.Throws<FormatException>(() => new CronExpression("0 0 * * * *"), "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.");
         }
 
         [Test]
-        [ExpectedException(
-             ExpectedException = typeof(FormatException),
-             ExpectedMessage = "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.")]
         public void TestFormatExceptionSpecifiedDayOfMonthAndWildCardDayOfWeek()
         {
-            CronExpression cronExpression = new CronExpression("0 0 * 4 * *");
+            Assert.Throws<FormatException>(() => new CronExpression("0 0 * 4 * *"), "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.");
         }
 
         [Test]
-        [ExpectedException(
-             ExpectedException = typeof(FormatException),
-             ExpectedMessage = "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.")]
         public void TestFormatExceptionWildCardDayOfMonthAndSpecifiedDayOfWeek()
         {
-            CronExpression cronExpression = new CronExpression("0 0 * * * 4");
+            Assert.Throws<FormatException>(() => new CronExpression("0 0 * * * 4"), "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.");
         }
 
         [Test]
@@ -376,7 +368,7 @@ namespace Quartz.Tests.Unit
             try
             {
                 SimpleCronExpression cronExpression = new SimpleCronExpression(expression);
-                Collection.ISet<int> set = cronExpression.GetSetPublic(constant);
+                ICollection<int> set = cronExpression.GetSetPublic(constant);
                 if (set.Count == 0)
                 {
                     Assert.Fail("Empty field [" + constant + "] returned for " + expression);
@@ -485,7 +477,7 @@ namespace Quartz.Tests.Unit
             while (++i < 26)
             {
                 DateTimeOffset? date = trigger.GetFireTimeAfter(pdate);
-                Console.WriteLine("fireTime: " + date + ", previousFireTime: " + pdate);
+                // Console.WriteLine("fireTime: " + date + ", previousFireTime: " + pdate);
                 Assert.False(pdate.Equals(date), "Next fire time is the same as previous fire time!");
                 pdate = date;
             }
@@ -504,7 +496,7 @@ namespace Quartz.Tests.Unit
             while (++i < 26)
             {
                 DateTimeOffset? date = trigger.GetFireTimeAfter(pdate);
-                Console.WriteLine("fireTime: " + date + ", previousFireTime: " + pdate);
+                // Console.WriteLine("fireTime: " + date + ", previousFireTime: " + pdate);
                 Assert.False(pdate.Equals(date), "Next fire time is the same as previous fire time!");
                 pdate = date;
             }

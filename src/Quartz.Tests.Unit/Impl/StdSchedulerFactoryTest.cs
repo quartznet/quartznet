@@ -51,25 +51,19 @@ namespace Quartz.Tests.Unit.Impl
         }
 
         [Test]
-        [ExpectedException(
-            ExpectedException = typeof (SchedulerConfigException),
-            ExpectedMessage = "Unknown configuration property 'quartz.unknown.property'")]
         public void TestFactoryShouldThrowConfigurationErrorIfUnknownQuartzSetting()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.unknown.property"] = "1";
-            new StdSchedulerFactory(properties);
+            Assert.Throws<SchedulerConfigException>(() => new StdSchedulerFactory(properties), "Unknown configuration property 'quartz.unknown.property'");
         }
 
         [Test]
-        [ExpectedException(
-            ExpectedException = typeof (SchedulerConfigException),
-            ExpectedMessage = "Unknown configuration property 'quartz.jobstore.type'")]
         public void TestFactoryShouldThrowConfigurationErrorIfCaseErrorInQuartzSetting()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobstore.type"] = "";
-            new StdSchedulerFactory(properties);
+            Assert.Throws<SchedulerConfigException>(() => new StdSchedulerFactory(properties), "Unknown configuration property 'quartz.jobstore.type'");
         }
 
         [Test]
