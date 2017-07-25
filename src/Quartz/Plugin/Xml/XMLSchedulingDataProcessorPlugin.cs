@@ -101,7 +101,13 @@ namespace Quartz.Plugin.Xml
         /// </summary>
         public bool FailOnFileNotFound { get; set; } = true;
 
-        public IEnumerable<KeyValuePair<string, JobFile>> JobFiles => jobFiles;
+        /// <summary>
+        /// Whether or not starting of the plugin should fail (throw an
+        /// exception) if the file cannot be handled. Default is <see langword="false" />.
+        /// </summary>
+        public virtual bool FailOnSchedulingError { get; set; }
+
+        public IReadOnlyCollection<KeyValuePair<string, JobFile>> JobFiles => jobFiles;
 
         public virtual Task FileUpdated(
             string fName,
@@ -199,6 +205,10 @@ namespace Quartz.Plugin.Xml
             }
             catch (SchedulerException se)
             {
+                if (FailOnSchedulingError)
+                {
+                    throw;
+                }
                 Log.ErrorException("Error starting background-task for watching jobs file.", se);
             }
             finally
@@ -281,12 +291,20 @@ namespace Quartz.Plugin.Xml
                 await processor.ProcessFileAndScheduleJobs(
                     jobFile.FileName,
                     jobFile.FileName, // systemId
-                    Scheduler, 
+                    Scheduler,
                     cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
             {
-                Log.ErrorException("Error scheduling jobs: " + e.Message, e);
+                var message = "Could not schedule jobs and triggers from file " + jobFile.FileName + ": " + e.Message;
+                if (FailOnSchedulingError)
+                {
+                    throw new SchedulerException(message, e);
+                }
+                else
+                {
+                    Log.ErrorException(message, e);
+                }
             }
         }
 
