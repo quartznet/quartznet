@@ -22,7 +22,6 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Text.RegularExpressions;
 
 using NUnit.Framework;
 
@@ -689,6 +688,12 @@ namespace Quartz.Tests.Unit
             Assert.That(CronExpression.IsValidExpression("0 0/30 * * * ?"), Is.True);
             Assert.That(CronExpression.IsValidExpression("0 0/1 * * * ?"), Is.True);
             Assert.That(CronExpression.IsValidExpression("0 0/30 * * */2 ?"), Is.True);
+        }
+
+        [Test]
+        public void TestExtraCharactersAfterWeekDay()
+        {
+            Assert.That(CronExpression.IsValidExpression("0 0 15 ? * FRI*"), Is.False);
         }
 
         private class SimpleCronExpression : CronExpression

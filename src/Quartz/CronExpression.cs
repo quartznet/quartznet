@@ -783,12 +783,15 @@ namespace Quartz
                             lastdayOfWeek = true;
                             i++;
                         }
+                        else
+                        {
+                            throw new FormatException($"Illegal characters for this position: '{sub}'");
+                        }
                     }
                 }
                 else
                 {
-                    throw new FormatException(
-                        $"Illegal characters for this position: '{sub}'");
+                    throw new FormatException($"Illegal characters for this position: '{sub}'");
                 }
                 if (eval != -1)
                 {
