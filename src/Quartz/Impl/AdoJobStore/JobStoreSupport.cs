@@ -500,6 +500,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (SchedulerException se)
                 {
+                    Log.ErrorException("Failure occurred during job recovery: " + se.Message, se);
                     throw new SchedulerConfigException("Failure occurred during job recovery.", se);
                 }
             }
