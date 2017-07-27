@@ -404,11 +404,13 @@ namespace Quartz
         /// <returns>a boolean indicating whether the given date satisfies the cron expression</returns>
         public virtual bool IsSatisfiedBy(DateTimeOffset dateUtc)
         {
-            DateTimeOffset test = new DateTimeOffset(dateUtc.Year, dateUtc.Month, dateUtc.Day, dateUtc.Hour, dateUtc.Minute, dateUtc.Second, dateUtc.Offset).AddSeconds(-1);
+            var withoutMilliseconds = new DateTimeOffset(dateUtc.Year, dateUtc.Month, dateUtc.Day, dateUtc.Hour, dateUtc.Minute, dateUtc.Second, dateUtc.Offset);
+            DateTimeOffset test = withoutMilliseconds.AddSeconds(-1);
 
             DateTimeOffset? timeAfter = GetTimeAfter(test);
 
-            if (timeAfter.HasValue && timeAfter.Value.Equals(dateUtc))
+            if (timeAfter.HasValue
+                && timeAfter.Value.Equals(withoutMilliseconds))
             {
                 return true;
             }
