@@ -77,7 +77,7 @@ A slight performance boost can also be unlocked when using PostgreSQL by switchi
     * Add support for eager validation of job scheduling XML file on plugin start (#492)
     * Add support for extra custom time zone resolver function in TimeZoneUtil (#290)
 
-*FIXES
+* FIXES
 
     * CalendarIntervalTrigger's first fire time doesn't consider time zone (#505)
     * QRTZ_FIRED_TRIGGERS.ENTRY_ID column length too small (#474)
