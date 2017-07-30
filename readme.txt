@@ -1,6 +1,3 @@
-QUARTZ JOB SCHEDULER .NET, 2.6, Jul XX, 2017
------------------------------------------------------------------
-
 http://www.quartz-scheduler.net/
 
 1. INTRODUCTION

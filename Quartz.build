@@ -9,7 +9,7 @@
   <property name="nuget.location" value="tools/NuGet/NuGet.exe" />
 
   <property name="version.major" value="2" overwrite="false" />
-  <property name="version.minor" value="5" overwrite="false" />
+  <property name="version.minor" value="6" overwrite="false" />
   <property name="version.revision" value="0" overwrite="false" />
   <property name="version.build" value="${environment::get-variable('BUILD_NUMBER')}" overwrite="false" if="${environment::variable-exists('BUILD_NUMBER')}" />
   <property name="version.build" value="0" overwrite="false" unless="${environment::variable-exists('BUILD_NUMBER')}" />

@@ -2,25 +2,40 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://www.quartz-scheduler.net
 
-Release 2.6, Jul XX, 2017
+Release 2.6, Jul 30, 2017
 --------------------------------
 
-Some changes that require database schema changes, so a minor version bump.
+*Addition of column required to database*
 
-This release fixes a long standing issue, DailyTimeIntervalTrigger's time zone is now finally persisted
-to database. This requires running schema_25_to_26_upgrade.sql to add new column to QRTZ_SIMPROP_TRIGGERS table.
+* This release fixes a long standing issue, DailyTimeIntervalTrigger's time zone is now finally persisted to database
+* This requires running schema_25_to_26_upgrade.sql to add new column to QRTZ_SIMPROP_TRIGGERS table
+* https://github.com/quartznet/quartznet/blob/2.x/database/schema_25_to_26_upgrade.sql
 
 A slight performance boost can also be unlocked when using PostgreSQL by switching PostgreSqlDelegate.
 
+NEW FEATURE
+
+* Add support for eager validation of job scheduling XML file on plugin start (#492)
+* Add support for extra custom time zone resolver function in TimeZoneUtil (#290)
+
 FIXES
 
-* Regression in 2.5, TriggerBuilder.UsingJobData(JobDataMap newJobDataMap) should ovewrite existing values in map
-* Add back PostgreSqlDelegate to support database LIMIT in trigger acquiring
-* Quartz is logging transient faults related to azure db connection as errors
-* QRTZ_FIRED_TRIGGERS.ENTRY_ID column length too small area/adojobstore
-* No wait time between db connection failures with AcquireNextTriggers
-* RemotingSchedulerExporter can't create remoting channel on Mono
-* Decrease log level to INFO for message when host name is too long
+* CalendarIntervalTrigger's first fire time doesn't consider time zone (#505)
+* QRTZ_FIRED_TRIGGERS.ENTRY_ID column length too small (#474)
+* Decrease log level for message when host name is too long (#471)
+* Quartz should not log transient faults related to azure db connection as errors (#470)
+* RemotingSchedulerExporter can't create remoting channel on Mono (#464)
+* Regression in 2.5, TriggerBuilder.UsingJobData(JobDataMap newJobDataMap) should ovewrite existing (#460)
+* QuartzScheduler.Clear does not clear QRTZ_FIRED_TRIGGERS table (#437)
+* No wait time between db connection failures with AcquireNextTriggers (#428)
+* DailyTimeIntervalTriggerImpl prevents altering EndTimeOfDay to a later time of day (#382)
+* Quartz.CronExpression.IsSatisfiedBy claims to ignore milliseconds but doesn't (#349)
+* Add back PostgreSqlDelegate to support database LIMIT in trigger acquiring (#318)
+* Bug in XSD schema: cannot set <misfire-instruction>IgnoreMisfirePolicy</misfire-instruction> (#280)
+* Quartz.Xml.XMLSchedulingDataProcessor uses GetType() instead of typeof(Quartz.Xml.XMLSchedulingDataProcessor) (#277)
+* With SQLite default isolation level should be set to serializable (#242)
+* DailyTimeIntervalTrigger's time zone is not persisted into database (#136)
+* XMLSchedulingDataProcessorPlugin incompatible with StdAdoDelegate when useProperties=true (#44)
 
 
 Release 2.5, Feb 18, 2017
