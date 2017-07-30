@@ -9,5 +9,5 @@ Either grab it from NuGet
 Install-Package Quartz
 ```
 
-
-or [Source Forge downloads](http://sourceforge.net/projects/quartznet/files/quartznet/).
+or [ZIP from GitHub releases](https://github.com/quartznet/quartznet/releases)
+or [ZIP from Source Forge downloads](http://sourceforge.net/projects/quartznet/files/quartznet/).
