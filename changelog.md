@@ -2,28 +2,27 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
-## Release 3.0 alpha 3, XXX XX 2016
+## Release 3.0 alpha 3, Jul 30 2017
 
 * NEW FEATURE
 
-    * support for .NET Standard 2.0 preview
-	* support for MySQL on .NET Standard via provider 'MySql'
+    * support for .NET Standard 2.0 preview (#486)
+    * support for MySQL on .NET Standard via provider 'MySql' (#493)
     * change SQL database IMAGE types to VARBINARY - requires migration schema_26_to_30.sql
-    * add configuration option FailOnSchedulingError for XMLSchedulingDataProcessorPlugin which eagerly checks configuration
-	* add ISchedulerListener.JobInterrupted(JobKey jobKey, CancellationToken cancellationToken)
+    * add ISchedulerListener.JobInterrupted(JobKey jobKey, CancellationToken cancellationToken) (#467)
 
 * FIXES
 
-    * fix PosgreSQL db provider configuration for .NET Core
-	* CancellationToken is now supported in async methods
-	* fix regression with XML schema validation
+    * fix PosgreSQL db provider configuration for .NET Core (#449)
+    * CancellationToken is now supported in async methods (#444)
+    * fix regression with XML schema validation
 
 * BREAKING CHANGES
 
-    * possibly breaking, cron expression validation is now stricter
+    * possibly breaking, cron expression validation is now stricter (#315 #485)
     * .NET 4.6 required instead of old 4.5
     * API methods have been revisited to mainly use IReadOnlyCollection<T>, this hides both HashSet<T>s and List<T>s
-	* LibLog has been hidden as internal (ILog etc), like it was originally intended to be
+    * LibLog has been hidden as internal (ILog etc), like it was originally intended to be
 
 ## Release 3.0 alpha 2, Aug 24 2016
 
@@ -61,6 +60,69 @@
 
     * Issues with time zone ids between Windows and Linux, they use different ids for the same zone
     * No remoting support
+
+
+## Release 2.6, Jul 30, 2017
+
+**Addition of column required to database**
+
+* This release fixes a long standing issue, DailyTimeIntervalTrigger's time zone is now finally persisted to database
+* This requires running schema_25_to_26_upgrade.sql to add new column to QRTZ_SIMPROP_TRIGGERS table
+* https://github.com/quartznet/quartznet/blob/2.x/database/schema_25_to_26_upgrade.sql
+
+A slight performance boost can also be unlocked when using PostgreSQL by switching PostgreSqlDelegate.
+
+* NEW FEATURE
+
+    * Add support for eager validation of job scheduling XML file on plugin start (#492)
+    * Add support for extra custom time zone resolver function in TimeZoneUtil (#290)
+
+*FIXES
+
+    * CalendarIntervalTrigger's first fire time doesn't consider time zone (#505)
+    * QRTZ_FIRED_TRIGGERS.ENTRY_ID column length too small (#474)
+    * Decrease log level for message when host name is too long (#471)
+    * Quartz should not log transient faults related to azure db connection as errors (#470)
+    * RemotingSchedulerExporter can't create remoting channel on Mono (#464)
+    * Regression in 2.5, TriggerBuilder.UsingJobData(JobDataMap newJobDataMap) should ovewrite existing (#460)
+    * QuartzScheduler.Clear does not clear QRTZ_FIRED_TRIGGERS table (#437)
+    * No wait time between db connection failures with AcquireNextTriggers (#428)
+    * DailyTimeIntervalTriggerImpl prevents altering EndTimeOfDay to a later time of day (#382)
+    * Quartz.CronExpression.IsSatisfiedBy claims to ignore milliseconds but doesn't (#349)
+    * Add back PostgreSqlDelegate to support database LIMIT in trigger acquiring (#318)
+    * Bug in XSD schema: cannot set <misfire-instruction>IgnoreMisfirePolicy</misfire-instruction> (#280)
+    * Quartz.Xml.XMLSchedulingDataProcessor uses GetType() instead of typeof(Quartz.Xml.XMLSchedulingDataProcessor) (#277)
+    * With SQLite default isolation level should be set to serializable (#242)
+    * DailyTimeIntervalTrigger's time zone is not persisted into database (#136)
+    * XMLSchedulingDataProcessorPlugin incompatible with StdAdoDelegate when useProperties=true (#44)
+    * Trigger loop encountered using DailyTimeIntervalTrigger across DST start boundary (#332)
+
+
+## Release 2.5, Feb 18, 2017
+
+This release contains mainly bug fixes but because there's a behavioural change in
+DST handling (for the better) that warrants for a minor version number increment.
+
+See https://github.com/quartznet/quartznet/pull/317 for details.
+
+* FIXES
+
+    * Jobs get stuck in the Blocked state after the DB connection is lost in NotifyJobListenersComplete (#282)
+    * Oracle rownum based queries can work wrong after Oracle SQL tuning task has ran (#413)
+    * Handle DST better (#317)
+    * RAMJobStore fails to resume when paused without triggers (#433)
+    * CronExpression doesn't properly check the range when an "/interval" is specified (#432)
+    * Fix JobDataMap dirty flag when constructing from existing map (#431)
+    * Store triggers by job in RAMJobStore for better performance (#430)
+    * Create WorkerThread in virtual method (#426)
+    * SqlSelectJobForTrigger is not using primary key join and causes index scan (#407)	
+
+
+## Release 2.4.1, Aug 24, 2016
+
+* FIXES
+
+    * Fix Common.Logging version 3.3.1 to be a true binary reference instead of just NuGet dependency
 
 
 ## Release 2.4, Aug 18, 2016
