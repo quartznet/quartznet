@@ -47,7 +47,11 @@ namespace Quartz.Examples.Example15
                 ["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz",
                 ["quartz.threadPool.threadCount"] = "5",
                 ["quartz.plugin.xml.type"] = "Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin, Quartz",
-                ["quartz.plugin.xml.fileNames"] = "~/quartz_jobs.xml"
+                ["quartz.plugin.xml.fileNames"] = "~/quartz_jobs.xml",
+                // this is the default
+                ["quartz.plugin.xml.FailOnFileNotFound"] = "true",
+                // this is not the default
+                ["quartz.plugin.xml.failOnSchedulingError"] = "true"
             };
 
             // set thread pool info

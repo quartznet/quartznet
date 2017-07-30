@@ -21,11 +21,7 @@
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Reflection;
-
-using log4net;
-using log4net.Config;
 
 using Quartz.Util;
 
@@ -37,16 +33,17 @@ namespace Quartz.Examples
     /// <author>Marko Lahma</author>
     public class Program
     {
-#if !NETCORE
+#if STA_THREAD
         [STAThread]
 #endif
         public static void Main()
         {
             try
             {
-                Assembly asm = typeof(Program).GetTypeInfo().Assembly;
-                XmlConfigurator.Configure(LogManager.GetRepository(asm));
+                var logRepository = log4net.LogManager.GetRepository(Assembly.GetEntryAssembly());
+                log4net.Config.XmlConfigurator.Configure(logRepository, new System.IO.FileInfo("log4net.config"));
 
+                Assembly asm = typeof(Program).GetTypeInfo().Assembly;
                 Type[] types = asm.GetTypes();
 
                 IDictionary<int, Type> typeMap = new Dictionary<int, Type>();
@@ -88,37 +85,7 @@ namespace Quartz.Examples
             Console.Read();
         }
 
-        public class ConsoleLogProvider : ILogProvider
-        {
-            public Logger GetLogger(string name)
-            {
-                return Log;
-            }
-
-            private static bool Log(LogLevel logLevel, Func<string> messageFunc, Exception exception, object[] formatparameters)
-            {
-                var message = messageFunc == null ? string.Empty : messageFunc();
-                if (string.IsNullOrEmpty(message))
-                {
-                    return true;
-                }
-                Console.WriteLine("[" + DateTime.Now.ToString(CultureInfo.InvariantCulture) + "] " + message, formatparameters);
-
-                return true;
-            }
-
-            public IDisposable OpenNestedContext(string message)
-            {
-                return null;
-            }
-
-            public IDisposable OpenMappedContext(string key, string value)
-            {
-                return null;
-            }
-        }
-
-        public class TypeNameComparer : IComparer<Type>
+        private class TypeNameComparer : IComparer<Type>
         {
             public int Compare(Type t1, Type t2)
             {

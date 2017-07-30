@@ -4,13 +4,23 @@
 
 ## Release 3.0 alpha 3, XXX XX 2016
 
+* NEW FEATURE
+
+    * support for .NET Standard 2.0 preview
+	* support for MySQL on .NET Standard via provider 'MySql'
+    * change SQL database IMAGE types to VARBINARY - requires migration schema_26_to_30.sql
+    * add configuration option FailOnSchedulingError for XMLSchedulingDataProcessorPlugin which eagerly checks configuration
+	* add ISchedulerListener.JobInterrupted(JobKey jobKey, CancellationToken cancellationToken)
+
 * FIXES
 
     * fix PosgreSQL db provider configuration for .NET Core
 	* CancellationToken is now supported in async methods
+	* fix regression with XML schema validation
 
 * BREAKING CHANGES
 
+    * possibly breaking, cron expression validation is now stricter
     * .NET 4.6 required instead of old 4.5
     * API methods have been revisited to mainly use IReadOnlyCollection<T>, this hides both HashSet<T>s and List<T>s
 	* LibLog has been hidden as internal (ILog etc), like it was originally intended to be

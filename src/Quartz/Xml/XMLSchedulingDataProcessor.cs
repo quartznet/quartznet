@@ -591,19 +591,21 @@ namespace Quartz.Xml
                 settings.ValidationFlags |= XmlSchemaValidationFlags.ProcessSchemaLocation;
                 settings.ValidationFlags |= XmlSchemaValidationFlags.ReportValidationWarnings;
 
-                Stream stream = typeof(XMLSchedulingDataProcessor).Assembly.GetManifestResourceStream(QuartzXsdResourceName);
-                XmlSchema schema = XmlSchema.Read(stream, XmlValidationCallBack);
-                settings.Schemas.Add(schema);
-                settings.ValidationEventHandler += XmlValidationCallBack;
-
-                // stream to validate
-                using (XmlReader reader = XmlReader.Create(new StringReader(xml), settings))
+                using (Stream stream = typeof(XMLSchedulingDataProcessor).Assembly.GetManifestResourceStream(QuartzXsdResourceName))
                 {
-                    while (reader.Read())
+                    XmlSchema schema = XmlSchema.Read(stream, XmlValidationCallBack);
+                    settings.Schemas.Add(schema);
+                    settings.ValidationEventHandler += XmlValidationCallBack;
+
+                    // stream to validate
+                    using (XmlReader reader = XmlReader.Create(new StringReader(xml), settings))
                     {
+                        while (reader.Read())
+                        {
+                        }
                     }
                 }
-            }
+                }
             catch (Exception ex)
             {
                 Log.WarnException("Unable to validate XML with schema: " + ex.Message, ex);
