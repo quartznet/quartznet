@@ -5,6 +5,7 @@
     <OutputPath>..\..\build\$(Configuration)\$(MSBuildProjectName)</OutputPath>
 
     <Product>Quartz.NET</Product>
+    <Description>Quartz Scheduling Framework for .NET</Description>
     <Copyright>Copyright Marko Lahma</Copyright>
     <NeutralLanguage>en-US</NeutralLanguage>
 
