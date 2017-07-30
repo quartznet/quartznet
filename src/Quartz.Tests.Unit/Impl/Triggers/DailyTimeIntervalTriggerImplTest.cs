@@ -1,20 +1,20 @@
 ﻿#region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -73,7 +73,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
                 RepeatInterval = 60
             };
 
-            CronCalendar cronCal = new CronCalendar("* * 9-12 * * ?"); // exclude 9-12		
+            CronCalendar cronCal = new CronCalendar("* * 9-12 * * ?"); // exclude 9-12
             IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes(trigger, cronCal, 48);
             Assert.AreEqual(48, fireTimes.Count);
             Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011), fireTimes[0]);
@@ -674,7 +674,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
                 RepeatIntervalUnit = IntervalUnit.Hour
             };
 
-            //make an adjustment to only one trigger. 
+            //make an adjustment to only one trigger.
             //I only want mondays now
             trigger1.DaysOfWeek.Clear();
             trigger1.DaysOfWeek.Add(DayOfWeek.Monday);
@@ -835,6 +835,22 @@ namespace Quartz.Tests.Unit.Impl.Triggers
 
             var third = trigger.GetFireTimeAfter(second);
             Assert.That(third, Is.EqualTo(new DateTimeOffset(2014, 10, 27, 22, 15, 0, TimeSpan.FromHours(0))));
+        }
+
+        [Test]
+        public void TestDayLightSaving2()
+        {
+            var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
+
+            var trigger = DailyTimeIntervalScheduleBuilder.Create()
+                .OnEveryDay()
+                .InTimeZone(timeZoneInfo)
+                .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(0, 0))
+                .WithIntervalInHours(4)
+                .Build();
+
+            var first = trigger.GetFireTimeAfter(new DateTimeOffset(2017, 3, 12, 9, 0, 0, TimeSpan.Zero));
+            Assert.That(first, !Is.EqualTo(new DateTimeOffset(2017, 3, 12, 9, 0, 0, TimeSpan.Zero)));
         }
 
         [Test]

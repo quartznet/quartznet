@@ -36,6 +36,7 @@ FIXES
 * With SQLite default isolation level should be set to serializable (#242)
 * DailyTimeIntervalTrigger's time zone is not persisted into database (#136)
 * XMLSchedulingDataProcessorPlugin incompatible with StdAdoDelegate when useProperties=true (#44)
+* Trigger loop encountered using DailyTimeIntervalTrigger across DST start boundary (#332)
 
 
 Release 2.5, Feb 18, 2017
