@@ -16,10 +16,10 @@ services:
 nuget:
   disable_publish_on_pr: true
 build_script:
-- cmd: build.cmd
+- cmd: build.cmd Pack
 test: off
 artifacts:
-- path: src\Quartz\bin\release\*.nupkg
+- path: src\**\bin\release\*.nupkg
   name: NuGet
 deploy:
 - provider: NuGet
