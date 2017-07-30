@@ -14,23 +14,10 @@ services:
 nuget:
   disable_publish_on_pr: true
 build_script:
-- cmd: build.cmd
+- cmd: tools\nant\bin\nant package-release -D:version.build=%APPVEYOR_BUILD_NUMBER% -D:git.hash=%APPVEYOR_REPO_COMMIT%
 test: off
 artifacts:
-- path: src\Quartz\bin\release\*.nupkg
+- path: Quartz.*.nupkg
   name: NuGet
-deploy:
-- provider: NuGet
-  server: https://www.myget.org/F/quartznetdev/api/v2/package
-  api_key:
-    secure: XXX
-  skip_symbols: true
-  on:
-    branch: master
-- provider: NuGet
-  name: production
-  api_key:
-    secure: XXX
-  on:
-    branch: master
-    appveyor_repo_tag: true
+- path: Quartz.NET-*.zip
+  name: ZIP
