@@ -844,6 +844,22 @@ namespace Quartz.Tests.Unit.Impl.Triggers
         }
 
         [Test]
+        public void TestDayLightSaving2()
+        {
+            var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
+
+            var trigger = DailyTimeIntervalScheduleBuilder.Create()
+                .OnEveryDay()
+                .InTimeZone(timeZoneInfo)
+                .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(0, 0))
+                .WithIntervalInHours(4)
+                .Build();
+
+            var first = trigger.GetFireTimeAfter(new DateTimeOffset(2017, 3, 12, 9, 0, 0, TimeSpan.Zero));
+            Assert.That(first, !Is.EqualTo(new DateTimeOffset(2017, 3, 12, 9, 0, 0, TimeSpan.Zero)));
+        }
+
+        [Test]
         [Explicit]
         public void TestPassingMidnight()
         {
