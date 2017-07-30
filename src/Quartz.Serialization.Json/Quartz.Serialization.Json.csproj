@@ -2,6 +2,7 @@
   <PropertyGroup>
     <AssemblyTitle>Quartz.NET JSON Serialization</AssemblyTitle>
     <RootNamespace>Quartz</RootNamespace>
+	<Title>Quartz.NET JSON Serialization</Title>
     <Description>Quartz.NET JSON Serialization Support</Description>
     <TargetFrameworks>netstandard1.3;net46</TargetFrameworks>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
