@@ -154,9 +154,6 @@ namespace Quartz.Util
                 string.Empty, 
                 false,
                 ThreadPriority.Normal,
-#if THREAD_APARTMENTSTATE
-                ApartmentState.MTA,
-#endif
                 null, 
                 null)
         {
@@ -174,11 +171,6 @@ namespace Quartz.Util
             string threadName = "",
             bool useForegroundThreads = false,
             ThreadPriority threadPriority = ThreadPriority.Normal,
-#if THREAD_APARTMENTSTATE
-#pragma warning disable
-            ApartmentState threadApartmentState = ApartmentState.MTA,
-#pragma warning restore
-#endif     
             Action threadInit = null,
             Action threadFinally = null)
         {
@@ -215,9 +207,6 @@ namespace Quartz.Util
                 {
                     _threads[i].Name = threadName + " (" + i + ")";
                 }
-#if THREAD_APARTMENTSTATE
-                _threads[i].SetApartmentState(threadApartmentState);
-#endif // THREAD_APARTMENTSTATE
             }
 
             // Start all of the threads
