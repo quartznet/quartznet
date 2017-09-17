@@ -2,6 +2,13 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+## Release 3.0 beta 1, XXX x 2017
+
+* BREAKING CHANGES
+
+* Jobs and plugins are now in a separate assemblies/NuGet packages Quartz.Jobs and Quartz.Plugins
+
+
 ## Release 3.0 alpha 3, Jul 30 2017
 
 * NEW FEATURE

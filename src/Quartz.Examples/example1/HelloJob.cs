@@ -22,6 +22,8 @@
 using System;
 using System.Threading.Tasks;
 
+using Quartz.Logging;
+
 namespace Quartz.Examples.Example1
 {
     /// <summary>
@@ -42,7 +44,7 @@ namespace Quartz.Examples.Example1
         {
             // Say Hello to the World and display the date/time
             log.Info($"Hello World! - {DateTime.Now:r}");
-            return Task.FromResult(0);
+            return Task.CompletedTask;
         }
     }
 }

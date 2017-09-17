@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>netcoreapp1.1;netcoreapp2.0;net46</TargetFrameworks>
+    <TargetFrameworks>netcoreapp1.1;netcoreapp2.0;$(TargetFullFrameworkVersion)</TargetFrameworks>
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="Xml\TestData\*" />
@@ -13,17 +13,18 @@
     <Compile Include="..\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="FakeItEasy" Version="4.0.0-beta001" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.3.0" />
-    <PackageReference Include="NUnit" Version="3.7.1" />
-    <PackageReference Include="NUnit3TestAdapter" Version="3.8.0" />
     <PackageReference Include="FakeItEasy" Version="4.0.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.3.0" />
+    <PackageReference Include="NUnit" Version="3.8.1" />
+    <PackageReference Include="NUnit3TestAdapter" Version="3.8.0" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Quartz.Serialization.Json\Quartz.Serialization.Json.csproj" />
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
+    <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj" />
+    <ProjectReference Include="..\Quartz.Plugins\Quartz.Plugins.csproj" />
+    <ProjectReference Include="..\Quartz.Serialization.Json\Quartz.Serialization.Json.csproj" />
   </ItemGroup>
-  <PropertyGroup Condition=" '$(TargetFramework)' == 'net46' ">
+  <PropertyGroup Condition=" '$(TargetFramework)' == '$(TargetFullFrameworkVersion)' ">
     <DefineConstants>$(DefineConstants);TRANSACTIONS;BINARY_SERIALIZATION;FAKE_IT_EASY</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(TargetFramework)' == 'netcoreapp2.0' ">
@@ -32,7 +33,10 @@
   <PropertyGroup Condition=" '$(TargetFramework)' == 'netcoreapp1.1' or '$(TargetFramework)' == 'netcoreapp2.0' ">
     <DefineConstants>$(DefineConstants);NETCORE</DefineConstants>
   </PropertyGroup>
-  <ItemGroup Condition=" '$(TargetFramework)' == 'net46' ">
+  <PropertyGroup Condition=" '$(TargetFramework)' == '$(TargetFullFrameworkVersion)' or '$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'netcoreapp2.0' ">
+    <DefineConstants>$(DefineConstants);MAIL;WINDOWS_PROCESS;</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFullFrameworkVersion)' ">
     <Reference Include="System" />
     <Reference Include="System.Transactions" />
     <Reference Include="Microsoft.CSharp" />

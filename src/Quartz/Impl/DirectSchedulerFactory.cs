@@ -69,7 +69,6 @@ namespace Quartz.Impl
 	/// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     /// <seealso cref="IJobStore" />
-	/// <seealso cref="ThreadPool" />
 	public class DirectSchedulerFactory : ISchedulerFactory
 	{
 		public const string DefaultInstanceId = "SIMPLE_NON_CLUSTERED";

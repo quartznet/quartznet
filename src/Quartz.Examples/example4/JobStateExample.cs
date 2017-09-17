@@ -23,6 +23,7 @@ using System;
 using System.Threading.Tasks;
 
 using Quartz.Impl;
+using Quartz.Logging;
 
 namespace Quartz.Examples.Example4
 {

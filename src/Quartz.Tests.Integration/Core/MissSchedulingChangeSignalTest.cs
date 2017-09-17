@@ -86,7 +86,7 @@ namespace Quartz.Tests.Integration.Core
             }
 
             lastFireTime = now;
-            return Task.FromResult(0);
+            return Task.CompletedTask;
         }
 
         public static List<TimeSpan> Durations { get; } = new List<TimeSpan>();

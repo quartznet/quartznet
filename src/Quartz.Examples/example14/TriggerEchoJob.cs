@@ -21,6 +21,8 @@
 
 using System.Threading.Tasks;
 
+using Quartz.Logging;
+
 namespace Quartz.Examples.Example14
 {
     /// <summary>
@@ -49,7 +51,7 @@ namespace Quartz.Examples.Example14
         public Task Execute(IJobExecutionContext context)
         {
             log.Info("TRIGGER: " + context.Trigger.Key);
-            return Task.FromResult(0);
+            return Task.CompletedTask;
         }
     }
 }

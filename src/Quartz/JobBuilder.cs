@@ -22,7 +22,6 @@
 using System;
 
 using Quartz.Impl;
-using Quartz.Job;
 
 namespace Quartz
 {
@@ -68,7 +67,7 @@ namespace Quartz
     {
         private JobKey key;
         private string description;
-        private Type jobType = typeof (NoOpJob);
+        private Type jobType;
         private bool durability;
         private bool shouldRecover;
 

@@ -22,6 +22,8 @@
 using System;
 using System.Threading.Tasks;
 
+using Quartz.Logging;
+
 namespace Quartz.Examples.Example13
 {
     /// <summary>

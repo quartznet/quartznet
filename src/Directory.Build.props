@@ -27,24 +27,25 @@
 
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
 
-    <VersionPrefix>3.0.0-alpha3</VersionPrefix>
+    <VersionPrefix>3.0.0-beta1</VersionPrefix>
     <VersionSuffix Condition="'$(VersionSuffix)'!='' AND '$(BuildNumber)' != ''">$(VersionSuffix)-$(BuildNumber)</VersionSuffix>
 
     <CLSCompliant>True</CLSCompliant>
     <ComVisible>False</ComVisible>
     <NoWarn>1701;1702;1705;618;1591</NoWarn>
-    <DebugType>embedded</DebugType>
     <DebugSymbols>True</DebugSymbols>
     <PlatformTarget>AnyCPU</PlatformTarget>
 
+    <TargetFullFrameworkVersion>net461</TargetFullFrameworkVersion>
+
   </PropertyGroup>
 
-  <PropertyGroup Condition=" '$(TargetFramework)' == 'net46' ">
-    <DefineConstants>$(DefineConstants);APPDOMAINS;BINARY_SERIALIZATION;CONFIGURATION;HTTPCONTEXT;MAIL;THREAD_INTERRUPTION;THREAD_PRIORITY;WINDOWS_PROCESS;XML_SCHEMA;REMOTING;STA_THREAD</DefineConstants>
+  <PropertyGroup Condition=" '$(TargetFramework)' == '$(TargetFullFrameworkVersion)' ">
+    <DefineConstants>$(DefineConstants);APPDOMAINS;BINARY_SERIALIZATION;CONFIGURATION;THREAD_INTERRUPTION;THREAD_PRIORITY;XML_SCHEMA;REMOTING</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'netcoreapp2.0' ">
-    <DefineConstants>$(DefineConstants);APPDOMAINS;BINARY_SERIALIZATION;CONFIGURATION;MAIL;THREAD_INTERRUPTION;THREAD_PRIORITY;WINDOWS_PROCESS;XML_SCHEMA;APPCONTEXT;NETSTANDARD_DBPROVIDERS;STA_THREAD</DefineConstants>
+    <DefineConstants>$(DefineConstants);APPDOMAINS;BINARY_SERIALIZATION;CONFIGURATION;THREAD_INTERRUPTION;THREAD_PRIORITY;XML_SCHEMA;APPCONTEXT;NETSTANDARD_DBPROVIDERS</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(TargetFramework)' == 'netstandard1.3' or '$(TargetFramework)' == 'netcoreapp1.1' ">

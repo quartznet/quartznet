@@ -30,7 +30,7 @@ namespace Quartz.Tests.Unit.Simpl
         {
             public Task Execute(IJobExecutionContext context)
             {
-                return Task.FromResult(0);
+                return Task.CompletedTask;
             }
 
             public void Dispose()

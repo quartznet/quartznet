@@ -106,7 +106,7 @@ namespace Quartz.Job
             {
                 throw new JobExecutionException($"Unable to send mail: {GetMessageDescription(message)}", ex, false);
             }
-            return Task.FromResult(0);
+            return Task.CompletedTask;
         }
 
         protected virtual MailMessage BuildMessageFromParameters(JobDataMap data)

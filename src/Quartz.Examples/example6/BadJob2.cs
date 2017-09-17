@@ -20,6 +20,8 @@
 using System;
 using System.Threading.Tasks;
 
+using Quartz.Logging;
+
 namespace Quartz.Examples.Example6
 {
 	
@@ -73,7 +75,7 @@ namespace Quartz.Examples.Example6
 			}
 			
 			log.InfoFormat("---{0} completed at {1}", jobKey, DateTime.Now.ToString("r"));
-		    return Task.FromResult(0);
+		    return Task.CompletedTask;
 		}
 	}
 }

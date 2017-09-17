@@ -40,10 +40,13 @@ Target "Pack" (fun _ ->
                     Project = f
                 })
 
-    !! "src/Quartz/Quartz.csproj" ++ "src/Quartz.Serialization.Json/Quartz.Serialization.Json.csproj"
+    !! "src/Quartz/Quartz.csproj"
+        ++ "src/Quartz.Jobs/Quartz.Jobs.csproj"
+        ++ "src/Quartz.Plugins/Quartz.Plugins.csproj"
+        ++ "src/Quartz.Serialization.Json/Quartz.Serialization.Json.csproj"
         |> Seq.iter pack
 
-    !! "src/*/bin/**/*.nupkg"
+    !! "build/Release/**/*.nupkg"
         |> Copy "artifacts"
 )
 

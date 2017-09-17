@@ -33,9 +33,6 @@ namespace Quartz.Examples
     /// <author>Marko Lahma</author>
     public class Program
     {
-#if STA_THREAD
-        [STAThread]
-#endif
         public static void Main()
         {
             try

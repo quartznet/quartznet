@@ -85,7 +85,7 @@ namespace Quartz.Simpl
         }
 
         /// <summary>
-        /// Called by the QuartzScheduler before the <see cref="ThreadPool"/> is
+        /// Called by the QuartzScheduler before the thread pool is
         /// used, in order to give the it a chance to Initialize.
         /// </summary>
         public virtual void Initialize()
@@ -93,7 +93,7 @@ namespace Quartz.Simpl
         }
 
         /// <summary>
-        /// Called by the QuartzScheduler to inform the <see cref="ThreadPool"/>
+        /// Called by the QuartzScheduler to inform the thread pool
         /// that it should free up all of it's resources because the scheduler is
         /// shutting down.
         /// </summary>

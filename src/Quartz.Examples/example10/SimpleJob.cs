@@ -23,6 +23,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
+using Quartz.Logging;
+
 namespace Quartz.Examples.Example10
 {
     /// <summary>
@@ -57,7 +59,7 @@ namespace Quartz.Examples.Example10
             }
 
             context.Result = "hello";
-            return Task.FromResult(0);
+            return Task.CompletedTask;
         }
     }
 }
