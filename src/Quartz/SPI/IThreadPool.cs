@@ -72,7 +72,7 @@ namespace Quartz.Spi
         int BlockForAvailableThreads();
 
         /// <summary>
-        /// Must be called before the <see cref="ThreadPool" /> is
+        /// Must be called before the thread pool is
         /// used, in order to give the it a chance to Initialize.
         /// </summary>
         /// <remarks>
@@ -81,7 +81,7 @@ namespace Quartz.Spi
         void Initialize();
 
         /// <summary>
-        /// Called by the QuartzScheduler to inform the <see cref="ThreadPool" />
+        /// Called by the QuartzScheduler to inform the thread pool
         /// that it should free up all of it's resources because the scheduler is
         /// shutting down.
         /// </summary>

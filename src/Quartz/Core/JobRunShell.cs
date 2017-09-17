@@ -40,7 +40,7 @@ namespace Quartz.Core
     /// <para>
     /// A <see cref="JobRunShell" /> instance is created by a <see cref="IJobRunShellFactory" />
     /// on behalf of the <see cref="QuartzSchedulerThread" /> which then runs the
-    /// shell in a thread from the configured <see cref="ThreadPool" /> when the
+    /// shell in a thread from the configured thread pool when the
     /// scheduler determines that a <see cref="IJob" /> has been triggered.
     /// </para>
     /// </summary>

@@ -20,6 +20,8 @@
 using System;
 using System.Threading.Tasks;
 
+using Quartz.Logging;
+
 namespace Quartz.Examples.Example2
 {
 	
@@ -43,7 +45,7 @@ namespace Quartz.Examples.Example2
 			// date and time that it is running
 			JobKey jobKey = context.JobDetail.Key;
 			log.InfoFormat("SimpleJob says: {0} executing at {1}", jobKey, DateTime.Now.ToString("r"));
-	        return Task.FromResult(0);
+	        return Task.CompletedTask;
 		}
 	}
 }

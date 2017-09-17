@@ -22,6 +22,8 @@
 using System;
 using System.Threading.Tasks;
 
+using Quartz.Logging;
+
 namespace Quartz.Examples.Example4
 {
     /// <summary>
@@ -76,7 +78,7 @@ namespace Quartz.Examples.Example4
             // This serves no real purpose since job state can not 
             // be maintained via member variables!
             counter++;
-            return Task.FromResult(0);
+            return Task.CompletedTask;
         }
     }
 }

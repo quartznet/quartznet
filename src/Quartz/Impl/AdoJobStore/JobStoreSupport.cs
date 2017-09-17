@@ -34,7 +34,6 @@ using System.Threading.Tasks;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
-using Quartz.Job;
 using Quartz.Logging;
 using Quartz.Spi;
 using Quartz.Util;
@@ -1230,7 +1229,7 @@ namespace Quartz.Impl.AdoJobStore
                 // we use fault tolerant type loading as we only want to delete things
                 if (job == null)
                 {
-                    job = await Delegate.SelectJobForTrigger(conn, triggerKey, new NoOpJobTypeLoader(), false, cancellationToken).ConfigureAwait(false);
+                    job = await Delegate.SelectJobForTrigger(conn, triggerKey, new NullJobTypeLoader(), false, cancellationToken).ConfigureAwait(false);
                 }
 
                 removedTrigger = await DeleteTriggerAndChildren(conn, triggerKey, cancellationToken).ConfigureAwait(false);
@@ -1257,7 +1256,7 @@ namespace Quartz.Impl.AdoJobStore
             return removedTrigger;
         }
 
-        private class NoOpJobTypeLoader : ITypeLoadHelper
+        private class NullJobTypeLoader : ITypeLoadHelper
         {
             public void Initialize()
             {
@@ -1265,7 +1264,7 @@ namespace Quartz.Impl.AdoJobStore
 
             public Type LoadType(string name)
             {
-                return typeof (NoOpJob);
+                return null;
             }
 
             public Uri GetResource(string name)

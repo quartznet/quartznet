@@ -31,9 +31,7 @@ namespace Quartz.Spi
     public interface ITypeLoadHelper
 	{
 		/// <summary> 
-		/// Called to give the ClassLoadHelper a chance to Initialize itself,
-		/// including the opportunity to "steal" the class loader off of the calling
-		/// thread, which is the thread that is initializing Quartz.
+		/// Called to give the implementation a chance to initialize itself.
 		/// </summary>
 		void Initialize();
 

@@ -19,7 +19,6 @@
 
 using System;
 using System.Text;
-using System.Threading;
 
 using Quartz.Spi;
 
@@ -126,7 +125,7 @@ namespace Quartz
 		public virtual Type JobStoreType { get; }
 
 	    /// <summary>
-		/// Returns the type name of the <see cref="ThreadPool" /> instance that is
+		/// Returns the type name of the thread pool instance that is
 		/// being used by the <see cref="IScheduler" />.
 		/// </summary>
 		public virtual Type ThreadPoolType { get; }

@@ -35,7 +35,6 @@ using System.Threading.Tasks;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
-using Quartz.Job;
 using Quartz.Logging;
 using Quartz.Spi;
 using Quartz.Util;
@@ -52,6 +51,8 @@ namespace Quartz.Impl.AdoJobStore
     /// <author>Marko Lahma (.NET)</author>
     public class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAccessor
     {
+        private const string FileScanListenerName = "FILE_SCAN_LISTENER_NAME";
+
         private ILog logger;
         private string tablePrefix = DefaultTablePrefix;
         private string instanceId;
@@ -3025,7 +3026,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>the serialized data as byte array</returns>
         public virtual byte[] SerializeJobData(JobDataMap data)
         {
-            bool skipStringPropertySerialization = data.ContainsKey(FileScanJob.FileScanListenerName);
+            bool skipStringPropertySerialization = data.ContainsKey(FileScanListenerName);
             if (CanUseProperties && !skipStringPropertySerialization)
             {
                 return SerializeProperties(data);

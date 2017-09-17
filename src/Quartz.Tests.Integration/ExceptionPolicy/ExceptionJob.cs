@@ -35,7 +35,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
                
                 throw toThrow;
             }
-            return Task.FromResult(0);
+            return Task.CompletedTask;
         }
     }
 }

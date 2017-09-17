@@ -729,12 +729,7 @@ namespace Quartz.Impl.Triggers
             }
 
             // i. Return calculated fireTime.
-            if (fireTime == null)
-            {
-                return null;
-            }
-
-            return fireTime.Value.ToUniversalTime();
+            return fireTime?.ToUniversalTime();
         }
 
         private bool IsSameDay(DateTimeOffset d1, DateTimeOffset d2)
