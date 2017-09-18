@@ -23,7 +23,6 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -341,7 +340,7 @@ namespace Quartz.Plugin.Xml
 
             public string FileBasename { get; private set; }
 
-            public async Task Initialize(CancellationToken cancellationToken = default(CancellationToken))
+            public Task Initialize(CancellationToken cancellationToken = default(CancellationToken))
             {
                 Stream f = null;
                 try
@@ -353,27 +352,8 @@ namespace Quartz.Plugin.Xml
                     // check for special lookup
                     fName = FileUtil.ResolveFile(fName);
 
-                    FileInfo file = new FileInfo(fName); // files in filesystem
-                    if (!file.Exists)
-                    {
-                        Uri url = plugin.TypeLoadHelper.GetResource(FileName);
-                        if (url != null)
-                        {
-                            furl = WebUtility.UrlDecode(url.AbsolutePath);
-                            file = new FileInfo(furl);
-                            try
-                            {
-                                var request = WebRequest.Create(url);
-                                var response = await request.GetResponseAsync().ConfigureAwait(false);
-                                f = response.GetResponseStream();
-                            }
-                            catch (IOException)
-                            {
-                                // Swallow the exception
-                            }
-                        }
-                    }
-                    else
+                    FileInfo file = new FileInfo(fName);
+                    if (file.Exists)
                     {
                         try
                         {
@@ -415,6 +395,8 @@ namespace Quartz.Plugin.Xml
                         plugin.Log.WarnException("Error closing jobs file " + FileName, ioe);
                     }
                 }
+
+                return Task.CompletedTask;
             }
         }
     }

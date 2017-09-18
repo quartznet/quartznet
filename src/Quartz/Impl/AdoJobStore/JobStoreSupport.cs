@@ -1266,16 +1266,6 @@ namespace Quartz.Impl.AdoJobStore
             {
                 return null;
             }
-
-            public Uri GetResource(string name)
-            {
-                return null;
-            }
-
-            public Stream GetResourceAsStream(string name)
-            {
-                return null;
-            }
         }
 
         /// <see cref="IJobStore.ReplaceTrigger(TriggerKey, IOperableTrigger, CancellationToken)" />

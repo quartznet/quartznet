@@ -18,7 +18,6 @@
 #endregion
 
 using System;
-using System.IO;
 
 using Quartz.Spi;
 
@@ -59,18 +58,6 @@ namespace Quartz.Simpl
 				throw new TypeLoadException($"Could not load type '{name}'");
 			}
 			return type;
-		}
-
-		/// <inheritdoc />
-		public virtual Uri GetResource(string name)
-		{
-			return null;
-		}
-
-		/// <inheritdoc />
-		public virtual Stream GetResourceAsStream(string name)
-		{
-			return null;
 		}
 	}
 }

@@ -18,7 +18,6 @@
 #endregion
 
 using System;
-using System.IO;
 
 namespace Quartz.Spi
 {
@@ -39,25 +38,5 @@ namespace Quartz.Spi
 		/// Return the class with the given name.
 		/// </summary>
 		Type LoadType(string name);
-
-		/// <summary> 
-		/// Finds a resource with a given name. This method returns null if no
-		/// resource with this name is found.
-		/// </summary>
-		/// <param name="name">name of the desired resource
-		/// </param>
-		/// <returns> a java.net.URL object
-		/// </returns>
-		Uri GetResource(string name);
-
-		/// <summary> 
-		/// Finds a resource with a given name. This method returns null if no
-		/// resource with this name is found.
-		/// </summary>
-		/// <param name="name">name of the desired resource
-		/// </param>
-		/// <returns> a java.io.InputStream object
-		/// </returns>
-		Stream GetResourceAsStream(string name);
 	}
 }
