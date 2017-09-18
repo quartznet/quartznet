@@ -1118,7 +1118,7 @@ namespace Quartz.Logging.LogProviders
 
     internal class Log4NetLogProvider : LogProviderBase
     {
-        private readonly Func<string, object> _getLoggerByNameDelegate;
+        private readonly Func<Assembly, string, object> _getLoggerByNameDelegate;
         private static bool s_providerIsAvailableOverride = true;
 
         [SuppressMessage("Microsoft.Naming", "CA2204:Literals should be spelled correctly", MessageId = "LogManager")]
@@ -1139,8 +1139,14 @@ namespace Quartz.Logging.LogProviders
 
         public override Logger GetLogger(string name)
         {
-            return new Log4NetLogger(_getLoggerByNameDelegate(name)).Log;
-        }
+#if LIBLOG_PORTABLE
+			return new Log4NetLogger(_getLoggerByNameDelegate(
+				typeof(ILog).GetType().GetTypeInfo().Assembly, name)).Log;
+#else
+			return new Log4NetLogger(_getLoggerByNameDelegate(
+				typeof(ILog).GetType().Assembly, name)).Log;
+#endif
+		}
 
         internal static bool IsLoggerAvailable()
         {
@@ -1215,13 +1221,14 @@ namespace Quartz.Logging.LogProviders
             return Type.GetType("log4net.LogManager, log4net");
         }
 
-        private static Func<string, object> GetGetLoggerMethodCall()
+        private static Func<Assembly, string, object> GetGetLoggerMethodCall()
         {
             Type logManagerType = GetLogManagerType();
-            MethodInfo method = logManagerType.GetMethodPortable("GetLogger", typeof(string));
-            ParameterExpression nameParam = Expression.Parameter(typeof(string), "name");
-            MethodCallExpression methodCall = Expression.Call(null, method, nameParam);
-            return Expression.Lambda<Func<string, object>>(methodCall, nameParam).Compile();
+            MethodInfo method = logManagerType.GetMethodPortable("GetLogger", typeof(Assembly), typeof(string));
+			ParameterExpression assemblyParam = Expression.Parameter(typeof(Assembly), "repositoryAssembly");
+			ParameterExpression nameParam = Expression.Parameter(typeof(string), "name");
+            MethodCallExpression methodCall = Expression.Call(null, method, assemblyParam, nameParam);
+            return Expression.Lambda<Func<Assembly, string, object>>(methodCall, assemblyParam, nameParam).Compile();
         }
 
         internal class Log4NetLogger

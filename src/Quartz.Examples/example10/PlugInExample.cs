@@ -43,8 +43,8 @@ namespace Quartz.Examples.Example10
             // and makes it watch for changes every two minutes (120 seconds)
             var properties = new NameValueCollection
             {
-                ["quartz.plugin.triggHistory.type"] = "Quartz.Plugin.History.LoggingJobHistoryPlugin",
-                ["quartz.plugin.jobInitializer.type"] = "Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin",
+                ["quartz.plugin.triggHistory.type"] = "Quartz.Plugin.History.LoggingJobHistoryPlugin, Quartz.Plugins",
+                ["quartz.plugin.jobInitializer.type"] = "Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin, Quartz.Plugins",
                 ["quartz.plugin.jobInitializer.fileNames"] = "quartz_jobs.xml",
                 ["quartz.plugin.jobInitializer.failOnFileNotFound"] = "true",
                 ["quartz.plugin.jobInitializer.scanInterval"] = "120"

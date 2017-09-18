@@ -11,7 +11,6 @@
     <NeutralLanguage>en-US</NeutralLanguage>
 
     <Authors>Marko Lahma</Authors>
-    <DefineConstants>$(DefineConstants);LIBLOG_PORTABLE</DefineConstants>
     <WarningsAsErrors>True</WarningsAsErrors>
 
     <AssemblyOriginatorKeyFile>../../quartz.net.snk</AssemblyOriginatorKeyFile>
@@ -36,6 +35,7 @@
     <DebugSymbols>True</DebugSymbols>
     <PlatformTarget>AnyCPU</PlatformTarget>
 
+    <LangVersion>7.1</LangVersion>
     <TargetFullFrameworkVersion>net461</TargetFullFrameworkVersion>
 
   </PropertyGroup>
@@ -49,7 +49,7 @@
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(TargetFramework)' == 'netstandard1.3' or '$(TargetFramework)' == 'netcoreapp1.1' ">
-    <DefineConstants>$(DefineConstants);APPCONTEXT;BUG_7552;NETSTANDARD_DBPROVIDERS</DefineConstants>
+    <DefineConstants>$(DefineConstants);APPCONTEXT;BUG_7552;NETSTANDARD_DBPROVIDERS;LIBLOG_PORTABLE</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">

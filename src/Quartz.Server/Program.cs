@@ -33,7 +33,7 @@ namespace Quartz.Server
                 x.Service(factory =>
                 {
                     QuartzServer server = QuartzServerFactory.CreateServer();
-                    server.Initialize().Wait();
+                    server.Initialize().GetAwaiter().GetResult();
                     return server;
                 });
             });

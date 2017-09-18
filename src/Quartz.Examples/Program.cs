@@ -22,6 +22,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Threading.Tasks;
 
 using Quartz.Util;
 
@@ -33,7 +34,7 @@ namespace Quartz.Examples
     /// <author>Marko Lahma</author>
     public class Program
     {
-        public static void Main()
+        public static async Task Main()
         {
             try
             {
@@ -71,7 +72,7 @@ namespace Quartz.Examples
                 int num = Convert.ToInt32(Console.ReadLine());
                 Type eType = typeMap[num];
                 IExample example = ObjectUtils.InstantiateType<IExample>(eType);
-                example.Run().Wait();
+                await example.Run().ConfigureAwait(false);
                 Console.WriteLine("Example run successfully.");
             }
             catch (Exception ex)

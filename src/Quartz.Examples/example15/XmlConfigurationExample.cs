@@ -47,7 +47,7 @@ namespace Quartz.Examples.Example15
                 ["quartz.scheduler.instanceName"] = "XmlConfiguredInstance",
                 ["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz",
                 ["quartz.threadPool.threadCount"] = "5",
-                ["quartz.plugin.xml.type"] = "Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin, Quartz",
+                ["quartz.plugin.xml.type"] = "Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin, Quartz.Plugins",
                 ["quartz.plugin.xml.fileNames"] = "~/quartz_jobs.xml",
                 // this is the default
                 ["quartz.plugin.xml.FailOnFileNotFound"] = "true",
