@@ -427,6 +427,36 @@ namespace Quartz.Impl.AdoJobStore
             typeLoadHelper = loadHelper;
             schedSignaler = signaler;
 
+            if (Delegate is SQLiteDelegate && (LockHandler == null || LockHandler.GetType() != typeof(UpdateLockRowSemaphore)))
+            {
+                Log.Info("Detected SQLite usage, changing to use UpdateLockRowSemaphore");
+                var lockHandler = new UpdateLockRowSemaphore(DbProvider)
+                {
+                    SchedName = InstanceName,
+                    TablePrefix = TablePrefix
+                };
+                LockHandler = lockHandler;
+            }
+
+            if (Delegate is SQLiteDelegate)
+            {
+                if (Clustered)
+                {
+                    throw new InvalidConfigurationException("SQLite cannot be used as clustered mode due to locking problems");
+                }
+                if (!AcquireTriggersWithinLock)
+                {
+                    Log.Info("With SQLite we need to set AcquireTriggersWithinLock to true, changing");
+                    AcquireTriggersWithinLock = true;
+
+                }
+                if (!TxIsolationLevelSerializable)
+                {
+                    Log.Info("Detected usage of SQLiteDelegate - defaulting 'txIsolationLevelSerializable' to 'true'");
+                    TxIsolationLevelSerializable = true;
+                }
+            }
+
             // If the user hasn't specified an explicit lock handler, then
             // choose one based on CMT/Clustered/UseDBLocks.
             if (LockHandler == null)
@@ -471,12 +501,6 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     Log.Warn("Detected usage of SQL Server provider without SqlServerDelegate, SqlServerDelegate would provide better performance");
                 }
-            }
-
-            if (Delegate is SQLiteDelegate && !TxIsolationLevelSerializable)
-            {
-                Log.Info("Detected usage of SQLiteDelegate - defaulting 'txIsolationLevelSerializable' to 'true'");
-                TxIsolationLevelSerializable = true;
             }
 
             return TaskUtil.CompletedTask;

@@ -4,9 +4,14 @@
 
 ## Release 3.0 beta 1, XXX x 2017
 
+* NEW FEATURE
+
+    * support for Microsoft.Data.Sqlite via provider name SQLite-Microsoft, the old provider SQLite also still works
+
 * BREAKING CHANGES
 
-* Jobs and plugins are now in a separate assemblies/NuGet packages Quartz.Jobs and Quartz.Plugins
+    * Jobs and plugins are now in a separate assemblies/NuGet packages Quartz.Jobs and Quartz.Plugins
+    * ADO.NET provider names have been simplified, the provider names are without version, e.g. SqlServer-20 => SqlServer
 
 
 ## Release 3.0 alpha 3, Jul 30 2017
