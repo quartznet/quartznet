@@ -51,7 +51,7 @@ namespace Quartz.Impl.Calendar
 		/// </summary>
         public virtual IReadOnlyCollection<DateTime> ExcludedDates
 		{
-            get => new SortedSet<DateTime>(dates);
+            get => new ReadOnlyCompatibleHashSet<DateTime>(dates);
 			internal set => dates = new SortedSet<DateTime>(value);
 		}
 

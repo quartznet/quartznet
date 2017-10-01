@@ -52,7 +52,7 @@ namespace Quartz.Examples.Example12
             log.InfoFormat("SimpleJob: {0} executing at {1}", jobKey, DateTime.Now.ToString("r"));
             log.InfoFormat("SimpleJob: msg: {0}", message);
 
-            return Task.CompletedTask;
+            return TaskUtil.CompletedTask;
         }
     }
 }

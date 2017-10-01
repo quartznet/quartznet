@@ -51,7 +51,7 @@ namespace Quartz.Examples.Example14
         public Task Execute(IJobExecutionContext context)
         {
             log.Info("TRIGGER: " + context.Trigger.Key);
-            return Task.CompletedTask;
+            return TaskUtil.CompletedTask;
         }
     }
 }

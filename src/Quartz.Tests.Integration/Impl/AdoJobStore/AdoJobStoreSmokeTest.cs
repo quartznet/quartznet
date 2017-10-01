@@ -411,11 +411,11 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                 .Build();
 
             var toSchedule = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>();
-            toSchedule.Add(badJob, new HashSet<ITrigger>
+            toSchedule.Add(badJob, new List<ITrigger>
             {
                 badTrigger
             });
-            toSchedule.Add(goodJob, new HashSet<ITrigger>
+            toSchedule.Add(goodJob, new List<ITrigger>
             {
                 goodTrigger
             });
@@ -525,7 +525,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         {
             public Task Execute(IJobExecutionContext context)
             {
-                return Task.CompletedTask;
+                return TaskUtil.CompletedTask;
             }
         }
 
@@ -536,7 +536,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                 try
                 {
                     ((ManualResetEventSlim) context.Scheduler.Context.Get(KeyResetEvent)).Wait(TimeSpan.FromSeconds(20));
-                    return Task.CompletedTask;
+                    return TaskUtil.CompletedTask;
                 }
                 catch (SchedulerException ex)
                 {

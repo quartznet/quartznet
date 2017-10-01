@@ -36,7 +36,7 @@ namespace Quartz.Job
 		/// </summary>
 		public Task Execute(IJobExecutionContext context)
 		{
-            return Task.CompletedTask;
+            return Task.FromResult(true);
         }
 	}
 }

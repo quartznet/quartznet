@@ -26,7 +26,7 @@ namespace Quartz.Tests.Unit
         {
             public Task Execute(IJobExecutionContext context)
             {
-                return Task.CompletedTask;
+                return TaskUtil.CompletedTask;
             }
         }
 
@@ -34,7 +34,7 @@ namespace Quartz.Tests.Unit
         {
             public Task Execute(IJobExecutionContext context)
             {
-                return Task.CompletedTask;
+                return TaskUtil.CompletedTask;
             }
         }
 
@@ -44,7 +44,7 @@ namespace Quartz.Tests.Unit
         {
             public Task Execute(IJobExecutionContext context)
             {
-                return Task.CompletedTask;
+                return TaskUtil.CompletedTask;
             }
         }
 
@@ -60,7 +60,7 @@ namespace Quartz.Tests.Unit
             IScheduler scheduler = await factory.GetScheduler();
             var job = JobBuilder.Create<NoOpJob>().Build();
             var crontTriggers = input.Split('|').Select(x => x.Trim()).Select(cronExpression => TriggerBuilder.Create().WithCronSchedule(cronExpression).Build());
-            await scheduler.ScheduleJob(job, new HashSet<ITrigger>(crontTriggers), replace: false);
+            await scheduler.ScheduleJob(job, new List<ITrigger>(crontTriggers), replace: false);
         }
 
         [Test]

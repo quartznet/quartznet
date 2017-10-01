@@ -2243,7 +2243,7 @@ namespace Quartz.Impl.AdoJobStore
             return await ExecuteInLock(LockTriggerAccess, async conn =>
             {
                 IReadOnlyCollection<JobKey> jobKeys = await GetJobNames(conn, matcher, cancellationToken).ConfigureAwait(false);
-                var groupNames = new HashSet<string>();
+                var groupNames = new ReadOnlyCompatibleHashSet<string>();
 
                 foreach (JobKey jobKey in jobKeys)
                 {
@@ -2306,7 +2306,7 @@ namespace Quartz.Impl.AdoJobStore
                     }
                 }
 
-                return new HashSet<string>(groups);
+                return new ReadOnlyCompatibleHashSet<string>(groups);
             }
             catch (Exception e)
             {

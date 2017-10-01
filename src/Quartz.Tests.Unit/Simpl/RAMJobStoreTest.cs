@@ -34,7 +34,6 @@ using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Simpl;
 using Quartz.Spi;
-using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Simpl
 {
@@ -428,14 +427,14 @@ namespace Quartz.Tests.Unit.Simpl
                 CancellationToken cancellationToken = default(CancellationToken))
             {
                 fMisfireCount++;
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
             public Task NotifySchedulerListenersFinalized(
                 ITrigger trigger, 
                 CancellationToken cancellationToken = default(CancellationToken))
             {
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
             public void SignalSchedulingChange(
@@ -449,14 +448,14 @@ namespace Quartz.Tests.Unit.Simpl
                 SchedulerException jpe, 
                 CancellationToken cancellationToken = default(CancellationToken))
             {
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
             public Task NotifySchedulerListenersJobDeleted(
                 JobKey jobKey, 
                 CancellationToken cancellationToken = default(CancellationToken))
             {
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
         }
     }

@@ -184,7 +184,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
             DateTimeOffset startTime = dateOf(0, 0, 0, 1, 1, 2011); // Jan 1, 2011 was a saturday...
             TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
             var trigger = new DailyTimeIntervalTriggerImpl();
-            var daysOfWeek = new HashSet<DayOfWeek>
+            var daysOfWeek = new List<DayOfWeek>
             {
                 DayOfWeek.Monday,
                 DayOfWeek.Tuesday,
@@ -417,7 +417,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
         [Test]
         public void TestMonOnly()
         {
-            HashSet<DayOfWeek> daysOfWeek = new HashSet<DayOfWeek>
+            var daysOfWeek = new ReadOnlyCompatibleHashSet<DayOfWeek>
             {
                 DayOfWeek.Monday
             };
@@ -679,7 +679,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
 
             //make an adjustment to only one trigger.
             //I only want mondays now
-            trigger1.DaysOfWeek = new HashSet<DayOfWeek>
+            trigger1.DaysOfWeek = new List<DayOfWeek>
             {
                 DayOfWeek.Monday
             };
@@ -888,7 +888,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
             var endTimeOfDay = new TimeOfDay(3, 2, 1);
             var trigger = new DailyTimeIntervalTriggerImpl("name", "group", startTime, endTime, startTimeOfDay, endTimeOfDay, IntervalUnit.Hour, 10);
             trigger.RepeatCount = 12;
-            trigger.DaysOfWeek = new HashSet<DayOfWeek>
+            trigger.DaysOfWeek = new List<DayOfWeek>
             {
                 DayOfWeek.Thursday
             };

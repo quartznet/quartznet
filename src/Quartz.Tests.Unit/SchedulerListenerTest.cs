@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 
 using Quartz.Impl;
-using Quartz.Util;
 
 namespace Quartz.Tests.Unit
 {
@@ -26,7 +25,7 @@ namespace Quartz.Tests.Unit
             {
                 jobExecutionCount++;
                 logger.Info("Job executed. jobExecutionCount=" + jobExecutionCount);
-                return Task.CompletedTask;
+                return TaskUtil.CompletedTask;
             }
         }
 
@@ -40,7 +39,7 @@ namespace Quartz.Tests.Unit
             {
                 FireCount++;
                 logger.Info("Trigger fired. count " + FireCount);
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
             public Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken)
@@ -54,7 +53,7 @@ namespace Quartz.Tests.Unit
 
             public Task TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken)
             {
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
             public Task TriggerComplete(ITrigger trigger,
@@ -62,7 +61,7 @@ namespace Quartz.Tests.Unit
                                         SchedulerInstruction triggerInstructionCode,
                                         CancellationToken cancellationToken)
             {
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
         }
 
@@ -72,109 +71,109 @@ namespace Quartz.Tests.Unit
 
             public Task JobScheduled(ITrigger trigger, CancellationToken cancellationToken)
             {
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
             public Task JobUnscheduled(TriggerKey triggerKey, CancellationToken cancellationToken)
             {
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
             public Task TriggerFinalized(ITrigger trigger, CancellationToken cancellationToken)
             {
                 TriggerFinalizedCount ++;
                 logger.Info("triggerFinalized " + trigger);
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
             public Task TriggerPaused(TriggerKey triggerKey, CancellationToken cancellationToken)
             {
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
             public Task TriggersPaused(string triggerGroup, CancellationToken cancellationToken)
             {
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
             public Task TriggerResumed(TriggerKey triggerKey, CancellationToken cancellationToken)
             {
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
             public Task TriggersResumed(string triggerGroup, CancellationToken cancellationToken)
             {
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
             public Task JobAdded(IJobDetail jobDetail, CancellationToken cancellationToken)
             {
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
             public Task JobDeleted(JobKey jobKey, CancellationToken cancellationToken)
             {
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
             public Task JobPaused(JobKey jobKey, CancellationToken cancellationToken)
             {
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
             public Task JobInterrupted(JobKey jobKey, CancellationToken cancellationToken = new CancellationToken())
             {
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
             public Task JobsPaused(string jobGroup, CancellationToken cancellationToken)
             {
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
             public Task JobResumed(JobKey jobKey, CancellationToken cancellationToken)
             {
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
             public Task JobsResumed(string jobGroup, CancellationToken cancellationToken)
             {
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
             public Task SchedulerError(string msg, SchedulerException cause, CancellationToken cancellationToken)
             {
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
             public Task SchedulerInStandbyMode(CancellationToken cancellationToken)
             {
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
             public Task SchedulerStarted(CancellationToken cancellationToken)
             {
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
             public Task SchedulerStarting(CancellationToken cancellationToken)
             {
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
             public Task SchedulerShutdown(CancellationToken cancellationToken)
             {
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
             public Task SchedulerShuttingdown(CancellationToken cancellationToken)
             {
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
             public Task SchedulingDataCleared(CancellationToken cancellationToken)
             {
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
         }
 

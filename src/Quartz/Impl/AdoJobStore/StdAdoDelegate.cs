@@ -1041,12 +1041,11 @@ namespace Quartz.Impl.AdoJobStore
 
                 using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
                 {
-                    var list = new HashSet<JobKey>();
+                    var list = new ReadOnlyCompatibleHashSet<JobKey>();
                     while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
                     {
                         list.Add(new JobKey(rs.GetString(0), rs.GetString(1)));
                     }
-
                     return list;
                 }
             }
@@ -2106,12 +2105,11 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, "triggerGroup", parameter);
                 using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
                 {
-                    var keys = new HashSet<TriggerKey>();
+                    var keys = new ReadOnlyCompatibleHashSet<TriggerKey>();
                     while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
                     {
                         keys.Add(new TriggerKey(rs.GetString(0), rs.GetString(1)));
                     }
-
                     return keys;
                 }
             }
@@ -2802,7 +2800,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default(CancellationToken))
         {
-            var instanceNames = new HashSet<string>();
+            var instanceNames = new ReadOnlyCompatibleHashSet<string>();
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectFiredTriggerInstanceNames)))
             {
                 using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
@@ -3191,8 +3189,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default(CancellationToken))
         {
-            HashSet<string> retValue = new HashSet<string>();
-
+            var retValue = new ReadOnlyCompatibleHashSet<string>();
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectPausedTriggerGroups)))
             {
                 using (var dr = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))

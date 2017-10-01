@@ -320,7 +320,7 @@ namespace Quartz.Tests.Unit
 
             //make an adjustment to this one trigger.
             //I only want mondays now
-            trigger1.DaysOfWeek = new HashSet<DayOfWeek>
+            trigger1.DaysOfWeek = new List<DayOfWeek>
             {
                 DayOfWeek.Monday
             };

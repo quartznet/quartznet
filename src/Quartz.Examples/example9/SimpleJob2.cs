@@ -41,7 +41,7 @@ namespace Quartz.Examples.Example9
             // date and time that it is running
             JobKey jobKey = context.JobDetail.Key;
             log.InfoFormat("SimpleJob2 says: {0} executing at {1}", jobKey, DateTime.Now.ToString("r"));
-            return Task.CompletedTask;
+            return TaskUtil.CompletedTask;
         }
     }
 }

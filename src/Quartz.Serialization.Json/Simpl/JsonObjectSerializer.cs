@@ -244,7 +244,7 @@ namespace Quartz.Simpl
             protected override void PopulateFieldsToCalendarObject(AnnualCalendar value, JObject jObject)
             {
                 var excludedDates = jObject["ExcludedDays"].Values<DateTime>();
-                value.DaysExcluded = new SortedSet<DateTime>(excludedDates);
+                value.DaysExcluded = new ReadOnlyCompatibleHashSet<DateTime>(excludedDates);
             }
 
             protected override AnnualCalendar Create(JObject value)

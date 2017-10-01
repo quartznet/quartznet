@@ -36,7 +36,7 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
 
     <LangVersion>7.1</LangVersion>
-    <TargetFullFrameworkVersion>net461</TargetFullFrameworkVersion>
+    <TargetFullFrameworkVersion>net452</TargetFullFrameworkVersion>
 
   </PropertyGroup>
 

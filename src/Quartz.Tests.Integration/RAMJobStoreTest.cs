@@ -21,7 +21,7 @@ namespace Quartz.Tests.Integration
         {
             public Task Execute(IJobExecutionContext context)
             {
-                return Task.CompletedTask;
+                return TaskUtil.CompletedTask;
             }
         }
 
@@ -29,7 +29,7 @@ namespace Quartz.Tests.Integration
         {
             public Task Execute(IJobExecutionContext context)
             {
-                return Task.CompletedTask;
+                return TaskUtil.CompletedTask;
             }
         }
 
@@ -47,14 +47,14 @@ namespace Quartz.Tests.Integration
                     jobExecTimestamps.Add(DateTime.UtcNow);
 
                     barrier.SignalAndWait(testTimeout);
-                    return Task.CompletedTask;
+                    return TaskUtil.CompletedTask;
                 }
                 catch (Exception e)
                 {
                     Console.Write(e);
                     Assert.Fail("Await on barrier was interrupted: " + e);
                 }
-                return Task.CompletedTask;
+                return TaskUtil.CompletedTask;
             }
         }
 
@@ -64,7 +64,7 @@ namespace Quartz.Tests.Integration
         {
             public Task Execute(IJobExecutionContext context)
             {
-                return Task.CompletedTask;
+                return TaskUtil.CompletedTask;
             }
         }
 
@@ -341,7 +341,7 @@ namespace Quartz.Tests.Integration
                 .WithSimpleSchedule(x => x.WithIntervalInSeconds(1).RepeatForever())
                 .Build();
 
-            var triggersForJob = new HashSet<ITrigger>();
+            var triggersForJob = new List<ITrigger>();
             triggersForJob.Add(trigger1);
             triggersForJob.Add(trigger2);
 

@@ -147,7 +147,7 @@ namespace Quartz.Tests.Unit.Utils
             public Task Execute(IJobExecutionContext context)
             {
                 // Console.WriteLine(GetType().Name);
-                return Task.CompletedTask;
+                return TaskUtil.CompletedTask;
             }
         }
 

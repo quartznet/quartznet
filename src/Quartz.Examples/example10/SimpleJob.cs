@@ -59,7 +59,7 @@ namespace Quartz.Examples.Example10
             }
 
             context.Result = "hello";
-            return Task.CompletedTask;
+            return TaskUtil.CompletedTask;
         }
     }
 }

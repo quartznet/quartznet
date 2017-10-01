@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 
 using Quartz.Listener;
 using Quartz.Logging;
-using Quartz.Util;
 
 namespace Quartz.Core
 {

@@ -6,6 +6,7 @@
 
 * NEW FEATURE
 
+    * returned .NET Framework 4.5.2 compatibility to better support library consumers like NServiceBus and MassTransit
     * support for Microsoft.Data.Sqlite via provider name SQLite-Microsoft, the old provider SQLite also still works
 
 * BREAKING CHANGES

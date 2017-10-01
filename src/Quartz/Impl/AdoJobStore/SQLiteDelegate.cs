@@ -16,7 +16,6 @@
 */
 
 using System.Data;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -29,7 +28,7 @@ namespace Quartz.Impl.AdoJobStore
     public class SQLiteDelegate : StdAdoDelegate
     {
 #if NETSTANDARD2_0
-        private MethodInfo getFieldValueMethod;
+        private System.Reflection.MethodInfo getFieldValueMethod;
 #endif
 
         /// <summary>

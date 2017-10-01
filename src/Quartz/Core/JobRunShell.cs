@@ -27,7 +27,6 @@ using Quartz.Impl;
 using Quartz.Listener;
 using Quartz.Logging;
 using Quartz.Spi;
-using Quartz.Util;
 
 namespace Quartz.Core
 {

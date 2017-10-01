@@ -28,7 +28,6 @@ using NUnit.Framework;
 using Quartz.Impl;
 using Quartz.Simpl;
 using Quartz.Spi;
-using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl
 {
@@ -74,19 +73,19 @@ namespace Quartz.Tests.Unit.Impl
 			public Task Initialize(string name, IScheduler scheduler, CancellationToken cancellationToken)
 			{
 				result.Append(name).Append("|").Append(scheduler.SchedulerName);
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
             }
 
             Task ISchedulerPlugin.Start(CancellationToken cancellationToken)
 		    {
 		        result.Append("|Start");
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
 		    }
 
 			public Task Shutdown(CancellationToken cancellationToken)
 			{
 				result.Append("|Shutdown");
-                return TaskUtil.CompletedTask;
+                return Task.FromResult(true);
 			}
 		}
 	}

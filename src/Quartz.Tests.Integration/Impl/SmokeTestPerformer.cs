@@ -231,7 +231,7 @@ namespace Quartz.Tests.Integration.Impl
                     var info = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>();
                     IJobDetail detail = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
                     ITrigger simple = new SimpleTriggerImpl("trig_" + count, schedId, 20, TimeSpan.FromMilliseconds(4500));
-                    var triggers = new HashSet<ITrigger>();
+                    var triggers = new List<ITrigger>();
                     triggers.Add(simple);
                     info[detail] = triggers;
 
@@ -413,7 +413,7 @@ namespace Quartz.Tests.Integration.Impl
         {
             TriggeredCount++;
             triggered.Set();
-            return Task.CompletedTask;
+            return TaskUtil.CompletedTask;
         }
 
         public static int TriggeredCount { get; private set; }

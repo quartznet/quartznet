@@ -138,7 +138,7 @@ namespace Quartz.Job
 
 			int exitCode = RunNativeCommand(command, parameters, workingDirectory, wait, consumeStreams);
 		    context.Result = exitCode;
-            return Task.CompletedTask;
+            return Task.FromResult(true);
         }
 
 		private int RunNativeCommand(string command, string parameters, string workingDirectory, bool wait, bool consumeStreams)

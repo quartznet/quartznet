@@ -92,7 +92,7 @@ namespace Quartz.Impl.Triggers
         private DateTimeOffset? previousFireTimeUtc; // Making a public property which called GetPreviousFireTime/SetPreviousFireTime would make the json attribute unnecessary
         private int repeatInterval = 1;
         private IntervalUnit repeatIntervalUnit = IntervalUnit.Minute;
-        private HashSet<DayOfWeek> daysOfWeek;
+        private ReadOnlyCompatibleHashSet<DayOfWeek> daysOfWeek;
         private TimeOfDay startTimeOfDay;
         private TimeOfDay endTimeOfDay;
         private bool complete;
@@ -128,7 +128,7 @@ namespace Quartz.Impl.Triggers
         /// <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
         /// <param name="repeatInterval"></param>
         public DailyTimeIntervalTriggerImpl(string name, TimeOfDay startTimeOfDayUtc, TimeOfDay endTimeOfDayUtc,
-                                            IntervalUnit intervalUnit, int repeatInterval)
+            IntervalUnit intervalUnit, int repeatInterval)
             : this(name, null, startTimeOfDayUtc, endTimeOfDayUtc, intervalUnit, repeatInterval)
         {
         }
@@ -145,9 +145,9 @@ namespace Quartz.Impl.Triggers
         /// <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
         /// <param name="repeatInterval"></param>
         public DailyTimeIntervalTriggerImpl(string name, string group, TimeOfDay startTimeOfDayUtc,
-                                            TimeOfDay endTimeOfDayUtc, IntervalUnit intervalUnit, int repeatInterval)
+            TimeOfDay endTimeOfDayUtc, IntervalUnit intervalUnit, int repeatInterval)
             : this(name, group, SystemTime.UtcNow(), null, startTimeOfDayUtc, endTimeOfDayUtc, intervalUnit,
-                   repeatInterval)
+                repeatInterval)
         {
         }
 
@@ -164,8 +164,8 @@ namespace Quartz.Impl.Triggers
         /// <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
         public DailyTimeIntervalTriggerImpl(string name, DateTimeOffset startTimeUtc,
-                                            DateTimeOffset? endTimeUtc, TimeOfDay startTimeOfDayUtc, TimeOfDay endTimeOfDayUtc,
-                                            IntervalUnit intervalUnit, int repeatInterval)
+            DateTimeOffset? endTimeUtc, TimeOfDay startTimeOfDayUtc, TimeOfDay endTimeOfDayUtc,
+            IntervalUnit intervalUnit, int repeatInterval)
             : this(name, null, startTimeUtc, endTimeUtc, startTimeOfDayUtc, endTimeOfDayUtc, intervalUnit, repeatInterval)
         {
         }
@@ -184,8 +184,8 @@ namespace Quartz.Impl.Triggers
         /// <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
         public DailyTimeIntervalTriggerImpl(string name, string group, DateTimeOffset startTimeUtc,
-                                            DateTimeOffset? endTimeUtc, TimeOfDay startTimeOfDayUtc, TimeOfDay endTimeOfDayUtc,
-                                            IntervalUnit intervalUnit, int repeatInterval)
+            DateTimeOffset? endTimeUtc, TimeOfDay startTimeOfDayUtc, TimeOfDay endTimeOfDayUtc,
+            IntervalUnit intervalUnit, int repeatInterval)
             : base(name, group)
         {
             StartTimeUtc = startTimeUtc;
@@ -213,9 +213,9 @@ namespace Quartz.Impl.Triggers
         /// <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
         public DailyTimeIntervalTriggerImpl(string name, string group, string jobName,
-                                            string jobGroup, DateTimeOffset startTimeUtc, DateTimeOffset? endTimeUtc,
-                                            TimeOfDay startTimeOfDayUtc, TimeOfDay endTimeOfDayUtc,
-                                            IntervalUnit intervalUnit, int repeatInterval)
+            string jobGroup, DateTimeOffset startTimeUtc, DateTimeOffset? endTimeUtc,
+            TimeOfDay startTimeOfDayUtc, TimeOfDay endTimeOfDayUtc,
+            IntervalUnit intervalUnit, int repeatInterval)
             : base(name, group, jobName, jobGroup)
         {
             StartTimeUtc = startTimeUtc;
@@ -683,7 +683,7 @@ namespace Quartz.Impl.Triggers
             // f. Continue to calculate the fireTime by incremental unit of intervals.
             // recall that if fireTime was less that fireTimeStartDate, we didn't get this far
             startTimeUtc = TimeZoneUtil.ConvertTime(fireTimeStartDate, TimeZone);
-            long secondsAfterStart = (long)(fireTime.Value - startTimeUtc).TotalSeconds;
+            long secondsAfterStart = (long) (fireTime.Value - startTimeUtc).TotalSeconds;
             long repeatLong = RepeatInterval;
 
             DateTimeOffset sTime = fireTimeStartDate.ToUniversalTime();
@@ -696,7 +696,7 @@ namespace Quartz.Impl.Triggers
                     jumpCount++;
                 }
 
-                sTime = sTime.AddSeconds(RepeatInterval * (int)jumpCount);
+                sTime = sTime.AddSeconds(RepeatInterval * (int) jumpCount);
                 fireTime = TimeZoneUtil.ConvertTime(sTime, TimeZone);
             }
             else if (repeatUnit == IntervalUnit.Minute)
@@ -706,7 +706,7 @@ namespace Quartz.Impl.Triggers
                 {
                     jumpCount++;
                 }
-                sTime = sTime.AddMinutes(RepeatInterval * (int)jumpCount);
+                sTime = sTime.AddMinutes(RepeatInterval * (int) jumpCount);
                 fireTime = TimeZoneUtil.ConvertTime(sTime, TimeZone);
             }
             else if (repeatUnit == IntervalUnit.Hour)
@@ -716,7 +716,7 @@ namespace Quartz.Impl.Triggers
                 {
                     jumpCount++;
                 }
-                sTime = sTime.AddHours(RepeatInterval * (int)jumpCount);
+                sTime = sTime.AddHours(RepeatInterval * (int) jumpCount);
                 fireTime = TimeZoneUtil.ConvertTime(sTime, TimeZone);
             }
 
@@ -873,7 +873,7 @@ namespace Quartz.Impl.Triggers
             {
                 if (daysOfWeek == null)
                 {
-                    daysOfWeek = new HashSet<DayOfWeek>(DailyTimeIntervalScheduleBuilder.AllDaysOfTheWeek);
+                    daysOfWeek = new ReadOnlyCompatibleHashSet<DayOfWeek>(DailyTimeIntervalScheduleBuilder.AllDaysOfTheWeek);
                 }
                 return daysOfWeek;
             }
@@ -889,7 +889,7 @@ namespace Quartz.Impl.Triggers
                     throw new ArgumentException("DaysOfWeek set must contain at least one day.");
                 }
 
-                daysOfWeek = new HashSet<DayOfWeek>(value);
+                daysOfWeek = new ReadOnlyCompatibleHashSet<DayOfWeek>(value);
             }
         }
 

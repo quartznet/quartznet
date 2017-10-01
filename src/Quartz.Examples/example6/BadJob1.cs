@@ -72,7 +72,7 @@ namespace Quartz.Examples.Example6
             }
 
             log.InfoFormat("---{0} completed at {1}", jobKey, DateTime.Now.ToString("r"));
-            return Task.CompletedTask;
+            return TaskUtil.CompletedTask;
         }
     }
 }

@@ -2105,8 +2105,7 @@ namespace Quartz.Logging.LogProviders
             return () =>
             {
                 string targetMessage = messageBuilder();
-                IEnumerable<string> patternMatches;
-                return FormatStructuredMessage(targetMessage, formatParameters, out patternMatches);
+                return FormatStructuredMessage(targetMessage, formatParameters, out _);
             };
         }
 
@@ -2135,8 +2134,7 @@ namespace Quartz.Logging.LogProviders
             {
                 var arg = match.Groups["arg"].Value;
 
-                int notUsed;
-                if (!int.TryParse(arg, out notUsed))
+                if (!int.TryParse(arg, out _))
                 {
                     int argumentIndex = processedArguments.IndexOf(arg);
                     if (argumentIndex == -1)
@@ -2260,10 +2258,7 @@ namespace Quartz.Logging.LogProviders
 
         public void Dispose()
         {
-            if (_onDispose != null)
-            {
-                _onDispose();
-            }
+            _onDispose?.Invoke();
         }
     }
 }

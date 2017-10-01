@@ -396,7 +396,7 @@ namespace Quartz.Plugin.Xml
                     }
                 }
 
-                return Task.CompletedTask;
+                return Task.FromResult(true);
             }
         }
     }

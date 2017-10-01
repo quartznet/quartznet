@@ -938,7 +938,7 @@ namespace Quartz.Simpl
         {
             lock (lockObject)
             {
-                HashSet<JobKey> outList = null;
+                ReadOnlyCompatibleHashSet<JobKey> outList = null;
                 StringOperator op = matcher.CompareWithOperator;
                 string compareToValue = matcher.CompareToValue;
 
@@ -948,7 +948,7 @@ namespace Quartz.Simpl
                     jobsByGroup.TryGetValue(compareToValue, out grpMap);
                     if (grpMap != null)
                     {
-                        outList = new HashSet<JobKey>();
+                        outList = new ReadOnlyCompatibleHashSet<JobKey>();
 
                         foreach (JobWrapper jw in grpMap.Values)
                         {
@@ -967,7 +967,7 @@ namespace Quartz.Simpl
                         {
                             if (outList == null)
                             {
-                                outList = new HashSet<JobKey>();
+                                outList = new ReadOnlyCompatibleHashSet<JobKey>();
                             }
                             foreach (JobWrapper jobWrapper in entry.Value.Values)
                             {
@@ -979,7 +979,7 @@ namespace Quartz.Simpl
                         }
                     }
                 }
-                return outList ?? new HashSet<JobKey>();
+                return outList ?? new ReadOnlyCompatibleHashSet<JobKey>();
             }
         }
 
@@ -1012,7 +1012,7 @@ namespace Quartz.Simpl
         {
             lock (lockObject)
             {
-                HashSet<TriggerKey> outList = null;
+                ReadOnlyCompatibleHashSet<TriggerKey> outList = null;
                 StringOperator op = matcher.CompareWithOperator;
                 string compareToValue = matcher.CompareToValue;
 
@@ -1022,7 +1022,7 @@ namespace Quartz.Simpl
                     triggersByGroup.TryGetValue(compareToValue, out grpMap);
                     if (grpMap != null)
                     {
-                        outList = new HashSet<TriggerKey>();
+                        outList = new ReadOnlyCompatibleHashSet<TriggerKey>();
 
                         foreach (TriggerWrapper tw in grpMap.Values)
                         {
@@ -1041,7 +1041,7 @@ namespace Quartz.Simpl
                         {
                             if (outList == null)
                             {
-                                outList = new HashSet<TriggerKey>();
+                                outList = new ReadOnlyCompatibleHashSet<TriggerKey>();
                             }
                             foreach (TriggerWrapper triggerWrapper in entry.Value.Values)
                             {
@@ -1053,7 +1053,7 @@ namespace Quartz.Simpl
                         }
                     }
                 }
-                return outList ?? new HashSet<TriggerKey>();
+                return outList ?? new ReadOnlyCompatibleHashSet<TriggerKey>();
             }
         }
 
@@ -1205,7 +1205,7 @@ namespace Quartz.Simpl
         {
             lock (lockObject)
             {
-                HashSet<string> pausedGroups = new HashSet<string>();
+                var pausedGroups = new ReadOnlyCompatibleHashSet<string>();
 
                 StringOperator op = matcher.CompareWithOperator;
                 if (Equals(op, StringOperator.Equality))
@@ -1386,7 +1386,7 @@ namespace Quartz.Simpl
         {
             lock (lockObject)
             {
-                var groups = new HashSet<string>();
+                var groups = new ReadOnlyCompatibleHashSet<string>();
                 var keys = GetTriggerKeysInternal(matcher);
 
                 foreach (TriggerKey triggerKey in keys)
@@ -1469,7 +1469,7 @@ namespace Quartz.Simpl
         {
             lock (lockObject)
             {
-                HashSet<string> resumedGroups = new HashSet<string>();
+                var resumedGroups = new ReadOnlyCompatibleHashSet<string>();
                 var keys = GetJobKeysInternal(matcher);
 
                 foreach (string pausedJobGroup in pausedJobGroups)
@@ -1996,9 +1996,9 @@ namespace Quartz.Simpl
 
         /// <seealso cref="IJobStore.GetPausedTriggerGroups" />
         public virtual Task<IReadOnlyCollection<string>> GetPausedTriggerGroups(
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
-            var data = new HashSet<string>(pausedTriggerGroups);
+            var data = new ReadOnlyCompatibleHashSet<string>(pausedTriggerGroups);
             return Task.FromResult<IReadOnlyCollection<string>>(data);
         }
     }

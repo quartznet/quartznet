@@ -24,7 +24,6 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Logging;
-using Quartz.Util;
 
 namespace Quartz.Examples.Example9
 {

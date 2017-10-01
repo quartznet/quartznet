@@ -13,7 +13,7 @@ namespace Quartz.Tests.Unit
         {
             public Task Execute(IJobExecutionContext context)
             {
-                return Task.CompletedTask;
+                return TaskUtil.CompletedTask;
             }
         }
 
@@ -21,7 +21,7 @@ namespace Quartz.Tests.Unit
         {
             public Task Execute(IJobExecutionContext context)
             {
-                return Task.CompletedTask;
+                return TaskUtil.CompletedTask;
             }
         }
 
@@ -31,7 +31,7 @@ namespace Quartz.Tests.Unit
         {
             public Task Execute(IJobExecutionContext context)
             {
-                return Task.CompletedTask;
+                return TaskUtil.CompletedTask;
             }
         }
 

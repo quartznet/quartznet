@@ -102,7 +102,7 @@ namespace Quartz.Job
                     log.Debug($"Directory '{dir}' contents unchanged.");
                 }
             }
-            return Task.CompletedTask;
+            return TaskUtil.CompletedTask;
         }
 
         protected IEnumerable<FileInfo> GetUpdatedOrNewFiles(string dirName, DateTime lastModifiedDate, DateTime maxAgeDate)

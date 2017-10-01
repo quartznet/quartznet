@@ -78,7 +78,7 @@ namespace Quartz.Examples.Example4
             // This serves no real purpose since job state can not 
             // be maintained via member variables!
             counter++;
-            return Task.CompletedTask;
+            return TaskUtil.CompletedTask;
         }
     }
 }
