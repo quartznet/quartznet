@@ -98,7 +98,7 @@ namespace Quartz.Listener
         public Task TriggerFired(
             ITrigger trigger, 
             IJobExecutionContext context, 
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return Task.WhenAll(listeners.Select(l => l.TriggerFired(trigger, context, cancellationToken)));
         }
@@ -106,7 +106,7 @@ namespace Quartz.Listener
         public async Task<bool> VetoJobExecution(
             ITrigger trigger, 
             IJobExecutionContext context,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             foreach (var listener in listeners)
             {
@@ -119,7 +119,7 @@ namespace Quartz.Listener
             return false;
         }
 
-        public Task TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = default(CancellationToken))
+        public Task TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = default)
         {
             return Task.WhenAll(listeners.Select(l => l.TriggerMisfired(trigger, cancellationToken)));
         }
@@ -128,7 +128,7 @@ namespace Quartz.Listener
             ITrigger trigger, 
             IJobExecutionContext context, 
             SchedulerInstruction triggerInstructionCode,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return Task.WhenAll(listeners.Select(l => l.TriggerComplete(trigger, context, triggerInstructionCode, cancellationToken)));
         }

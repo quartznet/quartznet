@@ -17,7 +17,7 @@ namespace Quartz.Tests.Unit.Core
             DateTimeOffset noLaterThan, 
             int maxCount, 
             TimeSpan timeWindow,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             var nextTriggers = await base.AcquireNextTriggers(noLaterThan, maxCount, timeWindow, cancellationToken);
 

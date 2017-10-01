@@ -53,7 +53,7 @@ namespace Quartz.Listener
         public virtual Task TriggerFired(
             ITrigger trigger,
             IJobExecutionContext context,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return TaskUtil.CompletedTask;
         }
@@ -61,14 +61,14 @@ namespace Quartz.Listener
         public virtual Task<bool> VetoJobExecution(
             ITrigger trigger,
             IJobExecutionContext context,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return Task.FromResult(false);
         }
 
         public virtual Task TriggerMisfired(
             ITrigger trigger,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return TaskUtil.CompletedTask;
         }
@@ -77,7 +77,7 @@ namespace Quartz.Listener
             ITrigger trigger, 
             IJobExecutionContext context, 
             SchedulerInstruction triggerInstructionCode,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return TaskUtil.CompletedTask;
         }

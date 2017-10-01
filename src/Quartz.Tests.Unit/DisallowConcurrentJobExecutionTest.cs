@@ -49,7 +49,7 @@ namespace Quartz.Tests.Unit
             public override Task JobWasExecuted(
                 IJobExecutionContext context, 
                 JobExecutionException jobException,
-                CancellationToken cancellationToken = default(CancellationToken))
+                CancellationToken cancellationToken = default)
             {
                 if (Interlocked.Increment(ref jobExCount) == jobExecutionCountToSyncAfter)
                 {

@@ -40,7 +40,7 @@ namespace Quartz.Spi
 		/// <param name="cancellationToken">The cancellation instruction.</param>
 		Task NotifyTriggerListenersMisfired(
 			ITrigger trigger,
-			CancellationToken cancellationToken = default(CancellationToken));
+			CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Notifies the scheduler about finalized trigger.
@@ -49,18 +49,18 @@ namespace Quartz.Spi
 		/// <param name="cancellationToken">The cancellation instruction.</param>
 		Task NotifySchedulerListenersFinalized(
 	        ITrigger trigger,
-	        CancellationToken cancellationToken = default(CancellationToken));
+	        CancellationToken cancellationToken = default);
 
         Task NotifySchedulerListenersJobDeleted(
 	        JobKey jobKey,
-	        CancellationToken cancellationToken = default(CancellationToken));
+	        CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Signals the scheduling change.
         /// </summary>
         void SignalSchedulingChange(
 	        DateTimeOffset? candidateNewNextFireTimeUtc,
-	        CancellationToken cancellationToken = default(CancellationToken));
+	        CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Informs scheduler listeners about an exception that has occurred.
@@ -68,6 +68,6 @@ namespace Quartz.Spi
         Task NotifySchedulerListenersError(
 	        string message, 
 	        SchedulerException jpe,
-	        CancellationToken cancellationToken = default(CancellationToken));
+	        CancellationToken cancellationToken = default);
 	}
 }

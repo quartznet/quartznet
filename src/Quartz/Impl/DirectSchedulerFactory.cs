@@ -95,7 +95,7 @@ namespace Quartz.Impl
 		/// StdSchedulerFactory instance.).
 		/// </para>
 		/// </summary>
-		public virtual Task<IReadOnlyList<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default(CancellationToken))
+		public virtual Task<IReadOnlyList<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default)
 		{
 			return SchedulerRepository.Instance.LookupAll(cancellationToken);
 		}
@@ -349,7 +349,7 @@ namespace Quartz.Impl
 		/// <returns></returns>
 		/// <throws>  SchedulerException </throws>
 		public virtual Task<IScheduler> GetScheduler(
-			CancellationToken cancellationToken = default(CancellationToken))
+			CancellationToken cancellationToken = default)
 		{
 			if (!initialized)
 			{
@@ -366,7 +366,7 @@ namespace Quartz.Impl
 		/// </summary>
 		public virtual Task<IScheduler> GetScheduler(
 			string schedName,
-			CancellationToken cancellationToken = default(CancellationToken))
+			CancellationToken cancellationToken = default)
 		{
 			SchedulerRepository schedRep = SchedulerRepository.Instance;
 

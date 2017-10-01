@@ -147,7 +147,7 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         public virtual bool IsDayExcluded(int day)
         {
-            if ((day < 1) || (day > MaxDaysInMonth))
+            if (day < 1 || day > MaxDaysInMonth)
             {
                 throw new ArgumentException(
                     $"The day parameter must be in the range of 1 to {MaxDaysInMonth}");
@@ -227,7 +227,7 @@ namespace Quartz.Impl.Calendar
 
             // Call base calendar implementation first
             DateTimeOffset baseTime = base.GetNextIncludedTimeUtc(timeUtc);
-            if ((baseTime != DateTimeOffset.MinValue) && (baseTime > timeUtc))
+            if (baseTime != DateTimeOffset.MinValue && baseTime > timeUtc)
             {
                 timeUtc = baseTime;
             }

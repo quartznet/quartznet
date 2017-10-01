@@ -105,8 +105,8 @@ namespace Quartz.Util
         {
             const int Prime = 31;
             int result = 1;
-            result = Prime*result + ((group == null) ? 0 : group.GetHashCode());
-            result = Prime*result + ((name == null) ? 0 : name.GetHashCode());
+            result = Prime*result + (@group == null ? 0 : group.GetHashCode());
+            result = Prime*result + (name == null ? 0 : name.GetHashCode());
             return result;
         }
 

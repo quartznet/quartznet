@@ -282,7 +282,7 @@ namespace Quartz
         private string timeZoneInfoId
         {
             get => timeZone?.Id;
-            set => timeZone = (value == null ? null : TimeZoneUtil.FindTimeZoneById(value));
+            set => timeZone = value == null ? null : TimeZoneUtil.FindTimeZoneById(value);
         }
 
         /// <summary>
@@ -800,14 +800,13 @@ namespace Quartz
                     incr = 1;
                 }
                 AddToSet(sval, eval, incr, type);
-                return (i + 3);
+                return i + 3;
             }
 
             if (c == '?')
             {
                 i++;
-                if ((i + 1) < s.Length
-                    && (s[i] != ' ' && s[i + 1] != '\t'))
+                if (i + 1 < s.Length && s[i] != ' ' && s[i + 1] != '\t')
                 {
                     throw new FormatException("Illegal character after '?': "
                                               + s[i]);
@@ -1099,10 +1098,9 @@ namespace Quartz
                     end = v1;
                     i = vs.pos;
                 }
-                if (i < s.Length && ((c = s[i]) == '/'))
+                if (i < s.Length && (c = s[i]) == '/')
                 {
                     i++;
-                    c = s[i];
                     int v2 = Convert.ToInt32(c.ToString(), CultureInfo.InvariantCulture);
                     i++;
                     if (i >= s.Length)
@@ -1128,7 +1126,7 @@ namespace Quartz
 
             if (c == '/')
             {
-                if ((i + 1) >= s.Length || s[i + 1] == ' ' || s[i + 1] == '\t')
+                if (i + 1 >= s.Length || s[i + 1] == ' ' || s[i + 1] == '\t')
                 {
                     throw new FormatException("\'/\' must be followed by an integer.");
                 }
@@ -1294,7 +1292,7 @@ namespace Quartz
 
             if (type == Second || type == Minute)
             {
-                if ((val < 0 || val > 59 || end > 59) && (val != AllSpecInt))
+                if ((val < 0 || val > 59 || end > 59) && val != AllSpecInt)
                 {
                     throw new FormatException(
                         "Minute and Second values must be between 0 and 59");
@@ -1302,7 +1300,7 @@ namespace Quartz
             }
             else if (type == Hour)
             {
-                if ((val < 0 || val > 23 || end > 23) && (val != AllSpecInt))
+                if ((val < 0 || val > 23 || end > 23) && val != AllSpecInt)
                 {
                     throw new FormatException(
                         "Hour values must be between 0 and 23");
@@ -1310,8 +1308,8 @@ namespace Quartz
             }
             else if (type == DayOfMonth)
             {
-                if ((val < 1 || val > 31 || end > 31) && (val != AllSpecInt)
-                    && (val != NoSpecInt))
+                if ((val < 1 || val > 31 || end > 31) && val != AllSpecInt
+                    && val != NoSpecInt)
                 {
                     throw new FormatException(
                         "Day of month values must be between 1 and 31");
@@ -1319,7 +1317,7 @@ namespace Quartz
             }
             else if (type == Month)
             {
-                if ((val < 1 || val > 12 || end > 12) && (val != AllSpecInt))
+                if ((val < 1 || val > 12 || end > 12) && val != AllSpecInt)
                 {
                     throw new FormatException(
                         "Month values must be between 1 and 12");
@@ -1327,8 +1325,8 @@ namespace Quartz
             }
             else if (type == DayOfWeek)
             {
-                if ((val == 0 || val > 7 || end > 7) && (val != AllSpecInt)
-                    && (val != NoSpecInt))
+                if ((val == 0 || val > 7 || end > 7) && val != AllSpecInt
+                    && val != NoSpecInt)
                 {
                     throw new FormatException(
                         "Day-of-Week values must be between 1 and 7");
@@ -1862,7 +1860,7 @@ namespace Quartz
                         // the month?
                         int dow = daysOfWeek.First(); // desired
                         // d-o-w
-                        int cDow = ((int) d.DayOfWeek) + 1; // current d-o-w
+                        int cDow = (int) d.DayOfWeek + 1; // current d-o-w
                         int daysToAdd = 0;
                         if (cDow < dow)
                         {
@@ -1893,7 +1891,7 @@ namespace Quartz
                         }
 
                         // find date of last occurrence of this day in this month...
-                        while ((day + daysToAdd + 7) <= lDay)
+                        while (day + daysToAdd + 7 <= lDay)
                         {
                             daysToAdd += 7;
                         }
@@ -1912,7 +1910,7 @@ namespace Quartz
                         // are we looking for the Nth XXX day in the month?
                         int dow = daysOfWeek.First(); // desired
                         // d-o-w
-                        int cDow = ((int) d.DayOfWeek) + 1; // current d-o-w
+                        int cDow = (int) d.DayOfWeek + 1; // current d-o-w
                         int daysToAdd = 0;
                         if (cDow < dow)
                         {
@@ -1957,7 +1955,7 @@ namespace Quartz
                     }
                     else
                     {
-                        int cDow = ((int) d.DayOfWeek) + 1; // current d-o-w
+                        int cDow = (int) d.DayOfWeek + 1; // current d-o-w
                         int dow = daysOfWeek.First(); // desired
                         // d-o-w
                         st = daysOfWeek.TailSet(cDow);

@@ -573,7 +573,7 @@ namespace Quartz.Util
 			{
 				if (key.StartsWith(prefix))
 				{
-					string groupName = key.Substring(prefix.Length, (key.IndexOf('.', prefix.Length)) - (prefix.Length));
+					string groupName = key.Substring(prefix.Length, key.IndexOf('.', prefix.Length) - prefix.Length);
 					groups.Add(groupName);
 				}
 			}
@@ -626,7 +626,7 @@ namespace Quartz.Util
                     bool exclude = false;
                     if (excludedPrefixes != null)
                     {
-                        for (int i = 0; (i < excludedPrefixes.Length) && (exclude == false); i++)
+                        for (int i = 0; i < excludedPrefixes.Length && exclude == false; i++)
                         {
                             exclude = key.StartsWith(excludedPrefixes[i]);
                         }

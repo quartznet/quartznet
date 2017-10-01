@@ -62,7 +62,7 @@ namespace Quartz
         Task TriggerFired(
             ITrigger trigger, 
             IJobExecutionContext context,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler"/> when a <see cref="ITrigger"/>
@@ -82,7 +82,7 @@ namespace Quartz
         Task<bool> VetoJobExecution(
             ITrigger trigger,
             IJobExecutionContext context,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
@@ -98,7 +98,7 @@ namespace Quartz
         /// <param name="cancellationToken">The cancellation instruction.</param>
         Task TriggerMisfired(
             ITrigger trigger,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
@@ -119,6 +119,6 @@ namespace Quartz
             ITrigger trigger, 
             IJobExecutionContext context, 
             SchedulerInstruction triggerInstructionCode,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
     }
 }

@@ -44,7 +44,7 @@ namespace Quartz.Simpl
         /// <param name="cancellationToken"></param>
         /// <returns>The clusterwide unique instance id.</returns>
         public override async Task<string> GenerateInstanceId(
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             string hostName = await GetHostName(HostNameMaxLength, cancellationToken).ConfigureAwait(false);
             return hostName + SystemTime.UtcNow().Ticks;

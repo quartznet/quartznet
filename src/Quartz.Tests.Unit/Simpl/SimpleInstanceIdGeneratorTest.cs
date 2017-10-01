@@ -50,7 +50,7 @@ namespace Quartz.Tests.Unit.Simpl
         private class TestInstanceIdGenerator : SimpleInstanceIdGenerator
         {
             protected override Task<IPHostEntry> GetHostAddress(
-                CancellationToken cancellationToken = default(CancellationToken))
+                CancellationToken cancellationToken = default)
             {
                 return Task.FromResult(new IPHostEntry
                 {

@@ -75,7 +75,7 @@ namespace Quartz.Tests.Unit
             t.CalendarName = "MyCalendar";
             t.Description = "SimpleTriggerDesc";
             t.JobDataMap = jobDataMap;
-            t.MisfireInstruction = (MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount);
+            t.MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount;
 
             return t;
         }

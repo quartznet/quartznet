@@ -441,8 +441,8 @@ namespace Quartz.Impl.Calendar
         /// <returns></returns>
         public override bool IsTimeIncluded(DateTimeOffset timeUtc)
         {
-            if ((CalendarBase != null) &&
-                (CalendarBase.IsTimeIncluded(timeUtc) == false))
+            if (CalendarBase != null
+                && CalendarBase.IsTimeIncluded(timeUtc) == false)
             {
                 return false;
             }
@@ -458,17 +458,17 @@ namespace Quartz.Impl.Calendar
                 GetTimeRangeEndingTimeUtc(timeUtc);
             if (!InvertTimeRange)
             {
-                if ((timeUtc > startOfDayInMillis &&
-                     timeUtc < timeRangeStartingTimeInMillis) ||
-                    (timeUtc > timeRangeEndingTimeInMillis &&
-                     timeUtc < endOfDayInMillis))
+                if (timeUtc > startOfDayInMillis &&
+                    timeUtc < timeRangeStartingTimeInMillis ||
+                    timeUtc > timeRangeEndingTimeInMillis &&
+                    timeUtc < endOfDayInMillis)
                 {
                     return true;
                 }
                 return false;
             }
-            if ((timeUtc >= timeRangeStartingTimeInMillis) &&
-                (timeUtc <= timeRangeEndingTimeInMillis))
+            if (timeUtc >= timeRangeStartingTimeInMillis &&
+                timeUtc <= timeRangeEndingTimeInMillis)
             {
                 return true;
             }
@@ -497,16 +497,16 @@ namespace Quartz.Impl.Calendar
                     // excluded by the baseCalendar, ask it the next time it
                     // includes and begin testing from there. Failing this, add one
                     // millisecond and continue testing.
-                    if ((nextIncludedTime >=
-                         GetTimeRangeStartingTimeUtc(nextIncludedTime)) &&
-                        (nextIncludedTime <=
-                         GetTimeRangeEndingTimeUtc(nextIncludedTime)))
+                    if (nextIncludedTime >=
+                        GetTimeRangeStartingTimeUtc(nextIncludedTime) &&
+                        nextIncludedTime <=
+                        GetTimeRangeEndingTimeUtc(nextIncludedTime))
                     {
                         nextIncludedTime =
                             GetTimeRangeEndingTimeUtc(nextIncludedTime).AddMilliseconds(OneMillis);
                     }
-                    else if ((CalendarBase != null) &&
-                             (!CalendarBase.IsTimeIncluded(nextIncludedTime)))
+                    else if (CalendarBase != null &&
+                             !CalendarBase.IsTimeIncluded(nextIncludedTime))
                     {
                         nextIncludedTime =
                             CalendarBase.GetNextIncludedTimeUtc(nextIncludedTime);
@@ -537,8 +537,8 @@ namespace Quartz.Impl.Calendar
                         nextIncludedTime = GetEndOfDay(nextIncludedTime);
                         nextIncludedTime = nextIncludedTime.AddMilliseconds(1);
                     }
-                    else if ((CalendarBase != null) &&
-                             (!CalendarBase.IsTimeIncluded(nextIncludedTime)))
+                    else if (CalendarBase != null &&
+                             !CalendarBase.IsTimeIncluded(nextIncludedTime))
                     {
                         nextIncludedTime =
                             CalendarBase.GetNextIncludedTimeUtc(nextIncludedTime);
@@ -651,7 +651,7 @@ namespace Quartz.Impl.Calendar
 
             var rangeStartingTime = rangeStartingTimeString.Split(Colon);
 
-            if ((rangeStartingTime.Length < 2) || (rangeStartingTime.Length > 4))
+            if (rangeStartingTime.Length < 2 || rangeStartingTime.Length > 4)
             {
                 throw new ArgumentException($"Invalid time string '{rangeStartingTimeString}'");
             }
@@ -678,7 +678,7 @@ namespace Quartz.Impl.Calendar
 
             var rangeEndingTime = rangeEndingTimeString.Split(Colon);
 
-            if ((rangeEndingTime.Length < 2) || (rangeEndingTime.Length > 4))
+            if (rangeEndingTime.Length < 2 || rangeEndingTime.Length > 4)
             {
                 throw new ArgumentException($"Invalid time string '{rangeEndingTimeString}'");
             }
@@ -869,15 +869,15 @@ namespace Quartz.Impl.Calendar
             }
             bool baseEqual = CalendarBase == null || CalendarBase.Equals(obj.CalendarBase);
 
-            return baseEqual && (InvertTimeRange == obj.InvertTimeRange) &&
-                   (rangeStartingHourOfDay == obj.rangeStartingHourOfDay) &&
-                   (rangeStartingMinute == obj.rangeStartingMinute) &&
-                   (rangeStartingSecond == obj.rangeStartingSecond) &&
-                   (rangeStartingMillis == obj.rangeStartingMillis) &&
-                   (rangeEndingHourOfDay == obj.rangeEndingHourOfDay) &&
-                   (rangeEndingMinute == obj.rangeEndingMinute) &&
-                   (rangeEndingSecond == obj.rangeEndingSecond) &&
-                   (rangeEndingMillis == obj.rangeEndingMillis);
+            return baseEqual && InvertTimeRange == obj.InvertTimeRange &&
+                   rangeStartingHourOfDay == obj.rangeStartingHourOfDay &&
+                   rangeStartingMinute == obj.rangeStartingMinute &&
+                   rangeStartingSecond == obj.rangeStartingSecond &&
+                   rangeStartingMillis == obj.rangeStartingMillis &&
+                   rangeEndingHourOfDay == obj.rangeEndingHourOfDay &&
+                   rangeEndingMinute == obj.rangeEndingMinute &&
+                   rangeEndingSecond == obj.rangeEndingSecond &&
+                   rangeEndingMillis == obj.rangeEndingMillis;
         }
 
         public override bool Equals(object obj)

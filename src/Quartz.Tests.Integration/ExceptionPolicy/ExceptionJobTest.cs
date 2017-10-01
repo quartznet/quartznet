@@ -89,7 +89,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
             await sched.TriggerJob(jobKey);
 
             int i = 10;
-            while ((i > 0) && (ExceptionJob.LaunchCount <= 1))
+            while (i > 0 && ExceptionJob.LaunchCount <= 1)
             {
                 i--;
                 await Task.Delay(200);
@@ -125,7 +125,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
             await sched.TriggerJob(jobKey);
 
             int i = 10;
-            while ((i > 0) && (ExceptionJob.LaunchCount <= 1))
+            while (i > 0 && ExceptionJob.LaunchCount <= 1)
             {
                 i--;
                 await Task.Delay(200);

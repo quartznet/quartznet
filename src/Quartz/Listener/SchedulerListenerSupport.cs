@@ -36,63 +36,63 @@ namespace Quartz.Listener
     {
         public virtual Task JobScheduled(
             ITrigger trigger, 
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return TaskUtil.CompletedTask;
         }
 
         public virtual Task JobUnscheduled(
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return TaskUtil.CompletedTask;
         }
 
         public virtual Task TriggerFinalized(
             ITrigger trigger,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return TaskUtil.CompletedTask;
         }
 
         public virtual Task TriggersPaused(
             string triggerGroup,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return TaskUtil.CompletedTask;
         }
 
         public virtual Task TriggerPaused(
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return TaskUtil.CompletedTask;
         }
 
         public virtual Task TriggersResumed(
             string triggerGroup,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return TaskUtil.CompletedTask;
         }
 
         public virtual Task TriggerResumed(
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return TaskUtil.CompletedTask;
         }
 
         public virtual Task JobAdded(
             IJobDetail jobDetail,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return TaskUtil.CompletedTask;
         }
 
         public virtual Task JobDeleted(
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return TaskUtil.CompletedTask;
         }
@@ -106,28 +106,28 @@ namespace Quartz.Listener
 
         public virtual Task JobsPaused(
             string jobGroup,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return TaskUtil.CompletedTask;
         }
 
         public virtual Task JobPaused(
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return TaskUtil.CompletedTask;
         }
 
         public virtual Task JobsResumed(
             string jobGroup,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return TaskUtil.CompletedTask;
         }
 
         public virtual Task JobResumed(
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return TaskUtil.CompletedTask;
         }
@@ -135,37 +135,37 @@ namespace Quartz.Listener
         public virtual Task SchedulerError(
             string msg, 
             SchedulerException cause,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task SchedulerInStandbyMode(CancellationToken cancellationToken = default(CancellationToken))
+        public virtual Task SchedulerInStandbyMode(CancellationToken cancellationToken = default)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task SchedulerStarted(CancellationToken cancellationToken = default(CancellationToken))
+        public virtual Task SchedulerStarted(CancellationToken cancellationToken = default)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task SchedulerStarting(CancellationToken cancellationToken = default(CancellationToken))
+        public virtual Task SchedulerStarting(CancellationToken cancellationToken = default)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task SchedulerShutdown(CancellationToken cancellationToken = default(CancellationToken))
+        public virtual Task SchedulerShutdown(CancellationToken cancellationToken = default)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task SchedulerShuttingdown(CancellationToken cancellationToken = default(CancellationToken))
+        public virtual Task SchedulerShuttingdown(CancellationToken cancellationToken = default)
         {
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task SchedulingDataCleared(CancellationToken cancellationToken = default(CancellationToken))
+        public virtual Task SchedulingDataCleared(CancellationToken cancellationToken = default)
         {
             return TaskUtil.CompletedTask;
         }

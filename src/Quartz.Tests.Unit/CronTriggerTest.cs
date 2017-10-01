@@ -1,4 +1,5 @@
 #region License
+
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
@@ -15,6 +16,7 @@
  * under the License.
  *
  */
+
 #endregion
 
 using System;
@@ -77,15 +79,14 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(0, trigger.StartTimeUtc.Millisecond);
         }
 
-
         [Test]
         public void TestClone()
         {
             CronTriggerImpl trigger = new CronTriggerImpl();
-            trigger.Name =("test");
-            trigger.Group = ("testGroup");
-            trigger.CronExpressionString = ("0 0 12 * * ?");
-            ICronTrigger trigger2 = (ICronTrigger)trigger.Clone();
+            trigger.Name = "test";
+            trigger.Group = "testGroup";
+            trigger.CronExpressionString = "0 0 12 * * ?";
+            ICronTrigger trigger2 = (ICronTrigger) trigger.Clone();
 
             Assert.AreEqual(trigger, trigger2, "Cloning failed");
 
@@ -98,9 +99,9 @@ namespace Quartz.Tests.Unit
         public void TestQuartz558()
         {
             CronTriggerImpl trigger = new CronTriggerImpl();
-            trigger.Name =("test");
-            trigger.Group = ("testGroup");
-            ICronTrigger trigger2 = (ICronTrigger)trigger.Clone();
+            trigger.Name = "test";
+            trigger.Group = "testGroup";
+            ICronTrigger trigger2 = (ICronTrigger) trigger.Clone();
 
             Assert.AreEqual(trigger, trigger2, "Cloning failed");
         }
@@ -165,7 +166,7 @@ namespace Quartz.Tests.Unit
             trigger.MisfireInstruction = MisfireInstruction.CronTrigger.FireOnceNow;
             var scheduleBuilder = trigger.GetScheduleBuilder();
 
-            var cloned = (CronTriggerImpl)scheduleBuilder.Build();
+            var cloned = (CronTriggerImpl) scheduleBuilder.Build();
             Assert.That(cloned.MisfireInstruction, Is.EqualTo(trigger.MisfireInstruction));
             Assert.That(cloned.TimeZone, Is.EqualTo(trigger.TimeZone));
             Assert.That(cloned.CronExpressionString, Is.EqualTo(trigger.CronExpressionString));

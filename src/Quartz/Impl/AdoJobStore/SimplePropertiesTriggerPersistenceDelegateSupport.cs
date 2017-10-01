@@ -117,7 +117,7 @@ namespace Quartz.Impl.AdoJobStore
         public async Task<int> DeleteExtendedTriggerProperties(
             ConnectionAndTransactionHolder conn, 
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(DeleteSimplePropsTrigger, TablePrefix, SchedNameLiteral)))
             {
@@ -133,7 +133,7 @@ namespace Quartz.Impl.AdoJobStore
             IOperableTrigger trigger, 
             string state,
             IJobDetail jobDetail,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             SimplePropertiesTriggerProperties properties = GetTriggerProperties(trigger);
 
@@ -162,7 +162,7 @@ namespace Quartz.Impl.AdoJobStore
         public async Task<TriggerPropertyBundle> LoadExtendedTriggerProperties(
             ConnectionAndTransactionHolder conn, 
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(SelectSimplePropsTrigger, TablePrefix, SchedNameLiteral)))
             {
@@ -201,7 +201,7 @@ namespace Quartz.Impl.AdoJobStore
             IOperableTrigger trigger, 
             string state, 
             IJobDetail jobDetail,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             SimplePropertiesTriggerProperties properties = GetTriggerProperties(trigger);
 

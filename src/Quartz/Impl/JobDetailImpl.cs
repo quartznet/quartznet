@@ -203,8 +203,8 @@ namespace Quartz.Impl
             }
             set
             {
-                Name = value != null ? value.Name : null;
-                Group = value != null ? value.Group : null;
+                Name = value?.Name;
+                Group = value?.Group;
                 key = value;
             }
         }
@@ -331,7 +331,7 @@ namespace Quartz.Impl
                 string.Format(
                     CultureInfo.InvariantCulture,
                     "JobDetail '{0}':  jobType: '{1} persistJobDataAfterExecution: {2} concurrentExecutionDisallowed: {3} isDurable: {4} requestsRecovers: {5}",
-                    FullName, ((JobType == null) ? null : JobType.FullName), PersistJobDataAfterExecution, ConcurrentExecutionDisallowed, Durable, RequestsRecovery);
+                    FullName, JobType?.FullName, PersistJobDataAfterExecution, ConcurrentExecutionDisallowed, Durable, RequestsRecovery);
         }
 
         /// <summary>
@@ -370,8 +370,7 @@ namespace Quartz.Impl
         {
             //doesn't consider job's saved data,
             //durability etc
-            return (detail != null) && (detail.Name == Name) && (detail.Group == Group) &&
-                   (detail.JobType == JobType);
+            return detail != null && detail.Name == Name && detail.Group == Group && detail.JobType == JobType;
         }
 
         /// <summary>
@@ -384,8 +383,7 @@ namespace Quartz.Impl
         /// </returns>
         public override bool Equals(object obj)
         {
-            JobDetailImpl jd = obj as JobDetailImpl;
-            if (jd == null)
+            if (!(obj is JobDetailImpl jd))
             {
                 return false;
             }

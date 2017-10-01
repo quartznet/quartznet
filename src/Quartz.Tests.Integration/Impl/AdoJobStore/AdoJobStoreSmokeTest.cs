@@ -244,8 +244,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.useProperties"] = false.ToString();
             properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
 
-            string connectionString;
-            dbConnectionStrings.TryGetValue("SQLServer", out connectionString);
+            dbConnectionStrings.TryGetValue("SQLServer", out var connectionString);
             properties["quartz.dataSource.default.connectionString"] = connectionString;
             properties["quartz.dataSource.default.provider"] = TestConstants.DefaultSqlServerProvider;
 
@@ -310,8 +309,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz";
             await RunAdoJobStoreTest(TestConstants.DefaultSqlServerProvider, "SQLServer", serializerType, properties);
 
-            string connectionString;
-            if (!dbConnectionStrings.TryGetValue("SQLServer", out connectionString))
+            if (!dbConnectionStrings.TryGetValue("SQLServer", out var connectionString))
             {
                 throw new Exception("Unknown connection string id: " + "SQLServer");
             }

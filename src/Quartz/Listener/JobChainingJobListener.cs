@@ -89,10 +89,9 @@ namespace Quartz.Listener
         public override async Task JobWasExecuted(
             IJobExecutionContext context, 
             JobExecutionException jobException,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
-            JobKey sj;
-            chainLinks.TryGetValue(context.JobDetail.Key, out sj);
+            chainLinks.TryGetValue(context.JobDetail.Key, out var sj);
 
             if (sj == null)
             {

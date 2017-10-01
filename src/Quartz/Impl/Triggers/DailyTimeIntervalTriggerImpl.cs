@@ -107,7 +107,7 @@ namespace Quartz.Impl.Triggers
         private string timeZoneInfoId
         {
             get => timeZone?.Id;
-            set => timeZone = (value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value));
+            set => timeZone = value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value);
         }
 
         /// <summary>
@@ -305,9 +305,9 @@ namespace Quartz.Impl.Triggers
             get => repeatIntervalUnit;
             set
             {
-                if (!((value == IntervalUnit.Second) ||
-                      (value == IntervalUnit.Minute) ||
-                      (value == IntervalUnit.Hour)))
+                if (!(value == IntervalUnit.Second ||
+                      value == IntervalUnit.Minute ||
+                      value == IntervalUnit.Hour))
                 {
                     throw new ArgumentException("Invalid repeat IntervalUnit (must be Second, Minute or Hour)");
                 }

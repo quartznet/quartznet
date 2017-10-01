@@ -298,7 +298,7 @@ namespace Quartz.Plugin.History
         public virtual Task Initialize(
             string pluginName,
             IScheduler scheduler,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             Name = pluginName;
             scheduler.ListenerManager.AddJobListener(this, EverythingMatcher<JobKey>.AllJobs());
@@ -310,7 +310,7 @@ namespace Quartz.Plugin.History
         /// to let the plug-in know it can now make calls into the scheduler if it
         /// needs to.
         /// </summary>
-        public virtual Task Start(CancellationToken cancellationToken = default(CancellationToken))
+        public virtual Task Start(CancellationToken cancellationToken = default)
         {
             // do nothing...
             return TaskUtil.CompletedTask;
@@ -321,7 +321,7 @@ namespace Quartz.Plugin.History
         /// should free up all of it's resources because the scheduler is shutting
         /// down.
         /// </summary>
-        public virtual Task Shutdown(CancellationToken cancellationToken = default(CancellationToken))
+        public virtual Task Shutdown(CancellationToken cancellationToken = default)
         {
             // nothing to do...
             return TaskUtil.CompletedTask;
@@ -338,7 +338,7 @@ namespace Quartz.Plugin.History
         /// <seealso cref="JobExecutionVetoed"/>
         public virtual Task JobToBeExecuted(
             IJobExecutionContext context,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (!IsInfoEnabled)
             {
@@ -371,7 +371,7 @@ namespace Quartz.Plugin.History
         public virtual Task JobWasExecuted(
             IJobExecutionContext context,
             JobExecutionException jobException,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ITrigger trigger = context.Trigger;
 
@@ -423,7 +423,7 @@ namespace Quartz.Plugin.History
         /// <seealso cref="JobToBeExecuted"/>
         public virtual Task JobExecutionVetoed(
             IJobExecutionContext context,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (!IsInfoEnabled)
             {

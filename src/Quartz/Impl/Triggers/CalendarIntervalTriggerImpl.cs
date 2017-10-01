@@ -75,7 +75,7 @@ namespace Quartz.Impl.Triggers
         private string timeZoneInfoId
         {
             get => timeZone?.Id;
-            set => timeZone = (value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value));
+            set => timeZone = value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value);
         }
 
         /// <summary>
@@ -142,8 +142,8 @@ namespace Quartz.Impl.Triggers
         {
             StartTimeUtc = startTimeUtc;
             EndTimeUtc = endTimeUtc;
-            RepeatIntervalUnit = (intervalUnit);
-            RepeatInterval = (repeatInterval);
+            RepeatIntervalUnit = intervalUnit;
+            RepeatInterval = repeatInterval;
         }
 
         /// <summary>
@@ -567,9 +567,9 @@ namespace Quartz.Impl.Triggers
 
             DateTimeOffset startMillis = StartTimeUtc;
             DateTimeOffset afterMillis = afterTime.Value;
-            DateTimeOffset endMillis = (EndTimeUtc == null) ? DateTimeOffset.MaxValue : EndTimeUtc.Value;
+            DateTimeOffset endMillis = EndTimeUtc ?? DateTimeOffset.MaxValue;
 
-            if (!ignoreEndTime && (endMillis <= afterMillis))
+            if (!ignoreEndTime && endMillis <= afterMillis)
             {
                 return null;
             }
@@ -871,7 +871,7 @@ namespace Quartz.Impl.Triggers
         /// <returns></returns>
         public override bool GetMayFireAgain()
         {
-            return (GetNextFireTimeUtc() != null);
+            return GetNextFireTimeUtc() != null;
         }
 
         /// <summary>

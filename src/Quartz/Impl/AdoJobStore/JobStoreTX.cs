@@ -42,7 +42,7 @@ namespace Quartz.Impl.AdoJobStore
         public override Task Initialize(
             ITypeLoadHelper loadHelper, 
             ISchedulerSignaler signaler,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             base.Initialize(loadHelper, signaler, cancellationToken);
             Log.Info("JobStoreTX initialized.");
@@ -79,7 +79,7 @@ namespace Quartz.Impl.AdoJobStore
         protected override Task<T> ExecuteInLock<T>(
             string lockName, 
             Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return ExecuteInNonManagedTXLock(lockName, txCallback, cancellationToken);
         }

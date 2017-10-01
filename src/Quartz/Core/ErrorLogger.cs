@@ -16,7 +16,7 @@ namespace Quartz.Core
         public override Task SchedulerError(
             string msg,
             SchedulerException cause,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             log.ErrorException(msg, cause);
             return TaskUtil.CompletedTask;

@@ -230,7 +230,7 @@ namespace Quartz.Impl.Calendar
             //apply the timezone
             dateUtc = TimeZoneUtil.ConvertTime(dateUtc, TimeZone);
 
-            return !(IsDayExcluded(dateUtc));
+            return !IsDayExcluded(dateUtc);
         }
 
         /// <summary>
@@ -245,7 +245,7 @@ namespace Quartz.Impl.Calendar
         {
             // Call base calendar implementation first
             DateTimeOffset baseTime = base.GetNextIncludedTimeUtc(timeStampUtc);
-            if ((baseTime != DateTimeOffset.MinValue) && (baseTime > timeStampUtc))
+            if (baseTime != DateTimeOffset.MinValue && baseTime > timeStampUtc)
             {
                 timeStampUtc = baseTime;
             }
@@ -290,7 +290,7 @@ namespace Quartz.Impl.Calendar
 
             bool toReturn = CalendarBase == null || CalendarBase.Equals(obj.CalendarBase);
 
-            toReturn = toReturn && (DaysExcluded.Count == obj.DaysExcluded.Count);
+            toReturn = toReturn && DaysExcluded.Count == obj.DaysExcluded.Count;
             if (toReturn)
             {
                 foreach (DateTime date in DaysExcluded)

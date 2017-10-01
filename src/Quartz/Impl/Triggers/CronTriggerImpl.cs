@@ -201,7 +201,7 @@ namespace Quartz.Impl.Triggers
         private string timeZoneInfoId
         {
             get => timeZone?.Id;
-            set => timeZone = (value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value));
+            set => timeZone = value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value);
         }
 
         /// <summary>
@@ -431,7 +431,7 @@ namespace Quartz.Impl.Triggers
 				cronEx = new CronExpression(value);
 				cronEx.TimeZone = originalTimeZone;
 			}
-			get => cronEx == null ? null : cronEx.CronExpressionString;
+			get => cronEx?.CronExpressionString;
 		}
 
 		/// <summary>
@@ -602,7 +602,7 @@ namespace Quartz.Impl.Triggers
 				afterTimeUtc = startTimeUtc.AddSeconds(-1);
 			}
 
-            if (EndTimeUtc.HasValue && (afterTimeUtc.Value.CompareTo(EndTimeUtc.Value) >= 0))
+            if (EndTimeUtc.HasValue && afterTimeUtc.Value.CompareTo(EndTimeUtc.Value) >= 0)
             {
                 return null;
             }
@@ -649,7 +649,7 @@ namespace Quartz.Impl.Triggers
                 }
                 else
                 {
-                    resultTime = (cronEx == null) ? null : cronEx.GetFinalFireTime();
+                    resultTime = cronEx?.GetFinalFireTime();
                 }
 
                 if (resultTime.HasValue && resultTime.Value < StartTimeUtc)
@@ -793,9 +793,9 @@ namespace Quartz.Impl.Triggers
 
 			if (dayOnly)
 			{
-				return (p.Year == test.Year
-				        && p.Month == test.Month
-				        && p.Day == test.Day);
+				return p.Year == test.Year
+				       && p.Month == test.Month
+				       && p.Day == test.Day;
 			}
 
 			while (fta.Value < test)
@@ -862,7 +862,7 @@ namespace Quartz.Impl.Triggers
                     nextFireTimeUtc = null;
                 }
 
-			    if (nextFireTimeUtc.HasValue && nextFireTimeUtc.Value < (now))
+			    if (nextFireTimeUtc.HasValue && nextFireTimeUtc.Value < now)
 			    {
 				    TimeSpan diff = now - nextFireTimeUtc.Value;
 				    if (diff >= misfireThreshold)
@@ -907,7 +907,7 @@ namespace Quartz.Impl.Triggers
 		/// <returns></returns>
 		public string GetExpressionSummary()
 		{
-			return cronEx == null ? null : cronEx.GetExpressionSummary();
+			return cronEx?.GetExpressionSummary();
 		}
 
 	    ////////////////////////////////////////////////////////////////////////////
@@ -934,7 +934,7 @@ namespace Quartz.Impl.Triggers
 		/// <returns></returns>
         protected DateTimeOffset? GetTimeBefore(DateTimeOffset? date)
 		{
-            return (cronEx == null) ? null : cronEx.GetTimeBefore(endTimeUtc);
+            return cronEx?.GetTimeBefore(endTimeUtc);
 		}
 	}
 }

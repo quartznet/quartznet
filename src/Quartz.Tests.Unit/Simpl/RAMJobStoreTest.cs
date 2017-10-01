@@ -424,7 +424,7 @@ namespace Quartz.Tests.Unit.Simpl
 
             public Task NotifyTriggerListenersMisfired(
                 ITrigger trigger, 
-                CancellationToken cancellationToken = default(CancellationToken))
+                CancellationToken cancellationToken = default)
             {
                 fMisfireCount++;
                 return Task.FromResult(true);
@@ -432,28 +432,28 @@ namespace Quartz.Tests.Unit.Simpl
 
             public Task NotifySchedulerListenersFinalized(
                 ITrigger trigger, 
-                CancellationToken cancellationToken = default(CancellationToken))
+                CancellationToken cancellationToken = default)
             {
                 return Task.FromResult(true);
             }
 
             public void SignalSchedulingChange(
                 DateTimeOffset? candidateNewNextFireTimeUtc, 
-                CancellationToken cancellationToken = default(CancellationToken))
+                CancellationToken cancellationToken = default)
             {
             }
 
             public Task NotifySchedulerListenersError(
                 string message,
                 SchedulerException jpe, 
-                CancellationToken cancellationToken = default(CancellationToken))
+                CancellationToken cancellationToken = default)
             {
                 return Task.FromResult(true);
             }
 
             public Task NotifySchedulerListenersJobDeleted(
                 JobKey jobKey, 
-                CancellationToken cancellationToken = default(CancellationToken))
+                CancellationToken cancellationToken = default)
             {
                 return Task.FromResult(true);
             }

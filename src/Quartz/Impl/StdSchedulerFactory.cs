@@ -151,7 +151,7 @@ namespace Quartz.Impl
         /// <seealso cref="Initialize()">
         /// </seealso>
         public static Task<IScheduler> GetDefaultScheduler(
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             StdSchedulerFactory fact = new StdSchedulerFactory();
             return fact.GetScheduler(cancellationToken);
@@ -163,7 +163,7 @@ namespace Quartz.Impl
         /// </para>
         /// </summary>
         public virtual Task<IReadOnlyList<IScheduler>> GetAllSchedulers(
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return SchedulerRepository.Instance.LookupAll(cancellationToken);
         }
@@ -1092,7 +1092,7 @@ Please add configuration to your application config file to correctly initialize
         /// will be called by this method.
         /// </remarks>
         public virtual async Task<IScheduler> GetScheduler(
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (cfg == null)
             {
@@ -1127,7 +1127,7 @@ Please add configuration to your application config file to correctly initialize
         /// </summary>
         public virtual Task<IScheduler> GetScheduler(
             string schedName, 
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return SchedulerRepository.Instance.Lookup(schedName, cancellationToken);
         }

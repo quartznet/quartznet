@@ -57,7 +57,7 @@ namespace Quartz.Impl.AdoJobStore
         public override Task Initialize(
             ITypeLoadHelper loadHelper, 
             ISchedulerSignaler signaler,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (LockHandler == null)
             {
@@ -77,7 +77,7 @@ namespace Quartz.Impl.AdoJobStore
         /// it should free up all of it's resources because the scheduler is
         /// shutting down.
         /// </summary>
-        public override async Task Shutdown(CancellationToken cancellationToken = default(CancellationToken))
+        public override async Task Shutdown(CancellationToken cancellationToken = default)
         {
             await base.Shutdown(cancellationToken).ConfigureAwait(false);
 
@@ -146,7 +146,7 @@ namespace Quartz.Impl.AdoJobStore
         protected override async Task<T> ExecuteInLock<T>(
             string lockName,
             Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             bool transOwner = false;
             ConnectionAndTransactionHolder conn = null;

@@ -139,7 +139,7 @@ namespace Quartz.Tests.Integration.Core
                     while (runForever)
                     {
                         await Task.Delay(1000);
-                        log.Info("Tic " + (++tic) + "- " + now);
+                        log.Info("Tic " + ++tic + "- " + now);
                     }
                     log.Info("Stopped - " + now);
                 }

@@ -25,7 +25,7 @@ namespace Quartz.Simpl
         /// <summary>
         /// Returns the cluster wide value for this scheduler instance's id, based on a system property.
         /// </summary>
-        public Task<string> GenerateInstanceId(CancellationToken cancellationToken = default(CancellationToken))
+        public Task<string> GenerateInstanceId(CancellationToken cancellationToken = default)
         {
             string property = Environment.GetEnvironmentVariable(SystemPropertyName);
             if (property == null)

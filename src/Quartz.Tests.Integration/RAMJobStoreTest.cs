@@ -323,7 +323,7 @@ namespace Quartz.Tests.Integration
 
             DateTime fTime = jobExecTimestamps[0];
 
-            Assert.That((fTime - sTime < TimeSpan.FromMilliseconds(7000)), "Immediate trigger did not fire within a reasonable amount of time."); // This is dangerously subjective!  but what else to do?
+            Assert.That(fTime - sTime < TimeSpan.FromMilliseconds(7000), "Immediate trigger did not fire within a reasonable amount of time."); // This is dangerously subjective!  but what else to do?
         }
 
         [Test]

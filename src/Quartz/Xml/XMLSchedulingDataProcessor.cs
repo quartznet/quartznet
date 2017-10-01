@@ -141,7 +141,7 @@ namespace Quartz.Xml
         /// "quartz_jobs.xml" in the current working directory).
         /// </summary>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        public virtual Task ProcessFile(CancellationToken cancellationToken = default(CancellationToken))
+        public virtual Task ProcessFile(CancellationToken cancellationToken = default)
         {
             return ProcessFile(QuartzXmlFileName, cancellationToken);
         }
@@ -153,7 +153,7 @@ namespace Quartz.Xml
         /// <param name="cancellationToken">The cancellation instruction.</param>
         public virtual Task ProcessFile(
             string fileName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return ProcessFile(fileName, fileName, cancellationToken);
         }
@@ -168,7 +168,7 @@ namespace Quartz.Xml
         public virtual async Task ProcessFile(
             string fileName,
             string systemId,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             // resolve file name first
             fileName = FileUtil.ResolveFile(fileName);
@@ -192,7 +192,7 @@ namespace Quartz.Xml
         public virtual async Task ProcessStream(
             Stream stream,
             string systemId,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             Log.InfoFormat("Parsing XML from stream with systemId: {0}", systemId);
             using (StreamReader sr = new StreamReader(stream))
@@ -429,9 +429,9 @@ namespace Quartz.Xml
                 DateTimeOffset triggerStartTime = SystemTime.UtcNow();
                 if (triggerNode.Item.Item != null)
                 {
-                    if (triggerNode.Item.Item is DateTime)
+                    if (triggerNode.Item.Item is DateTime time)
                     {
-                        triggerStartTime = new DateTimeOffset((DateTime) triggerNode.Item.Item);
+                        triggerStartTime = new DateTimeOffset(time);
                     }
                     else
                     {
@@ -443,9 +443,8 @@ namespace Quartz.Xml
 
                 IScheduleBuilder sched;
 
-                if (triggerNode.Item is simpleTriggerType)
+                if (triggerNode.Item is simpleTriggerType simpleTrigger)
                 {
-                    simpleTriggerType simpleTrigger = (simpleTriggerType) triggerNode.Item;
                     string repeatCountString = simpleTrigger.repeatcount.TrimEmptyToNull();
                     string repeatIntervalString = simpleTrigger.repeatinterval.TrimEmptyToNull();
 
@@ -557,8 +556,7 @@ namespace Quartz.Xml
                 return IntervalUnit.Day;
             }
 
-            IntervalUnit retValue;
-            if (!TryParseEnum(intervalUnit, out retValue))
+            if (!TryParseEnum(intervalUnit, out IntervalUnit retValue))
             {
                 throw new SchedulerConfigException("Unknown interval unit for DateIntervalTrigger: " + intervalUnit);
             }
@@ -632,7 +630,7 @@ namespace Quartz.Xml
         public async Task ProcessFileAndScheduleJobs(
             IScheduler sched,
             bool overWriteExistingJobs,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             await ProcessFile(QuartzXmlFileName, QuartzXmlFileName, cancellationToken).ConfigureAwait(false);
             // The overWriteExistingJobs flag was set by processFile() -> prepForProcessing(), then by xml parsing, and then now
@@ -648,7 +646,7 @@ namespace Quartz.Xml
         /// </summary>
         public virtual Task ProcessFileAndScheduleJobs(
             IScheduler sched,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return ProcessFileAndScheduleJobs(QuartzXmlFileName, sched, cancellationToken);
         }
@@ -663,7 +661,7 @@ namespace Quartz.Xml
         public virtual Task ProcessFileAndScheduleJobs(
             string fileName,
             IScheduler sched,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return ProcessFileAndScheduleJobs(fileName, fileName, sched, cancellationToken);
         }
@@ -680,7 +678,7 @@ namespace Quartz.Xml
             string fileName,
             string systemId,
             IScheduler sched,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             await ProcessFile(fileName, systemId, cancellationToken).ConfigureAwait(false);
             await ExecutePreProcessCommands(sched, cancellationToken).ConfigureAwait(false);
@@ -697,7 +695,7 @@ namespace Quartz.Xml
         public virtual async Task ProcessStreamAndScheduleJobs(
             Stream stream,
             IScheduler sched,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var sr = new StreamReader(stream))
             {
@@ -714,7 +712,7 @@ namespace Quartz.Xml
         /// <param name="cancellationToken">The cancellation instruction.</param>
         public virtual async Task ScheduleJobs(
             IScheduler sched,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             List<IJobDetail> jobs = new List<IJobDetail>(LoadedJobs);
             List<ITrigger> triggers = new List<ITrigger>(LoadedTriggers);
@@ -773,8 +771,7 @@ namespace Quartz.Xml
                     Log.Info("Adding job: " + detail.Key);
                 }
 
-                List<IMutableTrigger> triggersOfJob;
-                triggersByFQJobName.TryGetValue(detail.Key, out triggersOfJob);
+                triggersByFQJobName.TryGetValue(detail.Key, out var triggersOfJob);
 
                 if (!detail.Durable && (triggersOfJob == null || triggersOfJob.Count == 0))
                 {
@@ -785,7 +782,7 @@ namespace Quartz.Xml
                             detail.Key);
                     }
 
-                    if ((dupeJ.Durable && (await sched.GetTriggersOfJob(detail.Key, cancellationToken).ConfigureAwait(false)).Count == 0))
+                    if (dupeJ.Durable && (await sched.GetTriggersOfJob(detail.Key, cancellationToken).ConfigureAwait(false)).Count == 0)
                     {
                         throw new SchedulerException(
                             "Can't change existing durable job without triggers to non-durable: " +
@@ -942,7 +939,7 @@ namespace Quartz.Xml
             IScheduler sched,
             IMutableTrigger trigger,
             ITrigger oldTrigger,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             // if this is a trigger with default start time we can consider relative scheduling
             if (oldTrigger != null && trigger.StartTimeUtc - SystemTime.UtcNow() < TimeSpan.FromSeconds(5) && ScheduleTriggerRelativeToReplacedTrigger)
@@ -964,8 +961,7 @@ namespace Quartz.Xml
 
             foreach (IMutableTrigger trigger in triggers)
             {
-                List<IMutableTrigger> triggersOfJob;
-                if (!triggersByFQJobName.TryGetValue(trigger.JobKey, out triggersOfJob))
+                if (!triggersByFQJobName.TryGetValue(trigger.JobKey, out var triggersOfJob))
                 {
                     triggersOfJob = new List<IMutableTrigger>();
                     triggersByFQJobName[trigger.JobKey] = triggersOfJob;
@@ -978,7 +974,7 @@ namespace Quartz.Xml
 
         protected async Task ExecutePreProcessCommands(
             IScheduler scheduler,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             foreach (string group in jobGroupsToDelete)
             {

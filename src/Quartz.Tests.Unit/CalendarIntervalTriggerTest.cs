@@ -289,7 +289,7 @@ namespace Quartz.Tests.Unit
 
             testTime = dailyTrigger.FinalFireTimeUtc;
 
-            Assert.IsTrue(endCalendar > (testTime), "Final fire time not computed correctly for minutely interval.");
+            Assert.IsTrue(endCalendar > testTime, "Final fire time not computed correctly for minutely interval.");
 
             endCalendar = endCalendar.AddMinutes(-3); // back up three more minutes
 

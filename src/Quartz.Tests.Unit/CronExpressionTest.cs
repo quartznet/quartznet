@@ -297,7 +297,8 @@ namespace Quartz.Tests.Unit
             DateTime start = new DateTime(2008, 12, 19, 0, 0, 0);
             for (int i = 0; i < 200; ++i)
             {
-                bool shouldFire = (start.Hour >= 10 && start.Hour <= 13 && start.Minute == 30 && (start.DayOfWeek == DayOfWeek.Wednesday || start.DayOfWeek == DayOfWeek.Friday));
+                bool shouldFire = start.Hour >= 10 && start.Hour <= 13 && start.Minute == 30
+                                  && (start.DayOfWeek == DayOfWeek.Wednesday || start.DayOfWeek == DayOfWeek.Friday);
                 shouldFire = shouldFire && start.Day > 15 && start.Day < 28;
 
                 bool satisfied = ce.IsSatisfiedBy(start.ToUniversalTime());

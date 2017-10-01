@@ -41,7 +41,7 @@ namespace Quartz.Impl.AdoJobStore
 			Guid requestorId, 
 			ConnectionAndTransactionHolder conn,
 			string lockName,
-			CancellationToken cancellationToken = default(CancellationToken));
+			CancellationToken cancellationToken = default);
 
 		/// <summary> Release the lock on the identified resource if it is held by the calling
 		/// thread.
@@ -49,7 +49,7 @@ namespace Quartz.Impl.AdoJobStore
 		Task ReleaseLock(
 			Guid requestorId, 
 			string lockName, 
-			CancellationToken cancellationToken = default(CancellationToken));
+			CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Whether this Semaphore implementation requires a database connection for

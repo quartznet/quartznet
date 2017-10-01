@@ -115,8 +115,7 @@ namespace Quartz.Util
             catch (Exception)
 #endif // !BUG_7552
             {
-                string aliasedId;
-                if (timeZoneIdAliases.TryGetValue(id, out aliasedId))
+                if (timeZoneIdAliases.TryGetValue(id, out var aliasedId))
                 {
                     try
                     {

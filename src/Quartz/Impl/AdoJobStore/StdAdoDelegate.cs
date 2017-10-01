@@ -188,7 +188,7 @@ namespace Quartz.Impl.AdoJobStore
             string newState,
             string oldState1,
             string oldState2,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerStatesFromOtherStates)))
             {
@@ -209,7 +209,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<IReadOnlyCollection<TriggerKey>> SelectMisfiredTriggers(
             ConnectionAndTransactionHolder conn,
             DateTimeOffset ts,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectMisfiredTriggers)))
             {
@@ -238,7 +238,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<IReadOnlyCollection<TriggerKey>> SelectTriggersInState(
             ConnectionAndTransactionHolder conn,
             string state,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggersInState)))
             {
@@ -269,7 +269,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn,
             string state,
             DateTimeOffset ts,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectMisfiredTriggersInState)))
             {
@@ -310,7 +310,7 @@ namespace Quartz.Impl.AdoJobStore
             DateTimeOffset ts,
             int count,
             ICollection<TriggerKey> resultList,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(GetSelectNextMisfiredTriggersInStateToAcquireSql(count))))
             {
@@ -358,7 +358,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn,
             string state1,
             DateTimeOffset ts,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlCountMisfiredTriggersInStates)))
             {
@@ -391,7 +391,7 @@ namespace Quartz.Impl.AdoJobStore
             string groupName,
             string state,
             DateTimeOffset ts,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectMisfiredTriggersInGroupInState)))
             {
@@ -430,7 +430,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns> an array of <see cref="ITrigger" /> objects</returns>
         public virtual async Task<IReadOnlyCollection<IOperableTrigger>> SelectTriggersForRecoveringJobs(
             ConnectionAndTransactionHolder conn,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             List<IOperableTrigger> triggers = new List<IOperableTrigger>();
             List<FiredTriggerRecord> triggerData = new List<FiredTriggerRecord>();
@@ -501,7 +501,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>The number of rows deleted.</returns>
         public virtual async Task<int> DeleteFiredTriggers(
             ConnectionAndTransactionHolder conn,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteFiredTriggers)))
             {
@@ -519,7 +519,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<int> DeleteFiredTriggers(
             ConnectionAndTransactionHolder conn,
             string instanceName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteInstancesFiredTriggers)))
             {
@@ -536,7 +536,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </remarks>
         public virtual async Task ClearData(
             ConnectionAndTransactionHolder conn,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             DbCommand ps = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteAllSimpleTriggers));
             await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
@@ -569,7 +569,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<int> InsertJobDetail(
             ConnectionAndTransactionHolder conn,
             IJobDetail job,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             byte[] baos = null;
             if (job.JobDataMap.Count > 0)
@@ -709,7 +709,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<int> UpdateJobDetail(
             ConnectionAndTransactionHolder conn,
             IJobDetail job,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             byte[] baos = SerializeJobData(job.JobDataMap);
 
@@ -741,7 +741,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<IReadOnlyCollection<TriggerKey>> SelectTriggerNamesForJob(
             ConnectionAndTransactionHolder conn,
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggersForJob)))
             {
@@ -771,7 +771,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<int> DeleteJobDetail(
             ConnectionAndTransactionHolder conn,
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteJobDetail)))
             {
@@ -797,7 +797,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<bool> IsJobStateful(
             ConnectionAndTransactionHolder conn,
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobNonConcurrent)))
             {
@@ -824,7 +824,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<bool> JobExists(
             ConnectionAndTransactionHolder conn,
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobExistence)))
             {
@@ -852,7 +852,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<int> UpdateJobData(
             ConnectionAndTransactionHolder conn,
             IJobDetail job,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             byte[] baos = SerializeJobData(job.JobDataMap);
 
@@ -878,7 +878,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn,
             JobKey jobKey,
             ITypeLoadHelper loadHelper,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobDetail)))
             {
@@ -977,7 +977,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>The total number of jobs stored.</returns>
         public virtual async Task<int> SelectNumJobs(
             ConnectionAndTransactionHolder conn,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectNumJobs)))
             {
@@ -993,7 +993,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>An array of <see cref="String" /> group names.</returns>
         public virtual async Task<IReadOnlyCollection<string>> SelectJobGroups(
             ConnectionAndTransactionHolder conn,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobGroups)))
             {
@@ -1020,7 +1020,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<IReadOnlyCollection<JobKey>> SelectJobsInGroup(
             ConnectionAndTransactionHolder conn,
             GroupMatcher<JobKey> matcher,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             string sql;
             string parameter;
@@ -1109,7 +1109,7 @@ namespace Quartz.Impl.AdoJobStore
             IOperableTrigger trigger,
             string state,
             IJobDetail jobDetail,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             byte[] baos = null;
             if (trigger.JobDataMap.Count > 0)
@@ -1177,7 +1177,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<int> InsertBlobTrigger(
             ConnectionAndTransactionHolder conn,
             IOperableTrigger trigger,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertBlobTrigger)))
             {
@@ -1205,7 +1205,7 @@ namespace Quartz.Impl.AdoJobStore
             IOperableTrigger trigger,
             string state,
             IJobDetail jobDetail,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             // save some clock cycles by unnecessarily writing job data blob ...
             bool updateJobData = trigger.JobDataMap.Dirty;
@@ -1293,7 +1293,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<int> UpdateBlobTrigger(
             ConnectionAndTransactionHolder conn,
             IOperableTrigger trigger,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateBlobTrigger)))
             {
@@ -1318,7 +1318,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<bool> TriggerExists(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerExistence)))
             {
@@ -1348,7 +1348,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             string state,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerState)))
             {
@@ -1379,7 +1379,7 @@ namespace Quartz.Impl.AdoJobStore
             string oldState1,
             string oldState2,
             string oldState3,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerStateFromStates)))
             {
@@ -1413,7 +1413,7 @@ namespace Quartz.Impl.AdoJobStore
             string oldState1,
             string oldState2,
             string oldState3,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerGroupStateFromStates)))
             {
@@ -1442,7 +1442,7 @@ namespace Quartz.Impl.AdoJobStore
             TriggerKey triggerKey,
             string newState,
             string oldState,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerStateFromState)))
             {
@@ -1470,7 +1470,7 @@ namespace Quartz.Impl.AdoJobStore
             GroupMatcher<TriggerKey> matcher,
             string newState,
             string oldState,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerGroupStateFromState)))
             {
@@ -1494,7 +1494,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn,
             JobKey jobKey,
             string state,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateJobTriggerStates)))
             {
@@ -1520,7 +1520,7 @@ namespace Quartz.Impl.AdoJobStore
             JobKey jobKey,
             string state,
             string oldState,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateJobTriggerStatesFromOtherState)))
             {
@@ -1543,7 +1543,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<int> DeleteBlobTrigger(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteBlobTrigger)))
             {
@@ -1564,7 +1564,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<int> DeleteTrigger(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             await DeleteTriggerExtension(conn, triggerKey, cancellationToken).ConfigureAwait(false);
 
@@ -1603,7 +1603,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<int> SelectNumTriggersForJob(
             ConnectionAndTransactionHolder conn,
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectNumTriggersForJob)))
             {
@@ -1625,7 +1625,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             ITypeLoadHelper loadHelper,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return SelectJobForTrigger(conn, triggerKey, loadHelper, true, cancellationToken);
         }
@@ -1635,7 +1635,7 @@ namespace Quartz.Impl.AdoJobStore
             TriggerKey triggerKey,
             ITypeLoadHelper loadHelper,
             bool loadJobType,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobForTrigger)))
             {
@@ -1679,7 +1679,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<IReadOnlyCollection<IOperableTrigger>> SelectTriggersForJob(
             ConnectionAndTransactionHolder conn,
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             List<IOperableTrigger> trigList = new List<IOperableTrigger>();
             List<TriggerKey> keys = new List<TriggerKey>();
@@ -1723,7 +1723,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<IReadOnlyCollection<IOperableTrigger>> SelectTriggersForCalendar(
             ConnectionAndTransactionHolder conn,
             string calName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             List<TriggerKey> keys = new List<TriggerKey>();
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggersForCalendar)))
@@ -1756,7 +1756,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<IOperableTrigger> SelectTrigger(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             string jobName;
             string jobGroup;
@@ -1903,7 +1903,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<JobDataMap> SelectTriggerJobDataMap(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerData)))
             {
@@ -1936,7 +1936,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<string> SelectTriggerState(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerState)))
             {
@@ -1971,7 +1971,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<TriggerStatus> SelectTriggerStatus(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerStatus)))
             {
@@ -2007,7 +2007,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>the total number of triggers stored</returns>
         public virtual async Task<int> SelectNumTriggers(
             ConnectionAndTransactionHolder conn,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectNumTriggers)))
             {
@@ -2035,7 +2035,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </returns>
         public virtual async Task<IReadOnlyCollection<string>> SelectTriggerGroups(
             ConnectionAndTransactionHolder conn,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerGroups)))
             {
@@ -2055,7 +2055,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<IReadOnlyCollection<string>> SelectTriggerGroups(
             ConnectionAndTransactionHolder conn,
             GroupMatcher<TriggerKey> matcher,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerGroupsFiltered)))
             {
@@ -2085,7 +2085,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<IReadOnlyCollection<TriggerKey>> SelectTriggersInGroup(
             ConnectionAndTransactionHolder conn,
             GroupMatcher<TriggerKey> matcher,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             string sql;
             string parameter;
@@ -2125,7 +2125,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<int> InsertPausedTriggerGroup(
             ConnectionAndTransactionHolder conn,
             string groupName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertPausedTriggerGroup)))
             {
@@ -2146,7 +2146,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<int> DeletePausedTriggerGroup(
             ConnectionAndTransactionHolder conn,
             string groupName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeletePausedTriggerGroup)))
             {
@@ -2160,7 +2160,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<int> DeletePausedTriggerGroup(
             ConnectionAndTransactionHolder conn,
             GroupMatcher<TriggerKey> matcher,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeletePausedTriggerGroup)))
             {
@@ -2179,7 +2179,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns></returns>
         public virtual async Task<int> DeleteAllPausedTriggerGroups(
             ConnectionAndTransactionHolder conn,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeletePausedTriggerGroups)))
             {
@@ -2200,7 +2200,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<bool> IsTriggerGroupPaused(
             ConnectionAndTransactionHolder conn,
             string groupName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectPausedTriggerGroup)))
             {
@@ -2224,7 +2224,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<bool> IsExistingTriggerGroup(
             ConnectionAndTransactionHolder conn,
             string groupName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectNumTriggersInGroup)))
             {
@@ -2258,7 +2258,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn,
             string calendarName,
             ICalendar calendar,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             byte[] baos = SerializeObject(calendar);
 
@@ -2284,7 +2284,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn,
             string calendarName,
             ICalendar calendar,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             byte[] baos = SerializeObject(calendar);
 
@@ -2309,7 +2309,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<bool> CalendarExists(
             ConnectionAndTransactionHolder conn,
             string calendarName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectCalendarExistence)))
             {
@@ -2336,7 +2336,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<ICalendar> SelectCalendar(
             ConnectionAndTransactionHolder conn,
             string calendarName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectCalendar)))
             {
@@ -2369,7 +2369,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<bool> CalendarIsReferenced(
             ConnectionAndTransactionHolder conn,
             string calendarName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectReferencedCalendar)))
             {
@@ -2396,7 +2396,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<int> DeleteCalendar(
             ConnectionAndTransactionHolder conn,
             string calendarName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteCalendar)))
             {
@@ -2413,7 +2413,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>the total number of calendars stored</returns>
         public virtual async Task<int> SelectNumCalendars(
             ConnectionAndTransactionHolder conn,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectNumCalendars)))
             {
@@ -2439,7 +2439,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </returns>
         public virtual async Task<IReadOnlyCollection<string>> SelectCalendars(
             ConnectionAndTransactionHolder conn,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectCalendars)))
             {
@@ -2473,7 +2473,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<TriggerKey> SelectTriggerForFireTime(
             ConnectionAndTransactionHolder conn,
             DateTimeOffset fireTime,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerForFireTime)))
             {
@@ -2507,7 +2507,7 @@ namespace Quartz.Impl.AdoJobStore
             DateTimeOffset noLaterThan,
             DateTimeOffset noEarlierThan,
             int maxCount,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (maxCount < 1)
             {
@@ -2553,7 +2553,7 @@ namespace Quartz.Impl.AdoJobStore
             IOperableTrigger trigger,
             string state,
             IJobDetail job,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertFiredTrigger)))
             {
@@ -2603,7 +2603,7 @@ namespace Quartz.Impl.AdoJobStore
             IOperableTrigger trigger,
             string state,
             IJobDetail job,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             var ps = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateFiredTrigger));
             AddCommandParameter(ps, "instanceName", instanceId);
@@ -2644,7 +2644,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn,
             string triggerName,
             string groupName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             DbCommand cmd;
 
@@ -2700,7 +2700,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn,
             string jobName,
             string groupName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             List<FiredTriggerRecord> lst = new List<FiredTriggerRecord>();
 
@@ -2753,7 +2753,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<IReadOnlyCollection<FiredTriggerRecord>> SelectInstancesFiredTriggerRecords(
             ConnectionAndTransactionHolder conn,
             string instanceName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             List<FiredTriggerRecord> lst = new List<FiredTriggerRecord>();
 
@@ -2798,7 +2798,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </remarks>
         public virtual async Task<IReadOnlyCollection<string>> SelectFiredTriggerInstanceNames(
             ConnectionAndTransactionHolder conn,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             var instanceNames = new ReadOnlyCompatibleHashSet<string>();
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectFiredTriggerInstanceNames)))
@@ -2825,7 +2825,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<int> DeleteFiredTrigger(
             ConnectionAndTransactionHolder conn,
             string entryId,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteFiredTrigger)))
             {
@@ -2844,7 +2844,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<int> SelectJobExecutionCount(
             ConnectionAndTransactionHolder conn,
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobExecutionCount)))
             {
@@ -2877,7 +2877,7 @@ namespace Quartz.Impl.AdoJobStore
             string instanceName,
             DateTimeOffset checkInTime,
             TimeSpan interval,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertSchedulerState)))
             {
@@ -2899,7 +2899,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<int> DeleteSchedulerState(
             ConnectionAndTransactionHolder conn,
             string instanceName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteSchedulerState)))
             {
@@ -2921,7 +2921,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn,
             string instanceName,
             DateTimeOffset checkInTime,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateSchedulerState)))
             {
@@ -2946,7 +2946,7 @@ namespace Quartz.Impl.AdoJobStore
         public virtual async Task<IReadOnlyCollection<SchedulerStateRecord>> SelectSchedulerStateRecords(
             ConnectionAndTransactionHolder conn,
             string instanceName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             DbCommand cmd;
             List<SchedulerStateRecord> list = new List<SchedulerStateRecord>();
@@ -3128,7 +3128,7 @@ namespace Quartz.Impl.AdoJobStore
         protected virtual async Task<T> GetObjectFromBlob<T>(
             DbDataReader rs,
             int colIndex,
-            CancellationToken cancellationToken = default(CancellationToken)) where T : class
+            CancellationToken cancellationToken = default) where T : class
         {
             T obj = null;
 
@@ -3187,7 +3187,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         public virtual async Task<IReadOnlyCollection<string>> SelectPausedTriggerGroups(
             ConnectionAndTransactionHolder conn,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             var retValue = new ReadOnlyCompatibleHashSet<string>();
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectPausedTriggerGroups)))

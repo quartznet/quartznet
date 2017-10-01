@@ -508,8 +508,8 @@ namespace Quartz.Tests.Unit.Impl.Triggers
 
             var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
             Assert.AreEqual(48, fireTimes.Count);
-            Assert.AreEqual((DateBuilder.DateOf(8, 0, 2, 1, 1, 2011)), fireTimes[0]);
-            Assert.AreEqual((DateBuilder.DateOf(8, 56, 26, 1, 1, 2011)), fireTimes[47]);
+            Assert.AreEqual(DateBuilder.DateOf(8, 0, 2, 1, 1, 2011), fireTimes[0]);
+            Assert.AreEqual(DateBuilder.DateOf(8, 56, 26, 1, 1, 2011), fireTimes[47]);
         }
 
         [Test]
@@ -524,7 +524,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
                 StartTimeOfDay = startTimeOfDay,
                 EndTimeOfDay = endTimeOfDay,
                 RepeatIntervalUnit = IntervalUnit.Minute,
-                RepeatInterval = (72),
+                RepeatInterval = 72,
                 RepeatCount = DailyTimeIntervalTriggerImpl.RepeatIndefinitely
             };
 

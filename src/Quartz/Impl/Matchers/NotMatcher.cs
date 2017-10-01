@@ -68,7 +68,7 @@ namespace Quartz.Impl.Matchers
         {
             const int Prime = 31;
             int result = 1;
-            result = Prime*result + ((Operand == null) ? 0 : Operand.GetHashCode());
+            result = Prime*result + (Operand == null ? 0 : Operand.GetHashCode());
             return result;
         }
 

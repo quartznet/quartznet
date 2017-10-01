@@ -71,7 +71,7 @@ namespace Quartz.Core
             log = LogProvider.GetLogger(GetType());
         }
 
-        public override Task SchedulerShuttingdown(CancellationToken cancellationToken = default(CancellationToken))
+        public override Task SchedulerShuttingdown(CancellationToken cancellationToken = default)
         {
             RequestShutdown();
             return TaskUtil.CompletedTask;
@@ -84,7 +84,7 @@ namespace Quartz.Core
         /// <param name="cancellationToken">The cancellation instruction.</param>
         public virtual async Task Initialize(
             QuartzScheduler sched,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             qs = sched;
 
@@ -122,7 +122,7 @@ namespace Quartz.Core
         /// run method to be called in that separately executing thread.
         /// </summary>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        public virtual async Task Run(CancellationToken cancellationToken = default(CancellationToken))
+        public virtual async Task Run(CancellationToken cancellationToken = default)
         {
             qs.AddInternalSchedulerListener(this);
 
@@ -314,7 +314,7 @@ namespace Quartz.Core
 
         private async Task<bool> NotifyListenersBeginning(
             IJobExecutionContext ctx,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             bool vetoed;
 
@@ -364,7 +364,7 @@ namespace Quartz.Core
         private async Task<bool> NotifyJobListenersComplete(
             IJobExecutionContext ctx,
             JobExecutionException jobExEx,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             try
             {
@@ -384,7 +384,7 @@ namespace Quartz.Core
         private async Task<bool> NotifyTriggerListenersComplete(
             IJobExecutionContext ctx,
             SchedulerInstruction instCode,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             try
             {

@@ -104,8 +104,7 @@ namespace Quartz.Util
                 throw new ArgumentException("DataSource name cannot be null or empty", "dsName");
             }
 
-            IDbProvider provider;
-            providers.TryGetValue(dsName, out provider);
+		    providers.TryGetValue(dsName, out var provider);
             if (provider == null)
             {
                 throw new Exception($"There is no DataSource named '{dsName}'");

@@ -64,7 +64,7 @@ namespace Quartz.Examples.Example11
 
                 ITrigger trigger = TriggerBuilder.Create()
                     .WithIdentity("trigger_" + count, "group_1")
-                    .StartAt(DateBuilder.FutureDate((10000 + (count*100)), IntervalUnit.Millisecond)) // space fire times a small bit
+                    .StartAt(DateBuilder.FutureDate(10000 + count*100, IntervalUnit.Millisecond)) // space fire times a small bit
                     .Build();
 
                 await sched.ScheduleJob(job, trigger);

@@ -70,7 +70,7 @@ namespace Quartz.Impl.AdoJobStore
             string newState, 
             string oldState1, 
             string oldState2,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get the names of all of the triggers that have misfired - according to
@@ -80,7 +80,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<IReadOnlyCollection<TriggerKey>> SelectMisfiredTriggers(
             ConnectionAndTransactionHolder conn, 
             DateTimeOffset timestamp,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get the names of all of the triggers in the given state that have
@@ -95,7 +95,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn,
             string state, 
             DateTimeOffset ts,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get the names of all of the triggers in the given group and state that
@@ -112,7 +112,7 @@ namespace Quartz.Impl.AdoJobStore
             string groupName, 
             string state,
             DateTimeOffset ts,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary> 
         /// Select all of the triggers for jobs that are requesting recovery. The
@@ -131,7 +131,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>An array of <see cref="ITrigger" /> objects</returns>
         Task<IReadOnlyCollection<IOperableTrigger>> SelectTriggersForRecoveringJobs(
             ConnectionAndTransactionHolder conn,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Delete all fired triggers.
@@ -141,7 +141,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>The number of rows deleted</returns>
         Task<int> DeleteFiredTriggers(
             ConnectionAndTransactionHolder conn, 
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Delete all fired triggers of the given instance.
@@ -153,7 +153,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<int> DeleteFiredTriggers(
             ConnectionAndTransactionHolder conn, 
             string instanceId,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         //---------------------------------------------------------------------------
         // jobs
@@ -169,7 +169,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<int> InsertJobDetail(
             ConnectionAndTransactionHolder conn, 
             IJobDetail job,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Update the job detail record.
@@ -181,7 +181,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<int> UpdateJobDetail(
             ConnectionAndTransactionHolder conn, 
             IJobDetail job,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get the names of all of the triggers associated with the given job.
@@ -192,7 +192,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<IReadOnlyCollection<TriggerKey>> SelectTriggerNamesForJob(
             ConnectionAndTransactionHolder conn, 
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Delete the job detail record for the given job.
@@ -204,7 +204,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<int> DeleteJobDetail(
             ConnectionAndTransactionHolder conn, 
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Check whether or not the given job is stateful.
@@ -216,7 +216,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<bool> IsJobStateful(
             ConnectionAndTransactionHolder conn, 
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Check whether or not the given job exists.
@@ -228,7 +228,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<bool> JobExists(
             ConnectionAndTransactionHolder conn, 
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Update the job data map for the given job.
@@ -240,7 +240,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<int> UpdateJobData(
             ConnectionAndTransactionHolder conn, 
             IJobDetail job,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Select the JobDetail object for a given job name / group name.
@@ -254,7 +254,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn, 
             JobKey jobKey,
             ITypeLoadHelper classLoadHelper,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Select the total number of jobs stored.
@@ -264,7 +264,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns> the total number of jobs stored</returns>
         Task<int> SelectNumJobs(
             ConnectionAndTransactionHolder conn,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary> 
         /// Select all of the job group names that are stored.
@@ -274,7 +274,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns> an array of <see cref="String" /> group names</returns>
         Task<IReadOnlyCollection<string>> SelectJobGroups(
             ConnectionAndTransactionHolder conn,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Select all of the jobs contained in a given group.
@@ -286,7 +286,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<IReadOnlyCollection<JobKey>> SelectJobsInGroup(
             ConnectionAndTransactionHolder conn, 
             GroupMatcher<JobKey> matcher,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         //---------------------------------------------------------------------------
         // triggers
@@ -306,7 +306,7 @@ namespace Quartz.Impl.AdoJobStore
             IOperableTrigger trigger, 
             string state, 
             IJobDetail jobDetail,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Insert the blob trigger data.
@@ -318,7 +318,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<int> InsertBlobTrigger(
             ConnectionAndTransactionHolder conn, 
             IOperableTrigger trigger,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Update the base trigger data.
@@ -334,7 +334,7 @@ namespace Quartz.Impl.AdoJobStore
             IOperableTrigger trigger, 
             string state, 
             IJobDetail jobDetail,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Update the blob trigger data.
@@ -346,7 +346,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<int> UpdateBlobTrigger(
             ConnectionAndTransactionHolder conn, 
             IOperableTrigger trigger,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Check whether or not a trigger exists.
@@ -358,7 +358,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<bool> TriggerExists(
             ConnectionAndTransactionHolder conn, 
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Update the state for a given trigger.
@@ -372,7 +372,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn, 
             TriggerKey triggerKey, 
             string state,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Update the given trigger to the given new state, if it is in the given
@@ -389,7 +389,7 @@ namespace Quartz.Impl.AdoJobStore
             TriggerKey triggerKey, 
             string newState,
             string oldState,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Update the given trigger to the given new state, if it is one of the
@@ -412,7 +412,7 @@ namespace Quartz.Impl.AdoJobStore
             string oldState1,
             string oldState2, 
             string oldState3,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Update all triggers in the given group to the given new state, if they
@@ -433,7 +433,7 @@ namespace Quartz.Impl.AdoJobStore
             string oldState1,
             string oldState2,
             string oldState3,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Update all of the triggers of the given group to the given new state, if
@@ -450,7 +450,7 @@ namespace Quartz.Impl.AdoJobStore
             GroupMatcher<TriggerKey> matcher, 
             string newState, 
             string oldState,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Update the states of all triggers associated with the given job.
@@ -464,7 +464,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn, 
             JobKey jobKey,
             string state,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Update the states of any triggers associated with the given job, that
@@ -481,7 +481,7 @@ namespace Quartz.Impl.AdoJobStore
             JobKey jobKey, 
             string state, 
             string oldState,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Delete the BLOB trigger data for a trigger.
@@ -493,7 +493,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<int> DeleteBlobTrigger(
             ConnectionAndTransactionHolder conn, 
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Delete the base trigger data for a trigger.
@@ -505,7 +505,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<int> DeleteTrigger(
             ConnectionAndTransactionHolder conn, 
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Select the number of triggers associated with a given job.
@@ -517,7 +517,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<int> SelectNumTriggersForJob(
             ConnectionAndTransactionHolder conn, 
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Select the job to which the trigger is associated.
@@ -526,7 +526,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey, 
             ITypeLoadHelper loadHelper,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Select the job to which the trigger is associated. Allow option to load actual job class or not. When case of
@@ -537,7 +537,7 @@ namespace Quartz.Impl.AdoJobStore
             TriggerKey triggerKey, 
             ITypeLoadHelper loadHelper, 
             bool loadJobType,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Select the triggers for a job>
@@ -549,7 +549,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<IReadOnlyCollection<IOperableTrigger>> SelectTriggersForJob(
             ConnectionAndTransactionHolder conn, 
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Select the triggers for a calendar
@@ -563,7 +563,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<IReadOnlyCollection<IOperableTrigger>> SelectTriggersForCalendar(
             ConnectionAndTransactionHolder conn, 
             string calName,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Select a trigger.
@@ -576,7 +576,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<IOperableTrigger> SelectTrigger(
             ConnectionAndTransactionHolder conn, 
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Select a trigger's JobDataMap.
@@ -588,7 +588,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<JobDataMap> SelectTriggerJobDataMap(
             ConnectionAndTransactionHolder conn, 
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Select a trigger's state value.
@@ -600,7 +600,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<string> SelectTriggerState(
             ConnectionAndTransactionHolder conn, 
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary> 
         /// Select a triggers status (state and next fire time).
@@ -612,7 +612,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<TriggerStatus> SelectTriggerStatus(
             ConnectionAndTransactionHolder conn, 
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Select the total number of triggers stored.
@@ -622,7 +622,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>The total number of triggers stored.</returns>
         Task<int> SelectNumTriggers(
             ConnectionAndTransactionHolder conn,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Select all of the trigger group names that are stored.
@@ -632,12 +632,12 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>An array of <see cref="String" /> group names.</returns>
         Task<IReadOnlyCollection<string>> SelectTriggerGroups(
             ConnectionAndTransactionHolder conn,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         Task<IReadOnlyCollection<string>> SelectTriggerGroups(
             ConnectionAndTransactionHolder conn, 
             GroupMatcher<TriggerKey> matcher,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Select all of the triggers contained in a given group. 
@@ -649,7 +649,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<IReadOnlyCollection<TriggerKey>> SelectTriggersInGroup(
             ConnectionAndTransactionHolder conn, 
             GroupMatcher<TriggerKey> matcher,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Select all of the triggers in a given state.
@@ -661,7 +661,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<IReadOnlyCollection<TriggerKey>> SelectTriggersInState(
             ConnectionAndTransactionHolder conn,
             string state,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Inserts the paused trigger group.
@@ -673,7 +673,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<int> InsertPausedTriggerGroup(
             ConnectionAndTransactionHolder conn, 
             string groupName,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Deletes the paused trigger group.
@@ -685,12 +685,12 @@ namespace Quartz.Impl.AdoJobStore
         Task<int> DeletePausedTriggerGroup(
             ConnectionAndTransactionHolder conn,
             string groupName,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         Task<int> DeletePausedTriggerGroup(
             ConnectionAndTransactionHolder conn, 
             GroupMatcher<TriggerKey> matcher,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Deletes all paused trigger groups.
@@ -700,7 +700,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns></returns>
         Task<int> DeleteAllPausedTriggerGroups(
             ConnectionAndTransactionHolder conn,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Determines whether the specified trigger group is paused.
@@ -714,7 +714,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<bool> IsTriggerGroupPaused(
             ConnectionAndTransactionHolder conn, 
             string groupName,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Selects the paused trigger groups.
@@ -724,7 +724,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns></returns>
         Task<IReadOnlyCollection<string>> SelectPausedTriggerGroups(
             ConnectionAndTransactionHolder conn,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Determines whether given trigger group already exists.
@@ -738,7 +738,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<bool> IsExistingTriggerGroup(
             ConnectionAndTransactionHolder conn, 
             string groupName,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         //---------------------------------------------------------------------------
         // calendars
@@ -756,7 +756,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn,
             string calendarName, 
             ICalendar calendar,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary> 
         /// Update a calendar.
@@ -770,7 +770,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn,
             string calendarName,
             ICalendar calendar,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Check whether or not a calendar exists.
@@ -782,7 +782,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<bool> CalendarExists(
             ConnectionAndTransactionHolder conn,
             string calendarName,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Select a calendar.
@@ -794,7 +794,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<ICalendar> SelectCalendar(
             ConnectionAndTransactionHolder conn,
             string calendarName,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Check whether or not a calendar is referenced by any triggers.
@@ -806,7 +806,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<bool> CalendarIsReferenced(
             ConnectionAndTransactionHolder conn, 
             string calendarName,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Delete a calendar.
@@ -818,7 +818,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<int> DeleteCalendar(
             ConnectionAndTransactionHolder conn, 
             string calendarName,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary> 
         /// Select the total number of calendars stored.
@@ -828,7 +828,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>The total number of calendars stored.</returns>
         Task<int> SelectNumCalendars(
             ConnectionAndTransactionHolder conn,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Select all of the stored calendars.
@@ -838,7 +838,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>An array of <see cref="String" /> calendar names.</returns>
         Task<IReadOnlyCollection<string>> SelectCalendars(
             ConnectionAndTransactionHolder conn,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         //---------------------------------------------------------------------------
         // trigger firing
@@ -858,7 +858,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<TriggerKey> SelectTriggerForFireTime(
             ConnectionAndTransactionHolder conn, 
             DateTimeOffset fireTime,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Insert a fired trigger.
@@ -874,7 +874,7 @@ namespace Quartz.Impl.AdoJobStore
             IOperableTrigger trigger, 
             string state, 
             IJobDetail jobDetail,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Select the states of all fired-trigger records for a given trigger, or
@@ -889,7 +889,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn, 
             string triggerName, 
             string groupName,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Select the states of all fired-trigger records for a given job, or job
@@ -904,7 +904,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn,
             string jobName,
             string groupName,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Select the states of all fired-trigger records for a given scheduler
@@ -917,7 +917,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<IReadOnlyCollection<FiredTriggerRecord>> SelectInstancesFiredTriggerRecords(
             ConnectionAndTransactionHolder conn, 
             string instanceName,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Delete a fired trigger.
@@ -929,7 +929,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<int> DeleteFiredTrigger(
             ConnectionAndTransactionHolder conn, 
             string entryId,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get the number instances of the identified job currently executing.
@@ -943,7 +943,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<int> SelectJobExecutionCount(
             ConnectionAndTransactionHolder conn, 
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Insert a scheduler-instance state record.
@@ -959,7 +959,7 @@ namespace Quartz.Impl.AdoJobStore
             string instanceId, 
             DateTimeOffset checkInTime, 
             TimeSpan interval,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Delete a scheduler-instance state record.
@@ -971,7 +971,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<int> DeleteSchedulerState(
             ConnectionAndTransactionHolder conn, 
             string instanceId,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Update a scheduler-instance state record.
@@ -985,7 +985,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn,
             string instanceId, 
             DateTimeOffset checkInTime,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// A List of all current <see cref="SchedulerStateRecord" />s.
@@ -1001,7 +1001,7 @@ namespace Quartz.Impl.AdoJobStore
         Task<IReadOnlyCollection<SchedulerStateRecord>> SelectSchedulerStateRecords(
             ConnectionAndTransactionHolder conn,
             string instanceName,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Select the next trigger which will fire to fire between the two given timestamps 
@@ -1018,7 +1018,7 @@ namespace Quartz.Impl.AdoJobStore
             DateTimeOffset noLaterThan, 
             DateTimeOffset noEarlierThan, 
             int maxCount,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Select the distinct instance names of all fired-trigger records.
@@ -1032,7 +1032,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns></returns>
         Task<IReadOnlyCollection<string>> SelectFiredTriggerInstanceNames(
             ConnectionAndTransactionHolder conn,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Counts the misfired triggers in states.
@@ -1046,7 +1046,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn,
             string state1,
             DateTimeOffset ts,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Selects the misfired triggers in states.
@@ -1064,14 +1064,14 @@ namespace Quartz.Impl.AdoJobStore
             DateTimeOffset ts,
             int count,
             ICollection<TriggerKey> resultList,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         Task<int> UpdateFiredTrigger(
             ConnectionAndTransactionHolder conn, 
             IOperableTrigger trigger, 
             string state,
             IJobDetail job,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Clear (delete!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
@@ -1081,6 +1081,6 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="cancellationToken">The cancellation instruction.</param>
         Task ClearData(
             ConnectionAndTransactionHolder conn,
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
     }
 }

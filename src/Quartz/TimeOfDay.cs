@@ -169,7 +169,7 @@ namespace Quartz
 
             TimeOfDay other = (TimeOfDay) obj;
 
-            return (other.Hour == Hour && other.Minute == Minute && other.Second == Second);
+            return other.Hour == Hour && other.Minute == Minute && other.Second == Second;
         }
 
         public override int GetHashCode()

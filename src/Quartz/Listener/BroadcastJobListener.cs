@@ -97,14 +97,14 @@ namespace Quartz.Listener
 
         public Task JobToBeExecuted(
             IJobExecutionContext context, 
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return Task.WhenAll(listeners.Select(l => l.JobToBeExecuted(context, cancellationToken)));
         }
 
         public Task JobExecutionVetoed(
             IJobExecutionContext context,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return Task.WhenAll(listeners.Select(l => l.JobExecutionVetoed(context, cancellationToken)));
         }
@@ -112,7 +112,7 @@ namespace Quartz.Listener
         public Task JobWasExecuted(
             IJobExecutionContext context, 
             JobExecutionException jobException,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return Task.WhenAll(listeners.Select(l => l.JobWasExecuted(context, jobException, cancellationToken)));
         }

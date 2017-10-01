@@ -62,7 +62,7 @@ namespace Quartz.Plugin.Management
         public virtual Task Initialize(
             string pluginName, 
             IScheduler scheduler,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             log.InfoFormat("Registering Quartz Shutdown hook '{0}.", pluginName);
             AppDomain.CurrentDomain.ProcessExit += (sender, ea) =>
@@ -85,7 +85,7 @@ namespace Quartz.Plugin.Management
         /// to let the plug-in know it can now make calls into the scheduler if it
         /// needs to.
         /// </summary>
-        public virtual Task Start(CancellationToken cancellationToken = default(CancellationToken))
+        public virtual Task Start(CancellationToken cancellationToken = default)
         {
             // do nothing.
             return TaskUtil.CompletedTask;
@@ -96,7 +96,7 @@ namespace Quartz.Plugin.Management
         /// should free up all of it's resources because the scheduler is shutting
         /// down.
         /// </summary>
-        public virtual Task Shutdown(CancellationToken cancellationToken = default(CancellationToken))
+        public virtual Task Shutdown(CancellationToken cancellationToken = default)
         {
             // nothing to do in this case (since the scheduler is already shutting
             // down)

@@ -148,7 +148,7 @@ namespace Quartz.Job
 				return;
 			}
 
-            if (lastDate != DateTime.MinValue && (newDate != lastDate && newDate < maxAgeDate))
+            if (lastDate != DateTime.MinValue && newDate != lastDate && newDate < maxAgeDate)
 			{
 				// notify call back...
 				Log.Info($"File '{fileName}' updated, notifying listener.");

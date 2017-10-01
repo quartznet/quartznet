@@ -17,7 +17,7 @@ namespace Quartz.Simpl
 
         public override bool Equals(object obj)
         {
-            return (obj is TriggerWrapperComparator);
+            return obj is TriggerWrapperComparator;
         }
 
         /// <summary>

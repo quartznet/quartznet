@@ -157,7 +157,7 @@ namespace Quartz.Util
         /// Gets a value indicating whether this instance is empty.
         /// </summary>
         /// <value><c>true</c> if this instance is empty; otherwise, <c>false</c>.</value>
-        public virtual bool IsEmpty => (map.Count == 0);
+        public virtual bool IsEmpty => map.Count == 0;
 
         #region ICloneable Members
 
@@ -208,8 +208,7 @@ namespace Quartz.Util
         {
             get
             {
-                TValue temp;
-                map.TryGetValue(key, out temp);
+                map.TryGetValue(key, out var temp);
                 return temp;
             }
             set
@@ -545,8 +544,7 @@ namespace Quartz.Util
         public virtual object Put(TKey key, TValue val)
         {
             dirty = true;
-            TValue tempObject;
-            map.TryGetValue(key, out tempObject);
+            map.TryGetValue(key, out var tempObject);
             map[key] = val;
             return tempObject;
         }

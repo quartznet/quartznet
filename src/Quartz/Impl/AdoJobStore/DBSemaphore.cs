@@ -100,7 +100,7 @@ namespace Quartz.Impl.AdoJobStore
             Guid requestorId, 
             ConnectionAndTransactionHolder conn,
             string lockName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (Log.IsDebugEnabled())
             {
@@ -117,8 +117,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 lock (syncRoot)
                 {
-                    HashSet<string> requestorLocks;
-                    if (!locks.TryGetValue(requestorId, out requestorLocks))
+                    if (!locks.TryGetValue(requestorId, out var requestorLocks))
                     {
                         requestorLocks = new HashSet<string>();
                         locks[requestorId] = requestorLocks;
@@ -141,14 +140,13 @@ namespace Quartz.Impl.AdoJobStore
         public Task ReleaseLock(
             Guid requestorId, 
             string lockName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (IsLockOwner(requestorId, lockName))
             {
                 lock (syncRoot)
                 {
-                    HashSet<string> requestorLocks;
-                    if (locks.TryGetValue(requestorId, out requestorLocks))
+                    if (locks.TryGetValue(requestorId, out var requestorLocks))
                     {
                         requestorLocks.Remove(lockName);
                         if (requestorLocks.Count == 0)
@@ -179,8 +177,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             lock (syncRoot)
             {
-                HashSet<string> requestorLocks;
-                return locks.TryGetValue(requestorId, out requestorLocks) && requestorLocks.Contains(lockName);
+                return locks.TryGetValue(requestorId, out var requestorLocks) && requestorLocks.Contains(lockName);
             }
         }
 

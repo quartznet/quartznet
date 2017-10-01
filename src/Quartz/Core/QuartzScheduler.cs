@@ -266,9 +266,9 @@ namespace Quartz.Core
         {
             this.resources = resources;
 
-            if (resources.JobStore is IJobListener)
+            if (resources.JobStore is IJobListener listener)
             {
-                AddInternalJobListener((IJobListener) resources.JobStore);
+                AddInternalJobListener(listener);
             }
 
             schedThread = new QuartzSchedulerThread(this, resources);
@@ -356,7 +356,7 @@ namespace Quartz.Core
         /// be passed to the appropriate TriggerListener(s).
         /// </para>
         /// </summary>
-        public virtual async Task Start(CancellationToken cancellationToken = default(CancellationToken))
+        public virtual async Task Start(CancellationToken cancellationToken = default)
         {
             if (shuttingDown || closed)
             {
@@ -385,7 +385,7 @@ namespace Quartz.Core
 
         public virtual Task StartDelayed(
             TimeSpan delay,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (shuttingDown || closed)
             {
@@ -413,7 +413,7 @@ namespace Quartz.Core
         /// The scheduler is not destroyed, and can be re-started at any time.
         /// </para>
         /// </summary>
-        public virtual async Task Standby(CancellationToken cancellationToken = default(CancellationToken))
+        public virtual async Task Standby(CancellationToken cancellationToken = default)
         {
             await resources.JobStore.SchedulerPaused(cancellationToken).ConfigureAwait(false);
             schedThread.TogglePause(true);
@@ -449,7 +449,7 @@ namespace Quartz.Core
         /// The scheduler cannot be re-started.
         /// </para>
         /// </summary>
-        public virtual Task Shutdown(CancellationToken cancellationToken = default(CancellationToken))
+        public virtual Task Shutdown(CancellationToken cancellationToken = default)
         {
             return Shutdown(false, cancellationToken);
         }
@@ -468,7 +468,7 @@ namespace Quartz.Core
         /// <param name="cancellationToken">The cancellation instruction.</param>
         public virtual async Task Shutdown(
             bool waitForJobsToComplete,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             if (shuttingDown || closed)
             {
@@ -485,7 +485,8 @@ namespace Quartz.Core
 
             await NotifySchedulerListenersShuttingdown(cancellationToken).ConfigureAwait(false);
 
-            if ((resources.InterruptJobsOnShutdown && !waitForJobsToComplete) || (resources.InterruptJobsOnShutdownWithWait && waitForJobsToComplete))
+            if (resources.InterruptJobsOnShutdown && !waitForJobsToComplete
+                || resources.InterruptJobsOnShutdownWithWait && waitForJobsToComplete)
             {
                 var jobs = CurrentlyExecutingJobs.OfType<ICancellableJobExecutionContext>();
                 foreach (var job in jobs)
@@ -556,7 +557,7 @@ namespace Quartz.Core
         public virtual async Task<DateTimeOffset> ScheduleJob(
             IJobDetail jobDetail,
             ITrigger trigger,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -625,7 +626,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual async Task<DateTimeOffset> ScheduleJob(
             ITrigger trigger,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -675,7 +676,7 @@ namespace Quartz.Core
         public virtual Task AddJob(
             IJobDetail jobDetail,
             bool replace,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return AddJob(jobDetail, replace, false, cancellationToken);
         }
@@ -684,7 +685,7 @@ namespace Quartz.Core
             IJobDetail jobDetail,
             bool replace,
             bool storeNonDurableWhileAwaitingScheduling,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -705,7 +706,7 @@ namespace Quartz.Core
         /// <returns> true if the Job was found and deleted.</returns>
         public virtual async Task<bool> DeleteJob(
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -735,7 +736,7 @@ namespace Quartz.Core
 
         public virtual async Task<bool> DeleteJobs(
             IReadOnlyCollection<JobKey> jobKeys,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -751,7 +752,7 @@ namespace Quartz.Core
         public virtual async Task ScheduleJobs(
             IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs,
             bool replace,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -804,7 +805,7 @@ namespace Quartz.Core
             IJobDetail jobDetail,
             IReadOnlyCollection<ITrigger> triggersForJob,
             bool replace,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             var triggersAndJobs = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>();
             triggersAndJobs.Add(jobDetail, triggersForJob);
@@ -813,7 +814,7 @@ namespace Quartz.Core
 
         public virtual async Task<bool> UnscheduleJobs(
             IReadOnlyCollection<TriggerKey> triggerKeys,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -829,7 +830,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual async Task<bool> UnscheduleJob(
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -862,7 +863,7 @@ namespace Quartz.Core
         public virtual async Task<DateTimeOffset?> RescheduleJob(
             TriggerKey triggerKey,
             ITrigger newTrigger,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -956,7 +957,7 @@ namespace Quartz.Core
         public virtual async Task TriggerJob(
             JobKey jobKey,
             JobDataMap data,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -993,7 +994,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual async Task TriggerJob(
             IOperableTrigger trig,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -1022,7 +1023,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual async Task PauseTrigger(
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -1036,7 +1037,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual async Task PauseTriggers(
             GroupMatcher<TriggerKey> matcher,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -1056,7 +1057,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual async Task PauseJob(
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -1071,7 +1072,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual async Task PauseJobs(
             GroupMatcher<JobKey> groupMatcher,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -1095,7 +1096,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual async Task ResumeTrigger(
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -1114,7 +1115,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual async Task ResumeTriggers(
             GroupMatcher<TriggerKey> matcher,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -1133,7 +1134,7 @@ namespace Quartz.Core
         /// </summary>
         /// <returns></returns>
         public virtual Task<IReadOnlyCollection<string>> GetPausedTriggerGroups(
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return resources.JobStore.GetPausedTriggerGroups(cancellationToken);
         }
@@ -1149,7 +1150,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual async Task ResumeJob(
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -1169,7 +1170,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual async Task ResumeJobs(
             GroupMatcher<JobKey> matcher,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -1193,7 +1194,7 @@ namespace Quartz.Core
         /// </summary>
         /// <seealso cref="ResumeAll" />
         /// <seealso cref="PauseJob" />
-        public virtual async Task PauseAll(CancellationToken cancellationToken = default(CancellationToken))
+        public virtual async Task PauseAll(CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -1211,7 +1212,7 @@ namespace Quartz.Core
         /// </para>
         /// </summary>
         /// <seealso cref="PauseAll" />
-        public virtual async Task ResumeAll(CancellationToken cancellationToken = default(CancellationToken))
+        public virtual async Task ResumeAll(CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -1224,7 +1225,7 @@ namespace Quartz.Core
         /// Get the names of all known <see cref="IJob" /> groups.
         /// </summary>
         public virtual Task<IReadOnlyCollection<string>> GetJobGroupNames(
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -1237,7 +1238,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual Task<IReadOnlyCollection<JobKey>> GetJobKeys(
             GroupMatcher<JobKey> matcher,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -1255,7 +1256,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual async Task<IReadOnlyCollection<ITrigger>> GetTriggersOfJob(
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -1274,7 +1275,7 @@ namespace Quartz.Core
         /// groups.
         /// </summary>
         public virtual Task<IReadOnlyCollection<string>> GetTriggerGroupNames(
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
             return resources.JobStore.GetTriggerGroupNames(cancellationToken);
@@ -1286,7 +1287,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual Task<IReadOnlyCollection<TriggerKey>> GetTriggerKeys(
             GroupMatcher<TriggerKey> matcher,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -1304,7 +1305,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual Task<IJobDetail> GetJobDetail(
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -1318,7 +1319,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual async Task<ITrigger> GetTrigger(
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -1337,7 +1338,7 @@ namespace Quartz.Core
         /// <returns>true if a Job exists with the given identifier</returns>
         public virtual Task<bool> CheckExists(
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -1355,7 +1356,7 @@ namespace Quartz.Core
         /// <returns>true if a Trigger exists with the given identifier</returns>
         public virtual Task<bool> CheckExists(
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -1366,7 +1367,7 @@ namespace Quartz.Core
         /// Clears (deletes!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
         /// <see cref="ICalendar" />s.
         /// </summary>
-        public virtual async Task Clear(CancellationToken cancellationToken = default(CancellationToken))
+        public virtual async Task Clear(CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -1380,7 +1381,7 @@ namespace Quartz.Core
         /// <seealso cref="TriggerState" />
         public virtual Task<TriggerState> GetTriggerState(
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
 
@@ -1395,7 +1396,7 @@ namespace Quartz.Core
             ICalendar calendar,
             bool replace,
             bool updateTriggers,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
             return resources.JobStore.StoreCalendar(calName, calendar, replace, updateTriggers, cancellationToken);
@@ -1407,7 +1408,7 @@ namespace Quartz.Core
         /// <returns> true if the Calendar was found and deleted.</returns>
         public virtual Task<bool> DeleteCalendar(
             string calName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
             return resources.JobStore.RemoveCalendar(calName, cancellationToken);
@@ -1418,7 +1419,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual Task<ICalendar> GetCalendar(
             string calName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
             return resources.JobStore.RetrieveCalendar(calName, cancellationToken);
@@ -1428,7 +1429,7 @@ namespace Quartz.Core
         /// Get the names of all registered <see cref="ICalendar" />s.
         /// </summary>
         public virtual Task<IReadOnlyCollection<string>> GetCalendarNames(
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             ValidateState();
             return resources.JobStore.GetCalendarNames(cancellationToken);
@@ -1476,8 +1477,7 @@ namespace Quartz.Core
         /// <returns></returns>
         public IJobListener GetInternalJobListener(string name)
         {
-            IJobListener listener;
-            internalJobListeners.TryGetValue(name, out listener);
+            internalJobListeners.TryGetValue(name, out var listener);
             return listener;
         }
 
@@ -1525,7 +1525,7 @@ namespace Quartz.Core
             IOperableTrigger trigger,
             IJobDetail detail,
             SchedulerInstruction instCode,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return resources.JobStore.TriggeredJobComplete(trigger, detail, instCode, cancellationToken);
         }
@@ -1537,7 +1537,7 @@ namespace Quartz.Core
             IOperableTrigger trigger,
             IJobDetail detail,
             SchedulerInstruction instCode,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return resources.JobStore.TriggeredJobComplete(trigger, detail, instCode, cancellationToken);
         }
@@ -1612,7 +1612,7 @@ namespace Quartz.Core
         /// <returns></returns>
         public virtual async Task<bool> NotifyTriggerListenersFired(
             IJobExecutionContext jec,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             bool vetoedExecution = false;
 
@@ -1652,7 +1652,7 @@ namespace Quartz.Core
         /// <param name="cancellationToken">The cancellation instruction.</param>
         public virtual async Task NotifyTriggerListenersMisfired(
             ITrigger trigger,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             // build a list of all trigger listeners that are to be notified...
             var listeners = BuildTriggerListenerList();
@@ -1685,7 +1685,7 @@ namespace Quartz.Core
         public virtual async Task NotifyTriggerListenersComplete(
             IJobExecutionContext jec,
             SchedulerInstruction instCode,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             // build a list of all trigger listeners that are to be notified...
             var listeners = BuildTriggerListenerList();
@@ -1716,7 +1716,7 @@ namespace Quartz.Core
         /// <param name="cancellationToken">The cancellation instruction.</param>
         public virtual async Task NotifyJobListenersToBeExecuted(
             IJobExecutionContext jec,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             // build a list of all job listeners that are to be notified...
             IEnumerable<IJobListener> listeners = BuildJobListenerList();
@@ -1747,7 +1747,7 @@ namespace Quartz.Core
         /// <param name="cancellationToken">The cancellation instruction.</param>
         public virtual async Task NotifyJobListenersWasVetoed(
             IJobExecutionContext jec,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             // build a list of all job listeners that are to be notified...
             IEnumerable<IJobListener> listeners = BuildJobListenerList();
@@ -1780,7 +1780,7 @@ namespace Quartz.Core
         public virtual async Task NotifyJobListenersWasExecuted(
             IJobExecutionContext jec,
             JobExecutionException je,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             // build a list of all job listeners that are to be notified...
             IEnumerable<IJobListener> listeners = BuildJobListenerList();
@@ -1813,7 +1813,7 @@ namespace Quartz.Core
         public virtual async Task NotifySchedulerListenersError(
             string msg,
             SchedulerException se,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             // build a list of all scheduler listeners that are to be notified...
             IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
@@ -1840,7 +1840,7 @@ namespace Quartz.Core
         /// <param name="cancellationToken">The cancellation instruction.</param>
         public virtual Task NotifySchedulerListenersScheduled(
             ITrigger trigger,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return NotifySchedulerListeners(l => l.JobScheduled(trigger, cancellationToken), $"scheduled job. Trigger={trigger.Key}");
         }
@@ -1850,7 +1850,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual async Task NotifySchedulerListenersUnscheduled(
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             // build a list of all scheduler listeners that are to be notified...
             IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
@@ -1874,7 +1874,7 @@ namespace Quartz.Core
                     log.ErrorFormat(
                         "Error while notifying SchedulerListener of unscheduled job. Trigger={0}",
                         e,
-                        triggerKey == null ? "ALL DATA" : triggerKey.ToString());
+                        triggerKey?.ToString() ?? "ALL DATA");
                 }
             }
         }
@@ -1886,7 +1886,7 @@ namespace Quartz.Core
         /// <param name="cancellationToken">The cancellation instruction.</param>
         public virtual Task NotifySchedulerListenersFinalized(
             ITrigger trigger,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return NotifySchedulerListeners(l => l.TriggerFinalized(trigger, cancellationToken), $"finalized trigger. Trigger={trigger.Key}");
         }
@@ -1898,7 +1898,7 @@ namespace Quartz.Core
         /// <param name="cancellationToken">The cancellation instruction.</param>
         public virtual async Task NotifySchedulerListenersPausedTriggers(
             string group,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             // build a list of all job listeners that are to be notified...
             IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
@@ -1922,7 +1922,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual async Task NotifySchedulerListenersPausedTrigger(
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             // build a list of all job listeners that are to be notified...
             IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
@@ -1948,7 +1948,7 @@ namespace Quartz.Core
         /// <param name="cancellationToken">The cancellation instruction.</param>
         public virtual Task NotifySchedulerListenersResumedTriggers(
             string group,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return NotifySchedulerListeners(l => l.TriggersResumed(group, cancellationToken), $"resumed group: {group}");
         }
@@ -1958,7 +1958,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual async Task NotifySchedulerListenersResumedTrigger(
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             // build a list of all job listeners that are to be notified...
             IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
@@ -1982,7 +1982,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual void NotifySchedulerListenersPausedJob(
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             // build a list of all job listeners that are to be notified...
             IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
@@ -2006,7 +2006,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual async Task NotifySchedulerListenersPausedJobs(
             string group,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             // build a list of all job listeners that are to be notified...
             IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
@@ -2030,7 +2030,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual async Task NotifySchedulerListenersResumedJob(
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             // build a list of all job listeners that are to be notified...
             IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
@@ -2054,7 +2054,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual async Task NotifySchedulerListenersResumedJobs(
             string group,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             // build a list of all job listeners that are to be notified...
             IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
@@ -2074,19 +2074,19 @@ namespace Quartz.Core
         }
 
         public virtual Task NotifySchedulerListenersInStandbyMode(
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return NotifySchedulerListeners(l => l.SchedulerInStandbyMode(cancellationToken), "inStandByMode");
         }
 
         public virtual Task NotifySchedulerListenersStarted(
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return NotifySchedulerListeners(l => l.SchedulerStarted(cancellationToken), "startup");
         }
 
         public virtual Task NotifySchedulerListenersStarting(
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return NotifySchedulerListeners(l => l.SchedulerStarting(cancellationToken), "scheduler starting");
         }
@@ -2095,27 +2095,27 @@ namespace Quartz.Core
         /// Notifies the scheduler listeners about scheduler shutdown.
         /// </summary>
         public virtual Task NotifySchedulerListenersShutdown(
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return NotifySchedulerListeners(l => l.SchedulerShutdown(cancellationToken), "shutdown");
         }
 
         public virtual Task NotifySchedulerListenersShuttingdown(
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return NotifySchedulerListeners(l => l.SchedulerShuttingdown(cancellationToken), "shutting down");
         }
 
         public virtual Task NotifySchedulerListenersJobAdded(
             IJobDetail jobDetail,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return NotifySchedulerListeners(l => l.JobAdded(jobDetail, cancellationToken), "job addition");
         }
 
         public virtual Task NotifySchedulerListenersJobDeleted(
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return NotifySchedulerListeners(l => l.JobDeleted(jobKey, cancellationToken), "job deletion");
         }
@@ -2143,7 +2143,7 @@ namespace Quartz.Core
         /// </summary>
         public virtual async Task<bool> Interrupt(
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             var cancellableJobs = CurrentlyExecutingJobs.OfType<ICancellableJobExecutionContext>();
 
@@ -2184,7 +2184,7 @@ namespace Quartz.Core
         /// <returns></returns>
         public Task<bool> Interrupt(
             string fireInstanceId,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             var cancellableJobs = CurrentlyExecutingJobs.OfType<ICancellableJobExecutionContext>();
 
@@ -2206,7 +2206,7 @@ namespace Quartz.Core
         }
 
         private async Task ShutdownPlugins(
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             foreach (ISchedulerPlugin plugin in resources.SchedulerPlugins)
             {
@@ -2215,7 +2215,7 @@ namespace Quartz.Core
         }
 
         private async Task StartPlugins(
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             foreach (ISchedulerPlugin plugin in resources.SchedulerPlugins)
             {
@@ -2225,14 +2225,14 @@ namespace Quartz.Core
 
         public virtual Task<bool> IsJobGroupPaused(
             string groupName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return resources.JobStore.IsJobGroupPaused(groupName, cancellationToken);
         }
 
         public virtual Task<bool> IsTriggerGroupPaused(
             string groupName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return resources.JobStore.IsTriggerGroupPaused(groupName, cancellationToken);
         }

@@ -606,7 +606,7 @@ namespace Quartz.Impl.Triggers
 		/// </summary>
         public override DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTimeUtc)
 		{
-			if ((timesTriggered > repeatCount) && (repeatCount != RepeatIndefinitely))
+			if (timesTriggered > repeatCount && repeatCount != RepeatIndefinitely)
 			{
 				return null;
 			}
@@ -623,7 +623,7 @@ namespace Quartz.Impl.Triggers
 
 			DateTimeOffset startMillis = StartTimeUtc;
 			DateTimeOffset afterMillis = afterTimeUtc.Value;
-			DateTimeOffset endMillis = !EndTimeUtc.HasValue ? DateTimeOffset.MaxValue : EndTimeUtc.Value;
+			DateTimeOffset endMillis = EndTimeUtc ?? DateTimeOffset.MaxValue;
 
 
 			if (endMillis <= afterMillis)
@@ -636,10 +636,10 @@ namespace Quartz.Impl.Triggers
 				return startMillis;
 			}
 
-			long numberOfTimesExecuted = (long) (((long) (afterMillis - startMillis).TotalMilliseconds / repeatInterval.TotalMilliseconds) + 1);
+			long numberOfTimesExecuted = (long) ((long) (afterMillis - startMillis).TotalMilliseconds / repeatInterval.TotalMilliseconds + 1);
 
-			if ((numberOfTimesExecuted > repeatCount) &&
-				(repeatCount != RepeatIndefinitely))
+			if (numberOfTimesExecuted > repeatCount &&
+				repeatCount != RepeatIndefinitely)
 			{
 				return null;
 			}

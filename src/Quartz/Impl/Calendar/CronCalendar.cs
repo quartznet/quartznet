@@ -151,13 +151,13 @@ namespace Quartz.Impl.Calendar
         /// <returns>a boolean indicating whether the specified time is 'included' by the CronCalendar</returns>
         public override bool IsTimeIncluded(DateTimeOffset timeUtc)
         {
-            if ((CalendarBase != null) &&
-                (CalendarBase.IsTimeIncluded(timeUtc) == false))
+            if (CalendarBase != null &&
+                CalendarBase.IsTimeIncluded(timeUtc) == false)
             {
                 return false;
             }
 
-            return (!(cronExpression.IsSatisfiedBy(timeUtc)));
+            return !cronExpression.IsSatisfiedBy(timeUtc);
         }
 
         /// <summary>
@@ -183,8 +183,8 @@ namespace Quartz.Impl.Calendar
                 {
                     nextIncludedTime = cronExpression.GetNextValidTimeAfter(nextIncludedTime).Value;
                 }
-                else if ((CalendarBase != null) &&
-                         (!CalendarBase.IsTimeIncluded(nextIncludedTime)))
+                else if (CalendarBase != null &&
+                         !CalendarBase.IsTimeIncluded(nextIncludedTime))
                 {
                     nextIncludedTime =
                         CalendarBase.GetNextIncludedTimeUtc(nextIncludedTime);

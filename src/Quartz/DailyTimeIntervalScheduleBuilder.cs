@@ -115,7 +115,7 @@ namespace Quartz
             {
                 allDaysOfTheWeek.Add(d);
 
-                if ((d >= DayOfWeek.Monday) && (d <= DayOfWeek.Friday))
+                if (d >= DayOfWeek.Monday && d <= DayOfWeek.Friday)
                 {
                     mondayThroughFriday.Add(d);
                 }
@@ -204,8 +204,8 @@ namespace Quartz
         /// <seealso cref="ICalendarIntervalTrigger.RepeatIntervalUnit" />
         public DailyTimeIntervalScheduleBuilder WithInterval(int interval, IntervalUnit unit)
         {
-            if (!((unit == IntervalUnit.Second) ||
-                  (unit == IntervalUnit.Minute) || (unit == IntervalUnit.Hour)))
+            if (!(unit == IntervalUnit.Second ||
+                  unit == IntervalUnit.Minute || unit == IntervalUnit.Hour))
             {
                 throw new ArgumentException("Invalid repeat IntervalUnit (must be Second, Minute or Hour).");
             }
@@ -396,7 +396,7 @@ namespace Quartz
                 throw new ArgumentException("The startTimeOfDay is too late with given Interval and IntervalUnit values.");
             }
 
-            long maxNumOfCount = (remainingMillisInDay.Ticks / intervalInMillis.Ticks);
+            long maxNumOfCount = remainingMillisInDay.Ticks / intervalInMillis.Ticks;
             if (count > maxNumOfCount)
             {
                 throw new ArgumentException("The given count " + count + " is too large! The max you can set is " + maxNumOfCount);

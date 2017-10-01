@@ -127,7 +127,7 @@ namespace Quartz.Tests.Unit
         {
             string className = type.Name;
             int index = className.LastIndexOf(".");
-            index = (index < 0) ? 0 : index + 1;
+            index = index < 0 ? 0 : index + 1;
 
             return $"{className.Substring(index)}-{version}.ser";
         }

@@ -226,7 +226,7 @@ namespace Quartz.Impl.Calendar
             }
 
             timeUtc = TimeZoneUtil.ConvertTime(timeUtc, TimeZone); //apply the timezone
-            return !(IsDayExcluded(timeUtc.DayOfWeek));
+            return !IsDayExcluded(timeUtc.DayOfWeek);
         }
 
         /// <summary>
@@ -246,7 +246,7 @@ namespace Quartz.Impl.Calendar
 
             // Call base calendar implementation first
             DateTimeOffset baseTime = base.GetNextIncludedTimeUtc(timeUtc);
-            if ((baseTime != DateTimeOffset.MinValue) && (baseTime > timeUtc))
+            if (baseTime != DateTimeOffset.MinValue && baseTime > timeUtc)
             {
                 timeUtc = baseTime;
             }

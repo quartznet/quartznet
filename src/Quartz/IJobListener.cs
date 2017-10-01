@@ -58,7 +58,7 @@ namespace Quartz
         /// <seealso cref="JobExecutionVetoed" />
         Task JobToBeExecuted(
             IJobExecutionContext context, 
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
@@ -69,7 +69,7 @@ namespace Quartz
         /// <seealso cref="JobToBeExecuted" />
         Task JobExecutionVetoed(
             IJobExecutionContext context, 
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> after a <see cref="IJobDetail" />
@@ -79,6 +79,6 @@ namespace Quartz
         Task JobWasExecuted(
             IJobExecutionContext context, 
             JobExecutionException jobException, 
-            CancellationToken cancellationToken = default(CancellationToken));
+            CancellationToken cancellationToken = default);
     }
 }

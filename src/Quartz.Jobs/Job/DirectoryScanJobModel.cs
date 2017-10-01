@@ -87,8 +87,7 @@ namespace Quartz.Job
 
             if (explicitDirProviderName != null)
             {
-                object temp;
-                schedCtxt.TryGetValue(explicitDirProviderName, out temp);
+                schedCtxt.TryGetValue(explicitDirProviderName, out var temp);
                 IDirectoryProvider explicitProvider = (IDirectoryProvider)temp;
                 directoryProvider = explicitProvider ?? throw new JobExecutionException("IDirectoryProvider named '" +
                                                     explicitDirProviderName + "' not found in SchedulerContext");
@@ -108,8 +107,7 @@ namespace Quartz.Job
                                                 DirectoryScanJob.DirectoryScanListenerName + "' not found in merged JobDataMap");
             }
 
-            object temp;
-            schedCtxt.TryGetValue(listenerName, out temp);
+            schedCtxt.TryGetValue(listenerName, out var temp);
             IDirectoryScanListener listener = (IDirectoryScanListener)temp;
 
             if (listener == null)

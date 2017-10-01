@@ -81,7 +81,7 @@ namespace Quartz.Impl
 	    /// </summary>
 	    public virtual Task<IScheduler> Lookup(
 		    string schedName, 
-		    CancellationToken cancellationToken = default(CancellationToken))
+		    CancellationToken cancellationToken = default)
 		{
 			lock (syncRoot)
 			{
@@ -95,7 +95,7 @@ namespace Quartz.Impl
 	    /// </summary>
 	    /// <returns></returns>
 	    public virtual Task<IReadOnlyList<IScheduler>> LookupAll(
-		    CancellationToken cancellationToken = default(CancellationToken))
+		    CancellationToken cancellationToken = default)
 		{
 			lock (syncRoot)
 			{

@@ -152,7 +152,7 @@ namespace Quartz.Impl.Calendar
 		{
 			// Call base calendar implementation first
             DateTimeOffset baseTime = base.GetNextIncludedTimeUtc(timeUtc);
-            if ((timeUtc != DateTimeOffset.MinValue) && (baseTime > timeUtc))
+            if (timeUtc != DateTimeOffset.MinValue && baseTime > timeUtc)
 			{
 				timeUtc = baseTime;
 			}

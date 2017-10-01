@@ -50,7 +50,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             protected override Task<T> ExecuteInLock<T>(
                 string lockName,
                 Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
-                CancellationToken cancellationToken = default(CancellationToken))
+                CancellationToken cancellationToken = default)
             {
                 return Task.FromResult(default(T));
             }

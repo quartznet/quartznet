@@ -313,8 +313,7 @@ namespace Quartz.Impl
         /// </param>
         public virtual object Get(object key)
         {
-            object retValue;
-            data.TryGetValue(key, out retValue);
+            data.TryGetValue(key, out var retValue);
             return retValue;
         }
 

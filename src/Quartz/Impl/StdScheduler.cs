@@ -58,7 +58,7 @@ namespace Quartz.Impl
         /// </summary>
         public Task<bool> IsJobGroupPaused(
             string groupName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.IsJobGroupPaused(groupName, cancellationToken);
         }
@@ -69,7 +69,7 @@ namespace Quartz.Impl
         /// </summary>
         public Task<bool> IsTriggerGroupPaused(
             string groupName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.IsTriggerGroupPaused(groupName, cancellationToken);
         }
@@ -93,7 +93,7 @@ namespace Quartz.Impl
         /// </para>
         /// </summary>
         /// <returns></returns>
-        public Task<SchedulerMetaData> GetMetaData(CancellationToken cancellationToken = default(CancellationToken))
+        public Task<SchedulerMetaData> GetMetaData(CancellationToken cancellationToken = default)
         {
             return Task.FromResult(new SchedulerMetaData(
                 SchedulerName,
@@ -147,7 +147,7 @@ namespace Quartz.Impl
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public Task<IReadOnlyCollection<IJobExecutionContext>> GetCurrentlyExecutingJobs(
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return Task.FromResult(sched.CurrentlyExecutingJobs);
         }
@@ -156,7 +156,7 @@ namespace Quartz.Impl
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public Task Clear(
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.Clear(cancellationToken);
         }
@@ -165,7 +165,7 @@ namespace Quartz.Impl
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public Task<IReadOnlyCollection<string>> GetPausedTriggerGroups(
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.GetPausedTriggerGroups(cancellationToken);
         }
@@ -179,7 +179,7 @@ namespace Quartz.Impl
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual Task<IReadOnlyCollection<string>> GetJobGroupNames(
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.GetJobGroupNames(cancellationToken);
         }
@@ -188,7 +188,7 @@ namespace Quartz.Impl
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
         public virtual Task<IReadOnlyCollection<string>> GetTriggerGroupNames(
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.GetTriggerGroupNames(cancellationToken);
         }
@@ -203,7 +203,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task Start(CancellationToken cancellationToken = default(CancellationToken))
+        public virtual Task Start(CancellationToken cancellationToken = default)
         {
             return sched.Start(cancellationToken);
         }
@@ -211,7 +211,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public Task StartDelayed(TimeSpan delay, CancellationToken cancellationToken = default(CancellationToken))
+        public Task StartDelayed(TimeSpan delay, CancellationToken cancellationToken = default)
         {
             return sched.StartDelayed(delay, cancellationToken);
         }
@@ -219,7 +219,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task Standby(CancellationToken cancellationToken = default(CancellationToken))
+        public virtual Task Standby(CancellationToken cancellationToken = default)
         {
             return sched.Standby(cancellationToken);
         }
@@ -227,7 +227,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task Shutdown(CancellationToken cancellationToken = default(CancellationToken))
+        public virtual Task Shutdown(CancellationToken cancellationToken = default)
         {
             return sched.Shutdown(cancellationToken);
         }
@@ -237,7 +237,7 @@ namespace Quartz.Impl
         /// </summary>
         public virtual Task Shutdown(
             bool waitForJobsToComplete,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.Shutdown(waitForJobsToComplete, cancellationToken);
         }
@@ -248,7 +248,7 @@ namespace Quartz.Impl
         public virtual Task<DateTimeOffset> ScheduleJob(
             IJobDetail jobDetail,
             ITrigger trigger,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.ScheduleJob(jobDetail, trigger, cancellationToken);
         }
@@ -258,7 +258,7 @@ namespace Quartz.Impl
         /// </summary>
         public virtual Task<DateTimeOffset> ScheduleJob(
             ITrigger trigger,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.ScheduleJob(trigger, cancellationToken);
         }
@@ -270,7 +270,7 @@ namespace Quartz.Impl
             IJobDetail jobDetail,
             bool replace,
             bool storeNonDurableWhileAwaitingScheduling,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.AddJob(jobDetail, replace, storeNonDurableWhileAwaitingScheduling, cancellationToken);
         }
@@ -281,14 +281,14 @@ namespace Quartz.Impl
         public virtual Task AddJob(
             IJobDetail jobDetail,
             bool replace,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.AddJob(jobDetail, replace, cancellationToken);
         }
 
         public Task<bool> DeleteJobs(
             IReadOnlyCollection<JobKey> jobKeys,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.DeleteJobs(jobKeys, cancellationToken);
         }
@@ -296,7 +296,7 @@ namespace Quartz.Impl
         public Task ScheduleJobs(
             IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs,
             bool replace,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.ScheduleJobs(triggersAndJobs, replace, cancellationToken);
         }
@@ -305,14 +305,14 @@ namespace Quartz.Impl
             IJobDetail jobDetail,
             IReadOnlyCollection<ITrigger> triggersForJob,
             bool replace,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.ScheduleJob(jobDetail, triggersForJob, replace, cancellationToken);
         }
 
         public Task<bool> UnscheduleJobs(
             IReadOnlyCollection<TriggerKey> triggerKeys,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.UnscheduleJobs(triggerKeys, cancellationToken);
         }
@@ -322,7 +322,7 @@ namespace Quartz.Impl
         /// </summary>
         public virtual Task<bool> DeleteJob(
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.DeleteJob(jobKey, cancellationToken);
         }
@@ -332,7 +332,7 @@ namespace Quartz.Impl
         /// </summary>
         public virtual Task<bool> UnscheduleJob(
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.UnscheduleJob(triggerKey, cancellationToken);
         }
@@ -343,7 +343,7 @@ namespace Quartz.Impl
         public virtual Task<DateTimeOffset?> RescheduleJob(
             TriggerKey triggerKey,
             ITrigger newTrigger,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.RescheduleJob(triggerKey, newTrigger, cancellationToken);
         }
@@ -353,7 +353,7 @@ namespace Quartz.Impl
         /// </summary>
         public virtual Task TriggerJob(
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return TriggerJob(jobKey, null, cancellationToken);
         }
@@ -364,7 +364,7 @@ namespace Quartz.Impl
         public virtual Task TriggerJob(
             JobKey jobKey,
             JobDataMap data,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.TriggerJob(jobKey, data, cancellationToken);
         }
@@ -374,7 +374,7 @@ namespace Quartz.Impl
         /// </summary>
         public Task<bool> CheckExists(
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.CheckExists(jobKey, cancellationToken);
         }
@@ -384,7 +384,7 @@ namespace Quartz.Impl
         /// </summary>
         public Task<bool> CheckExists(
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.CheckExists(triggerKey, cancellationToken);
         }
@@ -394,7 +394,7 @@ namespace Quartz.Impl
         /// </summary>
         public virtual Task PauseTrigger(
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.PauseTrigger(triggerKey, cancellationToken);
         }
@@ -404,7 +404,7 @@ namespace Quartz.Impl
         /// </summary>
         public virtual Task PauseTriggers(
             GroupMatcher<TriggerKey> matcher,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.PauseTriggers(matcher, cancellationToken);
         }
@@ -414,7 +414,7 @@ namespace Quartz.Impl
         /// </summary>
         public virtual Task PauseJob(
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.PauseJob(jobKey, cancellationToken);
         }
@@ -424,7 +424,7 @@ namespace Quartz.Impl
         /// </summary>
         public virtual Task PauseJobs(
             GroupMatcher<JobKey> matcher,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.PauseJobs(matcher, cancellationToken);
         }
@@ -434,7 +434,7 @@ namespace Quartz.Impl
         /// </summary>
         public virtual Task ResumeTrigger(
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.ResumeTrigger(triggerKey, cancellationToken);
         }
@@ -444,7 +444,7 @@ namespace Quartz.Impl
         /// </summary>
         public virtual Task ResumeTriggers(
             GroupMatcher<TriggerKey> matcher,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.ResumeTriggers(matcher, cancellationToken);
         }
@@ -454,7 +454,7 @@ namespace Quartz.Impl
         /// </summary>
         public virtual Task ResumeJob(
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.ResumeJob(jobKey, cancellationToken);
         }
@@ -464,7 +464,7 @@ namespace Quartz.Impl
         /// </summary>
         public virtual Task ResumeJobs(
             GroupMatcher<JobKey> matcher,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.ResumeJobs(matcher, cancellationToken);
         }
@@ -472,7 +472,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task PauseAll(CancellationToken cancellationToken = default(CancellationToken))
+        public virtual Task PauseAll(CancellationToken cancellationToken = default)
         {
             return sched.PauseAll(cancellationToken);
         }
@@ -480,7 +480,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task ResumeAll(CancellationToken cancellationToken = default(CancellationToken))
+        public virtual Task ResumeAll(CancellationToken cancellationToken = default)
         {
             return sched.ResumeAll(cancellationToken);
         }
@@ -490,7 +490,7 @@ namespace Quartz.Impl
         /// </summary>
         public virtual Task<IReadOnlyCollection<ITrigger>> GetTriggersOfJob(
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.GetTriggersOfJob(jobKey, cancellationToken);
         }
@@ -500,7 +500,7 @@ namespace Quartz.Impl
         /// </summary>
         public virtual Task<IReadOnlyCollection<JobKey>> GetJobKeys(
             GroupMatcher<JobKey> matcher,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.GetJobKeys(matcher, cancellationToken);
         }
@@ -510,7 +510,7 @@ namespace Quartz.Impl
         /// </summary>
         public virtual Task<IReadOnlyCollection<TriggerKey>> GetTriggerKeys(
             GroupMatcher<TriggerKey> matcher,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.GetTriggerKeys(matcher, cancellationToken);
         }
@@ -520,7 +520,7 @@ namespace Quartz.Impl
         /// </summary>
         public virtual Task<IJobDetail> GetJobDetail(
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.GetJobDetail(jobKey, cancellationToken);
         }
@@ -530,7 +530,7 @@ namespace Quartz.Impl
         /// </summary>
         public virtual Task<ITrigger> GetTrigger(
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.GetTrigger(triggerKey, cancellationToken);
         }
@@ -540,7 +540,7 @@ namespace Quartz.Impl
         /// </summary>
         public virtual Task<TriggerState> GetTriggerState(
             TriggerKey triggerKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.GetTriggerState(triggerKey, cancellationToken);
         }
@@ -553,7 +553,7 @@ namespace Quartz.Impl
             ICalendar calendar,
             bool replace,
             bool updateTriggers,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.AddCalendar(calName, calendar, replace, updateTriggers, cancellationToken);
         }
@@ -563,7 +563,7 @@ namespace Quartz.Impl
         /// </summary>
         public virtual Task<bool> DeleteCalendar(
             string calName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.DeleteCalendar(calName, cancellationToken);
         }
@@ -573,7 +573,7 @@ namespace Quartz.Impl
         /// </summary>
         public virtual Task<ICalendar> GetCalendar(
             string calName,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.GetCalendar(calName, cancellationToken);
         }
@@ -583,7 +583,7 @@ namespace Quartz.Impl
         /// </summary>
         /// <returns></returns>
         public Task<IReadOnlyCollection<string>> GetCalendarNames(
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.GetCalendarNames(cancellationToken);
         }
@@ -619,14 +619,14 @@ namespace Quartz.Impl
         /// <seealso cref="GetCurrentlyExecutingJobs"/>
         public virtual Task<bool> Interrupt(
             JobKey jobKey,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.Interrupt(jobKey, cancellationToken);
         }
 
         public Task<bool> Interrupt(
             string fireInstanceId,
-            CancellationToken cancellationToken = default(CancellationToken))
+            CancellationToken cancellationToken = default)
         {
             return sched.Interrupt(fireInstanceId, cancellationToken);
         }

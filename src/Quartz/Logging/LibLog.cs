@@ -1404,12 +1404,10 @@ namespace Quartz.Logging.LogProviders
 
                 string message = messageFunc();
 
-                IEnumerable<string> patternMatches;
-
                 string formattedMessage =
                     LogMessageFormatter.FormatStructuredMessage(message,
                         formatParameters,
-                        out patternMatches);
+                        out var patternMatches);
 
                 // determine correct caller - this might change due to jit optimizations with method inlining
                 if (s_callerStackBoundaryType == null)
