@@ -3,9 +3,8 @@ using System.Collections.Generic;
 using System.Collections.Specialized;
 
 using Quartz.Util;
-#if CONFIGURATION
+
 using System.Configuration;
-#endif // CONFIGURATION
 
 namespace Quartz.Impl.AdoJobStore.Common
 {
@@ -25,9 +24,9 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <exception cref="System.ArgumentNullException">The providerNamePrefix cannot be null or empty.</exception>
         public ConfigurationBasedDbMetadataFactory(string sectionName, string providerNamePrefix)
         {
-            if (string.IsNullOrEmpty(providerNamePrefix) )
+            if (string.IsNullOrEmpty(providerNamePrefix))
             {
-                throw new ArgumentNullException("providerNamePrefix");
+                throw new ArgumentNullException(nameof(providerNamePrefix));
             }
 
             this.sectionName = sectionName;
@@ -40,12 +39,8 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <returns>The properties parser</returns>
         protected virtual PropertiesParser GetPropertiesParser()
         {
-            NameValueCollection settings =
-#if CONFIGURATION
-                (NameValueCollection)ConfigurationManager.GetSection(sectionName) ??
-#endif // CONFIGURATION
-                new NameValueCollection();
-            PropertiesParser result = new PropertiesParser(settings);
+            var settings = (NameValueCollection) ConfigurationManager.GetSection(sectionName) ?? new NameValueCollection();
+            var result = new PropertiesParser(settings);
             return result;
         }
 

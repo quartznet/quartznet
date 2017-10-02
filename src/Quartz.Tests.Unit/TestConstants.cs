@@ -18,11 +18,7 @@ namespace Quartz
 
         public static string SqlServerConnectionString { get; }
 
-#if !BINARY_SERIALIZATION
         public const string DefaultSerializerType = "json";
-#else
-        public const string DefaultSerializerType = "binary";
-#endif
 
         public const string DefaultSqlServerProvider = "SqlServer";
     }

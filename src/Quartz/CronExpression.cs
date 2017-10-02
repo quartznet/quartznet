@@ -21,6 +21,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Runtime.Serialization;
 using System.Text;
 using System.Text.RegularExpressions;
 
@@ -206,13 +207,8 @@ namespace Quartz
     /// <author>Contributions from Mads Henderson</author>
     /// <author>Refactoring from CronTrigger to CronExpression by Aaron Craven</author>
     /// <author>Marko Lahma (.NET)</author>
-#if BINARY_SERIALIZATION
     [Serializable]
-#endif // BINARY_SERIALIZATION
-    public class CronExpression : object
-#if BINARY_SERIALIZATION
-        , System.Runtime.Serialization.IDeserializationCallback
-#endif // BINARY_SERIALIZATION
+    public class CronExpression : IDeserializationCallback
     {
         /// <summary>
         /// Field specification for second.
@@ -288,107 +284,88 @@ namespace Quartz
         /// <summary>
         /// Seconds.
         /// </summary>
-#if BINARY_SERIALIZATION
         [NonSerialized]
-#endif // BINARY_SERIALIZATION
         protected SortedSet<int> seconds;
+
         /// <summary>
         /// minutes.
         /// </summary>
-#if BINARY_SERIALIZATION
         [NonSerialized]
-#endif // BINARY_SERIALIZATION
         protected SortedSet<int> minutes;
+
         /// <summary>
         /// Hours.
         /// </summary>
-#if BINARY_SERIALIZATION
         [NonSerialized]
-#endif // BINARY_SERIALIZATION
         protected SortedSet<int> hours;
+
         /// <summary>
         /// Days of month.
         /// </summary>
-#if BINARY_SERIALIZATION
         [NonSerialized]
-#endif // BINARY_SERIALIZATION
         protected SortedSet<int> daysOfMonth;
+
         /// <summary>
         /// Months.
         /// </summary>
-#if BINARY_SERIALIZATION
         [NonSerialized]
-#endif // BINARY_SERIALIZATION
         protected SortedSet<int> months;
+
         /// <summary>
         /// Days of week.
         /// </summary>
-#if BINARY_SERIALIZATION
         [NonSerialized]
-#endif // BINARY_SERIALIZATION
         protected SortedSet<int> daysOfWeek;
+
         /// <summary>
         /// Years.
         /// </summary>
-#if BINARY_SERIALIZATION
         [NonSerialized]
-#endif // BINARY_SERIALIZATION
         protected SortedSet<int> years;
 
         /// <summary>
         /// Last day of week.
         /// </summary>
-#if BINARY_SERIALIZATION
         [NonSerialized]
-#endif // BINARY_SERIALIZATION
         protected bool lastdayOfWeek;
+
         /// <summary>
         /// Nth day of week.
         /// </summary>
-#if BINARY_SERIALIZATION
         [NonSerialized]
-#endif // BINARY_SERIALIZATION
         protected int nthdayOfWeek;
+
         /// <summary>
         /// Last day of month.
         /// </summary>
-#if BINARY_SERIALIZATION
         [NonSerialized]
-#endif // BINARY_SERIALIZATION
         protected bool lastdayOfMonth;
+
         /// <summary>
         /// Nearest weekday.
         /// </summary>
-#if BINARY_SERIALIZATION
         [NonSerialized]
-#endif // BINARY_SERIALIZATION
         protected bool nearestWeekday;
 
-#if BINARY_SERIALIZATION
         [NonSerialized]
-#endif // BINARY_SERIALIZATION
         protected int lastdayOffset;
 
         /// <summary>
         /// Calendar day of week.
         /// </summary>
-#if BINARY_SERIALIZATION
         [NonSerialized]
-#endif // BINARY_SERIALIZATION
         protected bool calendardayOfWeek;
+
         /// <summary>
         /// Calendar day of month.
         /// </summary>
-#if BINARY_SERIALIZATION
         [NonSerialized]
-#endif // BINARY_SERIALIZATION
         protected bool calendardayOfMonth;
+
         /// <summary>
         /// Expression parsed.
         /// </summary>
-#if BINARY_SERIALIZATION
         [NonSerialized]
-#endif // BINARY_SERIALIZATION
         protected bool expressionParsed;
 
         public static readonly int MaxYear = DateTime.Now.Year + 100;

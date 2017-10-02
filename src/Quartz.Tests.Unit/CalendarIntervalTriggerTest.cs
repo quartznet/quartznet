@@ -10,9 +10,7 @@ using Quartz.Util;
 
 namespace Quartz.Tests.Unit
 {
-#if BINARY_SERIALIZATION
     [TestFixture(typeof(BinaryObjectSerializer))]
-#endif
     [TestFixture(typeof(JsonObjectSerializer))]
     public class CalendarIntervalTriggerTest : SerializationTestSupport
     {

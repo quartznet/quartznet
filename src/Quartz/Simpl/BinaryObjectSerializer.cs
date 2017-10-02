@@ -1,5 +1,4 @@
-﻿#if BINARY_SERIALIZATION
-using System.IO;
+﻿using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 
 using Quartz.Spi;
@@ -7,7 +6,7 @@ using Quartz.Spi;
 namespace Quartz.Simpl
 {
     /// <summary>
-    /// Default object serialization strategy that uses <see cref="BinaryFormatter" /> 
+    /// Default object serialization strategy that uses <see cref="BinaryFormatter" />
     /// under the hood.
     /// </summary>
     /// <author>Marko Lahma</author>
@@ -18,7 +17,7 @@ namespace Quartz.Simpl
         }
 
         /// <summary>
-        /// Serializes given object as bytes 
+        /// Serializes given object as bytes
         /// that can be stored to permanent stores.
         /// </summary>
         /// <param name="obj">Object to serialize.</param>
@@ -46,5 +45,3 @@ namespace Quartz.Simpl
         }
     }
 }
-
-#endif

@@ -68,15 +68,9 @@ namespace Quartz.Impl
     /// <seealso cref="JobDataMap" />
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-#if BINARY_SERIALIZATION
     [Serializable]
-#endif // BINARY_SERIALIZATION
     public class JobExecutionContextImpl : ICancellableJobExecutionContext
     {
-#if BINARY_SERIALIZATION
-        [NonSerialized]
-#endif // BINARY_SERIALIZATION
-
         private readonly ITrigger trigger;
         private readonly IJobDetail jobDetail;
         private readonly JobDataMap jobDataMap;

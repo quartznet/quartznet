@@ -7,6 +7,7 @@
 * NEW FEATURE
 
     * returned .NET Framework 4.5.2 compatibility to better support library consumers like NServiceBus and MassTransit
+    * netstandard 2.0 is now minimum for .NET Core
     * support for Microsoft.Data.Sqlite via provider name SQLite-Microsoft, the old provider SQLite also still works
 
 * BREAKING CHANGES
@@ -128,7 +129,7 @@ See https://github.com/quartznet/quartznet/pull/317 for details.
     * Fix JobDataMap dirty flag when constructing from existing map (#431)
     * Store triggers by job in RAMJobStore for better performance (#430)
     * Create WorkerThread in virtual method (#426)
-    * SqlSelectJobForTrigger is not using primary key join and causes index scan (#407)	
+    * SqlSelectJobForTrigger is not using primary key join and causes index scan (#407)
 
 
 ## Release 2.4.1, Aug 24, 2016
@@ -147,8 +148,8 @@ Quartz v3 can only handle HolidayCalendars serialized in this 2.4 binary format.
 * NEW FEATURE
 
     * Add SQL limit support for MySQLDelegate
-    * Removed dbFailureRetryInterval since it is no longer used 
-    * Update Common Logging to v3.3.1 
+    * Removed dbFailureRetryInterval since it is no longer used
+    * Update Common Logging to v3.3.1
 
 * FIXES
 
@@ -177,7 +178,7 @@ This is a minor release containing mostly bug fixes.
 
 * NEW FEATURE
 
-    * Add mysql 6.9.5 provider support 
+    * Add mysql 6.9.5 provider support
 
 * FIXES
 
@@ -253,10 +254,10 @@ with DisallowConcurrentExecutionAttribute and trigger has short repeat interval.
 
 * NEW FEATURE
 
-    * IDisposable jobs should be disposed after execution  
+    * IDisposable jobs should be disposed after execution
     * Support for defining DbMetadata via App.config's quartz section
-   
-   
+
+
 ## Release 2.2.2, Feb 9, 2014
 
 This is a minor release fixing couple of minor bugs
@@ -302,7 +303,7 @@ This release contains important bug fixes, new functionality and minor breaking 
 * BREAKING CHANGES
     * database schema needs upgrade
     * add SchedulerStarting() method to ISchedulerListener interface
-    * make the scheduler's TypeLoadHelper available to plugins when they are initialized 
+    * make the scheduler's TypeLoadHelper available to plugins when they are initialized
     * dbFailureRetryInterval parameter was removed from DirectSchedulerFactory APIs
 
 * NEW FEATURES
@@ -313,7 +314,7 @@ This release contains important bug fixes, new functionality and minor breaking 
     * package job_scheduling_data_2_0.xsd to nuget package's content folder
     * allow scheduler exported with remoting to be used from local machine only
     * support for Oracle managed ODP driver
- 
+
 * FIXES
     * job ending with exception and trigger not going to fire again, trigger is incorrectly not removed from job store
     * XML schema supports multiple schedule elements but processor does not
@@ -322,7 +323,7 @@ This release contains important bug fixes, new functionality and minor breaking 
     * trace throwing exception
     * bug in QuartzSchedulerThread.GetRandomizedIdleWaitTime()
     * can't delete or replace job without the referenced class
- 
+
 * MISC
 
     * Performance improvements, including improvements to some select statements in AdoJobStore
@@ -377,7 +378,7 @@ NthIncludedDayTrigger was removed as it was accidentally left behind even though
     * Add support for DateTimeOffset and TimeSpan to JobDataMap / minor breaking - cleanup of API
 
 
-Special thanks to Andrew Smith for working hard on TimeZone support. 
+Special thanks to Andrew Smith for working hard on TimeZone support.
 Credits go also to our vibrant community actively helping on mailing list and reportings issues and creating pull requests.
 
 # Release 2.0.1, Apr 22, 2012
@@ -437,7 +438,7 @@ This release contains some bug fixes and some compile time breaking changes.
     * TriggerBuilder implementations and JobBuilder should now be used to create different job and trigger definitions
     * Introduced IJobDetail, IContrigger, ISimpleTrigger, ICalendarIntervalTrigger have far less members and especially mutators
     * When C5 collections were introduced as set-based implementation provider, ISet and ISortedSet interfaces were narrowed (IList inheritance removed)
-    * string triggerName, string triggerGroup are now encapsulated in TriggerKey (has the same fields) 
+    * string triggerName, string triggerGroup are now encapsulated in TriggerKey (has the same fields)
     * string jobName, string jobGroup are now encapsulated in JobKey (has the same fields)
     * JobInitializationPlugin is now deprecated in favor of XMLSchedulingDataProcessorPlugin, JobInitializationPlugin no longer included
     * Microsoft's Oracle drivers are no longer supported, use 10g or 11g ODP.NET drivers
@@ -558,7 +559,7 @@ This release contains some bug fixes and some compile time breaking changes.
 	* Public API has changed with the introduction of TimeSpan usage,
 	  changes should show only as compile time errors and should be easily
 	  fixable.
-	
+
 ## Release 1.0 RC 1, July 28, 2008
 
 * Bug
@@ -693,12 +694,12 @@ This release contains some bug fixes and some compile time breaking changes.
 
         * Quartz.NET initialization property keys now use "*.type" instead of "*.class", you need to update configuration or if you are fine with defaults you can also ditch configuration from app.config (see QRTZNET-16)
         * Trigger instructions and states are now enum values instead of old class constants
-        * There's no longer properties named Durablity or Volatility, only Durable and Volatile (JobDetail & Trigger) 
+        * There's no longer properties named Durablity or Volatility, only Durable and Volatile (JobDetail & Trigger)
         * Class Scheduler_Fields was renamed to SchedulerConstants
 
 Special thanks for Drew Burlingame for string concatenation and TreeSet performance patches
 and Anton Dvinskiy for hunting down bugs, finding good places to refactor and patches
-for Quartz and its tests. 
+for Quartz and its tests.
 
 ## Release 0.5, June 17, 2007
 
@@ -715,7 +716,7 @@ for Quartz and its tests.
     * [QRTZNET-15] - Bring changes from Quartz 1.6 to .NET side
 
 * Other:
-    * Work around the code base to make it cleaner and more .NET like. 
+    * Work around the code base to make it cleaner and more .NET like.
 
 Special thanks to Radoslav Radivojevic for hunting CronExpression bugs.
 

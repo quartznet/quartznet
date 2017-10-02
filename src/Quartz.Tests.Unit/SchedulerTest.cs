@@ -11,9 +11,8 @@ using Quartz.Impl;
 using Quartz.Impl.Matchers;
 using Quartz.Job;
 using Quartz.Spi;
-#if BINARY_SERIALIZATION
+
 using System.IO;
-#endif
 
 namespace Quartz.Tests.Unit
 {
@@ -255,7 +254,6 @@ namespace Quartz.Tests.Unit
             Assert.True(Process.GetCurrentProcess().Threads.Count <= activeThreads);
         }
 
-#if BINARY_SERIALIZATION
         [Test]
         public void SerializationExceptionTest()
         {
@@ -290,7 +288,6 @@ namespace Quartz.Tests.Unit
             Assert.NotNull(after.InnerException);
             Assert.AreEqual(before.ToString(), after.ToString());
         }
-#endif
 
         [Test]
         [Category("fragile")] // TODO seems that we have some trouble on Linux with this

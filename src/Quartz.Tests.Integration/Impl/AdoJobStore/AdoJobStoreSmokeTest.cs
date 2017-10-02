@@ -5,13 +5,11 @@ using System.Collections.Specialized;
 using System.Data.SQLite;
 #endif
 using System.Diagnostics;
-#if !NETSTANDARD_DBPROVIDERS || NETCOREAPP2_0
 using System.IO;
-#endif
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-#if NETCOREAPP2_0
+#if NETCORE
 using Microsoft.Data.Sqlite;
 #endif
 using NUnit.Framework;
@@ -91,7 +89,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             return RunAdoJobStoreTest("MySql", "MySQL", serializerType, properties);
         }
 
-#if NETCOREAPP2_0
+#if NETCORE
         [Test]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public async Task TestSQLiteMicrosoft(string serializerType)
@@ -172,9 +170,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             return new[]
             {
                 "json"
-#if BINARY_SERIALIZATION
                 , "binary"
-#endif
             };
         }
 

@@ -31,9 +31,7 @@ using Quartz.Util;
 namespace Quartz.Tests.Unit
 {
     /// <author>Marko Lahma (.NET)</author>
-#if BINARY_SERIALIZATION
     [TestFixture(typeof(BinaryObjectSerializer))]
-#endif
     [TestFixture(typeof(JsonObjectSerializer))]
     public class CronExpressionTest : SerializationTestSupport
     {
@@ -509,7 +507,6 @@ namespace Quartz.Tests.Unit
             }
         }
 
-#if !NETCORE
         [Test]
         public void TestDaylightSaving_QRTZNETZ186()
         {
@@ -525,7 +522,6 @@ namespace Quartz.Tests.Unit
             DateTimeOffset expected = daylightChange.Start.Add(daylightChange.Delta).AddMinutes(15).ToUniversalTime();
             Assert.AreEqual(expected, after.Value);
         }
-#endif
 
         [Test]
         public void TestDaylightSavingsDoesNotMatchAnHourBefore()

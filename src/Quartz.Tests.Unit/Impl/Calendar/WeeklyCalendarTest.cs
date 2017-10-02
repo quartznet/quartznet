@@ -1,19 +1,19 @@
 #region License
-/* 
+/*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 #endregion
 
@@ -28,9 +28,7 @@ using Quartz.Util;
 namespace Quartz.Tests.Unit.Impl.Calendar
 {
     /// <author>Marko Lahma (.NET)</author>
-#if BINARY_SERIALIZATION
     [TestFixture(typeof(BinaryObjectSerializer))]
-#endif
     [TestFixture(typeof(JsonObjectSerializer))]
     public class WeeklyCalendarTest : SerializationTestSupport
     {
@@ -38,7 +36,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
 
         private static readonly string[] Versions = { "1.5.1" };
 
-        //private static final TimeZone EST_TIME_ZONE = TimeZone.getTimeZone("America/New_York"); 
+        //private static final TimeZone EST_TIME_ZONE = TimeZone.getTimeZone("America/New_York");
 
         public WeeklyCalendarTest(Type serializerType) : base(serializerType)
         {
@@ -70,7 +68,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             Assert.AreEqual(excluded.AddDays(3), cal.GetNextIncludedTimeUtc(excluded));
         }
 
-        
+
         [Test]
         public void TestDaylightSavingTransition()
         {
@@ -84,7 +82,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             cal.SetDayExcluded(DayOfWeek.Sunday, true);
 
             //11/5/2012 12:00:00 AM -04:00 will translate into 11/4/2012 11:00:00 PM -05:00, which is a Sunday, not monday
-            DateTimeOffset date = new DateTimeOffset(2012, 11, 5, 0, 0, 0, TimeSpan.FromHours(-4)); 
+            DateTimeOffset date = new DateTimeOffset(2012, 11, 5, 0, 0, 0, TimeSpan.FromHours(-4));
             Assert.IsFalse(cal.IsTimeIncluded(date));
 
             date = cal.GetNextIncludedTimeUtc(date);
@@ -94,7 +92,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         }
 
 
-    
+
         /// <summary>
         /// Get the object to serialize when generating serialized file for future
         /// tests, and against which to validate deserialized object.
@@ -120,7 +118,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         }
 
         /// <summary>
-        /// Verify that the target object and the object we just deserialized 
+        /// Verify that the target object and the object we just deserialized
         /// match.
         /// </summary>
         /// <param name="target"></param>

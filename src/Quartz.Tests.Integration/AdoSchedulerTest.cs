@@ -13,9 +13,7 @@ using Quartz.Util;
 namespace Quartz.Tests.Integration
 {
     [Category("sqlserver")]
-#if BINARY_SERIALIZATION
     [TestFixture(typeof(BinaryObjectSerializer))]
-#endif
     [TestFixture(typeof(JsonObjectSerializer))]
     public class AdoSchedulerTest : AbstractSchedulerTest
     {

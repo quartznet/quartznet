@@ -1,26 +1,27 @@
 #region License
 
-/* 
+/*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
 
 using System;
 using System.Linq;
+using System.Runtime.Serialization;
 
 using Quartz.Util;
 
@@ -35,9 +36,7 @@ namespace Quartz.Impl.Calendar
     /// <seealso cref="BaseCalendar" />
     /// <author>Juergen Donnerstag</author>
     /// <author>Marko Lahma (.NET)</author>
-#if BINARY_SERIALIZATION
     [Serializable]
-#endif // BINARY_SERIALIZATION
     public class WeeklyCalendar : BaseCalendar
     {
         // An array to store the week days which are to be excluded.
@@ -64,16 +63,12 @@ namespace Quartz.Impl.Calendar
             Init();
         }
 
-#if BINARY_SERIALIZATION // If this functionality is needed in the future with DCS serialization, it can ne added with [OnSerializing] and [OnDeserialized] methods
-
         /// <summary>
         /// Serialization constructor.
         /// </summary>
         /// <param name="info"></param>
         /// <param name="context"></param>
-        protected WeeklyCalendar(
-			System.Runtime.Serialization.SerializationInfo info, 
-			System.Runtime.Serialization.StreamingContext context) : base(info, context)
+        protected WeeklyCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
         {
             int version;
             try
@@ -98,9 +93,7 @@ namespace Quartz.Impl.Calendar
         }
 
         [System.Security.SecurityCritical]
-        public override void GetObjectData(
-            System.Runtime.Serialization.SerializationInfo info, 
-            System.Runtime.Serialization.StreamingContext context)
+        public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
 
@@ -108,7 +101,6 @@ namespace Quartz.Impl.Calendar
             info.AddValue("excludeDays", excludeDays);
             info.AddValue("excludeAll", excludeAll);
         }
-#endif // BINARY_SERIALIZATION
 
         /// <summary>
         /// Initialize internal variables
@@ -120,7 +112,7 @@ namespace Quartz.Impl.Calendar
             excludeAll = AreAllDaysExcluded();
         }
 
-        /// <summary> 
+        /// <summary>
         /// Get the array with the week days.
         /// Setting will redefine the array of days excluded. The array must of size greater or
         /// equal 8. java.util.Calendar's constants like MONDAY should be used as
@@ -142,7 +134,7 @@ namespace Quartz.Impl.Calendar
             }
         }
 
-        /// <summary> 
+        /// <summary>
         /// Return true, if wday is defined to be excluded. E. g.
         /// saturday and sunday.
         /// </summary>

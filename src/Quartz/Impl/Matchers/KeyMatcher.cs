@@ -19,9 +19,7 @@
 
 #endregion
 
-#if BINARY_SERIALIZATION
 using System;
-#endif // BINARY_SERIALIZATION
 
 using Quartz.Util;
 
@@ -32,9 +30,7 @@ namespace Quartz.Impl.Matchers
     /// </summary>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-#if BINARY_SERIALIZATION
     [Serializable]
-#endif // BINARY_SERIALIZATION
     public class KeyMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
         // ReSharper disable once UnusedMember.Local

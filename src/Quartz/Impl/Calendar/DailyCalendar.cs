@@ -21,6 +21,7 @@
 
 using System;
 using System.Globalization;
+using System.Runtime.Serialization;
 using System.Text;
 
 using Quartz.Util;
@@ -51,9 +52,7 @@ namespace Quartz.Impl.Calendar
     /// <author>Mike Funk</author>
     /// <author>Aaron Craven</author>
     /// <author>Marko Lahma (.NET)</author>
-#if BINARY_SERIALIZATION
     [Serializable]
-#endif // BINARY_SERIALIZATION
     public class DailyCalendar : BaseCalendar
     {
         private const string InvalidHourOfDay = "Invalid hour of day: ";
@@ -369,16 +368,12 @@ namespace Quartz.Impl.Calendar
                 rangeEndingTimeInMillis);
         }
 
-#if BINARY_SERIALIZATION // If this functionality is needed in the future with DCS serialization, it can ne added with [OnSerializing] and [OnDeserialized] methods
-
         /// <summary>
         /// Serialization constructor.
         /// </summary>
         /// <param name="info"></param>
         /// <param name="context"></param>
-        protected DailyCalendar(
-			System.Runtime.Serialization.SerializationInfo info,
-			System.Runtime.Serialization.StreamingContext context) : base(info, context)
+        protected DailyCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
         {
             int version;
             try
@@ -412,9 +407,7 @@ namespace Quartz.Impl.Calendar
         }
 
         [System.Security.SecurityCritical]
-        public override void GetObjectData(
-            System.Runtime.Serialization.SerializationInfo info,
-            System.Runtime.Serialization.StreamingContext context)
+        public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
 
@@ -431,7 +424,6 @@ namespace Quartz.Impl.Calendar
 
             info.AddValue("invertTimeRange", InvertTimeRange);
         }
-#endif // BINARY_SERIALIZATION
 
         /// <summary>
         /// Determine whether the given time  is 'included' by the

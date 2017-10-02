@@ -19,13 +19,13 @@
 
 #endregion
 
-#if MAIL
 using System;
 using System.Linq;
 using System.Net;
 using System.Net.Mail;
 using System.Text;
 using System.Threading.Tasks;
+
 using Quartz.Logging;
 
 namespace Quartz.Job
@@ -38,7 +38,7 @@ namespace Quartz.Job
     /// <author>Marko Lahma (.NET)</author>
     public class SendMailJob : IJob
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof (SendMailJob));
+        private static readonly ILog log = LogProvider.GetLogger(typeof(SendMailJob));
 
         /// <summary> The host name of the smtp server. REQUIRED.</summary>
         public const string PropertySmtpHost = "smtp_host";
@@ -93,13 +93,13 @@ namespace Quartz.Job
                 }
 
                 var info = new MailInfo
-                               {
-                                   MailMessage = message,
-                                   SmtpHost = GetRequiredParameter(data, PropertySmtpHost),
-                                   SmtpPort = port,
-                                   SmtpUserName = GetOptionalParameter(data, PropertyUsername),
-                                   SmtpPassword = GetOptionalParameter(data, PropertyPassword),
-                               };
+                {
+                    MailMessage = message,
+                    SmtpHost = GetRequiredParameter(data, PropertySmtpHost),
+                    SmtpPort = port,
+                    SmtpUserName = GetOptionalParameter(data, PropertyUsername),
+                    SmtpPassword = GetOptionalParameter(data, PropertyPassword)
+                };
                 Send(info);
             }
             catch (Exception ex)
@@ -210,4 +210,3 @@ namespace Quartz.Job
         }
     }
 }
-#endif // MAIL

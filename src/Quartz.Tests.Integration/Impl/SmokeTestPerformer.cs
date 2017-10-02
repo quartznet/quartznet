@@ -197,14 +197,13 @@ namespace Quartz.Tests.Integration.Impl
                     intervalTrigger.JobKey = job.Key;
 
                     await scheduler.ScheduleJob(intervalTrigger);
-                    
-#if CUSTOM_TIME_ZONES
+
                     // custom time zone
                     const string CustomTimeZoneId = "Custom TimeZone";
                     var webTimezone = TimeZoneInfo.CreateCustomTimeZone(
-                        CustomTimeZoneId, 
+                        CustomTimeZoneId,
                         TimeSpan.FromMinutes(22),
-                        null, 
+                        null,
                         null);
 
                     TimeZoneUtil.CustomResolver = id =>
@@ -215,7 +214,7 @@ namespace Quartz.Tests.Integration.Impl
                         }
                         return null;
                     };
-                    
+
                     var customTimeZoneTrigger = TriggerBuilder.Create()
                         .WithIdentity("customTimeZoneTrigger")
                         .WithCronSchedule("0/5 * * * * ?", x => x.InTimeZone(webTimezone))
@@ -226,7 +225,7 @@ namespace Quartz.Tests.Integration.Impl
                     await scheduler.ScheduleJob(customTimeZoneTrigger);
                     var loadedCustomTimeZoneTrigger = (ICronTrigger) await scheduler.GetTrigger(customTimeZoneTrigger.Key);
                     Assert.That(loadedCustomTimeZoneTrigger.TimeZone.BaseUtcOffset, Is.EqualTo(TimeSpan.FromMinutes(22)));
-#endif
+
                     // bulk operations
                     var info = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>();
                     IJobDetail detail = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));

@@ -35,9 +35,7 @@ namespace Quartz.Tests.Unit
     /// <summary>
     /// Unit test for SimpleTrigger serialization backwards compatibility.
     /// </summary>
-#if BINARY_SERIALIZATION
     [TestFixture(typeof(BinaryObjectSerializer))]
-#endif
     [TestFixture(typeof(JsonObjectSerializer))]
     public class SimpleTriggerTest : SerializationTestSupport
     {

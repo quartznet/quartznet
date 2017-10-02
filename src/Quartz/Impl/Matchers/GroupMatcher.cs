@@ -28,9 +28,7 @@ namespace Quartz.Impl.Matchers
     /// </summary>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-#if BINARY_SERIALIZATION
     [System.Serializable]
-#endif // BINARY_SERIALIZATION
     public class GroupMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TKey>
     {
         // ReSharper disable once UnusedMember.Local

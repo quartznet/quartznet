@@ -23,6 +23,7 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
+using System.Xml.Schema;
 using System.Xml.Serialization;
 
 using Quartz.Impl.Matchers;
@@ -30,9 +31,6 @@ using Quartz.Logging;
 using Quartz.Spi;
 using Quartz.Util;
 using Quartz.Xml.JobSchedulingData20;
-#if XML_SCHEMA
-using System.Xml.Schema;
-#endif
 
 namespace Quartz.Xml
 {
@@ -221,9 +219,7 @@ namespace Quartz.Xml
         {
             PrepForProcessing();
 
-#if XML_SCHEMA
             ValidateXml(xml);
-#endif // XML_SCHEMA
             MaybeThrowValidationException();
 
             // deserialize as object model
@@ -578,7 +574,6 @@ namespace Quartz.Xml
             return false;
         }
 
-#if XML_SCHEMA
         private void ValidateXml(string xml)
         {
             try
@@ -621,7 +616,6 @@ namespace Quartz.Xml
                 Log.Warn(e.Message);
             }
         }
-#endif // XML_SCHEMA
 
         /// <summary>
         /// Process the xml file in the default location, and schedule all of the jobs defined within it.

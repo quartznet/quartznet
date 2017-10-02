@@ -1,27 +1,28 @@
 #region License
-/* 
+/*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 #endregion
 
 using System;
+using System.Runtime.Serialization;
 
 namespace Quartz
 {
-    /// <summary> 
+    /// <summary>
     /// Base class for exceptions thrown by the Quartz <see cref="IScheduler" />.
     /// </summary>
     /// <remarks>
@@ -30,9 +31,7 @@ namespace Quartz
     /// </remarks>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-#if BINARY_SERIALIZATION
     [Serializable]
-#endif // BINARY_SERIALIZATION
     public class SchedulerException : Exception
     {
         /// <summary>
@@ -50,20 +49,16 @@ namespace Quartz
         {
         }
 
-#if BINARY_SERIALIZATION
         /// <summary>
         /// Initializes a new instance of the <see cref="SchedulerException"/> class.
         /// </summary>
-        /// <param name="info">The <see cref="T:System.Runtime.Serialization.SerializationInfo"></see> that holds the serialized object data about the exception being thrown.</param>
+        /// <param name="info">The <see cref="T:SerializationInfo"></see> that holds the serialized object data about the exception being thrown.</param>
         /// <param name="context">The <see cref="T:System.Runtime.Serialization.StreamingContext"></see> that contains contextual information about the source or destination.</param>
         /// <exception cref="T:System.Runtime.Serialization.SerializationException">The class name is null or <see cref="P:System.Exception.HResult"></see> is zero (0). </exception>
         /// <exception cref="T:System.ArgumentNullException">The info parameter is null. </exception>
-        protected SchedulerException(
-			System.Runtime.Serialization.SerializationInfo info, 
-			System.Runtime.Serialization.StreamingContext context) : base(info, context)
+        protected SchedulerException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
-#endif // BINARY_SERIALIZATION
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SchedulerException"/> class.

@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Runtime.Serialization;
 
 namespace Quartz.Impl.Calendar
 {
@@ -39,13 +40,8 @@ namespace Quartz.Impl.Calendar
     /// <author>Juergen Donnerstag</author>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-#if BINARY_SERIALIZATION
     [Serializable]
-#endif // BINARY_SERIALIZATION
-    public class BaseCalendar : ICalendar
-#if BINARY_SERIALIZATION
-        , System.Runtime.Serialization.ISerializable, IEquatable<BaseCalendar>
-#endif // BINARY_SERIALIZATION
+    public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
     {
         private TimeZoneInfo timeZone;
 
@@ -85,15 +81,12 @@ namespace Quartz.Impl.Calendar
             this.timeZone = timeZone;
         }
 
-#if BINARY_SERIALIZATION
         /// <summary>
         /// Serialization constructor.
         /// </summary>
         /// <param name="info"></param>
         /// <param name="context"></param>
-        protected BaseCalendar(
-			System.Runtime.Serialization.SerializationInfo info,
-			System.Runtime.Serialization.StreamingContext context)
+        protected BaseCalendar(SerializationInfo info, StreamingContext context)
         {
             int version;
             try
@@ -143,17 +136,13 @@ namespace Quartz.Impl.Calendar
         }
 
         [System.Security.SecurityCritical]
-        public virtual void GetObjectData(
-            System.Runtime.Serialization.SerializationInfo info,
-            System.Runtime.Serialization.StreamingContext context)
+        public virtual void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             info.AddValue("baseCalendarVersion", 1);
             info.AddValue("baseCalendar", CalendarBase);
             info.AddValue("description", Description);
             info.AddValue("timeZoneId", timeZone?.Id);
         }
-
-#endif // BINARY_SERIALIZATION
 
         /// <summary>
         /// Gets or sets the time zone.
@@ -267,8 +256,8 @@ namespace Quartz.Impl.Calendar
             unchecked
             {
                 var hashCode = CalendarBase?.GetHashCode() ?? 0;
-                hashCode = (hashCode*397) ^ (Description?.GetHashCode() ?? 0);
-                hashCode = (hashCode*397) ^ (timeZone?.GetHashCode() ?? 0);
+                hashCode = (hashCode * 397) ^ (Description?.GetHashCode() ?? 0);
+                hashCode = (hashCode * 397) ^ (timeZone?.GetHashCode() ?? 0);
                 return hashCode;
             }
         }

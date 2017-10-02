@@ -41,15 +41,11 @@
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(TargetFramework)' == '$(TargetFullFrameworkVersion)' ">
-    <DefineConstants>$(DefineConstants);APPDOMAINS;BINARY_SERIALIZATION;CONFIGURATION;THREAD_INTERRUPTION;THREAD_PRIORITY;XML_SCHEMA;REMOTING</DefineConstants>
+    <DefineConstants>$(DefineConstants);REMOTING</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'netcoreapp2.0' ">
-    <DefineConstants>$(DefineConstants);APPDOMAINS;BINARY_SERIALIZATION;CONFIGURATION;THREAD_INTERRUPTION;THREAD_PRIORITY;XML_SCHEMA;APPCONTEXT;NETSTANDARD_DBPROVIDERS</DefineConstants>
-  </PropertyGroup>
-
-  <PropertyGroup Condition=" '$(TargetFramework)' == 'netstandard1.3' or '$(TargetFramework)' == 'netcoreapp1.1' ">
-    <DefineConstants>$(DefineConstants);APPCONTEXT;BUG_7552;NETSTANDARD_DBPROVIDERS;LIBLOG_PORTABLE</DefineConstants>
+    <DefineConstants>$(DefineConstants);APPCONTEXT;NETSTANDARD_DBPROVIDERS</DefineConstants>
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">

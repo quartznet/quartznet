@@ -52,9 +52,7 @@ namespace Quartz.Impl.Triggers
 	/// <author>James House</author>
 	/// <author>Sharada Jambula</author>
     /// <author>Marko Lahma (.NET)</author>
-#if BINARY_SERIALIZATION
     [Serializable]
-#endif // BINARY_SERIALIZATION
     public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTrigger>
 	{
         private string name;
@@ -68,9 +66,7 @@ namespace Quartz.Impl.Triggers
         private DateTimeOffset? endTimeUtc;
         private DateTimeOffset startTimeUtc;
 
-#if BINARY_SERIALIZATION
         [NonSerialized] // we have the key in string fields
-#endif // BINARY_SERIALIZATION
         private TriggerKey key;
 
 		/// <summary>

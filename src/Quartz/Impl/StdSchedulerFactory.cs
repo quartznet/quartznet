@@ -22,6 +22,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
+using System.Configuration;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
@@ -37,9 +38,6 @@ using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
-#if CONFIGURATION
-using System.Configuration;
-#endif // CONFIGURATION
 
 namespace Quartz.Impl
 {
@@ -207,16 +205,9 @@ namespace Quartz.Impl
                 throw initException;
             }
 
-            NameValueCollection props =
-#if CONFIGURATION
-                (NameValueCollection) ConfigurationManager.GetSection(ConfigurationSectionName);
-#else // CONFIGURATION
-            null;
-#endif // CONFIGURATION
-
+            var props = (NameValueCollection) ConfigurationManager.GetSection(ConfigurationSectionName);
             string requestedFile = QuartzEnvironment.GetEnvironmentVariable(PropertiesFile);
-
-            string propFileName = requestedFile != null && requestedFile.Trim().Length > 0 ? requestedFile : "~/quartz.config";
+            string propFileName = !string.IsNullOrWhiteSpace(requestedFile) ? requestedFile : "~/quartz.config";
 
             // check for specials
             try
@@ -586,7 +577,6 @@ Please add configuration to your application config file to correctly initialize
                     string dsConnectionString = pp.GetStringProperty(PropertyDataSourceConnectionString, null);
                     string dsConnectionStringName = pp.GetStringProperty(PropertyDataSourceConnectionStringName, null);
 
-#if CONFIGURATION
                     if (dsConnectionString == null && !string.IsNullOrEmpty(dsConnectionStringName))
                     {
                         ConnectionStringSettings connectionStringSettings = ConfigurationManager.ConnectionStrings[dsConnectionStringName];
@@ -597,7 +587,6 @@ Please add configuration to your application config file to correctly initialize
                         }
                         dsConnectionString = connectionStringSettings.ConnectionString;
                     }
-#endif // CONFIGURATION
 
                     if (dsProvider == null)
                     {
@@ -654,12 +643,7 @@ Please add configuration to your application config file to correctly initialize
                 }
                 if (objectSerializerType.Equals("binary", StringComparison.OrdinalIgnoreCase))
                 {
-#if BINARY_SERIALIZATION
                     objectSerializerType = typeof(BinaryObjectSerializer).AssemblyQualifiedNameWithoutVersion();
-#else
-                    initException = new SchedulerException("Binary serialization is not supported");
-                    throw initException;
-#endif
                 }
 
                 tProps = cfg.GetPropertyGroup(PropertyObjectSerializer, true);
@@ -683,7 +667,7 @@ Please add configuration to your application config file to correctly initialize
                 // when we know for sure that job store does not need serialization we can be a bit more relaxed
                 // otherwise it's an error to not define the serialization strategy
                 initException = new SchedulerException($"You must define object serializer using configuration key '{serializerTypeKey}' when using other than RAMJobStore. " +
-                    "Out of the box supported values are 'json' and 'binary'. JSON doesn't suffer from versioning as much as binary serialization but you cannot use it if you already have binary serialized data.");
+                                                       "Out of the box supported values are 'json' and 'binary'. JSON doesn't suffer from versioning as much as binary serialization but you cannot use it if you already have binary serialized data.");
                 throw initException;
             }
 
@@ -1126,7 +1110,7 @@ Please add configuration to your application config file to correctly initialize
         /// </para>
         /// </summary>
         public virtual Task<IScheduler> GetScheduler(
-            string schedName, 
+            string schedName,
             CancellationToken cancellationToken = default)
         {
             return SchedulerRepository.Instance.Lookup(schedName, cancellationToken);

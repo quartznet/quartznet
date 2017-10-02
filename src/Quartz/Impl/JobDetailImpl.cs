@@ -50,9 +50,7 @@ namespace Quartz.Impl
     /// <seealso cref="ITrigger"/>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-#if BINARY_SERIALIZATION
     [Serializable]
-#endif // BINARY_SERIALIZATION
     public class JobDetailImpl : IJobDetail
     {
         private string name;
@@ -61,9 +59,7 @@ namespace Quartz.Impl
         private JobDataMap jobDataMap;
         private Type jobType;
 
-#if BINARY_SERIALIZATION
         [NonSerialized] // we have the key in string fields
-#endif // BINARY_SERIALIZATION
         private JobKey key;
 
         /// <summary>

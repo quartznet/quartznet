@@ -406,9 +406,7 @@ namespace Quartz.Core
             return true;
         }
 
-#if BINARY_SERIALIZATION
         [Serializable]
-#endif // BINARY_SERIALIZATION
         internal class VetoedException : Exception
         {
             public VetoedException(JobRunShell shell)

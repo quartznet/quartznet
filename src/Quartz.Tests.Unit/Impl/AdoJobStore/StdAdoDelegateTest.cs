@@ -39,9 +39,7 @@ using Quartz.Spi;
 namespace Quartz.Tests.Unit.Impl.AdoJobStore
 {
     /// <author>Marko Lahma (.NET)</author>
-#if BINARY_SERIALIZATION
     [TestFixture(typeof(BinaryObjectSerializer))]
-#endif
     [TestFixture(typeof(JsonObjectSerializer))]
     public class StdAdoDelegateTest
     {
@@ -56,11 +54,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         [Test]
         public void TestSerializeJobData()
         {
-#if BINARY_SERIALIZATION
             bool binary = serializer.GetType() == typeof(BinaryObjectSerializer);
-#else
-            bool binary = false;
-#endif
 
             var args = new DelegateInitializationArgs();
             args.TablePrefix = "QRTZ_";

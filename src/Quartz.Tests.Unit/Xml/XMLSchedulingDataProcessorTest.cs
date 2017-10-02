@@ -26,6 +26,7 @@ using System.IO;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Transactions;
 
 using FakeItEasy;
 
@@ -39,9 +40,6 @@ using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
 using Quartz.Xml;
-#if TRANSACTIONS
-using System.Transactions;
-#endif
 
 namespace Quartz.Tests.Unit.Xml
 {
@@ -54,9 +52,7 @@ namespace Quartz.Tests.Unit.Xml
     {
         private XMLSchedulingDataProcessor processor;
         private IScheduler mockScheduler;
-#if TRANSACTIONS
         private TransactionScope scope;
-#endif
 
         [SetUp]
         public void SetUp()
@@ -65,18 +61,14 @@ namespace Quartz.Tests.Unit.Xml
             mockScheduler = A.Fake<IScheduler>();
             A.CallTo(() => mockScheduler.GetJobDetail(A<JobKey>._, A<CancellationToken>._)).Returns(Task.FromResult<IJobDetail>(null));
             A.CallTo(() => mockScheduler.GetTrigger(A<TriggerKey>._, A<CancellationToken>._)).Returns(Task.FromResult<ITrigger>(null));
-#if TRANSACTIONS
             scope = new TransactionScope();
-#endif
         }
 
         [TearDown]
         public void TearDown()
         {
-#if TRANSACTIONS
             scope?.Dispose();
-#endif
-            }
+        }
 
         [Test]
         [Category("database")]
@@ -88,7 +80,6 @@ namespace Quartz.Tests.Unit.Xml
 
             await processor.ScheduleJobs(mockScheduler);
         }
-
 
         [Test]
         [Category("database")]
@@ -135,10 +126,10 @@ namespace Quartz.Tests.Unit.Xml
             {
                 ITrigger argumentTrigger = (ITrigger) args[1];
 
-            // replacement trigger should have same start time and next fire relative to old trigger's last fire time
-            Assert.That(argumentTrigger, Is.Not.Null);
-            Assert.That(argumentTrigger.StartTimeUtc, Is.EqualTo(startTime));
-            Assert.That(argumentTrigger.GetNextFireTimeUtc(), Is.EqualTo(previousFireTime.AddSeconds(10)));
+                // replacement trigger should have same start time and next fire relative to old trigger's last fire time
+                Assert.That(argumentTrigger, Is.Not.Null);
+                Assert.That(argumentTrigger.StartTimeUtc, Is.EqualTo(startTime));
+                Assert.That(argumentTrigger.GetNextFireTimeUtc(), Is.EqualTo(previousFireTime.AddSeconds(10)));
                 return true;
             }).MustHaveHappened();
         }

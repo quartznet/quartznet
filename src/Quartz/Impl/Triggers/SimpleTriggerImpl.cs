@@ -30,9 +30,7 @@ namespace Quartz.Impl.Triggers
     /// <author>James House</author>
     /// <author>Contributions by Lieven Govaerts of Ebitec Nv, Belgium.</author>
     /// <author>Marko Lahma (.NET)</author>
-#if BINARY_SERIALIZATION
     [Serializable]
-#endif // BINARY_SERIALIZATION
     public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
 	{
         /// <summary>

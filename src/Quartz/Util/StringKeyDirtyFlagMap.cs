@@ -1,20 +1,20 @@
 #region License
 
-/* 
+/*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -23,18 +23,17 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Runtime.Serialization;
 
 namespace Quartz.Util
 {
     /// <summary>
     /// An implementation of <see cref="IDictionary" /> that wraps another <see cref="IDictionary" />
     /// and flags itself 'dirty' when it is modified, enforces that all keys are
-    /// strings. 
+    /// strings.
     /// </summary>
     /// <author>Marko Lahma (.NET)</author>
-#if BINARY_SERIALIZATION
     [Serializable]
-#endif // BINARY_SERIALIZATION
     public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     {
         /// <summary>
@@ -74,19 +73,14 @@ namespace Quartz.Util
         //    }
         //}
 
-#if BINARY_SERIALIZATION
         /// <summary>
         /// Serialization constructor.
         /// </summary>
         /// <param name="info"></param>
         /// <param name="context"></param>
-        protected StringKeyDirtyFlagMap(
-			System.Runtime.Serialization.SerializationInfo info, 
-			System.Runtime.Serialization.StreamingContext context) : base(info, context)
+        protected StringKeyDirtyFlagMap(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
-    
-#endif // BINARY_SERIALIZATION
 
         /// <summary>
         /// Determines whether the specified <see cref="T:System.Object"/> is equal to the current <see cref="T:System.Object"/>.
@@ -173,7 +167,7 @@ namespace Quartz.Util
             base.Put(key, value);
         }
 
-        /// <summary> 
+        /// <summary>
         /// Adds the given <see cref="bool" /> value to the <see cref="IJob" />'s
         /// data map.
         /// </summary>
@@ -200,7 +194,7 @@ namespace Quartz.Util
             base.Put(key, value);
         }
 
-        /// <summary> 
+        /// <summary>
         /// Retrieve the identified <see cref="int" /> value from the <see cref="JobDataMap" />.
         /// </summary>
         public virtual int GetInt(string key)
@@ -268,7 +262,7 @@ namespace Quartz.Util
             }
         }
 
-        /// <summary> 
+        /// <summary>
         /// Retrieve the identified <see cref="bool" /> value from the <see cref="JobDataMap" />.
         /// </summary>
         public virtual bool GetBoolean(string key)
@@ -286,7 +280,7 @@ namespace Quartz.Util
         }
 
         /// <summary>
-        /// Retrieve the identified <see cref="char" /> value from the <see cref="JobDataMap" />. 
+        /// Retrieve the identified <see cref="char" /> value from the <see cref="JobDataMap" />.
         /// </summary>
         public virtual char GetChar(string key)
         {
@@ -320,7 +314,7 @@ namespace Quartz.Util
         }
 
         /// <summary>
-        /// Retrieve the identified <see cref="DateTime" /> value from the <see cref="JobDataMap" />. 
+        /// Retrieve the identified <see cref="DateTime" /> value from the <see cref="JobDataMap" />.
         /// </summary>
         public virtual DateTime GetDateTime(string key)
         {
@@ -337,7 +331,7 @@ namespace Quartz.Util
         }
 
         /// <summary>
-        /// Retrieve the identified <see cref="DateTimeOffset" /> value from the <see cref="JobDataMap" />. 
+        /// Retrieve the identified <see cref="DateTimeOffset" /> value from the <see cref="JobDataMap" />.
         /// </summary>
         public virtual DateTimeOffset GetDateTimeOffset(string key)
         {
@@ -346,7 +340,7 @@ namespace Quartz.Util
         }
 
         /// <summary>
-        /// Retrieve the identified <see cref="TimeSpan" /> value from the <see cref="JobDataMap" />. 
+        /// Retrieve the identified <see cref="TimeSpan" /> value from the <see cref="JobDataMap" />.
         /// </summary>
         public virtual TimeSpan GetTimeSpan(string key)
         {

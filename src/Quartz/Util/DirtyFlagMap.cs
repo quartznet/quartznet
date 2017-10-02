@@ -22,11 +22,8 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-
-#if BINARY_SERIALIZATION
 using System.Runtime.Serialization;
 using System.Security;
-#endif // BINARY_SERIALIZATION
 
 namespace Quartz.Util
 {
@@ -36,18 +33,12 @@ namespace Quartz.Util
     /// </summary>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-#if BINARY_SERIALIZATION
     [Serializable]
-#endif // BINARY_SERIALIZATION
-    public class DirtyFlagMap<TKey, TValue> :
-        IDictionary<TKey, TValue>,
-        IDictionary
-#if BINARY_SERIALIZATION
-        ,ISerializable
-#endif // BINARY_SERIALIZATION
+    public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, ISerializable
     {
         // JsonProperty attributes are used since Json.Net's default behavior is to serialize public members and the properties wrapping these fields are read-only
         private bool dirty;
+
         private Dictionary<TKey, TValue> map;
 
         /// <summary>
@@ -67,13 +58,12 @@ namespace Quartz.Util
             map = new Dictionary<TKey, TValue>(initialCapacity);
         }
 
-#if BINARY_SERIALIZATION // NetCore versions of Quartz can't use old serialized data.
-    // Make sure that future DirtyFlagMap version changes are done in a DCS-friendly way (with [OnSerializing] and [OnDeserialized] methods).
-    /// <summary>
-    /// Serialization constructor.
-    /// </summary>
-    /// <param name="info"></param>
-    /// <param name="context"></param>
+        // Make sure that future DirtyFlagMap version changes are done in a DCS-friendly way (with [OnSerializing] and [OnDeserialized] methods).
+        /// <summary>
+        /// Serialization constructor.
+        /// </summary>
+        /// <param name="info"></param>
+        /// <param name="context"></param>
         protected DirtyFlagMap(SerializationInfo info, StreamingContext context)
         {
             int version;
@@ -85,7 +75,6 @@ namespace Quartz.Util
             {
                 version = 0;
             }
-
 
             string prefix = "";
             if (version < 1)
@@ -104,7 +93,7 @@ namespace Quartz.Util
             switch (version)
             {
                 case 0:
-                    object o = info.GetValue(prefix + "map", typeof (object));
+                    object o = info.GetValue(prefix + "map", typeof(object));
                     Hashtable oldMap = o as Hashtable;
                     if (oldMap != null)
                     {
@@ -125,13 +114,12 @@ namespace Quartz.Util
                     }
                     break;
                 case 1:
-                    dirty = (bool) info.GetValue("dirty", typeof (bool));
-                    map = (Dictionary<TKey, TValue>) info.GetValue("map", typeof (Dictionary<TKey, TValue>));
+                    dirty = (bool) info.GetValue("dirty", typeof(bool));
+                    map = (Dictionary<TKey, TValue>) info.GetValue("map", typeof(Dictionary<TKey, TValue>));
                     break;
                 default:
                     throw new NotSupportedException("Unknown serialization version");
             }
-
         }
 
         [SecurityCritical]
@@ -141,7 +129,6 @@ namespace Quartz.Util
             info.AddValue("dirty", dirty);
             info.AddValue("map", map);
         }
-#endif // BINARY_SERIALIZATION
 
         /// <summary>
         /// Determine whether the <see cref="IDictionary" /> is flagged dirty.

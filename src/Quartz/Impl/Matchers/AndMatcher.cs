@@ -30,9 +30,7 @@ namespace Quartz.Impl.Matchers
     /// </summary>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-#if BINARY_SERIALIZATION
     [Serializable]
-#endif // BINARY_SERIALIZATION
     public class AndMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
         // ReSharper disable once UnusedMember.Local
