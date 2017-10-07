@@ -7,13 +7,13 @@ using Quartz.Spi;
 namespace Quartz.Simpl
 {
     /// <summary>
-    /// Default directory provider that inspects and parses the merged JobDataMap <see cref="JobDataMap"/> 
-    /// for the entries <see cref="DirectoryScanJob.DirectoryName"/> and <see cref="DirectoryScanJob.DirectoryNames"/> 
+    /// Default directory provider that inspects and parses the merged JobDataMap <see cref="JobDataMap"/>
+    /// for the entries <see cref="DirectoryScanJob.DirectoryName"/> and <see cref="DirectoryScanJob.DirectoryNames"/>
     /// to supply the directory paths
     /// </summary>
     internal class DefaultDirectoryProvider : IDirectoryProvider
     {
-        public IEnumerable<string> GetDirectoriesToScan(JobDataMap mergedJobDataMap)
+        public IReadOnlyList<string> GetDirectoriesToScan(JobDataMap mergedJobDataMap)
         {
             List<string> directoriesToScan = new List<string>();
             string dirName = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryName);
@@ -25,7 +25,7 @@ namespace Quartz.Simpl
                                                 "is required and was not found in merged JobDataMap");
             }
 
-            /* 
+            /*
                 If the user supplied both DirectoryScanJob.DirectoryName and DirectoryScanJob.DirectoryNames,
                 then just use both. The directory names will be 'distincted' by the caller.
             */

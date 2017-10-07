@@ -29,10 +29,10 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// Gets the supported provider names.
         /// </summary>
         /// <returns>The enumeration of the supported provider names</returns>
-        public override IEnumerable<string> GetProviderNames()
+        public override IReadOnlyCollection<string> GetProviderNames()
         {
             PropertiesParser pp = PropertiesParser.ReadFromEmbeddedAssemblyResource(resourceName);
-            IEnumerable<string> result = pp.GetPropertyGroups(propertyGroupName);
+            var result = pp.GetPropertyGroups(propertyGroupName);
             return result;
         }
 
@@ -67,7 +67,7 @@ namespace Quartz.Impl.AdoJobStore.Common
             }
             catch (Exception ex)
             {
-                throw new ArgumentException("Error while reading metadata information for provider '" + providerName + "'", "providerName", ex);
+                throw new ArgumentException("Error while reading metadata information for provider '" + providerName + "'", nameof(providerName), ex);
             }
         }
     }

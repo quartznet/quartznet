@@ -2252,10 +2252,7 @@ namespace Quartz.Tests.Integration.LogProviders
 
         public void Dispose()
         {
-            if (_onDispose != null)
-            {
-                _onDispose();
-            }
+            _onDispose?.Invoke();
         }
     }
 }

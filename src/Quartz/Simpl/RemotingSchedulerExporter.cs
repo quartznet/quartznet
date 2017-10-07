@@ -45,7 +45,7 @@ namespace Quartz.Simpl
         private const string DefaultChannelName = "http";
 
         /// <summary>
-        /// BinaryServerFormatterSinkProvider allowed properties.        
+        /// BinaryServerFormatterSinkProvider allowed properties.
         /// </summary>
         private static string[] formatProviderAllowedProperties = new string[] { "includeVersions", "strictBinding", "typeFilterLevel" };
 
@@ -66,13 +66,13 @@ namespace Quartz.Simpl
         {
             if (scheduler == null)
             {
-                throw new ArgumentNullException("scheduler");
+                throw new ArgumentNullException(nameof(scheduler));
             }
 
 #if REMOTING
             if (!(scheduler is MarshalByRefObject))
             {
-                throw new ArgumentException("Exported scheduler must be of type MarshallByRefObject", "scheduler");
+                throw new ArgumentException("Exported scheduler must be of type MarshallByRefObject", nameof(scheduler));
             }
 
             RegisterRemotingChannelIfNeeded();
@@ -197,12 +197,12 @@ namespace Quartz.Simpl
         {
             if (scheduler == null)
             {
-                throw new ArgumentNullException("scheduler");
+                throw new ArgumentNullException(nameof(scheduler));
             }
 #if REMOTING
             if (!(scheduler is MarshalByRefObject))
             {
-                throw new ArgumentException("Exported scheduler must be of type MarshallByRefObject", "scheduler");
+                throw new ArgumentException("Exported scheduler must be of type MarshallByRefObject", nameof(scheduler));
             }
 #endif // REMOTING
 

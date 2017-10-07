@@ -9,9 +9,6 @@ namespace Quartz.Util
     public static class ObjectExtensions
     {
         public static string AssemblyQualifiedNameWithoutVersion(this Type type)
-        {
-            string retValue = type.FullName + ", " + type.GetTypeInfo().Assembly.GetName().Name;
-            return retValue;
-        }
+            => $"{type.FullName}, {type.GetTypeInfo().Assembly.GetName().Name}";
     }
 }

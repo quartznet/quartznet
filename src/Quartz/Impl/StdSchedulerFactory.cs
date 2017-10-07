@@ -531,7 +531,7 @@ Please add configuration to your application config file to correctly initialize
             // Set up any DataSources
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-            IList<string> dsNames = cfg.GetPropertyGroups(PropertyDataSourcePrefix);
+            var dsNames = cfg.GetPropertyGroups(PropertyDataSourcePrefix);
             foreach (string dataSourceName in dsNames)
             {
                 string datasourceKey = "{0}.{1}".FormatInvariant(PropertyDataSourcePrefix, dataSourceName);
@@ -741,7 +741,7 @@ Please add configuration to your application config file to correctly initialize
             // Set up any SchedulerPlugins
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-            IList<string> pluginNames = cfg.GetPropertyGroups(PropertyPluginPrefix);
+            var pluginNames = cfg.GetPropertyGroups(PropertyPluginPrefix);
             ISchedulerPlugin[] plugins = new ISchedulerPlugin[pluginNames.Count];
             for (int i = 0; i < pluginNames.Count; i++)
             {
@@ -779,7 +779,7 @@ Please add configuration to your application config file to correctly initialize
 
             // Set up any JobListeners
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            IList<string> jobListenerNames = cfg.GetPropertyGroups(PropertyJobListenerPrefix);
+            var jobListenerNames = cfg.GetPropertyGroups(PropertyJobListenerPrefix);
             IJobListener[] jobListeners = new IJobListener[jobListenerNames.Count];
             for (int i = 0; i < jobListenerNames.Count; i++)
             {
@@ -822,7 +822,7 @@ Please add configuration to your application config file to correctly initialize
             // Set up any TriggerListeners
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-            IList<string> triggerListenerNames = cfg.GetPropertyGroups(PropertyTriggerListenerPrefix);
+            var triggerListenerNames = cfg.GetPropertyGroups(PropertyTriggerListenerPrefix);
             ITriggerListener[] triggerListeners = new ITriggerListener[triggerListenerNames.Count];
             for (int i = 0; i < triggerListenerNames.Count; i++)
             {

@@ -3206,7 +3206,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="cancellationToken">The cancellation instruction.</param>
         private async Task<IReadOnlyList<SchedulerStateRecord>> FindOrphanedFailedInstances(
             ConnectionAndTransactionHolder conn,
-            IEnumerable<SchedulerStateRecord> schedulerStateRecords,
+            IReadOnlyCollection<SchedulerStateRecord> schedulerStateRecords,
             CancellationToken cancellationToken)
         {
             List<SchedulerStateRecord> orphanedInstances = new List<SchedulerStateRecord>();

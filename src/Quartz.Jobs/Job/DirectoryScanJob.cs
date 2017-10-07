@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -11,9 +10,9 @@ using Quartz.Spi;
 namespace Quartz.Job
 {
     ///<summary>
-    /// Inspects a directory and compares whether any files' "last modified dates" 
-    /// have changed since the last time it was inspected.  If one or more files 
-    /// have been updated (or created), the job invokes a "call-back" method on an 
+    /// Inspects a directory and compares whether any files' "last modified dates"
+    /// have changed since the last time it was inspected.  If one or more files
+    /// have been updated (or created), the job invokes a "call-back" method on an
     /// identified <see cref="IDirectoryScanListener"/> that can be found in the
     /// <see cref="SchedulerContext"/>.
     /// </summary>
@@ -25,22 +24,22 @@ namespace Quartz.Job
     [PersistJobDataAfterExecution]
     public class DirectoryScanJob : IJob
     {
-        ///<see cref="JobDataMap"/> key with which to specify the directory to be 
-        /// monitored - an absolute path is recommended. 
+        ///<see cref="JobDataMap"/> key with which to specify the directory to be
+        /// monitored - an absolute path is recommended.
         public const string DirectoryName = "DIRECTORY_NAME";
 
-        ///<see cref="JobDataMap"/> key with which to specify the directories to be 
+        ///<see cref="JobDataMap"/> key with which to specify the directories to be
         /// monitored. Directory paths should be separated by a semi-colon (;) - absolute paths are recommended.
         public const string DirectoryNames = "DIRECTORY_NAMES";
 
-        /// <see cref="JobDataMap"/> key with which to specify the 
+        /// <see cref="JobDataMap"/> key with which to specify the
         /// <see cref="IDirectoryProvider"/> to be used to provide
         /// the directory paths to be monitored - absolute paths are recommended.
         public const string DirectoryProviderName = "DIRECTORY_PROVIDER_NAME";
 
-        /// <see cref="JobDataMap"/> key with which to specify the 
-        /// <see cref="IDirectoryScanListener"/> to be 
-        /// notified when the directory contents change.  
+        /// <see cref="JobDataMap"/> key with which to specify the
+        /// <see cref="IDirectoryScanListener"/> to be
+        /// notified when the directory contents change.
         public const string DirectoryScanListenerName = "DIRECTORY_SCAN_LISTENER_NAME";
 
         /// <see cref="JobDataMap"/> key with which to specify a <see cref="long"/>
@@ -62,23 +61,25 @@ namespace Quartz.Job
         }
 
         /// <summary>
-        /// This is the main entry point for job execution. The scheduler will call this method on the 
+        /// This is the main entry point for job execution. The scheduler will call this method on the
         /// job once it is triggered.
         /// </summary>
-        /// <param name="context">The <see cref="IJobExecutionContext"/> that 
+        /// <param name="context">The <see cref="IJobExecutionContext"/> that
         /// the job will use during execution.</param>
         public Task Execute(IJobExecutionContext context)
         {
             DirectoryScanJobModel model = DirectoryScanJobModel.GetInstance(context);
 
-            ConcurrentQueue<FileInfo> updatedFiles = new ConcurrentQueue<FileInfo>();
+            List<FileInfo> updatedFiles = new List<FileInfo>();
             Parallel.ForEach(model.DirectoriesToScan, d =>
             {
                 var newOrUpdatedFiles = GetUpdatedOrNewFiles(d, model.LastModTime, model.MaxAgeDate);
-                if (newOrUpdatedFiles == null) return;
-                foreach (var fileInfo in newOrUpdatedFiles)
+                lock (updatedFiles)
                 {
-                    updatedFiles.Enqueue(fileInfo);
+                    foreach (var fileInfo in newOrUpdatedFiles)
+                    {
+                        updatedFiles.Add(fileInfo);
+                    }
                 }
             });
 
@@ -105,17 +106,19 @@ namespace Quartz.Job
             return TaskUtil.CompletedTask;
         }
 
-        protected IEnumerable<FileInfo> GetUpdatedOrNewFiles(string dirName, DateTime lastModifiedDate, DateTime maxAgeDate)
+        protected List<FileInfo> GetUpdatedOrNewFiles(string dirName, DateTime lastModifiedDate, DateTime maxAgeDate)
         {
             DirectoryInfo dir = new DirectoryInfo(dirName);
             if (!dir.Exists)
             {
                 log.Warn($"Directory '{dirName}' does not exist.");
-                return null;
+                return new List<FileInfo>();
             }
 
             FileInfo[] files = dir.GetFiles();
-            return files.Where(fileInfo => fileInfo.LastWriteTime > lastModifiedDate && fileInfo.LastWriteTime < maxAgeDate);
+            return files
+                .Where(fileInfo => fileInfo.LastWriteTime > lastModifiedDate && fileInfo.LastWriteTime < maxAgeDate)
+                .ToList();
         }
     }
 }

@@ -1490,7 +1490,7 @@ namespace Quartz.Core
         {
             if (triggerListener.Name.IsNullOrWhiteSpace())
             {
-                throw new ArgumentException("TriggerListener name cannot be empty.", "triggerListener");
+                throw new ArgumentException("TriggerListener name cannot be empty.", nameof(triggerListener));
             }
             internalTriggerListeners[triggerListener.Name] = triggerListener;
         }
@@ -1553,25 +1553,25 @@ namespace Quartz.Core
             }
         }
 
-        private IEnumerable<ITriggerListener> BuildTriggerListenerList()
+        private List<ITriggerListener> BuildTriggerListenerList()
         {
-            List<ITriggerListener> listeners = new List<ITriggerListener>();
+            var listeners = new List<ITriggerListener>();
             listeners.AddRange(ListenerManager.GetTriggerListeners());
             listeners.AddRange(InternalTriggerListeners);
             return listeners;
         }
 
-        private IEnumerable<IJobListener> BuildJobListenerList()
+        private List<IJobListener> BuildJobListenerList()
         {
-            List<IJobListener> listeners = new List<IJobListener>();
+            var listeners = new List<IJobListener>();
             listeners.AddRange(ListenerManager.GetJobListeners());
             listeners.AddRange(InternalJobListeners);
             return listeners;
         }
 
-        private IEnumerable<ISchedulerListener> BuildSchedulerListenerList()
+        private List<ISchedulerListener> BuildSchedulerListenerList()
         {
-            List<ISchedulerListener> allListeners = new List<ISchedulerListener>();
+            var allListeners = new List<ISchedulerListener>();
             allListeners.AddRange(ListenerManager.GetSchedulerListeners());
             allListeners.AddRange(InternalSchedulerListeners);
             return allListeners;
@@ -1617,7 +1617,7 @@ namespace Quartz.Core
             bool vetoedExecution = false;
 
             // build a list of all trigger listeners that are to be notified...
-            IEnumerable<ITriggerListener> listeners = BuildTriggerListenerList();
+            var listeners = BuildTriggerListenerList();
 
             // notify all trigger listeners in the list
             foreach (ITriggerListener tl in listeners)
@@ -1750,7 +1750,7 @@ namespace Quartz.Core
             CancellationToken cancellationToken = default)
         {
             // build a list of all job listeners that are to be notified...
-            IEnumerable<IJobListener> listeners = BuildJobListenerList();
+            var listeners = BuildJobListenerList();
 
             // notify all job listeners
             foreach (IJobListener jl in listeners)
@@ -2166,7 +2166,7 @@ namespace Quartz.Core
             {
                 await NotifySchedulerListeners(l => l.JobInterrupted(jobKey, cancellationToken), "job interruption");
             }
-            
+
             return interrupted;
         }
 

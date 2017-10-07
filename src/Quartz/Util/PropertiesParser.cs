@@ -560,7 +560,7 @@ namespace Quartz.Util
         /// </summary>
         /// <param name="prefix">The prefix.</param>
         /// <returns></returns>
-        public virtual IList<string> GetPropertyGroups(string prefix)
+        public virtual IReadOnlyList<string> GetPropertyGroups(string prefix)
 		{
             var groups = new HashSet<string>();
 

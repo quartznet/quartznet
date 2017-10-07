@@ -16,6 +16,6 @@ namespace Quartz.Spi
         /// to montitor - absolute paths are recommended.
         /// </summary>
         /// <returns></returns>
-        IEnumerable<string> GetDirectoriesToScan(JobDataMap mergedJobDataMap);
+        IReadOnlyList<string> GetDirectoriesToScan(JobDataMap mergedJobDataMap);
     }
 }

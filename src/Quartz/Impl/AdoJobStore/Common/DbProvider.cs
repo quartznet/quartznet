@@ -114,7 +114,7 @@ namespace Quartz.Impl.AdoJobStore.Common
                         return result;
                     }
                 }
-                throw new ArgumentOutOfRangeException("providerName", "There is no metadata information for provider '" + providerName + "'");
+                throw new ArgumentOutOfRangeException(nameof(providerName), "There is no metadata information for provider '" + providerName + "'");
             }
 
             return result;

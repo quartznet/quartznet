@@ -101,7 +101,7 @@ namespace Quartz.Util
 	    {
             if (string.IsNullOrEmpty(dsName))
             {
-                throw new ArgumentException("DataSource name cannot be null or empty", "dsName");
+                throw new ArgumentException("DataSource name cannot be null or empty", nameof(dsName));
             }
 
 		    providers.TryGetValue(dsName, out var provider);

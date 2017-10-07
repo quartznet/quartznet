@@ -50,7 +50,7 @@ namespace Quartz.Util
         /// <param name="group">the group</param>
         public Key(string name, string group)
         {
-            this.name = name ?? throw new ArgumentNullException("name", "Name cannot be null.");
+            this.name = name ?? throw new ArgumentNullException(nameof(name), "Name cannot be null.");
             if (group != null)
             {
                 this.group = group;
