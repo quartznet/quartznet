@@ -280,7 +280,7 @@ Please add configuration to your application config file to correctly initialize
         /// Initialize the <see cref="ISchedulerFactory" /> with
         /// the contents of the given key value collection object.
         /// </summary>
-        public virtual void Initialize(NameValueCollection props)
+        public void Initialize(NameValueCollection props)
         {
             cfg = new PropertiesParser(props);
             ValidateConfiguration();

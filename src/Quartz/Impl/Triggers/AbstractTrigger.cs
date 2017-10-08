@@ -73,10 +73,9 @@ namespace Quartz.Impl.Triggers
         /// Get or sets the name of this <see cref="ITrigger" />.
 		/// </summary>
 		/// <exception cref="ArgumentException">If name is null or empty.</exception>
-		public virtual string Name
+		public string Name
 		{
 			get => name;
-
 		    set
 			{
 				if (value == null || value.Trim().Length == 0)
@@ -95,10 +94,9 @@ namespace Quartz.Impl.Triggers
 		/// <exception cref="ArgumentException">
 		/// if group is an empty string.
 		/// </exception>
-		public virtual string Group
+		public string Group
 		{
 			get => group;
-
 		    set
 			{
 				if (value != null && value.Trim().Length == 0)
@@ -122,10 +120,9 @@ namespace Quartz.Impl.Triggers
 		/// <exception cref="ArgumentException">
 		/// if jobName is null or empty.
 		/// </exception>
-		public virtual string JobName
+		public string JobName
 		{
 			get => jobName;
-
 		    set
 			{
 				if (value == null || value.Trim().Length == 0)
@@ -144,10 +141,9 @@ namespace Quartz.Impl.Triggers
 		/// <exception cref="ArgumentException"> ArgumentException
 		/// if group is an empty string.
 		/// </exception>
-		public virtual string JobGroup
+		public string JobGroup
 		{
 			get => jobGroup;
-
 		    set
 			{
 				if (value != null && value.Trim().Length == 0)

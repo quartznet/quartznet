@@ -130,7 +130,7 @@ namespace Quartz.Impl
         /// <exception cref="ArgumentException">
         /// if name is null or empty.
         /// </exception>
-        public virtual string Name
+        public string Name
         {
             get => name;
 
@@ -152,10 +152,9 @@ namespace Quartz.Impl
         /// <exception cref="ArgumentException">
         /// If the group is an empty string.
         /// </exception>
-        public virtual string Group
+        public string Group
         {
             get => group;
-
             set
             {
                 if (value != null && value.Trim().Length == 0)
@@ -176,13 +175,13 @@ namespace Quartz.Impl
         /// Returns the 'full name' of the <see cref="ITrigger" /> in the format
         /// "group.name".
         /// </summary>
-        public virtual string FullName => group + "." + name;
+        public string FullName => group + "." + name;
 
         /// <summary>
         /// Gets the key.
         /// </summary>
         /// <value>The key.</value>
-        public virtual JobKey Key
+        public JobKey Key
         {
             get
             {
@@ -213,7 +212,7 @@ namespace Quartz.Impl
         /// May be useful for remembering/displaying the purpose of the job, though the
         /// description has no meaning to Quartz.
         /// </remarks>
-        public virtual string Description
+        public string Description
         {
             get => description;
             set => description = value;
@@ -225,10 +224,9 @@ namespace Quartz.Impl
         /// <exception cref="ArgumentException">
         /// if jobType is null or the class is not a <see cref="IJob" />.
         /// </exception>
-        public virtual Type JobType
+        public Type JobType
         {
             get => jobType;
-
             set
             {
                 if (value == null)
@@ -236,7 +234,7 @@ namespace Quartz.Impl
                     throw new ArgumentException("Job class cannot be null.");
                 }
 
-                if (!typeof (IJob).GetTypeInfo().IsAssignableFrom(value.GetTypeInfo()))
+                if (!typeof(IJob).GetTypeInfo().IsAssignableFrom(value.GetTypeInfo()))
                 {
                     throw new ArgumentException("Job class must implement the Job interface.");
                 }
@@ -271,7 +269,7 @@ namespace Quartz.Impl
         /// </para>
         /// </summary>
         /// <seealso cref="IJobExecutionContext.Recovering" />
-        public virtual bool RequestsRecovery { set; get; }
+        public bool RequestsRecovery { set; get; }
 
         /// <summary>
         /// Whether or not the <see cref="IJob" /> should remain stored after it is
@@ -284,17 +282,17 @@ namespace Quartz.Impl
         /// <see langword="true" /> if the Job should remain persisted after
         /// being orphaned.
         /// </returns>
-        public virtual bool Durable { get; set; }
+        public bool Durable { get; set; }
 
         /// <summary>
         /// Whether the associated Job class carries the <see cref="PersistJobDataAfterExecution" /> attribute.
         /// </summary>
-        public virtual bool PersistJobDataAfterExecution => ObjectUtils.IsAttributePresent(jobType, typeof (PersistJobDataAfterExecutionAttribute));
+        public virtual bool PersistJobDataAfterExecution => ObjectUtils.IsAttributePresent(jobType, typeof(PersistJobDataAfterExecutionAttribute));
 
         /// <summary>
         /// Whether the associated Job class carries the <see cref="DisallowConcurrentExecutionAttribute" /> attribute.
         /// </summary>
-        public virtual bool ConcurrentExecutionDisallowed => ObjectUtils.IsAttributePresent(jobType, typeof (DisallowConcurrentExecutionAttribute));
+        public virtual bool ConcurrentExecutionDisallowed => ObjectUtils.IsAttributePresent(jobType, typeof(DisallowConcurrentExecutionAttribute));
 
         /// <summary>
         /// Validates whether the properties of the <see cref="IJobDetail" /> are

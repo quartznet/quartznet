@@ -83,12 +83,12 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Get or set the datasource name.
         /// </summary>
-        public virtual string DataSource { get; set; }
+        public string DataSource { get; set; }
 
         /// <summary>
         /// Get or set the database connection manager.
         /// </summary>
-        public virtual IDbConnectionManager ConnectionManager { get; set; } = DBConnectionManager.Instance;
+        public IDbConnectionManager ConnectionManager { get; set; } = DBConnectionManager.Instance;
 
         /// <summary>
         /// Gets the log.
@@ -99,7 +99,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Get or sets the prefix that should be pre-pended to all table names.
         /// </summary>
-        public virtual string TablePrefix
+        public string TablePrefix
         {
             get => tablePrefix;
             set
@@ -116,7 +116,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Set whether string-only properties will be handled in JobDataMaps.
         /// </summary>
-        public virtual string UseProperties
+        public string UseProperties
         {
             set
             {
@@ -156,7 +156,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Get or set whether this instance is part of a cluster.
         /// </summary>
-        public virtual bool Clustered { get; set; }
+        public bool Clustered { get; set; }
 
         /// <summary>
         /// Get or set the frequency at which this instance "checks-in"
@@ -164,27 +164,27 @@ namespace Quartz.Impl.AdoJobStore
         /// detecting failed instances.
         /// </summary>
         [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-        public virtual TimeSpan ClusterCheckinInterval { get; set; }
+        public TimeSpan ClusterCheckinInterval { get; set; }
 
         /// <summary>
         /// Get or set the maximum number of misfired triggers that the misfire handling
         /// thread will try to recover at one time (within one transaction).  The
         /// default is 20.
         /// </summary>
-        public virtual int MaxMisfiresToHandleAtATime { get; set; }
+        public int MaxMisfiresToHandleAtATime { get; set; }
 
         /// <summary>
         /// Gets or sets the database retry interval.
         /// </summary>
         /// <value>The db retry interval.</value>
         [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-        public virtual TimeSpan DbRetryInterval { get; set; }
+        public TimeSpan DbRetryInterval { get; set; }
 
         /// <summary>
         /// Get or set whether this instance should use database-based thread
         /// synchronization.
         /// </summary>
-        public virtual bool UseDBLocks { get; set; }
+        public bool UseDBLocks { get; set; }
 
         /// <summary>
         /// Whether or not to obtain locks when inserting new jobs/triggers.

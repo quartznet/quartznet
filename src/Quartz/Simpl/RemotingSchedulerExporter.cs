@@ -234,37 +234,37 @@ namespace Quartz.Simpl
         /// <summary>
         /// Gets or sets the port used for remoting.
         /// </summary>
-        public virtual int Port { get; set; }
+        public int Port { get; set; }
 
         /// <summary>
         /// Gets or sets the name to use when exporting
         /// scheduler to remoting context.
         /// </summary>
-        public virtual string BindName { get; set; }
+        public string BindName { get; set; }
 
         /// <summary>
         /// Gets or sets the name to use when binding to
         /// tcp channel.
         /// </summary>
-        public virtual string ChannelName { get; set; }
+        public string ChannelName { get; set; }
 
         /// <summary>
         /// Sets the channel type when registering remoting.
         /// </summary>
-        public virtual string ChannelType { get; set; }
+        public string ChannelType { get; set; }
 
         /// <summary>
         /// Sets the <see cref="TypeFilterLevel" /> used when
         /// exporting to remoting context. Defaults to
         /// <see cref="System.Runtime.Serialization.Formatters.TypeFilterLevel.Full" />.
         /// </summary>
-        public virtual TypeFilterLevel TypeFilterLevel { get; set; }
+        public TypeFilterLevel TypeFilterLevel { get; set; }
 
         /// <summary>
         /// A Boolean value (true or false) that specifies whether to refuse requests from other computers.
         /// Specifying true allows only remoting calls from the local computer. The default is false.
         /// </summary>
-        public virtual bool RejectRemoteRequests { get; set; }
+        public bool RejectRemoteRequests { get; set; }
     }
 }
 #endif // REMOTING
