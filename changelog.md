@@ -10,6 +10,7 @@
     * netstandard 2.0 is now minimum for .NET Core
     * support for Microsoft.Data.Sqlite via provider name SQLite-Microsoft, the old provider SQLite also still works
 	* Firebird is supported in .NET Core
+	* Added preliminary support for SQL Server Memory-Optimized tables and Quartz.Impl.AdoJobStore.UpdateLockRowSemaphoreMOT
 
 * BREAKING CHANGES
 

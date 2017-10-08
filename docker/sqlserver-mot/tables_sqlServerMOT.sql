@@ -1,24 +1,19 @@
--- This script is for:
-   -- 64-bit Enterprise, Developer, or Evaluation edition of SQL Server 2014
-   -- SQL Server 2016 RTM (pre-SP1) you need Enterprise, Developer, or Evaluation edition.
-   -- SQL Server 2016 SP1 (or later), any edition. 
-
-USE [master];
+CREATE DATABASE quartznet
 GO
 
 -- NOTE: Modify database, path, filegroup, and file names as required
-ALTER DATABASE [enter_db_name_here] ADD FILEGROUP [MemoryOptimizedData] CONTAINS MEMORY_OPTIMIZED_DATA
+ALTER DATABASE [quartznet] ADD FILEGROUP [MemoryOptimizedData] CONTAINS MEMORY_OPTIMIZED_DATA
 GO
-ALTER DATABASE [enter_db_name_here] ADD FILE ( NAME = N'MemoryOptimizedData', FILENAME = N'[enter_path_here]\MemoryOptimizedData' ) TO FILEGROUP [MemoryOptimizedData]
+ALTER DATABASE [quartznet] ADD FILE ( NAME = N'MemoryOptimizedData', FILENAME = N'/tmp/MemoryOptimizedData' ) TO FILEGROUP [MemoryOptimizedData]
 GO
-ALTER DATABASE [enter_db_name_here] SET MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT = ON
+ALTER DATABASE [quartznet] SET MEMORY_OPTIMIZED_ELEVATE_TO_SNAPSHOT = ON
 GO
-ALTER DATABASE [enter_db_name_here] SET READ_COMMITTED_SNAPSHOT ON WITH NO_WAIT
+ALTER DATABASE [quartznet] SET READ_COMMITTED_SNAPSHOT ON WITH NO_WAIT
 GO
-ALTER DATABASE [enter_db_name_here] SET ALLOW_SNAPSHOT_ISOLATION ON
+ALTER DATABASE [quartznet] SET ALLOW_SNAPSHOT_ISOLATION ON
 GO
 
-USE [enter_db_name_here];
+USE [quartznet];
 GO
 
 IF EXISTS (SELECT * FROM dbo.sysobjects WHERE id = OBJECT_ID(N'[dbo].[FK_QRTZ_TRIGGERS_QRTZ_JOB_DETAILS]') AND OBJECTPROPERTY(id, N'ISFOREIGNKEY') = 1)

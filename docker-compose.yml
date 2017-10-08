@@ -51,3 +51,9 @@ services:
     ports:
      - "1433:1433"
 
+  sqlserver-mot:
+    container_name: sqlserver-mot
+    build: docker/sqlserver-mot
+    ports:
+     - "1444:1433"
+

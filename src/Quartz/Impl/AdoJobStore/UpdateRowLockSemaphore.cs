@@ -53,7 +53,7 @@ namespace Quartz.Impl.AdoJobStore
         public static readonly string SqlInsertLock =
             $"INSERT INTO {TablePrefixSubst}{TableLocks}({ColumnSchedulerName}, {ColumnLockName}) VALUES ({SchedulerNameSubst}, @lockName)";
 
-        private const int RetryCount = 2;
+        protected virtual int RetryCount => 2;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="UpdateLockRowSemaphore"/> class.
@@ -63,14 +63,23 @@ namespace Quartz.Impl.AdoJobStore
         {
         }
 
+        protected UpdateLockRowSemaphore(
+            string tablePrefix,
+            string schedName,
+            string defaultSQL,
+            string defaultInsertSQL,
+            IDbProvider dbProvider) : base(tablePrefix, schedName, defaultSQL, defaultInsertSQL, dbProvider)
+        {
+        }
+
         /// <summary>
         /// Execute the SQL that will lock the proper database row.
         /// </summary>
         protected override async Task ExecuteSQL(
-            Guid requestorId, 
+            Guid requestorId,
             ConnectionAndTransactionHolder conn,
-            string lockName, 
-            string expandedSql, 
+            string lockName,
+            string expandedSql,
             string expandedInsertSql,
             CancellationToken cancellationToken)
         {
@@ -90,14 +99,20 @@ namespace Quartz.Impl.AdoJobStore
                     lastFailure = e;
                     if (i + 1 == RetryCount)
                     {
-                        Log.DebugFormat("Lock '{0}' was not obtained by: {1}", lockName, requestorId);
+                        if (Log.IsDebugEnabled())
+                        {
+                            Log.DebugFormat("Lock '{0}' was not obtained by: {1}", lockName, requestorId);
+                        }
                     }
                     else
                     {
-                        Log.DebugFormat("Lock '{0}' was not obtained by: {1} - will try again.", lockName, requestorId);
-                    }
+                        if (Log.IsDebugEnabled())
+                        {
+                            Log.DebugFormat("Lock '{0}' was not obtained by: {1} - will try again.", lockName, requestorId);
+                        }
 
-                    await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
+                        await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
+                    }
                 }
             }
             if (lastFailure != null)
@@ -108,8 +123,8 @@ namespace Quartz.Impl.AdoJobStore
 
         private async Task<bool> LockViaUpdate(
             Guid requestorId,
-            ConnectionAndTransactionHolder conn, 
-            string lockName, 
+            ConnectionAndTransactionHolder conn,
+            string lockName,
             string sql,
             CancellationToken cancellationToken)
         {
@@ -117,15 +132,18 @@ namespace Quartz.Impl.AdoJobStore
             {
                 AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
 
-                Log.DebugFormat("Lock '{0}' is being obtained: {1}", lockName, requestorId);
+                if (Log.IsDebugEnabled())
+                {
+                    Log.DebugFormat("Lock '{0}' is being obtained: {1}", lockName, requestorId);
+                }
                 return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) >= 1;
             }
         }
 
         private async Task LockViaInsert(
-            Guid requestorId, 
-            ConnectionAndTransactionHolder conn, 
-            string lockName, 
+            Guid requestorId,
+            ConnectionAndTransactionHolder conn,
+            string lockName,
             string sql,
             CancellationToken cancellationToken)
         {
@@ -133,7 +151,11 @@ namespace Quartz.Impl.AdoJobStore
             {
                 throw new ArgumentNullException(nameof(sql));
             }
-            Log.DebugFormat("Inserting new lock row for lock: '{0}' being obtained by thread: {1}", lockName, requestorId);
+
+            if (Log.IsDebugEnabled())
+            {
+                Log.DebugFormat("Inserting new lock row for lock: '{0}' being obtained: {1}", lockName, requestorId);
+            }
             using (var cmd = AdoUtil.PrepareCommand(conn, sql))
             {
                 AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
