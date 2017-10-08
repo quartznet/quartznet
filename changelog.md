@@ -2,7 +2,7 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
-## Release 3.0 beta 1, XXX x 2017
+## Release 3.0 beta 1, Oct 8 2017
 
 * NEW FEATURE
 
