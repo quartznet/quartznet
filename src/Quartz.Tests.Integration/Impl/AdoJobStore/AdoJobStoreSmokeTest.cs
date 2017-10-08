@@ -116,8 +116,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 #endif
 
-#if !NETSTANDARD_DBPROVIDERS
-
         [Test]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public Task TestFirebird(string serializerType)
@@ -126,6 +124,8 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.FirebirdDelegate, Quartz";
             return RunAdoJobStoreTest("Firebird", "Firebird", serializerType, properties);
         }
+
+#if !NETSTANDARD_DBPROVIDERS
 
         [Test]
         [TestCaseSource(nameof(GetSerializerTypes))]
@@ -165,14 +165,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
 #endif // NETSTANDARD_DBPROVIDERS
 
-        public static string[] GetSerializerTypes()
-        {
-            return new[]
-            {
-                "json"
-                , "binary"
-            };
-        }
+        public static string[] GetSerializerTypes() => new[] {"json", "binary"};
 
         private Task RunAdoJobStoreTest(string dbProvider, string connectionStringId, string serializerType)
         {

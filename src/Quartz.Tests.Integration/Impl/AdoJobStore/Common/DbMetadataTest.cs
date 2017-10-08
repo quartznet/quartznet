@@ -1,4 +1,5 @@
 #region License
+
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
@@ -15,20 +16,17 @@
  * under the License.
  *
  */
+
 #endregion
 
 using NUnit.Framework;
 
 using Quartz.Impl.AdoJobStore.Common;
-#if !NETCORE
-using Oracle.ManagedDataAccess.Client;
-#endif
 
-namespace Quartz.Tests.Unit.Impl.AdoJobStore.Common
+namespace Quartz.Tests.Integration.Impl.AdoJobStore.Common
 {
     /// <author>Marko Lahma (.NET)</author>
     [TestFixture]
-    [Explicit("Run these by hand, need to have correct drivers installed")]
     public class DbMetadataTest
     {
         [Test]
@@ -38,27 +36,9 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore.Common
         }
 
         [Test]
-        public void TestDbMetadataOracleClient20()
+        public void TestDbMetadataFirebird()
         {
-            TestDbMetadata("OracleClient-20");
-        }
-
-        [Test]
-        public void TestDbMetadataOracleODP20()
-        {
-            TestDbMetadata("OracleODP-20");
-        }
-
-        [Test]
-        public void TestDbMetadataOracleODP1120()
-        {
-            TestDbMetadata("OracleODP-1123-20");
-        }
-
-        [Test]
-        public void TestDbMetadataOracleODP()
-        {
-            TestDbMetadata("OracleODP");
+            TestDbMetadata("Firebird", hashCustomBinaryType: false);
         }
 
         [Test]
@@ -68,16 +48,23 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore.Common
         }
 
 #if !NETCORE
+        
         [Test]
-        public void TestDbMetadataOracleODPManaged4012()
+        public void TestDbMetadataOracleODP()
+        {
+            TestDbMetadata("OracleODP");
+        }
+
+        [Test]
+        public void TestDbMetadataOracleODPManaged()
         {
             var provider = TestDbMetadata("OracleODPManaged");
-            var command = (OracleCommand) provider.CreateCommand();
+            var command = (Oracle.ManagedDataAccess.Client.OracleCommand) provider.CreateCommand();
             Assert.That(command.BindByName, Is.True, "bind by name should default to true");
         }
 #endif
 
-        private static DbProvider TestDbMetadata(string dbname)
+        private static DbProvider TestDbMetadata(string dbname, bool hashCustomBinaryType = true)
         {
             DbProvider dbp = new DbProvider(dbname, "foo");
             DbMetadata md = dbp.Metadata;
@@ -86,8 +73,11 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore.Common
             Assert.IsNotNull(md.CommandType);
             Assert.IsNotNull(md.ConnectionType);
             Assert.IsNotNull(md.ParameterType);
-            Assert.IsNotNull(md.DbBinaryType);
-            Assert.IsNotNull(md.ParameterDbTypeProperty);
+            if (hashCustomBinaryType)
+            {
+                Assert.IsNotNull(md.DbBinaryType);
+                Assert.IsNotNull(md.ParameterDbTypeProperty);
+            }
             return dbp;
         }
     }

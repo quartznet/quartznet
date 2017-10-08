@@ -9,6 +9,7 @@
     * returned .NET Framework 4.5.2 compatibility to better support library consumers like NServiceBus and MassTransit
     * netstandard 2.0 is now minimum for .NET Core
     * support for Microsoft.Data.Sqlite via provider name SQLite-Microsoft, the old provider SQLite also still works
+	* Firebird is supported in .NET Core
 
 * BREAKING CHANGES
 

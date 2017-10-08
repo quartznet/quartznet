@@ -68,7 +68,7 @@ namespace Quartz.Tests.Unit.Plugin.Xml
         public async Task ShouldValidateInputXmlWhenConfigured()
         {
             var dataProcessor = new XMLSchedulingDataProcessorPlugin();
-            dataProcessor.FileNames = "Xml/TestData/JobTypeNotFound.xml";
+            dataProcessor.FileNames = "./Xml/TestData/JobTypeNotFound.xml";
             var mockScheduler = A.Fake<IScheduler>();
 
             await dataProcessor.Initialize("something", mockScheduler);

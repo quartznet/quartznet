@@ -48,7 +48,10 @@ namespace Quartz.Simpl
                 },
                 ConstructorHandling = ConstructorHandling.AllowNonPublicDefaultConstructor,
                 TypeNameHandling = TypeNameHandling.All,
-                ContractResolver = new DefaultContractResolver(),
+                ContractResolver = new DefaultContractResolver
+                {
+                    IgnoreSerializableInterface = true
+                },
                 NullValueHandling = NullValueHandling.Ignore
             };
         }

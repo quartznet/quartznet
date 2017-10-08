@@ -4,10 +4,10 @@
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="Xml\TestData\*" />
-    <Content Include="Serialized\*">
+    <Content Include="Xml\TestData\JobTypeNotFound.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Content Include="Xml\TestData\JobTypeNotFound.xml">
+    <Content Include="Serialized\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Compile Include="..\AssemblyInfo.cs" />
@@ -29,9 +29,7 @@
   </PropertyGroup>
   <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFullFrameworkVersion)' ">
     <Reference Include="System" />
-    <Reference Include="System.Transactions" />
     <Reference Include="Microsoft.CSharp" />
-    <PackageReference Include="Oracle.ManagedDataAccess" Version="12.2.1100" />
   </ItemGroup>
   <ItemGroup>
     <Service Include="{82a7f48d-3b50-4b1e-b82e-3ada8210c358}">

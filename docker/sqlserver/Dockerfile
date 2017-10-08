@@ -1,4 +1,4 @@
-FROM microsoft/mssql-server-linux
+FROM microsoft/mssql-server-linux:2017-latest
 
 ENV SA_PASSWORD Quartz!DockerP4ss
 ENV ACCEPT_EULA Y 

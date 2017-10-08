@@ -864,8 +864,8 @@ namespace Quartz.Tests.Unit.Impl.Triggers
         public void TestPassingMidnight()
         {
             IOperableTrigger trigger = (IOperableTrigger) DailyTimeIntervalScheduleBuilder.Create()
-                .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(16, 00))
-                .EndingDailyAt(TimeOfDay.HourAndMinuteOfDay(00, 00))
+                .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(16, 0))
+                .EndingDailyAt(TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59))
                 .OnEveryDay()
                 .WithIntervalInMinutes(30)
                 .Build();

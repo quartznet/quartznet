@@ -26,7 +26,6 @@ using System.IO;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Transactions;
 
 using FakeItEasy;
 
@@ -41,7 +40,7 @@ using Quartz.Spi;
 using Quartz.Util;
 using Quartz.Xml;
 
-namespace Quartz.Tests.Unit.Xml
+namespace Quartz.Tests.Integration.Xml
 {
     /// <summary>
     /// Tests for <see cref="XMLSchedulingDataProcessor" />.
@@ -52,7 +51,7 @@ namespace Quartz.Tests.Unit.Xml
     {
         private XMLSchedulingDataProcessor processor;
         private IScheduler mockScheduler;
-        private TransactionScope scope;
+
 
         [SetUp]
         public void SetUp()
@@ -61,13 +60,6 @@ namespace Quartz.Tests.Unit.Xml
             mockScheduler = A.Fake<IScheduler>();
             A.CallTo(() => mockScheduler.GetJobDetail(A<JobKey>._, A<CancellationToken>._)).Returns(Task.FromResult<IJobDetail>(null));
             A.CallTo(() => mockScheduler.GetTrigger(A<TriggerKey>._, A<CancellationToken>._)).Returns(Task.FromResult<ITrigger>(null));
-            scope = new TransactionScope();
-        }
-
-        [TearDown]
-        public void TearDown()
-        {
-            scope?.Dispose();
         }
 
         [Test]
@@ -92,7 +84,7 @@ namespace Quartz.Tests.Unit.Xml
 
             await processor.ScheduleJobs(mockScheduler);
 
-            A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Not.IsNull(), A<CancellationToken>._)).MustHaveHappened(Repeated.Exactly.Times(5));
+            A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Not.IsNull(), A<CancellationToken>._)).MustHaveHappened(Repeated.Exactly.Times(7));
         }
 
         [Test]
@@ -308,7 +300,7 @@ namespace Quartz.Tests.Unit.Xml
 
         private static Stream ReadJobXmlFromEmbeddedResource(string resourceName)
         {
-            string fullName = "Quartz.Tests.Unit.Xml.TestData." + resourceName;
+            string fullName = "Quartz.Tests.Integration.Xml.TestData." + resourceName;
             Stream stream = typeof(XMLSchedulingDataProcessorTest).GetTypeInfo().Assembly.GetManifestResourceStream(fullName);
             Assert.That(stream, Is.Not.Null, "resource " + resourceName + " not found");
             return new StreamReader(stream).BaseStream;

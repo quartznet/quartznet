@@ -23,7 +23,7 @@ using NUnit.Framework;
 
 using Quartz.Impl.AdoJobStore.Common;
 
-namespace Quartz.Tests.Unit.Impl.AdoJobStore.Common
+namespace Quartz.Tests.Integration.Impl.AdoJobStore.Common
 {
     /// <author>Marko Lahma (.NET)</author>
     [TestFixture]
