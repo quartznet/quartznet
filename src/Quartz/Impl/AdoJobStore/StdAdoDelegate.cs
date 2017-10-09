@@ -1,19 +1,19 @@
 #region License
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 #endregion
 
@@ -217,7 +217,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        /// <summary> 
+        /// <summary>
         /// Select all of the triggers in a given state.
         /// </summary>
         /// <param name="conn">The DB Connection</param>
@@ -286,7 +286,9 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>Whether there are more misfired triggers left to find beyond the given count.</returns>
         public virtual bool HasMisfiredTriggersInState(ConnectionAndTransactionHolder conn, string state1, DateTimeOffset ts, int count, IList<TriggerKey> resultList)
         {
-            using (IDbCommand cmd = PrepareCommand(conn, ReplaceTablePrefix(GetSelectNextMisfiredTriggersInStateToAcquireSql(count))))
+            // always take one more than count so that hasReachedLimit will work properly
+            var sql = ReplaceTablePrefix(GetSelectNextMisfiredTriggersInStateToAcquireSql(count != -1 ? count + 1 : count));
+            using (IDbCommand cmd = PrepareCommand(conn, sql))
             {
                 AddCommandParameter(cmd, "nextFireTime", GetDbDateTimeValue(ts));
                 AddCommandParameter(cmd, "state1", state1);
@@ -294,7 +296,7 @@ namespace Quartz.Impl.AdoJobStore
                 using (IDataReader rs = cmd.ExecuteReader())
                 {
                     bool hasReachedLimit = false;
-                    while (rs.Read() && (hasReachedLimit == false))
+                    while (rs.Read() && !hasReachedLimit)
                     {
                         if (resultList.Count == count)
                         {
@@ -446,7 +448,7 @@ namespace Quartz.Impl.AdoJobStore
                 jd.Put(SchedulerConstants.FailedJobOriginalTriggerName, key.Name);
                 jd.Put(SchedulerConstants.FailedJobOriginalTriggerGroup, key.Group);
                 jd.Put(SchedulerConstants.FailedJobOriginalTriggerFiretime, Convert.ToString(dataHolder.FireTimestamp, CultureInfo.InvariantCulture));
-                jd.Put(SchedulerConstants.FailedJobOriginalTriggerScheduledFiretime, Convert.ToString(dataHolder.ScheduleTimestamp, CultureInfo.InvariantCulture)); 
+                jd.Put(SchedulerConstants.FailedJobOriginalTriggerScheduledFiretime, Convert.ToString(dataHolder.ScheduleTimestamp, CultureInfo.InvariantCulture));
                 trigger.JobDataMap = jd;
             }
 
@@ -747,7 +749,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     return (bool) o;
                 }
-                
+
                 return false;
             }
         }
@@ -770,7 +772,7 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         return true;
                     }
-                    
+
                     return false;
                 }
             }
@@ -1005,7 +1007,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 groupName = "%";
             }
-            else 
+            else
             {
                 throw new ArgumentOutOfRangeException("Don't know how to translate " + matcher.CompareWithOperator + " into SQL");
             }
@@ -1077,7 +1079,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     tDel.InsertExtendedTriggerProperties(conn, trigger, state, jobDetail);
                 }
-            
+
 
                 return insertResult;
             }
@@ -1597,7 +1599,7 @@ namespace Quartz.Impl.AdoJobStore
                         int misFireInstr = rs.GetInt32(ColumnMifireInstruction);
                         int priority = rs.GetInt32(ColumnPriority);
 
-                        IDictionary map = ReadMapFromReader(rs, 11); 
+                        IDictionary map = ReadMapFromReader(rs, 11);
 
                         DateTimeOffset? nextFireTimeUtc = GetDateTimeFromDbValue(rs[ColumnNextFireTime]);
                         DateTimeOffset? previousFireTimeUtc = GetDateTimeFromDbValue(rs[ColumnPreviousFireTime]);
@@ -2069,7 +2071,7 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         return true;
                     }
-                    
+
                     return false;
                 }
             }
@@ -2123,7 +2125,7 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         return true;
                     }
-                    
+
                     return false;
                 }
             }
@@ -2215,14 +2217,14 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         return new TriggerKey(rs.GetString(ColumnTriggerName), rs.GetString(ColumnTriggerGroup));
                     }
-                    
+
                     return null;
                 }
             }
         }
 
         /// <summary>
-        /// Select the next trigger which will fire to fire between the two given timestamps 
+        /// Select the next trigger which will fire to fire between the two given timestamps
         /// in ascending order of fire time, and then descending by priority.
         /// </summary>
         /// <param name="conn">The conn.</param>
@@ -2555,7 +2557,7 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         return Convert.ToInt32(rs.GetValue(0), CultureInfo.InvariantCulture);
                     }
-                    
+
                     return 0;
                 }
             }
@@ -2766,7 +2768,7 @@ namespace Quartz.Impl.AdoJobStore
             return retValue;
         }
 
-        /// <summary> 
+        /// <summary>
         /// Convert the JobDataMap into a list of properties.
         /// </summary>
         protected virtual IDictionary ConvertFromProperty(NameValueCollection properties)
@@ -2846,12 +2848,12 @@ namespace Quartz.Impl.AdoJobStore
 
         /// <summary>
         /// This method should be overridden by any delegate subclasses that need
-        /// special handling for BLOBs for job details. 
+        /// special handling for BLOBs for job details.
         /// </summary>
         /// <param name="rs">The result set, already queued to the correct row.</param>
         /// <param name="colIndex">The column index for the BLOB.</param>
         /// <returns>The deserialized Object from the ResultSet BLOB.</returns>
-        protected virtual T GetJobDataFromBlob<T>(IDataReader rs, int colIndex) where T : class 
+        protected virtual T GetJobDataFromBlob<T>(IDataReader rs, int colIndex) where T : class
         {
             if (CanUseProperties)
             {
@@ -2860,7 +2862,7 @@ namespace Quartz.Impl.AdoJobStore
                     // should be NameValueCollection
                     return GetObjectFromBlob<T>(rs, colIndex);
                 }
-                
+
                 return null;
             }
 
