@@ -57,6 +57,7 @@ namespace Quartz.Impl.AdoJobStore
         protected readonly Dictionary<string, ICalendar> calendarCache = new Dictionary<string, ICalendar>();
         private IDriverDelegate driverDelegate;
         private TimeSpan misfireThreshold = TimeSpan.FromMinutes(1); // one minute
+        private TimeSpan? misfirehandlerFrequence;
 
         private ClusterManager clusterManager;
         private MisfireHandler misfireHandler;
@@ -222,6 +223,24 @@ namespace Quartz.Impl.AdoJobStore
                     throw new ArgumentException("MisfireThreshold must be larger than 0");
                 }
                 misfireThreshold = value;
+            }
+        }
+
+        /// <summary>
+        /// How often should the misfire handler check for misfires. Defaults to
+        /// <see cref="MisfireThreshold"/>.
+        /// </summary>
+        [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
+        public virtual TimeSpan MisfireHandlerFrequency
+        {
+            get { return misfirehandlerFrequence.GetValueOrDefault(MisfireThreshold); }
+            set
+            {
+                if (value.TotalMilliseconds < 1)
+                {
+                    throw new ArgumentException("MisfireHandlerFrequency must be larger than 0");
+                }
+                misfirehandlerFrequence = value;
             }
         }
 

@@ -55,7 +55,7 @@ namespace Quartz.Impl.AdoJobStore
                 TimeSpan timeToSleep = TimeSpan.FromMilliseconds(50); // At least a short pause to help balance threads
                 if (!recoverMisfiredJobsResult.HasMoreMisfiredTriggers)
                 {
-                    timeToSleep = jobStoreSupport.MisfireThreshold - (SystemTime.UtcNow() - sTime);
+                    timeToSleep = jobStoreSupport.MisfireHandlerFrequency - (SystemTime.UtcNow() - sTime);
                     if (timeToSleep <= TimeSpan.Zero)
                     {
                         timeToSleep = TimeSpan.FromMilliseconds(50);
