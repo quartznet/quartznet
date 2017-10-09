@@ -2,6 +2,19 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://www.quartz-scheduler.net
 
+Release 2.6.1, Oct 9, 2017
+--------------------------------
+
+This is a maintenance release fixing an issue where misfire handling is being too slow at times.
+
+NEW FEATURE
+
+* Allow performing misfire handling more frequently than misfireThreshold (#532)
+
+FIXES
+
+* Incomplete recovery of misfired jobs when using database-specific delegate types (#531)
+
 Release 2.6, Jul 30, 2017
 --------------------------------
 
