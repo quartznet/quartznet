@@ -312,7 +312,9 @@ namespace Quartz.Impl.AdoJobStore
             ICollection<TriggerKey> resultList,
             CancellationToken cancellationToken = default)
         {
-            using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(GetSelectNextMisfiredTriggersInStateToAcquireSql(count))))
+            // always take one more than count so that hasReachedLimit will work properly
+            var sql = ReplaceTablePrefix(GetSelectNextMisfiredTriggersInStateToAcquireSql(count != -1 ? count + 1 : count));
+            using (var cmd = PrepareCommand(conn, sql))
             {
                 AddCommandParameter(cmd, "nextFireTime", GetDbDateTimeValue(ts));
                 AddCommandParameter(cmd, "state1", state1);
@@ -321,7 +323,7 @@ namespace Quartz.Impl.AdoJobStore
                 using (rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
                 {
                     bool hasReachedLimit = false;
-                    while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false) && hasReachedLimit == false)
+                    while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false) && !hasReachedLimit)
                     {
                         if (resultList.Count == count)
                         {
