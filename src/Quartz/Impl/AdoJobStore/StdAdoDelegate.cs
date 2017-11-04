@@ -959,7 +959,9 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        /// <summary> build Map from java.util.Properties encoding.</summary>
+        /// <summary>
+        /// Build dictionary from serialized NameValueCollection.
+        /// </summary>
         private async Task<IDictionary> GetMapFromProperties(DbDataReader rs, int idx)
         {
             NameValueCollection properties = await GetJobDataFromBlob<NameValueCollection>(rs, idx).ConfigureAwait(false);

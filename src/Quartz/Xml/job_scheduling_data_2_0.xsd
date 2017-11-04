@@ -216,7 +216,7 @@
   <xs:simpleType name="cron-expressionType">
     <xs:annotation>
       <xs:documentation>
-        Cron expression (see JavaDoc for examples)
+        Cron expression
 
         Special thanks to Chris Thatcher (thatcher@butterfly.net) for the regular expression!
 

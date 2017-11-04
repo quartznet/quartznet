@@ -45,7 +45,6 @@ namespace Quartz
         /// <param name="trigg">The trigger upon which to do the work</param>
         /// <param name="cal">The calendar to apply to the trigger's schedule</param>
         /// <param name="numTimes">The number of next fire times to produce</param>
-        /// <returns>List of java.util.Date objects</returns>
         public static IReadOnlyList<DateTimeOffset> ComputeFireTimes(IOperableTrigger trigg, ICalendar cal, int numTimes)
         {
             List<DateTimeOffset> lst = new List<DateTimeOffset>();
@@ -143,7 +142,6 @@ namespace Quartz
         /// <param name="cal">The calendar to apply to the trigger's schedule</param>
         /// <param name="from">The starting date at which to find fire times</param>
         /// <param name="to">The ending date at which to stop finding fire times</param>
-        /// <returns>List of java.util.Date objects</returns>
         public static IReadOnlyList<DateTimeOffset> ComputeFireTimesBetween(IOperableTrigger trigg, ICalendar cal, DateTimeOffset from, DateTimeOffset to)
         {
             List<DateTimeOffset> lst = new List<DateTimeOffset>();

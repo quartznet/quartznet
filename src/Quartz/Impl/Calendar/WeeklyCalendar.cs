@@ -115,8 +115,7 @@ namespace Quartz.Impl.Calendar
         /// <summary>
         /// Get the array with the week days.
         /// Setting will redefine the array of days excluded. The array must of size greater or
-        /// equal 8. java.util.Calendar's constants like MONDAY should be used as
-        /// index. A value of true is regarded as: exclude it.
+        /// equal 8. A value of true is regarded as: exclude it.
         /// </summary>
         public virtual bool[] DaysExcluded
         {
