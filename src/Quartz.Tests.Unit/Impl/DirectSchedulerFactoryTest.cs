@@ -61,6 +61,17 @@ namespace Quartz.Tests.Unit.Impl
 			Assert.AreEqual("TestPlugin|MyScheduler|Start|Shutdown", result.ToString());
 		}
 
+        [Test]
+        public async Task FactoryCanCreateSchedulerWithSchedulerName()
+        {
+            string schedName = "TestSchd";
+            DirectSchedulerFactory factory = DirectSchedulerFactory.Instance;
+            factory.CreateScheduler(schedName);
+            IScheduler scheduler = await factory.GetScheduler(schedName);
+            Assert.IsNotNull(scheduler);
+            Assert.AreEqual(scheduler.SchedulerName, schedName);
+        }
+
 		class TestPlugin : ISchedulerPlugin
 		{
 		    readonly StringBuilder result;

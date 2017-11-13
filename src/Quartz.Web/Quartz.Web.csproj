@@ -17,16 +17,16 @@
   <ItemGroup>
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
     <ProjectReference Include="..\Quartz.Serialization.Json\Quartz.Serialization.Json.csproj" />
-    <PackageReference Include="Microsoft.AspNetCore.All" Version="2.0.0-preview2-final" />
+    <PackageReference Include="Microsoft.AspNetCore.All" Version="2.0.0" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="1.0.0" />
-    <PackageReference Include="bootbox.TypeScript.DefinitelyTyped" Version="1.2.0" />
-    <PackageReference Include="bootstrap.TypeScript.DefinitelyTyped" Version="0.9.1" />
-    <PackageReference Include="jQuery" Version="2.2.3" />
-    <PackageReference Include="jquery.TypeScript.DefinitelyTyped" Version="3.0.6" />
-    <PackageReference Include="moment.TypeScript.DefinitelyTyped" Version="1.7.9" />
-    <PackageReference Include="Newtonsoft.Json" Version="10.*" />
-    <PackageReference Include="RequireJS" Version="2.1.17" />
-    <PackageReference Include="signalr.TypeScript.DefinitelyTyped" Version="0.3.9" />
-    <PackageReference Include="toastr.TypeScript.DefinitelyTyped" Version="0.3.0" />
+    <PackageReference Include="bootbox.TypeScript.DefinitelyTyped" Version="1.2.8" />
+    <PackageReference Include="bootstrap.TypeScript.DefinitelyTyped" Version="0.9.8" />
+    <PackageReference Include="jQuery" Version="3.2.1" />
+    <PackageReference Include="jquery.TypeScript.DefinitelyTyped" Version="3.1.2" />
+    <PackageReference Include="moment.TypeScript.DefinitelyTyped" Version="1.8.3" />
+    <PackageReference Include="Newtonsoft.Json" Version="10.0.3" />
+    <PackageReference Include="RequireJS" Version="2.3.5" />
+    <PackageReference Include="signalr.TypeScript.DefinitelyTyped" Version="0.4.1" />
+    <PackageReference Include="toastr.TypeScript.DefinitelyTyped" Version="0.3.3" />
   </ItemGroup>
 </Project>
