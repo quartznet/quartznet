@@ -73,7 +73,7 @@ namespace Quartz.Core
 
         private IJobFactory jobFactory = new PropertySettingJobFactory();
         private readonly ExecutingJobsManager jobMgr;
-        private readonly Random random = new Random();
+        private readonly QuartzRandom random = new QuartzRandom();
         private readonly List<object> holdToPreventGc = new List<object>(5);
         private volatile bool closed;
         private volatile bool shuttingDown;
@@ -939,7 +939,7 @@ namespace Quartz.Core
         /// </summary>
         /// <param name="random">The last random obtained</param>
         /// <returns>Returns a new positive random number</returns>
-        public static long NextLong(Random random)
+        public static long NextLong(QuartzRandom random)
         {
             long temporaryLong = random.Next();
             temporaryLong = (temporaryLong << 32) + random.Next();

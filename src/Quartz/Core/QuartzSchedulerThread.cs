@@ -52,7 +52,7 @@ namespace Quartz.Core
         private bool paused;
         private bool halted;
 
-        private readonly Random random = new Random((int) DateTimeOffset.Now.Ticks);
+        private readonly QuartzRandom random = new QuartzRandom();
 
         // When the scheduler finds there is no current trigger to fire, how long
         // it should wait until checking again...
