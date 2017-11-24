@@ -48,6 +48,9 @@ namespace Quartz.Util
             timeZoneIdAliases["China Standard Time"] = "Asia/Beijing";
             timeZoneIdAliases["Asia/Shanghai"] = "China Standard Time";
             timeZoneIdAliases["Asia/Beijing"] = "China Standard Time";
+            
+            timeZoneIdAliases["Pakistan Standard Time"] = "Asia/Karachi";
+            timeZoneIdAliases["Asia/Karachi"] = "Pakistan Standard Time";
         }
 
         public static Func<string, TimeZoneInfo> CustomResolver = id => null;
