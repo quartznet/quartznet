@@ -124,9 +124,7 @@ namespace Quartz.Impl.Calendar
         }
 
         /// <summary>
-        /// Get or the array which defines the exclude-value of each day of month.
-        /// Setting will redefine the array of days excluded. The array must of size greater or
-        /// equal 31.
+        /// Gets or sets the days to be excluded by this calendar.
         /// </summary>
         public virtual IReadOnlyCollection<DateTime> DaysExcluded
         {
