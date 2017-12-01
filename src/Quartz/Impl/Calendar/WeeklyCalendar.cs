@@ -30,7 +30,7 @@ namespace Quartz.Impl.Calendar
     /// <summary>
     /// This implementation of the Calendar excludes a set of days of the week. You
     /// may use it to exclude weekends for example. But you may define any day of
-    /// the week.
+    /// the week. By default it excludes Saturday and Sunday.
     /// </summary>
     /// <seealso cref="ICalendar" />
     /// <seealso cref="BaseCalendar" />
@@ -115,7 +115,9 @@ namespace Quartz.Impl.Calendar
         /// <summary>
         /// Get the array with the week days.
         /// Setting will redefine the array of days excluded. The array must of size greater or
-        /// equal 8. A value of true is regarded as: exclude it.
+        /// equal 8. <see cref="DayOfWeek" /> enum values like <see cref="DayOfWeek.Monday" /> casted to int
+        /// should be used as index (Sunday is the 0).
+        /// A value of true is regarded as: exclude it.
         /// </summary>
         public virtual bool[] DaysExcluded
         {
