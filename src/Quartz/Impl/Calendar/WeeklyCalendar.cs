@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -30,7 +30,7 @@ namespace Quartz.Impl.Calendar
     /// <summary>
     /// This implementation of the Calendar excludes a set of days of the week. You
     /// may use it to exclude weekends for example. But you may define any day of
-    /// the week.
+    /// the week. By default it excludes Saturday and Sunday.
     /// </summary>
     /// <seealso cref="ICalendar" />
     /// <seealso cref="BaseCalendar" />
@@ -111,11 +111,12 @@ namespace Quartz.Impl.Calendar
             excludeAll = AreAllDaysExcluded();
         }
 
-        /// <summary> 
+        /// <summary>
         /// Get the array with the week days.
         /// Setting will redefine the array of days excluded. The array must of size greater or
-        /// equal 8. java.util.Calendar's constants like MONDAY should be used as
-        /// index. A value of true is regarded as: exclude it.
+        /// equal 8. <see cref="DayOfWeek" /> enum values like <see cref="DayOfWeek.Monday" /> casted to int
+        /// should be used as index (Sunday is the 0).
+        /// A value of true is regarded as: exclude it.
         /// </summary>
         public virtual bool[] DaysExcluded
         {
@@ -133,7 +134,7 @@ namespace Quartz.Impl.Calendar
             }
         }
 
-        /// <summary> 
+        /// <summary>
         /// Return true, if wday is defined to be excluded. E. g.
         /// saturday and sunday.
         /// </summary>
