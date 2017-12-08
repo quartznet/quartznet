@@ -34,6 +34,7 @@
     <NoWarn>1701;1702;1705;618;1591</NoWarn>
     <DebugSymbols>True</DebugSymbols>
     <PlatformTarget>AnyCPU</PlatformTarget>
+    <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
 
     <LangVersion>7.1</LangVersion>
     <TargetFullFrameworkVersion>net452</TargetFullFrameworkVersion>
