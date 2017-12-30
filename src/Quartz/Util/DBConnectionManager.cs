@@ -36,20 +36,21 @@ namespace Quartz.Util
 	/// <author>Mohammad Rezaei</author>
     /// <author>Marko Lahma (.NET)</author>
     public class DBConnectionManager : IDbConnectionManager
-	{
+    {
         private static readonly DBConnectionManager instance = new DBConnectionManager();
 	    private static readonly ILog log = LogProvider.GetLogger(typeof (DBConnectionManager));
 
+        private readonly object syncRoot = new object();
         private readonly Dictionary<string, IDbProvider> providers = new Dictionary<string, IDbProvider>();
 
-		/// <summary>
+        /// <summary>
 		/// Get the class instance.
 		/// </summary>
 		/// <returns> an instance of this class
 		/// </returns>
 		public static IDbConnectionManager Instance => instance;
 
-	    /// <summary>
+        /// <summary>
 		/// Private constructor
 		/// </summary>
 		private DBConnectionManager()
@@ -64,8 +65,12 @@ namespace Quartz.Util
         public virtual void AddConnectionProvider(string dataSourceName, IDbProvider provider)
 		{
             log.Info($"Registering datasource '{dataSourceName}' with db provider: '{provider}'");
+
+            lock (syncRoot)
+            {
 			providers[dataSourceName] = provider;
 		}
+        }
 
 		/// <summary>
 		/// Get a database connection from the DataSource with the given name.
@@ -77,7 +82,7 @@ namespace Quartz.Util
 			return provider.CreateConnection();
 		}
 
-		/// <summary>
+        /// <summary>
 		/// Shuts down database connections from the DataSource with the given name,
 		/// if applicable for the underlying provider.
 		/// </summary>
@@ -104,11 +109,17 @@ namespace Quartz.Util
                 throw new ArgumentException("DataSource name cannot be null or empty", nameof(dsName));
             }
 
-		    providers.TryGetValue(dsName, out var provider);
+            IDbProvider provider;
+            lock (syncRoot)
+            {
+                providers.TryGetValue(dsName, out provider);
+            }
+
             if (provider == null)
             {
                 throw new Exception($"There is no DataSource named '{dsName}'");
             }
+
             return provider;
         }
 	}
