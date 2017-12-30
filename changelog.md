@@ -2,6 +2,14 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+## Release 3.0, Dec 30 2017
+
+See 3.x releases for full list.
+
+* NEW FEATURE
+
+    * Random number generation now uses RNGCryptoServiceProvider to silence some code analysis warnings (#551)
+
 ## Release 3.0 beta 1, Oct 8 2017
 
 * NEW FEATURE

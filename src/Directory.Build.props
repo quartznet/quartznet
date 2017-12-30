@@ -26,7 +26,7 @@
 
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
 
-    <VersionPrefix>3.0.0-beta1</VersionPrefix>
+    <VersionPrefix>3.0.0</VersionPrefix>
     <VersionSuffix Condition="'$(VersionSuffix)'!='' AND '$(BuildNumber)' != ''">$(VersionSuffix)-$(BuildNumber)</VersionSuffix>
 
     <CLSCompliant>True</CLSCompliant>
