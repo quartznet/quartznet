@@ -14,11 +14,11 @@ can be found on APIs and functionality available depending on whether you target
 
 ### Database schema changes
 
-** None so far **
+2.6 schema should work with 3.0 with no changes.
 
 ### Migrating HolidayCalendar binary format
 
-If you have HolidayCalendars stored in database in binary format (just stored with AdoJobStore). You need to first load them with Quartz 2.4 and then re-store them.
+If you have HolidayCalendars stored in database in binary format (just stored with AdoJobStore). You need to first load them with Quartz 2.4 or later 2.x version and then re-store them.
 This will make the serialization use format that is not dependant on precense of C5 library.
 
 ### Thread pool changes
@@ -69,7 +69,7 @@ IStatefulJob interface that was obsoleted in 2.x has been removed, you should us
 
 If you have created custom implementations of services used by Quartz, you're going to need to adapt your code to be async-based.
 
-### Configuration changes
+### Job store serialization configuration changes
 
 You need to now explicitly state whether you want to use binary or json serialization if you are using persistent job store (AdoJobStore) when you configure your scheduler. 
 
@@ -101,6 +101,10 @@ var properties = new NameValueCollection
 ISchedulerFactory sf = new StdSchedulerFactory(properties);
 ```
 
+## Job store provider names have been simplified
+
+ADO.NET provider names have been simplified, the provider names are without version, e.g. SqlServer-20 => SqlServer. They are now bound to whatever version that can be loaded.
+
 ### C5 Collections
 
 C5 Collections are no longer ILMerged inside Quartz, .NET 4.5 offers the needed collections.
@@ -111,4 +115,4 @@ Common.Logging has been replaced with [LibLog](https://github.com/damianh/LibLog
 
 ### Remoting
 
-Remoting has been removed and will be replaced with HTTP JSON/RESTish based solution in later release.
+Remoting is currently only supported when running on full framework version.

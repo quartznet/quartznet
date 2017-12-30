@@ -6,7 +6,7 @@ layout: default
 * [Frequently Asked Questions](faq.html)
 * [Best Practices](best-practices.html)
 
-## Available Documents (Quartz 3.x Alpha - Unreleased):
+## Available Documents (Quartz 3.x):
 
 * [Quick Start Guide](quartz-3.x/quick-start.html)
 * [Tutorials for Developing with Quartz](quartz-3.x/tutorial/index.html)
