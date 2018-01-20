@@ -1094,9 +1094,10 @@ namespace Quartz
                     end = v1;
                     i = vs.pos;
                 }
-                if (i < s.Length && (c = s[i]) == '/')
+                if (i < s.Length && s[i] == '/')
                 {
                     i++;
+                    c = s[i];
                     int v2 = Convert.ToInt32(c.ToString(), CultureInfo.InvariantCulture);
                     i++;
                     if (i >= s.Length)

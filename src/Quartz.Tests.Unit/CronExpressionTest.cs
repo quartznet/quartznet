@@ -256,8 +256,10 @@ namespace Quartz.Tests.Unit
                     // next fire day may be monday for several days..
                     fireDays.Add(nextFireTime.Value.Day);
                 }
+
                 cal = cal.AddDays(1);
             }
+
             // check rite dates fired
             for (int i = 0; i < fireDays.Count; ++i)
             {
@@ -399,6 +401,7 @@ namespace Quartz.Tests.Unit
                     fe.Message.StartsWith("Support for specifying 'L' and 'LW' with other days of the month is not implemented"),
                     "Incorrect FormatException thrown");
             }
+
             try
             {
                 new CronExpression("0 43 9 ? * SAT,SUN,L");
@@ -410,6 +413,7 @@ namespace Quartz.Tests.Unit
                     pe.Message.StartsWith("Support for specifying 'L' with other days of the week is not implemented"),
                     "Incorrect FormatException thrown");
             }
+
             try
             {
                 new CronExpression("0 43 9 ? * 6,7,L");
@@ -421,6 +425,7 @@ namespace Quartz.Tests.Unit
                     pe.Message.StartsWith("Support for specifying 'L' with other days of the week is not implemented"),
                     "Incorrect FormatException thrown");
             }
+
             try
             {
                 new CronExpression("0 43 9 ? * 5L");
@@ -515,6 +520,7 @@ namespace Quartz.Tests.Unit
             {
                 return;
             }
+
             var daylightChange = TimeZone.CurrentTimeZone.GetDaylightChanges(2012);
             DateTimeOffset before = daylightChange.Start.ToUniversalTime().AddMinutes(-5); // keep outside the potentially undefined interval
             DateTimeOffset? after = expression.GetNextValidTimeAfter(before);
@@ -691,6 +697,12 @@ namespace Quartz.Tests.Unit
         public void TestExtraCharactersAfterWeekDay()
         {
             Assert.That(CronExpression.IsValidExpression("0 0 15 ? * FRI*"), Is.False);
+        }
+
+        [Test]
+        public void TestHourRangeAndSlash()
+        {
+            CronExpression.ValidateExpression("0 0 18-21/1 ? * MON,TUE,WED,THU,FRI,SAT,SUN");
         }
 
         private class SimpleCronExpression : CronExpression
