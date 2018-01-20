@@ -18,7 +18,7 @@ free-for-commercial use Job Scheduler, with 'enterprise' features.
 
 * You can build the code by running `build.cmd` (Windows) or `build.sh` (*nix platform)
 * You need MSBuild 15 and .NET Core SDK 2.0 to build - easiest to [download Visual Studio 2017 Community](https://www.visualstudio.com/downloads/)
-* You need Visual Studio 2017 to open the solution, (Community version)[https://www.visualstudio.com/downloads/] should suffice
+* You need Visual Studio 2017 to open the solution, [Community version](https://www.visualstudio.com/downloads/) should suffice
 
 
 ## Acknowledgements
