@@ -3,25 +3,32 @@
 [![NuGet](http://img.shields.io/nuget/vpre/Quartz.svg)](https://www.nuget.org/packages/Quartz/)
 [![Join the chat at https://gitter.im/quartznet/quartznet](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/quartznet/quartznet?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-# QUARTZ JOB SCHEDULER .NET
+# Quartz.NET - Job Scheduler for the .NET Platform
 
 [http://www.quartz-scheduler.net/](http://www.quartz-scheduler.net/)
 
-## INTRODUCTION
+## Introduction
 
 This is the README file for Quartz.NET, .NET port of Java Quartz.
 
 Quartz.NET is an opensource project aimed at creating a
 free-for-commercial use Job Scheduler, with 'enterprise' features.
 
-## AKNOWLEDGEMENTS
+## Building
+
+* You can build the code by running `build.cmd` (Windows) or `build.sh` (*nix platform)
+* You need MSBuild 15 and .NET Core SDK 2.0 to build - easiest to [download Visual Studio 2017 Community](https://www.visualstudio.com/downloads/)
+* You need Visual Studio 2017 to open the solution, (Community version)[https://www.visualstudio.com/downloads/] should suffice
+
+
+## Acknowledgements
 
 Following components are being used by core Quartz:
 
 * [LibLog](https://github.com/damianh/LibLog) (MIT) as bridge between different logging frameworks
 
 
-## LICENSE
+## License
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not 
 use this file except in compliance with the License. You may obtain a copy 
