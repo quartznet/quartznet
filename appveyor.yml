@@ -1,12 +1,13 @@
 configuration: Release
-image: Visual Studio 2017 Preview
+image: Visual Studio 2017
   
 version: '{build}'
 pull_requests:
   do_not_increment_build_number: true
 branches:
-  only:
-  - master
+  except:
+  - gh-pages
+  - 2.x
 services:
 - mssql2016
 - mysql
@@ -16,6 +17,11 @@ nuget:
 build_script:
 - cmd: build.cmd Pack
 test: off
+artifacts:
+- path: artifacts/*.nupkg
+  name: NuGet
+- path: artifacts/*.zip
+  name: Zip
 #deploy:
 #- provider: NuGet
 #  server: https://www.myget.org/F/quartznetdev/api/v2/package
