@@ -4,15 +4,11 @@ open Fake
 open Fake.AssemblyInfoFile
 open Fake.Git
 
-open System
-open System.Collections.Generic
-open System.IO
-
 let commitHash = Information.getCurrentHash()
 let configuration = getBuildParamOrDefault "configuration" "Release"
 
 Target "Clean" (fun _ ->
-    !! "artifacts" ++ "src/*/bin" ++ "src/*/obj" ++ "test/*/bin" ++ "test/*/obj" ++ "build" ++ "deploy"
+    !! "artifacts" ++ "package" ++ "src/*/bin" ++ "src/*/obj" ++ "test/*/bin" ++ "test/*/obj" ++ "build" ++ "deploy"
         |> CleanDirs
 )
 
@@ -48,6 +44,39 @@ Target "Pack" (fun _ ->
 
     !! "build/Release/**/*.nupkg"
         |> Copy "artifacts"
+
+)
+
+Target "Zip" (fun _ ->
+
+    [ 
+    !! "src/**/*"
+        ++ "database/**/*"
+        ++ "changelog.md"
+        ++ "license.txt"
+        ++ "README.md"
+        ++ "*.sln"
+        ++ "build.*"
+        ++ "quartz.net.snk"
+        ++ "build/Release/Quartz*/**/*"
+        -- "src/Quartz.Benchmark/**"
+        -- "src/Quartz.Web/**"
+        -- "src/AssemblyInfo.cs"
+        -- "build/Release/Quartz.Benchmark/**"
+        -- "build/Release/Quartz.Test*/**"
+        -- "build/Release/Quartz.Web/**"
+        -- "**/*.nupkg"
+        -- "**/*.suo"
+        -- "**/*.user"
+        -- "**/obj/**"
+    ]
+        |> CopyWithSubfoldersTo "./package/"
+
+    Rename "./package/bin" "./package/build"
+
+    !! ("package/**/*.*") 
+       |> Zip "package" (sprintf @"./artifacts/Quartz.NET-%s.zip" buildVersion)
+
 )
 
 Target "Test" (fun () ->  trace " --- Test not implemented --- ")
@@ -57,31 +86,6 @@ Target "TestFull" (fun () ->  trace " --- TestFull not implemented --- ")
 Target "TestLinux" (fun () ->  trace " --- TestLinux not implemented --- ")
 
 Target "ApiDoc" (fun _ ->
-
-    let setParams defaults =
-            { defaults with
-                Verbosity = Some(Quiet)
-                Targets = ["Build"]
-                Properties =
-                    [
-                        "Configuration", "Release"
-                    ]
-            }
-    build setParams "./Quartz.sln"
-        |> DoNothing
-
-    let setShfbParams defaults =
-        { defaults with
-            Verbosity = Some(Quiet)
-            Targets = ["Build"]
-            Properties =
-                [
-                    "CleanIntermediates", "True"
-                    "Configuration", "Release"
-                ]
-        }
-    build setShfbParams "doc/quartznet.shfbproj"
-        |> DoNothing
 
     let headerContent = ReadFileAsString "doc/header.template"
     let footerContent = ReadFileAsString "doc/footer.template"
@@ -95,12 +99,9 @@ Target "ApiDoc" (fun _ ->
   ==> "GenerateAssemblyInfo"
   ==> "Build"
   ==> "Test"
+  ==> "Zip"
   ==> "Pack"
 
-
-"Clean"
-  ==> "GenerateAssemblyInfo"
-  ==> "ApiDoc"
 
 "Clean"
   ==> "GenerateAssemblyInfo"

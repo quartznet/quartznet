@@ -5,10 +5,17 @@
   </PropertyGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <Content Include="quartz.config">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="quartz_jobs.xml">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
     <ProjectReference Include="..\Quartz.Serialization.Json\Quartz.Serialization.Json.csproj" />
+    <ProjectReference Include="..\Quartz.Plugins\Quartz.Plugins.csproj" />
     <PackageReference Include="log4net" Version="2.0.8" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Core" Version="1.0.0" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Formatters.Json" Version="1.0.0" />
