@@ -74,6 +74,8 @@ Target "Zip" (fun _ ->
 
     Rename "./package/bin" "./package/build"
 
+    CreateDir "artifacts"
+
     !! ("package/**/*.*") 
        |> Zip "package" (sprintf @"./artifacts/Quartz.NET-%s.zip" buildVersion)
 
