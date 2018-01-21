@@ -16,9 +16,6 @@ nuget:
 build_script:
 - cmd: build.cmd Pack
 test: off
-artifacts:
-- path: build\Release\**\*.nupkg
-  name: NuGet
 #deploy:
 #- provider: NuGet
 #  server: https://www.myget.org/F/quartznetdev/api/v2/package
