@@ -2,6 +2,19 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+## Release 3.0.1, Jan 21 2018
+
+This is a bug fix release that fixes cron expression parsing bug and reverts IRemotableQuartzScheduler
+interface back to its original form without Tasks and CancellationTokens - so that's it's actually usable
+through .NET Remoting infrastructure. Now zip packing is also back and includes Quartz.Server.
+
+* FIXES
+
+    * Create zip package as part of release, including Quartz.Server (#572)
+	* A specific CronExpression fails with "Input string was not in a correct format." (#568)
+	* Cannot use remoting due to Task and CancellationToken signatures (#571)
+
+
 ## Release 3.0, Dec 30 2017
 
 See 3.x releases for full list.

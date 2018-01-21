@@ -27,8 +27,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Serialization.Json",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Server", "src\Quartz.Server\Quartz.Server.csproj", "{09082B9A-906C-4A17-A2E5-6C947DAC7C85}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{EEA6E11D-5C26-4C28-8216-BB88B0DFB763}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Jobs", "src\Quartz.Jobs\Quartz.Jobs.csproj", "{5D31C178-7349-4064-970A-223B45E913C1}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Plugins", "src\Quartz.Plugins\Quartz.Plugins.csproj", "{E9A60600-156A-4F3C-B080-B630D6546164}"
