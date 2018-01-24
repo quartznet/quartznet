@@ -25,6 +25,7 @@ using System.Collections.Specialized;
 using System.Threading.Tasks;
 
 using Quartz.Impl;
+using Quartz.Impl.Matchers;
 using Quartz.Logging;
 
 namespace Quartz.Examples.Example12
@@ -76,7 +77,13 @@ namespace Quartz.Examples.Example12
             // schedule the job
             await sched.ScheduleJob(job, trigger);
 
-            log.Info("Remote job scheduled.");
+            log.Info("Remote job scheduled, scheduler now has following jobs:");
+
+            var keys = await sched.GetJobKeys(GroupMatcher<JobKey>.AnyGroup());
+            foreach (var key in keys)
+            {
+                log.Info("\t " + key);
+            }
         }
     }
 
