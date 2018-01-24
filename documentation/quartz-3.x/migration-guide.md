@@ -12,6 +12,20 @@ title: Version Migration Guide
 Quartz jumped to async/await world and added support for .NET Core with 3.0 release so most significant changes
 can be found on APIs and functionality available depending on whether you target full .NET Framework or the .NET Core. 
 
+## Packaging changes
+
+Quartz NuGet package was split to more specific packages.
+
+* Quartz.Jobs is now a separate NuGet dependency you might need
+  * DirectoryScanJob
+  * FileScanJob
+  * NativeJob
+  * SendMailJob
+* Quartz.Plugins is now a separate NuGet dependency you might need
+  * XMLSchedulingDataProcessorPlugin
+  
+Check that you reference the required NuGet packages and that your configuration references also the correct assembly.
+
 ### Database schema changes
 
 2.6 schema should work with 3.0 with no changes.
