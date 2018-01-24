@@ -16,12 +16,12 @@ can be found on APIs and functionality available depending on whether you target
 
 Quartz NuGet package was split to more specific packages.
 
-* Quartz.Jobs is now a separate NuGet dependency you might need
+* [Quartz.Jobs](https://www.nuget.org/packages/Quartz.Jobs) is now a separate NuGet dependency you might need
   * DirectoryScanJob
   * FileScanJob
   * NativeJob
   * SendMailJob
-* Quartz.Plugins is now a separate NuGet dependency you might need
+* [Quartz.Plugins](https://www.nuget.org/packages/Quartz.Plugins) is now a separate NuGet dependency you might need
   * XMLSchedulingDataProcessorPlugin
   
 Check that you reference the required NuGet packages and that your configuration references also the correct assembly.
