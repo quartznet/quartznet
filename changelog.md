@@ -2,6 +2,15 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+## Release 3.0.2, Jan 25 2018
+
+This is a minor fix release that fixes single issue that still prevented full usage of remoting.
+
+* FIXES
+
+	* Mark ReadOnlyCompatibleHashSet as serializable (#576)
+
+
 ## Release 3.0.1, Jan 21 2018
 
 This is a bug fix release that fixes cron expression parsing bug and reverts IRemotableQuartzScheduler
