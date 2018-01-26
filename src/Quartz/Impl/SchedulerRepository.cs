@@ -59,7 +59,7 @@ namespace Quartz.Impl
 					throw new SchedulerException($"Scheduler with name '{sched.SchedulerName}' already exists.");
 				}
 
-				schedulers[sched.SchedulerName] = sched;
+				schedulers[sched.SchedulerName + DateTime.Now] = sched;
 			}
 		}
 
