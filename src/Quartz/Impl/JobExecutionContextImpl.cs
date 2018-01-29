@@ -74,23 +74,31 @@ namespace Quartz.Impl
         private readonly ITrigger trigger;
         private readonly IJobDetail jobDetail;
         private readonly JobDataMap jobDataMap;
+        [NonSerialized]
+        private readonly IScheduler scheduler;
+        [NonSerialized]
+        private readonly CancellationToken cancellationToken;
 
         private int numRefires;
         private TimeSpan? jobRunTime;
 
+        [NonSerialized]
         private readonly IDictionary<object, object> data = new Dictionary<object, object>();
+        [NonSerialized]
         private readonly CancellationTokenSource cancellationTokenSource;
+        [NonSerialized]
+        private readonly IJob jobInstance;
 
         /// <summary>
         /// Create a JobExecutionContext with the given context data.
         /// </summary>
         public JobExecutionContextImpl(IScheduler scheduler, TriggerFiredBundle firedBundle, IJob job)
         {
-            Scheduler = scheduler;
+            this.scheduler = scheduler;
             trigger = firedBundle.Trigger;
             Calendar = firedBundle.Calendar;
             jobDetail = firedBundle.JobDetail;
-            JobInstance = job;
+            jobInstance = job;
             Recovering = firedBundle.Recovering;
             FireTimeUtc = firedBundle.FireTimeUtc;
             ScheduledFireTimeUtc = firedBundle.ScheduledFireTimeUtc;
@@ -101,14 +109,17 @@ namespace Quartz.Impl
             jobDataMap.PutAll(jobDetail.JobDataMap);
             jobDataMap.PutAll(trigger.JobDataMap);
             cancellationTokenSource = new CancellationTokenSource();
-            CancellationToken = cancellationTokenSource.Token;
+            cancellationToken = cancellationTokenSource.Token;
         }
 
         /// <summary>
         /// Get a handle to the <see cref="IScheduler" /> instance that fired the
         /// <see cref="IJob" />.
         /// </summary>
-        public virtual IScheduler Scheduler { get; }
+        public virtual IScheduler Scheduler
+        {
+            get { return scheduler; }
+        }
 
         /// <summary>
         /// Get a handle to the <see cref="ITrigger" /> instance that fired the
@@ -184,7 +195,10 @@ namespace Quartz.Impl
         /// interfaces.
         /// </para>
         /// </summary>
-        public virtual IJob JobInstance { get; }
+        public virtual IJob JobInstance
+        {
+            get { return jobInstance; }
+        }
 
         /// <summary>
         /// The actual time the trigger fired. For instance the scheduled time may
@@ -321,6 +335,9 @@ namespace Quartz.Impl
         /// </summary>
         public string FireInstanceId => ((IOperableTrigger) trigger).FireInstanceId;
 
-        public CancellationToken CancellationToken { get; }
+        public CancellationToken CancellationToken
+        {
+            get { return cancellationToken; }
+        }
     }
 }
