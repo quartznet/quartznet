@@ -115,7 +115,7 @@ namespace Quartz.Listener
                     {
                         log.Debug($"JobListener {l.Name} - JobToBeExecuted method raised an exception: {e.Message}");
                     }
-                    return Task.CompletedTask;
+                    return Task.FromResult(0);
                 }
             }));
         }
@@ -137,7 +137,7 @@ namespace Quartz.Listener
                         log.Debug($"JobListener {l.Name} - JobExecutionVetoed method raised an exception: {e.Message}");
                     }
 
-                    return Task.CompletedTask;
+                    return Task.FromResult(0);
                 }
             }));
         }
@@ -160,7 +160,7 @@ namespace Quartz.Listener
                         log.Debug($"JobListener {l.Name} - JobWasExecuted method raised an exception: {e.Message}");
                     }
 
-                    return Task.CompletedTask;
+                    return Task.FromResult(0);
                 }
             }));
         }
