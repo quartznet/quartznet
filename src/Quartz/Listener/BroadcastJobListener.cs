@@ -111,7 +111,7 @@ namespace Quartz.Listener
                 }
                 catch (Exception e)
                 {
-                    if (log.IsDebugEnabled())
+                    if (log.IsWarnEnabled())
                     {
                         log.Debug($"JobListener {l.Name} - JobToBeExecuted method raised an exception: {e.Message}");
                     }
@@ -132,7 +132,7 @@ namespace Quartz.Listener
                 }
                 catch (Exception e)
                 {
-                    if (log.IsDebugEnabled())
+                    if (log.IsWarnEnabled())
                     {
                         log.Debug($"JobListener {l.Name} - JobExecutionVetoed method raised an exception: {e.Message}");
                     }
@@ -155,7 +155,7 @@ namespace Quartz.Listener
                 }
                 catch (Exception e)
                 {
-                    if (log.IsDebugEnabled())
+                    if (log.IsWarnEnabled())
                     {
                         log.Debug($"JobListener {l.Name} - JobWasExecuted method raised an exception: {e.Message}");
                     }
