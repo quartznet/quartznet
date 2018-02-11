@@ -1,4 +1,5 @@
-﻿using System;
+﻿#if REMOTING
+using System;
 using System.Collections.Specialized;
 using System.Threading.Tasks;
 
@@ -12,7 +13,7 @@ namespace Quartz.Tests.Unit
     public class TestRemoting
     {
         [Test]
-        public void Test()
+        public async Task Test()
         {
             var remoteFactory = new StdSchedulerFactory(new NameValueCollection
             {
@@ -28,7 +29,7 @@ namespace Quartz.Tests.Unit
                 ["quartz.threadPool.threadCount"] = "5",
             });
 
-            var remoteScheduler = remoteFactory.GetScheduler().Result;
+            var remoteScheduler = await remoteFactory.GetScheduler();
 
             var job = JobBuilder.Create<SampleJob>()
                 .WithIdentity("myJob", "group1") // name "myJob", group "group1"
@@ -43,8 +44,8 @@ namespace Quartz.Tests.Unit
                     .RepeatForever())
                 .Build();
 
-            remoteScheduler.ScheduleJob(job, trigger);
-            remoteScheduler.Start();
+            await remoteScheduler.ScheduleJob(job, trigger);
+            await remoteScheduler.Start();
 
             var remotingFactory = new StdSchedulerFactory(new NameValueCollection
             {
@@ -54,15 +55,15 @@ namespace Quartz.Tests.Unit
                 ["quartz.threadPool.threadCount"] = "0",
             });
 
-            var remotingScheduler = remotingFactory.GetScheduler().Result;
-            var jobGroups = remotingScheduler.GetJobGroupNames().Result;
+            var remotingScheduler = await remotingFactory.GetScheduler();
+            var jobGroups = await remotingScheduler.GetJobGroupNames();
             foreach (var jobGroup in jobGroups)
             {
                 var groupMatcher = GroupMatcher<JobKey>.GroupContains(jobGroup);
-                var jobKeys = remotingScheduler.GetJobKeys(groupMatcher).Result;
+                var jobKeys = await remotingScheduler.GetJobKeys(groupMatcher);
             }
 
-            var executingJobs = remotingScheduler.GetCurrentlyExecutingJobs().Result;
+            var executingJobs = remotingScheduler.GetCurrentlyExecutingJobs();
         }
     }
 
@@ -92,3 +93,4 @@ namespace Quartz.Tests.Unit
         }
     }
 }
+#endif
