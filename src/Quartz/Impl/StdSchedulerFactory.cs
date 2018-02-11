@@ -138,7 +138,11 @@ namespace Quartz.Impl
 
         private static readonly ILog log = LogProvider.GetLogger(typeof(StdSchedulerFactory));
 
-        private string SchedulerName => cfg.GetStringProperty(PropertySchedulerInstanceName, "QuartzScheduler");
+        private string SchedulerName
+        {
+            // ReSharper disable once ArrangeAccessorOwnerBody
+            get { return cfg.GetStringProperty(PropertySchedulerInstanceName, "QuartzScheduler"); }
+        }
 
         private ILog Log => log;
 

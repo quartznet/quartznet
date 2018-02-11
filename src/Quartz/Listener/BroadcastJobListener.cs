@@ -25,6 +25,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Quartz.Logging;
+
 namespace Quartz.Listener
 {
     /// <summary>
@@ -44,6 +46,7 @@ namespace Quartz.Listener
     public class BroadcastJobListener : IJobListener
     {
         private readonly List<IJobListener> listeners;
+        private readonly ILog log;
 
         /// <summary>
         /// Construct an instance with the given name.
@@ -56,6 +59,7 @@ namespace Quartz.Listener
         {
             Name = name ?? throw new ArgumentNullException(nameof(name), "Listener name cannot be null!");
             listeners = new List<IJobListener>();
+            log = LogProvider.GetLogger(GetType());
         }
 
         /// <summary>
@@ -99,14 +103,43 @@ namespace Quartz.Listener
             IJobExecutionContext context, 
             CancellationToken cancellationToken = default)
         {
-            return Task.WhenAll(listeners.Select(l => l.JobToBeExecuted(context, cancellationToken)));
+            return Task.WhenAll(listeners.Select(l =>
+            {
+                try
+                {
+                    return l.JobToBeExecuted(context, cancellationToken);
+                }
+                catch (Exception e)
+                {
+                    if (log.IsWarnEnabled())
+                    {
+                        log.Debug($"JobListener {l.Name} - JobToBeExecuted method raised an exception: {e.Message}");
+                    }
+                    return TaskUtil.CompletedTask;
+                }
+            }));
         }
 
         public Task JobExecutionVetoed(
             IJobExecutionContext context,
             CancellationToken cancellationToken = default)
         {
-            return Task.WhenAll(listeners.Select(l => l.JobExecutionVetoed(context, cancellationToken)));
+            return Task.WhenAll(listeners.Select(l =>
+            {
+                try
+                {
+                    return l.JobExecutionVetoed(context, cancellationToken);
+                }
+                catch (Exception e)
+                {
+                    if (log.IsWarnEnabled())
+                    {
+                        log.Debug($"JobListener {l.Name} - JobExecutionVetoed method raised an exception: {e.Message}");
+                    }
+
+                    return TaskUtil.CompletedTask;
+                }
+            }));
         }
 
         public Task JobWasExecuted(
@@ -114,7 +147,22 @@ namespace Quartz.Listener
             JobExecutionException jobException,
             CancellationToken cancellationToken = default)
         {
-            return Task.WhenAll(listeners.Select(l => l.JobWasExecuted(context, jobException, cancellationToken)));
+            return Task.WhenAll(listeners.Select(l =>
+            {
+                try
+                {
+                    return l.JobWasExecuted(context, jobException, cancellationToken);
+                }
+                catch (Exception e)
+                {
+                    if (log.IsWarnEnabled())
+                    {
+                        log.Debug($"JobListener {l.Name} - JobWasExecuted method raised an exception: {e.Message}");
+                    }
+
+                    return TaskUtil.CompletedTask;
+                }
+            }));
         }
     }
 }
