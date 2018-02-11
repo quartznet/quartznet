@@ -1,4 +1,4 @@
-#region License
+    #region License
 
 /* 
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -21,9 +21,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+
+using Quartz.Logging;
 
 namespace Quartz.Listener
 {
@@ -44,6 +45,7 @@ namespace Quartz.Listener
     public class BroadcastTriggerListener : ITriggerListener
     {
         private readonly List<ITriggerListener> listeners;
+        private readonly ILog log;
 
         /// <summary>
         /// Construct an instance with the given name.
@@ -56,6 +58,7 @@ namespace Quartz.Listener
         {
             Name = name ?? throw new ArgumentNullException(nameof(name), "Listener name cannot be null!");
             listeners = new List<ITriggerListener>();
+            log = LogProvider.GetLogger(GetType());
         }
 
         /// <summary>
@@ -100,7 +103,7 @@ namespace Quartz.Listener
             IJobExecutionContext context, 
             CancellationToken cancellationToken = default)
         {
-            return Task.WhenAll(listeners.Select(l => l.TriggerFired(trigger, context, cancellationToken)));
+            return IterateListenersInGuard(l => l.TriggerFired(trigger, context, cancellationToken), nameof(TriggerFired));
         }
 
         public async Task<bool> VetoJobExecution(
@@ -121,7 +124,7 @@ namespace Quartz.Listener
 
         public Task TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = default)
         {
-            return Task.WhenAll(listeners.Select(l => l.TriggerMisfired(trigger, cancellationToken)));
+            return IterateListenersInGuard(l => l.TriggerMisfired(trigger, cancellationToken), nameof(TriggerMisfired));
         }
 
         public Task TriggerComplete(
@@ -130,7 +133,25 @@ namespace Quartz.Listener
             SchedulerInstruction triggerInstructionCode,
             CancellationToken cancellationToken = default)
         {
-            return Task.WhenAll(listeners.Select(l => l.TriggerComplete(trigger, context, triggerInstructionCode, cancellationToken)));
+            return IterateListenersInGuard(l => l.TriggerComplete(trigger, context, triggerInstructionCode, cancellationToken), nameof(TriggerComplete));
+        }
+        
+        private async Task IterateListenersInGuard(Func<ITriggerListener, Task> action, string methodName)
+        {
+            foreach (var listener in listeners)
+            {
+                try
+                {
+                    await action(listener);
+                }
+                catch (Exception e)
+                {
+                    if (log.IsErrorEnabled())
+                    {
+                        log.ErrorException($"Listener {listener.Name} - method {methodName} raised an exception: {e.Message}", e);
+                    }
+                }
+            }
         }
     }
 }

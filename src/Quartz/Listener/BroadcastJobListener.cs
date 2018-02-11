@@ -21,7 +21,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -103,43 +102,14 @@ namespace Quartz.Listener
             IJobExecutionContext context, 
             CancellationToken cancellationToken = default)
         {
-            return Task.WhenAll(listeners.Select(l =>
-            {
-                try
-                {
-                    return l.JobToBeExecuted(context, cancellationToken);
-                }
-                catch (Exception e)
-                {
-                    if (log.IsWarnEnabled())
-                    {
-                        log.Debug($"JobListener {l.Name} - JobToBeExecuted method raised an exception: {e.Message}");
-                    }
-                    return TaskUtil.CompletedTask;
-                }
-            }));
+            return IterateListenersInGuard(l => l.JobToBeExecuted(context, cancellationToken), nameof(JobToBeExecuted));
         }
 
         public Task JobExecutionVetoed(
             IJobExecutionContext context,
             CancellationToken cancellationToken = default)
         {
-            return Task.WhenAll(listeners.Select(l =>
-            {
-                try
-                {
-                    return l.JobExecutionVetoed(context, cancellationToken);
-                }
-                catch (Exception e)
-                {
-                    if (log.IsWarnEnabled())
-                    {
-                        log.Debug($"JobListener {l.Name} - JobExecutionVetoed method raised an exception: {e.Message}");
-                    }
-
-                    return TaskUtil.CompletedTask;
-                }
-            }));
+            return IterateListenersInGuard(l => l.JobExecutionVetoed(context, cancellationToken), nameof(JobExecutionVetoed));
         }
 
         public Task JobWasExecuted(
@@ -147,22 +117,25 @@ namespace Quartz.Listener
             JobExecutionException jobException,
             CancellationToken cancellationToken = default)
         {
-            return Task.WhenAll(listeners.Select(l =>
+            return IterateListenersInGuard(l => l.JobWasExecuted(context, jobException, cancellationToken), nameof(JobWasExecuted));
+        }
+
+        private async Task IterateListenersInGuard(Func<IJobListener, Task> action, string methodName)
+        {
+            foreach (var listener in listeners)
             {
                 try
                 {
-                    return l.JobWasExecuted(context, jobException, cancellationToken);
+                    await action(listener);
                 }
                 catch (Exception e)
                 {
-                    if (log.IsWarnEnabled())
+                    if (log.IsErrorEnabled())
                     {
-                        log.Debug($"JobListener {l.Name} - JobWasExecuted method raised an exception: {e.Message}");
+                        log.ErrorException($"Listener {listener.Name} - method {methodName} raised an exception: {e.Message}", e);
                     }
-
-                    return TaskUtil.CompletedTask;
                 }
-            }));
+            }
         }
     }
 }
