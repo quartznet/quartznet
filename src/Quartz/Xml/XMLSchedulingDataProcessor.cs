@@ -173,7 +173,7 @@ namespace Quartz.Xml
 
             Log.InfoFormat("Parsing XML file: {0} with systemId: {1}", fileName, systemId);
 
-            using (var stream = File.Open(fileName, FileMode.Open))
+            using (var stream = File.Open(fileName, FileMode.Open, FileAccess.Read))
             using (StreamReader sr = new StreamReader(stream))
             {
                 ProcessInternal(await sr.ReadToEndAsync().ConfigureAwait(false));
