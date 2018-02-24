@@ -2,6 +2,17 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+## Release 3.0.3, Feb 24 2018
+
+* FIXES
+
+	* XML scheduling no longer requires write access to source XML file (#591)
+	* Improve listener error handling (#589)
+	* SQL command parameters are not defined in 'IsTriggerStillPresent' method (#579)
+	* Source distribution couldn't be built with build.cmd/.sh when no .git directory present (#596)
+    * Currently executing jobs cannot be retrieved via remoting (#580)
+	
+	
 ## Release 3.0.2, Jan 25 2018
 
 This is a minor fix release that fixes single issue that still prevented full usage of remoting.
