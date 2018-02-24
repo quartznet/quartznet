@@ -1838,7 +1838,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (InvalidOperationException)
                 {
-                    if (await IsTriggerStillPresent(conn, cancellationToken).ConfigureAwait(false))
+                    if (await IsTriggerStillPresent(conn, triggerKey, cancellationToken).ConfigureAwait(false))
                     {
                         throw;
                     }
@@ -1876,10 +1876,14 @@ namespace Quartz.Impl.AdoJobStore
 
         private async Task<bool> IsTriggerStillPresent(
             ConnectionAndTransactionHolder conn,
+            TriggerKey triggerKey,
             CancellationToken cancellationToken)
         {
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTrigger)))
             {
+                AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+                AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+
                 using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
                 {
                     return await rs.ReadAsync(cancellationToken).ConfigureAwait(false);
