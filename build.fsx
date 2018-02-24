@@ -4,7 +4,13 @@ open Fake
 open Fake.AssemblyInfoFile
 open Fake.Git
 
-let commitHash = Information.getCurrentHash()
+let commitHash =
+    try
+        Information.getCurrentHash()
+    with ex -> 
+        printfn "Could not get Git commit hash: %A" ex
+        ""
+
 let configuration = getBuildParamOrDefault "configuration" "Release"
 
 Target "Clean" (fun _ ->
@@ -15,7 +21,8 @@ Target "Clean" (fun _ ->
 Target "GenerateAssemblyInfo" (fun _ ->
     CreateCSharpAssemblyInfo "./src/AssemblyInfo.cs"
         [
-            (Attribute.Metadata("githash", commitHash))]
+            (Attribute.Metadata("githash", commitHash))
+        ]
 )
 
 Target "Build" (fun _ ->
