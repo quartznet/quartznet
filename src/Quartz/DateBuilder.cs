@@ -658,7 +658,7 @@ namespace Quartz
 
         /// <summary>
         /// Returns a date that is rounded to the next even multiple of the given
-        /// minute.
+        /// second.
         /// </summary>
         /// <remarks>
         /// The rules for calculating the second are the same as those for
