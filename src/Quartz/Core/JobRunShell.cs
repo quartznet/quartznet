@@ -281,9 +281,14 @@ namespace Quartz.Core
             finally
             {
                 qs.RemoveInternalSchedulerListener(this);
-                if (jec != null && jec.JobInstance != null)
+                if (jec != null)
                 {
-                    qs.JobFactory.ReturnJob(jec.JobInstance);
+                    if (jec.JobInstance != null)
+                    {
+                        qs.JobFactory.ReturnJob(jec.JobInstance);
+                    }
+
+                    jec.Dispose();
                 }
             }
         }

@@ -90,7 +90,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 log.Debug("Scanning for misfires...");
 
-                RecoverMisfiredJobsResult res = await jobStoreSupport.DoRecoverMisfires(requestorId, cancellationTokenSource.Token).ConfigureAwait(false);
+                RecoverMisfiredJobsResult res = await jobStoreSupport.DoRecoverMisfires(requestorId, CancellationToken.None).ConfigureAwait(false);
                 numFails = 0;
                 return res;
             }

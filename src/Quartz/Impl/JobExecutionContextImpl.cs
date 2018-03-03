@@ -69,7 +69,7 @@ namespace Quartz.Impl
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class JobExecutionContextImpl : ICancellableJobExecutionContext
+    public class JobExecutionContextImpl : ICancellableJobExecutionContext, IDisposable
     {
         private readonly ITrigger trigger;
         private readonly IJobDetail jobDetail;
@@ -338,6 +338,11 @@ namespace Quartz.Impl
         public CancellationToken CancellationToken
         {
             get { return cancellationToken; }
+        }
+
+        public void Dispose()
+        {
+            cancellationTokenSource?.Dispose();
         }
     }
 }
