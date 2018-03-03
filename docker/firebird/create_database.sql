@@ -1,1 +1,1 @@
-CREATE DATABASE 'quartz.fdb' USER 'SYSDBA' PASSWORD 'masterkey';
+CREATE DATABASE '/firebird/data/quartz.fdb' USER 'SYSDBA' PASSWORD 'masterkey';

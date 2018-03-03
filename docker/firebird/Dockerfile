@@ -1,6 +1,7 @@
-FROM jacobalberty/firebird
+FROM jacobalberty/firebird:3.0.3
 
-ENV ISC_PASSWORD=masterkey
+ENV ISC_PASSWORD masterkey
+ENV EnableWireCrypt true
 
 ADD create_database.sql ./create_database.sql
 ADD tables_firebird.sql ./tables_firebird.sql
