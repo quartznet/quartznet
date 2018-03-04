@@ -2,6 +2,17 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+## Release 3.0.4, Mar 4 2018
+
+This release fixes a nasty memory leak caused by QuartzSchedulerThread sharing
+its CancellationTokenSource with calls it makes. Everyone using 3.x is advised to upgrade.
+
+* FIXES
+
+	* Memory leak caused by CancellationTokenSource sharing (#600)
+	* tables_oracle.sql should use NUMBER(19) instead of NUMBER(13) for long properties (#598)
+
+
 ## Release 3.0.3, Feb 24 2018
 
 * FIXES
