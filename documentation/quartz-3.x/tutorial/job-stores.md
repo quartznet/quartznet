@@ -92,21 +92,18 @@ loose coupling between database drivers and Quartz.
 **Setting Data Source's Connection String And Database Provider**
 
      quartz.dataSource.myDS.connectionString = Server=localhost;Database=quartz;Uid=quartznet;Pwd=quartznet
-     quartz.dataSource.myDS.provider = MySql-50
+     quartz.dataSource.myDS.provider = MySql
 
 Currently following database providers are supported:
 
-* SqlServer-20 - SQL Server driver for .NET Framework 2.0
-* OracleODP-20 - Oracle's Oracle Driver
-* OracleODPManaged-1123-40 Oracle's managed driver for Oracle 11
-* OracleODPManaged-1211-40 Oracle's managed driver for Oracle 12
-* MySql-50 - MySQL Connector/.NET v. 5.0 (.NET 2.0)
-* MySql-51 - MySQL Connector/:NET v. 5.1 (.NET 2.0)
-* MySql-65 - MySQL Connector/:NET v. 6.5 (.NET 2.0)
-* SQLite-10 - SQLite ADO.NET 2.0 Provider v. 1.0.56 (.NET 2.0)
-* Firebird-201 - Firebird ADO.NET 2.0 Provider v. 2.0.1 (.NET 2.0)
-* Firebird-210 - Firebird ADO.NET 2.0 Provider v. 2.1.0 (.NET 2.0)
-* Npgsql-20 - PostgreSQL Npgsql
+* SqlServer - SQL Server driver for .NET Framework 2.0
+* OracleODP - Oracle's Oracle Driver
+* OracleODPManaged - Oracle's managed driver for Oracle 11
+* MySql - MySQL Connector/.NET
+* SQLite - SQLite ADO.NET Provider
+* SQLite-Microsoft - Microsoft SQLite ADO.NET Provider
+* Firebird - Firebird ADO.NET Provider
+* Npgsql - PostgreSQL Npgsql
 
 **You can and should use latest version of driver if newer is available, just create an assembly binding redirect**
 
