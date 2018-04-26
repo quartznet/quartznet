@@ -142,7 +142,7 @@ namespace Quartz.Plugin.Xml
             foreach (string token in tokens)
             {
                 JobFile jobFile = new JobFile(this, token);
-                await jobFile.Initialize(cancellationToken);
+                await jobFile.Initialize(cancellationToken).ConfigureAwait(false);
                 jobFiles.Add(new KeyValuePair<string, JobFile>(jobFile.FilePath, jobFile));
             }
         }
