@@ -750,8 +750,9 @@ namespace Quartz.Impl.Triggers
         {
             // a. Advance or adjust to next dayOfWeek if need to first, starting next day with startTimeOfDay.
             TimeOfDay startTimeOfDay = StartTimeOfDay;
+            // Get converted start date based on fireTime; fireTime already has the offset applied
             DateTimeOffset fireTimeStartDate = startTimeOfDay.GetTimeOfDayForDate(fireTime).Value;
-            DateTimeOffset fireTimeStartDateCal = CreateCalendarTime(fireTimeStartDate);
+            DateTimeOffset fireTimeStartDateCal = fireTimeStartDate;
             DayOfWeek dayOfWeekOfFireTime = fireTimeStartDateCal.DayOfWeek;
 
             // b2. We need to advance to another day if isAfterTimePassEndTimeOfDay is true, or dayOfWeek is not set.
