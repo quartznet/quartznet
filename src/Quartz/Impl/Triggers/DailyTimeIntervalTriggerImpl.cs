@@ -681,7 +681,7 @@ namespace Quartz.Impl.Triggers
             // f. Continue to calculate the fireTime by incremental unit of intervals.
             // recall that if fireTime was less that fireTimeStartDate, we didn't get this far
             startTimeUtc = TimeZoneUtil.ConvertTime(fireTimeStartDate, TimeZone);
-            long secondsAfterStart = (long) (fireTime.Value - startTimeUtc).TotalSeconds;
+            long secondsAfterStart = (long)(fireTime.Value - startTimeUtc).TotalSeconds;
             long repeatLong = RepeatInterval;
 
             DateTimeOffset sTime = fireTimeStartDate.ToUniversalTime();
@@ -694,7 +694,7 @@ namespace Quartz.Impl.Triggers
                     jumpCount++;
                 }
 
-                sTime = sTime.AddSeconds(RepeatInterval * (int) jumpCount);
+                sTime = sTime.AddSeconds(RepeatInterval * (int)jumpCount);
                 fireTime = TimeZoneUtil.ConvertTime(sTime, TimeZone);
             }
             else if (repeatUnit == IntervalUnit.Minute)
@@ -704,7 +704,7 @@ namespace Quartz.Impl.Triggers
                 {
                     jumpCount++;
                 }
-                sTime = sTime.AddMinutes(RepeatInterval * (int) jumpCount);
+                sTime = sTime.AddMinutes(RepeatInterval * (int)jumpCount);
                 fireTime = TimeZoneUtil.ConvertTime(sTime, TimeZone);
             }
             else if (repeatUnit == IntervalUnit.Hour)
@@ -714,7 +714,7 @@ namespace Quartz.Impl.Triggers
                 {
                     jumpCount++;
                 }
-                sTime = sTime.AddHours(RepeatInterval * (int) jumpCount);
+                sTime = sTime.AddHours(RepeatInterval * (int)jumpCount);
                 fireTime = TimeZoneUtil.ConvertTime(sTime, TimeZone);
             }
 
@@ -751,8 +751,9 @@ namespace Quartz.Impl.Triggers
         {
             // a. Advance or adjust to next dayOfWeek if need to first, starting next day with startTimeOfDay.
             TimeOfDay startTimeOfDay = StartTimeOfDay;
+            // Get converted start date based on fireTime; fireTime already has the offset applied
             DateTimeOffset fireTimeStartDate = startTimeOfDay.GetTimeOfDayForDate(fireTime).Value;
-            DateTimeOffset fireTimeStartDateCal = CreateCalendarTime(fireTimeStartDate);
+            DateTimeOffset fireTimeStartDateCal = fireTimeStartDate;
             DayOfWeek dayOfWeekOfFireTime = fireTimeStartDateCal.DayOfWeek;
 
             // b2. We need to advance to another day if isAfterTimePassEndTimeOfDay is true, or dayOfWeek is not set.
