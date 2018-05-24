@@ -187,7 +187,7 @@ namespace Quartz.Listener
             {
                 try
                 {
-                    await action(listener);
+                    await action(listener).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {

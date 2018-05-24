@@ -274,7 +274,7 @@ namespace Quartz.Core
                                 await qs.NotifySchedulerListenersError(msg, jpe, CancellationToken.None).ConfigureAwait(false);
                             }
                             lastAcquireFailed = true;
-                            await HandleDbRetry(CancellationToken.None);
+                            await HandleDbRetry(CancellationToken.None).ConfigureAwait(false);
                             continue;
                         }
                         catch (Exception e)
@@ -284,7 +284,7 @@ namespace Quartz.Core
                                 Log.ErrorException("quartzSchedulerThreadLoop: RuntimeException " + e.Message, e);
                             }
                             lastAcquireFailed = true;
-                            await HandleDbRetry(CancellationToken.None);
+                            await HandleDbRetry(CancellationToken.None).ConfigureAwait(false);
                             continue;
                         }
 
@@ -471,7 +471,7 @@ namespace Quartz.Core
             var jobStorSupport = qsRsrcs.JobStore as JobStoreSupport;
             if (jobStorSupport != null)
             {
-                await Task.Delay(jobStorSupport.DbRetryInterval, cancellationToken);
+                await Task.Delay(jobStorSupport.DbRetryInterval, cancellationToken).ConfigureAwait(false);
             }
         }
 

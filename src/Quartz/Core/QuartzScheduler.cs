@@ -2165,7 +2165,7 @@ namespace Quartz.Core
 
             if (interrupted)
             {
-                await NotifySchedulerListeners(l => l.JobInterrupted(jobKey, cancellationToken), "job interruption");
+                await NotifySchedulerListeners(l => l.JobInterrupted(jobKey, cancellationToken), "job interruption").ConfigureAwait(false);
             }
 
             return interrupted;

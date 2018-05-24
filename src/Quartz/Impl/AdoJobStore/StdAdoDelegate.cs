@@ -920,7 +920,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    var properties = await GetMapFromProperties(rs, colIndex);
+                    var properties = await GetMapFromProperties(rs, colIndex).ConfigureAwait(false);
                     return properties;
                 }
                 catch (InvalidCastException)
@@ -928,7 +928,7 @@ namespace Quartz.Impl.AdoJobStore
                     // old data from user error or XML scheduling plugin data
                     try
                     {
-                        return await GetObjectFromBlob<IDictionary>(rs, colIndex);
+                        return await GetObjectFromBlob<IDictionary>(rs, colIndex).ConfigureAwait(false);
                     }
                     catch
                     {
@@ -940,7 +940,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             try
             {
-                return await GetObjectFromBlob<IDictionary>(rs, colIndex);
+                return await GetObjectFromBlob<IDictionary>(rs, colIndex).ConfigureAwait(false);
             }
             catch (InvalidCastException)
             {
@@ -948,7 +948,7 @@ namespace Quartz.Impl.AdoJobStore
                 try
                 {
                     // we use this then
-                    return await GetMapFromProperties(rs, colIndex);
+                    return await GetMapFromProperties(rs, colIndex).ConfigureAwait(false);
                 }
                 catch
                 {
