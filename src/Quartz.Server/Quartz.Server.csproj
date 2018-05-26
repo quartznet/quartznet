@@ -13,6 +13,7 @@
     </Content>
   </ItemGroup>
   <ItemGroup>
+    <PackageReference Include="Topshelf" Version="4.0.4" />
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
     <ProjectReference Include="..\Quartz.Serialization.Json\Quartz.Serialization.Json.csproj" />
     <ProjectReference Include="..\Quartz.Plugins\Quartz.Plugins.csproj" />
@@ -28,6 +29,5 @@
     <Reference Include="System" />
     <Reference Include="System.Configuration" />
     <Reference Include="Microsoft.CSharp" />
-    <PackageReference Include="Topshelf" Version="4.0.3" />
   </ItemGroup>
 </Project>

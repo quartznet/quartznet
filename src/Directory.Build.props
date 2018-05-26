@@ -37,7 +37,7 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
 
-    <LangVersion>7.1</LangVersion>
+    <LangVersion>latest</LangVersion>
     <TargetFullFrameworkVersion>net452</TargetFullFrameworkVersion>
 
   </PropertyGroup>
