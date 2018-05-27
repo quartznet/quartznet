@@ -2,6 +2,18 @@ QUARTZ.NET CHANGELOG
 ==============================
 http://www.quartz-scheduler.net
 
+Release 2.6.2, May 27, 2018
+--------------------------------
+
+This is a maintenance release fixing some bugs.
+
+FIXES
+
+* trigger loop encountered using DailyTimeIntervalTrigger across DST start boundary (#610)
+* tables_oracle.sql should use NUMBER(19) instead of NUMBER(13) for long properties (#598)
+* XML scheduling requires write access to source XML file (#591)
+
+
 Release 2.6.1, Oct 9, 2017
 --------------------------------
 

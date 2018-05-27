@@ -10,7 +10,7 @@
 
   <property name="version.major" value="2" overwrite="false" />
   <property name="version.minor" value="6" overwrite="false" />
-  <property name="version.revision" value="1" overwrite="false" />
+  <property name="version.revision" value="2" overwrite="false" />
   <property name="version.build" value="${environment::get-variable('BUILD_NUMBER')}" overwrite="false" if="${environment::variable-exists('BUILD_NUMBER')}" />
   <property name="version.build" value="0" overwrite="false" unless="${environment::variable-exists('BUILD_NUMBER')}" />
 
@@ -158,7 +158,7 @@
             <attribute type="AssemblyConfigurationAttribute" value="net-${target.framework}.win32; ${build.configuration}" />
             <attribute type="AssemblyProductAttribute" value="Quarz.NET ${version.readable} for .NET ${target.framework}" />
             <attribute type="AssemblyDescriptionAttribute" value="Quartz Scheduling Framework for .NET" />
-            <attribute type="AssemblyCopyrightAttribute" value="Copyright 2006-2017 Marko Lahma" />
+            <attribute type="AssemblyCopyrightAttribute" value="Copyright 2006-2018 Marko Lahma" />
             <attribute type="AssemblyTrademarkAttribute" value="Apache License, Version 2.0" />
             <attribute type="AssemblyCompanyAttribute" value="http://www.quartz-scheduler.net/" />
             <attribute type="AssemblyCultureAttribute" value="" />
