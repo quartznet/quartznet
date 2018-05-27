@@ -2,6 +2,20 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+## Release 3.0.5, May 27 2018
+
+This release fixes couple bugs and adds support for .NET Core version of Oracle's managed data access library.
+
+* NEW FEATURE
+
+    * Support Oracle.ManagedDataAccess.Core (#609)
+
+* FIXES
+
+	* trigger loop encountered using DailyTimeIntervalTrigger across DST start boundary (#610)
+	* Missing ConfigureAwait(false) in some parts of code (#618)
+	
+
 ## Release 3.0.4, Mar 4 2018
 
 This release fixes a nasty memory leak caused by QuartzSchedulerThread sharing

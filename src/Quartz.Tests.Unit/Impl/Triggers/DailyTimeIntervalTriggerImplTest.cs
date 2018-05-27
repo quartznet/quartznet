@@ -926,5 +926,24 @@ namespace Quartz.Tests.Unit.Impl.Triggers
 
             ((DailyTimeIntervalTriggerImpl)myTrigger).EndTimeOfDay = new TimeOfDay(16, 0, 0);
         }
+
+        [Test]
+        public void TestInfinitiveLoop()
+        {
+            var trigger = (IOperableTrigger) TriggerBuilder.Create()
+                .WithDailyTimeIntervalSchedule(x => x
+                    .InTimeZone(TimeZoneInfo.FindSystemTimeZoneById("GTB Standard Time"))
+                    .StartingDailyAt(new TimeOfDay(0, 0, 0))
+                    .EndingDailyAt(new TimeOfDay(22, 0, 0))
+                    .WithInterval(15, IntervalUnit.Minute)
+                    .WithMisfireHandlingInstructionDoNothing()
+                )
+                .Build();
+
+            var from = new DateTimeOffset(2018, 3, 25, 0, 0, 0, TimeSpan.Zero);
+            var to = new DateTimeOffset(2018, 3, 27, 0, 0, 0, TimeSpan.Zero);
+            var times = TriggerUtils.ComputeFireTimesBetween(trigger, null, from, to);
+            Assert.That(times.Count, Is.LessThan(200));
+        }
     }
 }
