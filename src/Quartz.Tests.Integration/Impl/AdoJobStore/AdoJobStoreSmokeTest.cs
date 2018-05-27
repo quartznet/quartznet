@@ -143,8 +143,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             return RunAdoJobStoreTest("Firebird", "Firebird", serializerType, properties);
         }
 
-#if !NETSTANDARD_DBPROVIDERS
-
         [Test]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public Task TestOracleODPManaged(string serializerType)
@@ -153,6 +151,8 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.OracleDelegate, Quartz";
             return RunAdoJobStoreTest("OracleODPManaged", "Oracle", serializerType, properties);
         }
+
+#if !NETSTANDARD_DBPROVIDERS
 
         [Test]
         [TestCaseSource(nameof(GetSerializerTypes))]
