@@ -97,7 +97,7 @@ namespace Quartz.Listener
             return TaskUtil.CompletedTask;
         }
 
-        public Task JobInterrupted(
+        public virtual Task JobInterrupted(
             JobKey jobKey,
             CancellationToken cancellationToken = new CancellationToken())
         {
