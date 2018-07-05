@@ -75,7 +75,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             return RunAdoJobStoreTest(TestConstants.DefaultSqlServerProvider, "SQLServer", serializerType, properties);
         }
 
-
         [Test]
         [Category("sqlserver")]
         [TestCaseSource(nameof(GetSerializerTypes))]

@@ -37,11 +37,8 @@ namespace Quartz.Tests.Unit
     /// </summary>
     [TestFixture(typeof(BinaryObjectSerializer))]
     [TestFixture(typeof(JsonObjectSerializer))]
-    public class SimpleTriggerTest : SerializationTestSupport
+    public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
     {
-        private static readonly string[] Versions = {"2.0"};
-
-        //private static TimeZone EST_TIME_ZONE = TimeZone.CurrentTimeZone;
         private static readonly DateTimeOffset StartTime;
         private static readonly DateTimeOffset EndTime;
 
@@ -62,7 +59,7 @@ namespace Quartz.Tests.Unit
         /// tests, and against which to validate deserialized object.
         /// </summary>
         /// <returns></returns>
-        protected override object GetTargetObject()
+        protected override SimpleTriggerImpl GetTargetObject()
         {
             JobDataMap jobDataMap = new JobDataMap();
             jobDataMap.Put("A", "B");
@@ -78,40 +75,21 @@ namespace Quartz.Tests.Unit
             return t;
         }
 
-        /// <summary>
-        /// Get the Quartz versions for which we should verify
-        /// serialization backwards compatibility.
-        /// </summary>
-        /// <returns></returns>
-        protected override string[] GetVersions()
+        protected override void VerifyMatch(SimpleTriggerImpl original, SimpleTriggerImpl deserialized)
         {
-            return Versions;
-        }
-
-        /// <summary>
-        /// Verify that the target object and the object we just deserialized
-        /// match.
-        /// </summary>
-        /// <param name="target"></param>
-        /// <param name="deserialized"></param>
-        protected override void VerifyMatch(object target, object deserialized)
-        {
-            SimpleTriggerImpl targetSimpleTrigger = (SimpleTriggerImpl) target;
-            SimpleTriggerImpl deserializedSimpleTrigger = (SimpleTriggerImpl) deserialized;
-
-            Assert.IsNotNull(deserializedSimpleTrigger);
-            Assert.AreEqual(targetSimpleTrigger.Name, deserializedSimpleTrigger.Name);
-            Assert.AreEqual(targetSimpleTrigger.Group, deserializedSimpleTrigger.Group);
-            Assert.AreEqual(targetSimpleTrigger.JobName, deserializedSimpleTrigger.JobName);
-            Assert.AreEqual(targetSimpleTrigger.JobGroup, deserializedSimpleTrigger.JobGroup);
-            Assert.AreEqual(targetSimpleTrigger.StartTimeUtc, deserializedSimpleTrigger.StartTimeUtc);
-            Assert.AreEqual(targetSimpleTrigger.EndTimeUtc, deserializedSimpleTrigger.EndTimeUtc);
-            Assert.AreEqual(targetSimpleTrigger.RepeatCount, deserializedSimpleTrigger.RepeatCount);
-            Assert.AreEqual(targetSimpleTrigger.RepeatInterval, deserializedSimpleTrigger.RepeatInterval);
-            Assert.AreEqual(targetSimpleTrigger.CalendarName, deserializedSimpleTrigger.CalendarName);
-            Assert.AreEqual(targetSimpleTrigger.Description, deserializedSimpleTrigger.Description);
-            Assert.AreEqual(targetSimpleTrigger.JobDataMap, deserializedSimpleTrigger.JobDataMap);
-            Assert.AreEqual(targetSimpleTrigger.MisfireInstruction, deserializedSimpleTrigger.MisfireInstruction);
+            Assert.IsNotNull(deserialized);
+            Assert.AreEqual(original.Name, deserialized.Name);
+            Assert.AreEqual(original.Group, deserialized.Group);
+            Assert.AreEqual(original.JobName, deserialized.JobName);
+            Assert.AreEqual(original.JobGroup, deserialized.JobGroup);
+            Assert.AreEqual(original.StartTimeUtc, deserialized.StartTimeUtc);
+            Assert.AreEqual(original.EndTimeUtc, deserialized.EndTimeUtc);
+            Assert.AreEqual(original.RepeatCount, deserialized.RepeatCount);
+            Assert.AreEqual(original.RepeatInterval, deserialized.RepeatInterval);
+            Assert.AreEqual(original.CalendarName, deserialized.CalendarName);
+            Assert.AreEqual(original.Description, deserialized.Description);
+            Assert.AreEqual(original.JobDataMap, deserialized.JobDataMap);
+            Assert.AreEqual(original.MisfireInstruction, deserialized.MisfireInstruction);
         }
 
         [Test]

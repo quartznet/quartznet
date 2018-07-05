@@ -29,15 +29,16 @@ using Quartz.Spi;
 
 namespace Quartz.Tests.Unit
 {
-    /// <summary>
-    /// Base class for unit tests that wish to verify 
-    /// backwards compatibility of serialization with earlier versions
-    /// of Quartz.
-    /// </summary>
-    /// <author>Marko Lahma (.NET)</author>
-    public abstract class SerializationTestSupport
+    public abstract class SerializationTestSupport<T> : SerializationTestSupport<T, T> where T : class
     {
-        private readonly IObjectSerializer serializer;
+        protected SerializationTestSupport(Type serializerType) : base(serializerType)
+        {
+        }
+    }
+
+    public abstract class SerializationTestSupport<T, TInterface> where T : class where TInterface : class
+    {
+        protected readonly IObjectSerializer serializer;
 
         public SerializationTestSupport(Type serializerType)
         {
@@ -50,50 +51,25 @@ namespace Quartz.Tests.Unit
         /// tests, and against which to validate deserialized object.
         /// </summary>
         /// <returns></returns>
-        protected abstract object GetTargetObject();
-
-        /// <summary>
-        /// Get the Quartz versions for which we should verify
-        /// serialization backwards compatibility.
-        /// </summary>
-        /// <returns></returns>
-        protected abstract string[] GetVersions();
+        protected abstract T GetTargetObject();
 
         /// <summary>
         /// Verify that the target object and the object we just deserialized 
         /// match.
         /// </summary>
-        /// <param name="target"></param>
-        /// <param name="deserialized"></param>
-        protected abstract void VerifyMatch(object target, object deserialized);
+        protected abstract void VerifyMatch(T target, T deserialized);
 
         /// <summary>
         /// Test that we can successfully deserialize our target
         /// class for all of the given Quartz versions. 
         /// </summary>
         [Test]
-        [Ignore("Currently no working implementation for serialization testing")]
         public void TestSerialization()
         {
-            object targetObject = GetTargetObject();
-
-            for (int i = 0; i < GetVersions().Length; i++)
-            {
-                string version = GetVersions()[i];
-
-                VerifyMatch(targetObject, Deserialize(version, targetObject.GetType()));
-            }
-        }
-
-        /// <summary>
-        ///  Deserialize the target object from disk.
-        /// </summary>
-        /// <param name="version"></param>
-        /// <param name="type"></param>
-        /// <returns></returns>
-        protected object Deserialize(string version, Type type)
-        {
-            throw new NotImplementedException();
+            T targetObject = GetTargetObject();
+            var data = serializer.Serialize(targetObject);
+            var deserialized = serializer.DeSerialize<TInterface>(data);
+            VerifyMatch(targetObject, deserialized as T);
         }
 
         /// <summary>

@@ -24,13 +24,19 @@ using System;
 using NUnit.Framework;
 
 using Quartz.Impl.Calendar;
+using Quartz.Simpl;
 
 namespace Quartz.Tests.Unit.Impl.Calendar
 {
     /// <author>Marko Lahma (.NET)</author>
-    [TestFixture]
-    public class CronCalendarTest
+    [TestFixture(typeof(BinaryObjectSerializer))]
+    [TestFixture(typeof(JsonObjectSerializer))]
+    public class CronCalendarTest : SerializationTestSupport<CronCalendar, ICalendar>
     {
+        public CronCalendarTest(Type serializerType) : base(serializerType)
+        {
+        }
+        
         [Test]
         public void TestTimeIncluded()
         {
@@ -62,6 +68,22 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             };
             var dateTime = new DateTimeOffset(2017, 7, 27, 2, 0, 1, 123, TimeSpan.Zero);
             Assert.That(calendar.IsTimeIncluded(dateTime), Is.False);
+        }
+
+        protected override CronCalendar GetTargetObject()
+        {
+            return new CronCalendar("* * 1-3 ? * *")
+            {
+                Description = "my description"
+            };
+        }
+
+        protected override void VerifyMatch(CronCalendar original, CronCalendar deserialized)
+        {
+            Assert.IsNotNull(deserialized);
+            Assert.AreEqual(original.Description, deserialized.Description);
+            Assert.AreEqual(original.CronExpression, deserialized.CronExpression);
+            Assert.AreEqual(original.TimeZone, deserialized.TimeZone);
         }
     }
 }

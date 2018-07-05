@@ -33,11 +33,9 @@ namespace Quartz.Tests.Unit.Impl.Calendar
     /// <author>Marko Lahma (.NET)</author>
     [TestFixture(typeof(BinaryObjectSerializer))]
     [TestFixture(typeof(JsonObjectSerializer))]
-    public class AnnualCalendarTest : SerializationTestSupport
+    public class AnnualCalendarTest : SerializationTestSupport<AnnualCalendar, ICalendar>
     {
         private AnnualCalendar cal;
-
-        private static readonly string[] Versions = {"0.6.0"};
 
         public AnnualCalendarTest(Type serializerType) : base(serializerType)
         {
@@ -173,7 +171,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         /// tests, and against which to validate deserialized object.
         /// </summary>
         /// <returns></returns>
-        protected override object GetTargetObject()
+        protected override AnnualCalendar GetTargetObject()
         {
             AnnualCalendar c = new AnnualCalendar();
             c.Description = "description";
@@ -182,31 +180,13 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             return c;
         }
 
-        /// <summary>
-        /// Get the Quartz versions for which we should verify
-        /// serialization backwards compatibility.
-        /// </summary>
-        /// <returns></returns>
-        protected override string[] GetVersions()
+        /// <inheritdoc />
+        protected override void VerifyMatch(AnnualCalendar original, AnnualCalendar deserialized)
         {
-            return Versions;
-        }
-
-        /// <summary>
-        /// Verify that the target object and the object we just deserialized
-        /// match.
-        /// </summary>
-        /// <param name="target"></param>
-        /// <param name="deserialized"></param>
-        protected override void VerifyMatch(object target, object deserialized)
-        {
-            AnnualCalendar targetCalendar = (AnnualCalendar) target;
-            AnnualCalendar deserializedCalendar = (AnnualCalendar) deserialized;
-
-            Assert.IsNotNull(deserializedCalendar);
-            Assert.AreEqual(targetCalendar.Description, deserializedCalendar.Description);
-            Assert.AreEqual(targetCalendar.DaysExcluded, deserializedCalendar.DaysExcluded);
-            //Assert.IsNull(deserializedCalendar.getTimeZone());
+            Assert.That(deserialized, Is.Not.Null);
+            Assert.That(deserialized.Description, Is.EqualTo(original.Description));
+            Assert.That(deserialized.DaysExcluded, Is.EquivalentTo(original.DaysExcluded));
+            Assert.That(deserialized.TimeZone, Is.EqualTo(original.TimeZone));
         }
     }
 }

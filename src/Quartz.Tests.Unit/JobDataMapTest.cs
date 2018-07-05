@@ -33,10 +33,8 @@ namespace Quartz.Tests.Unit
     /// <author>Marko Lahma (.NET)</author>
     [TestFixture(typeof(BinaryObjectSerializer))]
     [TestFixture(typeof(JsonObjectSerializer))]
-    public class JobDataMapTest : SerializationTestSupport
+    public class JobDataMapTest : SerializationTestSupport<JobDataMap>
     {
-        private static readonly string[] Versions = {"0.6.0"};
-
         public JobDataMapTest(Type serializerType) : base(serializerType)
         {
         }
@@ -46,37 +44,21 @@ namespace Quartz.Tests.Unit
         /// tests, and against which to validate deserialized object.
         /// </summary>
         /// <returns></returns>
-        protected override object GetTargetObject()
+        protected override JobDataMap GetTargetObject()
         {
             JobDataMap m = new JobDataMap();
             m.Put("key", 5);
             return m;
         }
 
-        /// <summary>
-        /// Get the Quartz versions for which we should verify
-        /// serialization backwards compatibility.
-        /// </summary>
-        /// <returns></returns>
-        protected override string[] GetVersions()
+        protected override void VerifyMatch(JobDataMap original, JobDataMap deserialized)
         {
-            return Versions;
-        }
-
-        /// <summary>
-        /// Verify that the target object and the object we just deserialized
-        /// match.
-        /// </summary>
-        /// <param name="target"></param>
-        /// <param name="deserialized"></param>
-        protected override void VerifyMatch(object target, object deserialized)
-        {
-            JobDataMap targetMap = (JobDataMap) target;
-            JobDataMap deserializedMap = (JobDataMap) deserialized;
-
-            Assert.IsNotNull(deserializedMap);
-            Assert.AreEqual(targetMap.WrappedMap, deserializedMap.WrappedMap);
-            Assert.AreEqual(targetMap.Dirty, deserializedMap.Dirty);
+            Assert.That(deserialized, Is.Not.Null);
+            Assert.That(deserialized.WrappedMap, Is.EquivalentTo(original.WrappedMap));
+            if (serializer is JsonObjectSerializer)
+            {
+                Assert.That(deserialized.Dirty, Is.False, "should not be dirty when returning from serialization");
+            }
         }
     }
 }

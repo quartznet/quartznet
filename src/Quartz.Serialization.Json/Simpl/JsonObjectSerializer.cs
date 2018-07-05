@@ -38,13 +38,7 @@ namespace Quartz.Simpl
                     new NameValueCollectionConverter(),
                     new StringKeyDirtyFlagMapConverter(),
                     new CronExpressionConverter(),
-                    new AnnualCalendarConverter(),
-                    new BaseCalendarConverter(),
-                    new CronCalendarConverter(),
-                    new DailyCalendarConverter(),
-                    new HolidayCalendarConverter(),
-                    new MonthlyCalendarConverter(),
-                    new WeeklyCalendarConverter()
+                    new CalendarConverter()
                 },
                 ConstructorHandling = ConstructorHandling.AllowNonPublicDefaultConstructor,
                 TypeNameHandling = TypeNameHandling.All,
@@ -81,6 +75,7 @@ namespace Quartz.Simpl
         {
             try
             {
+                var test = serializer.Deserialize(new JsonTextReader(new StreamReader(new MemoryStream(obj))));
                 using (var ms = new MemoryStream(obj))
                 {
                     using (var sr = new StreamReader(ms))
@@ -152,15 +147,37 @@ namespace Quartz.Simpl
             }
         }
 
-        protected abstract class CalendarConverter<TCalendar> : JsonConverter where TCalendar : BaseCalendar
+        protected class CalendarConverter : JsonConverter
         {
+            private static readonly Dictionary<string, ICalendarConverter> converters = new Dictionary<string, ICalendarConverter>
+            {
+                {typeof(BaseCalendar).AssemblyQualifiedNameWithoutVersion(), new BaseCalendarConverter()},
+                {typeof(AnnualCalendar).AssemblyQualifiedNameWithoutVersion(), new AnnualCalendarConverter()},
+                {typeof(CronCalendar).AssemblyQualifiedNameWithoutVersion(), new CronCalendarConverter()},
+                {typeof(DailyCalendar).AssemblyQualifiedNameWithoutVersion(), new DailyCalendarConverter()},
+                {typeof(HolidayCalendar).AssemblyQualifiedNameWithoutVersion(), new HolidayCalendarConverter()},
+                {typeof(MonthlyCalendar).AssemblyQualifiedNameWithoutVersion(), new MonthlyCalendarConverter()},
+                {typeof(WeeklyCalendar).AssemblyQualifiedNameWithoutVersion(), new WeeklyCalendarConverter()},
+            };
+
+            protected virtual ICalendarConverter GetCalendarConverter(string typeName)
+            {
+                if (!converters.TryGetValue(typeName, out var converter))
+                {
+                    throw new ArgumentException("don't know how to handle " + typeName);
+                }
+
+                return converter;
+            }
+            
             public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
             {
-                var calendar = (TCalendar) value;
+                var calendar = (BaseCalendar) value;
 
                 writer.WriteStartObject();
                 writer.WritePropertyName("$type");
-                writer.WriteValue(value.GetType().AssemblyQualifiedNameWithoutVersion());
+                var type = value.GetType().AssemblyQualifiedNameWithoutVersion();
+                writer.WriteValue(type);
 
                 writer.WritePropertyName("Description");
                 writer.WriteValue(calendar.Description);
@@ -178,123 +195,130 @@ namespace Quartz.Simpl
                     writer.WriteNull();
                 }
 
-                WriteCalendarFields(writer, calendar);
+                GetCalendarConverter(type).WriteCalendarFields(writer, calendar);
 
                 writer.WriteEndObject();
             }
 
-            protected abstract void WriteCalendarFields(JsonWriter writer, TCalendar value);
-
             public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
             {
                 JObject jObject = JObject.Load(reader);
+                string type = jObject["$type"].Value<string>();
 
-                TCalendar target = Create(jObject);
+                var calendarConverter = GetCalendarConverter(type);
+                BaseCalendar target = calendarConverter.Create(jObject);
                 target.Description = jObject["Description"].Value<string>();
                 target.TimeZone = TimeZoneUtil.FindTimeZoneById(jObject["TimeZoneId"].Value<string>());
                 var baseCalendar = jObject["BaseCalendar"].Value<JObject>();
                 if (baseCalendar != null)
                 {
-                    var type = Type.GetType(baseCalendar["$type"].Value<string>(), true);
-                    var o = baseCalendar.ToObject(type, serializer);
+                    var baseCalendarType = Type.GetType(baseCalendar["$type"].Value<string>(), true);
+                    var o = baseCalendar.ToObject(baseCalendarType, serializer);
                     target.CalendarBase = (ICalendar) o;
                 }
 
-                PopulateFieldsToCalendarObject(target, jObject);
+                calendarConverter.PopulateFieldsToCalendarObject(target, jObject);
 
                 return target;
             }
 
-            protected abstract void PopulateFieldsToCalendarObject(TCalendar value, JObject jObject);
-
-            protected abstract TCalendar Create(JObject value);
-
             public override bool CanConvert(Type objectType)
             {
-                return objectType == typeof(TCalendar);
+                return typeof(ICalendar).IsAssignableFrom(objectType);
             }
         }
 
-        protected class BaseCalendarConverter : CalendarConverter<BaseCalendar>
+        protected interface ICalendarConverter
         {
-            protected override void WriteCalendarFields(JsonWriter writer, BaseCalendar value)
+            void WriteCalendarFields(JsonWriter writer, BaseCalendar value);
+
+            void PopulateFieldsToCalendarObject(BaseCalendar value, JObject jObject);
+
+            BaseCalendar Create(JObject value);
+        }
+        
+        protected class BaseCalendarConverter : ICalendarConverter
+        {
+            public void WriteCalendarFields(JsonWriter writer, BaseCalendar value)
             {
             }
 
-            protected override void PopulateFieldsToCalendarObject(BaseCalendar value, JObject jObject)
+            public void PopulateFieldsToCalendarObject(BaseCalendar value, JObject jObject)
             {
             }
 
-            protected override BaseCalendar Create(JObject value)
+            public BaseCalendar Create(JObject value)
             {
                 return new BaseCalendar();
             }
         }
 
-        protected class AnnualCalendarConverter : CalendarConverter<AnnualCalendar>
+        protected class AnnualCalendarConverter : ICalendarConverter
         {
-            protected override void WriteCalendarFields(JsonWriter writer, AnnualCalendar value)
+            public void WriteCalendarFields(JsonWriter writer, BaseCalendar value)
             {
                 writer.WritePropertyName("ExcludedDays");
                 writer.WriteStartArray();
-                foreach (var day in value.DaysExcluded)
+                foreach (var day in ((AnnualCalendar) value).DaysExcluded)
                 {
                     writer.WriteValue(day);
                 }
                 writer.WriteEndArray();
             }
 
-            protected override void PopulateFieldsToCalendarObject(AnnualCalendar value, JObject jObject)
+            public void PopulateFieldsToCalendarObject(BaseCalendar value, JObject jObject)
             {
                 var excludedDates = jObject["ExcludedDays"].Values<DateTime>();
-                value.DaysExcluded = new ReadOnlyCompatibleHashSet<DateTime>(excludedDates);
+                ((AnnualCalendar) value).DaysExcluded = new ReadOnlyCompatibleHashSet<DateTime>(excludedDates);
             }
 
-            protected override AnnualCalendar Create(JObject value)
+            public BaseCalendar Create(JObject value)
             {
                 return new AnnualCalendar();
             }
         }
 
-        protected class CronCalendarConverter : CalendarConverter<CronCalendar>
+        protected class CronCalendarConverter : ICalendarConverter
         {
-            protected override void WriteCalendarFields(JsonWriter writer, CronCalendar value)
+            public void WriteCalendarFields(JsonWriter writer, BaseCalendar value)
             {
                 writer.WritePropertyName("CronExpressionString");
-                writer.WriteValue(value.CronExpression?.CronExpressionString);
+                writer.WriteValue(((CronCalendar) value).CronExpression?.CronExpressionString);
             }
 
-            protected override void PopulateFieldsToCalendarObject(CronCalendar value, JObject jObject)
+            public void PopulateFieldsToCalendarObject(BaseCalendar value, JObject jObject)
             {
             }
 
-            protected override CronCalendar Create(JObject value)
+            public BaseCalendar Create(JObject value)
             {
                 string cronExpression = value["CronExpressionString"].Value<string>();
                 return new CronCalendar(cronExpression);
             }
         }
 
-        protected class DailyCalendarConverter : CalendarConverter<DailyCalendar>
+        protected class DailyCalendarConverter : ICalendarConverter
         {
-            protected override void WriteCalendarFields(JsonWriter writer, DailyCalendar value)
+            public void WriteCalendarFields(JsonWriter writer, BaseCalendar value)
             {
+                var calendar = (DailyCalendar) value;
+
                 writer.WritePropertyName("InvertTimeRange");
-                writer.WriteValue(value.InvertTimeRange);
+                writer.WriteValue(calendar.InvertTimeRange);
 
                 writer.WritePropertyName("RangeStartingTime");
-                writer.WriteValue(value.RangeStartingTime);
+                writer.WriteValue(calendar.RangeStartingTime);
 
                 writer.WritePropertyName("RangeEndingTime");
-                writer.WriteValue(value.RangeEndingTime);
+                writer.WriteValue(calendar.RangeEndingTime);
             }
 
-            protected override void PopulateFieldsToCalendarObject(DailyCalendar value, JObject jObject)
+            public void PopulateFieldsToCalendarObject(BaseCalendar value, JObject jObject)
             {
-                value.InvertTimeRange = jObject["InvertTimeRange"].Value<bool>();
+                ((DailyCalendar) value).InvertTimeRange = jObject["InvertTimeRange"].Value<bool>();
             }
 
-            protected override DailyCalendar Create(JObject value)
+            public BaseCalendar Create(JObject value)
             {
                 var rangeStartingTime = value["RangeStartingTime"].Value<string>();
                 var rangeEndingTime = value["RangeEndingTime"].Value<string>();
@@ -302,77 +326,78 @@ namespace Quartz.Simpl
             }
         }
 
-        protected class HolidayCalendarConverter : CalendarConverter<HolidayCalendar>
+        protected class HolidayCalendarConverter : ICalendarConverter
         {
-            protected override void WriteCalendarFields(JsonWriter writer, HolidayCalendar value)
+            public void WriteCalendarFields(JsonWriter writer, BaseCalendar value)
             {
                 writer.WritePropertyName("ExcludedDates");
                 writer.WriteStartArray();
-                foreach (var day in value.ExcludedDates)
+                foreach (var day in ((HolidayCalendar) value).ExcludedDates)
                 {
                     writer.WriteValue(day);
                 }
                 writer.WriteEndArray();
             }
 
-            protected override void PopulateFieldsToCalendarObject(HolidayCalendar value, JObject jObject)
+            public void PopulateFieldsToCalendarObject(BaseCalendar value, JObject jObject)
             {
+                var calendar = (HolidayCalendar) value;
                 var ecludedDates = jObject["ExcludedDates"].Values<DateTime>();
                 foreach (var date in ecludedDates)
                 {
-                    value.AddExcludedDate(date);
+                    calendar.AddExcludedDate(date);
                 }
             }
 
-            protected override HolidayCalendar Create(JObject value)
+            public BaseCalendar Create(JObject value)
             {
                 return new HolidayCalendar();
             }
         }
 
-        protected class MonthlyCalendarConverter : CalendarConverter<MonthlyCalendar>
+        protected class MonthlyCalendarConverter : ICalendarConverter
         {
-            protected override void WriteCalendarFields(JsonWriter writer, MonthlyCalendar value)
+            public void WriteCalendarFields(JsonWriter writer, BaseCalendar value)
             {
                 writer.WritePropertyName("ExcludedDays");
                 writer.WriteStartArray();
-                foreach (var day in value.DaysExcluded)
+                foreach (var day in ((MonthlyCalendar) value).DaysExcluded)
                 {
                     writer.WriteValue(day);
                 }
                 writer.WriteEndArray();
             }
 
-            protected override void PopulateFieldsToCalendarObject(MonthlyCalendar value, JObject jObject)
+            public void PopulateFieldsToCalendarObject(BaseCalendar value, JObject jObject)
             {
-                value.DaysExcluded = jObject["ExcludedDays"].Values<bool>().ToArray();
+                ((MonthlyCalendar) value).DaysExcluded = jObject["ExcludedDays"].Values<bool>().ToArray();
             }
 
-            protected override MonthlyCalendar Create(JObject value)
+            public BaseCalendar Create(JObject value)
             {
                 return new MonthlyCalendar();
             }
         }
 
-        protected class WeeklyCalendarConverter : CalendarConverter<WeeklyCalendar>
+        protected class WeeklyCalendarConverter : ICalendarConverter
         {
-            protected override void WriteCalendarFields(JsonWriter writer, WeeklyCalendar value)
+            public void WriteCalendarFields(JsonWriter writer, BaseCalendar value)
             {
                 writer.WritePropertyName("ExcludedDays");
                 writer.WriteStartArray();
-                foreach (var day in value.DaysExcluded)
+                foreach (var day in ((WeeklyCalendar) value).DaysExcluded)
                 {
                     writer.WriteValue(day);
                 }
                 writer.WriteEndArray();
             }
 
-            protected override void PopulateFieldsToCalendarObject(WeeklyCalendar value, JObject jObject)
+            public void PopulateFieldsToCalendarObject(BaseCalendar value, JObject jObject)
             {
-                value.DaysExcluded = jObject["ExcludedDays"].Values<bool>().ToArray();
+                ((WeeklyCalendar) value).DaysExcluded = jObject["ExcludedDays"].Values<bool>().ToArray();
             }
 
-            protected override WeeklyCalendar Create(JObject value)
+            public BaseCalendar Create(JObject value)
             {
                 return new WeeklyCalendar();
             }

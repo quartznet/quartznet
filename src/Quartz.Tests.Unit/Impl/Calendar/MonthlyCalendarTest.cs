@@ -32,11 +32,9 @@ namespace Quartz.Tests.Unit.Impl.Calendar
     /// <author>Marko Lahma (.NET)</author>
     [TestFixture(typeof(BinaryObjectSerializer))]
     [TestFixture(typeof(JsonObjectSerializer))]
-    public class MonthlyCalendarTest : SerializationTestSupport
+    public class MonthlyCalendarTest : SerializationTestSupport<MonthlyCalendar, ICalendar>
     {
         private MonthlyCalendar cal;
-
-        private static readonly string[] versions = {"1.5.1"};
 
         public MonthlyCalendarTest(Type serializerType) : base(serializerType)
         {
@@ -100,40 +98,20 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         /// tests, and against which to validate deserialized object.
         /// </summary>
         /// <returns></returns>
-        protected override object GetTargetObject()
+        protected override MonthlyCalendar GetTargetObject()
         {
-            AnnualCalendar c = new AnnualCalendar();
+            MonthlyCalendar c = new MonthlyCalendar();
             c.Description = "description";
-            DateTime date = new DateTime(2005, 1, 20, 10, 5, 15);
-            c.SetDayExcluded(date, true);
+            c.SetDayExcluded(4, true);
             return c;
         }
 
-        /// <summary>
-        /// Get the Quartz versions for which we should verify
-        /// serialization backwards compatibility.
-        /// </summary>
-        /// <returns></returns>
-        protected override string[] GetVersions()
+        protected override void VerifyMatch(MonthlyCalendar original, MonthlyCalendar deserialized)
         {
-            return versions;
-        }
-
-        /// <summary>
-        /// Verify that the target object and the object we just deserialized
-        /// match.
-        /// </summary>
-        /// <param name="target"></param>
-        /// <param name="deserialized"></param>
-        protected override void VerifyMatch(object target, object deserialized)
-        {
-            AnnualCalendar targetCalendar = (AnnualCalendar) target;
-            AnnualCalendar deserializedCalendar = (AnnualCalendar) deserialized;
-
-            Assert.IsNotNull(deserializedCalendar);
-            Assert.AreEqual(targetCalendar.Description, deserializedCalendar.Description);
-            Assert.AreEqual(targetCalendar.DaysExcluded, deserializedCalendar.DaysExcluded);
-            //Assert.IsNull(deserializedCalendar.getTimeZone());
+            Assert.IsNotNull(deserialized);
+            Assert.AreEqual(original.Description, deserialized.Description);
+            Assert.AreEqual(original.DaysExcluded, deserialized.DaysExcluded);
+            Assert.AreEqual(original.TimeZone, deserialized.TimeZone);
         }
     }
 }

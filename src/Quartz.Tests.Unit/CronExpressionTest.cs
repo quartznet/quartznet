@@ -33,10 +33,8 @@ namespace Quartz.Tests.Unit
     /// <author>Marko Lahma (.NET)</author>
     [TestFixture(typeof(BinaryObjectSerializer))]
     [TestFixture(typeof(JsonObjectSerializer))]
-    public class CronExpressionTest : SerializationTestSupport
+    public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
-        private static readonly string[] versions = {"0.6.0"};
-
         private static readonly TimeZoneInfo testTimeZone = TimeZoneInfo.Local;
 
         public CronExpressionTest(Type serializerType) : base(serializerType)
@@ -48,7 +46,7 @@ namespace Quartz.Tests.Unit
         /// tests, and against which to validate deserialized object.
         /// </summary>
         /// <returns></returns>
-        protected override object GetTargetObject()
+        protected override CronExpression GetTargetObject()
         {
             CronExpression cronExpression = new CronExpression("0 15 10 * * ? 2005");
             cronExpression.TimeZone = testTimeZone;
@@ -56,30 +54,11 @@ namespace Quartz.Tests.Unit
             return cronExpression;
         }
 
-        /// <summary>
-        /// Get the Quartz versions for which we should verify
-        /// serialization backwards compatibility.
-        /// </summary>
-        /// <returns></returns>
-        protected override string[] GetVersions()
+        protected override void VerifyMatch(CronExpression original, CronExpression deserialized)
         {
-            return versions;
-        }
-
-        /// <summary>
-        /// Verify that the target object and the object we just deserialized
-        /// match.
-        /// </summary>
-        /// <param name="target"></param>
-        /// <param name="deserialized"></param>
-        protected override void VerifyMatch(object target, object deserialized)
-        {
-            CronExpression targetCronExpression = (CronExpression) target;
-            CronExpression deserializedCronExpression = (CronExpression) deserialized;
-
-            Assert.IsNotNull(deserializedCronExpression);
-            Assert.AreEqual(targetCronExpression.CronExpressionString, deserializedCronExpression.CronExpressionString);
-            //Assert.AreEqual(targetCronExpression.getTimeZone(), deserializedCronExpression.getTimeZone());
+            Assert.IsNotNull(deserialized);
+            Assert.AreEqual(original.CronExpressionString, deserialized.CronExpressionString);
+            Assert.AreEqual(original.TimeZone, deserialized.TimeZone);
         }
 
         /// <summary>

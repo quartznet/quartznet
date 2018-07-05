@@ -12,10 +12,8 @@ namespace Quartz.Tests.Unit
 {
     [TestFixture(typeof(BinaryObjectSerializer))]
     [TestFixture(typeof(JsonObjectSerializer))]
-    public class CalendarIntervalTriggerTest : SerializationTestSupport
+    public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarIntervalTriggerImpl>
     {
-        private static readonly string[] versions = {"2.0"};
-
         public CalendarIntervalTriggerTest(Type serializerType) : base(serializerType)
         {
         }
@@ -726,7 +724,7 @@ namespace Quartz.Tests.Unit
             Assert.That(firstFireTime, Is.EqualTo(new DateTimeOffset(2017, 1, 4, 13, 0, 0, TimeSpan.FromHours(-2))));
         }
 
-        protected override object GetTargetObject()
+        protected override CalendarIntervalTriggerImpl GetTargetObject()
         {
             var jobDataMap = new JobDataMap();
             jobDataMap["A"] = "B";
@@ -745,28 +743,20 @@ namespace Quartz.Tests.Unit
             return t;
         }
 
-        protected override string[] GetVersions()
+        protected override void VerifyMatch(CalendarIntervalTriggerImpl original, CalendarIntervalTriggerImpl deserialized)
         {
-            return versions;
-        }
-
-        protected override void VerifyMatch(object target, object deserialized)
-        {
-            var targetCalTrigger = (CalendarIntervalTriggerImpl) target;
-            var deserializedCalTrigger = (CalendarIntervalTriggerImpl) deserialized;
-
-            Assert.IsNotNull(deserializedCalTrigger);
-            Assert.AreEqual(targetCalTrigger.Name, deserializedCalTrigger.Name);
-            Assert.AreEqual(targetCalTrigger.Group, deserializedCalTrigger.Group);
-            Assert.AreEqual(targetCalTrigger.JobName, deserializedCalTrigger.JobName);
-            Assert.AreEqual(targetCalTrigger.JobGroup, deserializedCalTrigger.JobGroup);
-//        assertEquals((targetCronTrigger.getStartTime), deserializedCronTrigger.getStartTime());
-            Assert.AreEqual(targetCalTrigger.EndTimeUtc, deserializedCalTrigger.EndTimeUtc);
-            Assert.AreEqual(targetCalTrigger.CalendarName, deserializedCalTrigger.CalendarName);
-            Assert.AreEqual(targetCalTrigger.Description, deserializedCalTrigger.Description);
-            Assert.AreEqual(targetCalTrigger.JobDataMap, deserializedCalTrigger.JobDataMap);
-            Assert.AreEqual(targetCalTrigger.RepeatInterval, deserializedCalTrigger.RepeatInterval);
-            Assert.AreEqual(targetCalTrigger.RepeatIntervalUnit, deserializedCalTrigger.RepeatIntervalUnit);
+            Assert.IsNotNull(deserialized);
+            Assert.AreEqual(original.Name, deserialized.Name);
+            Assert.AreEqual(original.Group, deserialized.Group);
+            Assert.AreEqual(original.JobName, deserialized.JobName);
+            Assert.AreEqual(original.JobGroup, deserialized.JobGroup);
+            Assert.That(deserialized.StartTimeUtc, Is.EqualTo(original.StartTimeUtc).Within(TimeSpan.FromSeconds(1)));
+            Assert.AreEqual(original.EndTimeUtc, deserialized.EndTimeUtc);
+            Assert.AreEqual(original.CalendarName, deserialized.CalendarName);
+            Assert.AreEqual(original.Description, deserialized.Description);
+            Assert.AreEqual(original.JobDataMap, deserialized.JobDataMap);
+            Assert.AreEqual(original.RepeatInterval, deserialized.RepeatInterval);
+            Assert.AreEqual(original.RepeatIntervalUnit, deserialized.RepeatIntervalUnit);
         }
     }
 }

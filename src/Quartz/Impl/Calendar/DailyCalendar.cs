@@ -79,6 +79,10 @@ namespace Quartz.Impl.Calendar
         private int rangeEndingSecond;
         private int rangeEndingMillis;
 
+        private DailyCalendar()
+        {
+        }
+
         /// <summary>
         /// Create a <see cref="DailyCalendar" /> with a time range defined by the
         /// specified strings and no baseCalendar.

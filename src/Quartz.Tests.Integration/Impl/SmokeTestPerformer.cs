@@ -38,6 +38,7 @@ namespace Quartz.Tests.Integration.Impl
                     Assert.IsNull(t);
 
                     AnnualCalendar cal = new AnnualCalendar();
+                    cal.SetDayExcluded(new DateTime(2018, 7, 4), true);
                     await scheduler.AddCalendar("annualCalendar", cal, false, true);
 
                     IOperableTrigger calendarsTrigger = new SimpleTriggerImpl("calendarsTrigger", "test", 20, TimeSpan.FromMilliseconds(5));
@@ -48,6 +49,10 @@ namespace Quartz.Tests.Integration.Impl
 
                     // QRTZNET-93
                     await scheduler.AddCalendar("annualCalendar", cal, true, true);
+
+                    var annualCalendar = (AnnualCalendar) await scheduler.GetCalendar("annualCalendar");
+                    Assert.That(annualCalendar.Description, Is.EqualTo(cal.Description));
+                    Assert.That(annualCalendar.DaysExcluded, Is.EquivalentTo(cal.DaysExcluded));
 
                     await scheduler.AddCalendar("baseCalendar", new BaseCalendar(), false, true);
                     await scheduler.AddCalendar("cronCalendar", cronCalendar, false, true);
