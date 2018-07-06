@@ -2,6 +2,28 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+## Release 3.0.6, Jul 6 2018
+
+This release nasty bug with JSON calendar database serialization and .NET Core SQL Server client libraries
+have been updated to mitigiate possible hangs when connection drops occur.
+
+Also some other minor bugs have been also addressed.
+
+You should now be able to debug into Quartz.NET sources with added SourceLink support.
+
+* NEW FEATURE
+
+    * Add SourceLink support (#642)
+    * Make JobInterrupted method virtual in class SchedulerListenerSupport (#631)
+
+* FIXES
+
+    * Trigger group can be left as paused when all triggers have been removed (#641)
+    * PlatformNotSupportedException on RaspberryPi (Windows IoT) (#630)
+    * JSON serialisation returning defaults for derived calendar settings (#634)
+    * .NET Core version not able to recover from DB connection drops (#637)
+
+
 ## Release 3.0.5, May 27 2018
 
 This release fixes couple bugs and adds support for .NET Core version of Oracle's managed data access library.
