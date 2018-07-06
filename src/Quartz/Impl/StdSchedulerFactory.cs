@@ -209,7 +209,7 @@ namespace Quartz.Impl
                 throw initException;
             }
 
-            var props = (NameValueCollection) ConfigurationManager.GetSection(ConfigurationSectionName);
+            var props = Util.Configuration.GetSection(ConfigurationSectionName);
             string requestedFile = QuartzEnvironment.GetEnvironmentVariable(PropertiesFile);
             string propFileName = !string.IsNullOrWhiteSpace(requestedFile) ? requestedFile : "~/quartz.config";
 
