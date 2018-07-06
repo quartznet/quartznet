@@ -1514,6 +1514,9 @@ namespace Quartz.Simpl
                 {
                     ResumeTriggersInternal(GroupMatcher<TriggerKey>.GroupEquals(groupName));
                 }
+
+                // make sure we don't have anything left in groups
+                pausedTriggerGroups.Clear();
             }
             return TaskUtil.CompletedTask;
         }
