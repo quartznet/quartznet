@@ -75,7 +75,6 @@ namespace Quartz.Simpl
         {
             try
             {
-                var test = serializer.Deserialize(new JsonTextReader(new StreamReader(new MemoryStream(obj))));
                 using (var ms = new MemoryStream(obj))
                 {
                     using (var sr = new StreamReader(ms))
