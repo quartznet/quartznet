@@ -4,7 +4,7 @@
 
 ## Release 3.0.6, Jul 6 2018
 
-This release nasty bug with JSON calendar database serialization and .NET Core SQL Server client libraries
+This release fixes a nasty bug with JSON calendar database serialization and .NET Core SQL Server client libraries
 have been updated to mitigiate possible hangs when connection drops occur.
 
 Also some other minor bugs have been also addressed.
