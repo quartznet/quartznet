@@ -24,22 +24,22 @@ __Using Quartz.NET__
     StdSchedulerFactory factory = new StdSchedulerFactory(props);
     
     // get a scheduler
-    IScheduler sched = await schedFact.GetScheduler();
+    IScheduler sched = await factory.GetScheduler();
     await sched.Start();
     
-	// define the job and tie it to our HelloJob class
-	IJobDetail job = JobBuilder.Create<HelloJob>()
-		.WithIdentity("myJob", "group1")
-		.Build();
+    // define the job and tie it to our HelloJob class
+    IJobDetail job = JobBuilder.Create<HelloJob>()
+        .WithIdentity("myJob", "group1")
+        .Build();
 
-	// Trigger the job to run now, and then every 40 seconds
-	ITrigger trigger = TriggerBuilder.Create()
-      .WithIdentity("myTrigger", "group1")
-      .StartNow()
-      .WithSimpleSchedule(x => x
-          .WithIntervalInSeconds(40)
-          .RepeatForever())
-      .Build();
+    // Trigger the job to run now, and then every 40 seconds
+    ITrigger trigger = TriggerBuilder.Create()
+        .WithIdentity("myTrigger", "group1")
+        .StartNow()
+        .WithSimpleSchedule(x => x
+            .WithIntervalInSeconds(40)
+            .RepeatForever())
+    .Build();
 	  
     await sched.ScheduleJob(job, trigger);
 ```
