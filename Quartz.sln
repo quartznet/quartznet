@@ -5,14 +5,14 @@ VisualStudioVersion = 15.0.26127.3
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{7E6034DE-2AF7-42CE-B9E3-A1B3B582E6DA}"
 	ProjectSection(SolutionItems) = preProject
-		build.fsx = build.fsx
-		build.cmd = build.cmd
-		build.sh = build.sh
 		appveyor.yml = appveyor.yml
-		README.md = README.md
+		build.cmd = build.cmd
+		build.fsx = build.fsx
+		build.sh = build.sh
 		changelog.md = changelog.md
-		Dockerfile = Dockerfile
 		src\Directory.Build.props = src\Directory.Build.props
+		Dockerfile = Dockerfile
+		README.md = README.md
 	EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz", "src\Quartz\Quartz.csproj", "{0545C4AC-45BE-47C3-81B7-1592579B9C31}"
@@ -25,11 +25,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Examples", "src\Quar
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Serialization.Json", "src\Quartz.Serialization.Json\Quartz.Serialization.Json.csproj", "{CBDA9E9D-5C24-4597-96EC-C930A5F452AC}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Server", "src\Quartz.Server\Quartz.Server.csproj", "{09082B9A-906C-4A17-A2E5-6C947DAC7C85}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Server", "src\Quartz.Server\Quartz.Server.csproj", "{09082B9A-906C-4A17-A2E5-6C947DAC7C85}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Jobs", "src\Quartz.Jobs\Quartz.Jobs.csproj", "{5D31C178-7349-4064-970A-223B45E913C1}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Jobs", "src\Quartz.Jobs\Quartz.Jobs.csproj", "{5D31C178-7349-4064-970A-223B45E913C1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Plugins", "src\Quartz.Plugins\Quartz.Plugins.csproj", "{E9A60600-156A-4F3C-B080-B630D6546164}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Plugins", "src\Quartz.Plugins\Quartz.Plugins.csproj", "{E9A60600-156A-4F3C-B080-B630D6546164}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Plugins.TimezoneResolution", "src\Quartz.Plugins.TimezoneResolution\Quartz.Plugins.TimezoneResolution.csproj", "{88F6D094-A4CD-4B89-84FB-FBD0821A9D99}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -69,10 +71,15 @@ Global
 		{E9A60600-156A-4F3C-B080-B630D6546164}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E9A60600-156A-4F3C-B080-B630D6546164}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E9A60600-156A-4F3C-B080-B630D6546164}.Release|Any CPU.Build.0 = Release|Any CPU
+		{88F6D094-A4CD-4B89-84FB-FBD0821A9D99}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{88F6D094-A4CD-4B89-84FB-FBD0821A9D99}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{88F6D094-A4CD-4B89-84FB-FBD0821A9D99}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{88F6D094-A4CD-4B89-84FB-FBD0821A9D99}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {A8666F1F-9B78-4A1D-A3DB-0E91324AB539}
 	EndGlobalSection
 EndGlobal
