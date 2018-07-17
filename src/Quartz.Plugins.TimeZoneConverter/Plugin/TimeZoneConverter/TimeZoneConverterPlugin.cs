@@ -19,6 +19,7 @@
 
 #endregion
 
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -32,15 +33,17 @@ namespace Quartz.Plugin.TimezoneResolution
     /// <summary>
     /// This plugin provides the capability to obtain timezone information regardless of the platform and database being used.
     /// </summary>
-    public class TimezoneResolutionPlugin : ISchedulerPlugin
+    public class TimeZoneConverterPlugin : ISchedulerPlugin
     {
+        private Func<string, TimeZoneInfo> originalResolver;
+
         /// <summary>
         /// Called during creation of the <see cref="IScheduler" /> in order to give
         /// the <see cref="ISchedulerPlugin" /> a chance to Initialize.
         /// </summary>
         public Task Initialize(
-            string pluginName, 
-            IScheduler scheduler, 
+            string pluginName,
+            IScheduler scheduler,
             CancellationToken cancellationToken = default)
         {
             // do nothing...
@@ -48,13 +51,14 @@ namespace Quartz.Plugin.TimezoneResolution
         }
 
         /// <summary>
-            /// Called when the associated <see cref="IScheduler" /> is started, in order
-            /// to let the plug-in know it can now make calls into the scheduler if it
-            /// needs to.
-            /// </summary>
-public Task Start(CancellationToken cancellationToken = default)
+        /// Called when the associated <see cref="IScheduler" /> is started, in order
+        /// to let the plug-in know it can now make calls into the scheduler if it
+        /// needs to.
+        /// </summary>
+        public Task Start(CancellationToken cancellationToken = default)
         {
-            TimeZoneUtil.CustomResolver = timeZoneID => TZConvert.GetTimeZoneInfo(timeZoneID);
+            originalResolver = TimeZoneUtil.CustomResolver;
+            TimeZoneUtil.CustomResolver = TZConvert.GetTimeZoneInfo;
             return TaskUtil.CompletedTask;
         }
 
@@ -65,7 +69,7 @@ public Task Start(CancellationToken cancellationToken = default)
         /// </summary>
         public Task Shutdown(CancellationToken cancellationToken = default)
         {
-            TimeZoneUtil.CustomResolver = null;
+            TimeZoneUtil.CustomResolver = originalResolver;
             return TaskUtil.CompletedTask;
         }
     }

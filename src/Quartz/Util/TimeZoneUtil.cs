@@ -112,7 +112,7 @@ namespace Quartz.Util
             {
                 info = TimeZoneInfo.FindSystemTimeZoneById(id);
             }
-            catch (TimeZoneNotFoundException)
+            catch (TimeZoneNotFoundException ex)
             {
                 if (timeZoneIdAliases.TryGetValue(id, out var aliasedId))
                 {
@@ -134,7 +134,9 @@ namespace Quartz.Util
                 if (info == null)
                 {
                     // we tried our best
-                    throw;
+                    throw new TimeZoneNotFoundException(
+                        $"Could not find time zone with id {id}, consider using Quartz.Plugins.TimeZoneConverter for resolving more time zones ids",
+                        ex);
                 }
             }
 

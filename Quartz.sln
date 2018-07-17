@@ -31,7 +31,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Jobs", "src\Quartz.J
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Plugins", "src\Quartz.Plugins\Quartz.Plugins.csproj", "{E9A60600-156A-4F3C-B080-B630D6546164}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Plugins.TimezoneResolution", "src\Quartz.Plugins.TimezoneResolution\Quartz.Plugins.TimezoneResolution.csproj", "{88F6D094-A4CD-4B89-84FB-FBD0821A9D99}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Plugins.TimeZoneConverter", "src\Quartz.Plugins.TimeZoneConverter\Quartz.Plugins.TimeZoneConverter.csproj", "{88F6D094-A4CD-4B89-84FB-FBD0821A9D99}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
