@@ -48,11 +48,7 @@ namespace Quartz.Impl.AdoJobStore
             log = LogProvider.GetLogger(GetType());
         }
 
-        /// <summary>
-        /// Grants a lock on the identified resource to the calling thread (blocking
-        /// until it is available).
-        /// </summary>
-        /// <returns>True if the lock was obtained.</returns>
+        /// <inheritdoc />
         public virtual Task<bool> ObtainLock(
             Guid requestorId, 
             ConnectionAndTransactionHolder conn, 
@@ -77,7 +73,7 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         try
                         {
-                            Monitor.Wait(syncRoot);
+                            Monitor.Wait(syncRoot, TimeSpan.FromSeconds(1));
                         }
                         catch (ThreadInterruptedException)
                         {
@@ -110,9 +106,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        /// <summary> Release the lock on the identified resource if it is held by the calling
-        /// thread.
-        /// </summary>
+        /// <inheritdoc />
         public virtual Task ReleaseLock(
             Guid requestorId, 
             string lockName,
@@ -156,14 +150,7 @@ namespace Quartz.Impl.AdoJobStore
             return threadLocks.TryGetValue(requestorId, out var requestorLocks) && requestorLocks.Contains(lockName);
         }
 
-        /// <summary>
-        /// Whether this Semaphore implementation requires a database connection for
-        /// its lock management operations.
-        /// </summary>
-        /// <value></value>
-        /// <seealso cref="IsLockOwner"/>
-        /// <seealso cref="ObtainLock"/>
-        /// <seealso cref="ReleaseLock"/>
+        /// <inheritdoc />
         public bool RequiresConnection => false;
     }
 }

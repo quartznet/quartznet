@@ -21,7 +21,9 @@
 
 using System;
 
-namespace Quartz.Impl.AdoJobStore
+using Quartz.Simpl;
+
+namespace Quartz.Impl
 {
     /// <summary>
     /// Object representing a job or trigger key.
@@ -35,19 +37,27 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Construct a new TriggerStatus with the status name and nextFireTime.
         /// </summary>
+        /// <param name="jobKey">Job's key</param>
         /// <param name="status">The trigger's status</param>
         /// <param name="nextFireTime">The next time trigger will fire</param>
-        public TriggerStatus(string status, DateTimeOffset? nextFireTime)
+        /// <param name="triggerKey">Trigger's key</param>
+        public TriggerStatus(
+            TriggerKey triggerKey,
+            JobKey jobKey,
+            InternalTriggerState status, 
+            DateTimeOffset? nextFireTime)
         {
+            Key = triggerKey;
+            JobKey = jobKey;
             Status = status;
             NextFireTimeUtc = nextFireTime;
         }
 
-        public JobKey JobKey { get; set; }
+        public JobKey JobKey { get; }
 
-        public TriggerKey Key { get; set; }
+        public TriggerKey Key { get; }
 
-        public string Status { get; }
+        public InternalTriggerState Status { get; }
 
         public DateTimeOffset? NextFireTimeUtc { get; }
 

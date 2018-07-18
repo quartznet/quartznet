@@ -83,11 +83,12 @@ namespace Quartz.Core
         /// <summary>
         /// Signals the scheduling change.
         /// </summary>
-        public void SignalSchedulingChange(
+        public Task SignalSchedulingChange(
             DateTimeOffset? candidateNewNextFireTime,
             CancellationToken cancellationToken = default)
         {
             schedThread.SignalSchedulingChange(candidateNewNextFireTime);
+            return TaskUtil.CompletedTask;
         }
 
         public Task NotifySchedulerListenersJobDeleted(

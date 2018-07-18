@@ -57,4 +57,11 @@ services:
     build: docker/sqlserver-mot
     ports:
      - "1444:1433"
-
+     
+  ravendb:
+    container_name: ravendb
+    image: ravendb/ravendb:4.2.3-ubuntu.18.04-x64
+    ports:
+      - "9999:8080"
+    volumes:
+      - ./docker/ravendb/settings.json:/opt/RavenDB/Server/settings.json:ro

@@ -1,0 +1,8 @@
+{
+  "ServerUrl": "http://0.0.0.0:8080",
+  "ServerUrl.Tcp": "tcp://0.0.0.0:38888",
+  "License.Eula.Accepted": true,
+  "Setup.Mode": "Unsecured",
+  "Security.UnsecuredAccessAllowed": "PublicNetwork",
+  "Indexing.DisableQueryOptimizerGeneratedIndexes": true
+}

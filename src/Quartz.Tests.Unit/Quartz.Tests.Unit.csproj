@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>netcoreapp2.0;$(TargetFullFrameworkVersion)</TargetFrameworks>
+    <TargetFrameworks>netcoreapp2.1;$(TargetFullFrameworkVersion)</TargetFrameworks>
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="Xml\TestData\*" />
@@ -25,7 +25,7 @@
     <ProjectReference Include="..\Quartz.Plugins.TimeZoneConverter\Quartz.Plugins.TimeZoneConverter.csproj" />
     <ProjectReference Include="..\Quartz.Serialization.Json\Quartz.Serialization.Json.csproj" />
   </ItemGroup>
-  <PropertyGroup Condition=" '$(TargetFramework)' == 'netcoreapp2.0' ">
+  <PropertyGroup Condition=" '$(TargetFramework)' == 'netcoreapp2.1' ">
     <DefineConstants>$(DefineConstants);NETCORE</DefineConstants>
   </PropertyGroup>
   <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFullFrameworkVersion)' ">

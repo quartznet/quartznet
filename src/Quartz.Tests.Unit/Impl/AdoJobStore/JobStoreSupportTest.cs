@@ -8,6 +8,7 @@ using FakeItEasy;
 
 using NUnit.Framework;
 
+using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore
@@ -40,17 +41,17 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
                 CancellationToken.None)).MustHaveHappened();
         }
 
-        public class TestJobStoreSupport : JobStoreSupport
+        private class TestJobStoreSupport : JobStoreSupport
         {
-            protected override ConnectionAndTransactionHolder GetNonManagedTXConnection()
+            protected override Task<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
             {
-                return new ConnectionAndTransactionHolder(null, null);
+                return Task.FromResult(new ConnectionAndTransactionHolder(null, null));
             }
 
             protected override Task<T> ExecuteInLock<T>(
-                string lockName,
+                LockType lockType,
                 Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
-                CancellationToken cancellationToken = default)
+                CancellationToken cancellationToken)
             {
                 return Task.FromResult(default(T));
             }

@@ -201,10 +201,7 @@ namespace Quartz.Impl.AdoJobStore
             $"SELECT {ColumnTriggerName}, {ColumnTriggerGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = {SchedulerNameSubst} AND {ColumnMifireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND {ColumnNextFireTime} < @nextFireTime AND {ColumnTriggerState} = @state1 ORDER BY {ColumnNextFireTime} ASC, {ColumnPriority} DESC";
 
         public static readonly string SqlSelectNextTriggerToAcquire =
-            string.Format("SELECT {0}, {1}, {2}, {3} FROM {4}{5} WHERE {6} = {7} AND {8} = @state AND {9} <= @noLaterThan AND ({10} = -1 OR ({10} <> -1 AND {9} >= @noEarlierThan)) ORDER BY {9} ASC, {11} DESC",
-                ColumnTriggerName, ColumnTriggerGroup, ColumnNextFireTime, ColumnPriority,
-                TablePrefixSubst, TableTriggers, ColumnSchedulerName, SchedulerNameSubst,
-                ColumnTriggerState, ColumnNextFireTime, ColumnMifireInstruction, ColumnPriority);
+            $"SELECT {ColumnTriggerName}, {ColumnTriggerGroup}, {ColumnNextFireTime}, {ColumnPriority} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = {SchedulerNameSubst} AND {ColumnTriggerState} = @state AND {ColumnNextFireTime} <= @noLaterThan AND ({ColumnMifireInstruction} = -1 OR ({ColumnMifireInstruction} <> -1 AND {ColumnNextFireTime} >= @noEarlierThan)) ORDER BY {ColumnNextFireTime} ASC, {ColumnPriority} DESC";
 
         public static readonly string SqlSelectNumCalendars =
             $"SELECT COUNT({ColumnCalendarName})  FROM {TablePrefixSubst}{TableCalendars} WHERE {ColumnSchedulerName} = {SchedulerNameSubst}";

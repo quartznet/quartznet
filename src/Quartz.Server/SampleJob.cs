@@ -28,7 +28,7 @@ namespace Quartz.Server
         public async Task Execute(IJobExecutionContext context)
         {
             logger.Info("SampleJob running...");
-            await Task.Delay(TimeSpan.FromSeconds(5));
+            await Task.Delay(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
             logger.Info("SampleJob run finished.");
         }
     }

@@ -56,7 +56,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         public override Task Initialize(
             ITypeLoadHelper loadHelper, 
-            ISchedulerSignaler signaler,
+            ISchedulerSignaler schedulerSignaler,
             CancellationToken cancellationToken = default)
         {
             if (LockHandler == null)
@@ -66,7 +66,7 @@ namespace Quartz.Impl.AdoJobStore
                 UseDBLocks = true;
             }
 
-            base.Initialize(loadHelper, signaler, cancellationToken);
+            base.Initialize(loadHelper, schedulerSignaler, cancellationToken);
 
             Log.Info("JobStoreCMT initialized.");
             return TaskUtil.CompletedTask;
@@ -95,7 +95,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Gets the non managed TX connection.
         /// </summary>
         /// <returns></returns>
-        protected override ConnectionAndTransactionHolder GetNonManagedTXConnection()
+        protected override async Task<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
         {
             DbConnection conn;
             try
@@ -103,7 +103,7 @@ namespace Quartz.Impl.AdoJobStore
                 conn = ConnectionManager.GetConnection(DataSource);
                 if (OpenConnection)
                 {
-                    conn.Open();
+                    await conn.OpenAsync().ConfigureAwait(false);
                 }
             }
             catch (SqlException sqle)
@@ -132,25 +132,25 @@ namespace Quartz.Impl.AdoJobStore
         /// transaction, it does not attempt to commit or rollback the
         /// enclosing transaction.
         /// </summary>
-        /// <seealso cref="JobStoreSupport.ExecuteInNonManagedTXLock" />
-        /// <seealso cref="JobStoreSupport.ExecuteInLock" />
-        /// <seealso cref="JobStoreSupport.GetNonManagedTXConnection()" />
-        /// <seealso cref="JobStoreSupport.GetConnection()" />
-        /// <param name="lockName">
-        /// The name of the lock to acquire, for example
-        /// "TRIGGER_ACCESS".  If null, then no lock is acquired, but the
+        /// <seealso cref="M:Quartz.Impl.AdoJobStore.JobStoreSupport.ExecuteInNonManagedTXLock(System.String,System.Func{Quartz.Impl.AdoJobStore.ConnectionAndTransactionHolder,System.Threading.Tasks.Task},System.Threading.CancellationToken)" />
+        /// <seealso cref="M:Quartz.Impl.PersistentJobStore`1.ExecuteInLock(System.String,System.Func{`0,System.Threading.Tasks.Task},System.Threading.CancellationToken)" />
+        /// <seealso cref="M:Quartz.Impl.AdoJobStore.JobStoreSupport.GetNonManagedTXConnection" />
+        /// <seealso cref="M:Quartz.Impl.AdoJobStore.JobStoreSupport.GetConnection" />
+        /// <param name="lockType">
+        /// The name of the lock to acquire.  If LockType.None, then no lock is acquired, but the
         /// txCallback is still executed in a transaction.
         /// </param>
         /// <param name="txCallback">Callback to execute.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         protected override async Task<T> ExecuteInLock<T>(
-            string lockName,
+            LockType lockType,
             Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
-            CancellationToken cancellationToken = default)
+            CancellationToken cancellationToken)
         {
             bool transOwner = false;
             ConnectionAndTransactionHolder conn = null;
             Guid requestorId = Guid.NewGuid();
+            string lockName = GetLockName(lockType);
             try
             {
                 if (lockName != null)
@@ -159,7 +159,7 @@ namespace Quartz.Impl.AdoJobStore
                     // until after acquiring the lock since it isn't needed.
                     if (LockHandler.RequiresConnection)
                     {
-                        conn = GetNonManagedTXConnection();
+                        conn = await GetNonManagedTXConnection().ConfigureAwait(false);
                     }
 
                     transOwner = await LockHandler.ObtainLock(requestorId, conn, lockName, cancellationToken).ConfigureAwait(false);
@@ -167,20 +167,23 @@ namespace Quartz.Impl.AdoJobStore
 
                 if (conn == null)
                 {
-                    conn = GetNonManagedTXConnection();
+                    conn = await GetNonManagedTXConnection().ConfigureAwait(false);
                 }
 
                 return await txCallback(conn).ConfigureAwait(false);
             }
             finally
             {
-                try
+                if (transOwner)
                 {
-                    await ReleaseLock(requestorId, lockName, transOwner, cancellationToken).ConfigureAwait(false);
-                }
-                finally
-                {
-                    CleanupConnection(conn);
+                    try
+                    {
+                        await ReleaseLock(requestorId, lockType, cancellationToken).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        CleanupConnection(conn);
+                    }
                 }
             }
         }

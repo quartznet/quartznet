@@ -103,28 +103,6 @@ namespace Quartz
     /// <author>Marko Lahma (.NET)</author>
     public interface IScheduler
     {
-        /// <summary>
-        /// returns true if the given JobGroup
-        /// is paused
-        /// </summary>
-        /// <param name="groupName"></param>
-        /// <param name="cancellationToken">The cancellation instruction.</param>
-        /// <returns></returns>
-        Task<bool> IsJobGroupPaused(
-            string groupName, 
-            CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// returns true if the given TriggerGroup
-        /// is paused
-        /// </summary>
-        /// <param name="groupName"></param>
-        /// <param name="cancellationToken">The cancellation instruction.</param>
-        /// <returns></returns>
-        Task<bool> IsTriggerGroupPaused(
-            string groupName, 
-            CancellationToken cancellationToken = default);
-
         /// <summary> 
         /// Returns the name of the <see cref="IScheduler" />.
         /// </summary>

@@ -1,7 +1,15 @@
-﻿using System;
+using System;
+using System.Threading;
+using System.Threading.Tasks;
 
-namespace Quartz.Impl.AdoJobStore
+namespace Quartz.Spi
 {
+    public interface IMisfireHandlerOperations
+    {
+        TimeSpan MisfireHandlerFrequency { get; }
+        Task<RecoverMisfiredJobsResult> RecoverMisfires(Guid requestorId, CancellationToken cancellationToken);
+    }
+    
     /// <summary>
     /// Helper class for returning the composite result of trying
     /// to recover misfired jobs.

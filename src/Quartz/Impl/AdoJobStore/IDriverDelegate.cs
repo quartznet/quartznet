@@ -1070,13 +1070,6 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Selects the misfired triggers in states.
         /// </summary>
-        /// <param name="conn">The conn.</param>
-        /// <param name="state1">The state1.</param>
-        /// <param name="ts">The ts.</param>
-        /// <param name="count">The count.</param>
-        /// <param name="resultList">The result list.</param>
-        /// <param name="cancellationToken">The cancellation instruction.</param>
-        /// <returns></returns>
         Task<bool> HasMisfiredTriggersInState(
             ConnectionAndTransactionHolder conn,
             string state1, 

@@ -109,7 +109,6 @@ namespace Quartz.Impl.AdoJobStore
 		public const string StatePaused = "PAUSED";
 		public const string StatePausedBlocked = "PAUSED_BLOCKED";
 		public const string StateDeleted = "DELETED";
-		public const string AllGroupsPaused = "_$_ALL_GROUPS_PAUSED_$_";
 
 		// TRIGGER TYPES
 		/// <summary>

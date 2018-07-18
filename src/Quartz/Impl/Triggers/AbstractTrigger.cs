@@ -18,6 +18,7 @@
 #endregion
 
 using System;
+using System.Diagnostics;
 using System.Globalization;
 
 using Quartz.Spi;
@@ -172,6 +173,7 @@ namespace Quartz.Impl.Triggers
 		/// <value>The key.</value>
         public virtual TriggerKey Key
 		{
+		    [DebuggerStepThrough]
 		    get
 			{
 				if(key == null)
@@ -181,7 +183,7 @@ namespace Quartz.Impl.Triggers
 
 				return key;
 			}
-
+		    [DebuggerStepThrough]
             set
             {
                 Name = value.Name;

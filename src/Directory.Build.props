@@ -27,7 +27,7 @@
 
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
 
-    <VersionPrefix>3.0.8</VersionPrefix>
+    <VersionPrefix>4.0.0-alpha-1</VersionPrefix>
     <VersionSuffix Condition="'$(VersionSuffix)'!='' AND '$(BuildNumber)' != ''">$(VersionSuffix)-$(BuildNumber)</VersionSuffix>
 
     <CLSCompliant>True</CLSCompliant>
@@ -38,9 +38,10 @@
     <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
 
     <LangVersion>latest</LangVersion>
-    <TargetFullFrameworkVersion>net452</TargetFullFrameworkVersion>
+    <TargetFullFrameworkVersion>net461</TargetFullFrameworkVersion>
 
     <IsTestProject>$(MSBuildProjectName.Contains('Tests'))</IsTestProject>
+    <IsExampleProject>$(MSBuildProjectName.Contains('Example'))</IsExampleProject>
 
   </PropertyGroup>
 
@@ -48,11 +49,15 @@
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0-beta-63127-02" PrivateAssets="All"/>
   </ItemGroup>
 
+  <ItemGroup Condition="'$(IsTestProject)' != 'true' and '$(IsExampleProject)' != 'true'">
+    <PackageReference Include="ConfigureAwaitChecker.Analyzer" Version="4.0.0" PrivateAssets="All" />
+  </ItemGroup>
+
   <PropertyGroup Condition=" '$(TargetFramework)' == '$(TargetFullFrameworkVersion)' ">
     <DefineConstants>$(DefineConstants);REMOTING</DefineConstants>
   </PropertyGroup>
 
-  <PropertyGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'netcoreapp2.0' ">
+  <PropertyGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'netcoreapp2.1' ">
     <DefineConstants>$(DefineConstants);APPCONTEXT;NETSTANDARD_DBPROVIDERS</DefineConstants>
   </PropertyGroup>
 

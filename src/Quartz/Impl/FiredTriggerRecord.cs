@@ -21,7 +21,9 @@
 
 using System;
 
-namespace Quartz.Impl.AdoJobStore
+using Quartz.Simpl;
+
+namespace Quartz.Impl
 {
     /// <summary>
     /// Conveys the state of a fired-trigger record.
@@ -63,7 +65,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Gets or sets the scheduler instance id.
         /// </summary>
         /// <value>The scheduler instance id.</value>
-        public virtual string SchedulerInstanceId { get; set; }
+        public virtual string SchedulerInstanceName { get; set; }
 
         /// <summary>
         /// Gets or sets the trigger key.
@@ -75,7 +77,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Gets or sets the state of the fire instance.
         /// </summary>
         /// <value>The state of the fire instance.</value>
-        public virtual string FireInstanceState { get; set; }
+        public virtual InternalTriggerState FireInstanceState { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether [job requests recovery].

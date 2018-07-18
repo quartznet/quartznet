@@ -53,28 +53,6 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// returns true if the given JobGroup
-        /// is paused
-        /// </summary>
-        public Task<bool> IsJobGroupPaused(
-            string groupName,
-            CancellationToken cancellationToken = default)
-        {
-            return sched.IsJobGroupPaused(groupName, cancellationToken);
-        }
-
-        /// <summary>
-        /// returns true if the given TriggerGroup
-        /// is paused
-        /// </summary>
-        public Task<bool> IsTriggerGroupPaused(
-            string groupName,
-            CancellationToken cancellationToken = default)
-        {
-            return sched.IsTriggerGroupPaused(groupName, cancellationToken);
-        }
-
-        /// <summary>
         /// Returns the name of the <see cref="IScheduler" />.
         /// </summary>
         public virtual string SchedulerName => sched.SchedulerName;

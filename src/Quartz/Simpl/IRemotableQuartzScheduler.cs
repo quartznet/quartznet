@@ -90,18 +90,6 @@ namespace Quartz.Simpl
 
         void AddJob(IJobDetail jobDetail, bool replace,bool storeNonDurableWhileAwaitingScheduling);
 
-        /// <summary>
-        /// returns true if the given JobGroup
-        /// is paused
-        /// </summary>
-        bool IsJobGroupPaused(string groupName);
-
-        /// <summary>
-        /// returns true if the given TriggerGroup
-        /// is paused
-        /// </summary>
-        bool IsTriggerGroupPaused(string groupName);
-
         bool DeleteJob(JobKey jobKey);
 
         bool UnscheduleJob(TriggerKey triggerKey);

@@ -437,10 +437,11 @@ namespace Quartz.Tests.Unit.Simpl
                 return Task.FromResult(true);
             }
 
-            public void SignalSchedulingChange(
+            public Task SignalSchedulingChange(
                 DateTimeOffset? candidateNewNextFireTimeUtc, 
                 CancellationToken cancellationToken = default)
             {
+                return Task.FromResult(true);
             }
 
             public Task NotifySchedulerListenersError(

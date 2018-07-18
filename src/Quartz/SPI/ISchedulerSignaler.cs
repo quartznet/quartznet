@@ -58,7 +58,7 @@ namespace Quartz.Spi
         /// <summary>
         /// Signals the scheduling change.
         /// </summary>
-        void SignalSchedulingChange(
+        Task SignalSchedulingChange(
 	        DateTimeOffset? candidateNewNextFireTimeUtc,
 	        CancellationToken cancellationToken = default);
 

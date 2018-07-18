@@ -53,8 +53,8 @@ namespace Quartz.Spi
         /// used, in order to give the it a chance to Initialize.
         /// </summary>
         Task Initialize(
-            ITypeLoadHelper loadHelper, 
-            ISchedulerSignaler signaler,
+            ITypeLoadHelper typeLoadHelper, 
+            ISchedulerSignaler schedulerSignaler,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -85,7 +85,6 @@ namespace Quartz.Spi
         /// <summary>
         /// Indicates whether job store supports persistence.
         /// </summary>
-        /// <returns></returns>
         bool SupportsPersistence { get; }
 
         /// <summary>
@@ -110,27 +109,6 @@ namespace Quartz.Spi
         Task StoreJobAndTrigger(
             IJobDetail newJob, 
             IOperableTrigger newTrigger, 
-            CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// returns true if the given JobGroup is paused
-        /// </summary>
-        /// <param name="groupName"></param>
-        /// <param name="cancellationToken">The cancellation instruction.</param>
-        /// <returns></returns>
-        Task<bool> IsJobGroupPaused(
-            string groupName,
-            CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// returns true if the given TriggerGroup
-        /// is paused
-        /// </summary>
-        /// <param name="groupName"></param>
-        /// <param name="cancellationToken">The cancellation instruction.</param>
-        /// <returns></returns>
-        Task<bool> IsTriggerGroupPaused(
-            string groupName,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -261,17 +239,15 @@ namespace Quartz.Spi
         /// </summary>
         /// <remarks>
         /// </remarks>
-        /// <param name="calName">the identifier to check for</param>
+        /// <param name="calendarName">the identifier to check for</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>true if a calendar exists with the given identifier</returns>
-        Task<bool> CalendarExists(string calName, CancellationToken cancellationToken = default);
+        Task<bool> CalendarExists(string calendarName, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Determine whether a <see cref="IJob" /> with the given identifier already
         /// exists within the scheduler.
         /// </summary>
-        /// <remarks>
-        /// </remarks>
         /// <param name="jobKey">the identifier to check for</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>true if a job exists with the given identifier</returns>
@@ -281,8 +257,6 @@ namespace Quartz.Spi
         /// Determine whether a <see cref="ITrigger" /> with the given identifier already
         /// exists within the scheduler.
         /// </summary>
-        /// <remarks>
-        /// </remarks>
         /// <param name="triggerKey">the identifier to check for</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>true if a trigger exists with the given identifier</returns>
@@ -292,8 +266,6 @@ namespace Quartz.Spi
         /// Clear (delete!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
         /// <see cref="ICalendar" />s.
         /// </summary>
-        /// <remarks>
-        /// </remarks>
         Task ClearAllSchedulingData(CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -326,27 +298,27 @@ namespace Quartz.Spi
         /// <see cref="ITrigger" />s pointing to non-existent calendars, then a
         /// <see cref="JobPersistenceException" /> will be thrown.
         /// </remarks>
-        /// <param name="calName">The name of the <see cref="ICalendar" /> to be removed.</param>
+        /// <param name="calendarName">The name of the <see cref="ICalendar" /> to be removed.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>
         /// 	<see langword="true" /> if a <see cref="ICalendar" /> with the given name
         /// was found and removed from the store.
         /// </returns>
         Task<bool> RemoveCalendar(
-            string calName,
+            string calendarName,
             CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Retrieve the given <see cref="ITrigger" />.
         /// </summary>
-        /// <param name="calName">The name of the <see cref="ICalendar" /> to be retrieved.</param>
+        /// <param name="calendarName">The name of the <see cref="ICalendar" /> to be retrieved.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>
         /// The desired <see cref="ICalendar" />, or null if there is no
         /// match.
         /// </returns>
         Task<ICalendar> RetrieveCalendar(
-            string calName, 
+            string calendarName, 
             CancellationToken cancellationToken = default);
 
         /// <summary>

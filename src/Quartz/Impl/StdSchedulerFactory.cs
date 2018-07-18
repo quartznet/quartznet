@@ -689,8 +689,7 @@ Please add configuration to your application config file to correctly initialize
                 throw initException;
             }
 
-            JobStoreSupport jobStoreSupport = js as JobStoreSupport;
-            if (jobStoreSupport != null)
+            if (js is JobStoreSupport jobStoreSupport)
             {
                 // Install custom lock handler (Semaphore)
                 Type lockHandlerType = loadHelper.LoadType(cfg.GetStringProperty(PropertyJobStoreLockHandlerType));

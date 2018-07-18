@@ -3,9 +3,10 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Logging;
+using Quartz.Spi;
 using Quartz.Util;
 
-namespace Quartz.Impl.AdoJobStore
+namespace Quartz.Impl
 {
     internal class MisfireHandler
     {
@@ -13,19 +14,33 @@ namespace Quartz.Impl.AdoJobStore
         // keep constant lock requestor id for handler's lifetime
         private readonly Guid requestorId = Guid.NewGuid();
 
-        private readonly JobStoreSupport jobStoreSupport;
+        private readonly TimeSpan retryInterval;
+        private readonly int retryableActionErrorLogThreshold;
+        private readonly ISchedulerSignaler schedulerSignaler;
+        private readonly IMisfireHandlerOperations operations;
+
         private int numFails;
 
         private readonly CancellationTokenSource cancellationTokenSource;
         private readonly QueuedTaskScheduler taskScheduler;
         private Task task;
 
-        internal MisfireHandler(JobStoreSupport jobStoreSupport)
+        internal MisfireHandler(
+            string instanceId,
+            string instanceName,
+            bool makeThreadDaemon,
+            TimeSpan retryInterval,
+            int retryableActionErrorLogThreshold,
+            ISchedulerSignaler schedulerSignaler,
+            IMisfireHandlerOperations operations)
         {
-            this.jobStoreSupport = jobStoreSupport;
+            this.retryInterval = retryInterval;
+            this.retryableActionErrorLogThreshold = retryableActionErrorLogThreshold;
+            this.schedulerSignaler = schedulerSignaler;
+            this.operations = operations;
 
-            string threadName = $"QuartzScheduler_{jobStoreSupport.InstanceName}-{jobStoreSupport.InstanceId}_MisfireHandler";
-            taskScheduler = new QueuedTaskScheduler(threadCount: 1, threadName: threadName, useForegroundThreads: !jobStoreSupport.MakeThreadsDaemons);
+            string threadName = $"QuartzScheduler_{instanceName}-{instanceId}_MisfireHandler";
+            taskScheduler = new QueuedTaskScheduler(threadCount: 1, threadName: threadName, useForegroundThreads: !makeThreadDaemon);
             cancellationTokenSource = new CancellationTokenSource();
         }
 
@@ -47,7 +62,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 if (recoverMisfiredJobsResult.ProcessedMisfiredTriggerCount > 0)
                 {
-                    jobStoreSupport.SignalSchedulingChangeImmediately(recoverMisfiredJobsResult.EarliestNewTime);
+                    await schedulerSignaler.SignalSchedulingChange(recoverMisfiredJobsResult.EarliestNewTime, CancellationToken.None).ConfigureAwait(false);
                 }
 
                 token.ThrowIfCancellationRequested();
@@ -55,7 +70,7 @@ namespace Quartz.Impl.AdoJobStore
                 TimeSpan timeToSleep = TimeSpan.FromMilliseconds(50); // At least a short pause to help balance threads
                 if (!recoverMisfiredJobsResult.HasMoreMisfiredTriggers)
                 {
-                    timeToSleep = jobStoreSupport.MisfireHandlerFrequency - (SystemTime.UtcNow() - sTime);
+                    timeToSleep = operations.MisfireHandlerFrequency - (SystemTime.UtcNow() - sTime);
                     if (timeToSleep <= TimeSpan.Zero)
                     {
                         timeToSleep = TimeSpan.FromMilliseconds(50);
@@ -63,7 +78,7 @@ namespace Quartz.Impl.AdoJobStore
 
                     if (numFails > 0)
                     {
-                        timeToSleep = jobStoreSupport.DbRetryInterval > timeToSleep ? jobStoreSupport.DbRetryInterval : timeToSleep;
+                        timeToSleep = retryInterval > timeToSleep ? retryInterval : timeToSleep;
                     }
                 }
 
@@ -89,14 +104,13 @@ namespace Quartz.Impl.AdoJobStore
             try
             {
                 log.Debug("Scanning for misfires...");
-
-                RecoverMisfiredJobsResult res = await jobStoreSupport.DoRecoverMisfires(requestorId, CancellationToken.None).ConfigureAwait(false);
+                var result = await operations.RecoverMisfires(requestorId, CancellationToken.None).ConfigureAwait(false);
                 numFails = 0;
-                return res;
+                return result;
             }
             catch (Exception e)
             {
-                if (numFails%jobStoreSupport.RetryableActionErrorLogThreshold == 0)
+                if (numFails%retryableActionErrorLogThreshold == 0)
                 {
                     log.ErrorException("Error handling misfires: " + e.Message, e);
                 }

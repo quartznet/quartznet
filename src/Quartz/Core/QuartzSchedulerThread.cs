@@ -233,7 +233,7 @@ namespace Quartz.Core
                             try
                             {
                                 // wait until togglePause(false) is called...
-                                Monitor.Wait(sigLock, 1000);
+                                Monitor.Wait(sigLock, TimeSpan.FromSeconds(1));
                             }
                             catch (ThreadInterruptedException)
                             {
