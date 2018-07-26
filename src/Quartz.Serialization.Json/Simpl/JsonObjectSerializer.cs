@@ -41,7 +41,7 @@ namespace Quartz.Simpl
                     new CalendarConverter()
                 },
                 ConstructorHandling = ConstructorHandling.AllowNonPublicDefaultConstructor,
-                TypeNameHandling = TypeNameHandling.All,
+                TypeNameHandling = TypeNameHandling.Auto,
                 ContractResolver = new DefaultContractResolver
                 {
                     IgnoreSerializableInterface = true
