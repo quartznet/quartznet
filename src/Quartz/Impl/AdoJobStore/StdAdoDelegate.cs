@@ -60,9 +60,10 @@ namespace Quartz.Impl.AdoJobStore
         private bool useProperties;
         private ITypeLoadHelper typeLoadHelper;
         private AdoUtil adoUtil;
-        private readonly IList<ITriggerPersistenceDelegate> triggerPersistenceDelegates = new List<ITriggerPersistenceDelegate>();
+        private readonly List<ITriggerPersistenceDelegate> triggerPersistenceDelegates = new List<ITriggerPersistenceDelegate>();
         private string schedNameLiteral;
         private IObjectSerializer objectSerializer;
+        private readonly Dictionary<string, string> cachedQueries = new Dictionary<string, string>();
 
         protected IDbProvider DbProvider { get; private set; }
 
@@ -2994,7 +2995,12 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>The query, with proper table prefix substituted</returns>
         protected string ReplaceTablePrefix(string query)
         {
-            return AdoJobStoreUtil.ReplaceTablePrefix(query, tablePrefix, SchedulerNameLiteral);
+            if (!cachedQueries.TryGetValue(query, out var result))
+            {
+                cachedQueries[query] = result = AdoJobStoreUtil.ReplaceTablePrefix(query, tablePrefix, SchedulerNameLiteral);
+            }
+            
+            return result;
         }
 
         protected string SchedulerNameLiteral

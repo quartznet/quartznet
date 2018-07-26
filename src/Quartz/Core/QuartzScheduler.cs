@@ -758,13 +758,14 @@ namespace Quartz.Core
             ValidateState();
 
             // make sure all triggers refer to their associated job
-            foreach (IJobDetail job in triggersAndJobs.Keys)
+            foreach (var pair in triggersAndJobs)
             {
+                var job = pair.Key;
+                var triggers = pair.Value;
                 if (job == null) // there can be one of these (for adding a bulk set of triggers for pre-existing jobs)
                 {
                     continue;
                 }
-                IReadOnlyCollection<ITrigger> triggers = triggersAndJobs[job];
                 if (triggers == null) // this is possible because the job may be durable, and not yet be having triggers
                 {
                     continue;
@@ -782,8 +783,8 @@ namespace Quartz.Core
                         cal = await resources.JobStore.RetrieveCalendar(trigger.CalendarName, cancellationToken).ConfigureAwait(false);
                         if (cal == null)
                         {
-                            throw new SchedulerException(
-                                "Calendar '" + trigger.CalendarName + "' not found for trigger: " + trigger.Key);
+                            var message = $"Calendar '{trigger.CalendarName}' not found for trigger: {trigger.Key}";
+                            throw new SchedulerException(message);
                         }
                     }
 

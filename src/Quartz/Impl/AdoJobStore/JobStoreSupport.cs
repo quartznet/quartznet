@@ -1140,10 +1140,12 @@ namespace Quartz.Impl.AdoJobStore
                 LockOnInsert || replace ? LockTriggerAccess : null, async conn =>
                 {
                     // TODO: make this more efficient with a true bulk operation...
-                    foreach (IJobDetail job in triggersAndJobs.Keys)
+                    foreach (var pair in triggersAndJobs)
                     {
+                        var job = pair.Key;
+                        var triggers = pair.Value;
                         await StoreJob(conn, job, replace, cancellationToken).ConfigureAwait(false);
-                        foreach (ITrigger trigger in triggersAndJobs[job])
+                        foreach (var trigger in triggers)
                         {
                             await StoreTrigger(conn, (IOperableTrigger) trigger, job, replace, StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
                         }
