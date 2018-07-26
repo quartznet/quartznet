@@ -28,7 +28,7 @@ using Quartz.Util;
 
 using TimeZoneConverter;
 
-namespace Quartz.Plugin.TimezoneResolution
+namespace Quartz.Plugin.TimeZoneConverter
 {
     /// <summary>
     /// This plugin provides the capability to obtain timezone information regardless of the platform and database being used.

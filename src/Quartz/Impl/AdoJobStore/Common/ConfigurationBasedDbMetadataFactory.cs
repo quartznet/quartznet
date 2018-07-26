@@ -4,8 +4,6 @@ using System.Collections.Specialized;
 
 using Quartz.Util;
 
-using System.Configuration;
-
 namespace Quartz.Impl.AdoJobStore.Common
 {
     /// <summary>

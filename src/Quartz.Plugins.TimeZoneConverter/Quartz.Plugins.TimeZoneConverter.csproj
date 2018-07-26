@@ -15,6 +15,6 @@
     <PackageReference Include="TimeZoneConverter.StrongName" Version="2.3.0" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj" />
+    <ProjectReference Include="..\Quartz.Plugins\Quartz.Plugins.csproj" />
   </ItemGroup>
 </Project>

@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 
 using NUnit.Framework;
 
-using Quartz.Plugin.TimezoneResolution;
+using Quartz.Plugin.TimeZoneConverter;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Plugin.TimeZoneConverter

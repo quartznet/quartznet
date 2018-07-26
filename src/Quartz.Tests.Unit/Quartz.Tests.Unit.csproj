@@ -19,10 +19,10 @@
     <PackageReference Include="NUnit3TestAdapter" Version="3.10.0" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\Quartz.Plugins.TimeZoneConverter\Quartz.Plugins.TimeZoneConverter.csproj" />
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
     <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj" />
     <ProjectReference Include="..\Quartz.Plugins\Quartz.Plugins.csproj" />
+    <ProjectReference Include="..\Quartz.Plugins.TimeZoneConverter\Quartz.Plugins.TimeZoneConverter.csproj" />
     <ProjectReference Include="..\Quartz.Serialization.Json\Quartz.Serialization.Json.csproj" />
   </ItemGroup>
   <PropertyGroup Condition=" '$(TargetFramework)' == 'netcoreapp2.0' ">
