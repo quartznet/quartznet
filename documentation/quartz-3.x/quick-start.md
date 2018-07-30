@@ -121,7 +121,7 @@ namespace QuartzSampleApp
 }
 ```
 
-Once you obtain a scheduler using StdSchedulerFactory.GetDefaultScheduler(), your application will not terminate by default until you call scheduler.Shutdown(), because there will be active threads (non-daemon threads).
+As of Quartz 3.0 your application will terminate when there's no code left to execute after scheduler.Shutdown(), because there won't be any active threads. You should manually block exiting of application if you want scheduler to keep running also after the Task.Delay and Shutdown has been processed.
 
 Now running the program will not show anything. When 10 seconds have passed the program will just terminate. Lets add some logging to console.
 
