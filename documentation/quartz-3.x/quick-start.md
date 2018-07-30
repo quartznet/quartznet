@@ -123,7 +123,7 @@ namespace QuartzSampleApp
 
 Once you obtain a scheduler using StdSchedulerFactory.GetDefaultScheduler(), your application will not terminate by default until you call scheduler.Shutdown(), because there will be active threads (non-daemon threads).
 
-No running the program will not show anything. When 10 seconds have passed the program will just terminate. Lets add some logging to console.
+Now running the program will not show anything. When 10 seconds have passed the program will just terminate. Lets add some logging to console.
 
 ## Adding logging
 
@@ -164,7 +164,7 @@ private class ConsoleLogProvider : ILogProvider
 
 ## Trying out the application and adding jobs
 
-No we should get a lot more information when we start the application.
+Now we should get a lot more information when we start the application.
 
 ```
 [12.51.10] [Info] Quartz.NET properties loaded from configuration file 'C:\QuartzSampleApp\quartz.config'
