@@ -78,7 +78,7 @@ namespace Quartz.Impl.AdoJobStore
             MaxMisfiresToHandleAtATime = 20;
             DbRetryInterval = TimeSpan.FromSeconds(15);
             Log = LogProvider.GetLogger(GetType());
-            delegateType = typeof(StdAdoDelegate);
+            delegateType = typeof (StdAdoDelegate);
         }
 
         /// <summary>
@@ -359,7 +359,7 @@ namespace Quartz.Impl.AdoJobStore
                 DateTimeOffset misfireTime = SystemTime.UtcNow();
                 if (MisfireThreshold > TimeSpan.Zero)
                 {
-                    misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold.TotalMilliseconds);
+                    misfireTime = misfireTime.AddMilliseconds(-1*MisfireThreshold.TotalMilliseconds);
                 }
 
                 return misfireTime;
@@ -407,7 +407,7 @@ namespace Quartz.Impl.AdoJobStore
                                 throw new InvalidConfigurationException("Configured delegate does not have public constructor that takes no arguments");
                             }
 
-                            driverDelegate = (IDriverDelegate)ctor.Invoke(null);
+                            driverDelegate = (IDriverDelegate) ctor.Invoke(null);
                             driverDelegate.Initialize(args);
                         }
                         catch (Exception e)
@@ -516,7 +516,7 @@ namespace Quartz.Impl.AdoJobStore
                     Log.Warn("Detected usage of SqlServerDelegate and UpdateLockRowSemaphore, removing 'quartz.jobStore.lockHandler.type' would allow more efficient SQL Server specific (UPDLOCK,ROWLOCK) row access");
                 }
                 // be ready to give a friendly warning if SQL Server provider and wrong delegate
-                if (DbProvider != null && DbProvider.Metadata.ConnectionType == typeof(SqlConnection) && !(Delegate is SqlServerDelegate))
+                if (DbProvider != null && DbProvider.Metadata.ConnectionType == typeof (SqlConnection) && !(Delegate is SqlServerDelegate))
                 {
                     Log.Warn("Detected usage of SQL Server provider without SqlServerDelegate, SqlServerDelegate would provide better performance");
                 }
@@ -772,7 +772,7 @@ namespace Quartz.Impl.AdoJobStore
                 DateTimeOffset misfireTime = SystemTime.UtcNow();
                 if (MisfireThreshold > TimeSpan.Zero)
                 {
-                    misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold.TotalMilliseconds);
+                    misfireTime = misfireTime.AddMilliseconds(-1*MisfireThreshold.TotalMilliseconds);
                 }
 
                 if (trig.GetNextFireTimeUtc().GetValueOrDefault() > misfireTime)
@@ -1147,7 +1147,7 @@ namespace Quartz.Impl.AdoJobStore
                         await StoreJob(conn, job, replace, cancellationToken).ConfigureAwait(false);
                         foreach (var trigger in triggers)
                         {
-                            await StoreTrigger(conn, (IOperableTrigger)trigger, job, replace, StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
+                            await StoreTrigger(conn, (IOperableTrigger) trigger, job, replace, StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
                         }
                     }
                 }, cancellationToken).ConfigureAwait(false);
@@ -3585,7 +3585,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (JobPersistenceException jpe)
                 {
-                    if (retry % RetryableActionErrorLogThreshold == 0)
+                    if (retry%RetryableActionErrorLogThreshold == 0)
                     {
                         await schedSignaler.NotifySchedulerListenersError("An error occurred while " + txCallback, jpe, cancellationToken).ConfigureAwait(false);
                     }
