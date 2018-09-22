@@ -871,6 +871,14 @@ Please add configuration to your application config file to correctly initialize
 
             string exporterType = cfg.GetStringProperty(PropertySchedulerExporterType, null);
 
+#if !REMOTING
+            if (exporterType != null && exporterType.StartsWith("Quartz.Simpl.RemotingSchedulerExporter"))
+            {
+                log.Warn("RemotingSchedulerExporter configuration was ignored as Remoting is not supported");
+                exporterType = null;
+            }
+#endif
+
             if (exporterType != null)
             {
                 try

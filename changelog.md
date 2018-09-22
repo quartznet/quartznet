@@ -2,6 +2,25 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+## Release 3.0.7, Sep xx 2018
+
+This release brings .NET Core 2.1 version of example server and adds new plugin 
+Quartz.Plugins.TimeZoneConverter which allows usage of TimeZoneConverter library
+(https://github.com/mj1856/TimeZoneConverter) to get consisten time zone id parsing between
+Linux and Windows.
+
+* NEW FEATURE
+
+    * Add .NET Core 2.1 version of example server (#682)
+	* New plugin Quartz.Plugins.TimeZoneConverter which allows usage of TimeZoneConverter library
+
+* FIXES
+
+    * Added transient codes from EF into new JobStore (#681)
+	* Parametrized queries produced by ReplaceTablePrefix should be cached (#651)
+	* Use TypeNameHandling.Auto for JsonObjectSerializer (#621)
+
+
 ## Release 3.0.6, Jul 6 2018
 
 This release fixes a nasty bug with JSON calendar database serialization and .NET Core SQL Server client libraries

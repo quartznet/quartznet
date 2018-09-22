@@ -10,7 +10,7 @@
   <ItemGroup>
     <PackageReference Include="FakeItEasy" Version="4.6.0" />
     <PackageReference Include="FirebirdSql.Data.FirebirdClient" Version="5.11.0" />
-    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.7.2" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.8.0" />
     <PackageReference Include="MySql.Data" Version="6.10.6" />
     <PackageReference Include="NUnit" Version="3.10.1" />
     <PackageReference Include="Npgsql" Version="3.2.5" />
@@ -26,7 +26,7 @@
   </ItemGroup>
   <ItemGroup Condition=" '$(TargetFramework)' == 'netcoreapp2.0' ">
     <PackageReference Include="Microsoft.Data.SQLite" Version="2.0.0" />
-    <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="2.12.0-beta2" />
+    <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="2.18.3" />
   </ItemGroup>
   <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFullFrameworkVersion)' ">
     <Reference Include="Microsoft.CSharp" />
