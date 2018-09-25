@@ -801,6 +801,7 @@ namespace Quartz.Core
             await resources.JobStore.StoreJobsAndTriggers(triggersAndJobs, replace, cancellationToken).ConfigureAwait(false);
             NotifySchedulerThread(null);
             await Task.WhenAll(triggersAndJobs.Keys.Select(x => NotifySchedulerListenersJobAdded(x, cancellationToken))).ConfigureAwait(false);
+            await Task.WhenAll(triggersAndJobs.SelectMany(x => x.Value.Select(t => NotifySchedulerListenersScheduled(t, cancellationToken)))).ConfigureAwait(false);
         }
 
         public virtual Task ScheduleJob(
