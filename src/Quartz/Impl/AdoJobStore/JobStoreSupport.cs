@@ -2643,14 +2643,16 @@ namespace Quartz.Impl.AdoJobStore
                             acquiredJobKeysForNoConcurrentExec.Add(jobKey);
                         }
 
-                        if (nextTrigger.GetNextFireTimeUtc() > batchEnd)
+                        var nextFireTimeUtc = nextTrigger.GetNextFireTimeUtc();
+
+                        if (nextFireTimeUtc == null || nextFireTimeUtc > batchEnd)
                         {
                             break;
                         }
 
                         // We now have a acquired trigger, let's add to return list.
                         // If our trigger was no longer in the expected state, try a new one.
-                        int rowsUpdated = await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, StateAcquired, StateWaiting, cancellationToken).ConfigureAwait(false);
+                        int rowsUpdated = await Delegate.UpdateTriggerStateFromOtherStateWithNextFireTime(conn, triggerKey, StateAcquired, StateWaiting, nextFireTimeUtc.Value, cancellationToken).ConfigureAwait(false);
                         if (rowsUpdated <= 0)
                         {
                             // TODO: Hum... shouldn't we log a warning here?
