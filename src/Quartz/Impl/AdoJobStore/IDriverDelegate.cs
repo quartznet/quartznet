@@ -415,6 +415,25 @@ namespace Quartz.Impl.AdoJobStore
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Update the given trigger to the given new state, if it is in the given
+        /// old state and has the given next fire time.
+        /// </summary>
+        /// <param name="conn">The DB connection</param>
+        /// <param name="triggerKey">The key identifying the trigger.</param>
+        /// <param name="newState">The new state for the trigger </param>
+        /// <param name="oldState">The old state the trigger must be in</param>
+        /// <param name="nextFireTime">The next fire time the trigger must have</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        /// <returns> int the number of rows updated</returns>
+        Task<int> UpdateTriggerStateFromOtherStateWithNextFireTime(
+            ConnectionAndTransactionHolder conn,
+            TriggerKey triggerKey,
+            string newState,
+            string oldState,
+            DateTimeOffset nextFireTime,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Update all triggers in the given group to the given new state, if they
         /// are in one of the given old states.
         /// </summary>
