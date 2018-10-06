@@ -224,7 +224,7 @@ namespace Quartz.Impl
         /// <exception cref="ArgumentException">
         /// if jobType is null or the class is not a <see cref="IJob" />.
         /// </exception>
-        public Type JobType
+        public virtual Type JobType
         {
             get => jobType;
             set
