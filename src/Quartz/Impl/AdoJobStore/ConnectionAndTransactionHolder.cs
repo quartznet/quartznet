@@ -51,6 +51,10 @@ namespace Quartz.Impl.AdoJobStore
             this.transaction = transaction;
         }
 
+        public DbConnection Connection => connection;
+
+        public DbTransaction Transaction => transaction;
+
         public void Attach(DbCommand cmd)
         {
             cmd.Connection = connection;

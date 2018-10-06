@@ -197,7 +197,7 @@ namespace Quartz.Impl
         /// you must define the system property 'quartz.properties' to point to
         /// the file you want.
         /// </remarks>
-        public void Initialize()
+        public virtual void Initialize()
         {
             // short-circuit if already initialized
             if (cfg != null)
@@ -284,7 +284,7 @@ Please add configuration to your application config file to correctly initialize
         /// Initialize the <see cref="ISchedulerFactory" /> with
         /// the contents of the given key value collection object.
         /// </summary>
-        public void Initialize(NameValueCollection props)
+        public virtual void Initialize(NameValueCollection props)
         {
             cfg = new PropertiesParser(props);
             ValidateConfiguration();
