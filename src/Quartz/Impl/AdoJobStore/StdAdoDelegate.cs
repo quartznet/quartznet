@@ -1892,6 +1892,7 @@ namespace Quartz.Impl.AdoJobStore
                 if (map != null)
                 {
                     tb.UsingJobData(new JobDataMap(map));
+                    tb.ClearDirty();
                 }
 
                 trigger = (IOperableTrigger) tb.Build();

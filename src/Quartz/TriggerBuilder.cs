@@ -479,5 +479,10 @@ namespace Quartz
             }
             return this;
         }
+
+        internal void ClearDirty()
+        {
+            jobDataMap?.ClearDirtyFlag();
+        }
     }
 }

@@ -67,7 +67,7 @@ namespace Quartz.Tests.Integration.Core
                 connection.Open();
                 using (var command = connection.CreateCommand())
                 {
-                    command.CommandText = "SELECT TRIGGER_STATE from QRTZ_TRIGGERS";
+                    command.CommandText = $"SELECT TRIGGER_STATE from QRTZ_TRIGGERS WHERE SCHED_NAME = '{scheduler.SchedulerName}' AND TRIGGER_NAME='test'";
                     var triggerState = command.ExecuteScalar().ToString();
 
                     // check that trigger is blocked after fail over situation
