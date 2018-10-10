@@ -2,6 +2,7 @@
 
 open Fake
 open Fake.AssemblyInfoFile
+open Fake.EnvironmentHelper
 open Fake.Git
 
 let commitHash =
@@ -12,6 +13,15 @@ let commitHash =
         ""
 
 let configuration = getBuildParamOrDefault "configuration" "Release"
+
+let tagName = EnvironmentHelper.environVarOrDefault "APPVEYOR_REPO_TAG_NAME" ""
+
+let versionSuffix =
+    if System.String.IsNullOrWhiteSpace tagName
+    then
+        sprintf "preview-%s" (EnvironmentHelper.environVarOrDefault "APPVEYOR_BUILD_NUMBER" "custom")
+    else
+        ""
 
 Target "Clean" (fun _ ->
     !! "artifacts" ++ "package" ++ "src/*/bin" ++ "src/*/obj" ++ "test/*/bin" ++ "test/*/obj" ++ "build" ++ "deploy"
@@ -40,6 +50,7 @@ Target "Pack" (fun _ ->
     let pack f = DotNetCli.Pack (fun p ->
                 { p with
                     Configuration = "Release"
+                    VersionSuffix  = versionSuffix
                     Project = f
                 })
 
