@@ -1,5 +1,6 @@
 #r "packages/FAKE/tools/FakeLib.dll"
 
+open System
 open Fake
 open Fake.AssemblyInfoFile
 open Fake.EnvironmentHelper
@@ -19,7 +20,7 @@ let tagName = EnvironmentHelper.environVarOrDefault "APPVEYOR_REPO_TAG_NAME" ""
 let versionSuffix =
     if System.String.IsNullOrWhiteSpace tagName
     then
-        sprintf "preview-%s" (EnvironmentHelper.environVarOrDefault "APPVEYOR_BUILD_NUMBER" "custom")
+        sprintf "preview-%s" (DateTime.UtcNow.ToString "yyyyMMdd-HHmm")
     else
         ""
 
@@ -96,7 +97,7 @@ Target "Zip" (fun _ ->
     CreateDir "artifacts"
 
     !! ("package/**/*.*") 
-       |> Zip "package" (sprintf @"./artifacts/Quartz.NET-%s.zip" buildVersion)
+       |> Zip "package" (sprintf @"./artifacts/Quartz.NET-%s.zip" versionSuffix)
 
 )
 
