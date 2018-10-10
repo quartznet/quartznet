@@ -75,6 +75,7 @@ namespace Quartz.Impl.AdoJobStore
             RetryableActionErrorLogThreshold = 4;
             DoubleCheckLockMisfireHandler = true;
             ClusterCheckinInterval = TimeSpan.FromMilliseconds(7500);
+            ClusterCheckinMisfireThreshold = TimeSpan.FromMilliseconds(7500);
             MaxMisfiresToHandleAtATime = 20;
             DbRetryInterval = TimeSpan.FromSeconds(15);
             Log = LogProvider.GetLogger(GetType());
@@ -166,6 +167,15 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
         public TimeSpan ClusterCheckinInterval { get; set; }
+
+        /// <summary>
+        /// The time span by which a check-in must have missed its
+        /// next-fire-time, in order for it to be considered "misfired" and thus
+        /// other scheduler instances in a cluster can consider a "misfired" scheduler
+        /// instance as failed or dead.
+        /// </summary>
+        [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
+        public TimeSpan ClusterCheckinMisfireThreshold { get; set; }
 
         /// <summary>
         /// Get or set the maximum number of misfired triggers that the misfire handling
@@ -3261,7 +3271,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             TimeSpan passed = SystemTime.UtcNow() - LastCheckin;
             TimeSpan ts = rec.CheckinInterval > passed ? rec.CheckinInterval : passed;
-            return rec.CheckinTimestamp.Add(ts).Add(TimeSpan.FromMilliseconds(7500));
+            return rec.CheckinTimestamp.Add(ts).Add(ClusterCheckinMisfireThreshold);
         }
 
         protected virtual async Task<IReadOnlyList<SchedulerStateRecord>> ClusterCheckIn(
