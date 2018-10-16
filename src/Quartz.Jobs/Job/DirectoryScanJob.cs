@@ -53,6 +53,14 @@ namespace Quartz.Job
 
         internal const string LastModifiedTime = "LAST_MODIFIED_TIME";
 
+        /// <summary>
+        /// The search string to match against the names of files. 
+        /// Can contain combination of valid literal path and wildcard (* and ?) characters
+        /// </summary>
+        internal const string SearchPattern = "SEARCH_PATTERN";
+
+        internal const string IncludeSubDirectories = "INCLUDE_SUB_DIRECTORIES";
+
         private readonly ILog log;
 
         public DirectoryScanJob()
@@ -73,7 +81,7 @@ namespace Quartz.Job
             List<FileInfo> updatedFiles = new List<FileInfo>();
             Parallel.ForEach(model.DirectoriesToScan, d =>
             {
-                var newOrUpdatedFiles = GetUpdatedOrNewFiles(d, model.LastModTime, model.MaxAgeDate);
+                var newOrUpdatedFiles = GetUpdatedOrNewFiles(d, model.LastModTime, model.MaxAgeDate, model.SearchPattern, model.IncludeSubDirectories);
                 lock (updatedFiles)
                 {
                     foreach (var fileInfo in newOrUpdatedFiles)
@@ -94,7 +102,7 @@ namespace Quartz.Job
                 model.DirectoryScanListener.FilesUpdatedOrAdded(updatedFiles);
 
                 DateTime latestWriteTimeFromFiles = updatedFiles.Select(x => x.LastWriteTime).Max();
-                model.UpdateLastModifiedDate(latestWriteTimeFromFiles);
+                model.UpdateLastModifiedDate(latestWriteTimeFromFiles);                
             }
             else if (log.IsDebugEnabled())
             {
@@ -106,7 +114,7 @@ namespace Quartz.Job
             return TaskUtil.CompletedTask;
         }
 
-        protected List<FileInfo> GetUpdatedOrNewFiles(string dirName, DateTime lastModifiedDate, DateTime maxAgeDate)
+        protected List<FileInfo> GetUpdatedOrNewFiles(string dirName, DateTime lastModifiedDate, DateTime maxAgeDate, string searchPattern = "*", bool includeSubDirectories = false)
         {
             DirectoryInfo dir = new DirectoryInfo(dirName);
             if (!dir.Exists)
@@ -115,7 +123,8 @@ namespace Quartz.Job
                 return new List<FileInfo>();
             }
 
-            FileInfo[] files = dir.GetFiles();
+            SearchOption searchOption = includeSubDirectories ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+            FileInfo[] files = dir.GetFiles(searchPattern, searchOption);
             return files
                 .Where(fileInfo => fileInfo.LastWriteTime > lastModifiedDate && fileInfo.LastWriteTime < maxAgeDate)
                 .ToList();
