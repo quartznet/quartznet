@@ -52,6 +52,7 @@ namespace Quartz.Impl.AdoJobStore
     public class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAccessor
     {
         private const string FileScanListenerName = "FILE_SCAN_LISTENER_NAME";
+        private const string DirectoryScanListenerName = "DIRECTORY_SCAN_LISTENER_NAME";
 
         private ILog logger;
         private string tablePrefix = DefaultTablePrefix;
@@ -3070,7 +3071,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>the serialized data as byte array</returns>
         public virtual byte[] SerializeJobData(JobDataMap data)
         {
-            bool skipStringPropertySerialization = data.ContainsKey(FileScanListenerName);
+            bool skipStringPropertySerialization = data.ContainsKey(FileScanListenerName) || data.ContainsKey(DirectoryScanListenerName);
             if (CanUseProperties && !skipStringPropertySerialization)
             {
                 return SerializeProperties(data);
