@@ -28,7 +28,8 @@ using Quartz.Logging;
 namespace Quartz.Examples.Example11
 {
     /// <summary>
-    /// This example will spawn a large number of jobs to run.
+    /// This example will demonstrate how to run a large number
+    /// of jobs.
     /// </summary>
     /// <author>James House, Bill Kratzer</author>
     /// <author>Marko Lahma (.NET)</author>

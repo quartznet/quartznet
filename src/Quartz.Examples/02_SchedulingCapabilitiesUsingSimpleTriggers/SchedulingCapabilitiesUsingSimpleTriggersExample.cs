@@ -30,7 +30,7 @@ namespace Quartz.Examples.Example02
 {
     /// <summary>
     /// This example will demonstrate all of the basics of scheduling capabilities
-    /// of Quartz using Simple Triggers.
+    /// of Quartz using Simple Triggers <see cref="ISimpleTrigger"/>.
     /// </summary>
     /// <author>Bill Kratzer</author>
     /// <author>Marko Lahma (.NET)</author>

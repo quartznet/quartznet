@@ -29,7 +29,7 @@ namespace Quartz.Examples.Example03
 {
     /// <summary>
     /// This example will demonstrate all of the basics of scheduling capabilities of
-    /// Quartz using Cron Triggers.
+    /// Quartz using Cron Triggers <see cref="ICronTrigger"/>.
     /// </summary>
     /// <author>Bill Kratzer</author>
     /// <author>Marko Lahma (.NET)</author>

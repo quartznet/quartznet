@@ -26,7 +26,7 @@ using Quartz.Logging;
 namespace Quartz.Examples.Example14
 {
     /// <summary>
-    /// This is just a simple job that echos the name of the Trigger
+    /// This is a simple job that echos the name of the Trigger
     /// that fired it.
     /// </summary>
     /// <author>Marko Lahma (.NET)</author>

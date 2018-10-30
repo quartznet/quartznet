@@ -28,7 +28,7 @@ using Quartz.Logging;
 namespace Quartz.Examples.Example06
 {
     /// <summary>
-    /// This job demonstrates how Quartz can handle JobExecutionExceptions that are
+    /// This example demonstrates how Quartz can handle <see cref="JobExecutionException"/> that are
     /// thrown by jobs.
     /// </summary>
     /// <author>Bill Kratzer</author>

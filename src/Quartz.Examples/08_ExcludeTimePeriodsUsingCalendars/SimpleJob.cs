@@ -27,7 +27,8 @@ using Quartz.Logging;
 namespace Quartz.Examples.Example08
 {
     /// <summary>
-    /// This is just a simple job that gets fired off by example 8.
+    /// This is just a simple job that gets fired off
+    /// by ExcludeTimePeriodsUsingCalendars Example.
     /// </summary>
     /// <author>Bill Kratzer</author>
     /// <author>Marko Lahma (.NET)</author>

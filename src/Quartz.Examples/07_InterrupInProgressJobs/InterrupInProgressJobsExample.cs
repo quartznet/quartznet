@@ -28,7 +28,8 @@ using Quartz.Logging;
 namespace Quartz.Examples.Example07
 {
     /// <summary>
-    /// Demonstrates how to interrupt jobs.
+    /// This example will demonstrate how to interrupt
+    /// jobs after they have been scheduled/started.
     /// </summary>
     /// <author><a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
     /// <author>Marko Lahma (.NET)</author>

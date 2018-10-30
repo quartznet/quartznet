@@ -28,7 +28,7 @@ using Quartz.Logging;
 namespace Quartz.Examples.Example16
 {
     /// <summary>
-    /// This example will show hot to run async jobs.
+    /// This example will show hot to run asynchronous jobs.
     /// </summary>
     /// <author>Marko Lahma</author>
     public class RunningAsynchronousJobsExample : IExample

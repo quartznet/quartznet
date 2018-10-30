@@ -29,7 +29,7 @@ using Quartz.Logging;
 namespace Quartz.Examples.Example13
 {
     /// <summary>
-    /// Used to test/show the clustering features of AdoJobStore.
+    /// This example will demonstrate the clustering features of AdoJobStore.
     /// </summary>
     /// <remarks>
     ///

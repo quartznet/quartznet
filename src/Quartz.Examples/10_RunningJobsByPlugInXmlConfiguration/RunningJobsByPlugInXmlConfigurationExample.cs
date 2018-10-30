@@ -29,7 +29,9 @@ using Quartz.Logging;
 namespace Quartz.Examples.Example10
 {
     /// <summary>
-    /// Plugin example.
+    /// This example will demonstrate how to plugin xml configuration
+    /// to the Quartz job scheduler to execute jobs that comes from
+    /// the specified configuration file.
     /// </summary>
     /// <author>James House, Bill Kratzer</author>
     /// <author>Marko Lahma (.NET)</author>

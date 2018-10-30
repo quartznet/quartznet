@@ -6,7 +6,8 @@ using Quartz.Logging;
 namespace Quartz.Examples.Example15
 {
     /// <summary>
-    /// This is just a simple job that gets fired off many times by example 15.
+    /// This is just a simple job that gets fired off many times 
+    /// by ConfigureJobSchedulingByUsingXmlConfigurations Example.
     /// </summary>
     /// <author>Bill Kratzer</author>
     /// <author>Marko Lahma (.NET)</author>
