@@ -28,6 +28,8 @@ namespace Quartz.Job
         internal DateTime MaxAgeDate => DateTime.Now - MinUpdateAge;
         private TimeSpan MinUpdateAge { get; set; }
         private JobDataMap JobDetailJobDataMap { get; set; }
+        public string SearchPattern { get; internal set; }
+        public bool IncludeSubDirectories { get; internal set; }
 
         /// <summary>
         /// Creates an instance of DirectoryScanJobModel by inspecting the provided IJobExecutionContext <see cref="IJobExecutionContext"/>
@@ -58,7 +60,11 @@ namespace Quartz.Job
                     : TimeSpan.FromSeconds(5), // default of 5 seconds
                 JobDetailJobDataMap = context.JobDetail.JobDataMap,
                 DirectoriesToScan = GetDirectoriesToScan(schedCtxt, mergedJobDataMap)
-                    .Distinct().ToList()
+                    .Distinct().ToList(),
+                SearchPattern = mergedJobDataMap.ContainsKey(DirectoryScanJob.SearchPattern) ? 
+                    mergedJobDataMap.GetString(DirectoryScanJob.SearchPattern) : "*",
+                IncludeSubDirectories = mergedJobDataMap.ContainsKey(DirectoryScanJob.IncludeSubDirectories) ? 
+                    mergedJobDataMap.GetBooleanValue(DirectoryScanJob.IncludeSubDirectories) : false
             };
 
             return model;
