@@ -91,6 +91,8 @@ You need to now explicitly state whether you want to use binary or json serializ
 * For new projects the JSON serialization is recommended as it should be marginally faster and more robust as it's not dealing with binary versioning issues 
 * Binary is not supported when targeting .NET Core!
 
+If you choose to go with JSON serialization, remember to add NuGet package reference **[Quartz.Serialization.Json](https://www.nuget.org/packages/Quartz.Serialization.Json/)** to your project.
+
 Configuring binary serialization strategy, only works against full .NET Framework 
 
 ```c#
