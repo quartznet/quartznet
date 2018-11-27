@@ -118,6 +118,8 @@ namespace Quartz.Job
                 {
                     model.DirectoryScanListener.FilesDeleted(deletedFiles);
                 }
+
+                //Update current file list
                 model.UpdateFileList(allFiles);
             }
             else if (log.IsDebugEnabled())
