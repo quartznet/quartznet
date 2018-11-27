@@ -17,5 +17,10 @@ namespace Quartz.Job
         /// An array of <see cref="FileInfo"/> objects that were updated/added since the last scan of the directory
         /// </param>
         void FilesUpdatedOrAdded(IReadOnlyCollection<FileInfo> updatedFiles);
+
+        /// <param name="deletedFiles">
+        /// An array of <see cref="FileInfo"/> objects that were deleted since the last scan of the directory
+        /// </param>
+        void FilesDeleted(IReadOnlyCollection<FileInfo> deletedFiles);
     }
 }
