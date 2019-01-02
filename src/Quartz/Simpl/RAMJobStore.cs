@@ -323,8 +323,7 @@ namespace Quartz.Simpl
 
                 if (jobsByKey.Remove(jobKey) || found)
                 {
-                    jobsByGroup.TryGetValue(jobKey.Group, out var grpMap);
-                    if (grpMap != null)
+                    if (jobsByGroup.TryGetValue(jobKey.Group, out var grpMap))
                     {
                         if (grpMap.Remove(jobKey) && grpMap.Count == 0)
                         {
@@ -444,7 +443,7 @@ namespace Quartz.Simpl
             lock (lockObject)
             {
                 TriggerWrapper tw = new TriggerWrapper((IOperableTrigger) newTrigger.Clone());
-                if (triggersByKey.TryGetValue(tw.TriggerKey, out _))
+                if (triggersByKey.ContainsKey(tw.TriggerKey))
                 {
                     if (!replaceExisting)
                     {
@@ -470,9 +469,7 @@ namespace Quartz.Simpl
                 jobList.Add(tw);
 
                 // add to triggers by group
-                triggersByGroup.TryGetValue(newTrigger.Key.Group, out var grpMap);
-
-                if (grpMap == null)
+                if (!triggersByGroup.TryGetValue(newTrigger.Key.Group, out var grpMap))
                 {
                     grpMap = new Dictionary<TriggerKey, TriggerWrapper>();
                     triggersByGroup[newTrigger.Key.Group] = grpMap;
@@ -589,9 +586,7 @@ namespace Quartz.Simpl
                     }
 
                     // remove from triggers by group
-                    triggersByGroup.TryGetValue(triggerKey.Group, out var grpMap);
-
-                    if (grpMap != null)
+                    if (triggersByGroup.TryGetValue(triggerKey.Group, out var grpMap))
                     {
                         if (grpMap.Remove(triggerKey) && grpMap.Count == 0)
                         {
@@ -602,8 +597,7 @@ namespace Quartz.Simpl
                     // remove from triggers by job
                     if (triggersByJob.TryGetValue(tw.JobKey, out var jobList))
                     {
-                        jobList.Remove(tw);
-                        if (jobList.Count == 0)
+                        if (jobList.Remove(tw) && jobList.Count == 0)
                         {
                             triggersByJob.Remove(tw.JobKey);
                         }
