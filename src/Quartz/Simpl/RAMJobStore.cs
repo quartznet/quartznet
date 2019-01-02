@@ -23,7 +23,6 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
-using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -1578,15 +1577,16 @@ namespace Quartz.Simpl
             lock (lockObject)
             {
                 var result = new List<IOperableTrigger>();
-                var acquiredJobKeysForNoConcurrentExec = new HashSet<JobKey>();
-                var excludedTriggers = new HashSet<TriggerWrapper>();
-                DateTimeOffset batchEnd = noLaterThan;
 
                 // return empty list if store has no triggers.
                 if (timeTriggers.Count == 0)
                 {
                     return Task.FromResult<IReadOnlyCollection<IOperableTrigger>>(result);
                 }
+
+                var acquiredJobKeysForNoConcurrentExec = new HashSet<JobKey>();
+                var excludedTriggers = new HashSet<TriggerWrapper>();
+                DateTimeOffset batchEnd = noLaterThan;
 
                 while (true)
                 {
@@ -1623,15 +1623,14 @@ namespace Quartz.Simpl
                     // If trigger's job is set as @DisallowConcurrentExecution, and it has already been added to result, then
                     // put it back into the timeTriggers set and continue to search for next trigger.
                     JobKey jobKey = tw.Trigger.JobKey;
-                    IJobDetail job = jobsByKey[tw.Trigger.JobKey].JobDetail;
+                    IJobDetail job = jobsByKey[jobKey].JobDetail;
                     if (job.ConcurrentExecutionDisallowed)
                     {
-                        if (acquiredJobKeysForNoConcurrentExec.Contains(jobKey))
+                        if (!acquiredJobKeysForNoConcurrentExec.Add(jobKey))
                         {
                             excludedTriggers.Add(tw);
                             continue; // go to next trigger in store.
                         }
-                        acquiredJobKeysForNoConcurrentExec.Add(jobKey);
                     }
 
                     tw.state = InternalTriggerState.Acquired;
