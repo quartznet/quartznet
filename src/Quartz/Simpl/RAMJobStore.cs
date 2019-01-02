@@ -52,12 +52,12 @@ namespace Quartz.Simpl
     {
         private readonly object lockObject = new object();
 
-        private readonly ConcurrentDictionary<JobKey, JobWrapper> jobsByKey = new ConcurrentDictionary<JobKey, JobWrapper>();
+        private readonly Dictionary<JobKey, JobWrapper> jobsByKey = new Dictionary<JobKey, JobWrapper>();
         private readonly ConcurrentDictionary<TriggerKey, TriggerWrapper> triggersByKey = new ConcurrentDictionary<TriggerKey, TriggerWrapper>();
-        private readonly ConcurrentDictionary<string, ConcurrentDictionary<JobKey, JobWrapper>> jobsByGroup = new ConcurrentDictionary<string, ConcurrentDictionary<JobKey, JobWrapper>>();
-        private readonly ConcurrentDictionary<string, ConcurrentDictionary<TriggerKey, TriggerWrapper>> triggersByGroup = new ConcurrentDictionary<string, ConcurrentDictionary<TriggerKey, TriggerWrapper>>();
+        private readonly Dictionary<string, Dictionary<JobKey, JobWrapper>> jobsByGroup = new Dictionary<string, Dictionary<JobKey, JobWrapper>>();
+        private readonly Dictionary<string, Dictionary<TriggerKey, TriggerWrapper>> triggersByGroup = new Dictionary<string, Dictionary<TriggerKey, TriggerWrapper>>();
         private readonly SortedSet<TriggerWrapper> timeTriggers = new SortedSet<TriggerWrapper>(new TriggerWrapperComparator());
-        private readonly ConcurrentDictionary<string, ICalendar> calendarsByName = new ConcurrentDictionary<string, ICalendar>();
+        private readonly Dictionary<string, ICalendar> calendarsByName = new Dictionary<string, ICalendar>();
         private readonly Dictionary<JobKey, List<TriggerWrapper>> triggersByJob = new Dictionary<JobKey, List<TriggerWrapper>>(1000);
         private readonly HashSet<string> pausedTriggerGroups = new HashSet<string>();
         private readonly HashSet<string> pausedJobGroups = new HashSet<string>();
@@ -279,7 +279,7 @@ namespace Quartz.Simpl
                     // get job group
                     if (!jobsByGroup.TryGetValue(newJob.Key.Group, out var grpMap))
                     {
-                        grpMap = new ConcurrentDictionary<JobKey, JobWrapper>();
+                        grpMap = new Dictionary<JobKey, JobWrapper>();
                         jobsByGroup[newJob.Key.Group] = grpMap;
                     }
 
@@ -321,17 +321,14 @@ namespace Quartz.Simpl
                     found = true;
                 }
 
-                jobsByKey.TryRemove(jobKey, out var tempObject);
-                found = tempObject != null || found;
-                if (found)
+                if (jobsByKey.Remove(jobKey) || found)
                 {
                     jobsByGroup.TryGetValue(jobKey.Group, out var grpMap);
                     if (grpMap != null)
                     {
-                        grpMap.TryRemove(jobKey, out tempObject);
-                        if (grpMap.Count == 0)
+                        if (grpMap.Remove(jobKey) && grpMap.Count == 0)
                         {
-                            jobsByGroup.TryRemove(jobKey.Group, out _);
+                            jobsByGroup.Remove(jobKey.Group);
                         }
                     }
                 }
@@ -477,7 +474,7 @@ namespace Quartz.Simpl
 
                 if (grpMap == null)
                 {
-                    grpMap = new ConcurrentDictionary<TriggerKey, TriggerWrapper>();
+                    grpMap = new Dictionary<TriggerKey, TriggerWrapper>();
                     triggersByGroup[newTrigger.Key.Group] = grpMap;
                 }
                 grpMap[newTrigger.Key] = tw;
@@ -532,17 +529,15 @@ namespace Quartz.Simpl
                     // remove from triggers by group
                     if (triggersByGroup.TryGetValue(key.Group, out var grpMap))
                     {
-                        grpMap.TryRemove(key, out tw);
-                        if (grpMap.Count == 0)
+                        if (grpMap.Remove(key) && grpMap.Count == 0)
                         {
-                            triggersByGroup.TryRemove(key.Group, out _);
+                            triggersByGroup.Remove(key.Group);
                         }
                     }
                     //remove from triggers by job
                     if (triggersByJob.TryGetValue(tw.JobKey, out var jobList))
                     {
-                        jobList.Remove(tw);
-                        if (jobList.Count == 0)
+                        if (jobList.Remove(tw) && jobList.Count == 0)
                         {
                             triggersByJob.Remove(tw.JobKey);
                         }
@@ -598,10 +593,9 @@ namespace Quartz.Simpl
 
                     if (grpMap != null)
                     {
-                        grpMap.TryRemove(triggerKey, out _);
-                        if (grpMap.Count == 0)
+                        if (grpMap.Remove(triggerKey) && grpMap.Count == 0)
                         {
-                            triggersByGroup.TryRemove(triggerKey.Group, out grpMap);
+                            triggersByGroup.Remove(triggerKey.Group);
                         }
                     }
 
@@ -785,7 +779,7 @@ namespace Quartz.Simpl
                 }
                 if (obj != null)
                 {
-                    calendarsByName.TryRemove(name, out _);
+                    calendarsByName.Remove(name);
                 }
 
                 calendarsByName[name] = calendar;
@@ -850,7 +844,7 @@ namespace Quartz.Simpl
                     throw new JobPersistenceException("Calender cannot be removed if it referenced by a Trigger!");
                 }
 
-                return calendarsByName.TryRemove(calName, out _);
+                return calendarsByName.Remove(calName);
             }
         }
 
@@ -938,7 +932,7 @@ namespace Quartz.Simpl
                 }
                 else
                 {
-                    foreach (KeyValuePair<string, ConcurrentDictionary<JobKey, JobWrapper>> entry in jobsByGroup)
+                    foreach (KeyValuePair<string, Dictionary<JobKey, JobWrapper>> entry in jobsByGroup)
                     {
                         if (op.Evaluate(entry.Key, compareToValue) && entry.Value != null)
                         {
@@ -1011,7 +1005,7 @@ namespace Quartz.Simpl
                 }
                 else
                 {
-                    foreach (KeyValuePair<string, ConcurrentDictionary<TriggerKey, TriggerWrapper>> entry in triggersByGroup)
+                    foreach (KeyValuePair<string, Dictionary<TriggerKey, TriggerWrapper>> entry in triggersByGroup)
                     {
                         if (op.Evaluate(entry.Key, compareToValue) && entry.Value != null)
                         {
