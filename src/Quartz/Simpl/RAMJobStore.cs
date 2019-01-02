@@ -264,20 +264,17 @@ namespace Quartz.Simpl
         {
             lock (lockObject)
             {
-                JobWrapper jw = new JobWrapper(newJob.Clone());
-
-                bool repl = false;
-
-                if (jobsByKey.ContainsKey(jw.Key))
+                if (jobsByKey.TryGetValue(newJob.Key, out var originalJob))
                 {
                     if (!replaceExisting)
                     {
                         throw new ObjectAlreadyExistsException(newJob);
                     }
-                    repl = true;
-                }
 
-                if (!repl)
+                    // update job detail
+                    originalJob.JobDetail = newJob.Clone();
+                }
+                else
                 {
                     // get job group
                     if (!jobsByGroup.TryGetValue(newJob.Key.Group, out var grpMap))
@@ -285,16 +282,13 @@ namespace Quartz.Simpl
                         grpMap = new ConcurrentDictionary<JobKey, JobWrapper>();
                         jobsByGroup[newJob.Key.Group] = grpMap;
                     }
+
+                    JobWrapper jw = new JobWrapper(newJob.Clone());
+
                     // add to jobs by group
                     grpMap[newJob.Key] = jw;
                     // add to jobs by FQN map
-                    jobsByKey[jw.Key] = jw;
-                }
-                else
-                {
-                    // update job detail
-                    JobWrapper orig = jobsByKey[jw.Key];
-                    orig.JobDetail = jw.JobDetail;
+                    jobsByKey[newJob.Key] = jw;
                 }
             }
         }
