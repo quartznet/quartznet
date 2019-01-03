@@ -83,7 +83,7 @@ namespace Quartz.Impl
         private TimeSpan? jobRunTime;
 
         [NonSerialized]
-        private readonly IDictionary<object, object> data = new Dictionary<object, object>();
+        private readonly Dictionary<object, object> data = new Dictionary<object, object>();
         [NonSerialized]
         private readonly CancellationTokenSource cancellationTokenSource;
         [NonSerialized]
