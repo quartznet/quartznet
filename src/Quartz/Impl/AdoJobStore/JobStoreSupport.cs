@@ -719,7 +719,7 @@ namespace Quartz.Impl.AdoJobStore
             // triggers right away.
             int maxMisfiresToHandleAtATime = recovering ? -1 : MaxMisfiresToHandleAtATime;
 
-            IList<TriggerKey> misfiredTriggers = new List<TriggerKey>();
+            List<TriggerKey> misfiredTriggers = new List<TriggerKey>();
             DateTimeOffset earliestNewTime = DateTimeOffset.MaxValue;
 
             // We must still look for the MISFIRED state in case triggers were left

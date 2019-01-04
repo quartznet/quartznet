@@ -48,7 +48,7 @@ namespace Quartz.Impl.AdoJobStore.Common
 
         private readonly MethodInfo commandBindByNamePropertySetter;
 
-        private static readonly IList<DbMetadataFactory> dbMetadataFactories;
+        private static readonly List<DbMetadataFactory> dbMetadataFactories;
         private static readonly Dictionary<string, DbMetadata> dbMetadataLookup = new Dictionary<string, DbMetadata>();
 
         /// <summary>

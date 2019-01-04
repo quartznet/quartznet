@@ -63,7 +63,7 @@ namespace Quartz.Core
 
             lock (globalJobListeners)
             {
-                IList<IMatcher<JobKey>> matchers = globalJobListenersMatchers.TryGetAndReturn(listenerName);
+                List<IMatcher<JobKey>> matchers = globalJobListenersMatchers.TryGetAndReturn(listenerName);
                 if (matchers == null)
                 {
                     return false;
@@ -82,7 +82,7 @@ namespace Quartz.Core
 
             lock (globalJobListeners)
             {
-                IList<IMatcher<JobKey>> matchers = globalJobListenersMatchers.TryGetAndReturn(listenerName);
+                List<IMatcher<JobKey>> matchers = globalJobListenersMatchers.TryGetAndReturn(listenerName);
                 if (matchers == null)
                 {
                     return false;
@@ -207,7 +207,7 @@ namespace Quartz.Core
 
             lock (globalTriggerListeners)
             {
-                IList<IMatcher<TriggerKey>> matchers = globalTriggerListenersMatchers.TryGetAndReturn(listenerName);
+                List<IMatcher<TriggerKey>> matchers = globalTriggerListenersMatchers.TryGetAndReturn(listenerName);
                 if (matchers == null)
                 {
                     return false;
@@ -226,7 +226,7 @@ namespace Quartz.Core
 
             lock (globalTriggerListeners)
             {
-                IList<IMatcher<TriggerKey>> matchers = globalTriggerListenersMatchers.TryGetAndReturn(listenerName);
+                List<IMatcher<TriggerKey>> matchers = globalTriggerListenersMatchers.TryGetAndReturn(listenerName);
                 if (matchers == null)
                 {
                     return false;
@@ -253,7 +253,7 @@ namespace Quartz.Core
 
             lock (globalTriggerListeners)
             {
-                IList<IMatcher<TriggerKey>> oldMatchers = globalTriggerListenersMatchers.TryGetAndReturn(listenerName);
+                List<IMatcher<TriggerKey>> oldMatchers = globalTriggerListenersMatchers.TryGetAndReturn(listenerName);
                 if (oldMatchers == null)
                 {
                     return false;
