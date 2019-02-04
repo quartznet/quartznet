@@ -2120,7 +2120,7 @@ namespace Quartz
         public virtual DateTimeOffset? GetTimeBefore(DateTimeOffset? endTime)
         {
             // TODO: implement
-            return null;
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -2131,7 +2131,7 @@ namespace Quartz
         public virtual DateTimeOffset? GetFinalFireTime()
         {
             // TODO: implement QUARTZ-423
-            return null;
+            throw new NotImplementedException();
         }
 
         /// <summary>
