@@ -1,29 +1,27 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
-using System.Security;
 
 using Quartz.Util;
 
@@ -40,10 +38,7 @@ namespace Quartz.Impl.Calendar
     [Serializable]
     public class AnnualCalendar : BaseCalendar
     {
-        private List<DateTimeOffset> excludeDays = new List<DateTimeOffset>();
-
-        // true, if excludeDays is sorted
-        private bool dataSorted;
+        private SortedSet<DateTime> excludeDays = new SortedSet<DateTime>();
 
         // year to use as fixed year
         private const int FixedYear = 2000;
@@ -84,8 +79,8 @@ namespace Quartz.Impl.Calendar
             {
                 case 0:
                     // 1.x
-                    object o = info.GetValue("excludeDays", typeof (object));
-                    ArrayList oldFormat = o as ArrayList;
+                    object o = info.GetValue("excludeDays", typeof(object));
+                    var oldFormat = o as System.Collections.ArrayList;
                     if (oldFormat != null)
                     {
                         foreach (DateTime dateTime in oldFormat)
@@ -96,46 +91,45 @@ namespace Quartz.Impl.Calendar
                     else
                     {
                         // must be new..
-                        excludeDays = (List<DateTimeOffset>) o;
+                        excludeDays = new SortedSet<DateTime>();
+                        foreach (var offset in (List<DateTimeOffset>) o)
+                        {
+                            excludeDays.Add(offset.Date);
+                        }
                     }
                     break;
                 case 1:
-                    excludeDays = (List<DateTimeOffset>) info.GetValue("excludeDays", typeof (List<DateTimeOffset>));
+                    var dateTimeOffsets = (List<DateTimeOffset>) info.GetValue("excludeDays", typeof(List<DateTimeOffset>));
+                    excludeDays = new SortedSet<DateTime>();
+                    foreach (var offset in dateTimeOffsets)
+                    {
+                        excludeDays.Add(offset.Date);
+                    }
+                    break;
+                case 2:
+                    excludeDays = (SortedSet<DateTime>) info.GetValue("excludeDays", typeof(SortedSet<DateTime>));
                     break;
                 default:
                     throw new NotSupportedException("Unknown serialization version");
             }
         }
 
-        [SecurityCritical]
+        [System.Security.SecurityCritical]
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
-            info.AddValue("version", 1);
+
+            info.AddValue("version", 2);
             info.AddValue("excludeDays", excludeDays);
         }
 
-        /// <summary> 
-        /// Get or the array which defines the exclude-value of each day of month.
-        /// Setting will redefine the array of days excluded. The array must of size greater or
-        /// equal 31.
+        /// <summary>
+        /// Gets or sets the days to be excluded by this calendar.
         /// </summary>
-        public virtual IList<DateTimeOffset> DaysExcluded
+        public virtual IReadOnlyCollection<DateTime> DaysExcluded
         {
-            get { return excludeDays; }
-
-            set
-            {
-                if (value == null)
-                {
-                    excludeDays = new List<DateTimeOffset>();
-                }
-                else
-                {
-                    excludeDays = new List<DateTimeOffset>(value);
-                }
-                dataSorted = false;
-            }
+            get => new ReadOnlyCompatibleHashSet<DateTime>(excludeDays);
+            set => excludeDays = value == null ? new SortedSet<DateTime>() : new SortedSet<DateTime>(value);
         }
 
         /// <summary>
@@ -157,13 +151,7 @@ namespace Quartz.Impl.Calendar
             int dmonth = day.Month;
             int dday = day.Day;
 
-            if (!dataSorted)
-            {
-                excludeDays.Sort();
-                dataSorted = true;
-            }
-
-            foreach (DateTimeOffset cl in excludeDays)
+            foreach (DateTime cl in excludeDays)
             {
                 // remember, the list is sorted
                 if (dmonth < cl.Month)
@@ -191,9 +179,9 @@ namespace Quartz.Impl.Calendar
         /// <summary>
         /// Redefine a certain day to be excluded (true) or included (false).
         /// </summary>
-        public virtual void SetDayExcluded(DateTimeOffset day, bool exclude)
+        public virtual void SetDayExcluded(DateTime day, bool exclude)
         {
-            DateTimeOffset d = new DateTimeOffset(FixedYear, day.Month, day.Day, 0, 0, 0, TimeSpan.Zero);
+            DateTime d = new DateTime(FixedYear, day.Month, day.Day, 0, 0, 0);
 
             if (exclude)
             {
@@ -210,7 +198,6 @@ namespace Quartz.Impl.Calendar
                     excludeDays.Remove(d);
                 }
             }
-            dataSorted = false;
         }
 
         /// <summary>
@@ -232,7 +219,7 @@ namespace Quartz.Impl.Calendar
             //apply the timezone
             dateUtc = TimeZoneUtil.ConvertTime(dateUtc, TimeZone);
 
-            return !(IsDayExcluded(dateUtc));
+            return !IsDayExcluded(dateUtc);
         }
 
         /// <summary>
@@ -247,7 +234,7 @@ namespace Quartz.Impl.Calendar
         {
             // Call base calendar implementation first
             DateTimeOffset baseTime = base.GetNextIncludedTimeUtc(timeStampUtc);
-            if ((baseTime != DateTimeOffset.MinValue) && (baseTime > timeStampUtc))
+            if (baseTime != DateTimeOffset.MinValue && baseTime > timeStampUtc)
             {
                 timeStampUtc = baseTime;
             }
@@ -275,12 +262,12 @@ namespace Quartz.Impl.Calendar
         public override int GetHashCode()
         {
             int baseHash = 13;
-            if (GetBaseCalendar() != null)
+            if (CalendarBase != null)
             {
-                baseHash = GetBaseCalendar().GetHashCode();
+                baseHash = CalendarBase.GetHashCode();
             }
 
-            return excludeDays.GetHashCode() + 5*baseHash;
+            return excludeDays.GetHashCode() + 5 * baseHash;
         }
 
         public bool Equals(AnnualCalendar obj)
@@ -290,14 +277,14 @@ namespace Quartz.Impl.Calendar
                 return false;
             }
 
-            bool toReturn = GetBaseCalendar() == null || GetBaseCalendar().Equals(obj.GetBaseCalendar());
+            bool toReturn = CalendarBase == null || CalendarBase.Equals(obj.CalendarBase);
 
-            toReturn = toReturn && (DaysExcluded.Count == obj.DaysExcluded.Count);
+            toReturn = toReturn && DaysExcluded.Count == obj.DaysExcluded.Count;
             if (toReturn)
             {
-                foreach (DateTimeOffset date in DaysExcluded)
+                foreach (DateTime date in DaysExcluded)
                 {
-                    toReturn = toReturn && obj.DaysExcluded.Contains(date);
+                    toReturn = toReturn && obj.excludeDays.Contains(date);
                 }
             }
             return toReturn;
@@ -313,11 +300,12 @@ namespace Quartz.Impl.Calendar
             return Equals((AnnualCalendar) obj);
         }
 
-        public override object Clone()
+        public override ICalendar Clone()
         {
-            AnnualCalendar copy = (AnnualCalendar) base.Clone();
-            copy.excludeDays = new List<DateTimeOffset>(excludeDays);
-            return copy;
+            var clone = new AnnualCalendar();
+            CloneFields(clone);
+            clone.excludeDays = new SortedSet<DateTime>(excludeDays);
+            return clone;
         }
     }
 }

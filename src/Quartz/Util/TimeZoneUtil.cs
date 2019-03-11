@@ -1,13 +1,14 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 
-using Common.Logging;
+using Quartz.Logging;
 
 namespace Quartz.Util
 {
     public static class TimeZoneUtil
     {
-        private static readonly ILog logger = LogManager.GetLogger(typeof (TimeZoneUtil));
+        private static readonly ILog logger = LogProvider.GetLogger(typeof (TimeZoneUtil));
         private static readonly Dictionary<string, string> timeZoneIdAliases = new Dictionary<string, string>();
 
         static TimeZoneUtil()
@@ -43,7 +44,16 @@ namespace Quartz.Util
 
             timeZoneIdAliases["Hawaiian Standard Time"] = "US/Hawaii";
             timeZoneIdAliases["US/Hawaii"] = "Hawaiian Standard Time";
+
+            timeZoneIdAliases["China Standard Time"] = "Asia/Beijing";
+            timeZoneIdAliases["Asia/Shanghai"] = "China Standard Time";
+            timeZoneIdAliases["Asia/Beijing"] = "China Standard Time";
+
+            timeZoneIdAliases["Pakistan Standard Time"] = "Asia/Karachi";
+            timeZoneIdAliases["Asia/Karachi"] = "Pakistan Standard Time";
         }
+
+        public static Func<string, TimeZoneInfo> CustomResolver = id => null;
 
         /// <summary>
         /// TimeZoneInfo.ConvertTime is not supported under mono
@@ -55,7 +65,7 @@ namespace Quartz.Util
         {
             if (QuartzEnvironment.IsRunningOnMono)
             {
-                return TimeZoneInfo.ConvertTimeFromUtc(dateTimeOffset.UtcDateTime, timeZoneInfo);
+                return TimeZoneInfo.ConvertTime(dateTimeOffset.UtcDateTime, TimeZoneInfo.Utc, timeZoneInfo);
             }
 
             return TimeZoneInfo.ConvertTime(dateTimeOffset, timeZoneInfo);
@@ -77,6 +87,19 @@ namespace Quartz.Util
             return timeZoneInfo.GetUtcOffset(dateTimeOffset);
         }
 
+        public static TimeSpan GetUtcOffset(DateTime dateTime, TimeZoneInfo timeZoneInfo)
+        {
+            // Unlike the default behavior of TimeZoneInfo.GetUtcOffset, it is prefered to choose
+            // the DAYLIGHT time when the input is ambiguous, because the daylight instance is the
+            // FIRST instance, and time moves in a forward direction.
+
+            TimeSpan offset = timeZoneInfo.IsAmbiguousTime(dateTime)
+                ? timeZoneInfo.GetAmbiguousTimeOffsets(dateTime).Max()
+                : timeZoneInfo.GetUtcOffset(dateTime);
+
+            return offset;
+        }
+
         /// <summary>
         /// Tries to find time zone with given id, has ability do some fallbacks when necessary.
         /// </summary>
@@ -89,10 +112,9 @@ namespace Quartz.Util
             {
                 info = TimeZoneInfo.FindSystemTimeZoneById(id);
             }
-            catch (TimeZoneNotFoundException)
+            catch (TimeZoneNotFoundException ex)
             {
-                string aliasedId;
-                if (timeZoneIdAliases.TryGetValue(id, out aliasedId))
+                if (timeZoneIdAliases.TryGetValue(id, out var aliasedId))
                 {
                     try
                     {
@@ -106,8 +128,15 @@ namespace Quartz.Util
 
                 if (info == null)
                 {
+                    info = CustomResolver(id);
+                }
+
+                if (info == null)
+                {
                     // we tried our best
-                    throw;
+                    throw new TimeZoneNotFoundException(
+                        $"Could not find time zone with id {id}, consider using Quartz.Plugins.TimeZoneConverter for resolving more time zones ids",
+                        ex);
                 }
             }
 

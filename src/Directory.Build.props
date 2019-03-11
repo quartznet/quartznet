@@ -1,0 +1,68 @@
+<Project>
+
+  <PropertyGroup>
+
+    <OutputPath>..\..\build\$(Configuration)\$(MSBuildProjectName)</OutputPath>
+
+	<Title>Quartz.NET</Title>
+    <Product>Quartz.NET</Product>
+    <Description>Quartz Scheduling Framework for .NET</Description>
+    <Copyright>Copyright Marko Lahma</Copyright>
+    <NeutralLanguage>en-US</NeutralLanguage>
+
+    <Authors>Marko Lahma</Authors>
+    <WarningsAsErrors>True</WarningsAsErrors>
+
+    <AssemblyOriginatorKeyFile>../../quartz.net.snk</AssemblyOriginatorKeyFile>
+    <SignAssembly>True</SignAssembly>
+    <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
+
+    <PackageTags>scheduling;tasks;jobs;triggers;scheduler;threading</PackageTags>
+    <PackageProjectUrl>https://www.quartz-scheduler.net/</PackageProjectUrl>
+    <PackageLicenseUrl>http://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
+    <PackageReleaseNotes>https://github.com/quartznet/quartznet/releases</PackageReleaseNotes>
+
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+
+    <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+
+    <VersionPrefix>3.0.8</VersionPrefix>
+    <VersionSuffix Condition="'$(VersionSuffix)'!='' AND '$(BuildNumber)' != ''">$(VersionSuffix)-$(BuildNumber)</VersionSuffix>
+
+    <CLSCompliant>True</CLSCompliant>
+    <ComVisible>False</ComVisible>
+    <NoWarn>1701;1702;1705;618;1591</NoWarn>
+    <DebugSymbols>True</DebugSymbols>
+    <PlatformTarget>AnyCPU</PlatformTarget>
+    <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
+
+    <LangVersion>latest</LangVersion>
+    <TargetFullFrameworkVersion>net452</TargetFullFrameworkVersion>
+
+    <IsTestProject>$(MSBuildProjectName.Contains('Tests'))</IsTestProject>
+
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IsTestProject)' != 'true' and '$(SourceLinkEnabled)' != 'false'">
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0-beta-63127-02" PrivateAssets="All"/>
+  </ItemGroup>
+
+  <PropertyGroup Condition=" '$(TargetFramework)' == '$(TargetFullFrameworkVersion)' ">
+    <DefineConstants>$(DefineConstants);REMOTING</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'netcoreapp2.0' ">
+    <DefineConstants>$(DefineConstants);APPCONTEXT;NETSTANDARD_DBPROVIDERS</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DefineConstants>DEBUG;TRACE;$(DefineConstants)</DefineConstants>
+  </PropertyGroup>
+
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <Optimize>true</Optimize>
+    <DefineConstants>TRACE;$(DefineConstants)</DefineConstants>
+  </PropertyGroup>
+
+</Project>

@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -53,7 +53,7 @@ namespace Quartz.Simpl
 
         void Clear();
 
-        IList<IJobExecutionContext> CurrentlyExecutingJobs { get; }
+        IReadOnlyCollection<IJobExecutionContext> CurrentlyExecutingJobs { get; }
 
         /// <summary>
         /// Starts this instance.
@@ -88,22 +88,18 @@ namespace Quartz.Simpl
 
         void AddJob(IJobDetail jobDetail, bool replace);
 
-        void AddJob(IJobDetail jobDetail, bool replace, bool storeNonDurableWhileAwaitingScheduling);
+        void AddJob(IJobDetail jobDetail, bool replace,bool storeNonDurableWhileAwaitingScheduling);
 
         /// <summary>
         /// returns true if the given JobGroup
         /// is paused
         /// </summary>
-        /// <param name="groupName"></param>
-        /// <returns></returns>
         bool IsJobGroupPaused(string groupName);
 
         /// <summary>
         /// returns true if the given TriggerGroup
         /// is paused
         /// </summary>
-        /// <param name="groupName"></param>
-        /// <returns></returns>
         bool IsTriggerGroupPaused(string groupName);
 
         bool DeleteJob(JobKey jobKey);
@@ -128,7 +124,7 @@ namespace Quartz.Simpl
 
         void ResumeTriggers(GroupMatcher<TriggerKey> matcher);
 
-        Collection.ISet<string> GetPausedTriggerGroups();
+        IReadOnlyCollection<string> GetPausedTriggerGroups();
 
         void ResumeJob(JobKey jobKey);
 
@@ -138,15 +134,15 @@ namespace Quartz.Simpl
 
         void ResumeAll();
 
-        IList<string> GetJobGroupNames();
+        IReadOnlyCollection<string> GetJobGroupNames();
 
-        Collection.ISet<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher);
+        IReadOnlyCollection<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher);
 
-        IList<ITrigger> GetTriggersOfJob(JobKey jobKey);
+        IReadOnlyCollection<ITrigger> GetTriggersOfJob(JobKey jobKey);
 
-        IList<string> GetTriggerGroupNames();
+        IReadOnlyCollection<string> GetTriggerGroupNames();
 
-        Collection.ISet<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher);
+        IReadOnlyCollection<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher);
 
         IJobDetail GetJobDetail(JobKey jobKey);
 
@@ -160,7 +156,7 @@ namespace Quartz.Simpl
 
         ICalendar GetCalendar(string calName);
 
-        IList<string> GetCalendarNames();
+        IReadOnlyCollection<string> GetCalendarNames();
 
         bool Interrupt(JobKey jobKey);
 
@@ -170,12 +166,12 @@ namespace Quartz.Simpl
 
         bool CheckExists(TriggerKey triggerKey);
 
-        bool DeleteJobs(IList<JobKey> jobKeys);
+        bool DeleteJobs(IReadOnlyCollection<JobKey> jobKeys);
 
-        void ScheduleJobs(IDictionary<IJobDetail, Collection.ISet<ITrigger>> triggersAndJobs, bool replace);
-        
-        void ScheduleJob(IJobDetail jobDetail, Collection.ISet<ITrigger> triggersForJob, bool replace);
+        void ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace);
 
-        bool UnscheduleJobs(IList<TriggerKey> triggerKeys);
+        void ScheduleJob(IJobDetail jobDetail, IReadOnlyCollection<ITrigger> triggersForJob, bool replace);
+
+        bool UnscheduleJobs(IReadOnlyCollection<TriggerKey> triggerKeys);
     }
 }

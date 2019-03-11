@@ -1,6 +1,6 @@
 #region License
 /* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -54,7 +54,7 @@ namespace Quartz
     /// <author>James House</author>
     /// <author>Sharada Jambula</author>
     /// <author>Marko Lahma (.NET)</author>
-    public interface ITrigger : ICloneable, IComparable<ITrigger>
+    public interface ITrigger : IComparable<ITrigger>
     {
         TriggerKey Key { get; }
 
@@ -195,5 +195,6 @@ namespace Quartz
 
         bool HasMillisecondPrecision { get; }
 
+        ITrigger Clone();
     }
 }

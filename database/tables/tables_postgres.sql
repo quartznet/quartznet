@@ -13,7 +13,7 @@ DROP TABLE IF EXISTS qrtz_calendars;
 
 CREATE TABLE qrtz_job_details
   (
-    sched_name VARCHAR(100) NOT NULL,
+    sched_name VARCHAR(120) NOT NULL,
 	job_name  VARCHAR(200) NOT NULL,
     job_group VARCHAR(200) NOT NULL,
     description VARCHAR(250) NULL,
@@ -28,7 +28,7 @@ CREATE TABLE qrtz_job_details
 
 CREATE TABLE qrtz_triggers
   (
-    sched_name VARCHAR(100) NOT NULL,
+    sched_name VARCHAR(120) NOT NULL,
 	trigger_name VARCHAR(150) NOT NULL,
     trigger_group VARCHAR(150) NOT NULL,
     job_name  VARCHAR(200) NOT NULL, 
@@ -51,7 +51,7 @@ CREATE TABLE qrtz_triggers
 
 CREATE TABLE qrtz_simple_triggers
   (
-    sched_name VARCHAR(100) NOT NULL,
+    sched_name VARCHAR(120) NOT NULL,
 	trigger_name VARCHAR(150) NOT NULL,
     trigger_group VARCHAR(150) NOT NULL,
     repeat_count BIGINT NOT NULL,
@@ -64,7 +64,7 @@ CREATE TABLE qrtz_simple_triggers
 
 CREATE TABLE QRTZ_SIMPROP_TRIGGERS 
   (
-    sched_name VARCHAR (100) NOT NULL,
+    sched_name VARCHAR (120) NOT NULL,
     trigger_name VARCHAR (150) NOT NULL ,
     trigger_group VARCHAR (150) NOT NULL ,
     str_prop_1 VARCHAR (512) NULL,
@@ -78,6 +78,7 @@ CREATE TABLE QRTZ_SIMPROP_TRIGGERS
     dec_prop_2 NUMERIC NULL,
     bool_prop_1 BOOL NULL,
     bool_prop_2 BOOL NULL,
+	time_zone_id VARCHAR(80) NULL,
 	PRIMARY KEY (sched_name,trigger_name,trigger_group),
     FOREIGN KEY (sched_name,trigger_name,trigger_group) 
 		REFERENCES qrtz_triggers(sched_name,trigger_name,trigger_group) ON DELETE CASCADE
@@ -85,7 +86,7 @@ CREATE TABLE QRTZ_SIMPROP_TRIGGERS
 
 CREATE TABLE qrtz_cron_triggers
   (
-    sched_name VARCHAR (100) NOT NULL,
+    sched_name VARCHAR (120) NOT NULL,
     trigger_name VARCHAR(150) NOT NULL,
     trigger_group VARCHAR(150) NOT NULL,
     cron_expression VARCHAR(250) NOT NULL,
@@ -97,7 +98,7 @@ CREATE TABLE qrtz_cron_triggers
 
 CREATE TABLE qrtz_blob_triggers
   (
-    sched_name VARCHAR (100) NOT NULL,
+    sched_name VARCHAR (120) NOT NULL,
     trigger_name VARCHAR(150) NOT NULL,
     trigger_group VARCHAR(150) NOT NULL,
     blob_data BYTEA NULL,
@@ -108,7 +109,7 @@ CREATE TABLE qrtz_blob_triggers
 
 CREATE TABLE qrtz_calendars
   (
-    sched_name VARCHAR (100) NOT NULL,
+    sched_name VARCHAR (120) NOT NULL,
     calendar_name  VARCHAR(200) NOT NULL, 
     calendar BYTEA NOT NULL,
     PRIMARY KEY (sched_name,calendar_name)
@@ -116,15 +117,15 @@ CREATE TABLE qrtz_calendars
 
 CREATE TABLE qrtz_paused_trigger_grps
   (
-    sched_name VARCHAR (100) NOT NULL,
+    sched_name VARCHAR (120) NOT NULL,
     trigger_group VARCHAR(150) NOT NULL, 
     PRIMARY KEY (sched_name,trigger_group)
 );
 
 CREATE TABLE qrtz_fired_triggers 
   (
-    sched_name VARCHAR (100) NOT NULL,
-    entry_id VARCHAR(95) NOT NULL,
+    sched_name VARCHAR (120) NOT NULL,
+    entry_id VARCHAR(140) NOT NULL,
     trigger_name VARCHAR(150) NOT NULL,
     trigger_group VARCHAR(150) NOT NULL,
     instance_name VARCHAR(200) NOT NULL,
@@ -141,7 +142,7 @@ CREATE TABLE qrtz_fired_triggers
 
 CREATE TABLE qrtz_scheduler_state 
   (
-    sched_name VARCHAR (100) NOT NULL,
+    sched_name VARCHAR (120) NOT NULL,
     instance_name VARCHAR(200) NOT NULL,
     last_checkin_time BIGINT NOT NULL,
     checkin_interval BIGINT NOT NULL,
@@ -150,7 +151,7 @@ CREATE TABLE qrtz_scheduler_state
 
 CREATE TABLE qrtz_locks
   (
-    sched_name VARCHAR (100) NOT NULL,
+    sched_name VARCHAR (120) NOT NULL,
     lock_name  VARCHAR(40) NOT NULL, 
     PRIMARY KEY (sched_name,lock_name)
 );

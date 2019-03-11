@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
 namespace Quartz.Impl.AdoJobStore.Common
 {
@@ -12,7 +11,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// Gets the supported provider names.
         /// </summary>
         /// <returns>The enumeration of the supported provider names</returns>
-        public abstract IEnumerable<string> GetProviderNames();
+        public abstract IReadOnlyCollection<string> GetProviderNames();
 
         /// <summary>
         /// Gets the database metadata associated to the specified provider name.

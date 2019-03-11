@@ -1,5 +1,6 @@
-using System.IO;
-using System.Runtime.Serialization.Formatters.Binary;
+using System;
+using System.Collections.Concurrent;
+using System.Reflection;
 
 namespace Quartz.Util
 {
@@ -8,24 +9,9 @@ namespace Quartz.Util
     /// </summary>
     public static class ObjectExtensions
     {
-        /// <summary>
-        /// Creates a deep copy of object by serializing to memory stream.
-        /// </summary>
-        /// <param name="obj"></param>
-        public static T DeepClone<T>(this T obj) where T : class 
-        {
-            if (obj == null)
-            {
-                return null;
-            }
+        private static readonly ConcurrentDictionary<Type, string> assemblyQualifiedNameCache = new ConcurrentDictionary<Type, string>();
 
-            BinaryFormatter bf = new BinaryFormatter();
-            using (MemoryStream ms = new MemoryStream())
-            {
-                bf.Serialize(ms, obj);
-                ms.Seek(0, SeekOrigin.Begin);
-                return (T) bf.Deserialize(ms);
-            }
-        }
+        public static string AssemblyQualifiedNameWithoutVersion(this Type type)
+            => assemblyQualifiedNameCache.GetOrAdd(type, x => x.FullName + ", " + x.GetTypeInfo().Assembly.GetName().Name);
     }
 }

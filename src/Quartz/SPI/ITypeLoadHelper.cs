@@ -1,6 +1,6 @@
 #region License
 /* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -18,7 +18,6 @@
 #endregion
 
 using System;
-using System.IO;
 
 namespace Quartz.Spi
 {
@@ -31,9 +30,7 @@ namespace Quartz.Spi
     public interface ITypeLoadHelper
 	{
 		/// <summary> 
-		/// Called to give the ClassLoadHelper a chance to Initialize itself,
-		/// including the opportunity to "steal" the class loader off of the calling
-		/// thread, which is the thread that is initializing Quartz.
+		/// Called to give the implementation a chance to initialize itself.
 		/// </summary>
 		void Initialize();
 
@@ -41,25 +38,5 @@ namespace Quartz.Spi
 		/// Return the class with the given name.
 		/// </summary>
 		Type LoadType(string name);
-
-		/// <summary> 
-		/// Finds a resource with a given name. This method returns null if no
-		/// resource with this name is found.
-		/// </summary>
-		/// <param name="name">name of the desired resource
-		/// </param>
-		/// <returns> a java.net.URL object
-		/// </returns>
-		Uri GetResource(string name);
-
-		/// <summary> 
-		/// Finds a resource with a given name. This method returns null if no
-		/// resource with this name is found.
-		/// </summary>
-		/// <param name="name">name of the desired resource
-		/// </param>
-		/// <returns> a java.io.InputStream object
-		/// </returns>
-		Stream GetResourceAsStream(string name);
 	}
 }

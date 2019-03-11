@@ -1,7 +1,7 @@
 #region License
 
 /* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -19,13 +19,13 @@
 
 #endregion
 
+using System.Threading.Tasks;
+
 namespace Quartz.Tests.Integration
 {
     /// <author>Marko Lahma (.NET)</author>
     public class TestJob : IJob
     {
-        private static bool jobFired;
-
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
         /// fires that is associated with the <see cref="IJob" />.
@@ -39,19 +39,16 @@ namespace Quartz.Tests.Integration
         /// execution.
         /// </remarks>
         /// <param name="context">The execution context.</param>
-        public void Execute(IJobExecutionContext context)
+        public Task Execute(IJobExecutionContext context)
         {
             JobHasFired = true;
+            return TaskUtil.CompletedTask;
         }
 
         /// <summary>
         /// Gets or sets a value indicating whether job has fired.
         /// </summary>
         /// <value><c>true</c> if job has fired; otherwise, <c>false</c>.</value>
-        public static bool JobHasFired
-        {
-            get { return jobFired; }
-            set { jobFired = value; }
-        }
+        public static bool JobHasFired { get; set; }
     }
 }

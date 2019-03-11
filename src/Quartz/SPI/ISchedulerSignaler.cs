@@ -1,6 +1,6 @@
 #region License
 /* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -18,6 +18,8 @@
 #endregion
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 using Quartz.Core;
 
@@ -35,24 +37,37 @@ namespace Quartz.Spi
 		/// Notifies the scheduler about misfired trigger.
 		/// </summary>
 		/// <param name="trigger">The trigger that misfired.</param>
-        void NotifyTriggerListenersMisfired(ITrigger trigger);
-
-        /// <summary>
-        /// Notifies the scheduler about finalized trigger.
-        /// </summary>
-        /// <param name="trigger">The trigger that has finalized.</param>
-        void NotifySchedulerListenersFinalized(ITrigger trigger);
-
-        void NotifySchedulerListenersJobDeleted(JobKey jobKey);
+		/// <param name="cancellationToken">The cancellation instruction.</param>
+		Task NotifyTriggerListenersMisfired(
+			ITrigger trigger,
+			CancellationToken cancellationToken = default);
 
 		/// <summary>
-		/// Signals the scheduling change.
+		/// Notifies the scheduler about finalized trigger.
 		/// </summary>
-        void SignalSchedulingChange(DateTimeOffset? candidateNewNextFireTimeUtc);
+		/// <param name="trigger">The trigger that has finalized.</param>
+		/// <param name="cancellationToken">The cancellation instruction.</param>
+		Task NotifySchedulerListenersFinalized(
+	        ITrigger trigger,
+	        CancellationToken cancellationToken = default);
+
+        Task NotifySchedulerListenersJobDeleted(
+	        JobKey jobKey,
+	        CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Signals the scheduling change.
+        /// </summary>
+        void SignalSchedulingChange(
+	        DateTimeOffset? candidateNewNextFireTimeUtc,
+	        CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Informs scheduler listeners about an exception that has occurred.
         /// </summary>
-        void NotifySchedulerListenersError(string message, SchedulerException jpe);
+        Task NotifySchedulerListenersError(
+	        string message, 
+	        SchedulerException jpe,
+	        CancellationToken cancellationToken = default);
 	}
 }

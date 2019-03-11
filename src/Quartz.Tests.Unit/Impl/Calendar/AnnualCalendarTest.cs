@@ -1,40 +1,45 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
 
 using System;
+using System.Linq;
 
 using NUnit.Framework;
 
 using Quartz.Impl.Calendar;
+using Quartz.Simpl;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl.Calendar
 {
     /// <author>Marko Lahma (.NET)</author>
-    [TestFixture]
-    public class AnnualCalendarTest : SerializationTestSupport
+    [TestFixture(typeof(BinaryObjectSerializer))]
+    [TestFixture(typeof(JsonObjectSerializer))]
+    public class AnnualCalendarTest : SerializationTestSupport<AnnualCalendar, ICalendar>
     {
         private AnnualCalendar cal;
 
-        private static readonly string[] Versions = new string[] {"0.6.0"};
+        public AnnualCalendarTest(Type serializerType) : base(serializerType)
+        {
+        }
 
         [SetUp]
         public void Setup()
@@ -51,8 +56,8 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             Assert.IsFalse(cal.IsTimeIncluded(d.ToUniversalTime()), "Time was included when it was supposed not to be");
             Assert.IsTrue(cal.IsDayExcluded(d), "Day was not excluded when it was supposed to be excluded");
             Assert.AreEqual(1, cal.DaysExcluded.Count);
-            Assert.AreEqual(d.Day, cal.DaysExcluded[0].Day);
-            Assert.AreEqual(d.Month, cal.DaysExcluded[0].Month);
+            Assert.AreEqual(d.Day, cal.DaysExcluded.First().Day);
+            Assert.AreEqual(d.Month, cal.DaysExcluded.First().Month);
         }
 
         [Test]
@@ -85,7 +90,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             DateTimeOffset test = DateTimeOffset.UtcNow.Date;
             Assert.AreEqual(test, cal.GetNextIncludedTimeUtc(test), "Did not get today as date when nothing was excluded");
 
-            cal.SetDayExcluded(test, true);
+            cal.SetDayExcluded(test.Date, true);
             Assert.AreEqual(test.AddDays(1), cal.GetNextIncludedTimeUtc(test), "Did not get next day when current day excluded");
         }
 
@@ -131,7 +136,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             AnnualCalendar c = new AnnualCalendar();
             c.TimeZone = tz;
 
-            DateTimeOffset excludedDay = new DateTimeOffset(2012, 11, 4, 0, 0, 0, TimeSpan.Zero);
+            DateTime excludedDay = new DateTime(2012, 11, 4, 0, 0, 0);
             c.SetDayExcluded(excludedDay, true);
 
             // 11/5/2012 12:00:00 AM -04:00  translate into 11/4/2012 11:00:00 PM -05:00 (EST)
@@ -166,7 +171,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         /// tests, and against which to validate deserialized object.
         /// </summary>
         /// <returns></returns>
-        protected override object GetTargetObject()
+        protected override AnnualCalendar GetTargetObject()
         {
             AnnualCalendar c = new AnnualCalendar();
             c.Description = "description";
@@ -175,31 +180,13 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             return c;
         }
 
-        /// <summary>
-        /// Get the Quartz versions for which we should verify
-        /// serialization backwards compatibility.
-        /// </summary>
-        /// <returns></returns>
-        protected override string[] GetVersions()
+        /// <inheritdoc />
+        protected override void VerifyMatch(AnnualCalendar original, AnnualCalendar deserialized)
         {
-            return Versions;
-        }
-
-        /// <summary>
-        /// Verify that the target object and the object we just deserialized 
-        /// match.
-        /// </summary>
-        /// <param name="target"></param>
-        /// <param name="deserialized"></param>
-        protected override void VerifyMatch(object target, object deserialized)
-        {
-            AnnualCalendar targetCalendar = (AnnualCalendar) target;
-            AnnualCalendar deserializedCalendar = (AnnualCalendar) deserialized;
-
-            Assert.IsNotNull(deserializedCalendar);
-            Assert.AreEqual(targetCalendar.Description, deserializedCalendar.Description);
-            Assert.AreEqual(targetCalendar.DaysExcluded, deserializedCalendar.DaysExcluded);
-            //Assert.IsNull(deserializedCalendar.getTimeZone());
+            Assert.That(deserialized, Is.Not.Null);
+            Assert.That(deserialized.Description, Is.EqualTo(original.Description));
+            Assert.That(deserialized.DaysExcluded, Is.EquivalentTo(original.DaysExcluded));
+            Assert.That(deserialized.TimeZone, Is.EqualTo(original.TimeZone));
         }
     }
 }

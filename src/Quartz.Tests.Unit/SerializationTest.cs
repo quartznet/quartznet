@@ -1,11 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 
 using NUnit.Framework;
 
-using Quartz.Collection;
 using Quartz.Impl.Calendar;
+using Quartz.Tests.Unit.Utils;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit
@@ -23,7 +24,7 @@ namespace Quartz.Tests.Unit
         public void TestAnnualCalendarSerialization()
         {
             AnnualCalendar annualCalendar = new AnnualCalendar();
-            DateTimeOffset day = new DateTimeOffset(2011, 12, 20, 0, 0, 0, TimeSpan.Zero);
+            DateTime day = new DateTime(2011, 12, 20, 0, 0, 0);
             annualCalendar.SetDayExcluded(day, true);
             AnnualCalendar clone = annualCalendar.DeepClone();
             Assert.IsTrue(clone.IsDayExcluded(day));
@@ -77,9 +78,8 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(14, timeRangeStartTimeUtc.Second);
             Assert.AreEqual(150, timeRangeStartTimeUtc.Millisecond);
 
-            
             DateTimeOffset timeRangeEndingTimeUtc = clone.GetTimeRangeEndingTimeUtc(DateTimeOffset.UtcNow);
-            
+
             Assert.AreEqual(13, timeRangeEndingTimeUtc.Hour);
             Assert.AreEqual(14, timeRangeEndingTimeUtc.Minute);
             Assert.AreEqual(0, timeRangeEndingTimeUtc.Second);
@@ -87,9 +87,28 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
+        [Ignore("requires binary serilization to be done with 2.4, 2.3 in test is non-compliant")]
         public void TestHolidayCalendarDeserialization()
         {
-            Deserialize<HolidayCalendar>();
+            var calendar = Deserialize<HolidayCalendar>();
+            Assert.That(calendar.ExcludedDates.Count, Is.EqualTo(1));
+
+            calendar = Deserialize<HolidayCalendar>(23);
+            Assert.That(calendar.ExcludedDates.Count, Is.EqualTo(1));
+
+            BinaryFormatter formatter = new BinaryFormatter();
+            using (var stream = new MemoryStream())
+            {
+                calendar = new HolidayCalendar();
+                calendar.AddExcludedDate(DateTime.Now.Date);
+                formatter.Serialize(stream, calendar);
+
+                stream.Seek(0, SeekOrigin.Begin);
+                stream.Position = 0;
+
+                calendar = (HolidayCalendar) formatter.Deserialize(stream);
+                Assert.That(calendar.ExcludedDates.Count, Is.EqualTo(1));
+            }
         }
 
         [Test]
@@ -131,6 +150,7 @@ namespace Quartz.Tests.Unit
             Assert.IsTrue(clone.IsDayExcluded(DayOfWeek.Monday));
         }
 
+        /* TODO
         [Test]
         public void TestTreeSetDeserialization()
         {
@@ -142,6 +162,7 @@ namespace Quartz.Tests.Unit
         {
             new TreeSet<string>().DeepClone();
         }
+        */
 
         [Test]
         public void TestHashSetSerialization()
@@ -192,11 +213,18 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(123, clone["num"]);
         }
 
-        private static T Deserialize<T>() where T : class 
+        private static T Deserialize<T>() where T : class
+        {
+            return Deserialize<T>(10);
+        }
+
+        private static T Deserialize<T>(int version) where T : class
         {
             BinaryFormatter formatter = new BinaryFormatter();
-            object o = formatter.Deserialize(File.OpenRead(@"Serialized\" + typeof(T).Name + "_10.ser"));
-            return (T) o;
+            using (var stream = File.OpenRead(Path.Combine("Serialized", typeof(T).Name + "_" + version + ".ser")))
+            {
+                return (T) formatter.Deserialize(stream);
+            }
         }
     }
 }

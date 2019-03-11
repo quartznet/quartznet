@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
-using System.Configuration;
 
 using Quartz.Util;
 
@@ -23,9 +22,9 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <exception cref="System.ArgumentNullException">The providerNamePrefix cannot be null or empty.</exception>
         public ConfigurationBasedDbMetadataFactory(string sectionName, string providerNamePrefix)
         {
-            if (string.IsNullOrEmpty(providerNamePrefix) )
+            if (string.IsNullOrEmpty(providerNamePrefix))
             {
-                throw new ArgumentNullException("providerNamePrefix");
+                throw new ArgumentNullException(nameof(providerNamePrefix));
             }
 
             this.sectionName = sectionName;
@@ -38,8 +37,8 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <returns>The properties parser</returns>
         protected virtual PropertiesParser GetPropertiesParser()
         {
-            NameValueCollection settings = (NameValueCollection)ConfigurationManager.GetSection(sectionName) ?? new NameValueCollection();
-            PropertiesParser result = new PropertiesParser(settings);
+            var settings = Util.Configuration.GetSection(sectionName) ?? new NameValueCollection();
+            var result = new PropertiesParser(settings);
             return result;
         }
 
@@ -47,10 +46,10 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// Gets the supported provider names.
         /// </summary>
         /// <returns>The enumeration of the supported provider names</returns>
-        public override IEnumerable<string> GetProviderNames()
+        public override IReadOnlyCollection<string> GetProviderNames()
         {
             PropertiesParser pp = GetPropertiesParser();
-            IEnumerable<string> result = pp.GetPropertyGroups(providerNamePrefix);
+            var result = pp.GetPropertyGroups(providerNamePrefix);
             return result;
         }
 
@@ -74,7 +73,7 @@ namespace Quartz.Impl.AdoJobStore.Common
             }
             catch (Exception ex)
             {
-                throw new ArgumentException("Error while reading metadata information for provider '" + providerName + "'", "providerName", ex);
+                throw new ArgumentException("Error while reading metadata information for provider '" + providerName + "'", nameof(providerName), ex);
             }
         }
     }

@@ -1,20 +1,20 @@
 #region License
 
-/* 
+/*
  * Copyright 2009- Marko Lahma
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -22,7 +22,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Globalization;
+using System.Data.Common;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -39,13 +39,16 @@ namespace Quartz.Impl.AdoJobStore.Common
     {
 		protected const string PropertyDbProvider = StdSchedulerFactory.PropertyDbProvider;
         protected const string DbProviderSectionName = StdSchedulerFactory.ConfigurationSectionName;
-        protected const string DbProviderResourceName = "Quartz.Impl.AdoJobStore.Common.dbproviders.properties";
+        protected const string DbProviderResourceName =
+#if NETSTANDARD_DBPROVIDERS
+            "Quartz.Impl.AdoJobStore.Common.dbproviders.netstandard.properties";
+#else // NETSTANDARD_DBPROVIDERS
+            "Quartz.Impl.AdoJobStore.Common.dbproviders.properties";
+#endif // NETSTANDARD_DBPROVIDERS
 
-        private string connectionString;
-        private readonly DbMetadata dbMetadata;
         private readonly MethodInfo commandBindByNamePropertySetter;
 
-        private static readonly IList<DbMetadataFactory> dbMetadataFactories;
+        private static readonly List<DbMetadataFactory> dbMetadataFactories;
         private static readonly Dictionary<string, DbMetadata> dbMetadataLookup = new Dictionary<string, DbMetadata>();
 
         /// <summary>
@@ -56,10 +59,10 @@ namespace Quartz.Impl.AdoJobStore.Common
             dbMetadataFactories = new List<DbMetadataFactory>
             {
                 new ConfigurationBasedDbMetadataFactory(DbProviderSectionName, PropertyDbProvider),
-                new EmbeddedAssemblyResourceDbMetadataFactory(DbProviderResourceName, PropertyDbProvider),
+                new EmbeddedAssemblyResourceDbMetadataFactory(DbProviderResourceName, PropertyDbProvider)
             };
         }
-        
+
         /// <summary>
         /// Initializes a new instance of the <see cref="DbProvider"/> class.
         /// </summary>
@@ -67,16 +70,16 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <param name="connectionString">The connection string.</param>
         public DbProvider(string dbProviderName, string connectionString)
         {
-            this.connectionString = connectionString;
-            dbMetadata = GetDbMetadata(dbProviderName);
+            ConnectionString = connectionString;
+            Metadata = GetDbMetadata(dbProviderName);
 
-            if (dbMetadata == null)
+            if (Metadata == null)
             {
-                throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "Invalid DB provider name: {0}{1}{2}", dbProviderName, Environment.NewLine, GenerateValidProviderNamesInfo()));
+                throw new ArgumentException($"Invalid DB provider name: {dbProviderName}{Environment.NewLine}{GenerateValidProviderNamesInfo()}");
             }
-            
+
             // check if command supports direct setting of BindByName property, needed for Oracle Managed ODP diver at least
-            var property = dbMetadata.CommandType.GetProperty("BindByName", BindingFlags.Instance | BindingFlags.Public);
+            var property = Metadata.CommandType.GetProperty("BindByName", BindingFlags.Instance | BindingFlags.Public);
             if (property != null && property.PropertyType == typeof (bool) && property.CanWrite)
             {
                 commandBindByNamePropertySetter = property.GetSetMethod();
@@ -98,10 +101,9 @@ namespace Quartz.Impl.AdoJobStore.Common
             dbMetadataLookup[dbProviderName] = metadata;
         }
 
-        protected virtual DbMetadata GetDbMetadata(string providerName)
+        private DbMetadata GetDbMetadata(string providerName)
         {
-            DbMetadata result;
-            if (!dbMetadataLookup.TryGetValue(providerName, out result))
+            if (!dbMetadataLookup.TryGetValue(providerName, out var result))
             {
                 foreach (var dbMetadataFactory in dbMetadataFactories)
                 {
@@ -112,7 +114,7 @@ namespace Quartz.Impl.AdoJobStore.Common
                         return result;
                     }
                 }
-                throw new ArgumentOutOfRangeException("providerName", "There is no metadata information for provider '" + providerName + "'");
+                throw new ArgumentOutOfRangeException(nameof(providerName), "There is no metadata information for provider '" + providerName + "'");
             }
 
             return result;
@@ -137,40 +139,18 @@ namespace Quartz.Impl.AdoJobStore.Common
             return sb.ToString();
         }
 
-        /// <summary>
-        /// Returns a new command object for executing SQL statements/Stored Procedures
-        /// against the database.
-        /// </summary>
-        /// <returns>An new <see cref="IDbCommand"/></returns>
-        public virtual IDbCommand CreateCommand()
+        /// <inheritdoc />
+        public virtual DbCommand CreateCommand()
         {
-            var command = ObjectUtils.InstantiateType<IDbCommand>(dbMetadata.CommandType);
-            if (commandBindByNamePropertySetter != null)
-            {
-                commandBindByNamePropertySetter.Invoke(command, new object[] { Metadata.BindByName });
-            }
+            var command = ObjectUtils.InstantiateType<DbCommand>(Metadata.CommandType);
+            commandBindByNamePropertySetter?.Invoke(command, new object[] { Metadata.BindByName });
             return command;
         }
 
-        /// <summary>
-        /// Returns a new instance of the providers CommandBuilder class.
-        /// </summary>
-        /// <returns>A new Command Builder</returns>
-        /// <remarks>In .NET 1.1 there was no common base class or interface
-        /// for command builders, hence the return signature is object to
-        /// be portable (but more loosely typed) across .NET 1.1/2.0</remarks>
-        public virtual object CreateCommandBuilder()
+        /// <inheritdoc />
+        public virtual DbConnection CreateConnection()
         {
-            return ObjectUtils.InstantiateType<object>(dbMetadata.CommandBuilderType);
-        }
-
-        /// <summary>
-        /// Returns a new connection object to communicate with the database.
-        /// </summary>
-        /// <returns>A new <see cref="IDbConnection"/></returns>
-        public virtual IDbConnection CreateConnection()
-        {
-            IDbConnection conn = ObjectUtils.InstantiateType<IDbConnection>(dbMetadata.ConnectionType);
+            var conn = ObjectUtils.InstantiateType<DbConnection>(Metadata.ConnectionType);
             conn.ConnectionString = ConnectionString;
             return conn;
         }
@@ -180,33 +160,18 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// placeholders in SQL statements or Stored Procedure variables.
         /// </summary>
         /// <returns>A new <see cref="IDbDataParameter"/></returns>
-        public virtual IDbDataParameter CreateParameter()
+        public virtual DbParameter CreateParameter()
         {
-            return ObjectUtils.InstantiateType<IDbDataParameter>(dbMetadata.ParameterType);
+            return ObjectUtils.InstantiateType<DbParameter>(Metadata.ParameterType);
         }
 
-        /// <summary>
-        /// Connection string used to create connections.
-        /// </summary>
-        /// <value></value>
-        public virtual string ConnectionString
-        {
-            get { return connectionString; }
-            set { connectionString = value; }
-        }
+        /// <inheritdoc />
+        public string ConnectionString { get; set; }
 
-        /// <summary>
-        /// Gets the metadata.
-        /// </summary>
-        /// <value>The metadata.</value>
-        public virtual DbMetadata Metadata
-        {
-            get { return dbMetadata; }
-        }
+        /// <inheritdoc />
+        public DbMetadata Metadata { get; }
 
-        /// <summary>
-        /// Shutdowns this instance.
-        /// </summary>
+        /// <inheritdoc />
         public virtual void Shutdown()
         {
         }

@@ -1,36 +1,37 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
 
 using System;
-using System.Data;
-using System.Globalization;
+using System.Data.Common;
 using System.Threading;
+using System.Threading.Tasks;
 
 using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Logging;
 
 namespace Quartz.Impl.AdoJobStore
 {
-    /// <summary> 
-    /// Internal database based lock handler for providing thread/resource locking 
-    /// in order to protect resources from being altered by multiple threads at the 
+    /// <summary>
+    /// Internal database based lock handler for providing thread/resource locking
+    /// in order to protect resources from being altered by multiple threads at the
     /// same time.
     /// </summary>
     /// <author>James House</author>
@@ -38,12 +39,10 @@ namespace Quartz.Impl.AdoJobStore
     public class StdRowLockSemaphore : DBSemaphore
     {
         public static readonly string SelectForLock =
-            string.Format(CultureInfo.InvariantCulture, "SELECT * FROM {0}{1} WHERE {2} = {3} AND {4} = @lockName FOR UPDATE",
-                          TablePrefixSubst, TableLocks, ColumnSchedulerName, SchedulerNameSubst, ColumnLockName);
+            $"SELECT * FROM {TablePrefixSubst}{TableLocks} WHERE {ColumnSchedulerName} = {SchedulerNameSubst} AND {ColumnLockName} = @lockName FOR UPDATE";
 
         public static readonly string InsertLock =
-            string.Format(CultureInfo.InstalledUICulture, "INSERT INTO {0}{1}({2}, {3}) VALUES ({4}, @lockName)",
-                          TablePrefixSubst, TableLocks, ColumnSchedulerName, ColumnLockName, SchedulerNameSubst);
+            $"INSERT INTO {TablePrefixSubst}{TableLocks}({ColumnSchedulerName}, {ColumnLockName}) VALUES ({SchedulerNameSubst}, @lockName)";
 
         /// <summary>
         /// Initializes a new instance of the <see cref="StdRowLockSemaphore"/> class.
@@ -51,7 +50,7 @@ namespace Quartz.Impl.AdoJobStore
         public StdRowLockSemaphore(IDbProvider dbProvider)
             : base(DefaultTablePrefix, null, SelectForLock, InsertLock, dbProvider)
         {
-            
+
         }
 
         /// <summary>
@@ -69,7 +68,13 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Execute the SQL select for update that will lock the proper database row.
         /// </summary>
-        protected override void ExecuteSQL(ConnectionAndTransactionHolder conn, string lockName, string expandedSQL, string expandedInsertSQL)
+        protected override async Task ExecuteSQL(
+            Guid requestorId, 
+            ConnectionAndTransactionHolder conn, 
+            string lockName,
+            string expandedSql, 
+            string expandedInsertSql,
+            CancellationToken cancellationToken)
         {
             Exception initCause = null;
             // attempt lock two times (to work-around possible race conditions in inserting the lock row the first time running)
@@ -79,46 +84,40 @@ namespace Quartz.Impl.AdoJobStore
                 count++;
                 try
                 {
-                    using (IDbCommand cmd = AdoUtil.PrepareCommand(conn, expandedSQL))
+                    using (DbCommand cmd = AdoUtil.PrepareCommand(conn, expandedSql))
                     {
                         AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
 
                         bool found;
-                        using (IDataReader rs = cmd.ExecuteReader())
+                        using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
                         {
-                            if (Log.IsDebugEnabled)
+                            if (Log.IsDebugEnabled())
                             {
-                                Log.DebugFormat("Lock '{0}' is being obtained: {1}", lockName, Thread.CurrentThread.Name);
+                                Log.DebugFormat("Lock '{0}' is being obtained: {1}", lockName, requestorId);
                             }
 
-                            found = rs.Read();
+                            found = await rs.ReadAsync(cancellationToken).ConfigureAwait(false);
                         }
 
                         if (!found)
                         {
-                            if (Log.IsDebugEnabled)
+                            if (Log.IsDebugEnabled())
                             {
-                                Log.DebugFormat("Inserting new lock row for lock: '{0}' being obtained by thread: {1}", lockName, Thread.CurrentThread.Name);
+                                Log.DebugFormat("Inserting new lock row for lock: '{0}' being obtained by thread: {1}", lockName, requestorId);
                             }
 
-                            using (IDbCommand cmd2 = AdoUtil.PrepareCommand(conn, expandedInsertSQL))
+                            using (DbCommand cmd2 = AdoUtil.PrepareCommand(conn, expandedInsertSql))
                             {
                                 AdoUtil.AddCommandParameter(cmd2, "lockName", lockName);
-                                int res = cmd2.ExecuteNonQuery();
+                                int res = await cmd2.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
                                 if (res != 1)
                                 {
                                     if (count < 3)
                                     {
                                         // pause a bit to give another thread some time to commit the insert of the new lock row
-                                        try
-                                        {
-                                            Thread.Sleep(TimeSpan.FromSeconds(1));
-                                        }
-                                        catch (ThreadInterruptedException)
-                                        {
-                                            Thread.CurrentThread.Interrupt();
-                                        }
+                                        await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
+
                                         // try again ...
                                         continue;
                                     }
@@ -129,7 +128,7 @@ namespace Quartz.Impl.AdoJobStore
                             }
                         }
                     }
-                    
+
                     // obtained lock, go
                     return;
                 }
@@ -140,22 +139,16 @@ namespace Quartz.Impl.AdoJobStore
                         initCause = sqle;
                     }
 
-                    if (Log.IsDebugEnabled)
+                    if (Log.IsDebugEnabled())
                     {
-                        Log.DebugFormat("Lock '{0}' was not obtained by: {1}{2}", lockName, Thread.CurrentThread.Name, (count < 3 ? " - will try again." : ""));
+                        Log.DebugFormat("Lock '{0}' was not obtained by: {1}{2}", lockName, requestorId, count < 3 ? " - will try again." : "");
                     }
 
                     if (count < 3)
                     {
                         // pause a bit to give another thread some time to commit the insert of the new lock row
-                        try
-                        {
-                            Thread.Sleep(TimeSpan.FromSeconds(1));
-                        }
-                        catch (ThreadInterruptedException)
-                        {
-                            Thread.CurrentThread.Interrupt();
-                        }
+                        await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
+
                         // try again ...
                         continue;
                     }

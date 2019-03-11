@@ -1,29 +1,29 @@
 #region License
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 #endregion
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Threading;
-using Common.Logging;
+using System.Threading.Tasks;
 
 using Quartz.Core;
+using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
 
@@ -39,8 +39,8 @@ namespace Quartz.Impl
 	/// persistent), you can call <see cref="CreateVolatileScheduler" />:
 	/// </para>
 	/// <code>
-	/// DirectSchedulerFactory.Instance.CreateVolatileScheduler(10); // 10 threads 
-	/// // don't forget to start the scheduler: 
+	/// DirectSchedulerFactory.Instance.CreateVolatileScheduler(10); // 10 threads
+	/// // don't forget to start the scheduler:
 	/// DirectSchedulerFactory.Instance.GetScheduler().Start();
     /// </code>
 	/// <para>
@@ -54,14 +54,14 @@ namespace Quartz.Impl
 	/// Here is an example of using this method:
 	/// </para>
     /// <code>
-	/// // create the thread pool 
-    /// SimpleThreadPool threadPool = new SimpleThreadPool(maxThreads, ThreadPriority.Normal); 
-	/// threadPool.Initialize(); 
-	/// // create the job store 
-	/// JobStore jobStore = new RAMJobStore(); 
-	/// 
-	/// DirectSchedulerFactory.Instance.CreateScheduler("My Quartz Scheduler", "My Instance", threadPool, jobStore); 
-	/// // don't forget to start the scheduler: 
+	/// // create the thread pool
+    /// SimpleThreadPool threadPool = new SimpleThreadPool(maxThreads, ThreadPriority.Normal);
+	/// threadPool.Initialize();
+	/// // create the job store
+	/// JobStore jobStore = new RAMJobStore();
+	///
+	/// DirectSchedulerFactory.Instance.CreateScheduler("My Quartz Scheduler", "My Instance", threadPool, jobStore);
+	/// // don't forget to start the scheduler:
 	/// DirectSchedulerFactory.Instance.GetScheduler("My Quartz Scheduler", "My Instance").Start();
     /// </code>
 	/// </remarks>>
@@ -69,53 +69,43 @@ namespace Quartz.Impl
 	/// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     /// <seealso cref="IJobStore" />
-	/// <seealso cref="ThreadPool" />
 	public class DirectSchedulerFactory : ISchedulerFactory
 	{
-		private readonly ILog log;
-        public const string DefaultInstanceId = "SIMPLE_NON_CLUSTERED";
+		public const string DefaultInstanceId = "SIMPLE_NON_CLUSTERED";
         public const string DefaultSchedulerName = "SimpleQuartzScheduler";
-        private static readonly DefaultThreadExecutor DefaultThreadExecutor = new DefaultThreadExecutor();
         private const int DefaultBatchMaxSize = 1;
         private readonly TimeSpan DefaultBatchTimeWindow = TimeSpan.Zero;
 
         private bool initialized;
-        private static readonly DirectSchedulerFactory instance = new DirectSchedulerFactory();
 
-        /// <summary>
+		/// <summary>
         /// Gets the log.
         /// </summary>
         /// <value>The log.</value>
-	    public ILog Log
-	    {
-	        get { return log; }
-	    }
+		private ILog Log { get; }
 
-	    /// <summary>
+		/// <summary>
 		/// Gets the instance.
 		/// </summary>
 		/// <value>The instance.</value>
-		public static DirectSchedulerFactory Instance
-		{
-			get { return instance; }
-		}
+		public static DirectSchedulerFactory Instance { get; } = new DirectSchedulerFactory();
 
 		/// <summary> <para>
 		/// Returns a handle to all known Schedulers (made by any
 		/// StdSchedulerFactory instance.).
 		/// </para>
 		/// </summary>
-		public virtual ICollection<IScheduler> AllSchedulers
+		public virtual Task<IReadOnlyList<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default)
 		{
-			get { return SchedulerRepository.Instance.LookupAll(); }
+			return SchedulerRepository.Instance.LookupAll(cancellationToken);
 		}
 
-        /// <summary>
+		/// <summary>
         /// Initializes a new instance of the <see cref="DirectSchedulerFactory"/> class.
         /// </summary>
 		protected DirectSchedulerFactory()
 		{
-		    log = LogManager.GetLogger(GetType());
+		    Log = LogProvider.GetLogger(GetType());
 		}
 
 		/// <summary>
@@ -125,7 +115,7 @@ namespace Quartz.Impl
 		/// <param name="maxThreads">The number of threads in the thread pool</param>
 		public virtual void CreateVolatileScheduler(int maxThreads)
 		{
-			SimpleThreadPool threadPool = new SimpleThreadPool(maxThreads, ThreadPriority.Normal);
+			IThreadPool threadPool = new DefaultThreadPool();
 			threadPool.Initialize();
 			IJobStore jobStore = new RAMJobStore();
 			CreateScheduler(threadPool, jobStore);
@@ -133,7 +123,7 @@ namespace Quartz.Impl
 
 		/// <summary>
 		/// Creates a proxy to a remote scheduler. This scheduler can be retrieved
-		/// via <see cref="DirectSchedulerFactory.GetScheduler()" />.
+		/// via <see cref="DirectSchedulerFactory.GetScheduler(CancellationToken)" />.
 		/// </summary>
 		/// <throws>  SchedulerException </throws>
 		public virtual void CreateRemoteScheduler(string proxyAddress)
@@ -144,7 +134,7 @@ namespace Quartz.Impl
 		/// <summary>
 		/// Same as <see cref="DirectSchedulerFactory.CreateRemoteScheduler(string)" />,
 		/// with the addition of specifying the scheduler name and instance ID. This
-		/// scheduler can only be retrieved via <see cref="DirectSchedulerFactory.GetScheduler(string)" />.
+		/// scheduler can only be retrieved via <see cref="DirectSchedulerFactory.GetScheduler(string, CancellationToken)" />.
 		/// </summary>
 		/// <param name="schedulerName">The name for the scheduler.</param>
 		/// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
@@ -157,13 +147,13 @@ namespace Quartz.Impl
 		    var proxyBuilder = new RemotingSchedulerProxyFactory();
 		    proxyBuilder.Address = proxyAddress;
 		    RemoteScheduler remoteScheduler = new RemoteScheduler(uid, proxyBuilder);
-			
+
             SchedulerRepository schedRep = SchedulerRepository.Instance;
 			schedRep.Bind(remoteScheduler);
 		    initialized = true;
 		}
 
-		/// <summary> 
+		/// <summary>
 		/// Creates a scheduler using the specified thread pool and job store. This
 		/// scheduler can be retrieved via DirectSchedulerFactory#GetScheduler()
 		/// </summary>
@@ -194,67 +184,23 @@ namespace Quartz.Impl
 		public virtual void CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool,
 		                                    IJobStore jobStore)
 		{
-			CreateScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, TimeSpan.Zero, TimeSpan.Zero);
+			CreateScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, TimeSpan.Zero);
 		}
-
-        /// <summary>
-		/// Creates a scheduler using the specified thread pool and job store and
-		/// binds it for remote access.
-		/// </summary>
-		/// <param name="schedulerName">The name for the scheduler.</param>
-		/// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
-		/// <param name="threadPool">The thread pool for executing jobs</param>
-		/// <param name="jobStore">The type of job store</param>
-		/// <param name="idleWaitTime">The idle wait time. You can specify "-1" for
-		/// the default value, which is currently 30000 ms.</param>
-		/// <param name="dbFailureRetryInterval">The db failure retry interval.</param>
-        public virtual void CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool,
-                                            IJobStore jobStore, TimeSpan idleWaitTime,
-                                            TimeSpan dbFailureRetryInterval)
-        {
-            CreateScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, null, idleWaitTime, dbFailureRetryInterval);
-        }
 
 	    /// <summary>
-		/// Creates a scheduler using the specified thread pool and job store and
-        /// binds it for remote access.
-		/// </summary>
-		/// <param name="schedulerName">The name for the scheduler.</param>
-		/// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
-		/// <param name="threadPool">The thread pool for executing jobs</param>
-		/// <param name="jobStore">The type of job store</param>
-		/// <param name="schedulerPluginMap"></param>
-		/// <param name="idleWaitTime">The idle wait time. You can specify TimeSpan.Zero for
-		/// the default value, which is currently 30000 ms.</param>
-		/// <param name="dbFailureRetryInterval">The db failure retry interval.</param>
-		public virtual void CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool,
-                                            IJobStore jobStore, IDictionary<string, ISchedulerPlugin> schedulerPluginMap, TimeSpan idleWaitTime,
-		                                    TimeSpan dbFailureRetryInterval)
-		{
-			CreateScheduler(
-                schedulerName, schedulerInstanceId, threadPool, DefaultThreadExecutor, 
-                jobStore, schedulerPluginMap, idleWaitTime, dbFailureRetryInterval);
-		}
-
-        /// <summary>
-        /// Creates a scheduler using the specified thread pool and job store and
-        /// binds it for remote access.
-        /// </summary>
-        /// <param name="schedulerName">The name for the scheduler.</param>
-        /// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
-        /// <param name="threadPool">The thread pool for executing jobs</param>
-        /// <param name="threadExecutor">Thread executor.</param>
-        /// <param name="jobStore">The type of job store</param>
-        /// <param name="schedulerPluginMap"></param>
-        /// <param name="idleWaitTime">The idle wait time. You can specify TimeSpan.Zero for
-        /// the default value, which is currently 30000 ms.</param>
-        /// <param name="dbFailureRetryInterval">The db failure retry interval.</param>
-        public virtual void CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool, IThreadExecutor threadExecutor,
-                                            IJobStore jobStore, IDictionary<string, ISchedulerPlugin> schedulerPluginMap, TimeSpan idleWaitTime,
-                                            TimeSpan dbFailureRetryInterval)
+	    /// Creates a scheduler using the specified thread pool and job store and
+	    /// binds it for remote access.
+	    /// </summary>
+	    /// <param name="schedulerName">The name for the scheduler.</param>
+	    /// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
+	    /// <param name="threadPool">The thread pool for executing jobs</param>
+	    /// <param name="jobStore">The type of job store</param>
+	    /// <param name="idleWaitTime">The idle wait time. You can specify "-1" for
+	    /// the default value, which is currently 30000 ms.</param>
+	    public virtual void CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool,
+                                            IJobStore jobStore, TimeSpan idleWaitTime)
         {
-            CreateScheduler(schedulerName, schedulerInstanceId, threadPool, threadExecutor, jobStore, schedulerPluginMap, idleWaitTime, DefaultBatchMaxSize, DefaultBatchTimeWindow);
-           
+            CreateScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, null, idleWaitTime);
         }
 
 	    /// <summary>
@@ -264,7 +210,24 @@ namespace Quartz.Impl
 	    /// <param name="schedulerName">The name for the scheduler.</param>
 	    /// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
 	    /// <param name="threadPool">The thread pool for executing jobs</param>
-	    /// <param name="threadExecutor">Thread executor.</param>
+	    /// <param name="jobStore">The type of job store</param>
+	    /// <param name="schedulerPluginMap"></param>
+	    /// <param name="idleWaitTime">The idle wait time. You can specify TimeSpan.Zero for
+	    /// the default value, which is currently 30000 ms.</param>
+	    public virtual void CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool,
+                                            IJobStore jobStore, IDictionary<string, ISchedulerPlugin> schedulerPluginMap, TimeSpan idleWaitTime)
+		{
+			CreateScheduler(
+                schedulerName, schedulerInstanceId, threadPool, jobStore, schedulerPluginMap, idleWaitTime, DefaultBatchMaxSize, DefaultBatchTimeWindow);
+		}
+
+	    /// <summary>
+	    /// Creates a scheduler using the specified thread pool and job store and
+	    /// binds it for remote access.
+	    /// </summary>
+	    /// <param name="schedulerName">The name for the scheduler.</param>
+	    /// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
+	    /// <param name="threadPool">The thread pool for executing jobs</param>
 	    /// <param name="jobStore">The type of job store</param>
 	    /// <param name="schedulerPluginMap"></param>
 	    /// <param name="idleWaitTime">The idle wait time. You can specify TimeSpan.Zero for
@@ -275,14 +238,13 @@ namespace Quartz.Impl
 	        string schedulerName,
 	        string schedulerInstanceId,
 	        IThreadPool threadPool,
-	        IThreadExecutor threadExecutor,
 	        IJobStore jobStore,
 	        IDictionary<string, ISchedulerPlugin> schedulerPluginMap,
 	        TimeSpan idleWaitTime,
 	        int maxBatchSize,
 	        TimeSpan batchTimeWindow)
 	    {
-	        CreateScheduler(schedulerName, schedulerInstanceId, threadPool, threadExecutor, jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow, null);
+	        CreateScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow, null);
 	    }
 
 	    /// <summary>
@@ -292,7 +254,6 @@ namespace Quartz.Impl
 	    /// <param name="schedulerName">The name for the scheduler.</param>
 	    /// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
 	    /// <param name="threadPool">The thread pool for executing jobs</param>
-	    /// <param name="threadExecutor">Thread executor.</param>
 	    /// <param name="jobStore">The type of job store</param>
 	    /// <param name="schedulerPluginMap"></param>
 	    /// <param name="idleWaitTime">The idle wait time. You can specify TimeSpan.Zero for
@@ -301,15 +262,14 @@ namespace Quartz.Impl
 	    /// <param name="batchTimeWindow">The time window for which it is allowed to "pre-acquire" triggers to fire</param>
 	    /// <param name="schedulerExporter">The scheduler exporter to use</param>
 	    public virtual void CreateScheduler(
-            string schedulerName, 
-            string schedulerInstanceId, 
-            IThreadPool threadPool, 
-            IThreadExecutor threadExecutor, 
-            IJobStore jobStore, 
-            IDictionary<string, ISchedulerPlugin> schedulerPluginMap, 
-            TimeSpan idleWaitTime, 
-            int maxBatchSize, 
-            TimeSpan batchTimeWindow, 
+            string schedulerName,
+            string schedulerInstanceId,
+            IThreadPool threadPool,
+            IJobStore jobStore,
+            IDictionary<string, ISchedulerPlugin> schedulerPluginMap,
+            TimeSpan idleWaitTime,
+            int maxBatchSize,
+            TimeSpan batchTimeWindow,
             ISchedulerExporter schedulerExporter)
         {
             // Currently only one run-shell factory is available...
@@ -318,7 +278,7 @@ namespace Quartz.Impl
             // Fire everything up
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
             SchedulerDetailsSetter.SetDetails(threadPool, schedulerName, schedulerInstanceId);
-           
+
             threadPool.Initialize();
 
             QuartzSchedulerResources qrs = new QuartzSchedulerResources();
@@ -328,7 +288,6 @@ namespace Quartz.Impl
 
             qrs.JobRunShellFactory = jrsf;
             qrs.ThreadPool = threadPool;
-            qrs.ThreadExecutor= threadExecutor;
             qrs.JobStore = jobStore;
             qrs.MaxBatchSize = maxBatchSize;
             qrs.BatchTimeWindow = batchTimeWindow;
@@ -366,9 +325,9 @@ namespace Quartz.Impl
                 }
             }
 
-            Log.Info(string.Format(CultureInfo.InvariantCulture, "Quartz scheduler '{0}", scheduler.SchedulerName));
+            Log.Info($"Quartz scheduler '{scheduler.SchedulerName}");
 
-            Log.Info(string.Format(CultureInfo.InvariantCulture, "Quartz scheduler version: {0}", qs.Version));
+            Log.Info($"Quartz scheduler version: {qs.Version}");
 
             SchedulerRepository schedRep = SchedulerRepository.Instance;
 
@@ -389,7 +348,8 @@ namespace Quartz.Impl
 		/// </summary>
 		/// <returns></returns>
 		/// <throws>  SchedulerException </throws>
-		public virtual IScheduler GetScheduler()
+		public virtual Task<IScheduler> GetScheduler(
+			CancellationToken cancellationToken = default)
 		{
 			if (!initialized)
 			{
@@ -398,17 +358,19 @@ namespace Quartz.Impl
 			}
 			SchedulerRepository schedRep = SchedulerRepository.Instance;
 
-			return schedRep.Lookup(DefaultSchedulerName);
+			return schedRep.Lookup(DefaultSchedulerName, cancellationToken);
 		}
 
 		/// <summary>
 		/// Returns a handle to the Scheduler with the given name, if it exists.
 		/// </summary>
-		public virtual IScheduler GetScheduler(string schedName)
+		public virtual Task<IScheduler> GetScheduler(
+			string schedName,
+			CancellationToken cancellationToken = default)
 		{
 			SchedulerRepository schedRep = SchedulerRepository.Instance;
 
-			return schedRep.Lookup(schedName);
+			return schedRep.Lookup(schedName, cancellationToken);
 		}
 	}
 }

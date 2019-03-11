@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
+
+using FakeItEasy;
 
 using NUnit.Framework;
 
 using Quartz.Impl.AdoJobStore;
-
-using Rhino.Mocks;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore
 {
@@ -20,21 +22,22 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         public void SetUp()
         {
             jobStoreSupport = new TestJobStoreSupport();
-            driverDelegate = MockRepository.GenerateMock<IDriverDelegate>();
+            driverDelegate = A.Fake<IDriverDelegate>();
             jobStoreSupport.DirectDelegate = driverDelegate;
         }
 
         [Test]
-        public void TestRecoverMisfiredJobs_ShouldCheckForMisfiredTriggersInStateWaiting()
+        public async Task TestRecoverMisfiredJobs_ShouldCheckForMisfiredTriggersInStateWaiting()
         {
-            jobStoreSupport.RecoverMisfiredJobs(null, false);
+            await jobStoreSupport.RecoverMisfiredJobs(null, false);
 
-            driverDelegate.AssertWasCalled(x => x.HasMisfiredTriggersInState(
-                Arg<ConnectionAndTransactionHolder>.Is.Anything,
-                Arg<string>.Is.Equal(AdoConstants.StateWaiting),
-                Arg<DateTimeOffset>.Is.Anything,
-                Arg<int>.Is.Anything,
-                Arg<IList<TriggerKey>>.Is.Anything));
+            A.CallTo(() => driverDelegate.HasMisfiredTriggersInState(
+                A<ConnectionAndTransactionHolder>.Ignored,
+                A<string>.That.IsEqualTo(AdoConstants.StateWaiting),
+                A<DateTimeOffset>.Ignored,
+                A<int>.Ignored,
+                A<IList<TriggerKey>>.Ignored,
+                CancellationToken.None)).MustHaveHappened();
         }
 
         public class TestJobStoreSupport : JobStoreSupport
@@ -44,9 +47,12 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
                 return new ConnectionAndTransactionHolder(null, null);
             }
 
-            protected override T ExecuteInLock<T>(string lockName, Func<ConnectionAndTransactionHolder, T> txCallback)
+            protected override Task<T> ExecuteInLock<T>(
+                string lockName,
+                Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
+                CancellationToken cancellationToken = default)
             {
-                return default(T);
+                return Task.FromResult(default(T));
             }
 
             /// <summary>
@@ -56,7 +62,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             {
                 set
                 {
-                    FieldInfo fieldInfo = typeof (JobStoreSupport).GetField("driverDelegate", BindingFlags.Instance | BindingFlags.NonPublic);
+                    FieldInfo fieldInfo = typeof(JobStoreSupport).GetField("driverDelegate", BindingFlags.Instance | BindingFlags.NonPublic);
                     Assert.IsNotNull(fieldInfo);
                     fieldInfo.SetValue(this, value);
                 }

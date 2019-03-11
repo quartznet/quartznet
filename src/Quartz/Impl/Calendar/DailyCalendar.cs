@@ -1,43 +1,45 @@
 #region License
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
+
 #endregion
 
-using Quartz.Util;
 using System;
 using System.Globalization;
 using System.Runtime.Serialization;
-using System.Security;
 using System.Text;
+
+using Quartz.Util;
 
 namespace Quartz.Impl.Calendar
 {
     /// <summary>
     /// This implementation of the Calendar excludes (or includes - see below) a
-    /// specified time range each day. 
+    /// specified time range each day.
     /// </summary>
     /// <remarks>
     /// For example, you could use this calendar to
     /// exclude business hours (8AM - 5PM) every day. Each <see cref="DailyCalendar" />
     /// only allows a single time range to be specified, and that time range may not
     /// * cross daily boundaries (i.e. you cannot specify a time range from 8PM - 5AM).
-    /// If the property <see cref="invertTimeRange" /> is <see langword="false" /> (default),
+    /// If the property <see cref="InvertTimeRange" /> is <see langword="false" /> (default),
     /// the time range defines a range of times in which triggers are not allowed to
-    /// * fire. If <see cref="invertTimeRange" /> is <see langword="true" />, the time range
+    /// * fire. If <see cref="InvertTimeRange" /> is <see langword="true" />, the time range
     /// is inverted: that is, all times <i>outside</i> the defined time range
     /// are excluded.
     /// <para>
@@ -62,6 +64,12 @@ namespace Quartz.Impl.Calendar
         private const long OneMillis = 1;
         private const char Colon = ':';
 
+        private const string TwoDigitFormat = "00";
+        private const string ThreeDigitFormat = "000";
+
+        // JsonProperty attributes are necessary because no public field/property exposes these directly
+        // Adding RangeStartingTimeUTC and RangeEndingTimeUTC properties with getters/setters to control
+        // these would remove the need for the attribute.
         private int rangeStartingHourOfDay;
         private int rangeStartingMinute;
         private int rangeStartingSecond;
@@ -71,12 +79,13 @@ namespace Quartz.Impl.Calendar
         private int rangeEndingSecond;
         private int rangeEndingMillis;
 
-        private bool invertTimeRange;
-
+        private DailyCalendar()
+        {
+        }
 
         /// <summary>
         /// Create a <see cref="DailyCalendar" /> with a time range defined by the
-        /// specified strings and no baseCalendar. 
+        /// specified strings and no baseCalendar.
         ///	<paramref name="rangeStartingTime" /> and <paramref name="rangeEndingTime" />
         /// must be in the format &quot;HH:MM[:SS[:mmm]]&quot; where:
         /// <ul>
@@ -100,9 +109,9 @@ namespace Quartz.Impl.Calendar
         ///     <li>items enclosed in brackets ('[', ']') are optional.</li>
         ///     <li>
         ///         The time range starting time must be before the time range ending
-        ///         time. Note this means that a time range may not cross daily 
+        ///         time. Note this means that a time range may not cross daily
         ///         boundaries (10PM - 2AM)
-        ///     </li>  
+        ///     </li>
         /// </ul>
         /// </summary>
         /// <param name="rangeStartingTime">The range starting time in millis.</param>
@@ -168,9 +177,9 @@ namespace Quartz.Impl.Calendar
         ///		<li>Milliseconds must be in the range 0-999</li>
         ///		<li>
         ///         The time range starting time must be before the time range ending
-        ///		    time. Note this means that a time range may not cross daily 
+        ///		    time. Note this means that a time range may not cross daily
         ///		    boundaries (10PM - 2AM)
-        ///     </li>  
+        ///     </li>
         /// </ul>
         /// </summary>
         /// <param name="rangeStartingHourOfDay">The range starting hour of day.</param>
@@ -182,22 +191,22 @@ namespace Quartz.Impl.Calendar
         /// <param name="rangeEndingSecond">The range ending second.</param>
         /// <param name="rangeEndingMillis">The range ending millis.</param>
         public DailyCalendar(int rangeStartingHourOfDay,
-                             int rangeStartingMinute,
-                             int rangeStartingSecond,
-                             int rangeStartingMillis,
-                             int rangeEndingHourOfDay,
-                             int rangeEndingMinute,
-                             int rangeEndingSecond,
-                             int rangeEndingMillis)
+            int rangeStartingMinute,
+            int rangeStartingSecond,
+            int rangeStartingMillis,
+            int rangeEndingHourOfDay,
+            int rangeEndingMinute,
+            int rangeEndingSecond,
+            int rangeEndingMillis)
         {
             SetTimeRange(rangeStartingHourOfDay,
-                         rangeStartingMinute,
-                         rangeStartingSecond,
-                         rangeStartingMillis,
-                         rangeEndingHourOfDay,
-                         rangeEndingMinute,
-                         rangeEndingSecond,
-                         rangeEndingMillis);
+                rangeStartingMinute,
+                rangeStartingSecond,
+                rangeStartingMillis,
+                rangeEndingHourOfDay,
+                rangeEndingMinute,
+                rangeEndingSecond,
+                rangeEndingMillis);
         }
 
         /// <summary>
@@ -230,29 +239,28 @@ namespace Quartz.Impl.Calendar
         /// <param name="rangeEndingSecond">The range ending second.</param>
         /// <param name="rangeEndingMillis">The range ending millis.</param>
         public DailyCalendar(ICalendar baseCalendar,
-                             int rangeStartingHourOfDay,
-                             int rangeStartingMinute,
-                             int rangeStartingSecond,
-                             int rangeStartingMillis,
-                             int rangeEndingHourOfDay,
-                             int rangeEndingMinute,
-                             int rangeEndingSecond,
-                             int rangeEndingMillis) : base(baseCalendar)
+            int rangeStartingHourOfDay,
+            int rangeStartingMinute,
+            int rangeStartingSecond,
+            int rangeStartingMillis,
+            int rangeEndingHourOfDay,
+            int rangeEndingMinute,
+            int rangeEndingSecond,
+            int rangeEndingMillis) : base(baseCalendar)
         {
             SetTimeRange(rangeStartingHourOfDay,
-                         rangeStartingMinute,
-                         rangeStartingSecond,
-                         rangeStartingMillis,
-                         rangeEndingHourOfDay,
-                         rangeEndingMinute,
-                         rangeEndingSecond,
-                         rangeEndingMillis);
+                rangeStartingMinute,
+                rangeStartingSecond,
+                rangeStartingMillis,
+                rangeEndingHourOfDay,
+                rangeEndingMinute,
+                rangeEndingSecond,
+                rangeEndingMillis);
         }
-
 
         /// <summary>
         /// Create a <see cref="DailyCalendar" /> with a time range defined by the
-        ///	specified <see cref="DateTime" />s and no 
+        ///	specified <see cref="DateTime" />s and no
         ///	baseCalendar. The Calendars are subject to the following
         ///	considerations:
         ///	<ul>
@@ -265,11 +273,11 @@ namespace Quartz.Impl.Calendar
         ///		    time range. Note this means that a time range may not cross
         ///		    daily boundaries (10PM - 2AM). <i>(because only time fields are
         ///		    are used, it is possible for two Calendars to represent a valid
-        ///		    time range and 
+        ///		    time range and
         ///		    <c>rangeStartingCalendar.after(rangeEndingCalendar) ==  true</c>)
         ///			</i>
-        ///     </li>  
-        /// </ul> 
+        ///     </li>
+        /// </ul>
         /// </summary>
         /// <param name="rangeStartingCalendarUtc">The range starting calendar.</param>
         /// <param name="rangeEndingCalendarUtc">The range ending calendar.</param>
@@ -303,15 +311,15 @@ namespace Quartz.Impl.Calendar
         /// <param name="rangeStartingCalendarUtc">The range starting calendar.</param>
         /// <param name="rangeEndingCalendarUtc">The range ending calendar.</param>
         public DailyCalendar(ICalendar baseCalendar,
-                             DateTime rangeStartingCalendarUtc,
-                             DateTime rangeEndingCalendarUtc) : base(baseCalendar)
+            DateTime rangeStartingCalendarUtc,
+            DateTime rangeEndingCalendarUtc) : base(baseCalendar)
         {
             SetTimeRange(rangeStartingCalendarUtc, rangeEndingCalendarUtc);
         }
 
         /// <summary>
         /// Create a <see cref="DailyCalendar" /> with a time range defined by the
-        /// specified values and no baseCalendar. The values are 
+        /// specified values and no baseCalendar. The values are
         ///	subject to the following considerations:
         ///	<ul>
         ///     <li>
@@ -324,8 +332,8 @@ namespace Quartz.Impl.Calendar
         ///		    daily boundaries (10PM - 2AM). <i>(because only time value are
         ///		    are used, it is possible for the two values to represent a valid
         ///		    time range and <c>rangeStartingTime &gt; rangeEndingTime</c>)</i>
-        ///     </li>  
-        /// </ul> 
+        ///     </li>
+        /// </ul>
         /// </summary>
         /// <param name="rangeStartingTimeInMillis">The range starting time in millis.</param>
         /// <param name="rangeEndingTimeInMillis">The range ending time in millis.</param>
@@ -357,11 +365,11 @@ namespace Quartz.Impl.Calendar
         /// <param name="rangeStartingTimeInMillis">The range starting time in millis.</param>
         /// <param name="rangeEndingTimeInMillis">The range ending time in millis.</param>
         public DailyCalendar(ICalendar baseCalendar,
-                             long rangeStartingTimeInMillis,
-                             long rangeEndingTimeInMillis) : base(baseCalendar)
+            long rangeStartingTimeInMillis,
+            long rangeEndingTimeInMillis) : base(baseCalendar)
         {
             SetTimeRange(rangeStartingTimeInMillis,
-                         rangeEndingTimeInMillis);
+                rangeEndingTimeInMillis);
         }
 
         /// <summary>
@@ -395,15 +403,14 @@ namespace Quartz.Impl.Calendar
                     rangeEndingSecond = info.GetInt32("rangeEndingSecond");
                     rangeEndingMillis = info.GetInt32("rangeEndingMillis");
 
-                    invertTimeRange = info.GetBoolean("invertTimeRange");
+                    InvertTimeRange = info.GetBoolean("invertTimeRange");
                     break;
                 default:
                     throw new NotSupportedException("Unknown serialization version");
             }
-
         }
 
-        [SecurityCritical]
+        [System.Security.SecurityCritical]
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
@@ -419,7 +426,7 @@ namespace Quartz.Impl.Calendar
             info.AddValue("rangeEndingSecond", rangeEndingSecond);
             info.AddValue("rangeEndingMillis", rangeEndingMillis);
 
-            info.AddValue("invertTimeRange", invertTimeRange);
+            info.AddValue("invertTimeRange", InvertTimeRange);
         }
 
         /// <summary>
@@ -430,14 +437,14 @@ namespace Quartz.Impl.Calendar
         /// <returns></returns>
         public override bool IsTimeIncluded(DateTimeOffset timeUtc)
         {
-            if ((GetBaseCalendar() != null) &&
-                (GetBaseCalendar().IsTimeIncluded(timeUtc) == false))
+            if (CalendarBase != null
+                && CalendarBase.IsTimeIncluded(timeUtc) == false)
             {
                 return false;
             }
 
             //Before we start, apply the correct timezone offsets.
-            timeUtc = TimeZoneUtil.ConvertTime(timeUtc, this.TimeZone);
+            timeUtc = TimeZoneUtil.ConvertTime(timeUtc, TimeZone);
 
             DateTimeOffset startOfDayInMillis = GetStartOfDay(timeUtc);
             DateTimeOffset endOfDayInMillis = GetEndOfDay(timeUtc);
@@ -445,34 +452,24 @@ namespace Quartz.Impl.Calendar
                 GetTimeRangeStartingTimeUtc(timeUtc);
             DateTimeOffset timeRangeEndingTimeInMillis =
                 GetTimeRangeEndingTimeUtc(timeUtc);
-            if (!invertTimeRange)
+            if (!InvertTimeRange)
             {
-                if ((timeUtc > startOfDayInMillis &&
-                     timeUtc < timeRangeStartingTimeInMillis) ||
-                    (timeUtc > timeRangeEndingTimeInMillis &&
-                     timeUtc < endOfDayInMillis))
+                if (timeUtc > startOfDayInMillis &&
+                    timeUtc < timeRangeStartingTimeInMillis ||
+                    timeUtc > timeRangeEndingTimeInMillis &&
+                    timeUtc < endOfDayInMillis)
                 {
                     return true;
                 }
-                else
-                {
-                    return false;
-                }
+                return false;
             }
-            else
+            if (timeUtc >= timeRangeStartingTimeInMillis &&
+                timeUtc <= timeRangeEndingTimeInMillis)
             {
-                if ((timeUtc >= timeRangeStartingTimeInMillis) &&
-                    (timeUtc <= timeRangeEndingTimeInMillis))
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
+                return true;
             }
+            return false;
         }
-
 
         /// <summary>
         /// Determine the next time (in milliseconds) that is 'included' by the
@@ -488,27 +485,27 @@ namespace Quartz.Impl.Calendar
 
             while (!IsTimeIncluded(nextIncludedTime))
             {
-                if (!invertTimeRange)
+                if (!InvertTimeRange)
                 {
                     //If the time is in a range excluded by this calendar, we can
-                    // move to the end of the excluded time range and continue 
-                    // testing from there. Otherwise, if nextIncludedTime is 
-                    // excluded by the baseCalendar, ask it the next time it 
+                    // move to the end of the excluded time range and continue
+                    // testing from there. Otherwise, if nextIncludedTime is
+                    // excluded by the baseCalendar, ask it the next time it
                     // includes and begin testing from there. Failing this, add one
                     // millisecond and continue testing.
-                    if ((nextIncludedTime >=
-                         GetTimeRangeStartingTimeUtc(nextIncludedTime)) &&
-                        (nextIncludedTime <=
-                         GetTimeRangeEndingTimeUtc(nextIncludedTime)))
+                    if (nextIncludedTime >=
+                        GetTimeRangeStartingTimeUtc(nextIncludedTime) &&
+                        nextIncludedTime <=
+                        GetTimeRangeEndingTimeUtc(nextIncludedTime))
                     {
                         nextIncludedTime =
                             GetTimeRangeEndingTimeUtc(nextIncludedTime).AddMilliseconds(OneMillis);
                     }
-                    else if ((GetBaseCalendar() != null) &&
-                             (!GetBaseCalendar().IsTimeIncluded(nextIncludedTime)))
+                    else if (CalendarBase != null &&
+                             !CalendarBase.IsTimeIncluded(nextIncludedTime))
                     {
                         nextIncludedTime =
-                            GetBaseCalendar().GetNextIncludedTimeUtc(nextIncludedTime);
+                            CalendarBase.GetNextIncludedTimeUtc(nextIncludedTime);
                     }
                     else
                     {
@@ -518,9 +515,9 @@ namespace Quartz.Impl.Calendar
                 else
                 {
                     //If the time is in a range excluded by this calendar, we can
-                    // move to the end of the excluded time range and continue 
-                    // testing from there. Otherwise, if nextIncludedTime is 
-                    // excluded by the baseCalendar, ask it the next time it 
+                    // move to the end of the excluded time range and continue
+                    // testing from there. Otherwise, if nextIncludedTime is
+                    // excluded by the baseCalendar, ask it the next time it
                     // includes and begin testing from there. Failing this, add one
                     // millisecond and continue testing.
                     if (nextIncludedTime <
@@ -536,11 +533,11 @@ namespace Quartz.Impl.Calendar
                         nextIncludedTime = GetEndOfDay(nextIncludedTime);
                         nextIncludedTime = nextIncludedTime.AddMilliseconds(1);
                     }
-                    else if ((GetBaseCalendar() != null) &&
-                             (!GetBaseCalendar().IsTimeIncluded(nextIncludedTime)))
+                    else if (CalendarBase != null &&
+                             !CalendarBase.IsTimeIncluded(nextIncludedTime))
                     {
                         nextIncludedTime =
-                            GetBaseCalendar().GetNextIncludedTimeUtc(nextIncludedTime);
+                            CalendarBase.GetNextIncludedTimeUtc(nextIncludedTime);
                     }
                     else
                     {
@@ -552,15 +549,15 @@ namespace Quartz.Impl.Calendar
             return nextIncludedTime;
         }
 
-        public override object Clone()
+        public override ICalendar Clone()
         {
-            DailyCalendar clone = (DailyCalendar) base.Clone();
+            var clone = new DailyCalendar(CalendarBase, RangeStartingTime, RangeEndingTime);
+            CloneFields(clone);
             return clone;
         }
 
-
         /// <summary>
-        /// Returns the start time of the time range of the day 
+        /// Returns the start time of the time range of the day
         /// specified in <paramref name="timeUtc" />.
         /// </summary>
         /// <returns>
@@ -570,8 +567,8 @@ namespace Quartz.Impl.Calendar
         public DateTimeOffset GetTimeRangeStartingTimeUtc(DateTimeOffset timeUtc)
         {
             DateTimeOffset rangeStartingTime = new DateTimeOffset(timeUtc.Year, timeUtc.Month, timeUtc.Day,
-                                                      rangeStartingHourOfDay, rangeStartingMinute,
-                                                      rangeStartingSecond, rangeStartingMillis, timeUtc.Offset);
+                rangeStartingHourOfDay, rangeStartingMinute,
+                rangeStartingSecond, rangeStartingMillis, timeUtc.Offset);
             return rangeStartingTime;
         }
 
@@ -586,8 +583,8 @@ namespace Quartz.Impl.Calendar
         public DateTimeOffset GetTimeRangeEndingTimeUtc(DateTimeOffset timeUtc)
         {
             DateTimeOffset rangeEndingTime = new DateTimeOffset(timeUtc.Year, timeUtc.Month, timeUtc.Day,
-                                                    rangeEndingHourOfDay, rangeEndingMinute,
-                                                    rangeEndingSecond, rangeEndingMillis, timeUtc.Offset);
+                rangeEndingHourOfDay, rangeEndingMinute,
+                rangeEndingSecond, rangeEndingMillis, timeUtc.Offset);
             return rangeEndingTime;
         }
 
@@ -596,12 +593,15 @@ namespace Quartz.Impl.Calendar
         /// class description).
         /// </summary>
         /// <value><c>true</c> if invert time range; otherwise, <c>false</c>.</value>
-        public bool InvertTimeRange
-        {
-            get { return invertTimeRange; }
-            set { invertTimeRange = value; }
-        }
+        public bool InvertTimeRange { get; set; }
 
+        public string RangeStartingTime => FormatTimeRange(rangeStartingHourOfDay, rangeStartingMinute, rangeStartingSecond, rangeStartingMillis);
+        public string RangeEndingTime => FormatTimeRange(rangeEndingHourOfDay, rangeEndingMinute, rangeEndingSecond, rangeEndingMillis);
+
+        private static string FormatTimeRange(int hourOfDay, int minute, int seconds, int milliseconds)
+        {
+            return $"{hourOfDay.ToString(TwoDigitFormat, CultureInfo.InvariantCulture)}:{minute.ToString(TwoDigitFormat, CultureInfo.InvariantCulture)}:{seconds.ToString(TwoDigitFormat, CultureInfo.InvariantCulture)}:{milliseconds.ToString(ThreeDigitFormat, CultureInfo.InvariantCulture)}";
+        }
 
         /// <summary>
         /// Returns a <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>.
@@ -613,47 +613,31 @@ namespace Quartz.Impl.Calendar
         {
             StringBuilder buffer = new StringBuilder();
             buffer.Append("base calendar: [");
-            if (GetBaseCalendar() != null)
+            if (CalendarBase != null)
             {
-                buffer.Append(GetBaseCalendar());
+                buffer.Append(CalendarBase);
             }
             else
             {
                 buffer.Append("null");
             }
 
-            const string ThreeDigitFormat = "000";
-            const string TwoDigitFormat = "00";
-
             buffer.Append("], time range: '");
-            buffer.Append(rangeStartingHourOfDay.ToString(TwoDigitFormat, CultureInfo.InvariantCulture));
-            buffer.Append(":");
-            buffer.Append(rangeStartingMinute.ToString(TwoDigitFormat, CultureInfo.InvariantCulture));
-            buffer.Append(":");
-            buffer.Append(rangeStartingSecond.ToString(TwoDigitFormat, CultureInfo.InvariantCulture));
-            buffer.Append(":");
-            buffer.Append(rangeStartingMillis.ToString(ThreeDigitFormat, CultureInfo.InvariantCulture));
+            buffer.Append(RangeStartingTime);
             buffer.Append(" - ");
-            buffer.Append(rangeEndingHourOfDay.ToString(TwoDigitFormat, CultureInfo.InvariantCulture));
-            buffer.Append(":");
-            buffer.Append(rangeEndingMinute.ToString(TwoDigitFormat, CultureInfo.InvariantCulture));
-            buffer.Append(":");
-            buffer.Append(rangeEndingSecond.ToString(TwoDigitFormat, CultureInfo.InvariantCulture));
-            buffer.Append(":");
-            buffer.Append(rangeEndingMillis.ToString(ThreeDigitFormat, CultureInfo.InvariantCulture));
-            buffer.AppendFormat("', inverted: {0}", invertTimeRange);
+            buffer.Append(RangeEndingTime);
+            buffer.AppendFormat("', inverted: {0}", InvertTimeRange);
             return buffer.ToString();
         }
 
-
         /// <summary>
-        /// Sets the time range for the <see cref="DailyCalendar" /> to the times 
-        /// represented in the specified Strings. 
+        /// Sets the time range for the <see cref="DailyCalendar" /> to the times
+        /// represented in the specified Strings.
         /// </summary>
         /// <param name="rangeStartingTimeString">The range starting time string.</param>
         /// <param name="rangeEndingTimeString">The range ending time string.</param>
         public void SetTimeRange(string rangeStartingTimeString,
-                                  string rangeEndingTimeString)
+            string rangeEndingTimeString)
         {
             int rangeStartingSecond;
             int rangeStartingMillis;
@@ -663,9 +647,9 @@ namespace Quartz.Impl.Calendar
 
             var rangeStartingTime = rangeStartingTimeString.Split(Colon);
 
-            if ((rangeStartingTime.Length < 2) || (rangeStartingTime.Length > 4))
+            if (rangeStartingTime.Length < 2 || rangeStartingTime.Length > 4)
             {
-                throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "Invalid time string '{0}'", rangeStartingTimeString));
+                throw new ArgumentException($"Invalid time string '{rangeStartingTimeString}'");
             }
 
             int rangeStartingHourOfDay = Convert.ToInt32(rangeStartingTime[0], CultureInfo.InvariantCulture);
@@ -690,9 +674,9 @@ namespace Quartz.Impl.Calendar
 
             var rangeEndingTime = rangeEndingTimeString.Split(Colon);
 
-            if ((rangeEndingTime.Length < 2) || (rangeEndingTime.Length > 4))
+            if (rangeEndingTime.Length < 2 || rangeEndingTime.Length > 4)
             {
-                throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "Invalid time string '{0}'", rangeEndingTimeString));
+                throw new ArgumentException($"Invalid time string '{rangeEndingTimeString}'");
             }
 
             int rangeEndingHourOfDay = Convert.ToInt32(rangeEndingTime[0], CultureInfo.InvariantCulture);
@@ -715,19 +699,18 @@ namespace Quartz.Impl.Calendar
             }
 
             SetTimeRange(rangeStartingHourOfDay,
-                         rangeStartingMinute,
-                         rangeStartingSecond,
-                         rangeStartingMillis,
-                         rangeEndingHourOfDay,
-                         rangeEndingMinute,
-                         rangeEndingSecond,
-                         rangeEndingMillis);
+                rangeStartingMinute,
+                rangeStartingSecond,
+                rangeStartingMillis,
+                rangeEndingHourOfDay,
+                rangeEndingMinute,
+                rangeEndingSecond,
+                rangeEndingMillis);
         }
-
 
         /// <summary>
         /// Sets the time range for the <see cref="DailyCalendar" /> to the times
-        /// represented in the specified values. 
+        /// represented in the specified values.
         /// </summary>
         /// <param name="rangeStartingHourOfDay">The range starting hour of day.</param>
         /// <param name="rangeStartingMinute">The range starting minute.</param>
@@ -738,42 +721,37 @@ namespace Quartz.Impl.Calendar
         /// <param name="rangeEndingSecond">The range ending second.</param>
         /// <param name="rangeEndingMillis">The range ending millis.</param>
         public void SetTimeRange(int rangeStartingHourOfDay,
-                                  int rangeStartingMinute,
-                                  int rangeStartingSecond,
-                                  int rangeStartingMillis,
-                                  int rangeEndingHourOfDay,
-                                  int rangeEndingMinute,
-                                  int rangeEndingSecond,
-                                  int rangeEndingMillis)
+            int rangeStartingMinute,
+            int rangeStartingSecond,
+            int rangeStartingMillis,
+            int rangeEndingHourOfDay,
+            int rangeEndingMinute,
+            int rangeEndingSecond,
+            int rangeEndingMillis)
         {
             Validate(rangeStartingHourOfDay,
-                     rangeStartingMinute,
-                     rangeStartingSecond,
-                     rangeStartingMillis);
+                rangeStartingMinute,
+                rangeStartingSecond,
+                rangeStartingMillis);
 
             Validate(rangeEndingHourOfDay,
-                     rangeEndingMinute,
-                     rangeEndingSecond,
-                     rangeEndingMillis);
+                rangeEndingMinute,
+                rangeEndingSecond,
+                rangeEndingMillis);
 
             DateTimeOffset startCal = SystemTime.UtcNow();
             startCal =
                 new DateTimeOffset(startCal.Year, startCal.Month, startCal.Day, rangeStartingHourOfDay, rangeStartingMinute,
-                             rangeStartingSecond, rangeStartingMillis, TimeSpan.Zero);
+                    rangeStartingSecond, rangeStartingMillis, TimeSpan.Zero);
 
             DateTimeOffset endCal = SystemTime.UtcNow();
             endCal =
                 new DateTimeOffset(endCal.Year, endCal.Month, endCal.Day, rangeEndingHourOfDay, rangeEndingMinute,
-                             rangeEndingSecond, rangeEndingMillis, TimeSpan.Zero);
+                    rangeEndingSecond, rangeEndingMillis, TimeSpan.Zero);
 
-
-            if (! (startCal < endCal))
+            if (!(startCal < endCal))
             {
-                throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "{0}{1}:{2}:{3}:{4}{5}{6}:{7}:{8}:{9}",
-                                                          InvalidTimeRange, rangeStartingHourOfDay, rangeStartingMinute,
-                                                          rangeStartingSecond, rangeStartingMillis, Separator,
-                                                          rangeEndingHourOfDay, rangeEndingMinute, rangeEndingSecond,
-                                                          rangeEndingMillis));
+                throw new ArgumentException($"{InvalidTimeRange}{rangeStartingHourOfDay}:{rangeStartingMinute}:{rangeStartingSecond}:{rangeStartingMillis}{Separator}{rangeEndingHourOfDay}:{rangeEndingMinute}:{rangeEndingSecond}:{rangeEndingMillis}");
             }
 
             this.rangeStartingHourOfDay = rangeStartingHourOfDay;
@@ -788,12 +766,12 @@ namespace Quartz.Impl.Calendar
 
         /// <summary>
         /// Sets the time range for the <see cref="DailyCalendar" /> to the times
-        /// represented in the specified <see cref="DateTime" />s. 
+        /// represented in the specified <see cref="DateTime" />s.
         /// </summary>
         /// <param name="rangeStartingCalendarUtc">The range starting calendar.</param>
         /// <param name="rangeEndingCalendarUtc">The range ending calendar.</param>
         public void SetTimeRange(DateTime rangeStartingCalendarUtc,
-                                  DateTime rangeEndingCalendarUtc)
+            DateTime rangeEndingCalendarUtc)
         {
             SetTimeRange(
                 rangeStartingCalendarUtc.Hour,
@@ -808,16 +786,15 @@ namespace Quartz.Impl.Calendar
 
         /// <summary>
         /// Sets the time range for the <see cref="DailyCalendar" /> to the times
-        /// represented in the specified values. 
+        /// represented in the specified values.
         /// </summary>
         /// <param name="rangeStartingTime">The range starting time.</param>
         /// <param name="rangeEndingTime">The range ending time.</param>
         public void SetTimeRange(long rangeStartingTime,
-                                  long rangeEndingTime)
+            long rangeEndingTime)
         {
             SetTimeRange(new DateTime(rangeStartingTime), new DateTime(rangeEndingTime));
         }
-
 
         /// <summary>
         /// Gets the start of day, practically zeroes time part.
@@ -839,7 +816,6 @@ namespace Quartz.Impl.Calendar
             DateTime endOfDay = new DateTime(time.Year, time.Month, time.Day, 23, 59, 59, 999);
             return endOfDay;
         }
-
 
         /// <summary>
         /// Checks the specified values for validity as a set of time values.
@@ -868,18 +844,17 @@ namespace Quartz.Impl.Calendar
             }
         }
 
-
         public override int GetHashCode()
         {
             int baseHash = 0;
-            if (GetBaseCalendar() != null)
-                baseHash = GetBaseCalendar().GetHashCode();
+            if (CalendarBase != null)
+                baseHash = CalendarBase.GetHashCode();
 
             return rangeStartingHourOfDay.GetHashCode() + rangeEndingHourOfDay.GetHashCode() +
                    2*(rangeStartingMinute.GetHashCode() + rangeEndingMinute.GetHashCode()) +
                    3*(rangeStartingSecond.GetHashCode() + rangeEndingSecond.GetHashCode()) +
                    4*(rangeStartingMillis.GetHashCode() + rangeEndingMillis.GetHashCode())
-                 + 5 * baseHash;
+                   + 5*baseHash;
         }
 
         public bool Equals(DailyCalendar obj)
@@ -888,28 +863,24 @@ namespace Quartz.Impl.Calendar
             {
                 return false;
             }
-            bool baseEqual = GetBaseCalendar() == null || GetBaseCalendar().Equals(obj.GetBaseCalendar());
+            bool baseEqual = CalendarBase == null || CalendarBase.Equals(obj.CalendarBase);
 
-            return baseEqual && (InvertTimeRange == obj.InvertTimeRange) &&
-                   (rangeStartingHourOfDay == obj.rangeStartingHourOfDay) &&
-                   (rangeStartingMinute == obj.rangeStartingMinute) &&
-                   (rangeStartingSecond == obj.rangeStartingSecond) &&
-                   (rangeStartingMillis == obj.rangeStartingMillis) &&
-                   (rangeEndingHourOfDay == obj.rangeEndingHourOfDay) &&
-                   (rangeEndingMinute == obj.rangeEndingMinute) &&
-                   (rangeEndingSecond == obj.rangeEndingSecond) &&
-                   (rangeEndingMillis == obj.rangeEndingMillis);
-                    
+            return baseEqual && InvertTimeRange == obj.InvertTimeRange &&
+                   rangeStartingHourOfDay == obj.rangeStartingHourOfDay &&
+                   rangeStartingMinute == obj.rangeStartingMinute &&
+                   rangeStartingSecond == obj.rangeStartingSecond &&
+                   rangeStartingMillis == obj.rangeStartingMillis &&
+                   rangeEndingHourOfDay == obj.rangeEndingHourOfDay &&
+                   rangeEndingMinute == obj.rangeEndingMinute &&
+                   rangeEndingSecond == obj.rangeEndingSecond &&
+                   rangeEndingMillis == obj.rangeEndingMillis;
         }
-
 
         public override bool Equals(object obj)
         {
             if (!(obj is DailyCalendar))
                 return false;
-            else
-                return Equals((DailyCalendar)obj);
-
+            return Equals((DailyCalendar) obj);
         }
     }
 }

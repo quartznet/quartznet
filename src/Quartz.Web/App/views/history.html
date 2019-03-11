@@ -1,0 +1,24 @@
+<template>
+    <h2>${heading}</h2>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Job</th>
+                <th>Trigger</th>
+                <th>Scheduled Time</th>
+                <th>Fired Time</th>
+                <th>Duration</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr repeat.for="entry of entries">
+                <td>${entry.jobName}.${entry.jobGroup}</td>
+                <td>${entry.triggerName}.${entry.triggerGroup}</td>
+                <td>${entry.scheduledTime | dateFormat}</td>
+                <td>${entry.firedTime | dateFormat}</td>
+                <td>${entry.runTime | durationFormat}</td>
+            </tr>
+        </tbody>
+    </table>
+</template>

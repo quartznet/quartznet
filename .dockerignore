@@ -1,0 +1,6 @@
+**/obj
+**/bin
+**/artifacts
+**/jspm_packages
+**/node_modules
+_ReSharper*

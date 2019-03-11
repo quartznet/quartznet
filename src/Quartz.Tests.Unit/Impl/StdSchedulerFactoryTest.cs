@@ -1,31 +1,31 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
 
+using System;
 using System.Collections.Specialized;
+using System.Threading.Tasks;
 
 using NUnit.Framework;
 
 using Quartz.Impl;
-
-using System;
 
 namespace Quartz.Tests.Unit.Impl
 {
@@ -37,39 +37,28 @@ namespace Quartz.Tests.Unit.Impl
     public class StdSchedulerFactoryTest
     {
         [Test]
-        public void TestFactoryCanBeUsedWithNoProperties()
+        public Task TestFactoryCanBeUsedWithEmptyProperties()
         {
-            StdSchedulerFactory factory = new StdSchedulerFactory();
-            factory.GetScheduler();
+            var props = new NameValueCollection();
+            props["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
+            StdSchedulerFactory factory = new StdSchedulerFactory(props);
+            return factory.GetScheduler();
         }
 
         [Test]
-        public void TestFactoryCanBeUsedWithEmptyProperties()
-        {
-            StdSchedulerFactory factory = new StdSchedulerFactory(new NameValueCollection());
-            factory.GetScheduler();
-        }
-
-        [Test]
-        [ExpectedException(
-            ExpectedException = typeof (SchedulerConfigException),
-            ExpectedMessage = "Unknown configuration property 'quartz.unknown.property'")]
         public void TestFactoryShouldThrowConfigurationErrorIfUnknownQuartzSetting()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.unknown.property"] = "1";
-            new StdSchedulerFactory(properties);
+            Assert.Throws<SchedulerConfigException>(() => new StdSchedulerFactory(properties), "Unknown configuration property 'quartz.unknown.property'");
         }
 
         [Test]
-        [ExpectedException(
-            ExpectedException = typeof (SchedulerConfigException),
-            ExpectedMessage = "Unknown configuration property 'quartz.jobstore.type'")]
         public void TestFactoryShouldThrowConfigurationErrorIfCaseErrorInQuartzSetting()
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobstore.type"] = "";
-            new StdSchedulerFactory(properties);
+            Assert.Throws<SchedulerConfigException>(() => new StdSchedulerFactory(properties), "Unknown configuration property 'quartz.jobstore.type'");
         }
 
         [Test]
@@ -90,17 +79,22 @@ namespace Quartz.Tests.Unit.Impl
         }
 
         [Test]
-        public void TestFactoryShouldOverrideConfigurationWithSysProperties()
+        public async Task TestFactoryShouldOverrideConfigurationWithSysProperties()
         {
             NameValueCollection properties = new NameValueCollection();
-            var factory = new StdSchedulerFactory();
+            properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
+            var factory = new StdSchedulerFactory(properties);
+
             factory.Initialize();
-            var scheduler = factory.GetScheduler();
-            Assert.AreEqual("DefaultQuartzScheduler", scheduler.SchedulerName);
+            var scheduler = await factory.GetScheduler();
+            Assert.AreEqual("QuartzScheduler", scheduler.SchedulerName);
 
             Environment.SetEnvironmentVariable("quartz.scheduler.instanceName", "fromSystemProperties");
+            // Make sure to pass the serializer type as an env var instead of in a NameValueCollection (as in the previous test)
+            // since passing an explicit NameValueCollection causes the scheduler factory to not check environment variables
+            Environment.SetEnvironmentVariable("quartz.serializer.type", TestConstants.DefaultSerializerType);
             factory = new StdSchedulerFactory();
-            scheduler = factory.GetScheduler();
+            scheduler = await factory.GetScheduler();
             Assert.AreEqual("fromSystemProperties", scheduler.SchedulerName);
         }
 
@@ -112,6 +106,21 @@ namespace Quartz.Tests.Unit.Impl
             collection["quartz.scheduler.idleWaitTime"] = "123";
             collection["quartz.scheduler.test"] = "foo";
             StdSchedulerFactory factory = new TestStdSchedulerFactory(collection);
+        }
+
+        [Test]
+        public async Task ShouldBeAbleToDefineThreadPriority()
+        {
+            var properties = new NameValueCollection
+            {
+                ["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz",
+                ["quartz.threadPool.threadCount"] = "3",
+                ["quartz.threadPool.threadPriority"] = "Normal"
+            };
+
+            ISchedulerFactory schedulerFactory = new StdSchedulerFactory(properties);
+
+            await schedulerFactory.GetScheduler();
         }
 
         private class TestStdSchedulerFactory : StdSchedulerFactory

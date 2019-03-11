@@ -1,30 +1,31 @@
 ﻿#region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 using Quartz.Impl.Triggers;
 using Quartz.Spi;
-using Quartz.Collection;
-
+using Quartz.Util;
 
 namespace Quartz
 {
@@ -56,14 +57,14 @@ namespace Quartz
     ///         IJobDetail job = JobBuilder.Create&lt;MyJob>()
     ///             .WithIdentity("myJob")
     ///             .Build();
-    ///             
-    ///         ITrigger trigger = TriggerBuilder.Create() 
+    ///
+    ///         ITrigger trigger = TriggerBuilder.Create()
     ///             .WithIdentity(triggerKey("myTrigger", "myTriggerGroup"))
-    ///             .WithDailyTimeIntervalSchedule(x => 
+    ///             .WithDailyTimeIntervalSchedule(x =>
     ///                        x.WithIntervalInMinutes(15)
     ///                        .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(8, 0)))
     ///             .Build();
-    ///         
+    ///
     ///         scheduler.scheduleJob(job, trigger);
     /// </code>
     /// </remarks>
@@ -74,7 +75,7 @@ namespace Quartz
     {
         private int interval = 1;
         private IntervalUnit intervalUnit = IntervalUnit.Minute;
-        private ISet<DayOfWeek> daysOfWeek;
+        private HashSet<DayOfWeek> daysOfWeek;
         private TimeOfDay startTimeOfDayUtc;
         private TimeOfDay endTimeOfDayUtc;
         private int repeatCount = DailyTimeIntervalTriggerImpl.RepeatIndefinitely;
@@ -88,15 +89,15 @@ namespace Quartz
         /// <remarks>
         /// The set contains all values between <see cref="DayOfWeek.Sunday"/> and <see cref="DayOfWeek.Saturday"/>
         /// </remarks>
-        public static readonly ISet<DayOfWeek> AllDaysOfTheWeek;
+        public static readonly IReadOnlyCollection<DayOfWeek> AllDaysOfTheWeek;
 
         /// <summary>
         /// A set of the business days of the week (for locales similar to the USA).
         /// </summary>
         /// <remarks>
-        /// The set contains all values between <see cref="DayOfWeek.Monday"/> and <see cref="DayOfWeek.Friday"/> 
+        /// The set contains all values between <see cref="DayOfWeek.Monday"/> and <see cref="DayOfWeek.Friday"/>
         /// </remarks>
-        public static readonly ISet<DayOfWeek> MondayThroughFriday;
+        public static readonly IReadOnlyCollection<DayOfWeek> MondayThroughFriday;
 
         /// <summary>
         /// A set of the weekend days of the week (for locales similar to the USA).
@@ -104,36 +105,39 @@ namespace Quartz
         /// <remarks>
         /// The set contains <see cref="DayOfWeek.Saturday"/> and <see cref="DayOfWeek.Sunday"/>
         /// </remarks>
-        public static readonly ISet<DayOfWeek> SaturdayAndSunday;
+        public static readonly IReadOnlyCollection<DayOfWeek> SaturdayAndSunday;
 
         static DailyTimeIntervalScheduleBuilder()
         {
-            AllDaysOfTheWeek = new HashSet<DayOfWeek>();
-            MondayThroughFriday = new HashSet<DayOfWeek>();
+            var allDaysOfTheWeek = new ReadOnlyCompatibleHashSet<DayOfWeek>();
+            var mondayThroughFriday = new ReadOnlyCompatibleHashSet<DayOfWeek>();
             foreach (DayOfWeek d in Enum.GetValues(typeof(DayOfWeek)))
             {
-                AllDaysOfTheWeek.Add(d);
+                allDaysOfTheWeek.Add(d);
 
-                if ((d >= DayOfWeek.Monday) && (d <= DayOfWeek.Friday))
+                if (d >= DayOfWeek.Monday && d <= DayOfWeek.Friday)
                 {
-                    MondayThroughFriday.Add(d);
+                    mondayThroughFriday.Add(d);
                 }
             }
 
-            SaturdayAndSunday = new HashSet<DayOfWeek>();
-            SaturdayAndSunday.Add(DayOfWeek.Sunday);
-            SaturdayAndSunday.Add(DayOfWeek.Saturday);
+            SaturdayAndSunday = new ReadOnlyCompatibleHashSet<DayOfWeek>
+            {
+                DayOfWeek.Sunday,
+                DayOfWeek.Saturday
+            };
 
-            //set as read only sets
-            AllDaysOfTheWeek = new ReadOnlySet<DayOfWeek>(AllDaysOfTheWeek);
-            MondayThroughFriday = new ReadOnlySet<DayOfWeek>(MondayThroughFriday);
-            SaturdayAndSunday = new ReadOnlySet<DayOfWeek>(SaturdayAndSunday);
+            AllDaysOfTheWeek = allDaysOfTheWeek;
+            MondayThroughFriday = mondayThroughFriday;
+            AllDaysOfTheWeek = new ReadOnlyCompatibleHashSet<DayOfWeek>(AllDaysOfTheWeek);
+            MondayThroughFriday = new ReadOnlyCompatibleHashSet<DayOfWeek>(MondayThroughFriday);
+            SaturdayAndSunday = new ReadOnlyCompatibleHashSet<DayOfWeek>(SaturdayAndSunday);
         }
 
         protected DailyTimeIntervalScheduleBuilder()
         {
         }
-        
+
         /// <summary>
         /// Create a DailyTimeIntervalScheduleBuilder
         /// </summary>
@@ -145,13 +149,12 @@ namespace Quartz
 
         /// <summary>
         /// Build the actual Trigger -- NOT intended to be invoked by end users,
-        /// but will rather be invoked by a TriggerBuilder which this 
+        /// but will rather be invoked by a TriggerBuilder which this
         /// ScheduleBuilder is given to.
         /// </summary>
         /// <returns></returns>
         public override IMutableTrigger Build()
         {
-
             DailyTimeIntervalTriggerImpl st = new DailyTimeIntervalTriggerImpl();
             st.RepeatInterval = interval;
             st.RepeatIntervalUnit = intervalUnit;
@@ -161,11 +164,11 @@ namespace Quartz
 
             if (daysOfWeek != null)
             {
-                st.DaysOfWeek = new HashSet<DayOfWeek>(daysOfWeek);
+                st.DaysOfWeek = new ReadOnlyCompatibleHashSet<DayOfWeek>(daysOfWeek);
             }
             else
             {
-                st.DaysOfWeek = new HashSet<DayOfWeek>(AllDaysOfTheWeek);
+                st.DaysOfWeek = new ReadOnlyCompatibleHashSet<DayOfWeek>(AllDaysOfTheWeek);
             }
 
             if (startTimeOfDayUtc != null)
@@ -201,15 +204,15 @@ namespace Quartz
         /// <seealso cref="ICalendarIntervalTrigger.RepeatIntervalUnit" />
         public DailyTimeIntervalScheduleBuilder WithInterval(int interval, IntervalUnit unit)
         {
-            if (!((unit == IntervalUnit.Second) ||
-                    (unit == IntervalUnit.Minute) || (unit == IntervalUnit.Hour)))
+            if (!(unit == IntervalUnit.Second ||
+                  unit == IntervalUnit.Minute || unit == IntervalUnit.Hour))
             {
                 throw new ArgumentException("Invalid repeat IntervalUnit (must be Second, Minute or Hour).");
             }
 
             ValidateInterval(interval);
             this.interval = interval;
-            this.intervalUnit = unit;
+            intervalUnit = unit;
             return this;
         }
 
@@ -258,10 +261,10 @@ namespace Quartz
         /// <summary>
         /// Set the trigger to fire on the given days of the week.
         /// </summary>
-        /// <param name="onDaysOfWeek">a Set containing the integers representing the days of the week, defined by <see cref="DayOfWeek.Sunday"/> - <see cref="DayOfWeek.Saturday"/>. 
+        /// <param name="onDaysOfWeek">a Set containing the integers representing the days of the week, defined by <see cref="DayOfWeek.Sunday"/> - <see cref="DayOfWeek.Saturday"/>.
         /// </param>
         /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
-        public DailyTimeIntervalScheduleBuilder OnDaysOfTheWeek(ISet<DayOfWeek> onDaysOfWeek)
+        public DailyTimeIntervalScheduleBuilder OnDaysOfTheWeek(IReadOnlyCollection<DayOfWeek> onDaysOfWeek)
         {
             if (onDaysOfWeek == null || onDaysOfWeek.Count == 0)
             {
@@ -276,7 +279,7 @@ namespace Quartz
                 }
             }
 
-            this.daysOfWeek = onDaysOfWeek;
+            daysOfWeek = new HashSet<DayOfWeek>(onDaysOfWeek);
             return this;
         }
 
@@ -287,12 +290,7 @@ namespace Quartz
         /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
         public DailyTimeIntervalScheduleBuilder OnDaysOfTheWeek(params DayOfWeek[] onDaysOfWeek)
         {
-            ISet<DayOfWeek> daysAsSet = new HashSet<DayOfWeek>();
-            foreach (DayOfWeek day in onDaysOfWeek)
-            {
-                daysAsSet.Add(day);
-            }
-            return OnDaysOfTheWeek(daysAsSet);
+            return OnDaysOfTheWeek((IReadOnlyCollection<DayOfWeek>) onDaysOfWeek);
         }
 
         /// <summary>
@@ -301,7 +299,7 @@ namespace Quartz
         /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
         public DailyTimeIntervalScheduleBuilder OnMondayThroughFriday()
         {
-            daysOfWeek = MondayThroughFriday;
+            daysOfWeek = new HashSet<DayOfWeek>(MondayThroughFriday);
             return this;
         }
 
@@ -311,7 +309,7 @@ namespace Quartz
         /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
         public DailyTimeIntervalScheduleBuilder OnSaturdayAndSunday()
         {
-            daysOfWeek = SaturdayAndSunday;
+            daysOfWeek = new HashSet<DayOfWeek>(SaturdayAndSunday);
             return this;
         }
 
@@ -321,7 +319,7 @@ namespace Quartz
         /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
         public DailyTimeIntervalScheduleBuilder OnEveryDay()
         {
-            daysOfWeek = AllDaysOfTheWeek;
+            daysOfWeek = new HashSet<DayOfWeek>(AllDaysOfTheWeek);
             return this;
         }
 
@@ -332,13 +330,7 @@ namespace Quartz
         /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
         public DailyTimeIntervalScheduleBuilder StartingDailyAt(TimeOfDay timeOfDayUtc)
         {
-
-            if (timeOfDayUtc == null)
-            {
-                throw new ArgumentException("Start time of day cannot be null!");
-            }
-
-            startTimeOfDayUtc = timeOfDayUtc;
+            startTimeOfDayUtc = timeOfDayUtc ?? throw new ArgumentException("Start time of day cannot be null!");
             return this;
         }
 
@@ -353,7 +345,6 @@ namespace Quartz
             return this;
         }
 
-            
         /// <summary>
         /// Calculate and set the EndTimeOfDay using count, interval and StarTimeOfDay. This means
         /// that these must be set before this method is call.
@@ -378,8 +369,8 @@ namespace Quartz
 
             //apply proper offsets according to timezone
             TimeZoneInfo targetTimeZone = timeZone ?? TimeZoneInfo.Local;
-            startTimeOfDayDate = new DateTimeOffset(startTimeOfDayDate.DateTime, targetTimeZone.GetUtcOffset(startTimeOfDayDate.DateTime));
-            maxEndTimeOfDayDate = new DateTimeOffset(maxEndTimeOfDayDate.DateTime, targetTimeZone.GetUtcOffset(maxEndTimeOfDayDate.DateTime));
+            startTimeOfDayDate = new DateTimeOffset(startTimeOfDayDate.DateTime, TimeZoneUtil.GetUtcOffset(startTimeOfDayDate.DateTime, targetTimeZone));
+            maxEndTimeOfDayDate = new DateTimeOffset(maxEndTimeOfDayDate.DateTime, TimeZoneUtil.GetUtcOffset(maxEndTimeOfDayDate.DateTime, targetTimeZone));
 
             TimeSpan remainingMillisInDay = maxEndTimeOfDayDate - startTimeOfDayDate;
             TimeSpan intervalInMillis;
@@ -405,13 +396,13 @@ namespace Quartz
                 throw new ArgumentException("The startTimeOfDay is too late with given Interval and IntervalUnit values.");
             }
 
-            long maxNumOfCount = (remainingMillisInDay.Ticks / intervalInMillis.Ticks);
+            long maxNumOfCount = remainingMillisInDay.Ticks / intervalInMillis.Ticks;
             if (count > maxNumOfCount)
             {
                 throw new ArgumentException("The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
             }
 
-            TimeSpan incrementInMillis = TimeSpan.FromTicks((count - 1) * intervalInMillis.Ticks) ;
+            TimeSpan incrementInMillis = TimeSpan.FromTicks((count - 1) * intervalInMillis.Ticks);
             DateTimeOffset endTimeOfDayDate = startTimeOfDayDate.Add(incrementInMillis);
 
             if (endTimeOfDayDate > maxEndTimeOfDayDate)
@@ -426,7 +417,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// If the Trigger misfires, use the 
+        /// If the Trigger misfires, use the
         /// <see cref="MisfireInstruction.IgnoreMisfirePolicy"/> instruction.
         /// </summary>
         /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
@@ -438,7 +429,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// If the Trigger misfires, use the 
+        /// If the Trigger misfires, use the
         /// <see cref="MisfireInstruction.DailyTimeIntervalTrigger.DoNothing"/> instruction.
         /// </summary>
         /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
@@ -450,7 +441,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// If the Trigger misfires, use the 
+        /// If the Trigger misfires, use the
         /// <see cref="MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow"/> instruction.
         /// </summary>
         /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
@@ -483,10 +474,11 @@ namespace Quartz
         /// <seealso cref="ICalendarIntervalTrigger.TimeZone" />
         public DailyTimeIntervalScheduleBuilder InTimeZone(TimeZoneInfo timezone)
         {
-            this.timeZone = timezone;
+            timeZone = timezone;
             return this;
         }
 
+        // ReSharper disable once UnusedParameter.Local
         private static void ValidateInterval(int interval)
         {
             if (interval <= 0)
@@ -515,4 +507,3 @@ namespace Quartz
         }
     }
 }
-    

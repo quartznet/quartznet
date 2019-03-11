@@ -1,30 +1,29 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
 
-using Quartz.Util;
-
 using System;
-using System.Globalization;
+using System.Linq;
 using System.Runtime.Serialization;
-using System.Security;
+
+using Quartz.Util;
 
 namespace Quartz.Impl.Calendar
 {
@@ -87,24 +86,25 @@ namespace Quartz.Impl.Calendar
             {
                 case 0:
                 case 1:
-                    excludeDays = (bool[]) info.GetValue("excludeDays", typeof (bool[]));
-                    excludeAll = (bool) info.GetValue("excludeAll", typeof (bool));
+                    excludeDays = (bool[]) info.GetValue("excludeDays", typeof(bool[]));
+                    excludeAll = (bool) info.GetValue("excludeAll", typeof(bool));
                     break;
                 default:
                     throw new NotSupportedException("Unknown serialization version");
             }
         }
 
-        [SecurityCritical]
+        [System.Security.SecurityCritical]
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
+
             info.AddValue("version", 1);
             info.AddValue("excludeDays", excludeDays);
             info.AddValue("excludeAll", excludeAll);
         }
 
-        /// <summary> 
+        /// <summary>
         /// Initialize internal variables
         /// </summary>
         private void Init()
@@ -120,7 +120,7 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         public virtual bool[] DaysExcluded
         {
-            get { return excludeDays; }
+            get => excludeDays;
 
             set
             {
@@ -139,10 +139,10 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         public virtual bool IsDayExcluded(int day)
         {
-            if ((day < 1) || (day > MaxDaysInMonth))
+            if (day < 1 || day > MaxDaysInMonth)
             {
                 throw new ArgumentException(
-                    string.Format(CultureInfo.InvariantCulture, "The day parameter must be in the range of 1 to {0}", MaxDaysInMonth));
+                    $"The day parameter must be in the range of 1 to {MaxDaysInMonth}");
             }
             return excludeDays[day - 1];
         }
@@ -196,10 +196,10 @@ namespace Quartz.Impl.Calendar
                 return false;
             }
 
-            timeStampUtc = TimeZoneUtil.ConvertTime(timeStampUtc, this.TimeZone); //apply the timezone
+            timeStampUtc = TimeZoneUtil.ConvertTime(timeStampUtc, TimeZone); //apply the timezone
             int day = timeStampUtc.Day;
 
-            return !(IsDayExcluded(day));
+            return !IsDayExcluded(day);
         }
 
         /// <summary>
@@ -219,13 +219,13 @@ namespace Quartz.Impl.Calendar
 
             // Call base calendar implementation first
             DateTimeOffset baseTime = base.GetNextIncludedTimeUtc(timeUtc);
-            if ((baseTime != DateTimeOffset.MinValue) && (baseTime > timeUtc))
+            if (baseTime != DateTimeOffset.MinValue && baseTime > timeUtc)
             {
                 timeUtc = baseTime;
             }
 
             //apply the timezone
-            timeUtc = TimeZoneUtil.ConvertTime(timeUtc, this.TimeZone);
+            timeUtc = TimeZoneUtil.ConvertTime(timeUtc, TimeZone);
 
             // Get timestamp for 00:00:00, in the correct timezone offset
             DateTimeOffset newTimeStamp = new DateTimeOffset(timeUtc.Date, timeUtc.Offset);
@@ -250,9 +250,10 @@ namespace Quartz.Impl.Calendar
         /// Creates a new object that is a copy of the current instance.
         /// </summary>
         /// <returns>A new object that is a copy of this instance.</returns>
-        public override object Clone()
+        public override ICalendar Clone()
         {
-            MonthlyCalendar clone = (MonthlyCalendar) base.Clone();
+            MonthlyCalendar clone = new MonthlyCalendar();
+            CloneFields(clone);
             bool[] excludeCopy = new bool[excludeDays.Length];
             Array.Copy(excludeDays, excludeCopy, excludeDays.Length);
             clone.excludeDays = excludeCopy;
@@ -262,12 +263,12 @@ namespace Quartz.Impl.Calendar
         public override int GetHashCode()
         {
             int baseHash = 0;
-            if (GetBaseCalendar() != null)
+            if (CalendarBase != null)
             {
-                baseHash = GetBaseCalendar().GetHashCode();
+                baseHash = CalendarBase.GetHashCode();
             }
 
-            return DaysExcluded.GetHashCode() + 5*baseHash;
+            return DaysExcluded.GetHashCode() + 5 * baseHash;
         }
 
         public bool Equals(MonthlyCalendar obj)
@@ -276,17 +277,16 @@ namespace Quartz.Impl.Calendar
             //about the precise month it is dealing with, so
             //FebruaryCalendars will be only equal if their
             //31st days are equally included
-            //but that's not going to be a problem since 
+            //but that's not going to be a problem since
             //there's no need to redefine default value of false
             //for such days
             if (obj == null)
             {
                 return false;
             }
-            bool baseEqual = GetBaseCalendar() == null || GetBaseCalendar().Equals(obj.GetBaseCalendar());
+            bool baseEqual = CalendarBase == null || CalendarBase.Equals(obj.CalendarBase);
 
-            return baseEqual && (ArraysEqualElementsOnEqualPlaces(DaysExcluded, obj.DaysExcluded)
-                                );
+            return baseEqual && DaysExcluded.SequenceEqual(obj.DaysExcluded);
         }
 
         public override bool Equals(object obj)
@@ -295,10 +295,7 @@ namespace Quartz.Impl.Calendar
             {
                 return false;
             }
-            else
-            {
-                return Equals((MonthlyCalendar) obj);
-            }
+            return Equals((MonthlyCalendar) obj);
         }
     }
 }

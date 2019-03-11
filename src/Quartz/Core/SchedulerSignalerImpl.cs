@@ -1,31 +1,32 @@
 #region License
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 #endregion
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
-using Common.Logging;
-
+using Quartz.Logging;
 using Quartz.Spi;
 
 namespace Quartz.Core
 {
-	/// <summary> 
+	/// <summary>
 	/// An interface to be used by <see cref="IJobStore" /> instances in order to
 	/// communicate signals back to the <see cref="QuartzScheduler" />.
 	/// </summary>
@@ -33,7 +34,7 @@ namespace Quartz.Core
 	/// <author>Marko Lahma (.NET)</author>
 	public class SchedulerSignalerImpl : ISchedulerSignaler
 	{
-		private readonly ILog log = LogManager.GetLogger(typeof (SchedulerSignalerImpl));
+		private readonly ILog log = LogProvider.GetLogger(typeof (SchedulerSignalerImpl));
         protected readonly QuartzScheduler sched;
         protected readonly QuartzSchedulerThread schedThread;
 
@@ -50,45 +51,58 @@ namespace Quartz.Core
         /// Notifies the scheduler about misfired trigger.
         /// </summary>
         /// <param name="trigger">The trigger that misfired.</param>
-        public virtual void NotifyTriggerListenersMisfired(ITrigger trigger)
-		{
-			try
-			{
-				sched.NotifyTriggerListenersMisfired(trigger);
-			}
-			catch (SchedulerException se)
-			{
-				log.Error("Error notifying listeners of trigger misfire.", se);
-				sched.NotifySchedulerListenersError("Error notifying listeners of trigger misfire.", se);
-			}
-		}
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        public virtual async Task NotifyTriggerListenersMisfired(
+            ITrigger trigger,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await sched.NotifyTriggerListenersMisfired(trigger, cancellationToken).ConfigureAwait(false);
+            }
+            catch (SchedulerException se)
+            {
+                log.ErrorException("Error notifying listeners of trigger misfire.", se);
+                await sched.NotifySchedulerListenersError("Error notifying listeners of trigger misfire.", se, cancellationToken).ConfigureAwait(false);
+            }
+        }
 
 
         /// <summary>
         /// Notifies the scheduler about finalized trigger.
         /// </summary>
         /// <param name="trigger">The trigger that has finalized.</param>
-        public void NotifySchedulerListenersFinalized(ITrigger trigger)
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        public Task NotifySchedulerListenersFinalized(
+            ITrigger trigger,
+            CancellationToken cancellationToken = default)
         {
-            sched.NotifySchedulerListenersFinalized(trigger);
+            return sched.NotifySchedulerListenersFinalized(trigger, cancellationToken);
         }
 
-		/// <summary>
-		/// Signals the scheduling change.
-		/// </summary>
-        public void SignalSchedulingChange(DateTimeOffset? candidateNewNextFireTime)
+        /// <summary>
+        /// Signals the scheduling change.
+        /// </summary>
+        public void SignalSchedulingChange(
+            DateTimeOffset? candidateNewNextFireTime,
+            CancellationToken cancellationToken = default)
         {
             schedThread.SignalSchedulingChange(candidateNewNextFireTime);
         }
 
-	    public void NotifySchedulerListenersJobDeleted(JobKey jobKey)
-	    {
-	        sched.NotifySchedulerListenersJobDeleted(jobKey);
-	    }
+        public Task NotifySchedulerListenersJobDeleted(
+            JobKey jobKey,
+            CancellationToken cancellationToken = default)
+        {
+            return sched.NotifySchedulerListenersJobDeleted(jobKey, cancellationToken);
+        }
 
-	    public void NotifySchedulerListenersError(string message, SchedulerException jpe)
-	    {
-	        sched.NotifySchedulerListenersError(message, jpe);
-	    }
-	}
+        public Task NotifySchedulerListenersError(
+            string message,
+            SchedulerException jpe,
+            CancellationToken cancellationToken = default)
+        {
+            return sched.NotifySchedulerListenersError(message, jpe, cancellationToken);
+        }
+    }
 }

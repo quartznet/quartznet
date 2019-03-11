@@ -1,24 +1,25 @@
 #region License
-/* 
+
+/*
  * Copyright 2009- Marko Lahma
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
+
 #endregion
 
 using System;
-using System.Globalization;
 using System.Reflection;
 
 namespace Quartz.Impl.AdoJobStore.Common
@@ -36,7 +37,6 @@ namespace Quartz.Impl.AdoJobStore.Common
         private string dbBinaryTypeName;
         private Enum dbBinaryType;
 
-
         /// <summary>
         /// Initializes this instance. Parses information and initializes startup
         /// values.
@@ -51,7 +51,7 @@ namespace Quartz.Impl.AdoJobStore.Common
                 ParameterDbTypeProperty = ParameterType.GetProperty(parameterDbTypePropertyName);
                 if (ParameterDbTypeProperty == null)
                 {
-                    throw new ArgumentException(string.Format(CultureInfo.InvariantCulture, "Couldn't parse parameter db type for database type '{0}'", ProductName));
+                    throw new ArgumentException($"Couldn't parse parameter db type for database type '{ProductName}'");
                 }
             }
         }
@@ -83,16 +83,6 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// </summary>
         /// <value>The type of the parameter.</value>
         public virtual Type ParameterType { get; set; }
-
-        /// <summary>
-        /// Gets the type of the command builder.
-        /// </summary>
-        /// <value>The type of the command builder.</value>
-        public virtual Type CommandBuilderType { get; set; }
-
-        /// <summary>Gets the command builder's derive parameters method.</summary>
-        /// <value>The command builder derive parameters method.</value>
-        public virtual MethodInfo CommandBuilderDeriveParametersMethod { get; set; }
 
         /// <summary>
         /// Gets or sets the parameter name prefix.
@@ -137,16 +127,12 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <value>The type of the db binary.</value>
         public virtual string DbBinaryTypeName
         {
-            set { dbBinaryTypeName = value; }
+            set => dbBinaryTypeName = value;
         }
 
         /// <summary>Gets the type of the db binary.</summary>
         /// <value>The type of the db binary.</value>
-        public virtual Enum DbBinaryType
-        {
-            get { return dbBinaryType; }
-        }
-
+        public virtual Enum DbBinaryType => dbBinaryType;
 
         /// <summary>
         /// Sets the name of the parameter db type property.
@@ -154,7 +140,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <value>The name of the parameter db type property.</value>
         public virtual string ParameterDbTypePropertyName
         {
-            set { parameterDbTypePropertyName = value; }
+            set => parameterDbTypePropertyName = value;
         }
 
         /// <summary>
@@ -172,8 +158,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <param name="parameterName">Name of the parameter.</param>
         public virtual string GetParameterName(string parameterName)
         {
-            return ParameterNamePrefix + parameterName; 
+            return ParameterNamePrefix + parameterName;
         }
-
     }
 }

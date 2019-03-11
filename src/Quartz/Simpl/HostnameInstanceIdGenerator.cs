@@ -1,6 +1,6 @@
 #region License
 /* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -16,6 +16,9 @@
  * 
  */
 #endregion
+
+using System.Threading;
+using System.Threading.Tasks;
 
 using Quartz.Spi;
 
@@ -39,10 +42,11 @@ namespace Quartz.Simpl
 		/// <summary>
 		/// Generate the instance id for a <see cref="IScheduler"/>
 		/// </summary>
+		/// <param name="cancellationToken"></param>
 		/// <returns>The clusterwide unique instance id.</returns>
-		public override string GenerateInstanceId()
+		public override Task<string> GenerateInstanceId(CancellationToken cancellationToken = default)
 		{
-		    return GetHostName(IdMaxLength);
+		    return GetHostName(IdMaxLength, cancellationToken);
 		}
 	}
 }

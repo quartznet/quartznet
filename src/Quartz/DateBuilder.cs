@@ -1,7 +1,7 @@
 #region License
 
 /* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -20,6 +20,8 @@
 #endregion
 
 using System;
+
+using Quartz.Util;
 
 namespace Quartz
 {
@@ -123,19 +125,9 @@ namespace Quartz
         /// <returns>New date time based on builder parameters.</returns>
         public DateTimeOffset Build()
         {
-            DateTimeOffset cal;
-
-            if (tz != null)
-            {
-                cal = new DateTimeOffset(year, month, day, hour, minute, second, 0, tz.BaseUtcOffset);
-            }
-            else
-            {
-                var utcOffset = TimeZoneInfo.Local.GetUtcOffset(new DateTime(year, month, day, hour, minute, second));
-                cal = new DateTimeOffset(year, month, day, hour, minute, second, utcOffset);
-            }
-
-            return cal;
+            DateTime dt = new DateTime(year, month, day, hour, minute, second);
+            TimeSpan offset = TimeZoneUtil.GetUtcOffset(dt, tz ?? TimeZoneInfo.Local);
+            return new DateTimeOffset(dt, offset);
         }
 
         /// <summary>
@@ -338,9 +330,8 @@ namespace Quartz
             ValidateHour(hour);
 
             DateTimeOffset c = SystemTime.Now();
-
-            var utcOffset = TimeZoneInfo.Local.GetUtcOffset(new DateTime(c.Year, c.Month, c.Day, hour, minute, second));
-            return new DateTimeOffset(c.Year, c.Month, c.Day, hour, minute, second, utcOffset);
+            DateTime dt = new DateTime(c.Year, c.Month, c.Day, hour, minute, second);
+            return new DateTimeOffset(dt, TimeZoneUtil.GetUtcOffset(dt, TimeZoneInfo.Local));
         }
 
         /// <summary>
@@ -363,9 +354,8 @@ namespace Quartz
             ValidateMonth(month);
 
             DateTimeOffset c = SystemTime.Now();
-
-            var utcOffset = TimeZoneInfo.Local.GetUtcOffset(new DateTime(c.Year, month, dayOfMonth, hour, minute, second));
-            return new DateTimeOffset(c.Year, month, dayOfMonth, hour, minute, second, utcOffset);
+            DateTime dt = new DateTime(c.Year, month, dayOfMonth, hour, minute, second);
+            return new DateTimeOffset(dt, TimeZoneUtil.GetUtcOffset(dt, TimeZoneInfo.Local));
         }
 
         /// <summary>
@@ -391,8 +381,8 @@ namespace Quartz
             ValidateMonth(month);
             ValidateYear(year);
 
-            var utcOffset = TimeZoneInfo.Local.GetUtcOffset(new DateTime(year, month, dayOfMonth, hour, minute, second));
-            return new DateTimeOffset(year, month, dayOfMonth, hour, minute, second, utcOffset);
+            DateTime dt = new DateTime(year, month, dayOfMonth, hour, minute, second);
+            return new DateTimeOffset(dt, TimeZoneUtil.GetUtcOffset(dt, TimeZoneInfo.Local));
         }
 
         /// <summary>
@@ -663,15 +653,12 @@ namespace Quartz
             {
                 return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, nextMinuteOccurance, 0, 0, c.Offset);
             }
-            else
-            {
-                return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, 0, 0, 0, c.Offset).AddHours(1);
-            }
+            return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, 0, 0, 0, c.Offset).AddHours(1);
         }
 
         /// <summary>
         /// Returns a date that is rounded to the next even multiple of the given
-        /// minute.
+        /// second.
         /// </summary>
         /// <remarks>
         /// The rules for calculating the second are the same as those for
@@ -706,10 +693,7 @@ namespace Quartz
             {
                 return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, c.Minute, nextSecondOccurance, 0, c.Offset);
             }
-            else
-            {
-                return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, c.Minute, 0, 0, c.Offset).AddMinutes(1);
-            }
+            return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, c.Minute, 0, 0, c.Offset).AddMinutes(1);
         }
 
         public static void ValidateHour(int hour)

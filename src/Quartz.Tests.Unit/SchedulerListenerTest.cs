@@ -1,7 +1,6 @@
 ﻿using System.Collections.Specialized;
 using System.Threading;
-
-using Common.Logging;
+using System.Threading.Tasks;
 
 using NUnit.Framework;
 
@@ -17,159 +16,177 @@ namespace Quartz.Tests.Unit
     [TestFixture]
     public class SchedulerListenerTest
     {
-        private static readonly ILog logger = LogManager.GetLogger<SchedulerListenerTest>();
+        private static readonly ILog logger = LogProvider.GetLogger(typeof(SchedulerListenerTest));
         private static int jobExecutionCount;
 
         public class Qtz205Job : IJob
         {
-            public void Execute(IJobExecutionContext context)
+            public Task Execute(IJobExecutionContext context)
             {
                 jobExecutionCount++;
                 logger.Info("Job executed. jobExecutionCount=" + jobExecutionCount);
+                return TaskUtil.CompletedTask;
             }
         }
 
         public class Qtz205TriggerListener : ITriggerListener
         {
-            private int fireCount;
+            public int FireCount { get; private set; }
 
-            public int FireCount
+            public string Name => "Qtz205TriggerListener";
+
+            public Task TriggerFired(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken)
             {
-                get { return fireCount; }
+                FireCount++;
+                logger.Info("Trigger fired. count " + FireCount);
+                return Task.FromResult(true);
             }
 
-            public string Name
+            public Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken)
             {
-                get { return "Qtz205TriggerListener"; }
-            }
-
-            public void TriggerFired(ITrigger trigger, IJobExecutionContext context)
-            {
-                fireCount++;
-                logger.Info("Trigger fired. count " + fireCount);
-            }
-
-            public bool VetoJobExecution(ITrigger trigger, IJobExecutionContext context)
-            {
-                if (fireCount >= 3)
+                if (FireCount >= 3)
                 {
-                    return true;
+                    return Task.FromResult(true);
                 }
-                return false;
+                return Task.FromResult(false);
             }
 
-            public void TriggerMisfired(ITrigger trigger)
+            public Task TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken)
             {
+                return Task.FromResult(true);
             }
 
-            public void TriggerComplete(ITrigger trigger,
+            public Task TriggerComplete(ITrigger trigger,
                                         IJobExecutionContext context,
-                                        SchedulerInstruction triggerInstructionCode)
+                                        SchedulerInstruction triggerInstructionCode,
+                                        CancellationToken cancellationToken)
             {
+                return Task.FromResult(true);
             }
         }
 
         public class Qtz205ScheListener : ISchedulerListener
         {
-            private int triggerFinalizedCount;
+            public int TriggerFinalizedCount { get; private set; }
 
-            public int TriggerFinalizedCount
+            public Task JobScheduled(ITrigger trigger, CancellationToken cancellationToken)
             {
-                get { return triggerFinalizedCount; }
+                return Task.FromResult(true);
             }
 
-            public void JobScheduled(ITrigger trigger)
+            public Task JobUnscheduled(TriggerKey triggerKey, CancellationToken cancellationToken)
             {
+                return Task.FromResult(true);
             }
 
-            public void JobUnscheduled(TriggerKey triggerKey)
+            public Task TriggerFinalized(ITrigger trigger, CancellationToken cancellationToken)
             {
-            }
-
-            public void TriggerFinalized(ITrigger trigger)
-            {
-                triggerFinalizedCount ++;
+                TriggerFinalizedCount ++;
                 logger.Info("triggerFinalized " + trigger);
+                return Task.FromResult(true);
             }
 
-            public void TriggerPaused(TriggerKey triggerKey)
+            public Task TriggerPaused(TriggerKey triggerKey, CancellationToken cancellationToken)
             {
+                return Task.FromResult(true);
             }
 
-            public void TriggersPaused(string triggerGroup)
+            public Task TriggersPaused(string triggerGroup, CancellationToken cancellationToken)
             {
+                return Task.FromResult(true);
             }
 
-            public void TriggerResumed(TriggerKey triggerKey)
+            public Task TriggerResumed(TriggerKey triggerKey, CancellationToken cancellationToken)
             {
+                return Task.FromResult(true);
             }
 
-            public void TriggersResumed(string triggerGroup)
+            public Task TriggersResumed(string triggerGroup, CancellationToken cancellationToken)
             {
+                return Task.FromResult(true);
             }
 
-            public void JobAdded(IJobDetail jobDetail)
+            public Task JobAdded(IJobDetail jobDetail, CancellationToken cancellationToken)
             {
+                return Task.FromResult(true);
             }
 
-            public void JobDeleted(JobKey jobKey)
+            public Task JobDeleted(JobKey jobKey, CancellationToken cancellationToken)
             {
+                return Task.FromResult(true);
             }
 
-            public void JobPaused(JobKey jobKey)
+            public Task JobPaused(JobKey jobKey, CancellationToken cancellationToken)
             {
+                return Task.FromResult(true);
             }
 
-            public void JobsPaused(string jobGroup)
+            public Task JobInterrupted(JobKey jobKey, CancellationToken cancellationToken = new CancellationToken())
             {
+                return Task.FromResult(true);
             }
 
-            public void JobResumed(JobKey jobKey)
+            public Task JobsPaused(string jobGroup, CancellationToken cancellationToken)
             {
+                return Task.FromResult(true);
             }
 
-            public void JobsResumed(string jobGroup)
+            public Task JobResumed(JobKey jobKey, CancellationToken cancellationToken)
             {
+                return Task.FromResult(true);
             }
 
-            public void SchedulerError(string msg, SchedulerException cause)
+            public Task JobsResumed(string jobGroup, CancellationToken cancellationToken)
             {
+                return Task.FromResult(true);
             }
 
-            public void SchedulerInStandbyMode()
+            public Task SchedulerError(string msg, SchedulerException cause, CancellationToken cancellationToken)
             {
+                return Task.FromResult(true);
             }
 
-            public void SchedulerStarted()
+            public Task SchedulerInStandbyMode(CancellationToken cancellationToken)
             {
+                return Task.FromResult(true);
             }
 
-            public void SchedulerStarting()
+            public Task SchedulerStarted(CancellationToken cancellationToken)
             {
+                return Task.FromResult(true);
             }
 
-            public void SchedulerShutdown()
+            public Task SchedulerStarting(CancellationToken cancellationToken)
             {
+                return Task.FromResult(true);
             }
 
-            public void SchedulerShuttingdown()
+            public Task SchedulerShutdown(CancellationToken cancellationToken)
             {
+                return Task.FromResult(true);
             }
 
-            public void SchedulingDataCleared()
+            public Task SchedulerShuttingdown(CancellationToken cancellationToken)
             {
+                return Task.FromResult(true);
+            }
+
+            public Task SchedulingDataCleared(CancellationToken cancellationToken)
+            {
+                return Task.FromResult(true);
             }
         }
 
         [Test]
-        public void TestTriggerFinalized()
+        public async Task TestTriggerFinalized()
         {
             Qtz205TriggerListener triggerListener = new Qtz205TriggerListener();
             Qtz205ScheListener schedulerListener = new Qtz205ScheListener();
             NameValueCollection props = new NameValueCollection();
             props["quartz.scheduler.idleWaitTime"] = "1500";
             props["quartz.threadPool.threadCount"] = "2";
-            IScheduler scheduler = new StdSchedulerFactory(props).GetScheduler();
+            props["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
+            IScheduler scheduler = await new StdSchedulerFactory(props).GetScheduler();
             scheduler.ListenerManager.AddSchedulerListener(schedulerListener);
             scheduler.ListenerManager.AddTriggerListener(triggerListener);
 
@@ -179,11 +196,11 @@ namespace Quartz.Tests.Unit
                 .WithSchedule(SimpleScheduleBuilder.RepeatSecondlyForTotalCount(3))
                 .Build();
 
-            scheduler.ScheduleJob(job, trigger);
-            scheduler.Start();
-            Thread.Sleep(5000);
+            await scheduler.ScheduleJob(job, trigger);
+            await scheduler.Start();
+            await Task.Delay(5000);
 
-            scheduler.Shutdown(true);
+            await scheduler.Shutdown(true);
 
             Assert.AreEqual(2, jobExecutionCount);
             Assert.AreEqual(3, triggerListener.FireCount);

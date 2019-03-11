@@ -1,6 +1,6 @@
 #region License
 /* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -21,8 +21,7 @@ using System;
 using System.Globalization;
 using System.Reflection;
 
-using Common.Logging;
-
+using Quartz.Logging;
 using Quartz.Spi;
 using Quartz.Util;
 
@@ -54,7 +53,7 @@ namespace Quartz.Simpl
 	/// <author>Marko Lahma (.NET)</author>
 	public class PropertySettingJobFactory : SimpleJobFactory
 	{
-	    private static readonly ILog log = LogManager.GetLogger(typeof(PropertySettingJobFactory));
+	    private static readonly ILog log = LogProvider.GetLogger(typeof(PropertySettingJobFactory));
 
 	    /// <summary> 
 	    /// Whether the JobInstantiation should fail and throw and exception if
@@ -115,7 +114,7 @@ namespace Quartz.Simpl
 
 			foreach (string name in data.Keys)
 			{
-				string c = name.Substring(0, 1).ToUpper(CultureInfo.InvariantCulture);
+				string c = CultureInfo.InvariantCulture.TextInfo.ToUpper(name.Substring(0, 1));
 				string propName = c + name.Substring(1);
 
 				object o = data[name];
@@ -125,57 +124,57 @@ namespace Quartz.Simpl
 				{
 					if (prop == null)
 					{
-						HandleError(string.Format(CultureInfo.InvariantCulture, "No property on Job class {0} for property '{1}'", obj.GetType(), name));
+						HandleError($"No property on Job class {obj.GetType()} for property '{name}'");
 						continue;
 					}
 
 					paramType = prop.PropertyType;
 
-					if (o == null && (paramType.IsPrimitive || paramType.IsEnum))
+					if (o == null && (paramType.GetTypeInfo().IsPrimitive || paramType.GetTypeInfo().IsEnum))
 					{
 						// cannot set null to these
-						HandleError(string.Format(CultureInfo.InvariantCulture, "Cannot set null to property on Job class {0} for property '{1}'", obj.GetType(), name));
+						HandleError($"Cannot set null to property on Job class {obj.GetType()} for property '{name}'");
 					}
 					if (paramType == typeof(char) && o is string && ((string) o).Length != 1)
 					{
 						// handle special case
-						HandleError(string.Format(CultureInfo.InvariantCulture, "Cannot set empty string to char property on Job class {0} for property '{1}'", obj.GetType(), name));
+						HandleError($"Cannot set empty string to char property on Job class {obj.GetType()} for property '{name}'");
 					}
 
                     object goodValue = paramType == typeof (TimeSpan)
 										   ? ObjectUtils.GetTimeSpanValueForProperty(prop, o)
 										   : ConvertValueIfNecessary(paramType, o);
 
-					prop.GetSetMethod().Invoke(obj, new object[] {goodValue});
+					prop.GetSetMethod().Invoke(obj, new[] {goodValue});
 				}
 				catch (FormatException nfe)
 				{
 					HandleError(
-							string.Format(CultureInfo.InvariantCulture, "The setter on Job class {0} for property '{1}' expects a {2} but was given {3}", obj.GetType(), name, paramType, o), nfe);
+					    $"The setter on Job class {obj.GetType()} for property '{name}' expects a {paramType} but was given {o}", nfe);
 				}
 				catch (MethodAccessException)
 				{
-                    HandleError(string.Format(CultureInfo.InvariantCulture, "The setter on Job class {0} for property '{1}' expects a {2} but was given a {3}", obj.GetType(), name, paramType, o.GetType()));
+                    HandleError($"The setter on Job class {obj.GetType()} for property '{name}' expects a {paramType} but was given a {o.GetType()}");
 				}
 				catch (ArgumentException e)
 				{
 					HandleError(
-							string.Format(CultureInfo.InvariantCulture, "The setter on Job class {0} for property '{1}' expects a {2} but was given {3}", obj.GetType(), name, paramType, o.GetType()), e);
+					    $"The setter on Job class {obj.GetType()} for property '{name}' expects a {paramType} but was given {o.GetType()}", e);
 				}
 				catch (UnauthorizedAccessException e)
 				{
 					HandleError(
-							string.Format(CultureInfo.InvariantCulture, "The setter on Job class {0} for property '{1}' could not be accessed.", obj.GetType(), name), e);
+					    $"The setter on Job class {obj.GetType()} for property '{name}' could not be accessed.", e);
 				}
 				catch (TargetInvocationException e)
 				{
 					HandleError(
-							string.Format(CultureInfo.InvariantCulture, "The setter on Job class {0} for property '{1}' could not be accessed.", obj.GetType(), name), e);
+					    $"The setter on Job class {obj.GetType()} for property '{name}' could not be accessed.", e);
 				}
                 catch (Exception e)
                 {
                     HandleError(
-                            string.Format(CultureInfo.InvariantCulture, "The setter on Job class {0} for property '{1}' threw exception when processing.", obj.GetType(), name), e);
+                        $"The setter on Job class {obj.GetType()} for property '{name}' threw exception when processing.", e);
                 }
 			}
 		}
@@ -205,7 +204,7 @@ namespace Quartz.Simpl
 				}
 				else
 				{
-					log.Warn(message, e);
+					log.WarnException(message, e);
 				}
 			}
 		}

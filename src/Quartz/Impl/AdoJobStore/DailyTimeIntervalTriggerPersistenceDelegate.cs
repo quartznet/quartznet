@@ -1,20 +1,20 @@
 ﻿#region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -26,7 +26,7 @@ using System.Text;
 
 using Quartz.Impl.Triggers;
 using Quartz.Spi;
-using Quartz.Collection;
+using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -42,14 +42,11 @@ namespace Quartz.Impl.AdoJobStore
     {
         public override bool CanHandleTriggerType(IOperableTrigger trigger)
         {
-            return ((trigger is DailyTimeIntervalTriggerImpl) &&
-                    !((DailyTimeIntervalTriggerImpl) trigger).HasAdditionalProperties);
+            var dailyTimeIntervalTrigger = trigger as DailyTimeIntervalTriggerImpl;
+            return dailyTimeIntervalTrigger != null &&
+                   !dailyTimeIntervalTrigger.HasAdditionalProperties;
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <returns></returns>
         public override string GetHandledTriggerTypeDiscriminator()
         {
             return AdoConstants.TriggerTypeDailyTimeInterval;
@@ -64,7 +61,7 @@ namespace Quartz.Impl.AdoJobStore
             props.String1 = dailyTrigger.RepeatIntervalUnit.ToString();
             props.Int2 = dailyTrigger.TimesTriggered;
 
-            ISet<DayOfWeek> days = dailyTrigger.DaysOfWeek;
+            var days = dailyTrigger.DaysOfWeek;
             string daysStr = string.Join(",", days.Cast<int>().Select(x => x.ToString(CultureInfo.InvariantCulture)).ToArray());
             props.String2 = daysStr;
 
@@ -94,6 +91,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             props.String3 = timeOfDayBuffer.ToString();
             props.Long1 = dailyTrigger.RepeatCount;
+            props.TimeZoneId = dailyTrigger.TimeZone.Id;
             return props;
         }
 
@@ -110,15 +108,20 @@ namespace Quartz.Impl.AdoJobStore
                 .WithInterval(interval, intervalUnit)
                 .WithRepeatCount(repeatCount);
 
+            if (!string.IsNullOrEmpty(props.TimeZoneId))
+            {
+                scheduleBuilder.InTimeZone(TimeZoneUtil.FindTimeZoneById(props.TimeZoneId));
+            }
+
             if (daysOfWeekStr != null)
             {
-                ISet<DayOfWeek> daysOfWeek = new HashSet<DayOfWeek>();
+                var daysOfWeek = new ReadOnlyCompatibleHashSet<DayOfWeek>();
                 string[] nums = daysOfWeekStr.Split(new[] {','}, StringSplitOptions.RemoveEmptyEntries);
                 if (nums.Length > 0)
                 {
-                    foreach (String num in nums)
+                    foreach (string num in nums)
                     {
-                        daysOfWeek.Add((DayOfWeek) Int32.Parse(num));
+                        daysOfWeek.Add((DayOfWeek) int.Parse(num));
                     }
                     scheduleBuilder.OnDaysOfTheWeek(daysOfWeek);
                 }
@@ -134,9 +137,9 @@ namespace Quartz.Impl.AdoJobStore
                 TimeOfDay startTimeOfDay;
                 if (nums.Length >= 3)
                 {
-                    int hour = Int32.Parse(nums[0]);
-                    int min = Int32.Parse(nums[1]);
-                    int sec = Int32.Parse(nums[2]);
+                    int hour = int.Parse(nums[0]);
+                    int min = int.Parse(nums[1]);
+                    int sec = int.Parse(nums[2]);
                     startTimeOfDay = new TimeOfDay(hour, min, sec);
                 }
                 else
@@ -148,9 +151,9 @@ namespace Quartz.Impl.AdoJobStore
                 TimeOfDay endTimeOfDay;
                 if (nums.Length >= 6)
                 {
-                    int hour = Int32.Parse(nums[3]);
-                    int min = Int32.Parse(nums[4]);
-                    int sec = Int32.Parse(nums[5]);
+                    int hour = int.Parse(nums[3]);
+                    int min = int.Parse(nums[4]);
+                    int sec = int.Parse(nums[5]);
                     endTimeOfDay = new TimeOfDay(hour, min, sec);
                 }
                 else

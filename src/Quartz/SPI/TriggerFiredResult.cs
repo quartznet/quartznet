@@ -8,8 +8,7 @@ namespace Quartz.Spi
     [Serializable]
     public class TriggerFiredResult
     {
-        private readonly TriggerFiredBundle triggerFiredBundle;
-        private readonly Exception exception;
+        // JsonProperty attributes are used since Json.Net's default behavior is to serialize public members and the properties wrapping these fields are read-only
 
         ///<summary>
         /// Constructor.
@@ -17,7 +16,7 @@ namespace Quartz.Spi
         ///<param name="triggerFiredBundle"></param>
         public TriggerFiredResult(TriggerFiredBundle triggerFiredBundle)
         {
-            this.triggerFiredBundle = triggerFiredBundle;
+            TriggerFiredBundle = triggerFiredBundle;
         }
 
         ///<summary>
@@ -25,23 +24,17 @@ namespace Quartz.Spi
         ///</summary>
         public TriggerFiredResult(Exception exception)
         {
-            this.exception = exception;
+            Exception = exception;
         }
 
         ///<summary>
         /// Bundle.
         ///</summary>
-        public TriggerFiredBundle TriggerFiredBundle
-        {
-            get { return triggerFiredBundle; }
-        }
+        public TriggerFiredBundle TriggerFiredBundle { get; }
 
         /// <summary>
         /// Possible exception.
         /// </summary>
-        public Exception Exception
-        {
-            get { return exception; }
-        }
+        public Exception Exception { get; }
     }
 }

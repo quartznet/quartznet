@@ -1,7 +1,7 @@
 #region License
 
 /* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -21,6 +21,10 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
+
+using Quartz.Logging;
 
 namespace Quartz.Listener
 {
@@ -40,8 +44,8 @@ namespace Quartz.Listener
     /// <author>James House (jhouse AT revolition DOT net)</author>
     public class BroadcastJobListener : IJobListener
     {
-        private readonly string name;
         private readonly List<IJobListener> listeners;
+        private readonly ILog log;
 
         /// <summary>
         /// Construct an instance with the given name.
@@ -52,12 +56,9 @@ namespace Quartz.Listener
         /// <param name="name">the name of this instance</param>
         public BroadcastJobListener(string name)
         {
-            if (name == null)
-            {
-                throw new ArgumentNullException("name", "Listener name cannot be null!");
-            }
-            this.name = name;
+            Name = name ?? throw new ArgumentNullException(nameof(name), "Listener name cannot be null!");
             listeners = new List<IJobListener>();
+            log = LogProvider.GetLogger(GetType());
         }
 
         /// <summary>
@@ -72,10 +73,7 @@ namespace Quartz.Listener
             this.listeners.AddRange(listeners);
         }
 
-        public string Name
-        {
-            get { return name; }
-        }
+        public string Name { get; }
 
         public void AddListener(IJobListener listener)
         {
@@ -98,32 +96,45 @@ namespace Quartz.Listener
             return false;
         }
 
-        public IList<IJobListener> Listeners
+        public IReadOnlyList<IJobListener> Listeners => listeners;
+
+        public Task JobToBeExecuted(
+            IJobExecutionContext context, 
+            CancellationToken cancellationToken = default)
         {
-            get { return listeners.AsReadOnly(); }
+            return IterateListenersInGuard(l => l.JobToBeExecuted(context, cancellationToken), nameof(JobToBeExecuted));
         }
 
-        public void JobToBeExecuted(IJobExecutionContext context)
+        public Task JobExecutionVetoed(
+            IJobExecutionContext context,
+            CancellationToken cancellationToken = default)
         {
-            foreach (IJobListener jl in listeners)
-            {
-                jl.JobToBeExecuted(context);
-            }
+            return IterateListenersInGuard(l => l.JobExecutionVetoed(context, cancellationToken), nameof(JobExecutionVetoed));
         }
 
-        public void JobExecutionVetoed(IJobExecutionContext context)
+        public Task JobWasExecuted(
+            IJobExecutionContext context, 
+            JobExecutionException jobException,
+            CancellationToken cancellationToken = default)
         {
-            foreach (IJobListener jl in listeners)
-            {
-                jl.JobExecutionVetoed(context);
-            }
+            return IterateListenersInGuard(l => l.JobWasExecuted(context, jobException, cancellationToken), nameof(JobWasExecuted));
         }
 
-        public void JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException)
+        private async Task IterateListenersInGuard(Func<IJobListener, Task> action, string methodName)
         {
-            foreach (IJobListener jl in listeners)
+            foreach (var listener in listeners)
             {
-                jl.JobWasExecuted(context, jobException);
+                try
+                {
+                    await action(listener).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    if (log.IsErrorEnabled())
+                    {
+                        log.ErrorException($"Listener {listener.Name} - method {methodName} raised an exception: {e.Message}", e);
+                    }
+                }
             }
         }
     }

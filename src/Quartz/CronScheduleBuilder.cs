@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -68,12 +68,7 @@ namespace Quartz
 
         protected CronScheduleBuilder(CronExpression cronExpression)
         {
-            if (cronExpression == null)
-            {
-                throw new ArgumentNullException("cronExpression", "cronExpression cannot be null");
-            }            
-            
-            this.cronExpression = cronExpression;
+            this.cronExpression = cronExpression ?? throw new ArgumentNullException(nameof(cronExpression), "cronExpression cannot be null");
         }
 
         /// <summary>
@@ -85,7 +80,7 @@ namespace Quartz
         public override IMutableTrigger Build()
         {
             CronTriggerImpl ct = new CronTriggerImpl();
-            
+
             ct.CronExpression = cronExpression;
             ct.TimeZone = cronExpression.TimeZone;
             ct.MisfireInstruction = misfireInstruction;
@@ -116,8 +111,8 @@ namespace Quartz
         /// </summary>
         /// <param name="presumedValidCronExpression">the cron expression string to base the schedule on</param>
         /// <returns>the new CronScheduleBuilder</returns>
-        /// <seealso cref="CronExpression" /> 
-        private static CronScheduleBuilder CronScheduleNoParseException(String presumedValidCronExpression)
+        /// <seealso cref="CronExpression" />
+        private static CronScheduleBuilder CronScheduleNoParseException(string presumedValidCronExpression)
         {
             try
             {
@@ -136,7 +131,7 @@ namespace Quartz
         /// </summary>
         /// <param name="cronExpression">the cron expression to base the schedule on.</param>
         /// <returns>the new CronScheduleBuilder</returns>
-        /// <seealso cref="CronExpression" /> 
+        /// <seealso cref="CronExpression" />
         public static CronScheduleBuilder CronSchedule(CronExpression cronExpression)
         {
             return new CronScheduleBuilder(cronExpression);
@@ -157,7 +152,7 @@ namespace Quartz
             DateBuilder.ValidateHour(hour);
             DateBuilder.ValidateMinute(minute);
 
-            string cronExpression = String.Format("0 {0} {1} ? * *", minute, hour);
+            string cronExpression = $"0 {minute} {hour} ? * *";
 
             return CronScheduleNoParseException(cronExpression);
         }
@@ -181,11 +176,11 @@ namespace Quartz
             DateBuilder.ValidateHour(hour);
             DateBuilder.ValidateMinute(minute);
 
-            string cronExpression = string.Format("0 {0} {1} ? * {2}", minute, hour, ((int) daysOfWeek[0]) + 1);
+            string cronExpression = $"0 {minute} {hour} ? * {(int) daysOfWeek[0] + 1}";
 
             for (int i = 1; i < daysOfWeek.Length; i++)
             {
-                cronExpression = cronExpression + "," + (((int) daysOfWeek[i]) + 1);
+                cronExpression = cronExpression + "," + ((int) daysOfWeek[i] + 1);
             }
 
             return CronScheduleNoParseException(cronExpression);
@@ -208,7 +203,7 @@ namespace Quartz
             DateBuilder.ValidateHour(hour);
             DateBuilder.ValidateMinute(minute);
 
-            string cronExpression = string.Format("0 {0} {1} ? * {2}", minute, hour, ((int) dayOfWeek) + 1);
+            string cronExpression = $"0 {minute} {hour} ? * {(int) dayOfWeek + 1}";
 
             return CronScheduleNoParseException(cronExpression);
         }
@@ -231,7 +226,7 @@ namespace Quartz
             DateBuilder.ValidateHour(hour);
             DateBuilder.ValidateMinute(minute);
 
-            string cronExpression = String.Format("0 {0} {1} {2} * ?", minute, hour, dayOfMonth);
+            string cronExpression = $"0 {minute} {hour} {dayOfMonth} * ?";
 
             return CronScheduleNoParseException(cronExpression);
         }

@@ -1,6 +1,6 @@
 #region License
 /* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -17,8 +17,10 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
-using System.Globalization;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Quartz.Impl
 {
@@ -31,21 +33,17 @@ namespace Quartz.Impl
 	public class SchedulerRepository
 	{
         private readonly Dictionary<string, IScheduler> schedulers;
-        private static readonly SchedulerRepository inst = new SchedulerRepository();
-        private readonly object syncRoot = new object();
+		private readonly object syncRoot = new object();
         
         /// <summary>
 		/// Gets the singleton instance.
 		/// </summary>
 		/// <value>The instance.</value>
-		public static SchedulerRepository Instance
-		{
-			get { return inst; }
-		}
+		public static SchedulerRepository Instance { get; } = new SchedulerRepository();
 
 		private SchedulerRepository()
 		{
-			schedulers = new Dictionary<string, IScheduler>();
+			schedulers = new Dictionary<string, IScheduler>(StringComparer.OrdinalIgnoreCase);
 		}
 
         /// <summary>
@@ -58,7 +56,7 @@ namespace Quartz.Impl
 			{
 				if (schedulers.ContainsKey(sched.SchedulerName))
 				{
-					throw new SchedulerException(string.Format(CultureInfo.InvariantCulture, "Scheduler with name '{0}' already exists.", sched.SchedulerName));
+					throw new SchedulerException($"Scheduler with name '{sched.SchedulerName}' already exists.");
 				}
 
 				schedulers[sched.SchedulerName] = sched;
@@ -78,30 +76,31 @@ namespace Quartz.Impl
 			}
 		}
 
-        /// <summary>
-        /// Lookups the specified sched name.
-        /// </summary>
-        /// <param name="schedName">Name of the sched.</param>
-        /// <returns></returns>
-		public virtual IScheduler Lookup(string schedName)
+	    /// <summary>
+	    /// Lookups the specified sched name.
+	    /// </summary>
+	    public virtual Task<IScheduler> Lookup(
+		    string schedName, 
+		    CancellationToken cancellationToken = default)
 		{
 			lock (syncRoot)
 			{
-			    IScheduler retValue;
-			    schedulers.TryGetValue(schedName, out retValue);
-				return retValue;
+				schedulers.TryGetValue(schedName, out var retValue);
+				return Task.FromResult(retValue);
 			}
 		}
 
-        /// <summary>
-        /// Lookups all.
-        /// </summary>
-        /// <returns></returns>
-		public virtual ICollection<IScheduler> LookupAll()
+	    /// <summary>
+	    /// Lookups all.
+	    /// </summary>
+	    /// <returns></returns>
+	    public virtual Task<IReadOnlyList<IScheduler>> LookupAll(
+		    CancellationToken cancellationToken = default)
 		{
 			lock (syncRoot)
 			{
-				return new List<IScheduler>(schedulers.Values).AsReadOnly();
+			    IReadOnlyList<IScheduler> result = new List<IScheduler>(schedulers.Values);
+			    return Task.FromResult(result);
 			}
 		}
 	}

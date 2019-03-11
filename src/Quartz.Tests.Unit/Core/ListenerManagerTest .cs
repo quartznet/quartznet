@@ -14,34 +14,23 @@ namespace Quartz.Tests.Unit.Core
     {
         private class TestJobListener : JobListenerSupport
         {
-            private readonly string name;
-
             public TestJobListener(string name)
             {
-                this.name = name;
+                Name = name;
             }
 
-            public override string Name
-            {
-                get { return name; }
-            }
+            public override string Name { get; }
         }
 
         private class TestTriggerListener : TriggerListenerSupport
         {
-            private readonly string name;
-
             public TestTriggerListener(string name)
             {
-                this.name = name;
+                Name = name;
             }
 
-            public override string Name
-            {
-                get { return name; }
-            }
+            public override string Name { get; }
         }
-
         private class TestSchedulerListener : SchedulerListenerSupport
         {
         }

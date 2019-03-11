@@ -1,34 +1,36 @@
 ﻿#region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
 
 using System;
 using System.Collections.Generic;
-
-using Quartz.Spi;
-using Quartz.Job;
-using Quartz.Impl;
-using Quartz.Impl.Triggers;
+using System.Collections.Specialized;
+using System.Linq;
+using System.Threading.Tasks;
 
 using NUnit.Framework;
 
+using Quartz.Impl;
+using Quartz.Impl.Triggers;
+using Quartz.Job;
+using Quartz.Spi;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit
@@ -42,9 +44,13 @@ namespace Quartz.Tests.Unit
     public class DailyTimeIntervalScheduleBuilderTest
     {
         [Test]
-        public void TestScheduleActualTrigger()
+        public async Task TestScheduleActualTrigger()
         {
-            IScheduler scheduler = StdSchedulerFactory.GetDefaultScheduler();
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
+
+            var factory = new StdSchedulerFactory(properties);
+            IScheduler scheduler = await factory.GetScheduler();
             IJobDetail job = JobBuilder.Create(typeof (NoOpJob)).Build();
 
             ITrigger trigger = TriggerBuilder.Create()
@@ -52,12 +58,12 @@ namespace Quartz.Tests.Unit
                 .WithDailyTimeIntervalSchedule(x => x.WithIntervalInSeconds(3))
                 .Build();
 
-            scheduler.ScheduleJob(job, trigger); //We are not verify anything other than just run through the scheduler.
-            scheduler.Shutdown();
+            await scheduler.ScheduleJob(job, trigger); //We are not verify anything other than just run through the scheduler.
+            await scheduler.Shutdown();
         }
 
         [Test]
-        public void TestScheduleInMiddleOfDailyInterval()
+        public async Task TestScheduleInMiddleOfDailyInterval()
         {
             DateTimeOffset currTime = DateTimeOffset.UtcNow;
 
@@ -68,7 +74,11 @@ namespace Quartz.Tests.Unit
                 return;
             }
 
-            IScheduler scheduler = StdSchedulerFactory.GetDefaultScheduler();
+            NameValueCollection properties = new NameValueCollection();
+            properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
+            ISchedulerFactory sf = new StdSchedulerFactory(properties);
+            IScheduler scheduler = await sf.GetScheduler();
+
             IJobDetail job = JobBuilder.Create<NoOpJob>().Build();
             ITrigger trigger = TriggerBuilder.Create().WithIdentity("test")
                 .WithDailyTimeIntervalSchedule(x => x
@@ -77,12 +87,12 @@ namespace Quartz.Tests.Unit
                 .StartAt(currTime)
                 .Build();
 
-            scheduler.ScheduleJob(job, trigger);
+            await scheduler.ScheduleJob(job, trigger);
 
-            trigger = scheduler.GetTrigger(trigger.Key);
+            trigger = await scheduler.GetTrigger(trigger.Key);
 
-            Console.WriteLine("testScheduleInMiddleOfDailyInterval: currTime = " + currTime);
-            Console.WriteLine("testScheduleInMiddleOfDailyInterval: computed first fire time = " + trigger.GetNextFireTimeUtc());
+            // Console.WriteLine("testScheduleInMiddleOfDailyInterval: currTime = " + currTime);
+            // Console.WriteLine("testScheduleInMiddleOfDailyInterval: computed first fire time = " + trigger.GetNextFireTimeUtc());
 
             Assert.That(trigger.GetNextFireTimeUtc() > currTime, "First fire time is not after now!");
 
@@ -96,16 +106,16 @@ namespace Quartz.Tests.Unit
                     .WithIntervalInMinutes(5))
                 .StartAt(startTime)
                 .Build();
-            scheduler.ScheduleJob(job, trigger);
+            await scheduler.ScheduleJob(job, trigger);
 
-            trigger = scheduler.GetTrigger(trigger.Key);
+            trigger = await scheduler.GetTrigger(trigger.Key);
 
-            Console.WriteLine("testScheduleInMiddleOfDailyInterval: startTime = " + startTime);
-            Console.WriteLine("testScheduleInMiddleOfDailyInterval: computed first fire time = " + trigger.GetNextFireTimeUtc());
+            // Console.WriteLine("testScheduleInMiddleOfDailyInterval: startTime = " + startTime);
+            // Console.WriteLine("testScheduleInMiddleOfDailyInterval: computed first fire time = " + trigger.GetNextFireTimeUtc());
 
             Assert.That(trigger.GetNextFireTimeUtc() == startTime);
 
-            scheduler.Shutdown();
+            await scheduler.Shutdown();
         }
 
         [Test]
@@ -119,7 +129,7 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual("DEFAULT", trigger.Key.Group);
             Assert.AreEqual(IntervalUnit.Hour, trigger.RepeatIntervalUnit);
             //Assert.AreEqual(1, trigger.RepeatInterval);
-            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, null, 48);
+            var fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, null, 48);
             Assert.AreEqual(48, fireTimes.Count);
         }
 
@@ -143,7 +153,7 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(72, trigger.RepeatInterval);
             Assert.AreEqual(new TimeOfDay(8, 0), trigger.StartTimeOfDay);
             Assert.AreEqual(new TimeOfDay(17, 0), trigger.EndTimeOfDay);
-            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, null, 48);
+            var fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, null, 48);
             Assert.AreEqual(48, fireTimes.Count);
         }
 
@@ -170,7 +180,7 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(121, trigger.RepeatInterval);
             Assert.AreEqual(new TimeOfDay(10, 0, 0), trigger.StartTimeOfDay);
             Assert.AreEqual(new TimeOfDay(23, 59, 59), trigger.EndTimeOfDay);
-            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, null, 48);
+            var fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, null, 48);
             Assert.AreEqual(48, fireTimes.Count);
         }
 
@@ -186,7 +196,7 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual("DEFAULT", trigger.Key.Group);
             Assert.AreEqual(IntervalUnit.Hour, trigger.RepeatIntervalUnit);
             Assert.AreEqual(1, trigger.RepeatInterval);
-            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, null, 48);
+            var fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, null, 48);
             Assert.AreEqual(10, fireTimes.Count);
         }
 
@@ -205,7 +215,7 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual("test", trigger.Key.Name);
             Assert.AreEqual("DEFAULT", trigger.Key.Group);
             Assert.AreEqual(IntervalUnit.Minute, trigger.RepeatIntervalUnit);
-            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, null, 48);
+            var fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, null, 48);
             Assert.AreEqual(48, fireTimes.Count);
             Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011), fireTimes[0]);
             Assert.AreEqual(DateBuilder.DateOf(10, 45, 0, 4, 1, 2011), fireTimes[47]);
@@ -226,7 +236,7 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual("test", trigger.Key.Name);
             Assert.AreEqual("DEFAULT", trigger.Key.Group);
             Assert.AreEqual(IntervalUnit.Minute, trigger.RepeatIntervalUnit);
-            IList<DateTimeOffset> fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, null, 48);
+            var fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, null, 48);
             Assert.AreEqual(48, fireTimes.Count);
             Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011), fireTimes[0]);
             Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 17, 2, 2011), fireTimes[47]);
@@ -308,10 +318,12 @@ namespace Quartz.Tests.Unit
                 .OnMondayThroughFriday()
                 .Build();
 
-            //make an adjustment to this one trigger. 
+            //make an adjustment to this one trigger.
             //I only want mondays now
-            trigger1.DaysOfWeek.Clear();
-            trigger1.DaysOfWeek.Add(DayOfWeek.Monday);
+            trigger1.DaysOfWeek = new List<DayOfWeek>
+            {
+                DayOfWeek.Monday
+            };
 
             //build same way as trigger1
             DailyTimeIntervalTriggerImpl trigger2 = (DailyTimeIntervalTriggerImpl) builder

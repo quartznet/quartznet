@@ -1,6 +1,7 @@
 #region License
+
 /* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -15,13 +16,15 @@
  * under the License.
  * 
  */
+
 #endregion
 
 using System;
 using System.Net;
+using System.Threading;
+using System.Threading.Tasks;
 
-using Common.Logging;
-
+using Quartz.Logging;
 using Quartz.Spi;
 
 namespace Quartz.Simpl
@@ -38,25 +41,30 @@ namespace Quartz.Simpl
 
         protected HostNameBasedIdGenerator()
         {
-            logger = LogManager.GetLogger(GetType());
+            logger = LogProvider.GetLogger(GetType());
         }
 
         /// <summary>
         /// Generate the instance id for a <see cref="IScheduler" />
         /// </summary>
+        /// <param name="cancellationToken"></param>
         /// <returns> The clusterwide unique instance id.
         /// </returns>
-        public abstract string GenerateInstanceId();
+        public abstract Task<string> GenerateInstanceId(
+            CancellationToken cancellationToken = default);
 
-        protected string GetHostName(int maxLength)
+        protected async Task<string> GetHostName(
+            int maxLength, 
+            CancellationToken cancellationToken = default)
         {
             try
             {
-                string hostName = GetHostAddress().HostName;
+                var hostAddress = await GetHostAddress(cancellationToken).ConfigureAwait(false);
+                string hostName = hostAddress.HostName;
                 if (hostName != null && hostName.Length > maxLength)
                 {
                     string newName = hostName.Substring(0, maxLength);
-                    logger.WarnFormat("Host name '{0}' was too long, shortened to '{1}'", hostName, newName);
+                    logger.InfoFormat("Host name '{0}' was too long, shortened to '{1}'", hostName, newName);
                     hostName = newName;
                 }
                 return hostName;
@@ -67,9 +75,12 @@ namespace Quartz.Simpl
             }
         }
 
-        protected virtual IPHostEntry GetHostAddress()
+        protected virtual async Task<IPHostEntry> GetHostAddress(
+            CancellationToken cancellationToken = default)
         {
-            return Dns.GetHostByAddress(Dns.GetHostByName(Dns.GetHostName()).AddressList[0].ToString());
+            var hostEntry = await Dns.GetHostEntryAsync(Dns.GetHostName()).ConfigureAwait(false);
+            var firstAddressEntry = await Dns.GetHostEntryAsync(hostEntry.AddressList[0].ToString()).ConfigureAwait(false);
+            return firstAddressEntry;
         }
     }
 }

@@ -1,0 +1,32 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Remove="App\jspm_packages\**" />
+    <Content Remove="App\jspm_packages\**" />
+    <EmbeddedResource Remove="App\jspm_packages\**" />
+    <None Remove="App\jspm_packages\**" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="App.config" />
+    <None Update="Views">
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz\Quartz.csproj" />
+    <ProjectReference Include="..\Quartz.Serialization.Json\Quartz.Serialization.Json.csproj" />
+    <PackageReference Include="Microsoft.AspNetCore.All" Version="2.0.0-preview2-final" />
+    <PackageReference Include="Swashbuckle.AspNetCore" Version="1.0.0" />
+    <PackageReference Include="bootbox.TypeScript.DefinitelyTyped" Version="1.2.0" />
+    <PackageReference Include="bootstrap.TypeScript.DefinitelyTyped" Version="0.9.1" />
+    <PackageReference Include="jQuery" Version="2.2.3" />
+    <PackageReference Include="jquery.TypeScript.DefinitelyTyped" Version="3.0.6" />
+    <PackageReference Include="moment.TypeScript.DefinitelyTyped" Version="1.7.9" />
+    <PackageReference Include="Newtonsoft.Json" Version="10.*" />
+    <PackageReference Include="RequireJS" Version="2.1.17" />
+    <PackageReference Include="signalr.TypeScript.DefinitelyTyped" Version="0.3.9" />
+    <PackageReference Include="toastr.TypeScript.DefinitelyTyped" Version="0.3.0" />
+  </ItemGroup>
+</Project>

@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Security;
 
-using Common.Logging;
+using Quartz.Logging;
 
 namespace Quartz.Util
 {
@@ -12,16 +12,12 @@ namespace Quartz.Util
     /// </summary>
     public static class QuartzEnvironment
     {
-        private static readonly ILog log = LogManager.GetLogger(typeof(QuartzEnvironment));
-        private static readonly bool isRunningOnMono = Type.GetType("Mono.Runtime") != null;
+        private static readonly ILog log = LogProvider.GetLogger(typeof(QuartzEnvironment));
 
         /// <summary>
         /// Return whether we are currently running under Mono runtime.
         /// </summary>
-        public static bool IsRunningOnMono
-        {
-            get { return isRunningOnMono; }
-        }
+        public static bool IsRunningOnMono { get; } = Type.GetType("Mono.Runtime") != null;
 
         /// <summary>
         /// Retrieves the value of an environment variable from the current process.

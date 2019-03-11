@@ -64,7 +64,7 @@ namespace Quartz
 
         /// <summary>
         /// Build the actual Trigger -- NOT intended to be invoked by end users,
-        /// but will rather be invoked by a TriggerBuilder which this 
+        /// but will rather be invoked by a TriggerBuilder which this
         /// ScheduleBuilder is given to.
         /// </summary>
         /// <returns></returns>
@@ -95,7 +95,7 @@ namespace Quartz
         {
             ValidateInterval(interval);
             this.interval = interval;
-            this.intervalUnit = unit;
+            intervalUnit = unit;
             return this;
         }
 
@@ -112,8 +112,8 @@ namespace Quartz
         public CalendarIntervalScheduleBuilder WithIntervalInSeconds(int intervalInSeconds)
         {
             ValidateInterval(intervalInSeconds);
-            this.interval = intervalInSeconds;
-            this.intervalUnit = IntervalUnit.Second;
+            interval = intervalInSeconds;
+            intervalUnit = IntervalUnit.Second;
             return this;
         }
 
@@ -130,8 +130,8 @@ namespace Quartz
         public CalendarIntervalScheduleBuilder WithIntervalInMinutes(int intervalInMinutes)
         {
             ValidateInterval(intervalInMinutes);
-            this.interval = intervalInMinutes;
-            this.intervalUnit = IntervalUnit.Minute;
+            interval = intervalInMinutes;
+            intervalUnit = IntervalUnit.Minute;
             return this;
         }
 
@@ -148,8 +148,8 @@ namespace Quartz
         public CalendarIntervalScheduleBuilder WithIntervalInHours(int intervalInHours)
         {
             ValidateInterval(intervalInHours);
-            this.interval = intervalInHours;
-            this.intervalUnit = IntervalUnit.Hour;
+            interval = intervalInHours;
+            intervalUnit = IntervalUnit.Hour;
             return this;
         }
 
@@ -166,8 +166,8 @@ namespace Quartz
         public CalendarIntervalScheduleBuilder WithIntervalInDays(int intervalInDays)
         {
             ValidateInterval(intervalInDays);
-            this.interval = intervalInDays;
-            this.intervalUnit = IntervalUnit.Day;
+            interval = intervalInDays;
+            intervalUnit = IntervalUnit.Day;
             return this;
         }
 
@@ -184,8 +184,8 @@ namespace Quartz
         public CalendarIntervalScheduleBuilder WithIntervalInWeeks(int intervalInWeeks)
         {
             ValidateInterval(intervalInWeeks);
-            this.interval = intervalInWeeks;
-            this.intervalUnit = IntervalUnit.Week;
+            interval = intervalInWeeks;
+            intervalUnit = IntervalUnit.Week;
             return this;
         }
 
@@ -202,8 +202,8 @@ namespace Quartz
         public CalendarIntervalScheduleBuilder WithIntervalInMonths(int intervalInMonths)
         {
             ValidateInterval(intervalInMonths);
-            this.interval = intervalInMonths;
-            this.intervalUnit = IntervalUnit.Month;
+            interval = intervalInMonths;
+            intervalUnit = IntervalUnit.Month;
             return this;
         }
 
@@ -220,8 +220,8 @@ namespace Quartz
         public CalendarIntervalScheduleBuilder WithIntervalInYears(int intervalInYears)
         {
             ValidateInterval(intervalInYears);
-            this.interval = intervalInYears;
-            this.intervalUnit = IntervalUnit.Year;
+            interval = intervalInYears;
+            intervalUnit = IntervalUnit.Year;
             return this;
         }
 
@@ -276,34 +276,33 @@ namespace Quartz
         /// <seealso cref="ICalendarIntervalTrigger.TimeZone" />
         public CalendarIntervalScheduleBuilder InTimeZone(TimeZoneInfo timezone)
         {
-            this.timeZone = timezone;
+            timeZone = timezone;
             return this;
         }
 
         ///<summary>
-        /// If intervals are a day or greater, this property (set to true) will 
+        /// If intervals are a day or greater, this property (set to true) will
         /// cause the firing of the trigger to always occur at the same time of day,
-        /// (the time of day of the startTime) regardless of daylight saving time 
+        /// (the time of day of the startTime) regardless of daylight saving time
         /// transitions.  Default value is false.
         /// </summary>
         /// <remarks>
         /// <para>
-        /// For example, without the property set, your trigger may have a start 
-        /// time of 9:00 am on March 1st, and a repeat interval of 2 days.  But 
-        /// after the daylight saving transition occurs, the trigger may start 
+        /// For example, without the property set, your trigger may have a start
+        /// time of 9:00 am on March 1st, and a repeat interval of 2 days.  But
+        /// after the daylight saving transition occurs, the trigger may start
         /// firing at 8:00 am every other day.
         /// </para>
         /// <para>
         /// If however, the time of day does not exist on a given day to fire
         /// (e.g. 2:00 am in the United States on the days of daylight saving
-        /// transition), the trigger will go ahead and fire one hour off on 
+        /// transition), the trigger will go ahead and fire one hour off on
         /// that day, and then resume the normal hour on other days.  If
         /// you wish for the trigger to never fire at the "wrong" hour, then
         /// you should set the property skipDayIfHourDoesNotExist.
         /// </para>
         ///</remarks>
         /// <seealso cref="SkipDayIfHourDoesNotExist"/>
-        /// <seealso cref="TimeZone"/>
         /// <seealso cref="InTimeZone"/>
         /// <seealso cref="TriggerBuilder.StartAt"/>
         public CalendarIntervalScheduleBuilder PreserveHourOfDayAcrossDaylightSavings(bool preserveHourOfDay)
@@ -313,20 +312,20 @@ namespace Quartz
         }
 
         /// <summary>
-        /// If intervals are a day or greater, and 
+        /// If intervals are a day or greater, and
         /// preserveHourOfDayAcrossDaylightSavings property is set to true, and the
-        /// hour of the day does not exist on a given day for which the trigger 
+        /// hour of the day does not exist on a given day for which the trigger
         /// would fire, the day will be skipped and the trigger advanced a second
         /// interval if this property is set to true.  Defaults to false.
         /// </summary>
         /// <remarks>
-        /// <b>CAUTION!</b>  If you enable this property, and your hour of day happens 
-        /// to be that of daylight savings transition (e.g. 2:00 am in the United 
+        /// <b>CAUTION!</b>  If you enable this property, and your hour of day happens
+        /// to be that of daylight savings transition (e.g. 2:00 am in the United
         /// States) and the trigger's interval would have had the trigger fire on
-        /// that day, then you may actually completely miss a firing on the day of 
-        /// transition if that hour of day does not exist on that day!  In such a 
-        /// case the next fire time of the trigger will be computed as double (if 
-        /// the interval is 2 days, then a span of 4 days between firings will 
+        /// that day, then you may actually completely miss a firing on the day of
+        /// transition if that hour of day does not exist on that day!  In such a
+        /// case the next fire time of the trigger will be computed as double (if
+        /// the interval is 2 days, then a span of 4 days between firings will
         /// occur).
         /// </remarks>
         /// <seealso cref="PreserveHourOfDayAcrossDaylightSavings"/>
@@ -336,6 +335,7 @@ namespace Quartz
             return this;
         }
 
+        // ReSharper disable once UnusedParameter.Local
         private static void ValidateInterval(int interval)
         {
             if (interval <= 0)

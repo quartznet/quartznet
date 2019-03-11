@@ -14,12 +14,7 @@ namespace Quartz.Util
         /// <returns></returns>
         public static string NullSafeTrim(this string s)
         {
-            if (s == null)
-            {
-                return null;
-            }
-
-            return s.Trim();
+            return s?.Trim();
         }
 
         /// <summary>

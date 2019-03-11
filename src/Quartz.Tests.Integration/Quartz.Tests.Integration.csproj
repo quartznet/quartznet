@@ -1,0 +1,40 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>netcoreapp2.0;$(TargetFullFrameworkVersion)</TargetFrameworks>
+  </PropertyGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="**\TestData\*" />
+    <Compile Include="..\AssemblyInfo.cs" />
+    <Compile Include="..\Quartz.Tests.Unit\TestConstants.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="FakeItEasy" Version="4.6.0" />
+    <PackageReference Include="FirebirdSql.Data.FirebirdClient" Version="5.11.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="15.8.0" />
+    <PackageReference Include="MySql.Data" Version="6.10.6" />
+    <PackageReference Include="NUnit" Version="3.10.1" />
+    <PackageReference Include="Npgsql" Version="3.2.5" />
+    <PackageReference Include="NUnit3TestAdapter" Version="3.10.0" />
+  </ItemGroup>
+  <PropertyGroup Condition=" '$(TargetFramework)' == 'netcoreapp2.0' ">
+    <DefineConstants>$(DefineConstants);NETCORE</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz\Quartz.csproj" />
+    <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj" />
+    <ProjectReference Include="..\Quartz.Serialization.Json\Quartz.Serialization.Json.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition=" '$(TargetFramework)' == 'netcoreapp2.0' ">
+    <PackageReference Include="Microsoft.Data.SQLite" Version="2.0.0" />
+    <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="2.18.3" />
+  </ItemGroup>
+  <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFullFrameworkVersion)' ">
+    <Reference Include="Microsoft.CSharp" />
+    <PackageReference Include="Oracle.ManagedDataAccess" Version="12.2.1100" />
+    <PackageReference Include="System.Data.SQLite.Core" Version="1.0.105.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <Service Include="{82a7f48d-3b50-4b1e-b82e-3ada8210c358}">
+    </Service>
+  </ItemGroup>
+</Project>

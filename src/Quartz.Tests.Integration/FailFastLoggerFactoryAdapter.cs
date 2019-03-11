@@ -1,77 +1,44 @@
 using System;
 using System.Collections.Generic;
 
-using Common.Logging;
-using Common.Logging.Factory;
-
 namespace Quartz.Tests.Integration
 {
-    internal class FailFastLoggerFactoryAdapter : ILoggerFactoryAdapter
+    internal class FailFastLoggerFactoryAdapter : ILogProvider
     {
-        private static readonly List<string> errors = new List<string>();
+        private static readonly IDisposable NoopDisposableInstance = new DisposableAction();
 
-        public ILog GetLogger(Type type)
+        public Logger GetLogger(string name)
         {
-            return new FailFastLogger(this);
+            return Log;
         }
 
-        public ILog GetLogger(string name)
+        public IDisposable OpenNestedContext(string message)
         {
-            return new FailFastLogger(this);
+            return NoopDisposableInstance;
         }
 
-        private void ReportError(string error)
+        public IDisposable OpenMappedContext(string key, string value)
         {
-            errors.Add(error);
+            return NoopDisposableInstance;
         }
 
-        public static List<string> Errors
+        private static bool Log(LogLevel logLevel, Func<string> messageFunc, Exception exception, object[] formatparameters)
         {
-            get { return errors; }
+            if (logLevel == LogLevel.Error || logLevel == LogLevel.Fatal)
+            {
+                var message = messageFunc == null ? string.Empty : messageFunc();
+                Errors.Add(message);
+            }
+
+            return true;
         }
 
-        private class FailFastLogger : AbstractLogger
+        public static List<string> Errors { get; } = new List<string>();
+
+        private class DisposableAction : IDisposable
         {
-            private readonly FailFastLoggerFactoryAdapter parent;
-
-            public FailFastLogger(FailFastLoggerFactoryAdapter parent)
+            public void Dispose()
             {
-                this.parent = parent;
-            }
-
-            protected override void WriteInternal(LogLevel level, object message, Exception exception)
-            {
-                parent.ReportError("" + message);
-            }
-
-            public override bool IsTraceEnabled
-            {
-                get { return false; }
-            }
-
-            public override bool IsDebugEnabled
-            {
-                get { return false; }
-            }
-
-            public override bool IsErrorEnabled
-            {
-                get { return true; }
-            }
-
-            public override bool IsFatalEnabled
-            {
-                get { return true; }
-            }
-
-            public override bool IsInfoEnabled
-            {
-                get { return false; }
-            }
-
-            public override bool IsWarnEnabled
-            {
-                get { return true; }
             }
         }
     }

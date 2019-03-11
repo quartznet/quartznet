@@ -1,27 +1,29 @@
 #region License
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
+
 #endregion
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.Serialization;
-using System.Security;
 
-using Quartz.Collection;
 using Quartz.Util;
 
 namespace Quartz.Impl.Calendar
@@ -42,17 +44,18 @@ namespace Quartz.Impl.Calendar
 	public class HolidayCalendar : BaseCalendar
 	{
 		/// <summary>
-		/// Returns a <see cref="ISortedSet&lt;DateTime&gt;" /> of Dates representing the excluded
+        /// Returns a collection of dates representing the excluded
 		/// days. Only the month, day and year of the returned dates are
 		/// significant.
 		/// </summary>
-		public virtual ISortedSet<DateTime> ExcludedDates
+        public virtual IReadOnlyCollection<DateTime> ExcludedDates
 		{
-			get { return new TreeSet<DateTime>(dates); }
+            get => new ReadOnlyCompatibleHashSet<DateTime>(dates);
+			internal set => dates = new SortedSet<DateTime>(value);
 		}
 
 		// A sorted set to store the holidays
-		private TreeSet<DateTime> dates = new TreeSet<DateTime>();
+        private SortedSet<DateTime> dates = new SortedSet<DateTime>();
 
         /// <summary>
         /// Initializes a new instance of the <see cref="HolidayCalendar"/> class.
@@ -69,7 +72,8 @@ namespace Quartz.Impl.Calendar
 		{
 			CalendarBase = baseCalendar;
 		}
-        
+
+        // Make sure that future calendar version changes are done in a DCS-friendly way (with [OnSerializing] and [OnDeserialized] methods).
         /// <summary>
         /// Serialization constructor.
         /// </summary>
@@ -90,36 +94,23 @@ namespace Quartz.Impl.Calendar
             switch (version)
             {
                 case 0:
-                    object o = info.GetValue("dates", typeof(object));
-                    TreeSet oldTreeset = o as TreeSet;
-                    if (oldTreeset != null)
-                    {
-                        foreach (DateTime dateTime in oldTreeset)
-                        {
-                            dates.Add(dateTime);
-                        }
-                    }
-                    else
-                    {
-                        // must be generic treeset 
-                        dates = (TreeSet<DateTime>) o;
-                    }
-                    break;
                 case 1:
-                    dates = (TreeSet<DateTime>) info.GetValue("dates", typeof(TreeSet<DateTime>));
+                    throw new NotSupportedException("cannot deserialize old version, use latest Quartz 2.x version to re-serialize all HolidayCalendar instances in database");
+                case 2:
+                    dates = new SortedSet<DateTime>((DateTime[]) info.GetValue("dates", typeof(DateTime[])));
                     break;
                 default:
                     throw new NotSupportedException("Unknown serialization version");
             }
-
         }
 
-        [SecurityCritical]
+        [System.Security.SecurityCritical]
         public override void GetObjectData(SerializationInfo info, StreamingContext context)
         {
             base.GetObjectData(info, context);
-            info.AddValue("version", 1);
-            info.AddValue("dates", dates);
+
+            info.AddValue("version", 2);
+            info.AddValue("dates", dates.ToArray());
         }
 
 		/// <summary>
@@ -137,10 +128,10 @@ namespace Quartz.Impl.Calendar
 			}
 
             //apply the timezone
-            timeStampUtc = TimeZoneUtil.ConvertTime(timeStampUtc, this.TimeZone);
+            timeStampUtc = TimeZoneUtil.ConvertTime(timeStampUtc, TimeZone);
             DateTime lookFor = timeStampUtc.Date;
 
-			return !(dates.Contains(lookFor));
+            return !dates.Contains(lookFor);
 		}
 
 		/// <summary>
@@ -154,13 +145,13 @@ namespace Quartz.Impl.Calendar
 		{
 			// Call base calendar implementation first
             DateTimeOffset baseTime = base.GetNextIncludedTimeUtc(timeUtc);
-            if ((timeUtc != DateTimeOffset.MinValue) && (baseTime > timeUtc))
+            if (timeUtc != DateTimeOffset.MinValue && baseTime > timeUtc)
 			{
 				timeUtc = baseTime;
 			}
 
             //apply the timezone
-            timeUtc = TimeZoneUtil.ConvertTime(timeUtc, this.TimeZone);
+            timeUtc = TimeZoneUtil.ConvertTime(timeUtc, TimeZone);
 
             // Get timestamp for 00:00:00, with the correct timezone offset
             DateTimeOffset day = new DateTimeOffset(timeUtc.Date, timeUtc.Offset);
@@ -177,10 +168,11 @@ namespace Quartz.Impl.Calendar
 	    /// Creates a new object that is a copy of the current instance.
 	    /// </summary>
 	    /// <returns>A new object that is a copy of this instance.</returns>
-	    public override object Clone()
+        public override ICalendar Clone()
 	    {
-            HolidayCalendar clone = (HolidayCalendar) base.Clone();
-            clone.dates = new TreeSet<DateTime>(dates);
+            HolidayCalendar clone = new HolidayCalendar();
+            CloneFields(clone);
+            clone.dates = new SortedSet<DateTime>(dates);
             return clone;
 	    }
 
@@ -207,12 +199,12 @@ namespace Quartz.Impl.Calendar
         public override int GetHashCode()
         {
             int baseHash = 0;
-            if (GetBaseCalendar() != null)
+            if (CalendarBase != null)
             {
-                baseHash = GetBaseCalendar().GetHashCode();
+                baseHash = CalendarBase.GetHashCode();
             }
 
-            return ExcludedDates.GetHashCode() + 5 * baseHash;
+            return ExcludedDates.GetHashCode() + 5*baseHash;
         }
 
         public bool Equals(HolidayCalendar obj)
@@ -222,12 +214,10 @@ namespace Quartz.Impl.Calendar
                 return false;
             }
 
-            bool baseEqual = GetBaseCalendar() == null || GetBaseCalendar().Equals(obj.GetBaseCalendar());
+            bool baseEqual = CalendarBase == null || CalendarBase.Equals(obj.CalendarBase);
 
-            return baseEqual && (ExcludedDates.Equals(obj.ExcludedDates));
-
+            return baseEqual && ExcludedDates.SequenceEqual(obj.ExcludedDates);
         }
-
 
         public override bool Equals(object obj)
         {
@@ -235,8 +225,8 @@ namespace Quartz.Impl.Calendar
             {
                 return false;
             }
-            
-            return Equals((HolidayCalendar)obj);
+
+            return Equals((HolidayCalendar) obj);
         }
 	}
 }

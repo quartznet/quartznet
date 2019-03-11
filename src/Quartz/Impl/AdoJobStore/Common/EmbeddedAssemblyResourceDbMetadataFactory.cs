@@ -24,15 +24,15 @@ namespace Quartz.Impl.AdoJobStore.Common
             this.resourceName = resourceName;
             this.propertyGroupName = propertyGroupName;
         }
-        
+
         /// <summary>
         /// Gets the supported provider names.
         /// </summary>
         /// <returns>The enumeration of the supported provider names</returns>
-        public override IEnumerable<string> GetProviderNames()
+        public override IReadOnlyCollection<string> GetProviderNames()
         {
             PropertiesParser pp = PropertiesParser.ReadFromEmbeddedAssemblyResource(resourceName);
-            IEnumerable<string> result = pp.GetPropertyGroups(propertyGroupName);
+            var result = pp.GetPropertyGroups(propertyGroupName);
             return result;
         }
 
@@ -44,10 +44,10 @@ namespace Quartz.Impl.AdoJobStore.Common
         public override DbMetadata GetDbMetadata(string providerName)
         {
             List<string> deprecatedProviders = new List<string>
-                                               {
-                                                   "Npgsql-10",
-                                                   "SqlServer-11"
-                                               };
+            {
+                "Npgsql-10",
+                "SqlServer-11"
+            };
 
             if (deprecatedProviders.Contains(providerName))
             {
@@ -56,20 +56,18 @@ namespace Quartz.Impl.AdoJobStore.Common
 
             try
             {
-
-
                 PropertiesParser pp = PropertiesParser.ReadFromEmbeddedAssemblyResource(resourceName);
                 NameValueCollection props = pp.GetPropertyGroup(propertyGroupName + "." + providerName, true);
                 DbMetadata metadata = new DbMetadata();
 
                 ObjectUtils.SetObjectProperties(metadata, props);
                 metadata.Init();
-                
+
                 return metadata;
             }
             catch (Exception ex)
             {
-                throw new ArgumentException("Error while reading metadata information for provider '" + providerName + "'", "providerName", ex);
+                throw new ArgumentException("Error while reading metadata information for provider '" + providerName + "'", nameof(providerName), ex);
             }
         }
     }

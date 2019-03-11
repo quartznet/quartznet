@@ -1,33 +1,34 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
 
 using System;
 using System.Globalization;
+using System.Reflection;
 
 using Quartz.Util;
 
 namespace Quartz.Impl
 {
     /// <summary>
-    /// Conveys the detail properties of a given job instance. 
+    /// Conveys the detail properties of a given job instance.
     /// </summary>
     /// <remarks>
     /// Quartz does not store an actual instance of a <see cref="IJob" /> type, but
@@ -55,10 +56,8 @@ namespace Quartz.Impl
         private string name;
         private string group = SchedulerConstants.DefaultGroup;
         private string description;
-        private Type jobType;
         private JobDataMap jobDataMap;
-        private bool durability;
-        private bool shouldRecover;
+        private Type jobType;
 
         [NonSerialized] // we have the key in string fields
         private JobKey key;
@@ -113,7 +112,7 @@ namespace Quartz.Impl
         /// <param name="jobType">Type of the job.</param>
         /// <param name="isDurable">if set to <c>true</c>, job will be durable.</param>
         /// <param name="requestsRecovery">if set to <c>true</c>, job will request recovery.</param>
-        /// <exception cref="ArgumentException"> 
+        /// <exception cref="ArgumentException">
         /// ArgumentException if name is null or empty, or the group is an empty string.
         /// </exception>
         public JobDetailImpl(string name, string group, Type jobType, bool isDurable, bool requestsRecovery)
@@ -128,12 +127,12 @@ namespace Quartz.Impl
         /// <summary>
         /// Get or sets the name of this <see cref="IJob" />.
         /// </summary>
-        /// <exception cref="ArgumentException"> 
+        /// <exception cref="ArgumentException">
         /// if name is null or empty.
         /// </exception>
-        public virtual string Name
+        public string Name
         {
-            get { return name; }
+            get => name;
 
             set
             {
@@ -147,16 +146,15 @@ namespace Quartz.Impl
         }
 
         /// <summary>
-        /// Get or sets the group of this <see cref="IJob" />. 
+        /// Get or sets the group of this <see cref="IJob" />.
         /// If <see langword="null" />, <see cref="SchedulerConstants.DefaultGroup" /> will be used.
         /// </summary>
-        /// <exception cref="ArgumentException"> 
+        /// <exception cref="ArgumentException">
         /// If the group is an empty string.
         /// </exception>
-        public virtual string Group
+        public string Group
         {
-            get { return group; }
-
+            get => group;
             set
             {
                 if (value != null && value.Trim().Length == 0)
@@ -173,20 +171,17 @@ namespace Quartz.Impl
             }
         }
 
-        /// <summary> 
+        /// <summary>
         /// Returns the 'full name' of the <see cref="ITrigger" /> in the format
         /// "group.name".
         /// </summary>
-        public virtual string FullName
-        {
-            get { return group + "." + name; }
-        }
+        public string FullName => group + "." + name;
 
         /// <summary>
         /// Gets the key.
         /// </summary>
         /// <value>The key.</value>
-        public virtual JobKey Key
+        public JobKey Key
         {
             get
             {
@@ -203,8 +198,8 @@ namespace Quartz.Impl
             }
             set
             {
-                Name = value != null ? value.Name : null;
-                Group = value != null ? value.Group : null;
+                Name = value?.Name;
+                Group = value?.Group;
                 key = value;
             }
         }
@@ -217,22 +212,21 @@ namespace Quartz.Impl
         /// May be useful for remembering/displaying the purpose of the job, though the
         /// description has no meaning to Quartz.
         /// </remarks>
-        public virtual string Description
+        public string Description
         {
-            get { return description; }
-            set { description = value; }
+            get => description;
+            set => description = value;
         }
 
         /// <summary>
         /// Get or sets the instance of <see cref="IJob" /> that will be executed.
         /// </summary>
-        /// <exception cref="ArgumentException"> 
+        /// <exception cref="ArgumentException">
         /// if jobType is null or the class is not a <see cref="IJob" />.
         /// </exception>
         public virtual Type JobType
         {
-            get { return jobType; }
-
+            get => jobType;
             set
             {
                 if (value == null)
@@ -240,7 +234,7 @@ namespace Quartz.Impl
                     throw new ArgumentException("Job class cannot be null.");
                 }
 
-                if (!typeof (IJob).IsAssignableFrom(value))
+                if (!typeof(IJob).GetTypeInfo().IsAssignableFrom(value.GetTypeInfo()))
                 {
                     throw new ArgumentException("Job class must implement the Job interface.");
                 }
@@ -263,7 +257,7 @@ namespace Quartz.Impl
                 return jobDataMap;
             }
 
-            set { jobDataMap = value; }
+            set => jobDataMap = value;
         }
 
         /// <summary>
@@ -275,11 +269,7 @@ namespace Quartz.Impl
         /// </para>
         /// </summary>
         /// <seealso cref="IJobExecutionContext.Recovering" />
-        public virtual bool RequestsRecovery
-        {
-            set { shouldRecover = value; }
-            get { return shouldRecover; }
-        }
+        public bool RequestsRecovery { set; get; }
 
         /// <summary>
         /// Whether or not the <see cref="IJob" /> should remain stored after it is
@@ -288,33 +278,23 @@ namespace Quartz.Impl
         /// If not explicitly set, the default value is <see langword="false" />.
         /// </para>
         /// </summary>
-        /// <returns> 
+        /// <returns>
         /// <see langword="true" /> if the Job should remain persisted after
         /// being orphaned.
         /// </returns>
-        public virtual bool Durable
-        {
-            get { return durability; }
-            set { durability = value; }
-        }
+        public bool Durable { get; set; }
 
         /// <summary>
         /// Whether the associated Job class carries the <see cref="PersistJobDataAfterExecution" /> attribute.
         /// </summary>
-        public virtual bool PersistJobDataAfterExecution
-        {
-            get { return ObjectUtils.IsAttributePresent(jobType, typeof (PersistJobDataAfterExecutionAttribute)); }
-        }
+        public virtual bool PersistJobDataAfterExecution => ObjectUtils.IsAttributePresent(jobType, typeof(PersistJobDataAfterExecutionAttribute));
 
         /// <summary>
         /// Whether the associated Job class carries the <see cref="DisallowConcurrentExecutionAttribute" /> attribute.
         /// </summary>
-        public virtual bool ConcurrentExecutionDisallowed
-        {
-            get { return ObjectUtils.IsAttributePresent(jobType, typeof (DisallowConcurrentExecutionAttribute)); }
-        }
+        public virtual bool ConcurrentExecutionDisallowed => ObjectUtils.IsAttributePresent(jobType, typeof(DisallowConcurrentExecutionAttribute));
 
-        /// <summary> 
+        /// <summary>
         /// Validates whether the properties of the <see cref="IJobDetail" /> are
         /// valid for submission into a <see cref="IScheduler" />.
         /// </summary>
@@ -345,7 +325,7 @@ namespace Quartz.Impl
                 string.Format(
                     CultureInfo.InvariantCulture,
                     "JobDetail '{0}':  jobType: '{1} persistJobDataAfterExecution: {2} concurrentExecutionDisallowed: {3} isDurable: {4} requestsRecovers: {5}",
-                    FullName, ((JobType == null) ? null : JobType.FullName), PersistJobDataAfterExecution, ConcurrentExecutionDisallowed, Durable, RequestsRecovery);
+                    FullName, JobType?.FullName, PersistJobDataAfterExecution, ConcurrentExecutionDisallowed, Durable, RequestsRecovery);
         }
 
         /// <summary>
@@ -354,7 +334,7 @@ namespace Quartz.Impl
         /// <returns>
         /// A new object that is a copy of this instance.
         /// </returns>
-        public virtual object Clone()
+        public virtual IJobDetail Clone()
         {
             JobDetailImpl copy;
             try
@@ -384,8 +364,7 @@ namespace Quartz.Impl
         {
             //doesn't consider job's saved data,
             //durability etc
-            return (detail != null) && (detail.Name == Name) && (detail.Group == Group) &&
-                   (detail.JobType == JobType);
+            return detail != null && detail.Name == Name && detail.Group == Group && detail.JobType == JobType;
         }
 
         /// <summary>
@@ -398,8 +377,7 @@ namespace Quartz.Impl
         /// </returns>
         public override bool Equals(object obj)
         {
-            JobDetailImpl jd = obj as JobDetailImpl;
-            if (jd == null)
+            if (!(obj is JobDetailImpl jd))
             {
                 return false;
             }

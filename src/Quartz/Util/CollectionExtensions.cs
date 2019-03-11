@@ -18,10 +18,9 @@ namespace Quartz.Util
         /// <returns></returns>
         public static TValue TryGetAndReturn<TKey, TValue>(this IDictionary<TKey, TValue> dictionary, TKey key)
         {
-            TValue retValue;
-            if (!dictionary.TryGetValue(key, out retValue))
+            if (!dictionary.TryGetValue(key, out var retValue))
             {
-                retValue = default(TValue);
+                retValue = default;
             }
             return retValue;
         }

@@ -1,7 +1,7 @@
-#region License
+    #region License
 
 /* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -21,7 +21,10 @@
 
 using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+
+using Quartz.Logging;
 
 namespace Quartz.Listener
 {
@@ -41,8 +44,8 @@ namespace Quartz.Listener
     /// <author>James House (jhouse AT revolition DOT net)</author>
     public class BroadcastTriggerListener : ITriggerListener
     {
-        private readonly string name;
         private readonly List<ITriggerListener> listeners;
+        private readonly ILog log;
 
         /// <summary>
         /// Construct an instance with the given name.
@@ -53,12 +56,9 @@ namespace Quartz.Listener
         /// <param name="name">the name of this instance</param>
         public BroadcastTriggerListener(string name)
         {
-            if (name == null)
-            {
-                throw new ArgumentNullException("name", "Listener name cannot be null!");
-            }
-            this.name = name;
+            Name = name ?? throw new ArgumentNullException(nameof(name), "Listener name cannot be null!");
             listeners = new List<ITriggerListener>();
+            log = LogProvider.GetLogger(GetType());
         }
 
         /// <summary>
@@ -68,15 +68,12 @@ namespace Quartz.Listener
         /// </remarks>
         /// <param name="name">the name of this instance</param>
         /// <param name="listeners">the initial List of TriggerListeners to broadcast to.</param>
-        public BroadcastTriggerListener(string name, IList<ITriggerListener> listeners) : this(name)
+        public BroadcastTriggerListener(string name, IReadOnlyCollection<ITriggerListener> listeners) : this(name)
         {
             this.listeners.AddRange(listeners);
         }
 
-        public string Name
-        {
-            get { return name; }
-        }
+        public string Name { get; }
 
         public void AddListener(ITriggerListener listener)
         {
@@ -99,37 +96,61 @@ namespace Quartz.Listener
             return false;
         }
 
-        public IList<ITriggerListener> Listeners
+        public IReadOnlyList<ITriggerListener> Listeners => listeners;
+
+        public Task TriggerFired(
+            ITrigger trigger, 
+            IJobExecutionContext context, 
+            CancellationToken cancellationToken = default)
         {
-            get { return listeners.AsReadOnly(); }
+            return IterateListenersInGuard(l => l.TriggerFired(trigger, context, cancellationToken), nameof(TriggerFired));
         }
 
-        public void TriggerFired(ITrigger trigger, IJobExecutionContext context)
+        public async Task<bool> VetoJobExecution(
+            ITrigger trigger, 
+            IJobExecutionContext context,
+            CancellationToken cancellationToken = default)
         {
-            foreach (ITriggerListener l in listeners)
+            foreach (var listener in listeners)
             {
-                l.TriggerFired(trigger, context);
+                if (await listener.VetoJobExecution(trigger, context, cancellationToken).ConfigureAwait(false))
+                {
+                    return true;
+                }
             }
+
+            return false;
         }
 
-        public bool VetoJobExecution(ITrigger trigger, IJobExecutionContext context)
+        public Task TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = default)
         {
-            return listeners.Any(l => l.VetoJobExecution(trigger, context));
+            return IterateListenersInGuard(l => l.TriggerMisfired(trigger, cancellationToken), nameof(TriggerMisfired));
         }
 
-        public void TriggerMisfired(ITrigger trigger)
+        public Task TriggerComplete(
+            ITrigger trigger, 
+            IJobExecutionContext context, 
+            SchedulerInstruction triggerInstructionCode,
+            CancellationToken cancellationToken = default)
         {
-            foreach (ITriggerListener l in listeners)
+            return IterateListenersInGuard(l => l.TriggerComplete(trigger, context, triggerInstructionCode, cancellationToken), nameof(TriggerComplete));
+        }
+        
+        private async Task IterateListenersInGuard(Func<ITriggerListener, Task> action, string methodName)
+        {
+            foreach (var listener in listeners)
             {
-                l.TriggerMisfired(trigger);
-            }
-        }
-
-        public void TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode)
-        {
-            foreach (ITriggerListener l in listeners)
-            {
-                l.TriggerComplete(trigger, context, triggerInstructionCode);
+                try
+                {
+                    await action(listener).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    if (log.IsErrorEnabled())
+                    {
+                        log.ErrorException($"Listener {listener.Name} - method {methodName} raised an exception: {e.Message}", e);
+                    }
+                }
             }
         }
     }

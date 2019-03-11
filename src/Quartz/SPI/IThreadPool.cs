@@ -1,23 +1,27 @@
 #region License
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
+
 #endregion
 
+using System;
 using System.Threading;
+using System.Threading.Tasks;
 
 using Quartz.Core;
 
@@ -32,7 +36,7 @@ namespace Quartz.Spi
     /// for the sole use of Quartz.  Most importantly, when the method
     ///  <see cref="BlockForAvailableThreads()" /> returns a value of 1 or greater,
     /// there must still be at least one available thread in the pool when the
-    /// method  <see cref="RunInThread(IThreadRunnable)"/> is called a few moments (or
+    /// method  <see cref="RunInThread"/> is called a few moments (or
     /// many moments) later.  If this assumption does not hold true, it may
     /// result in extra JobStore queries and updates, and if clustering features
     /// are being used, it may result in greater imbalance of load.
@@ -43,7 +47,7 @@ namespace Quartz.Spi
     public interface IThreadPool
     {
         /// <summary>
-        /// Execute the given <see cref="IThreadRunnable" /> in the next
+        /// Execute the given <see cref="Task" /> in the next
         /// available <see cref="Thread" />.
         /// </summary>
         /// <remarks>
@@ -52,12 +56,12 @@ namespace Quartz.Spi
         /// are no available threads, rather it should either queue the Runnable, or
         /// block until a thread is available, depending on the desired strategy.
         /// </remarks>
-        bool RunInThread(IThreadRunnable runnable);
+        bool RunInThread(Func<Task> runnable);
 
         /// <summary>
         /// Determines the number of threads that are currently available in
         /// the pool.  Useful for determining the number of times
-        /// <see cref="RunInThread(IThreadRunnable)"/>  can be called before returning
+        /// <see cref="RunInThread"/>  can be called before returning
         /// false.
         /// </summary>
         ///<remarks>
@@ -68,7 +72,7 @@ namespace Quartz.Spi
         int BlockForAvailableThreads();
 
         /// <summary>
-        /// Must be called before the <see cref="ThreadPool" /> is
+        /// Must be called before the thread pool is
         /// used, in order to give the it a chance to Initialize.
         /// </summary>
         /// <remarks>
@@ -77,11 +81,11 @@ namespace Quartz.Spi
         void Initialize();
 
         /// <summary>
-        /// Called by the QuartzScheduler to inform the <see cref="ThreadPool" />
+        /// Called by the QuartzScheduler to inform the thread pool
         /// that it should free up all of it's resources because the scheduler is
         /// shutting down.
         /// </summary>
-        void Shutdown(bool waitForJobsToComplete);
+        void Shutdown(bool waitForJobsToComplete = true);
 
         /// <summary>
         /// Get the current number of threads in the <see cref="IThreadPool" />.
@@ -89,15 +93,17 @@ namespace Quartz.Spi
         int PoolSize { get; }
 
         /// <summary>
-        /// Inform the <see cref="IThreadPool" /> of the Scheduler instance's Id, 
+        /// Inform the <see cref="IThreadPool" /> of the Scheduler instance's Id,
         /// prior to initialize being invoked.
         /// </summary>
+        // ReSharper disable once UnusedMember.Global
         string InstanceId { set; }
 
         /// <summary>
-        /// Inform the <see cref="IThreadPool" /> of the Scheduler instance's name, 
+        /// Inform the <see cref="IThreadPool" /> of the Scheduler instance's name,
         /// prior to initialize being invoked.
         /// </summary>
+        // ReSharper disable once UnusedMember.Global
         string InstanceName { set; }
     }
 }

@@ -1,6 +1,6 @@
 #region License
 /* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -19,8 +19,7 @@
 
 using System;
 
-using Common.Logging;
-
+using Quartz.Logging;
 using Quartz.Util;
 
 namespace Quartz.Impl
@@ -36,7 +35,7 @@ namespace Quartz.Impl
     /// <author>Marko Lahma (.NET)</author>
     internal static class SchedulerDetailsSetter
     {
-        private static readonly ILog log = LogManager.GetLogger(typeof(SchedulerDetailsSetter));
+        private static readonly ILog log = LogProvider.GetLogger(typeof(SchedulerDetailsSetter));
 
         internal static void SetDetails(object target, string schedulerName, string schedulerId)
         {

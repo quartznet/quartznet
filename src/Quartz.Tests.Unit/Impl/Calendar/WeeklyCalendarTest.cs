@@ -1,19 +1,19 @@
 #region License
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 #endregion
 
@@ -22,19 +22,21 @@ using System;
 using NUnit.Framework;
 
 using Quartz.Impl.Calendar;
+using Quartz.Simpl;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl.Calendar
 {
     /// <author>Marko Lahma (.NET)</author>
-    [TestFixture]
-    public class WeeklyCalendarTest : SerializationTestSupport
+    [TestFixture(typeof(BinaryObjectSerializer))]
+    [TestFixture(typeof(JsonObjectSerializer))]
+    public class WeeklyCalendarTest : SerializationTestSupport<WeeklyCalendar, ICalendar>
     {
         private WeeklyCalendar cal;
 
-        private static string[] VERSIONS = new string[] { "1.5.1" };
-
-        //private static final TimeZone EST_TIME_ZONE = TimeZone.getTimeZone("America/New_York"); 
+        public WeeklyCalendarTest(Type serializerType) : base(serializerType)
+        {
+        }
 
         [SetUp]
         public void Setup()
@@ -62,7 +64,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             Assert.AreEqual(excluded.AddDays(3), cal.GetNextIncludedTimeUtc(excluded));
         }
 
-        
+
         [Test]
         public void TestDaylightSavingTransition()
         {
@@ -76,7 +78,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             cal.SetDayExcluded(DayOfWeek.Sunday, true);
 
             //11/5/2012 12:00:00 AM -04:00 will translate into 11/4/2012 11:00:00 PM -05:00, which is a Sunday, not monday
-            DateTimeOffset date = new DateTimeOffset(2012, 11, 5, 0, 0, 0, TimeSpan.FromHours(-4)); 
+            DateTimeOffset date = new DateTimeOffset(2012, 11, 5, 0, 0, 0, TimeSpan.FromHours(-4));
             Assert.IsFalse(cal.IsTimeIncluded(date));
 
             date = cal.GetNextIncludedTimeUtc(date);
@@ -86,46 +88,26 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         }
 
 
-    
+
         /// <summary>
         /// Get the object to serialize when generating serialized file for future
         /// tests, and against which to validate deserialized object.
         /// </summary>
         /// <returns></returns>
-        protected override object GetTargetObject()
+        protected override WeeklyCalendar GetTargetObject()
         {
-            AnnualCalendar c = new AnnualCalendar();
+            WeeklyCalendar c = new WeeklyCalendar();
             c.Description = "description";
-            DateTime date = new DateTime(2005, 1, 20, 10, 5, 15);
-            c.SetDayExcluded(date, true);
+            c.SetDayExcluded(DayOfWeek.Thursday, true);
             return c;
         }
 
-        /// <summary>
-        /// Get the Quartz versions for which we should verify
-        /// serialization backwards compatibility.
-        /// </summary>
-        /// <returns></returns>
-        protected override string[] GetVersions()
+        protected override void VerifyMatch(WeeklyCalendar original, WeeklyCalendar deserialized)
         {
-            return VERSIONS;
-        }
-
-        /// <summary>
-        /// Verify that the target object and the object we just deserialized 
-        /// match.
-        /// </summary>
-        /// <param name="target"></param>
-        /// <param name="deserialized"></param>
-        protected override void VerifyMatch(object target, object deserialized)
-        {
-            AnnualCalendar targetCalendar = (AnnualCalendar)target;
-            AnnualCalendar deserializedCalendar = (AnnualCalendar)deserialized;
-
-            Assert.IsNotNull(deserializedCalendar);
-            Assert.AreEqual(targetCalendar.Description, deserializedCalendar.Description);
-            Assert.AreEqual(targetCalendar.DaysExcluded, deserializedCalendar.DaysExcluded);
-            //Assert.IsNull(deserializedCalendar.getTimeZone());
+            Assert.IsNotNull(deserialized);
+            Assert.AreEqual(original.Description, deserialized.Description);
+            Assert.AreEqual(original.DaysExcluded, deserialized.DaysExcluded);
+            Assert.AreEqual(original.TimeZone, deserialized.TimeZone);
         }
     }
 }

@@ -1,9 +1,11 @@
 using System;
 
+using Newtonsoft.Json;
+
 using NUnit.Framework;
 
 using Quartz.Impl.Triggers;
-using Quartz.Util;
+using Quartz.Tests.Unit.Utils;
 
 namespace Quartz.Tests.Unit.Impl.Triggers
 {
@@ -23,14 +25,13 @@ namespace Quartz.Tests.Unit.Impl.Triggers
         {
             trigger.Key = new TriggerKey("tname", "tgroup");
             trigger.JobKey = new JobKey("jname", "jgroup");
-            
+
             AbstractTrigger cloned = trigger.DeepClone();
-            
+
             Assert.That(cloned.Name, Is.EqualTo(trigger.Name));
             Assert.That(cloned.Group, Is.EqualTo(trigger.Group));
             Assert.That(cloned.Key, Is.EqualTo(trigger.Key));
         }
-
 
         [Serializable]
         private class TestTrigger : AbstractTrigger
@@ -40,10 +41,8 @@ namespace Quartz.Tests.Unit.Impl.Triggers
                 throw new NotImplementedException();
             }
 
-            public override DateTimeOffset? FinalFireTimeUtc
-            {
-                get { throw new NotImplementedException(); }
-            }
+            [JsonIgnore]
+            public override DateTimeOffset? FinalFireTimeUtc => throw new NotImplementedException();
 
             public override void Triggered(ICalendar cal)
             {
@@ -72,7 +71,10 @@ namespace Quartz.Tests.Unit.Impl.Triggers
 
             protected override bool ValidateMisfireInstruction(int misfireInstruction)
             {
-                throw new NotImplementedException();
+                // This method must be implemented because it's used in AbstractTrigger.MisfireInstruction's setter
+                // and JSON serialization serializes at the property level (as opposed to the binary formatter which
+                // serialized at the field level and, therefore, did not need this implemented).
+                return true;
             }
 
             public override void UpdateAfterMisfire(ICalendar cal)
@@ -100,10 +102,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
                 throw new NotImplementedException();
             }
 
-            public override bool HasMillisecondPrecision
-            {
-                get { throw new NotImplementedException(); }
-            }
+            public override bool HasMillisecondPrecision => false;
         }
     }
 }

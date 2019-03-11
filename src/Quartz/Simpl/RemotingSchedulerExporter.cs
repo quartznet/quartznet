@@ -1,26 +1,26 @@
 #region License
-/* 
+/*
  * Copyright 2009- Marko Lahma
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 #endregion
 
+#if REMOTING
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Runtime.Remoting;
 using System.Runtime.Remoting.Channels;
 using System.Runtime.Remoting.Channels.Http;
@@ -28,8 +28,7 @@ using System.Runtime.Remoting.Channels.Tcp;
 using System.Runtime.Serialization.Formatters;
 using System.Security;
 
-using Common.Logging;
-
+using Quartz.Logging;
 using Quartz.Spi;
 
 namespace Quartz.Simpl
@@ -45,27 +44,35 @@ namespace Quartz.Simpl
         private const string DefaultBindName = "QuartzScheduler";
         private const string DefaultChannelName = "http";
 
-        private readonly ILog log;
+        /// <summary>
+        /// BinaryServerFormatterSinkProvider allowed properties.
+        /// </summary>
+        private static string[] formatProviderAllowedProperties = new string[] { "includeVersions", "strictBinding", "typeFilterLevel" };
+
         private static readonly Dictionary<string, object> registeredChannels = new Dictionary<string, object>();
 
         public RemotingSchedulerExporter()
         {
             ChannelType = ChannelTypeTcp;
+#if REMOTING
             TypeFilterLevel = TypeFilterLevel.Full;
+#endif // REMOTING
             ChannelName = DefaultChannelName;
             BindName = DefaultBindName;
-            log = LogManager.GetLogger(GetType());
+            Log = LogProvider.GetLogger(GetType());
         }
 
         public virtual void Bind(IRemotableQuartzScheduler scheduler)
         {
             if (scheduler == null)
             {
-                throw new ArgumentNullException("scheduler");
+                throw new ArgumentNullException(nameof(scheduler));
             }
+
+#if REMOTING
             if (!(scheduler is MarshalByRefObject))
             {
-                throw new ArgumentException("Exported scheduler must be of type MarshallByRefObject", "scheduler");
+                throw new ArgumentException("Exported scheduler must be of type MarshallByRefObject", nameof(scheduler));
             }
 
             RegisterRemotingChannelIfNeeded();
@@ -73,20 +80,23 @@ namespace Quartz.Simpl
             try
             {
                 RemotingServices.Marshal((MarshalByRefObject)scheduler, BindName);
-                Log.Info(string.Format(CultureInfo.InvariantCulture, "Successfully marshalled remotable scheduler under name '{0}'", BindName));
+                Log.Info($"Successfully marshalled remotable scheduler under name '{BindName}'");
             }
             catch (RemotingException ex)
             {
-                Log.Error("RemotingException during Bind", ex);
+                Log.ErrorException("RemotingException during Bind", ex);
             }
             catch (SecurityException ex)
             {
-                Log.Error("SecurityException during Bind", ex);
+                Log.ErrorException("SecurityException during Bind", ex);
             }
             catch (Exception ex)
             {
-                Log.Error("Exception during Bind", ex);
+                Log.ErrorException("Exception during Bind", ex);
             }
+#else // REMOTING
+            // TODO (NetCore Port): Replace with HTTP communication
+#endif // REMOTING
         }
 
         /// <summary>
@@ -100,14 +110,16 @@ namespace Quartz.Simpl
                 // try remoting bind
                 var props = CreateConfiguration();
 
+#if REMOTING
                 // use binary formatter
-                var formatprovider = new BinaryServerFormatterSinkProvider(props, null);
+                var formatProviderProps = ExtractFormatProviderConfiguration(props);
+                var formatprovider = new BinaryServerFormatterSinkProvider(formatProviderProps, null);
                 formatprovider.TypeFilterLevel = TypeFilterLevel;
 
                 string channelRegistrationKey = ChannelType + "_" + Port;
                 if (registeredChannels.ContainsKey(channelRegistrationKey))
                 {
-                    Log.Warn(string.Format("Channel '{0}' already registered for port {1}, not registering again", ChannelType, Port));
+                    Log.Warn($"Channel '{ChannelType}' already registered for port {Port}, not registering again");
                     return;
                 }
                 IChannel chan;
@@ -133,16 +145,19 @@ namespace Quartz.Simpl
                     Log.Info("Remoting is allowing remote calls");
                 }
 
-                Log.Info(string.Format(CultureInfo.InvariantCulture, "Registering remoting channel of type '{0}' to port ({1}) with name ({2})", chan.GetType(), Port, chan.ChannelName));
+                Log.Info($"Registering remoting channel of type '{chan.GetType()}' to port ({Port}) with name ({chan.ChannelName})");
 
                 ChannelServices.RegisterChannel(chan, false);
 
                 registeredChannels.Add(channelRegistrationKey, new object());
+#else // REMOTING
+                // TODO (NetCore Port): Replace with HTTP communication
+#endif // REMOTING
                 Log.Info("Remoting channel registered successfully");
             }
             else
             {
-                log.Error("Cannot register remoting if port or channel type not specified");
+                Log.Error("Cannot register remoting if port or channel type not specified");
             }
         }
 
@@ -158,74 +173,98 @@ namespace Quartz.Simpl
             return props;
         }
 
+        /// <summary>
+        /// Extract BinaryServerFormatterSinkProvider allowed properties from configuration properties.
+        /// </summary>
+        /// <param name="props">Configuration properties.</param>
+        /// <returns>BinaryServerFormatterSinkProvider allowed properties from configuration.</returns>
+        protected virtual IDictionary ExtractFormatProviderConfiguration(IDictionary props)
+        {
+            IDictionary formatProviderAllowedProps = new Hashtable();
+
+            foreach (var allowedProperty in formatProviderAllowedProps)
+            {
+                if (props.Contains(allowedProperty))
+                {
+                    formatProviderAllowedProps[allowedProperty] = props[allowedProperty];
+                }
+            }
+
+            return formatProviderAllowedProps;
+        }
+
         public virtual void UnBind(IRemotableQuartzScheduler scheduler)
         {
             if (scheduler == null)
             {
-                throw new ArgumentNullException("scheduler");
+                throw new ArgumentNullException(nameof(scheduler));
             }
+#if REMOTING
             if (!(scheduler is MarshalByRefObject))
             {
-                throw new ArgumentException("Exported scheduler must be of type MarshallByRefObject", "scheduler");
+                throw new ArgumentException("Exported scheduler must be of type MarshallByRefObject", nameof(scheduler));
             }
+#endif // REMOTING
 
             try
             {
+#if REMOTING
                 RemotingServices.Disconnect((MarshalByRefObject)scheduler);
                 Log.Info("Successfully disconnected remotable scheduler");
+#else // REMOTING
+                // TODO (NetCore Port): Replace with HTTP communication
+#endif // REMOTING
             }
             catch (ArgumentException ex)
             {
-                Log.Error("ArgumentException during Unbind", ex);
+                Log.ErrorException("ArgumentException during Unbind", ex);
             }
             catch (SecurityException ex)
             {
-                Log.Error("SecurityException during Unbind", ex);
+                Log.ErrorException("SecurityException during Unbind", ex);
             }
             catch (Exception ex)
             {
-                Log.Error("Exception during Unbind", ex);
+                Log.ErrorException("Exception during Unbind", ex);
             }
         }
 
-        protected virtual ILog Log
-        {
-            get { return log; }
-        }
+        internal ILog Log { get; }
 
         /// <summary>
         /// Gets or sets the port used for remoting.
         /// </summary>
-        public virtual int Port { get; set; }
+        public int Port { get; set; }
 
         /// <summary>
         /// Gets or sets the name to use when exporting
         /// scheduler to remoting context.
         /// </summary>
-        public virtual string BindName { get; set; }
+        public string BindName { get; set; }
 
         /// <summary>
-        /// Gets or sets the name to use when binding to 
+        /// Gets or sets the name to use when binding to
         /// tcp channel.
         /// </summary>
-        public virtual string ChannelName { get; set; }
+        public string ChannelName { get; set; }
 
         /// <summary>
         /// Sets the channel type when registering remoting.
         /// </summary>
-        public virtual string ChannelType { get; set; }
+        public string ChannelType { get; set; }
 
         /// <summary>
         /// Sets the <see cref="TypeFilterLevel" /> used when
         /// exporting to remoting context. Defaults to
         /// <see cref="System.Runtime.Serialization.Formatters.TypeFilterLevel.Full" />.
         /// </summary>
-        public virtual TypeFilterLevel TypeFilterLevel { get; set; }
+        public TypeFilterLevel TypeFilterLevel { get; set; }
 
         /// <summary>
-        /// A Boolean value (true or false) that specifies whether to refuse requests from other computers. 
+        /// A Boolean value (true or false) that specifies whether to refuse requests from other computers.
         /// Specifying true allows only remoting calls from the local computer. The default is false.
         /// </summary>
-        public virtual bool RejectRemoteRequests { get; set; }
+        public bool RejectRemoteRequests { get; set; }
     }
 }
+#endif // REMOTING

@@ -33,6 +33,7 @@ Ankh.NoLoad
 *.docstates
 
 #Tooling
+.vs/
 _ReSharper*/
 _dotCover*/
 *.resharper
@@ -49,10 +50,11 @@ _dotCover*/
 
 # Other
 /src/Quartz/Quartz.xml
+/src/Quartz.Serialization.Json/Quartz.Serialization.Json.xml
+
 *.ReSharper
 *.dotCover
 /package/*
-*.snk
 *.zip
 website
 /doc/apidoc
@@ -60,3 +62,27 @@ website
 /packages
 /buildlog.txt
 /src/AssemblyInfo.cs
+
+*project.lock.json
+/.idea
+/.fake
+/*.iml
+jspm_packages
+node_modules
+*.nuget.targets
+
+
+/src/Quartz.Web/App/views/*.map
+/src/Quartz.Web/App/views/*.js
+/src/Quartz.Web/views/*.js
+/src/Quartz.Web/views/*.map
+/src/Quartz.Web/resources/*.js
+/src/Quartz.Web/resources/*.map
+
+/.idea
+/*.iml
+
+/.fake
+/tools/psake
+/tools/NUnit*
+/artifacts

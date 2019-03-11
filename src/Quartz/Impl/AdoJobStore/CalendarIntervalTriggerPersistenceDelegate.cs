@@ -1,20 +1,22 @@
 #region License
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
+
 #endregion
 
 using System;
@@ -35,7 +37,8 @@ namespace Quartz.Impl.AdoJobStore
     {
         public override bool CanHandleTriggerType(IOperableTrigger trigger)
         {
-            return ((trigger is CalendarIntervalTriggerImpl) && !((CalendarIntervalTriggerImpl) trigger).HasAdditionalProperties);
+            var calendarIntervalTriggerImpl = trigger as CalendarIntervalTriggerImpl;
+            return calendarIntervalTriggerImpl != null && !calendarIntervalTriggerImpl.HasAdditionalProperties;
         }
 
         public override string GetHandledTriggerTypeDiscriminator()
@@ -52,7 +55,7 @@ namespace Quartz.Impl.AdoJobStore
             props.Int1 = calTrig.RepeatInterval;
             props.String1 = calTrig.RepeatIntervalUnit.ToString();
             props.Int2 = calTrig.TimesTriggered;
-            props.String2 = calTrig.TimeZone.Id;
+            props.TimeZoneId = calTrig.TimeZone.Id;
             props.Boolean1 = calTrig.PreserveHourOfDayAcrossDaylightSavings;
             props.Boolean2 = calTrig.SkipDayIfHourDoesNotExist;
 
@@ -62,8 +65,13 @@ namespace Quartz.Impl.AdoJobStore
         protected override TriggerPropertyBundle GetTriggerPropertyBundle(SimplePropertiesTriggerProperties props)
         {
             TimeZoneInfo tz = null; // if we use null, that's ok as system default tz will be used
-            string tzId = props.String2;
-            if (tzId != null && tzId.Trim().Length != 0) // there could be null entries from previously released versions
+            string tzId = props.TimeZoneId;
+            if (string.IsNullOrEmpty(tzId))
+            {
+                // we moved to use separate column in v 2.6
+                tzId = props.String2;
+            }
+            if (!string.IsNullOrEmpty(tzId))
             {
                 tz = TimeZoneUtil.FindTimeZoneById(tzId);
             }

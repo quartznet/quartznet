@@ -1,20 +1,20 @@
 #region License
 
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -26,15 +26,17 @@ using Quartz.Util;
 namespace Quartz.Impl.Matchers
 {
     /// <summary>
-    /// Matches using an AND operator on two Matcher operands. 
+    /// Matches using an AND operator on two Matcher operands.
     /// </summary>
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
     public class AndMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
-        private readonly IMatcher<TKey> leftOperand;
-        private readonly IMatcher<TKey> rightOperand;
+        // ReSharper disable once UnusedMember.Local
+        private AndMatcher()
+        {
+        }
 
         protected AndMatcher(IMatcher<TKey> leftOperand, IMatcher<TKey> rightOperand)
         {
@@ -43,8 +45,8 @@ namespace Quartz.Impl.Matchers
                 throw new ArgumentException("Two non-null operands required!");
             }
 
-            this.leftOperand = leftOperand;
-            this.rightOperand = rightOperand;
+            LeftOperand = leftOperand;
+            RightOperand = rightOperand;
         }
 
         /// <summary>
@@ -61,25 +63,18 @@ namespace Quartz.Impl.Matchers
 
         public bool IsMatch(TKey key)
         {
-            return leftOperand.IsMatch(key) && rightOperand.IsMatch(key);
+            return LeftOperand.IsMatch(key) && RightOperand.IsMatch(key);
         }
 
-        public IMatcher<TKey> LeftOperand
-        {
-            get { return leftOperand; }
-        }
-
-        public IMatcher<TKey> RightOperand
-        {
-            get { return rightOperand; }
-        }
+        public IMatcher<TKey> LeftOperand { get; private set; }
+        public IMatcher<TKey> RightOperand { get; private set; }
 
         public override int GetHashCode()
         {
             const int Prime = 31;
             int result = 1;
-            result = Prime*result + ((leftOperand == null) ? 0 : leftOperand.GetHashCode());
-            result = Prime*result + ((rightOperand == null) ? 0 : rightOperand.GetHashCode());
+            result = Prime*result + (LeftOperand == null ? 0 : LeftOperand.GetHashCode());
+            result = Prime*result + (RightOperand == null ? 0 : RightOperand.GetHashCode());
             return result;
         }
 
@@ -98,25 +93,25 @@ namespace Quartz.Impl.Matchers
                 return false;
             }
             AndMatcher<TKey> other = (AndMatcher<TKey>) obj;
-            if (leftOperand == null)
+            if (LeftOperand == null)
             {
-                if (other.leftOperand != null)
+                if (other.LeftOperand != null)
                 {
                     return false;
                 }
             }
-            else if (!leftOperand.Equals(other.leftOperand))
+            else if (!LeftOperand.Equals(other.LeftOperand))
             {
                 return false;
             }
-            if (rightOperand == null)
+            if (RightOperand == null)
             {
-                if (other.rightOperand != null)
+                if (other.RightOperand != null)
                 {
                     return false;
                 }
             }
-            else if (!rightOperand.Equals(other.rightOperand))
+            else if (!RightOperand.Equals(other.RightOperand))
             {
                 return false;
             }

@@ -1,29 +1,33 @@
 #region License
-/* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+
+/*
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
+
 #endregion
 
 using System;
 using System.Collections.Generic;
 using System.Data.Common;
+using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 
-using Common.Logging;
-
+using Quartz.Impl.AdoJobStore;
+using Quartz.Logging;
 using Quartz.Spi;
 
 namespace Quartz.Core
@@ -37,11 +41,10 @@ namespace Quartz.Core
     /// <seealso cref="ITrigger" />
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-    public class QuartzSchedulerThread : QuartzThread
+    public class QuartzSchedulerThread
     {
-        private readonly ILog log;
-        private QuartzScheduler qs;
-        private QuartzSchedulerResources qsRsrcs;
+        private readonly QuartzScheduler qs;
+        private readonly QuartzSchedulerResources qsRsrcs;
         private readonly object sigLock = new object();
 
         private bool signaled;
@@ -49,23 +52,22 @@ namespace Quartz.Core
         private bool paused;
         private bool halted;
 
-        private readonly Random random = new Random((int) DateTimeOffset.Now.Ticks);
+        private readonly QuartzRandom random = new QuartzRandom();
 
         // When the scheduler finds there is no current trigger to fire, how long
         // it should wait until checking again...
         private static readonly TimeSpan DefaultIdleWaitTime = TimeSpan.FromSeconds(30);
 
         private TimeSpan idleWaitTime = DefaultIdleWaitTime;
-        private int idleWaitVariableness = 7*1000;
+        private int idleWaitVariableness = 7 * 1000;
+        private CancellationTokenSource cancellationTokenSource;
+        private Task task;
 
         /// <summary>
         /// Gets the log.
         /// </summary>
         /// <value>The log.</value>
-        protected ILog Log
-        {
-            get { return log; }
-        }
+        internal ILog Log { get; }
 
         /// <summary>
         /// Sets the idle wait time.
@@ -77,7 +79,7 @@ namespace Quartz.Core
             set
             {
                 idleWaitTime = value;
-                idleWaitVariableness = (int) (value.TotalMilliseconds*0.2);
+                idleWaitVariableness = (int) (value.TotalMilliseconds * 0.2);
             }
         }
 
@@ -94,10 +96,7 @@ namespace Quartz.Core
         /// Gets a value indicating whether this <see cref="QuartzSchedulerThread"/> is paused.
         /// </summary>
         /// <value><c>true</c> if paused; otherwise, <c>false</c>.</value>
-        internal virtual bool Paused
-        {
-            get { return paused; }
-        }
+        internal virtual bool Paused => paused;
 
         /// <summary>
         /// Construct a new <see cref="QuartzSchedulerThread" /> for the given
@@ -105,24 +104,11 @@ namespace Quartz.Core
         /// with normal priority.
         /// </summary>
         internal QuartzSchedulerThread(QuartzScheduler qs, QuartzSchedulerResources qsRsrcs)
-            : this(qs, qsRsrcs, qsRsrcs.MakeSchedulerThreadDaemon, (int) ThreadPriority.Normal)
         {
-        }
-
-        /// <summary>
-        /// Construct a new <see cref="QuartzSchedulerThread" /> for the given
-        /// <see cref="QuartzScheduler" /> as a <see cref="Thread" /> with the given
-        /// attributes.
-        /// </summary>
-        internal QuartzSchedulerThread(QuartzScheduler qs, QuartzSchedulerResources qsRsrcs, 
-                                       bool setDaemon, int threadPrio) : base(qsRsrcs.ThreadName)
-        {
-            log = LogManager.GetLogger(GetType());
+            Log = LogProvider.GetLogger(GetType());
             //ThreadGroup generatedAux = qs.SchedulerThreadGroup;
             this.qs = qs;
             this.qsRsrcs = qsRsrcs;
-            IsBackground = setDaemon;
-            Priority = (ThreadPriority) threadPrio;
 
             // start the underlying thread, but put this object into the 'paused'
             // state
@@ -154,7 +140,7 @@ namespace Quartz.Core
         /// <summary>
         /// Signals the main processing loop to pause at the next possible point.
         /// </summary>
-        internal virtual void Halt(bool wait)
+        internal virtual async Task Halt(bool wait)
         {
             lock (sigLock)
             {
@@ -172,28 +158,12 @@ namespace Quartz.Core
 
             if (wait)
             {
-                bool interrupted = false;
                 try
                 {
-                    while (true)
-                    {
-                        try
-                        {
-                            Join();
-                            break;
-                        }
-                        catch (ThreadInterruptedException)
-                        {
-                            interrupted = true;
-                        }
-                    }
+                    await task.ConfigureAwait(false);
                 }
-                finally
+                catch (OperationCanceledException)
                 {
-                    if (interrupted)
-                    {
-                        Thread.CurrentThread.Interrupt();
-                    }
                 }
             }
         }
@@ -208,9 +178,9 @@ namespace Quartz.Core
         /// will fire.  If this method is being called do to some other even (rather
         /// than scheduling a trigger), the caller should pass null.
         /// </param>
-        public void SignalSchedulingChange(DateTimeOffset? candidateNewNextFireTimeUtc) 
+        public void SignalSchedulingChange(DateTimeOffset? candidateNewNextFireTimeUtc)
         {
-            lock (sigLock) 
+            lock (sigLock)
             {
                 signaled = true;
                 signaledNextFireTimeUtc = candidateNewNextFireTimeUtc;
@@ -218,42 +188,41 @@ namespace Quartz.Core
             }
         }
 
-        public void ClearSignaledSchedulingChange() 
+        public void ClearSignaledSchedulingChange()
         {
-            lock (sigLock) 
+            lock (sigLock)
             {
                 signaled = false;
                 signaledNextFireTimeUtc = SchedulerConstants.SchedulingSignalDateTime;
             }
         }
 
-        public bool IsScheduleChanged() 
+        public bool IsScheduleChanged()
         {
-            lock(sigLock) 
+            lock (sigLock)
             {
                 return signaled;
             }
         }
 
-        
-        public DateTimeOffset? GetSignaledNextFireTimeUtc() 
+        public DateTimeOffset? GetSignaledNextFireTimeUtc()
         {
-            lock (sigLock) 
+            lock (sigLock)
             {
                 return signaledNextFireTimeUtc;
             }
         }
 
-
         /// <summary>
         /// The main processing loop of the <see cref="QuartzSchedulerThread" />.
         /// </summary>
-        public override void Run()
+        public async Task Run()
         {
             bool lastAcquireFailed = false;
 
             while (!halted)
             {
+                cancellationTokenSource.Token.ThrowIfCancellationRequested();
                 try
                 {
                     // check if we're supposed to pause...
@@ -277,40 +246,45 @@ namespace Quartz.Core
                         }
                     }
 
+                    cancellationTokenSource.Token.ThrowIfCancellationRequested();
                     int availThreadCount = qsRsrcs.ThreadPool.BlockForAvailableThreads();
-                    if (availThreadCount > 0) // will always be true, due to semantics of blockForAvailableThreads...
+                    if (availThreadCount > 0)
                     {
-                        IList<IOperableTrigger> triggers;
+                        List<IOperableTrigger> triggers;
 
                         DateTimeOffset now = SystemTime.UtcNow();
 
                         ClearSignaledSchedulingChange();
                         try
                         {
-                            triggers = qsRsrcs.JobStore.AcquireNextTriggers(
-                                now + idleWaitTime, Math.Min(availThreadCount, qsRsrcs.MaxBatchSize), qsRsrcs.BatchTimeWindow);
+                            var noLaterThan = now + idleWaitTime;
+                            var maxCount = Math.Min(availThreadCount, qsRsrcs.MaxBatchSize);
+                            triggers = new List<IOperableTrigger>(await qsRsrcs.JobStore.AcquireNextTriggers(noLaterThan, maxCount, qsRsrcs.BatchTimeWindow, CancellationToken.None).ConfigureAwait(false));
                             lastAcquireFailed = false;
-                            if (log.IsDebugEnabled)
+                            if (Log.IsDebugEnabled())
                             {
-                                log.DebugFormat("Batch acquisition of {0} triggers", (triggers == null ? 0 : triggers.Count));
+                                Log.DebugFormat("Batch acquisition of {0} triggers", triggers?.Count ?? 0);
                             }
                         }
                         catch (JobPersistenceException jpe)
                         {
                             if (!lastAcquireFailed)
                             {
-                                qs.NotifySchedulerListenersError("An error occurred while scanning for the next trigger to fire.", jpe);
+                                var msg = "An error occurred while scanning for the next trigger to fire.";
+                                await qs.NotifySchedulerListenersError(msg, jpe, CancellationToken.None).ConfigureAwait(false);
                             }
                             lastAcquireFailed = true;
+                            await HandleDbRetry(CancellationToken.None).ConfigureAwait(false);
                             continue;
                         }
                         catch (Exception e)
                         {
                             if (!lastAcquireFailed)
                             {
-                                Log.Error("quartzSchedulerThreadLoop: RuntimeException " + e.Message, e);
+                                Log.ErrorException("quartzSchedulerThreadLoop: RuntimeException " + e.Message, e);
                             }
                             lastAcquireFailed = true;
+                            await HandleDbRetry(CancellationToken.None).ConfigureAwait(false);
                             continue;
                         }
 
@@ -318,11 +292,11 @@ namespace Quartz.Core
                         {
                             now = SystemTime.UtcNow();
                             DateTimeOffset triggerTime = triggers[0].GetNextFireTimeUtc().Value;
-                            TimeSpan timeUntilTrigger =  triggerTime - now;
+                            TimeSpan timeUntilTrigger = triggerTime - now;
 
-                            while (timeUntilTrigger > TimeSpan.Zero) 
+                            while (timeUntilTrigger > TimeSpan.Zero)
                             {
-                                if (ReleaseIfScheduleChangedSignificantly(triggers, triggerTime))
+                                if (await ReleaseIfScheduleChangedSignificantly(triggers, triggerTime).ConfigureAwait(false))
                                 {
                                     break;
                                 }
@@ -350,10 +324,10 @@ namespace Quartz.Core
                                         }
                                     }
                                 }
-                                if (ReleaseIfScheduleChangedSignificantly(triggers, triggerTime))
+                                if (await ReleaseIfScheduleChangedSignificantly(triggers, triggerTime).ConfigureAwait(false))
                                 {
                                     break;
-                                } 
+                                }
                                 now = SystemTime.UtcNow();
                                 timeUntilTrigger = triggerTime - now;
                             }
@@ -363,101 +337,100 @@ namespace Quartz.Core
                             {
                                 continue;
                             }
-                                              
+
                             // set triggers to 'executing'
-                            IList<TriggerFiredResult> bndles = new List<TriggerFiredResult>();
+                            List<TriggerFiredResult> bndles = new List<TriggerFiredResult>();
 
                             bool goAhead;
-                            lock (sigLock) 
+                            lock (sigLock)
                             {
-                        	    goAhead = !halted;
+                                goAhead = !halted;
                             }
 
                             if (goAhead)
                             {
                                 try
                                 {
-                                    IList<TriggerFiredResult> res = qsRsrcs.JobStore.TriggersFired(triggers);
+                                    var res = await qsRsrcs.JobStore.TriggersFired(triggers, CancellationToken.None).ConfigureAwait(false);
                                     if (res != null)
                                     {
-                                        bndles = res;
+                                        bndles = res.ToList();
                                     }
                                 }
                                 catch (SchedulerException se)
                                 {
-                                    qs.NotifySchedulerListenersError("An error occurred while firing triggers '" + triggers + "'", se);
+                                    var msg = "An error occurred while firing triggers '" + triggers + "'";
+                                    await qs.NotifySchedulerListenersError(msg, se, CancellationToken.None).ConfigureAwait(false);
                                     // QTZ-179 : a problem occurred interacting with the triggers from the db
                                     // we release them and loop again
                                     foreach (IOperableTrigger t in triggers)
                                     {
-                                        qsRsrcs.JobStore.ReleaseAcquiredTrigger(t);
+                                        await qsRsrcs.JobStore.ReleaseAcquiredTrigger(t, CancellationToken.None).ConfigureAwait(false);
                                     }
                                     continue;
                                 }
-
-                            }
-                            
-
-                        for (int i = 0; i < bndles.Count; i++)
-                        {
-                            TriggerFiredResult result = bndles[i];
-                            TriggerFiredBundle bndle = result.TriggerFiredBundle;
-                            Exception exception = result.Exception;
-
-                            IOperableTrigger trigger = triggers[i];
-                            // TODO SQL exception?
-                            if (exception != null &&  (exception is DbException || exception.InnerException is DbException))
-                            {
-                                Log.Error("DbException while firing trigger " + trigger, exception);
-                                qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger);
-                                continue;
                             }
 
-                            // it's possible to get 'null' if the triggers was paused,
-                            // blocked, or other similar occurrences that prevent it being
-                            // fired at this time...  or if the scheduler was shutdown (halted)
-                            if (bndle == null)
+                            for (int i = 0; i < bndles.Count; i++)
                             {
-                                qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger);
-                                continue;
-                            }
+                                TriggerFiredResult result = bndles[i];
+                                TriggerFiredBundle bndle = result.TriggerFiredBundle;
+                                Exception exception = result.Exception;
 
-                            // TODO: improvements:
-                            //
-                            // 2- make sure we can get a job runshell before firing trigger, or
-                            //   don't let that throw an exception (right now it never does,
-                            //   but the signature says it can).
-                            // 3- acquire more triggers at a time (based on num threads available?)
+                                IOperableTrigger trigger = triggers[i];
+                                // TODO SQL exception?
+                                if (exception != null && (exception is DbException || exception.InnerException is DbException))
+                                {
+                                    Log.ErrorException("DbException while firing trigger " + trigger, exception);
+                                    await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger, CancellationToken.None).ConfigureAwait(false);
+                                    continue;
+                                }
 
-                            JobRunShell shell;
-                            try
-                            {
-                                shell = qsRsrcs.JobRunShellFactory.CreateJobRunShell(bndle);
-                                shell.Initialize(qs);
-                            }
-                            catch (SchedulerException)
-                            {
-                                qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError);
-                                continue;
-                            }
+                                // it's possible to get 'null' if the triggers was paused,
+                                // blocked, or other similar occurrences that prevent it being
+                                // fired at this time...  or if the scheduler was shutdown (halted)
+                                if (bndle == null)
+                                {
+                                    await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger, CancellationToken.None).ConfigureAwait(false);
+                                    continue;
+                                }
 
-                            if (qsRsrcs.ThreadPool.RunInThread(shell) == false)
-                            {
+                                // TODO: improvements:
+                                //
+                                // 2- make sure we can get a job runshell before firing trigger, or
+                                //   don't let that throw an exception (right now it never does,
+                                //   but the signature says it can).
+                                // 3- acquire more triggers at a time (based on num threads available?)
+
+                                JobRunShell shell;
+                                try
+                                {
+                                    shell = qsRsrcs.JobRunShellFactory.CreateJobRunShell(bndle);
+                                    await shell.Initialize(qs, CancellationToken.None).ConfigureAwait(false);
+                                }
+                                catch (SchedulerException)
+                                {
+                                    await qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError, CancellationToken.None).ConfigureAwait(false);
+                                    continue;
+                                }
+
+                                var threadPoolRunResult = qsRsrcs.ThreadPool.RunInThread(() => shell.Run(CancellationToken.None));
+                                if (threadPoolRunResult == false)
+                                {
                                     // this case should never happen, as it is indicative of the
                                     // scheduler being shutdown or a bug in the thread pool or
                                     // a thread pool being used concurrently - which the docs
                                     // say not to do...
-                                    Log.Error("ThreadPool.runInThread() return false!");
-                                    qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError);
+                                    Log.Error("ThreadPool.RunInThread() returned false!");
+                                    await qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError, CancellationToken.None).ConfigureAwait(false);
+                                }
                             }
-                        }
 
                             continue; // while (!halted)
                         }
                     }
                     else // if(availThreadCount > 0)
                     {
-                        // should never happen, if threadPool.blockForAvailableThreads() follows contract
                         continue;
                         // while (!halted)
                     }
@@ -488,91 +461,109 @@ namespace Quartz.Core
                 }
                 catch (Exception re)
                 {
-                    if (Log != null)
-                    {
-                        Log.Error("Runtime error occurred in main trigger firing loop.", re);
-                    }
+                    Log.ErrorException("Runtime error occurred in main trigger firing loop.", re);
                 }
             } // while (!halted)
-
-            // drop references to scheduler stuff to aid garbage collection...
-            qs = null;
-            qsRsrcs = null;
         }
 
+        protected virtual async Task HandleDbRetry(CancellationToken cancellationToken)
+        {
+            var jobStorSupport = qsRsrcs.JobStore as JobStoreSupport;
+            if (jobStorSupport != null)
+            {
+                await Task.Delay(jobStorSupport.DbRetryInterval, cancellationToken).ConfigureAwait(false);
+            }
+        }
 
-        private bool ReleaseIfScheduleChangedSignificantly(IList<IOperableTrigger> triggers, DateTimeOffset triggerTime)
+        private async Task<bool> ReleaseIfScheduleChangedSignificantly(List<IOperableTrigger> triggers, DateTimeOffset triggerTime)
         {
             if (IsCandidateNewTimeEarlierWithinReason(triggerTime, true))
             {
                 foreach (IOperableTrigger trigger in triggers)
                 {
                     // above call does a clearSignaledSchedulingChange()
-                    qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger);
+                    await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger).ConfigureAwait(false);
                 }
                 triggers.Clear();
                 return true;
             }
-            
+
             return false;
         }
 
-        private bool IsCandidateNewTimeEarlierWithinReason(DateTimeOffset oldTimeUtc, bool clearSignal) 
-        {    	
-		    // So here's the deal: We know due to being signaled that 'the schedule'
-		    // has changed.  We may know (if getSignaledNextFireTime() != DateTimeOffset.MinValue) the
-		    // new earliest fire time.  We may not (in which case we will assume
-		    // that the new time is earlier than the trigger we have acquired).
-		    // In either case, we only want to abandon our acquired trigger and
-		    // go looking for a new one if "it's worth it".  It's only worth it if
-		    // the time cost incurred to abandon the trigger and acquire a new one 
-		    // is less than the time until the currently acquired trigger will fire,
-		    // otherwise we're just "thrashing" the job store (e.g. database).
-		    //
-		    // So the question becomes when is it "worth it"?  This will depend on
-		    // the job store implementation (and of course the particular database
-		    // or whatever behind it).  Ideally we would depend on the job store 
-		    // implementation to tell us the amount of time in which it "thinks"
-		    // it can abandon the acquired trigger and acquire a new one.  However
-		    // we have no current facility for having it tell us that, so we make
-		    // a somewhat educated but arbitrary guess.
+        private bool IsCandidateNewTimeEarlierWithinReason(DateTimeOffset oldTimeUtc, bool clearSignal)
+        {
+            // So here's the deal: We know due to being signaled that 'the schedule'
+            // has changed.  We may know (if getSignaledNextFireTime() != DateTimeOffset.MinValue) the
+            // new earliest fire time.  We may not (in which case we will assume
+            // that the new time is earlier than the trigger we have acquired).
+            // In either case, we only want to abandon our acquired trigger and
+            // go looking for a new one if "it's worth it".  It's only worth it if
+            // the time cost incurred to abandon the trigger and acquire a new one
+            // is less than the time until the currently acquired trigger will fire,
+            // otherwise we're just "thrashing" the job store (e.g. database).
+            //
+            // So the question becomes when is it "worth it"?  This will depend on
+            // the job store implementation (and of course the particular database
+            // or whatever behind it).  Ideally we would depend on the job store
+            // implementation to tell us the amount of time in which it "thinks"
+            // it can abandon the acquired trigger and acquire a new one.  However
+            // we have no current facility for having it tell us that, so we make
+            // a somewhat educated but arbitrary guess.
 
-    	    lock (sigLock) 
+            lock (sigLock)
             {
-
                 if (!IsScheduleChanged())
                 {
                     return false;
                 }
 
-			    bool earlier = false;
-    			
-			    if(!GetSignaledNextFireTimeUtc().HasValue)
-			    {
-			        earlier = true;
-			    }
-			    else if (GetSignaledNextFireTimeUtc().Value < oldTimeUtc)
-			    {
-			        earlier = true;
-			    }
-    			
-			    if(earlier) 
+                bool earlier = false;
+
+                if (!GetSignaledNextFireTimeUtc().HasValue)
                 {
-				    // so the new time is considered earlier, but is it enough earlier?
+                    earlier = true;
+                }
+                else if (GetSignaledNextFireTimeUtc().Value < oldTimeUtc)
+                {
+                    earlier = true;
+                }
+
+                if (earlier)
+                {
+                    // so the new time is considered earlier, but is it enough earlier?
                     TimeSpan diff = oldTimeUtc - SystemTime.UtcNow();
-				    if(diff < (qsRsrcs.JobStore.SupportsPersistence ? TimeSpan.FromMilliseconds(70) : TimeSpan.FromMilliseconds(7)))
-				    {
-				        earlier = false;
-				    }
-			    }
-    			
+                    if (diff < (qsRsrcs.JobStore.SupportsPersistence ? TimeSpan.FromMilliseconds(70) : TimeSpan.FromMilliseconds(7)))
+                    {
+                        earlier = false;
+                    }
+                }
+
                 if (clearSignal)
                 {
                     ClearSignaledSchedulingChange();
                 }
-    			
-			    return earlier;
+
+                return earlier;
             }
-	    }
+        }
+
+        public void Start()
+        {
+            cancellationTokenSource = new CancellationTokenSource();
+            task = Task.Run(Run);
+        }
+
+        public async Task Shutdown()
+        {
+            cancellationTokenSource.Cancel();
+            try
+            {
+                await task.ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+        }
     }
 }

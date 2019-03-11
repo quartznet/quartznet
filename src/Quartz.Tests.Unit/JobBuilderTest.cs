@@ -1,3 +1,5 @@
+using System.Threading.Tasks;
+
 using NUnit.Framework;
 
 namespace Quartz.Tests.Unit
@@ -9,15 +11,17 @@ namespace Quartz.Tests.Unit
         [PersistJobDataAfterExecution]
         public class TestStatefulJob : IJob
         {
-            public void Execute(IJobExecutionContext context)
+            public Task Execute(IJobExecutionContext context)
             {
+                return TaskUtil.CompletedTask;
             }
         }
 
         public class TestJob : IJob
         {
-            public void Execute(IJobExecutionContext context)
+            public Task Execute(IJobExecutionContext context)
             {
+                return TaskUtil.CompletedTask;
             }
         }
 
@@ -25,8 +29,9 @@ namespace Quartz.Tests.Unit
         [PersistJobDataAfterExecution]
         public class TestAnnotatedJob : IJob
         {
-            public void Execute(IJobExecutionContext context)
+            public Task Execute(IJobExecutionContext context)
             {
+                return TaskUtil.CompletedTask;
             }
         }
 
@@ -52,8 +57,8 @@ namespace Quartz.Tests.Unit
             Assert.IsFalse(job.RequestsRecovery, "Expected requestsRecovery == false ");
             Assert.IsFalse(job.ConcurrentExecutionDisallowed, "Expected isConcurrentExecutionDisallowed == false ");
             Assert.IsFalse(job.PersistJobDataAfterExecution, "Expected isPersistJobDataAfterExecution == false ");
-            Assert.IsTrue(job.JobType.Equals(typeof(TestJob)), "Unexpected job class: " + job.JobType)
-            ;
+            Assert.IsTrue(job.JobType.Equals(typeof (TestJob)), "Unexpected job class: " + job.JobType)
+                ;
 
             job = JobBuilder.Create()
                 .OfType<TestAnnotatedJob>()
@@ -71,8 +76,8 @@ namespace Quartz.Tests.Unit
 
             job = JobBuilder.Create()
                 .OfType<TestStatefulJob>()
-                    .
-            WithIdentity("j1", "g1")
+                .
+                WithIdentity("j1", "g1")
                 .RequestRecovery(false)
                 .Build();
 

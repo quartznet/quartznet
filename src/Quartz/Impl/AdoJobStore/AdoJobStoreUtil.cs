@@ -1,6 +1,6 @@
 #region License
 /* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -17,7 +17,6 @@
  */
 #endregion
 
-using System;
 using System.Globalization;
 
 namespace Quartz.Impl.AdoJobStore
@@ -39,7 +38,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// <returns>The query, with proper table prefix substituted</returns>
 		public static string ReplaceTablePrefix(string query, string tablePrefix, string schedNameLiteral)
 		{
-			return String.Format(CultureInfo.InvariantCulture, query, tablePrefix, schedNameLiteral);
+			return string.Format(CultureInfo.InvariantCulture, query, tablePrefix, schedNameLiteral);
 		}
 	}
 }

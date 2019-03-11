@@ -1,6 +1,6 @@
 #region License
 /* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -16,6 +16,9 @@
  * 
  */
 #endregion
+
+using System.Threading;
+using System.Threading.Tasks;
 
 using Quartz.Impl;
 
@@ -38,7 +41,7 @@ namespace Quartz.Spi
     /// If you need direct access your plugin, you can have it explicitly put a 
     /// reference to itself in the <see cref="IScheduler" />'s 
     /// <see cref="SchedulerContext" /> as part of its
-    /// <see cref="Initialize(string, IScheduler)" /> method.
+    /// <see cref="Initialize" /> method.
     /// </para>
     /// </remarks>
     /// <author>James House</author>
@@ -55,29 +58,33 @@ namespace Quartz.Spi
         /// If you need direct access your plugin, you can have it explicitly put a 
         /// reference to itself in the <see cref="IScheduler" />'s 
         /// <see cref="SchedulerContext" /> as part of its
-        /// <see cref="Initialize(string, IScheduler)" /> method.
+        /// <see cref="Initialize" /> method.
         /// </para>
         /// </remarks>
         /// <param name="pluginName">
         /// The name by which the plugin is identified.
         /// </param>
-        /// <param name="sched">
+        /// <param name="scheduler">
         /// The scheduler to which the plugin is registered.
         /// </param>
-        void Initialize(string pluginName, IScheduler sched);
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        Task Initialize(
+            string pluginName,
+            IScheduler scheduler, 
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called when the associated <see cref="IScheduler" /> is started, in order
         /// to let the plug-in know it can now make calls into the scheduler if it
         /// needs to.
         /// </summary>
-        void Start();
+        Task Start(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called in order to inform the <see cref="ISchedulerPlugin" /> that it
         /// should free up all of it's resources because the scheduler is shutting
         /// down.
         /// </summary>
-        void Shutdown();
+        Task Shutdown(CancellationToken cancellationToken = default);
     }
 }

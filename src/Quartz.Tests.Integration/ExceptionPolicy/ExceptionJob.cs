@@ -1,8 +1,10 @@
+using System.Threading.Tasks;
+
 namespace Quartz.Tests.Integration.ExceptionPolicy
 {
     public class ExceptionJob : IJob
     {
-        public static int LaunchCount = 0;
+        public static int LaunchCount;
         public static bool Refire = false;
         public static bool UnscheduleFiringTrigger = false;
         public static bool UnscheduleAllTriggers = false;
@@ -21,7 +23,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
         /// <see cref="ITriggerListener"/>s that are watching the job's
         /// execution.
         /// </remarks>
-        public void Execute(IJobExecutionContext context)
+        public Task Execute(IJobExecutionContext context)
         {
             LaunchCount++;
             if (ThrowsException)
@@ -33,6 +35,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
                
                 throw toThrow;
             }
+            return TaskUtil.CompletedTask;
         }
     }
 }

@@ -1,7 +1,7 @@
 #region License
 
 /* 
- * All content copyright Terracotta, Inc., unless otherwise indicated. All rights reserved. 
+ * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  * 
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
  * use this file except in compliance with the License. You may obtain a copy 
@@ -22,7 +22,6 @@
 using System;
 
 using Quartz.Impl;
-using Quartz.Job;
 
 namespace Quartz
 {
@@ -68,7 +67,7 @@ namespace Quartz
     {
         private JobKey key;
         private string description;
-        private Type jobType = typeof (NoOpJob);
+        private Type jobType;
         private bool durability;
         private bool shouldRecover;
 
@@ -110,6 +109,20 @@ namespace Quartz
             b.OfType(typeof(T));
             return b;
         }
+
+
+        /// <summary>
+        /// Create a JobBuilder with which to define a <see cref="IJobDetail" />,
+        /// and set the class name of the job to be executed.
+        /// </summary>
+        /// <returns>a new JobBuilder</returns>
+        public static JobBuilder CreateForAsync<T>() where T : IJob
+        {
+            JobBuilder b = new JobBuilder();
+            b.OfType(typeof(T));
+            return b;
+        }
+
 
         /// <summary>
         /// Produce the <see cref="IJobDetail" /> instance defined by this JobBuilder.
@@ -239,7 +252,7 @@ namespace Quartz
         /// <seealso cref="IJobDetail.RequestsRecovery" />
         public JobBuilder RequestRecovery()
         {
-            this.shouldRecover = true;
+            shouldRecover = true;
             return this;
         }
 
@@ -271,7 +284,7 @@ namespace Quartz
         /// <seealso cref="IJobDetail.Durable" />
         public JobBuilder StoreDurably()
         {
-            this.durability = true;
+            durability = true;
             return this;
         }
 
