@@ -12,7 +12,7 @@
     <Compile Include="..\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="TimeZoneConverter.StrongName" Version="2.3.0" />
+    <PackageReference Include="TimeZoneConverter" Version="3.0.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Quartz.Plugins\Quartz.Plugins.csproj" />
