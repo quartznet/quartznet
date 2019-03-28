@@ -7,9 +7,6 @@
   <ItemGroup>
     <EmbeddedResource Include="quartz.config;Impl\AdoJobStore\Common\dbproviders.properties;Impl\AdoJobStore\Common\dbproviders.netstandard.properties;Xml\job_scheduling_data_2_0.xsd" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="..\AssemblyInfo.cs" />
-  </ItemGroup>
   <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFullFrameworkVersion)' ">
     <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Configuration" />

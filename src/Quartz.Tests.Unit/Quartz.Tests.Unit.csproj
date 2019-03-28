@@ -10,7 +10,6 @@
     <Content Include="Serialized\*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
-    <Compile Include="..\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="FakeItEasy" Version="4.6.0" />
