@@ -49,6 +49,8 @@ namespace Quartz.Impl.AdoJobStore
     /// <author>Marko Lahma (.NET)</author>
     public interface IDriverDelegate
     {
+        bool SupportsBatching { get; }
+
         /// <summary>
         /// Initializes the driver delegate with configuration data.
         /// </summary>
@@ -257,6 +259,20 @@ namespace Quartz.Impl.AdoJobStore
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Select the JobDetails for an array of jobkeys.
+        /// </summary>
+        /// <param name="conn">The DB Connection</param>
+        /// <param name="jobKeys">The keys identifying the job.</param>
+        /// <param name="classLoadHelper">The class load helper.</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        /// <returns>The populated JobDetail objects</returns>
+        Task<IJobDetail[]> SelectJobsDetails(
+            ConnectionAndTransactionHolder conn,
+            JobKey[] jobKeys,
+            ITypeLoadHelper classLoadHelper,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Select the total number of jobs stored.
         /// </summary>
         /// <param name="conn">The DB Connection</param>
@@ -334,6 +350,25 @@ namespace Quartz.Impl.AdoJobStore
             IOperableTrigger trigger, 
             string state, 
             IJobDetail jobDetail,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Update the base trigger data.
+        /// <para>
+        /// Important: does not save JobDataMap.
+        /// </para>
+        /// </summary>
+        /// <param name="conn">The DB Connection.</param>
+        /// <param name="triggers">The triggers to insert.</param>
+        /// <param name="states">The state that the trigger should be stored in.</param>
+        /// <param name="jobDetails">The job details.</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        /// <returns>The number of rows updated.</returns>
+        Task<int> BatchUpdateMisfiredTriggers(
+            ConnectionAndTransactionHolder conn,
+            IOperableTrigger[] triggers,
+            string[] states,
+            IJobDetail[] jobDetails,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -598,6 +633,19 @@ namespace Quartz.Impl.AdoJobStore
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Select a trigger.
+        /// </summary>
+        /// <param name="conn">The DB Connection.</param>
+        /// <param name="triggerKeys">The keys identifying the triggers.</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        /// <returns>The <see cref="ITrigger" /> objects.
+        /// </returns>
+        Task<IOperableTrigger[]> SelectTriggers(
+            ConnectionAndTransactionHolder conn,
+            TriggerKey[] triggerKeys,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Select a trigger's JobDataMap.
         /// </summary>
         /// <param name="conn">The DB Connection.</param>
@@ -816,6 +864,18 @@ namespace Quartz.Impl.AdoJobStore
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Select calendars.
+        /// </summary>
+        /// <param name="conn">The DB Connection.</param>
+        /// <param name="calendarNames">The names of the calendars.</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        /// <returns>The Calendars.</returns>
+        Task<ICalendar[]> SelectCalendars(
+            ConnectionAndTransactionHolder conn,
+            string[] calendarNames,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Check whether or not a calendar is referenced by any triggers.
         /// </summary>
         /// <param name="conn">The DB Connection.</param>
@@ -923,6 +983,18 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn,
             string jobName,
             string groupName,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Select the fired-trigger records for a given array of jobkeys.
+        /// </summary>
+        /// <param name="conn">The DB connection.</param>
+        /// <param name="jobKeys">Job Keys</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        /// <returns>a List of <see cref="FiredTriggerRecord" /> objects for the jobKeys.</returns>
+        Task<IReadOnlyCollection<FiredTriggerRecord>[]> SelectFiredTriggerRecordsByJobs(
+            ConnectionAndTransactionHolder conn,
+            JobKey[] jobKeys,
             CancellationToken cancellationToken = default);
 
         /// <summary>

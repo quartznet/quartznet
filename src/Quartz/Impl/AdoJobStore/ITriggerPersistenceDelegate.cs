@@ -36,7 +36,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Initializes the persistence delegate.
         /// </summary>
-        void Initialize(string tablePrefix, string schedulerName, IDbAccessor dbAccessor);
+        void Initialize(string tablePrefix, string schedulerName, StdAdoDelegate dbAccessor);
 
         /// <summary>
         /// Returns whether the trigger type can be handled by delegate.
@@ -69,6 +69,16 @@ namespace Quartz.Impl.AdoJobStore
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Updates special properties for an array of triggers.
+        /// </summary>
+        Task<int> UpdateExtendedTriggerProperties(
+            ConnectionAndTransactionHolder conn,
+            IOperableTrigger[] triggers,
+            string[] states,
+            IJobDetail[] jobDetails,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Deletes trigger's special properties.
         /// </summary>
         Task<int> DeleteExtendedTriggerProperties(
@@ -82,6 +92,14 @@ namespace Quartz.Impl.AdoJobStore
         Task<TriggerPropertyBundle> LoadExtendedTriggerProperties(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Loads the special properties for an array of triggers.
+        /// </summary>
+        Task<TriggerPropertyBundle[]> LoadExtendedTriggerProperties(
+            ConnectionAndTransactionHolder conn,
+            TriggerKey[] triggerKeys,
             CancellationToken cancellationToken = default);
     }
 }

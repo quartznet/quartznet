@@ -80,5 +80,7 @@ namespace Quartz.Impl.AdoJobStore
 
             base.AddCommandParameter(cmd, paramName, paramValue, dataType, size);
         }
+
+        public override bool SupportsBatching { get; } = true;
     }
 }

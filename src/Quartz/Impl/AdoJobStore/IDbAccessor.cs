@@ -16,7 +16,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="cth">Connection and transaction pair</param>
         /// <param name="commandText">SQL to run</param>
         /// <returns></returns>
-        DbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText);
+        DbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText = null);
 
         /// <summary>
         /// Adds a parameter to <see cref="IDbCommand" />.
