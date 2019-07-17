@@ -189,7 +189,7 @@ We need a simple test job to test the functionality, lets create HelloJob that o
 ```c#
 public class HelloJob : IJob
 {
-	public Task Execute(IJobExecutionContext context)
+	public async Task Execute(IJobExecutionContext context)
 	{
 		await Console.Out.WriteLineAsync("Greetings from HelloJob!");
 	}
