@@ -51,11 +51,6 @@ namespace Quartz
         /// <summary>
         /// 
         /// </summary>
-        Hours = 3,
-
-        /// <summary>
-        /// 
-        /// </summary>
-        Days = 3
+        Hours = 3
     }
 }
