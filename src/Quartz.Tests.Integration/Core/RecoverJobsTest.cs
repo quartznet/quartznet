@@ -8,6 +8,7 @@ using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Listener;
+using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Util;
 

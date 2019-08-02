@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 
+using Quartz.Logging;
+
 namespace Quartz.Tests.Integration
 {
     internal class FailFastLoggerFactoryAdapter : ILogProvider
@@ -17,7 +19,7 @@ namespace Quartz.Tests.Integration
             return NoopDisposableInstance;
         }
 
-        public IDisposable OpenMappedContext(string key, string value)
+        public IDisposable OpenMappedContext(string key, object value, bool destructure = false)
         {
             return NoopDisposableInstance;
         }

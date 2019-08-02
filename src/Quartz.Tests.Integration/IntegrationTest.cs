@@ -19,6 +19,8 @@
 
 using NUnit.Framework;
 
+using Quartz.Logging;
+
 namespace Quartz.Tests.Integration
 {
     /// <summary>
