@@ -110,8 +110,8 @@ and strings can be stored in the map, thus eliminating any possibility of later 
 
 If you add properties with set accessor to your job class that correspond to the names of keys in the JobDataMap, 
 then Quartz's default JobFactory implementation will automatically call those setters when the job is instantiated, 
-thus preventing the need to explicitly get the values out of the map within your execute method. Note this functionality is
-not maintained if a custom JobFactory implementation is used.
+thus preventing the need to explicitly get the values out of the map within your execute method. Note this functionality
+is in PropertySettingJobFactory so a normal custom JobFactory inheriting from SimpleJobFactory will not have this behavior.
 
 Triggers can also have JobDataMaps associated with them. This can be useful in the case where you have a Job that is stored in the scheduler 
 for regular/repeated use by multiple Triggers, yet with each independent triggering, you want to supply the Job with different data inputs.
