@@ -176,6 +176,20 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
+        public void TestCronExpressionWeekdaysThirsdayAndFridayEveryTwoWeeks()
+        {
+            CronExpression cronExpression = new CronExpression("0 0 12 ? * THU,FRI/2");
+            var nextRunTime = cronExpression.GetTimeAfter(DateTimeOffset.Now);
+            var nextRunTime2 = cronExpression.GetTimeAfter((DateTimeOffset)nextRunTime);
+
+            int[] arrJuneDaysThatShouldFire =
+                {1, 14, 15, 28, 29};
+            List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
+
+            TestCorrectWeekFireDays(cronExpression, juneDays);
+        }
+
+        [Test]
         public void TestCronExpressionLastDayOfMonth()
         {
             CronExpression cronExpression = new CronExpression("0 0 12 L * ?");
