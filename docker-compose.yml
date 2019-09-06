@@ -1,14 +1,15 @@
 version: '2'
 services:
-  quartz:
-    container_name: quartz
-    build: .
-    depends_on:
-     - mysql
-     - postgres
-     - firebird
-     - oracle
-    entrypoint: ./build.sh TestLinux
+
+# quartz:
+#    container_name: quartz
+#    build: .
+#    depends_on:
+#     - mysql
+#     - postgres
+#     - firebird
+#     - oracle
+#    entrypoint: ./build.sh TestLinux
 
   mysql:
     container_name: mysql
@@ -37,13 +38,13 @@ services:
     ports:
      - "3050:3050"
 
-  oracle:
-    container_name: oracle
-    build: docker/oracle
-    ports:
-     - "1521:1521"
-    environment:
-     - ORACLE_ALLOW_REMOTE:true
+#  oracle:
+#    container_name: oracle
+#    build: docker/oracle
+#    ports:
+#     - "1521:1521"
+#    environment:
+#     - ORACLE_ALLOW_REMOTE:true
 
   sqlserver:
     container_name: sqlserver
