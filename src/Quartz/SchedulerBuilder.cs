@@ -87,7 +87,6 @@ namespace Quartz
                 throw new ArgumentNullException(nameof(options));
             }
 
-            SetProperty("quartz.jobStore.type", typeof(JobStoreTX).AssemblyQualifiedNameWithoutVersion());
             options?.Invoke(new PersistentStoreOptions(this));
             return this;
         }
@@ -102,6 +101,12 @@ namespace Quartz
         {
             SetProperty("quartz.threadPool.type", typeof(DefaultThreadPool).AssemblyQualifiedNameWithoutVersion());
             configurer?.Invoke(new ThreadPoolOptions(this));
+            return this;
+        }
+
+        public SchedulerBuilder WithMisfireThreshold(TimeSpan threshold)
+        {
+            SetProperty("quartz.jobStore.misfireThreshold", ((int) threshold.TotalMilliseconds).ToString());
             return this;
         }
 
@@ -129,12 +134,53 @@ namespace Quartz
         {
             internal PersistentStoreOptions(PropertiesHolder parent) : base(parent)
             {
+                SetProperty("quartz.jobStore.type", typeof(JobStoreTX).AssemblyQualifiedNameWithoutVersion());
+            }
+
+            public PersistentStoreOptions UseProperties(bool use = true)
+            {
+                SetProperty("quartz.jobStore.useProperties", use.ToString().ToLowerInvariant());
+                return this;
             }
 
             public PersistentStoreOptions Clustered(Action<ClusterOptions> options = null)
             {
-                SetProperty("quartz.jobStore.clustered", "true");
+                return Clustered(true, options);
+            }
+
+            public PersistentStoreOptions Clustered(bool clustered, Action<ClusterOptions> options = null)
+            {
+                SetProperty("quartz.jobStore.clustered", clustered.ToString().ToLowerInvariant());
                 options?.Invoke(new ClusterOptions(this));
+                return this;
+            }
+
+            public PersistentStoreOptions UseGenericDatabase(
+                string provider,
+                Action<AdoProviderOptions> configurer = null)
+            {
+                SetProperty("quartz.jobStore.driverDelegateType", typeof(StdAdoDelegate).AssemblyQualifiedNameWithoutVersion());
+                SetProperty("quartz.jobStore.dataSource", SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName);
+                SetProperty($"quartz.dataSource.{AdoProviderOptions.DefaultDataSourceName}.provider", provider);
+
+                configurer?.Invoke(new AdoProviderOptions(this));
+
+                return this;
+            }
+
+            public PersistentStoreOptions WithBinarySerializer()
+            {
+                return WithSerializer("binary");
+            }
+
+            public PersistentStoreOptions WithJsonSerializer()
+            {
+                return WithSerializer("json");
+            }
+
+            public PersistentStoreOptions WithSerializer(string serializerType)
+            {
+                SetProperty("quartz.serializer.type", serializerType);
                 return this;
             }
         }
@@ -182,18 +228,6 @@ namespace Quartz
                 return this;
             }
 
-            public AdoProviderOptions WithBinarySerializer()
-            {
-                options.SetProperty("quartz.serializer.type", "binary");
-                return this;
-            }
-
-            public AdoProviderOptions WithJsonSerializer()
-            {
-                options.SetProperty("quartz.serializer.type", "json");
-                return this;
-            }
-
             public AdoProviderOptions WithConnectionString(string connectionString)
             {
                 options.SetProperty($"quartz.dataSource.{DefaultDataSourceName}.connectionString", connectionString);
@@ -215,8 +249,6 @@ namespace Quartz
             Action<SchedulerBuilder.AdoProviderOptions> configurer)
         {
             options.SetProperty("quartz.jobStore.driverDelegateType", typeof(SqlServerDelegate).AssemblyQualifiedNameWithoutVersion());
-            options.SetProperty("quartz.jobStore.lockHandler.type", typeof(SqlServerDelegate).AssemblyQualifiedNameWithoutVersion());
-
             options.SetProperty("quartz.jobStore.dataSource", SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName);
             options.SetProperty($"quartz.dataSource.{SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}.provider", "SqlServer");
 
@@ -234,7 +266,6 @@ namespace Quartz
             Action<SchedulerBuilder.AdoProviderOptions> configurer)
         {
             options.SetProperty("quartz.jobStore.driverDelegateType", typeof(PostgreSQLDelegate).AssemblyQualifiedNameWithoutVersion());
-
             options.SetProperty("quartz.jobStore.dataSource", SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName);
             options.SetProperty($"quartz.dataSource.{SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}.provider", "Npgsql");
 

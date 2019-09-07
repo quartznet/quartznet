@@ -31,6 +31,7 @@ namespace Quartz.Tests.Unit
             var builder = new SchedulerBuilder()
                 .UsePersistentStore(persistence =>
                     persistence
+                        .WithJsonSerializer()
                         .Clustered(cluster => cluster
                             .WithCheckinInterval(TimeSpan.FromSeconds(10))
                             .WithCheckinMisfireThreshold(TimeSpan.FromSeconds(15))
@@ -39,7 +40,7 @@ namespace Quartz.Tests.Unit
                             mssql.WithConnectionString("Server=localhost;Database=quartznet;")
                         )
                         .WithTablePrefix("QRTZ2019_")
-                        .WithJsonSerializer()
+
                 );
             Assert.That(builder.Properties["quartz.dataSource.default.connectionString"], Is.EqualTo("Server=localhost;Database=quartznet;"));
 
