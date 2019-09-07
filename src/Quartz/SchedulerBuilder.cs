@@ -98,15 +98,16 @@ namespace Quartz
             return schedulerFactory.GetScheduler();
         }
 
-        public SchedulerBuilder WithDefaultThreadPool(Action<ThreadPoolOptions> configurer)
+        public SchedulerBuilder WithDefaultThreadPool(Action<ThreadPoolOptions> configurer = null)
         {
             SetProperty("quartz.threadPool.type", typeof(DefaultThreadPool).AssemblyQualifiedNameWithoutVersion());
+            configurer?.Invoke(new ThreadPoolOptions(this));
             return this;
         }
 
         public class ThreadPoolOptions : PropertiesHolder
         {
-            protected ThreadPoolOptions(PropertiesHolder parent) : base(parent)
+            protected internal ThreadPoolOptions(PropertiesHolder parent) : base(parent)
             {
             }
 
