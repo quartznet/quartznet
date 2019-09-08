@@ -73,7 +73,7 @@ namespace Quartz.Simpl
         }
 
         /// <summary>
-        /// The maxmimum number of thread pool tasks which can be executing in parallel
+        /// The maximum number of thread pool tasks which can be executing in parallel
         /// </summary>
         /// <remarks>
         /// This alias for MaximumConcurrency is meant to make config files previously used with

@@ -15,7 +15,7 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestRamJobStore()
         {
-            var builder = new SchedulerBuilder()
+            var builder = SchedulerBuilder.Create()
                 .UseMemoryStore()
                 .WithDefaultThreadPool(x =>
                     x.WithThreadCount(100)
@@ -28,7 +28,7 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestSqlServerJobStore()
         {
-            var builder = new SchedulerBuilder()
+            var builder = SchedulerBuilder.Create()
                 .UsePersistentStore(persistence =>
                     persistence
                         .WithJsonSerializer()
@@ -36,11 +36,10 @@ namespace Quartz.Tests.Unit
                             .WithCheckinInterval(TimeSpan.FromSeconds(10))
                             .WithCheckinMisfireThreshold(TimeSpan.FromSeconds(15))
                         )
-                        .UseSqlServer(mssql =>
-                            mssql.WithConnectionString("Server=localhost;Database=quartznet;")
+                        .UseSqlServer(db =>
+                            db.WithConnectionString("Server=localhost;Database=quartznet;")
                         )
                         .WithTablePrefix("QRTZ2019_")
-
                 );
             Assert.That(builder.Properties["quartz.dataSource.default.connectionString"], Is.EqualTo("Server=localhost;Database=quartznet;"));
 
@@ -55,11 +54,11 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestPostgresJobStore()
         {
-            var builder = new SchedulerBuilder()
+            var builder = SchedulerBuilder.Create()
                 .UsePersistentStore(persistence =>
                     persistence
-                        .UsePostgres(postgres =>
-                            postgres.WithConnectionString("Server=localhost;Database=quartznet;")
+                        .UsePostgres(db =>
+                            db.WithConnectionString("Server=localhost;Database=quartznet;")
                         )
                 );
             Assert.That(builder.Properties["quartz.dataSource.default.connectionString"], Is.EqualTo("Server=localhost;Database=quartznet;"));
@@ -70,21 +69,92 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
+        public void TestMySqlJobStore()
+        {
+            var builder = SchedulerBuilder.Create()
+                .UsePersistentStore(persistence =>
+                    persistence
+                        .UseMySql(db =>
+                            db.WithConnectionString("Server=localhost;Database=quartznet;")
+                        )
+                );
+            Assert.That(builder.Properties["quartz.dataSource.default.connectionString"], Is.EqualTo("Server=localhost;Database=quartznet;"));
+
+            Assert.That(builder.Properties["quartz.jobStore.type"], Is.EqualTo(typeof(JobStoreTX).AssemblyQualifiedNameWithoutVersion()));
+            Assert.That(builder.Properties["quartz.jobStore.driverDelegateType"], Is.EqualTo(typeof(MySQLDelegate).AssemblyQualifiedNameWithoutVersion()));
+            Assert.That(builder.Properties["quartz.jobStore.dataSource"], Is.EqualTo("default"));
+        }
+
+        [Test]
+        public void TestFirebirdJobStore()
+        {
+            var builder = SchedulerBuilder.Create()
+                .UsePersistentStore(persistence =>
+                    persistence
+                        .UseFirebird(db =>
+                            db.WithConnectionString("Server=localhost;Database=quartznet;")
+                        )
+                );
+            Assert.That(builder.Properties["quartz.dataSource.default.connectionString"], Is.EqualTo("Server=localhost;Database=quartznet;"));
+
+            Assert.That(builder.Properties["quartz.jobStore.type"], Is.EqualTo(typeof(JobStoreTX).AssemblyQualifiedNameWithoutVersion()));
+            Assert.That(builder.Properties["quartz.jobStore.driverDelegateType"], Is.EqualTo(typeof(FirebirdDelegate).AssemblyQualifiedNameWithoutVersion()));
+            Assert.That(builder.Properties["quartz.jobStore.dataSource"], Is.EqualTo("default"));
+        }
+
+        [Test]
+        public void TestOracleJsobStore()
+        {
+            var builder = SchedulerBuilder.Create()
+                .UsePersistentStore(persistence =>
+                    persistence
+                        .UseOracle(db =>
+                            db.WithConnectionString("Server=localhost;Database=quartznet;")
+                        )
+                );
+            Assert.That(builder.Properties["quartz.dataSource.default.connectionString"], Is.EqualTo("Server=localhost;Database=quartznet;"));
+
+            Assert.That(builder.Properties["quartz.jobStore.type"], Is.EqualTo(typeof(JobStoreTX).AssemblyQualifiedNameWithoutVersion()));
+            Assert.That(builder.Properties["quartz.jobStore.driverDelegateType"], Is.EqualTo(typeof(OracleDelegate).AssemblyQualifiedNameWithoutVersion()));
+            Assert.That(builder.Properties["quartz.jobStore.dataSource"], Is.EqualTo("default"));
+            
+        }
+        [Test]
+        public void TestSQLiteJsobStore()
+        {
+            var builder = SchedulerBuilder.Create()
+                .UsePersistentStore(persistence =>
+                    persistence
+                        .UseSQLite(db =>
+                            db.WithConnectionString("Server=localhost;Database=quartznet;")
+                        )
+                );
+            Assert.That(builder.Properties["quartz.dataSource.default.connectionString"], Is.EqualTo("Server=localhost;Database=quartznet;"));
+
+            Assert.That(builder.Properties["quartz.jobStore.type"], Is.EqualTo(typeof(JobStoreTX).AssemblyQualifiedNameWithoutVersion()));
+            Assert.That(builder.Properties["quartz.jobStore.driverDelegateType"], Is.EqualTo(typeof(SQLiteDelegate).AssemblyQualifiedNameWithoutVersion()));
+            Assert.That(builder.Properties["quartz.jobStore.dataSource"], Is.EqualTo("default"));
+        }
+
+        [Test]
         public void TestTimeZonePlugin()
         {
-            var builder = new SchedulerBuilder().UseTimeZoneConverter();
+            var builder = SchedulerBuilder.Create()
+                .UseTimeZoneConverter();
+
             Assert.That(builder.Properties["quartz.plugin.timeZoneConverter.type"], Is.EqualTo(typeof(TimeZoneConverterPlugin).AssemblyQualifiedNameWithoutVersion()));
         }
 
         [Test]
         public void TestXmlSchedulingPlugin()
         {
-            var builder = new SchedulerBuilder().UseXmlSchedulingConfiguration(x => x
-                .WithFiles("jobs.xml", "jobs2.xml")
-                .WithChangeDetection(TimeSpan.FromSeconds(2))
-                .FailOnFileNotFound()
-                .FailOnSchedulingError()
-            );
+            var builder = SchedulerBuilder.Create()
+                .UseXmlSchedulingConfiguration(x => x
+                    .WithFiles("jobs.xml", "jobs2.xml")
+                    .WithChangeDetection(TimeSpan.FromSeconds(2))
+                    .FailOnFileNotFound()
+                    .FailOnSchedulingError()
+                );
 
             Assert.That(builder.Properties["quartz.plugin.xml.type"], Is.EqualTo(typeof(XMLSchedulingDataProcessorPlugin).AssemblyQualifiedNameWithoutVersion()));
             Assert.That(builder.Properties["quartz.plugin.xml.fileNames"], Is.EqualTo("jobs.xml,jobs2.xml"));

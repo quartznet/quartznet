@@ -197,16 +197,20 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             NameValueCollection extraProperties,
             bool clustered = true)
         {
-            var builder = new SchedulerBuilder()
-                .WithName("TestScheduler")
-                .WithId("instance_one")
+            var builder = SchedulerBuilder.Create("instance_one", "TestScheduler")
                 .WithDefaultThreadPool(x => x.WithThreadCount(10))
                 .WithMisfireThreshold(TimeSpan.FromSeconds(60))
-                .UsePersistentStore(store => store
-                    .UseProperties(false)
-                    .Clustered(clustered, options => options.WithCheckinInterval(TimeSpan.FromMilliseconds(1000)))
-                    .UseGenericDatabase(dbProvider, db => db.WithConnectionString(dbConnectionStrings[connectionStringId]))
-                    .WithSerializer(serializerType));
+                .UsePersistentStore(store =>
+                {
+                    var x = store
+                        .UseProperties(false)
+                        .Clustered(clustered, options => options.WithCheckinInterval(TimeSpan.FromMilliseconds(1000)))
+                        .UseGenericDatabase(dbProvider, db => db.WithConnectionString(dbConnectionStrings[connectionStringId]));
+
+                    x = serializerType == "json"
+                        ? x.WithJsonSerializer()
+                        : x.WithBinarySerializer();
+                });
 
             if (extraProperties != null)
             {

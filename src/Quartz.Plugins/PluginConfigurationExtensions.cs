@@ -5,7 +5,7 @@ using Quartz.Util;
 
 namespace Quartz
 {
-    public static class ConfigurationExtensions
+    public static class PluginConfigurationExtensions
     {
         public static SchedulerBuilder UseXmlSchedulingConfiguration(
             this SchedulerBuilder schedulerBuilder,

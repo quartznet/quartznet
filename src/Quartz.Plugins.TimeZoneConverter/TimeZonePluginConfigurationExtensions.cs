@@ -3,7 +3,7 @@ using Quartz.Util;
 
 namespace Quartz
 {
-    public static class ConfigurationExtensions
+    public static class TimeZonePluginConfigurationExtensions
     {
         public static SchedulerBuilder UseTimeZoneConverter(this SchedulerBuilder schedulerBuilder)
         {
