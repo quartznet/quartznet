@@ -41,7 +41,7 @@ namespace Quartz.Examples.Example10
         {
             ILog log = LogProvider.GetLogger(typeof(RunningJobsByPlugInXmlConfigurationExample));
 
-            // our properties that enable XML configuration plugin
+            // our configuration that enables XML configuration plugin
             // and makes it watch for changes every two minutes (120 seconds)
             var properties = new NameValueCollection
             {

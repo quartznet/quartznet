@@ -197,43 +197,34 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             NameValueCollection extraProperties,
             bool clustered = true)
         {
-            NameValueCollection properties = new NameValueCollection();
+            var builder = SchedulerBuilder.Create("instance_one", "TestScheduler")
+                .WithDefaultThreadPool(x => x.WithThreadCount(10))
+                .WithMisfireThreshold(TimeSpan.FromSeconds(60))
+                .UsePersistentStore(store =>
+                {
+                    var x = store
+                        .UseProperties(false)
+                        .Clustered(clustered, options => options.WithCheckinInterval(TimeSpan.FromMilliseconds(1000)))
+                        .UseGenericDatabase(dbProvider, db => db.WithConnectionString(dbConnectionStrings[connectionStringId]));
 
-            properties["quartz.scheduler.instanceName"] = "TestScheduler";
-            properties["quartz.scheduler.instanceId"] = "instance_one";
-            properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
-            properties["quartz.threadPool.threadCount"] = "10";
-            properties["quartz.jobStore.misfireThreshold"] = "60000";
-            properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
-            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz";
-            properties["quartz.jobStore.useProperties"] = "false";
-            properties["quartz.jobStore.dataSource"] = "default";
-            properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
-            properties["quartz.jobStore.clustered"] = clustered.ToString();
-            properties["quartz.jobStore.clusterCheckinInterval"] = 1000.ToString();
-            properties["quartz.serializer.type"] = serializerType;
+                    x = serializerType == "json"
+                        ? x.WithJsonSerializer()
+                        : x.WithBinarySerializer();
+                });
 
             if (extraProperties != null)
             {
                 foreach (string key in extraProperties.Keys)
                 {
-                    properties[key] = extraProperties[key];
+                    builder.SetProperty(key, extraProperties[key]);
                 }
             }
-
-            if (!dbConnectionStrings.TryGetValue(connectionStringId, out var connectionString))
-            {
-                throw new Exception("Unknown connection string id: " + connectionStringId);
-            }
-            properties["quartz.dataSource.default.connectionString"] = connectionString;
-            properties["quartz.dataSource.default.provider"] = dbProvider;
 
             // Clear any old errors from the log
             FailFastLoggerFactoryAdapter.Errors.Clear();
 
             // First we must get a reference to a scheduler
-            ISchedulerFactory sf = new StdSchedulerFactory(properties);
-            IScheduler sched = await sf.GetScheduler();
+            IScheduler sched = await builder.Build();
             SmokeTestPerformer performer = new SmokeTestPerformer();
             await performer.Test(sched, clearJobs, scheduleJobs);
 
