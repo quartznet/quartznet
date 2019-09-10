@@ -313,6 +313,11 @@ namespace Quartz
         [NonSerialized] protected bool lastdayOfWeek;
 
         /// <summary>
+        /// N number of weeks.
+        /// </summary>
+        [NonSerialized] protected int everyNthWeek;
+
+        /// <summary>
         /// Nth day of week.
         /// </summary>
         [NonSerialized] protected int nthdayOfWeek;
@@ -774,6 +779,23 @@ namespace Quartz
                             {
                                 throw new FormatException(
                                     "A numeric value between 1 and 5 must follow the '#' option");
+                            }
+                        }
+                        else if (c == '/')
+                        {
+                            try
+                            {
+                                i += 4;
+                                everyNthWeek = Convert.ToInt32(s.Substring(i), CultureInfo.InvariantCulture);
+                                if (everyNthWeek < 1 || everyNthWeek > 5)
+                                {
+                                    throw new Exception();
+                                }
+                            }
+                            catch (Exception)
+                            {
+                                throw new FormatException(
+                                    "A numeric value between 1 and 5 must follow the '/' option");
                             }
                         }
                         else if (c == 'L')
@@ -1959,6 +1981,53 @@ namespace Quartz
                         {
                             d = new DateTimeOffset(d.Year, mon, day, 0, 0, 0, d.Offset);
                             // we are NOT promoting the month
+                            continue;
+                        }
+                    }
+                    else if (everyNthWeek != 0)
+                    {
+                        int cDow = (int)d.DayOfWeek + 1; // current d-o-w
+                        int dow = daysOfWeek.First(); // desired
+                        // d-o-w
+                        st = daysOfWeek.TailSet(cDow);
+                        if (st.Count > 0)
+                        {
+                            dow = st.First();
+                        }
+
+                        int daysToAdd = 0;
+                        if (cDow < dow)
+                        {
+                            daysToAdd = (dow - cDow) + (7 * (everyNthWeek-1));
+                        }
+                        if (cDow > dow)
+                        {
+                            daysToAdd = (dow + (7 - cDow)) + (7 * (everyNthWeek-1));
+                        }
+
+                        int lDay = GetLastDayOfMonth(mon, d.Year);
+
+                        //if (day + daysToAdd > lDay)
+                        //{
+                        //    // will we pass the end of the month?
+
+                        //    if (mon == 12)
+                        //    {
+                        //        //will we pass the end of the year?
+                        //        d = new DateTimeOffset(d.Year, mon - 11, 1, 0, 0, 0, d.Offset).AddYears(1);
+                        //    }
+                        //    else
+                        //    {
+                        //        d = new DateTimeOffset(d.Year, mon + 1, 1, 0, 0, 0, d.Offset);
+                        //    }
+                        //    // we are promoting the month
+                        //    continue;
+                        //}
+                        if (daysToAdd > 0)
+                        {
+                            // are we switching days?
+                            d = new DateTimeOffset(d.Year, mon, day, 0, 0, 0, d.Offset);
+                            d = d.AddDays(daysToAdd);
                             continue;
                         }
                     }
