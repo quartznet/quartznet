@@ -324,7 +324,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Set the trigger to begin firing each day at the given time.
+        /// The TimeOfDay for this trigger to start firing each day.
         /// </summary>
         /// <param name="timeOfDayUtc"></param>
         /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
@@ -335,7 +335,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Set the startTimeOfDay for this trigger to end firing each day at the given time.
+        /// The TimeOfDay for this trigger to end firing each day.
         /// </summary>
         /// <param name="timeOfDayUtc"></param>
         /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
