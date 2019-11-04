@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
-#if !NETCORE
 using System.Data.SQLite;
-#endif
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
@@ -112,9 +110,11 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         [TestCaseSource(nameof(GetSerializerTypes))]
         public async Task TestSQLiteMicrosoft(string serializerType)
         {
-            if (File.Exists("test.db"))
+	        var dbFilename = $"test-{serializerType}.db";
+	        
+	        if (File.Exists(dbFilename))
             {
-                File.Delete("test.db");
+                File.Delete(dbFilename);
             }
 
             using (var connection = new SqliteConnection(dbConnectionStrings["SQLite-Microsoft"]))
@@ -152,18 +152,18 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             return RunAdoJobStoreTest("OracleODPManaged", "Oracle", serializerType, properties);
         }
 
-#if !NETSTANDARD_DBPROVIDERS
-
         [Test]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public async Task TestSQLite(string serializerType)
         {
-            while (File.Exists("test.db"))
+	        var dbFilename = $"test-{serializerType}.db";
+
+	        while (File.Exists(dbFilename))
             {
-                File.Delete("test.db");
+                File.Delete(dbFilename);
             }
 
-            SQLiteConnection.CreateFile("test.db");
+            SQLiteConnection.CreateFile(dbFilename);
 
             using (var connection = new SQLiteConnection(dbConnectionStrings["SQLite"]))
             {
@@ -180,8 +180,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SQLiteDelegate, Quartz";
             await RunAdoJobStoreTest("SQLite", "SQLite", serializerType, properties, clustered: false);
         }
-
-#endif // NETSTANDARD_DBPROVIDERS
 
         public static string[] GetSerializerTypes() => new[] {"json", "binary"};
 
