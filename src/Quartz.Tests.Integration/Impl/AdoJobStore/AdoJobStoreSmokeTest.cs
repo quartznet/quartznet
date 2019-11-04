@@ -1,9 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
-#if !NETCORE
 using System.Data.SQLite;
-#endif
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
@@ -152,8 +150,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             return RunAdoJobStoreTest("OracleODPManaged", "Oracle", serializerType, properties);
         }
 
-#if !NETSTANDARD_DBPROVIDERS
-
         [Test]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public async Task TestSQLite(string serializerType)
@@ -180,8 +176,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SQLiteDelegate, Quartz";
             await RunAdoJobStoreTest("SQLite", "SQLite", serializerType, properties, clustered: false);
         }
-
-#endif // NETSTANDARD_DBPROVIDERS
 
         public static string[] GetSerializerTypes() => new[] {"json", "binary"};
 
