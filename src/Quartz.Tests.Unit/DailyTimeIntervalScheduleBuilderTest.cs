@@ -232,10 +232,12 @@ namespace Quartz.Tests.Unit
                     .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(8, 0))
                     .EndingDailyAfterCount(1))
                 .StartAt(startTime)
+                .ForJob("testJob", "testJobGroup")
                 .Build();
             Assert.AreEqual("test", trigger.Key.Name);
             Assert.AreEqual("DEFAULT", trigger.Key.Group);
             Assert.AreEqual(IntervalUnit.Minute, trigger.RepeatIntervalUnit);
+            ((IOperableTrigger) trigger).Validate();
             var fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, null, 48);
             Assert.AreEqual(48, fireTimes.Count);
             Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011), fireTimes[0]);

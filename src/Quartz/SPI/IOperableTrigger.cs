@@ -91,13 +91,11 @@ namespace Quartz.Spi
         /// <param name="misfireThreshold"></param>
         void UpdateWithNewCalendar(ICalendar cal, TimeSpan misfireThreshold);
 
-
         /// <summary>
         /// Validates whether the properties of the <see cref="IJobDetail" /> are
         /// valid for submission into a <see cref="IScheduler" />.
         /// </summary>
         void Validate();
-
 
         /// <summary> 
         /// This method should not be used by the Quartz client.

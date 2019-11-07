@@ -853,9 +853,12 @@ namespace Quartz.Impl.Triggers
             }
 
             // Ensure timeOfDay is in order.
-            if (EndTimeOfDay != null && EndTimeOfDay.Before(StartTimeOfDay))
+            // NOTE: We allow startTimeOfDay to be set equal to endTimeOfDay so the repeatCount can be set to 1.
+            if (EndTimeOfDay != null
+                && !StartTimeOfDay.Equals(EndTimeOfDay)
+                && !StartTimeOfDay.Before(EndTimeOfDay))
             {
-                throw new SchedulerException("StartTimeOfDay " + startTimeOfDay + " should not come after endTimeOfDay " + endTimeOfDay);
+                throw new SchedulerException($"StartTimeOfDay {startTimeOfDay} should not come after endTimeOfDay {endTimeOfDay}");
             }
         }
 
