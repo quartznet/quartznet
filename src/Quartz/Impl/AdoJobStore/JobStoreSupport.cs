@@ -2655,7 +2655,18 @@ namespace Quartz.Impl.AdoJobStore
 
                         var nextFireTimeUtc = nextTrigger.GetNextFireTimeUtc();
 
-                        if (nextFireTimeUtc == null || nextFireTimeUtc > batchEnd)
+                        // A trigger should not return NULL on nextFireTime when fetched from DB.
+                        // But for whatever reason if we do have this (BAD trigger implementation or
+                        // data?), we then should log a warning and continue to next trigger.
+                        // User would need to manually fix these triggers from DB as they will not
+                        // able to be clean up by Quartz since we are not returning it to be processed.
+                        if (nextFireTimeUtc == null)
+                        {
+                            Log.Warn($"Trigger {nextTrigger.Key} returned null on nextFireTime and yet still exists in DB!");
+                            continue;
+                        }
+
+                        if (nextFireTimeUtc > batchEnd)
                         {
                             break;
                         }
@@ -2674,7 +2685,7 @@ namespace Quartz.Impl.AdoJobStore
                         if (acquiredTriggers.Count == 0)
                         {
                             var now = SystemTime.UtcNow();
-                            var nextFireTime = nextTrigger.GetNextFireTimeUtc().GetValueOrDefault(DateTimeOffset.MinValue);
+                            var nextFireTime = nextFireTimeUtc.Value;
                             var max = now > nextFireTime ? now : nextFireTime;
 
                             batchEnd = max + timeWindow;
