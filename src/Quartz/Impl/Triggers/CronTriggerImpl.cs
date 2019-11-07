@@ -21,6 +21,7 @@
 
 using System;
 
+using Quartz.Logging;
 using Quartz.Spi;
 using Quartz.Util;
 
@@ -177,6 +178,8 @@ namespace Quartz.Impl.Triggers
     [Serializable]
     public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     {
+        private static readonly ILog logger = LogProvider.GetLogger(typeof(CronTriggerImpl));
+
         protected const int YearToGiveupSchedulingAt = 2299;
         private CronExpression cronEx;
         private DateTimeOffset startTimeUtc = DateTimeOffset.MinValue;
@@ -612,11 +615,19 @@ namespace Quartz.Impl.Triggers
 
             switch (MisfireInstruction)
             {
+                case Quartz.MisfireInstruction.SmartPolicy:
+                    break;
                 case Quartz.MisfireInstruction.CronTrigger.DoNothing:
                     cb.WithMisfireHandlingInstructionDoNothing();
                     break;
                 case Quartz.MisfireInstruction.CronTrigger.FireOnceNow:
                     cb.WithMisfireHandlingInstructionFireAndProceed();
+                    break;
+                case Quartz.MisfireInstruction.IgnoreMisfirePolicy:
+                    cb.WithMisfireHandlingInstructionIgnoreMisfires();
+                    break;
+                default:
+                    logger.Warn($"Unrecognized misfire policy {MisfireInstruction}. Derived builder will use the default cron trigger behavior (FireOnceNow)");
                     break;
             }
 
