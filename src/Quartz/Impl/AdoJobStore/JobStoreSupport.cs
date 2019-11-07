@@ -2726,6 +2726,7 @@ namespace Quartz.Impl.AdoJobStore
             try
             {
                 await Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Key, StateWaiting, StateAcquired, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Key, StateWaiting, StateBlocked, cancellationToken).ConfigureAwait(false);
                 await Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
