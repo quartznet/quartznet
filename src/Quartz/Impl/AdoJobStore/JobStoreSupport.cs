@@ -185,6 +185,12 @@ namespace Quartz.Impl.AdoJobStore
         public int MaxMisfiresToHandleAtATime { get; set; }
 
         /// <summary>
+        /// If set to true misfired triggers are handled with batch database operations. 
+        /// Max batch size is MaxMisfiresToHandleAtATime.
+        /// </summary>
+        public bool BatchMisfireHandling { get; set; }
+
+        /// <summary>
         /// Gets or sets the database retry interval.
         /// </summary>
         /// <value>The db retry interval.</value>
@@ -423,6 +429,11 @@ namespace Quartz.Impl.AdoJobStore
                         catch (Exception e)
                         {
                             throw new NoSuchDelegateException("Couldn't instantiate delegate: " + e.Message, e);
+                        }
+
+                        if (BatchMisfireHandling && !driverDelegate.SupportsBatching)
+                        {
+                            Log.Warn($"Batch misfire handling is enabled but the DB Server does not support batch commands.");
                         }
                     }
                 }
@@ -747,23 +758,58 @@ namespace Quartz.Impl.AdoJobStore
                 return RecoverMisfiredJobsResult.NoOp;
             }
 
-            foreach (TriggerKey triggerKey in misfiredTriggers)
+            if (BatchMisfireHandling && Delegate.SupportsBatching)
             {
-                IOperableTrigger trig = await RetrieveTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-
-                if (trig == null)
+                Log.Debug($"Handling misfired in batches of size {MaxMisfiresToHandleAtATime}.");
+                int start = 0;
+                while (true)
                 {
-                    continue;
-                }
+                    var misfiredTriggersBatch = misfiredTriggers.Skip(start).Take(MaxMisfiresToHandleAtATime).ToArray();
+                    if (misfiredTriggersBatch.Length == 0)
+                    {
+                        break;
+                    }
+                    Log.Debug($"Processing a batch of size {misfiredTriggersBatch.Length}...");
+                    start += misfiredTriggersBatch.Length;
 
-                await DoUpdateOfMisfiredTrigger(conn, trig, false, StateWaiting, recovering).ConfigureAwait(false);
+                    var triggs = await RetrieveTriggers(conn, misfiredTriggersBatch, cancellationToken).ConfigureAwait(false);
+                    var validTriggs = triggs.Where(x => x != null).ToArray();
+                    if (validTriggs.Length == 0)
+                    {
+                        continue;
+                    }
 
-                DateTimeOffset? nextTime = trig.GetNextFireTimeUtc();
-                if (nextTime.HasValue && nextTime.Value < earliestNewTime)
-                {
-                    earliestNewTime = nextTime.Value;
+                    await DoUpdateOfMisfiredTriggers(conn, validTriggs, StateWaiting, recovering).ConfigureAwait(false);
+
+                    var minNextTime = validTriggs.Min(x => x.GetNextFireTimeUtc() ?? earliestNewTime);
+                    if (minNextTime < earliestNewTime)
+                    {
+                        earliestNewTime = minNextTime;
+                    }
                 }
             }
+            else
+            {
+                Log.Debug($"Handling misfired triggers one-by-one.");
+                foreach (TriggerKey triggerKey in misfiredTriggers)
+                {
+                    IOperableTrigger trig = await RetrieveTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+
+                    if (trig == null)
+                    {
+                        continue;
+                    }
+
+                    await DoUpdateOfMisfiredTrigger(conn, trig, false, StateWaiting, recovering).ConfigureAwait(false);
+
+                    DateTimeOffset? nextTime = trig.GetNextFireTimeUtc();
+                    if (nextTime.HasValue && nextTime.Value < earliestNewTime)
+                    {
+                        earliestNewTime = nextTime.Value;
+                    }
+                }
+            }
+            Log.Debug($"Done processing misfired triggers.");
 
             return new RecoverMisfiredJobsResult(hasMoreMisfiredTriggers, misfiredTriggers.Count, earliestNewTime);
         }
@@ -821,6 +867,52 @@ namespace Quartz.Impl.AdoJobStore
             else
             {
                 await StoreTrigger(conn, trig, null, true, newStateIfNotComplete, forceState, recovering).ConfigureAwait(false);
+            }
+        }
+
+        private async Task DoUpdateOfMisfiredTriggers(ConnectionAndTransactionHolder conn, IOperableTrigger[] triggs, 
+            string newStateIfNotComplete, bool recovering)
+        {
+            if (!triggs.Any())
+            {
+                return;
+            }
+
+            var nameToCalMap = new Dictionary<string, ICalendar>();
+            var calsToRetrieve = triggs.Where(x => x.CalendarName != null);
+            if (calsToRetrieve.Any())
+            {
+                var calNames = calsToRetrieve.Select(x => x.CalendarName).ToArray();
+                var cals = await RetrieveCalendars(conn, calNames).ConfigureAwait(false);
+
+                for (int i = 0; i < cals.Length; i++)
+                {
+                    nameToCalMap[calNames[i]] = cals[i];
+                }
+            }
+
+            foreach (var trig in triggs)
+            {
+                await schedSignaler.NotifyTriggerListenersMisfired(trig).ConfigureAwait(false);
+
+                trig.UpdateAfterMisfire(trig.CalendarName == null ? null : nameToCalMap[trig.CalendarName]);
+            }
+
+            var triggersCompleted = triggs.Where(x => !x.GetNextFireTimeUtc().HasValue).ToArray();
+            var triggersWaiting = triggs.Where(x => x.GetNextFireTimeUtc().HasValue).ToArray();
+
+            if (triggersCompleted.Any())
+            {
+                await UpdateMisfiredTriggers(conn, triggersCompleted, StateComplete, recovering).ConfigureAwait(false);
+                foreach (var trig in triggersCompleted)
+                {
+                    await schedSignaler.NotifySchedulerListenersFinalized(trig).ConfigureAwait(false);
+                }
+            }
+
+            if (triggersWaiting.Any())
+            {
+                await UpdateMisfiredTriggers(conn, triggersWaiting, newStateIfNotComplete, recovering).ConfigureAwait(false);
             }
         }
 
@@ -967,6 +1059,61 @@ namespace Quartz.Impl.AdoJobStore
                 LockOnInsert || replaceExisting ? LockTriggerAccess : null,
                 conn => StoreTrigger(conn, newTrigger, null, replaceExisting, StateWaiting, false, false, cancellationToken),
                 cancellationToken);
+        }
+
+        /// <summary>
+        /// Insert or update a trigger.
+        /// </summary>
+        protected virtual async Task UpdateMisfiredTriggers(
+            ConnectionAndTransactionHolder conn,
+            IOperableTrigger[] triggers,
+            string state,
+            bool recovering,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var jobs = await RetrieveJobs(conn, triggers.Select(x => x.JobKey).ToArray(), cancellationToken).ConfigureAwait(false);
+
+                if (!jobs.Any())
+                {
+                    throw new JobPersistenceException("No jobs for triggers!");
+                }
+
+                if (jobs.Any(x => x == null))
+                {
+                    throw new JobPersistenceException("The job referenced by a trigger does not exist!");
+                }
+
+                // See if some triggers need to have different states due to job config and state.
+                var jobsWithNewStates = new Dictionary<JobKey, string>();
+
+                var jobsWithConcurrentExecutionDisallowed = jobs.Where(x => !recovering && x.ConcurrentExecutionDisallowed);
+                if (jobsWithConcurrentExecutionDisallowed.Any())
+                {
+                    var keys = jobsWithConcurrentExecutionDisallowed.Select(x => x.Key).ToArray();
+                    var updatedStates = await CheckBlockedState(conn, keys, state, cancellationToken);
+                    for (int i = 0; i < keys.Length; i++)
+                    {
+                        if (updatedStates[i] != state)
+                        {
+                            jobsWithNewStates[keys[i]] = updatedStates[i];
+                        }
+                    }
+                }
+
+                await Delegate.BatchUpdateMisfiredTriggers(
+                    conn,
+                    triggers,
+                    jobs.Select(x => jobsWithNewStates.TryGetAndReturn(x.Key)).Select(x => x ?? state).ToArray(),
+                    jobs,
+                    cancellationToken);
+            }
+            catch (Exception e)
+            {
+                string message = $"Couldn't store triggers: {e.Message}";
+                throw new JobPersistenceException(message, e);
+            }
         }
 
         /// <summary>
@@ -1229,6 +1376,30 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
+        protected virtual async Task<IJobDetail[]> RetrieveJobs(
+            ConnectionAndTransactionHolder conn,
+            JobKey[] jobKeys,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                IJobDetail[] jobs = await Delegate.SelectJobsDetails(conn, jobKeys, TypeLoadHelper, cancellationToken).ConfigureAwait(false);
+                return jobs;
+            }
+            catch (TypeLoadException e)
+            {
+                throw new JobPersistenceException("Couldn't retrieve jobs because a required type was not found: " + e.Message, e);
+            }
+            catch (IOException e)
+            {
+                throw new JobPersistenceException("Couldn't retrieve jobs because the BLOB couldn't be deserialized: " + e.Message, e);
+            }
+            catch (Exception e)
+            {
+                throw new JobPersistenceException("Couldn't retrieve jobs: " + e.Message, e);
+            }
+        }
+
         /// <summary>
         /// Remove (delete) the <see cref="ITrigger" /> with the
         /// given name.
@@ -1395,6 +1566,21 @@ namespace Quartz.Impl.AdoJobStore
             catch (Exception e)
             {
                 throw new JobPersistenceException("Couldn't retrieve trigger: " + e.Message, e);
+            }
+        }
+
+        protected virtual async Task<IOperableTrigger[]> RetrieveTriggers(
+            ConnectionAndTransactionHolder conn,
+            TriggerKey[] triggerKeys,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await Delegate.SelectTriggers(conn, triggerKeys, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                throw new JobPersistenceException("Couldn't retrieve triggers: " + e.Message, e);
             }
         }
 
@@ -1663,6 +1849,37 @@ namespace Quartz.Impl.AdoJobStore
                     calendarCache[calName] = cal; // lazy-cache...
                 }
                 return cal;
+            }
+            catch (IOException e)
+            {
+                throw new JobPersistenceException(
+                    "Couldn't retrieve calendar because the BLOB couldn't be deserialized: " + e.Message, e);
+            }
+            catch (Exception e)
+            {
+                throw new JobPersistenceException("Couldn't retrieve calendar: " + e.Message, e);
+            }
+        }
+
+        protected virtual async Task<ICalendar[]> RetrieveCalendars(
+            ConnectionAndTransactionHolder conn,
+            string[] calNames,
+            CancellationToken cancellationToken = default)
+        {
+            // All calendars are persistent, but we lazy-cache them during run
+            // time as long as we aren't running clustered.
+            var cals = Clustered ? calendarCache : new Dictionary<string, ICalendar>();
+
+            try
+            {
+                var calNamesToRetrieve = calNames.Where(x => !cals.ContainsKey(x)).Distinct().ToArray();
+                var calsFromDb = await Delegate.SelectCalendars(conn, calNamesToRetrieve, cancellationToken).ConfigureAwait(false);
+                for (int i = 0; i < calNamesToRetrieve.Length; i++)
+                {
+                    cals[calNamesToRetrieve[i]] = calsFromDb[i];
+                }
+
+                return calNames.Select(x => cals.TryGetAndReturn(x)).ToArray();
             }
             catch (IOException e)
             {
@@ -2132,6 +2349,55 @@ namespace Quartz.Impl.AdoJobStore
 
                 return new List<string>(groupNames);
             }, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Determines if the triggers for the given array of jobkeys should be blocked.
+        /// State can only transition to StatePausedBlocked/StateBlocked from
+        /// StatePaused/StateWaiting respectively.
+        /// </summary>
+        /// <returns>StatePausedBlocked, StateBlocked, or the currentState. </returns>
+        protected virtual async Task<string[]> CheckBlockedState(
+            ConnectionAndTransactionHolder conn,
+            JobKey[] jobKeys,
+            string currentState,
+            CancellationToken cancellationToken = default)
+        {
+            // State can only transition to BLOCKED from PAUSED or WAITING.
+            if (!currentState.Equals(StateWaiting) && !currentState.Equals(StatePaused))
+            {
+                return jobKeys.Select(x => currentState).ToArray();
+            }
+
+            try
+            {
+                var firedTrigersRecords = await Delegate.SelectFiredTriggerRecordsByJobs(conn, jobKeys, cancellationToken).ConfigureAwait(false);
+
+                var jobKeyToRecordMap = new Dictionary<JobKey, FiredTriggerRecord>();
+                foreach (var recs in firedTrigersRecords)
+                {
+                    if (recs == null || !recs.Any())
+                    {
+                        continue;
+                    }
+                    jobKeyToRecordMap[recs.First().JobKey] = recs.First();
+                }
+
+                return jobKeys
+                    .Select(x =>
+                        {
+                            if (jobKeyToRecordMap.ContainsKey(x) && jobKeyToRecordMap[x].JobDisallowsConcurrentExecution)
+                            {
+                                return StatePaused.Equals(currentState) ? StatePausedBlocked : StateBlocked;
+                            }
+                            return currentState;
+                        })
+                    .ToArray();
+            }
+            catch (Exception e)
+            {
+                throw new JobPersistenceException("Couldn't determine if trigger should be in a blocked state: " + e.Message, e);
+            }
         }
 
         /// <summary>

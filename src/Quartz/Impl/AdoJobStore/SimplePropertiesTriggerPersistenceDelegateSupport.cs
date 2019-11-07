@@ -20,6 +20,8 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -87,7 +89,7 @@ namespace Quartz.Impl.AdoJobStore
                                                           + " AND " + AdoConstants.ColumnTriggerName
                                                           + " = @triggerName AND " + AdoConstants.ColumnTriggerGroup + " = @triggerGroup";
 
-        public void Initialize(string tablePrefix, string schedName, IDbAccessor dbAccessor)
+        public void Initialize(string tablePrefix, string schedName, StdAdoDelegate dbAccessor)
         {
             TablePrefix = tablePrefix;
             DbAccessor = dbAccessor;
@@ -112,7 +114,7 @@ namespace Quartz.Impl.AdoJobStore
 
         protected string SchedNameLiteral { get; private set; }
 
-        protected IDbAccessor DbAccessor { get; private set; }
+        protected StdAdoDelegate DbAccessor { get; private set; }
 
         public async Task<int> DeleteExtendedTriggerProperties(
             ConnectionAndTransactionHolder conn, 
@@ -196,6 +198,40 @@ namespace Quartz.Impl.AdoJobStore
             throw new InvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, TablePrefix, SchedNameLiteral));
         }
 
+        public async Task<TriggerPropertyBundle[]> LoadExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey[] triggerKeys, CancellationToken cancellationToken = default)
+        {
+            var propsBundles = new Dictionary<TriggerKey, TriggerPropertyBundle>();
+
+            using (var cmd = DbAccessor.PrepareBatchSelectFromTriggerKeys(
+                conn, triggerKeys, AdoJobStoreUtil.ReplaceTablePrefix(SelectSimplePropsTrigger, TablePrefix, SchedNameLiteral), forSelect: true))
+            {
+                using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        SimplePropertiesTriggerProperties properties = new SimplePropertiesTriggerProperties();
+
+                        properties.String1 = rs.GetString(ColumnStrProp1);
+                        properties.String2 = rs.GetString(ColumnStrProp2);
+                        properties.String3 = rs.GetString(ColumnStrProp3);
+                        properties.Int1 = rs.GetInt32(ColumnIntProp1);
+                        properties.Int2 = rs.GetInt32(ColumnIntProp2);
+                        properties.Long1 = rs.GetInt64(ColumnLongProp1);
+                        properties.Long2 = rs.GetInt64(ColumnLongProp2);
+                        properties.Decimal1 = rs.GetDecimal(ColumnDecProp1);
+                        properties.Decimal2 = rs.GetDecimal(ColumnDecProp2);
+                        properties.Boolean1 = DbAccessor.GetBooleanFromDbValue(rs[ColumnBoolProp1]);
+                        properties.Boolean2 = DbAccessor.GetBooleanFromDbValue(rs[ColumnBoolProp2]);
+                        properties.TimeZoneId = rs.GetString(ColumnTimeZoneId);
+
+                        propsBundles[DbAccessor.TriggerKeyFromRow(rs)] = GetTriggerPropertyBundle(properties);
+                    }
+                }
+            }
+
+            return triggerKeys.Select(x => propsBundles.TryGetAndReturn(x)).ToArray();
+        }
+
         public async Task<int> UpdateExtendedTriggerProperties(
             ConnectionAndTransactionHolder conn, 
             IOperableTrigger trigger, 
@@ -222,6 +258,52 @@ namespace Quartz.Impl.AdoJobStore
                 DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
                 DbAccessor.AddCommandParameter(cmd, "timeZoneId", properties.TimeZoneId);
 
+                return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        public async Task<int> UpdateExtendedTriggerProperties(
+            ConnectionAndTransactionHolder conn, 
+            IOperableTrigger[] triggers, 
+            string[] states, 
+            IJobDetail[] jobDetails, 
+            CancellationToken cancellationToken = default)
+        {
+            var paramNames = new[]
+            {
+                "string1", "string2", "string3", "int1", "int2", "long1",
+                "long2", "decimal1", "decimal2", "boolean1", "boolean2",
+                "triggerName", "triggerGroup", "timeZoneId"
+            };
+
+            var triggersProps = triggers.Select(x => GetTriggerProperties(x));
+            var paramValuesBatch = triggers
+                .Zip(triggersProps, (trigger, properties) => 
+                    new[]
+                    {
+                        DbAccessor.AdoUtil.CreateParamValue(properties.String1),
+                        DbAccessor.AdoUtil.CreateParamValue(properties.String2),
+                        DbAccessor.AdoUtil.CreateParamValue(properties.String3),
+                        DbAccessor.AdoUtil.CreateParamValue(properties.Int1),
+                        DbAccessor.AdoUtil.CreateParamValue(properties.Int2),
+                        DbAccessor.AdoUtil.CreateParamValue(properties.Long1),
+                        DbAccessor.AdoUtil.CreateParamValue(properties.Long2),
+                        DbAccessor.AdoUtil.CreateParamValue(properties.Decimal1),
+                        DbAccessor.AdoUtil.CreateParamValue(properties.Decimal2),
+                        DbAccessor.AdoUtil.CreateParamValue(DbAccessor.GetDbBooleanValue(properties.Boolean1)),
+                        DbAccessor.AdoUtil.CreateParamValue(DbAccessor.GetDbBooleanValue(properties.Boolean2)),
+                        DbAccessor.AdoUtil.CreateParamValue(trigger.Key.Name),
+                        DbAccessor.AdoUtil.CreateParamValue(trigger.Key.Group),
+                        DbAccessor.AdoUtil.CreateParamValue(properties.TimeZoneId),
+                    })
+                .ToArray();
+
+            using (var cmd = DbAccessor.AdoUtil.PrepareCommandBatchByTemplateCloning(
+                                conn,
+                                AdoJobStoreUtil.ReplaceTablePrefix(UpdateSimplePropsTrigger, TablePrefix, SchedNameLiteral),
+                                paramNames,
+                                paramValuesBatch))
+            {
                 return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
         }

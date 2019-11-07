@@ -298,6 +298,86 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             adoDelegate.Initialize(delegateInitializationArgs);
         }
 
+        [Test]
+        public async Task TestSelectTriggersBatch()
+        {
+            var dbProvider = A.Fake<IDbProvider>();
+            var connection = A.Fake<DbConnection>();
+            var transaction = A.Fake<DbTransaction>();
+            var command = (DbCommand)A.Fake<StubCommand>();
+            var dbMetadata = new DbMetadata();
+            A.CallTo(() => dbProvider.Metadata).Returns(dbMetadata);
+
+            A.CallTo(() => dbProvider.CreateCommand()).Returns(command);
+
+            var dataReader = A.Fake<DbDataReader>();
+
+            A.CallTo(command).Where(x => x.Method.Name == "ExecuteDbDataReaderAsync")
+                .WithReturnType<Task<DbDataReader>>()
+                .Returns(Task.FromResult(dataReader));
+
+            A.CallTo(command).Where(x => x.Method.Name == "get_DbParameterCollection")
+                .WithReturnType<DbParameterCollection>()
+                .Returns(new StubParameterCollection());
+
+            A.CallTo(() => command.CommandText).Returns("");
+
+            A.CallTo(command).Where(x => x.Method.Name == "CreateDbParameter")
+                .WithReturnType<DbParameter>()
+                .Returns(new SqlParameter());
+
+            var adoDelegate = new StdAdoDelegate();
+
+            var delegateInitializationArgs = new DelegateInitializationArgs
+            {
+                TablePrefix = "QRTZ_",
+                InstanceId = "TESTSCHED",
+                InstanceName = "INSTANCE",
+                TypeLoadHelper = new SimpleTypeLoadHelper(),
+                UseProperties = false,
+                InitString = "",
+                DbProvider = dbProvider
+            };
+            adoDelegate.Initialize(delegateInitializationArgs);
+
+            // First the reader will be called to get the trigger details then for extended props.
+            A.CallTo(() => dataReader.ReadAsync(CancellationToken.None))
+                .Returns(true).Twice()
+                .Then.Returns(false).Once()
+                .Then.Returns(true).Once()
+                .Then.Returns(false).Once()
+                .Then.Returns(true).Once()
+                .Then.Returns(false).Once();
+
+            var key1 = new TriggerKey("test1");
+            var key2 = new TriggerKey("test2");
+            A.CallTo(() => dataReader.GetBytes(A<int>._, A<long>._, A<byte[]>._, A<int>._, A<int>._)).Returns(0);
+            A.CallTo(() => dataReader.IsDBNull(0)).Returns(true);
+            A.CallTo(() => dataReader[A<string>._]).Returns("1");
+            A.CallTo(() => dataReader[AdoConstants.ColumnTriggerName])
+                .Returns(key1.Name).Once()
+                .Then.Returns(key2.Name).Once()
+                .Then.Returns(key2.Name).Once() // The implementation reads the BlobType first.
+                .Then.Returns(key1.Name).Once();
+            A.CallTo(() => dataReader[AdoConstants.ColumnTriggerGroup])
+                .Returns(key1.Group).Once()
+                .Then.Returns(key2.Group).Once()
+                .Then.Returns(key2.Group).Once() // The implementation reads the BlobType first.
+                .Then.Returns(key1.Group).Once();
+            A.CallTo(() => dataReader[AdoConstants.ColumnTriggerType])
+                .Returns(AdoConstants.TriggerTypeSimple).Once()
+                .Then.Returns(AdoConstants.TriggerTypeBlob).Once();
+
+            var conn = new ConnectionAndTransactionHolder(connection, transaction);
+            IOperableTrigger[] triggers = await adoDelegate.SelectTriggers(conn, new[] { key1, key2 }); 
+
+            Assert.That(triggers.Length == 2);
+            Assert.That(triggers[0].Key == key1);
+            Assert.That(triggers[0] is ISimpleTrigger);
+            Assert.That((triggers[0] as ISimpleTrigger).TimesTriggered == 1);
+            Assert.IsNull(triggers[1]);
+        }
+
         private class TestStdAdoDelegate : StdAdoDelegate
         {
             private readonly ITriggerPersistenceDelegate testDelegate;

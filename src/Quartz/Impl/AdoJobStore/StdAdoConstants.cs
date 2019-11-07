@@ -117,12 +117,12 @@ namespace Quartz.Impl.AdoJobStore
         // SELECT
 
         public static readonly string SqlSelectBlobTrigger =
-            string.Format("SELECT {6} FROM {0}{1} WHERE {2} = {3} AND {4} = @triggerName AND {5} = @triggerGroup", TablePrefixSubst,
+            string.Format("SELECT {6}, {4}, {5} FROM {0}{1} WHERE {2} = {3} AND {4} = @triggerName AND {5} = @triggerGroup", TablePrefixSubst,
                 TableBlobTriggers, ColumnSchedulerName, SchedulerNameSubst, ColumnTriggerName, ColumnTriggerGroup,
                 ColumnBlob);
 
         public static readonly string SqlSelectCalendar =
-            string.Format("SELECT {5} FROM {0}{1} WHERE {2} = {3} AND {4} = @calendarName", TablePrefixSubst, TableCalendars,
+            string.Format("SELECT {5}, {4} FROM {0}{1} WHERE {2} = {3} AND {4} = @calendarName", TablePrefixSubst, TableCalendars,
                 ColumnSchedulerName, SchedulerNameSubst, ColumnCalendarName, ColumnCalendar);
 
         public static readonly string SqlSelectCalendarExistence =
@@ -240,7 +240,7 @@ namespace Quartz.Impl.AdoJobStore
             $"SELECT * FROM {TablePrefixSubst}{TableSimpleTriggers} WHERE {ColumnSchedulerName} = {SchedulerNameSubst} AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup";
 
         public static readonly string SqlSelectTrigger =
-            string.Format("SELECT {6},{7},{8},{9},{10},{11},{12},{13},{14},{15},{16},{17} FROM {0}{1} WHERE {2} = {3} AND {4} = @triggerName AND {5} = @triggerGroup",
+            string.Format("SELECT {6},{7},{8},{9},{10},{11},{12},{13},{14},{15},{16},{17},{4},{5} FROM {0}{1} WHERE {2} = {3} AND {4} = @triggerName AND {5} = @triggerGroup",
                 TablePrefixSubst, TableTriggers, ColumnSchedulerName, SchedulerNameSubst, ColumnTriggerName, ColumnTriggerGroup,
                 ColumnJobName, ColumnJobGroup, ColumnDescription, ColumnNextFireTime, ColumnPreviousFireTime, ColumnTriggerType, ColumnStartTime, ColumnEndTime, ColumnCalendarName, ColumnMifireInstruction, ColumnPriority, ColumnJobDataMap);
 

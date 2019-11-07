@@ -20,7 +20,7 @@
 using System;
 using System.Data;
 using System.Data.Common;
-
+using System.Text;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Logging;
 
@@ -83,13 +83,72 @@ namespace Quartz.Impl.AdoJobStore
             dbProvider.Metadata.ParameterDbTypeProperty.SetMethod.Invoke(param, new[] { parameterType });
         }
 
-        public DbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText)
+        public struct DbCommandParameterValue
+        {
+            public object Value;
+            public Enum DataType;
+            public int? Size;
+        }
+
+        public DbCommandParameterValue CreateParamValue(object value, Enum dataType = null, int? size = null)
+        {
+            return new DbCommandParameterValue { Value = value, DataType = dataType, Size = size };
+        }
+
+        public DbCommand PrepareCommandBatchByTemplateCloning(
+            ConnectionAndTransactionHolder cth, 
+            string commandTemplate, 
+            string[] paramNames, 
+            DbCommandParameterValue[][] paramValuesBatch,
+            bool forSelect = false)
+        {
+            DbCommand cmd = PrepareCommand(cth);
+            var batchText = new StringBuilder();
+
+            for (int i = 0; i < paramValuesBatch.GetLength(0); i++)
+            {
+                var paramValues = paramValuesBatch[i];
+                if (i > 0 && forSelect)
+                {
+                    batchText.AppendLine("UNION ALL");
+                }
+
+                var statement = commandTemplate;
+                for (int j = 0; j < paramNames.Length; j++)
+                {
+                    statement = statement.Replace($"@{paramNames[j]}", $"@{paramNames[j]}{i}pp");
+                }
+
+                if (forSelect)
+                {
+                    batchText.AppendLine(statement);
+                }
+                else
+                {
+                    batchText.Append(statement).AppendLine(";");
+                }
+
+                for (int j = 0; j < paramNames.Length; j++)
+                {
+                    AddCommandParameter(cmd, $"{paramNames[j]}{i}pp", paramValues[j].Value, paramValues[j].DataType, paramValues[j].Size);
+                }
+            }
+            cmd.CommandText = batchText.ToString();
+
+            return cmd;
+        }
+
+        public DbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText = null)
         {
             DbCommand cmd = dbProvider.CreateCommand();
-            cmd.CommandText = commandText;
+            if (!string.IsNullOrEmpty(commandText))
+            {
+                cmd.CommandText = commandText;
+            }
+
             cth.Attach(cmd);
 
-            if (log.IsDebugEnabled())
+            if (log.IsDebugEnabled() && !string.IsNullOrEmpty(commandText))
             {
                 log.DebugFormat("Prepared SQL: {0}", cmd.CommandText);
             }

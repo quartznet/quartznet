@@ -20,6 +20,8 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -36,7 +38,7 @@ namespace Quartz.Impl.AdoJobStore
     /// <see cref="ICronTrigger"/>
     public class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
     {
-        public void Initialize(string tablePrefix, string schedName, IDbAccessor dbAccessor)
+        public void Initialize(string tablePrefix, string schedName, StdAdoDelegate dbAccessor)
         {
             TablePrefix = tablePrefix;
             SchedNameLiteral = "'" + schedName + "'";
@@ -45,7 +47,7 @@ namespace Quartz.Impl.AdoJobStore
 
         protected string TablePrefix { get; private set; }
 
-        protected IDbAccessor DbAccessor { get; private set; }
+        protected StdAdoDelegate DbAccessor { get; private set; }
 
         protected string SchedNameLiteral { get; private set; }
 
@@ -125,6 +127,34 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
+        public async Task<TriggerPropertyBundle[]> LoadExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey[] triggerKeys, CancellationToken cancellationToken = default)
+        {
+            var propsBundles = new Dictionary<TriggerKey, TriggerPropertyBundle>();
+            using (var cmd = DbAccessor.PrepareBatchSelectFromTriggerKeys(
+                conn, triggerKeys, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectCronTriggers, TablePrefix, SchedNameLiteral), forSelect: true))
+            {
+                using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        string cronExpr = rs.GetString(AdoConstants.ColumnCronExpression);
+                        string timeZoneId = rs.GetString(AdoConstants.ColumnTimeZoneId);
+
+                        CronScheduleBuilder cb = CronScheduleBuilder.CronSchedule(cronExpr);
+
+                        if (timeZoneId != null)
+                        {
+                            cb.InTimeZone(TimeZoneUtil.FindTimeZoneById(timeZoneId));
+                        }
+
+                        propsBundles[DbAccessor.TriggerKeyFromRow(rs)] = new TriggerPropertyBundle(cb, null, null);
+                    }
+                }
+            }
+
+            return triggerKeys.Select(x => propsBundles.TryGetAndReturn(x)).ToArray();
+        }
+
         public async Task<int> UpdateExtendedTriggerProperties(
             ConnectionAndTransactionHolder conn, 
             IOperableTrigger trigger, 
@@ -141,6 +171,38 @@ namespace Quartz.Impl.AdoJobStore
                 DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
                 DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
 
+                return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        public async Task<int> UpdateExtendedTriggerProperties(
+            ConnectionAndTransactionHolder conn,
+            IOperableTrigger[] triggers,
+            string[] states,
+            IJobDetail[] jobDetails,
+            CancellationToken cancellationToken = default)
+        {
+            var paramNames = new[] { "triggerCronExpression", "timeZoneId", "triggerName", "triggerGroup" };
+
+            var paramValuesBatch = triggers
+                .Select(x => (ICronTrigger)x)
+                .Select(x =>
+                    new[]
+                    {
+                        DbAccessor.AdoUtil.CreateParamValue(x.CronExpressionString),
+                        DbAccessor.AdoUtil.CreateParamValue(x.TimeZone.Id),
+                        DbAccessor.AdoUtil.CreateParamValue(x.Key.Name),
+                        DbAccessor.AdoUtil.CreateParamValue(x.Key.Group)
+
+                    })
+                .ToArray();
+
+            using (var cmd = DbAccessor.AdoUtil.PrepareCommandBatchByTemplateCloning(
+                                conn,
+                                AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlUpdateCronTrigger, TablePrefix, SchedNameLiteral),
+                                paramNames,
+                                paramValuesBatch))
+            {
                 return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
         }

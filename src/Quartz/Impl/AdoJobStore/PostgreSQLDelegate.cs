@@ -45,5 +45,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
         }
+
+        public override bool SupportsBatching { get; } = true;
     }
 }

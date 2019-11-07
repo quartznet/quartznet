@@ -66,5 +66,7 @@ namespace Quartz.Impl.AdoJobStore
 
             throw new ArgumentException("Value must be non-null.");
         }
+
+        public override bool SupportsBatching { get; } = true;
     }
 }

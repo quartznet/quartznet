@@ -20,6 +20,8 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -31,13 +33,13 @@ namespace Quartz.Impl.AdoJobStore
 {
     public class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelegate
     {
-        protected IDbAccessor DbAccessor { get; private set; }
+        protected StdAdoDelegate DbAccessor { get; private set; }
 
         protected string TablePrefix { get; private set; }
 
         protected string SchedNameLiteral { get; private set; }
 
-        public void Initialize(string tablePrefix, string schedName, IDbAccessor dbAccessor)
+        public void Initialize(string tablePrefix, string schedName, StdAdoDelegate dbAccessor)
         {
             TablePrefix = tablePrefix;
             SchedNameLiteral = "'" + schedName + "'";
@@ -121,6 +123,35 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
+        public async Task<TriggerPropertyBundle[]> LoadExtendedTriggerProperties(ConnectionAndTransactionHolder conn, TriggerKey[] triggerKeys, CancellationToken cancellationToken = default)
+        {
+            var propsBundles = new Dictionary<TriggerKey, TriggerPropertyBundle>();
+            using (var cmd = DbAccessor.PrepareBatchSelectFromTriggerKeys(
+                conn, triggerKeys, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, TablePrefix, SchedNameLiteral), forSelect: true))
+            {
+                using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        int repeatCount = rs.GetInt32(AdoConstants.ColumnRepeatCount);
+                        TimeSpan repeatInterval = DbAccessor.GetTimeSpanFromDbValue(rs[AdoConstants.ColumnRepeatInterval]) ?? TimeSpan.Zero;
+                        int timesTriggered = rs.GetInt32(AdoConstants.ColumnTimesTriggered);
+
+                        SimpleScheduleBuilder sb = SimpleScheduleBuilder.Create()
+                            .WithRepeatCount(repeatCount)
+                            .WithInterval(repeatInterval);
+
+                        string[] statePropertyNames = { "timesTriggered" };
+                        object[] statePropertyValues = { timesTriggered };
+
+                        propsBundles[DbAccessor.TriggerKeyFromRow(rs)] = new TriggerPropertyBundle(sb, statePropertyNames, statePropertyValues);
+                    }
+                }
+            }
+
+            return triggerKeys.Select(x => propsBundles.TryGetAndReturn(x)).ToArray();
+        }
+
         public async Task<int> UpdateExtendedTriggerProperties(
             ConnectionAndTransactionHolder conn, 
             IOperableTrigger trigger,
@@ -138,6 +169,39 @@ namespace Quartz.Impl.AdoJobStore
                 DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
                 DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
 
+                return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        public async Task<int> UpdateExtendedTriggerProperties(
+            ConnectionAndTransactionHolder conn, 
+            IOperableTrigger[] triggers, 
+            string[] states, 
+            IJobDetail[] jobDetails, 
+            CancellationToken cancellationToken = default)
+        {
+            var paramNames = new[] { "triggerRepeatCount", "triggerRepeatInterval", "triggerTimesTriggered", "triggerName", "triggerGroup" };
+
+            var paramValuesBatch = triggers
+                .Select(x => (ISimpleTrigger)x)
+                .Select(x =>
+                    new[]
+                    {
+                        DbAccessor.AdoUtil.CreateParamValue(x.RepeatCount),
+                        DbAccessor.AdoUtil.CreateParamValue(DbAccessor.GetDbTimeSpanValue(x.RepeatInterval)),
+                        DbAccessor.AdoUtil.CreateParamValue(x.TimesTriggered),
+                        DbAccessor.AdoUtil.CreateParamValue(x.Key.Name),
+                        DbAccessor.AdoUtil.CreateParamValue(x.Key.Group)
+
+                    })
+                .ToArray();
+
+            using (var cmd = DbAccessor.AdoUtil.PrepareCommandBatchByTemplateCloning(
+                                conn,
+                                AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlUpdateSimpleTrigger, TablePrefix, SchedNameLiteral),
+                                paramNames,
+                                paramValuesBatch))
+            {
                 return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
         }

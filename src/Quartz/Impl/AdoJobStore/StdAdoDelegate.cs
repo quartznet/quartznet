@@ -29,6 +29,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -60,13 +61,14 @@ namespace Quartz.Impl.AdoJobStore
         private string schedName;
         private bool useProperties;
         private ITypeLoadHelper typeLoadHelper;
-        private AdoUtil adoUtil;
         private readonly List<ITriggerPersistenceDelegate> triggerPersistenceDelegates = new List<ITriggerPersistenceDelegate>();
         private string schedNameLiteral;
         private IObjectSerializer objectSerializer;
         private readonly Dictionary<string, string> cachedQueries = new Dictionary<string, string>();
 
         protected IDbProvider DbProvider { get; private set; }
+
+        public AdoUtil AdoUtil { get; private set; }
 
         /// <summary>
         /// Initializes the driver delegate.
@@ -80,7 +82,7 @@ namespace Quartz.Impl.AdoJobStore
             DbProvider = args.DbProvider;
             typeLoadHelper = args.TypeLoadHelper;
             useProperties = args.UseProperties;
-            adoUtil = new AdoUtil(args.DbProvider);
+            AdoUtil = new AdoUtil(args.DbProvider);
             objectSerializer = args.ObjectSerializer;
 
             AddDefaultTriggerPersistenceDelegates();
@@ -871,6 +873,57 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
+        /// Select the JobDetails an array of job keys.
+        /// </summary>
+        /// <param name="conn">The DB Connection.</param>
+        /// <param name="jobKeys">The key identifying the job.</param>
+        /// <param name="loadHelper">The load helper.</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        /// <returns>The populated JobDetail object.</returns>
+        public virtual async Task<IJobDetail[]> SelectJobsDetails(
+            ConnectionAndTransactionHolder conn,
+            JobKey[] jobKeys,
+            ITypeLoadHelper loadHelper,
+            CancellationToken cancellationToken = default)
+        {
+            using (var cmd = AdoUtil.PrepareCommandBatchByTemplateCloning(
+                                conn,
+                                ReplaceTablePrefix(SqlSelectJobDetail),
+                                new[] { "jobName", "jobGroup" },
+                                jobKeys.Select(x => new[] { AdoUtil.CreateParamValue(x.Name), AdoUtil.CreateParamValue(x.Group) }).ToArray(),
+                                forSelect: true))
+            {
+                using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    var jobs = new Dictionary<JobKey, JobDetailImpl>();
+                    while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        var job = new JobDetailImpl();
+
+                        job.Name = rs.GetString(ColumnJobName);
+                        job.Group = rs.GetString(ColumnJobGroup);
+                        job.Description = rs.GetString(ColumnDescription);
+                        job.JobType = loadHelper.LoadType(rs.GetString(ColumnJobClass));
+                        job.Durable = GetBooleanFromDbValue(rs[ColumnIsDurable]);
+                        job.RequestsRecovery = GetBooleanFromDbValue(rs[ColumnRequestsRecovery]);
+
+                        IDictionary map = await ReadMapFromReader(rs, 6).ConfigureAwait(false);
+
+                        if (map != null)
+                        {
+                            job.JobDataMap = new JobDataMap(map);
+                        }
+
+                        jobs[new JobKey(job.Name, job.Group)] = job;
+                    }
+
+
+                    return jobKeys.Select(x => jobs.TryGetAndReturn(x)).ToArray();
+                }
+            }
+        }
+
+        /// <summary>
         /// Select the JobDetail object for a given job name / group name.
         /// </summary>
         /// <param name="conn">The DB Connection.</param>
@@ -1199,6 +1252,103 @@ namespace Quartz.Impl.AdoJobStore
 
         /// <summary>
         /// Update the base trigger data.
+        /// <para>
+        /// Important: does not save JobDataMap.
+        /// </para>
+        /// </summary>
+        /// <param name="conn">The DB Connection.</param>
+        /// <param name="triggers">The triggers to insert.</param>
+        /// <param name="states">The state that the trigger should be stored in.</param>
+        /// <param name="jobDetails">The job details.</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        /// <returns>The number of rows updated.</returns>
+        public virtual async Task<int> BatchUpdateMisfiredTriggers(
+            ConnectionAndTransactionHolder conn,
+            IOperableTrigger[] triggers,
+            string[] states,
+            IJobDetail[] jobDetails,
+            CancellationToken cancellationToken = default)
+        {
+            var triggerKeyToStateMap = new Dictionary<TriggerKey, string>();
+            var triggerKeyToTypeMap = new Dictionary<TriggerKey, string>();
+            var triggerKeyToJobDetailsMap = new Dictionary<TriggerKey, IJobDetail>();
+            for (int i = 0; i < triggers.Length; i++)
+            {
+                triggerKeyToStateMap[triggers[i].Key] = states[i];
+
+                ITriggerPersistenceDelegate tDel = FindTriggerPersistenceDelegate(triggers[i]);
+
+                string type = TriggerTypeBlob;
+                if (tDel != null)
+                {
+                    type = tDel.GetHandledTriggerTypeDiscriminator();
+                }
+                triggerKeyToTypeMap[triggers[i].Key] = type;
+
+                triggerKeyToJobDetailsMap[triggers[i].Key] = jobDetails[i];
+            }
+
+            var paramNames = new string[] 
+            {
+                "triggerJobName", "triggerJobGroup", "triggerDescription", "triggerNextFireTime",
+                "triggerPreviousFireTime", "triggerState", "triggerType", "triggerStartTime", "triggerEndTime", "triggerCalendarName",
+                "triggerMisfireInstruction", "triggerPriority", "triggerJobJobDataMap", "triggerName", "triggerGroup"
+            };
+
+            var paramValues = triggers
+                .Select(x => new[]
+                        {
+                            AdoUtil.CreateParamValue(x.JobKey.Name), // triggerJobName
+                            AdoUtil.CreateParamValue(x.JobKey.Group), // triggerJobGroup
+                            AdoUtil.CreateParamValue(x.Description), // triggerDescription
+                            AdoUtil.CreateParamValue(GetDbDateTimeValue(x.GetNextFireTimeUtc())), // triggerNextFireTime
+                            AdoUtil.CreateParamValue(GetDbDateTimeValue(x.GetPreviousFireTimeUtc())), // triggerPreviousFireTime
+                            AdoUtil.CreateParamValue(triggerKeyToStateMap[x.Key]), // triggerState
+                            AdoUtil.CreateParamValue(triggerKeyToTypeMap[x.Key]), // triggerType
+                            AdoUtil.CreateParamValue(GetDbDateTimeValue(x.StartTimeUtc)), // triggerStartTime
+                            AdoUtil.CreateParamValue(GetDbDateTimeValue(x.EndTimeUtc)), // triggerEndTime
+                            AdoUtil.CreateParamValue(x.CalendarName), // triggerCalendarName
+                            AdoUtil.CreateParamValue(x.MisfireInstruction), // triggerMisfireInstruction
+                            AdoUtil.CreateParamValue(x.Priority), // triggerPriority
+                            AdoUtil.CreateParamValue(SerializeJobData(x.JobDataMap), DbProvider.Metadata.DbBinaryType), // triggerJobJobDataMap
+                            AdoUtil.CreateParamValue(x.Key.Name), // triggerName
+                            AdoUtil.CreateParamValue(x.Key.Group) // triggerGroup
+                        })
+                .ToArray();
+
+            int updatesCount = 0;
+            using (var cmd = AdoUtil.PrepareCommandBatchByTemplateCloning(conn, ReplaceTablePrefix(SqlUpdateTriggerSkipData), paramNames, paramValues))
+            {
+                updatesCount = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+
+
+            var blobTriggers = triggers.Where(x => triggerKeyToTypeMap[x.Key].Equals(TriggerTypeBlob)).ToArray();
+            if (blobTriggers.Any())
+            {
+                await UpdateBlobsForTriggers(conn, blobTriggers, cancellationToken).ConfigureAwait(false);
+            }
+
+            foreach (var del in triggerPersistenceDelegates)
+            {
+                var triggersForDelegate = triggers
+                    .Where(x => del.GetHandledTriggerTypeDiscriminator().Equals(triggerKeyToTypeMap[x.Key]))
+                    .ToArray();
+                if (triggersForDelegate.Any())
+                {
+                    await del.UpdateExtendedTriggerProperties(
+                        conn,
+                        triggersForDelegate,
+                        triggersForDelegate.Select(x => triggerKeyToStateMap[x.Key]).ToArray(),
+                        triggersForDelegate.Select(x => triggerKeyToJobDetailsMap[x.Key]).ToArray());
+                }
+            }
+
+            return updatesCount;
+        }
+
+        /// <summary>
+        /// Update the base trigger data.
         /// </summary>
         /// <param name="conn">The DB Connection.</param>
         /// <param name="trigger">The trigger to insert.</param>
@@ -1310,6 +1460,33 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
                 AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
 
+                return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Update the blob trigger data for an array of triggers.
+        /// </summary>
+        /// <param name="conn">The DB Connection.</param>
+        /// <param name="triggers">The trigger to be updated.</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        /// <returns>The number of rows updated.</returns>
+        public virtual async Task<int> UpdateBlobsForTriggers(
+            ConnectionAndTransactionHolder conn,
+            IOperableTrigger[] triggers,
+            CancellationToken cancellationToken = default)
+        {
+            using (var cmd = AdoUtil.PrepareCommandBatchByTemplateCloning(
+                                conn,
+                                ReplaceTablePrefix(SqlUpdateBlobTrigger),
+                                new[] { "blob", "triggerName", "triggerGroup" },
+                                triggers.Select(x => new[]
+                                                        {
+                                                            AdoUtil.CreateParamValue(SerializeObject(x), DbProvider.Metadata.DbBinaryType),
+                                                            AdoUtil.CreateParamValue(x.Key.Name),
+                                                            AdoUtil.CreateParamValue(x.Key.Group)
+                                                        }).ToArray()))
+            {
                 return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             }
         }
@@ -1784,6 +1961,189 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
+        /// Private helper structure for SelectTriggers.
+        /// </summary>
+        private class TriggerInfo
+        {
+            public string jobName;
+            public string jobGroup;
+            public string description;
+            public string triggerType;
+            public string calendarName;
+            public int misFireInstr;
+            public int priority;
+            public IDictionary map;
+            public DateTimeOffset? nextFireTimeUtc;
+            public DateTimeOffset? previousFireTimeUtc;
+            public DateTimeOffset startTimeUtc;
+            public DateTimeOffset? endTimeUtc;
+        };
+
+        /// <summary>
+        /// Builds an IOperableTrigger from key, props and info.
+        /// </summary>
+        /// <param name="key">Trigger key</param>
+        /// <param name="props">Trigger props from db.</param>
+        /// <param name="info">Trigger info from db.</param>
+        /// <returns></returns>
+        private static IOperableTrigger BuildTriggerFromProps(TriggerKey key, TriggerPropertyBundle props, TriggerInfo info)
+        {
+            TriggerBuilder tb = TriggerBuilder.Create()
+                .WithDescription(info.description)
+                .WithPriority(info.priority)
+                .StartAt(info.startTimeUtc)
+                .EndAt(info.endTimeUtc)
+                .WithIdentity(key)
+                .ModifiedByCalendar(info.calendarName)
+                .WithSchedule(props.ScheduleBuilder)
+                .ForJob(new JobKey(info.jobName, info.jobGroup));
+
+            if (info.map != null)
+            {
+                tb.UsingJobData(new JobDataMap(info.map));
+                tb.ClearDirty();
+            }
+
+            var trigger = (IOperableTrigger)tb.Build();
+
+            trigger.MisfireInstruction = info.misFireInstr;
+            trigger.SetNextFireTimeUtc(info.nextFireTimeUtc);
+            trigger.SetPreviousFireTimeUtc(info.previousFireTimeUtc);
+
+            SetTriggerStateProperties(trigger, props);
+
+            return trigger;
+        }
+
+        /// <summary>
+        /// Creates a new trigger info from row.
+        /// </summary>
+        /// <param name="rs">Reader pointing to row.</param>
+        /// <returns></returns>
+        private async Task<TriggerInfo> CreateTriggerInfoFromRow(DbDataReader rs)
+        {
+            return new TriggerInfo
+            {
+                jobName = rs.GetString(ColumnJobName),
+                jobGroup = rs.GetString(ColumnJobGroup),
+                description = rs.GetString(ColumnDescription),
+                triggerType = rs.GetString(ColumnTriggerType),
+                calendarName = rs.GetString(ColumnCalendarName),
+                misFireInstr = rs.GetInt32(ColumnMifireInstruction),
+                priority = rs.GetInt32(ColumnPriority),
+
+                map = await ReadMapFromReader(rs, 11).ConfigureAwait(false),
+
+                nextFireTimeUtc = GetDateTimeFromDbValue(rs[ColumnNextFireTime]),
+                previousFireTimeUtc = GetDateTimeFromDbValue(rs[ColumnPreviousFireTime]),
+                startTimeUtc = GetDateTimeFromDbValue(rs[ColumnStartTime]) ?? DateTimeOffset.MinValue,
+                endTimeUtc = GetDateTimeFromDbValue(rs[ColumnEndTime])
+            };
+        }
+
+        /// <summary>
+        /// Creates a TriggerKey from a reader row with ColumnTriggerName and ColumnTriggerGroup.
+        /// </summary>
+        /// <param name="rs">DbReader pointing to the row to check.</param>
+        /// <returns>TriggerKey for row.</returns>
+        public virtual TriggerKey TriggerKeyFromRow(DbDataReader rs)
+        {
+            var triggerName = rs.GetString(ColumnTriggerName);
+            var triggerGroup = rs.GetString(ColumnTriggerGroup);
+            return new TriggerKey(triggerName, triggerGroup);
+        }
+
+        /// <summary>
+        /// Build a batch of blob trigger retrieval commands using the passed in template.
+        /// </summary>
+        /// <param name="cth">DB connection holder</param>
+        /// <param name="triggerKeys">Keys for the triggers to retrive.</param>
+        /// <param name="commandTemplate">Template for each select in the batch.</param>
+        /// <param name="forSelect">Is this a recorset return command?</param>
+        public virtual DbCommand PrepareBatchSelectFromTriggerKeys(ConnectionAndTransactionHolder cth, TriggerKey[] triggerKeys, string commandTemplate, bool forSelect = false)
+        {
+            return AdoUtil.PrepareCommandBatchByTemplateCloning(
+                cth,
+                commandTemplate,
+                new[] { "triggerName", "triggerGroup" },
+                triggerKeys.Select(x => new[] { AdoUtil.CreateParamValue(x.Name), AdoUtil.CreateParamValue(x.Group) }).ToArray(),
+                forSelect
+            );
+        }
+
+        /// <summary>
+        /// Select a trigger.
+        /// </summary>
+        /// <param name="conn">the DB Connection</param>
+        /// <param name="triggerKeys">the key of the trigger</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        /// <returns>The <see cref="ITrigger" /> object</returns>
+        /// <remarks>Triggers with </remarks>
+        public virtual async Task<IOperableTrigger[]> SelectTriggers(
+            ConnectionAndTransactionHolder conn,
+            TriggerKey[] triggerKeys,
+            CancellationToken cancellationToken = default)
+        {
+            var triggerInfos = new Dictionary<TriggerKey, TriggerInfo>();
+            using (var cmd = PrepareBatchSelectFromTriggerKeys(conn, triggerKeys, ReplaceTablePrefix(SqlSelectTrigger), forSelect: true))
+            {
+                // Fetch triggerInfos. The triggersInfos entry will be null for triggers that are not found. 
+                using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        triggerInfos[TriggerKeyFromRow(rs)] = await CreateTriggerInfoFromRow(rs);
+                    }
+                }
+            }
+
+            var triggers = new Dictionary<TriggerKey, IOperableTrigger>();
+
+            // First fetch the blob type triggers.
+            var blobTriggerKeys = triggerKeys
+                .Where(x => triggerInfos.ContainsKey(x) && triggerInfos[x].triggerType.Equals(TriggerTypeBlob))
+                .ToArray();
+            if (blobTriggerKeys.Any())
+            {
+                using (var cmd = PrepareBatchSelectFromTriggerKeys(conn, blobTriggerKeys, ReplaceTablePrefix(SqlSelectBlobTrigger), forSelect: true))
+                {
+                    using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+                        {
+                            triggers[TriggerKeyFromRow(rs)] = await GetObjectFromBlob<IOperableTrigger>(rs, 0, cancellationToken).ConfigureAwait(false);
+                        }
+                    }
+                }
+            }
+
+            // Now fetch the the other types of triggers.
+            foreach (var del in triggerPersistenceDelegates)
+            {
+                var triggerKeysForDelegate = triggerKeys
+                    .Where(x => triggerInfos.ContainsKey(x) && del.GetHandledTriggerTypeDiscriminator().Equals(triggerInfos[x].triggerType))
+                    .ToArray();
+                if (triggerKeysForDelegate.Any())
+                {
+                    var triggersProps = await del.LoadExtendedTriggerProperties(conn, triggerKeysForDelegate, cancellationToken).ConfigureAwait(false);
+
+                    for (int i = 0; i < triggerKeysForDelegate.Length; i++)
+                    {
+                        var key = triggerKeysForDelegate[i];
+                        var props = triggersProps[i];
+
+                        if (props != null)
+                        {
+                            triggers[key] = BuildTriggerFromProps(key, props, triggerInfos[key]);
+                        }
+                    }
+                }
+            }
+
+            return triggerKeys.Select(x => triggers.TryGetAndReturn(x)).ToArray();
+        }
+
+        /// <summary>
         /// Select a trigger.
         /// </summary>
         /// <param name="conn">the DB Connection</param>
@@ -1795,20 +2155,7 @@ namespace Quartz.Impl.AdoJobStore
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
         {
-            string jobName;
-            string jobGroup;
-            string description;
-            string triggerType;
-            string calendarName;
-            int misFireInstr;
-            int priority;
-
-            IDictionary map;
-
-            DateTimeOffset? nextFireTimeUtc;
-            DateTimeOffset? previousFireTimeUtc;
-            DateTimeOffset startTimeUtc;
-            DateTimeOffset? endTimeUtc;
+            TriggerInfo triggerInfo = null;
 
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTrigger)))
             {
@@ -1822,25 +2169,12 @@ namespace Quartz.Impl.AdoJobStore
                         return null;
                     }
 
-                    jobName = rs.GetString(ColumnJobName);
-                    jobGroup = rs.GetString(ColumnJobGroup);
-                    description = rs.GetString(ColumnDescription);
-                    triggerType = rs.GetString(ColumnTriggerType);
-                    calendarName = rs.GetString(ColumnCalendarName);
-                    misFireInstr = rs.GetInt32(ColumnMifireInstruction);
-                    priority = rs.GetInt32(ColumnPriority);
-
-                    map = await ReadMapFromReader(rs, 11).ConfigureAwait(false);
-
-                    nextFireTimeUtc = GetDateTimeFromDbValue(rs[ColumnNextFireTime]);
-                    previousFireTimeUtc = GetDateTimeFromDbValue(rs[ColumnPreviousFireTime]);
-                    startTimeUtc = GetDateTimeFromDbValue(rs[ColumnStartTime]) ?? DateTimeOffset.MinValue;
-                    endTimeUtc = GetDateTimeFromDbValue(rs[ColumnEndTime]);
+                    triggerInfo = await CreateTriggerInfoFromRow(rs).ConfigureAwait(false);
                 }
             }
 
             IOperableTrigger trigger = null;
-            if (triggerType.Equals(TriggerTypeBlob))
+            if (triggerInfo.triggerType.Equals(TriggerTypeBlob))
             {
                 using (var cmd2 = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectBlobTrigger)))
                 {
@@ -1857,11 +2191,11 @@ namespace Quartz.Impl.AdoJobStore
             }
             else
             {
-                ITriggerPersistenceDelegate tDel = FindTriggerPersistenceDelegate(triggerType);
+                ITriggerPersistenceDelegate tDel = FindTriggerPersistenceDelegate(triggerInfo.triggerType);
 
                 if (tDel == null)
                 {
-                    throw new JobPersistenceException("No TriggerPersistenceDelegate for trigger discriminator type: " + triggerType);
+                    throw new JobPersistenceException("No TriggerPersistenceDelegate for trigger discriminator type: " + triggerInfo.triggerType);
                 }
 
                 TriggerPropertyBundle triggerProps;
@@ -1880,29 +2214,7 @@ namespace Quartz.Impl.AdoJobStore
                     return null;
                 }
 
-                TriggerBuilder tb = TriggerBuilder.Create()
-                    .WithDescription(description)
-                    .WithPriority(priority)
-                    .StartAt(startTimeUtc)
-                    .EndAt(endTimeUtc)
-                    .WithIdentity(triggerKey)
-                    .ModifiedByCalendar(calendarName)
-                    .WithSchedule(triggerProps.ScheduleBuilder)
-                    .ForJob(new JobKey(jobName, jobGroup));
-
-                if (map != null)
-                {
-                    tb.UsingJobData(new JobDataMap(map));
-                    tb.ClearDirty();
-                }
-
-                trigger = (IOperableTrigger) tb.Build();
-
-                trigger.MisfireInstruction = misFireInstr;
-                trigger.SetNextFireTimeUtc(nextFireTimeUtc);
-                trigger.SetPreviousFireTimeUtc(previousFireTimeUtc);
-
-                SetTriggerStateProperties(trigger, triggerProps);
+                trigger = BuildTriggerFromProps(triggerKey, triggerProps, triggerInfo);
             }
 
             return trigger;
@@ -2400,6 +2712,43 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
+        /// Selects calendars.
+        /// </summary>
+        /// <param name="conn">the DB Connection</param>
+        /// <param name="calendarNames">The names of the calendars.</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        /// <returns>the Calendars</returns>
+        public virtual async Task<ICalendar[]> SelectCalendars(
+            ConnectionAndTransactionHolder conn,
+            string[] calendarNames,
+            CancellationToken cancellationToken = default)
+        {
+            using (var cmd = AdoUtil.PrepareCommandBatchByTemplateCloning(
+                                conn,
+                                ReplaceTablePrefix(SqlSelectCalendar),
+                                new[] { "calendarName" },
+                                calendarNames.Select(x => new[] { AdoUtil.CreateParamValue(x) }).ToArray(),
+                                forSelect: true))
+            {
+                var cals = new Dictionary<string, ICalendar>();
+                using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        var calName = rs.GetString(ColumnCalendarName);
+                        cals[calName] = await GetObjectFromBlob<ICalendar>(rs, 0, cancellationToken).ConfigureAwait(false);
+                        if (null == cals[calName])
+                        {
+                            logger.Warn("Couldn't find calendar with name '" + calName + "'.");
+                        }
+                    }
+
+                    return calendarNames.Select(x => cals.TryGetAndReturn(x)).ToArray();
+                }
+            }
+        }
+
+        /// <summary>
         /// Check whether or not a calendar is referenced by any triggers.
         /// </summary>
         /// <param name="conn">the DB Connection</param>
@@ -2730,6 +3079,63 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
+        /// Select the fired-trigger records for a given array of jobkeys.
+        /// </summary>
+        /// <param name="conn">The DB connection.</param>
+        /// <param name="jobKeys">Job Keys</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        /// <returns>a List of <see cref="FiredTriggerRecord" /> objects for the jobKeys.</returns>
+        public virtual async Task<IReadOnlyCollection<FiredTriggerRecord>[]> SelectFiredTriggerRecordsByJobs(
+            ConnectionAndTransactionHolder conn,
+            JobKey[] jobKeys,
+            CancellationToken cancellationToken = default)
+        {
+            var triggerRecords = new Dictionary<JobKey, List<FiredTriggerRecord>>();
+
+            using (var cmd = AdoUtil.PrepareCommandBatchByTemplateCloning(
+                                conn,
+                                ReplaceTablePrefix(SqlSelectFiredTriggersOfJob),
+                                new [] { "jobName", "jobGroup" },
+                                jobKeys.Select(x => new[] { AdoUtil.CreateParamValue(x.Name), AdoUtil.CreateParamValue(x.Group) }).ToArray(),
+                                forSelect: true))
+            {
+                using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+                {
+                    while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+                    {
+                        FiredTriggerRecord rec = new FiredTriggerRecord();
+
+                        var jobKey = new JobKey(rs.GetString(ColumnJobName), rs.GetString(ColumnJobGroup));
+
+                        rec.FireInstanceId = rs.GetString(ColumnEntryId);
+                        rec.FireInstanceState = rs.GetString(ColumnEntryState);
+                        rec.FireTimestamp = GetDateTimeFromDbValue(rs[ColumnFiredTime]) ?? DateTimeOffset.MinValue;
+                        rec.ScheduleTimestamp = GetDateTimeFromDbValue(rs[ColumnScheduledTime]) ?? DateTimeOffset.MinValue;
+                        rec.Priority = Convert.ToInt32(rs[ColumnPriority], CultureInfo.InvariantCulture);
+                        rec.SchedulerInstanceId = rs.GetString(ColumnInstanceName);
+                        rec.TriggerKey = new TriggerKey(rs.GetString(ColumnTriggerName), rs.GetString(ColumnTriggerGroup));
+                        if (!rec.FireInstanceState.Equals(StateAcquired))
+                        {
+                            rec.JobDisallowsConcurrentExecution = GetBooleanFromDbValue(rs[ColumnIsNonConcurrent]);
+                            rec.JobRequestsRecovery = GetBooleanFromDbValue(rs[ColumnRequestsRecovery]);
+                            rec.JobKey = jobKey;
+                        }
+
+                        var lst = triggerRecords.TryGetAndReturn(jobKey);
+                        if (lst == null)
+                        {
+                            lst = new List<FiredTriggerRecord>();
+                        }
+                        lst.Add(rec);
+                        triggerRecords[jobKey] = lst;
+                    }
+                }
+            }
+
+            return jobKeys.Select(x => triggerRecords.TryGetAndReturn(x)).ToArray();
+        }
+
+        /// <summary>
         /// Select the states of all fired-trigger records for a given job, or job
         /// group if job name is <see langword="null" />.
         /// </summary>
@@ -3049,6 +3455,11 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <summary>
+        /// Does the underlying DB support batch commands? Each Driver should override this property as needed.
+        /// </summary>
+        public virtual bool SupportsBatching { get; } = false;
+
+        /// <summary>
         /// Create a serialized <see langword="byte[]"/> version of an Object.
         /// </summary>
         /// <param name="obj">the object to serialize</param>
@@ -3251,9 +3662,9 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public virtual DbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText)
+        public virtual DbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText = null)
         {
-            return adoUtil.PrepareCommand(cth, commandText);
+            return AdoUtil.PrepareCommand(cth, commandText);
         }
 
         public virtual void AddCommandParameter(
@@ -3263,7 +3674,7 @@ namespace Quartz.Impl.AdoJobStore
             Enum dataType = null,
             int? size = null)
         {
-            adoUtil.AddCommandParameter(cmd, paramName, paramValue, dataType, size);
+            AdoUtil.AddCommandParameter(cmd, paramName, paramValue, dataType, size);
         }
     }
 }
