@@ -65,6 +65,19 @@ namespace Quartz.Impl.AdoJobStore
         {
         }
 
+        // Configurable lock retry parameters
+
+        /// <summary>
+        /// Maximum retry attempts, defaults to 3.
+        /// </summary>
+        public int MaxRetry { get; set; } = 3;
+
+        /// <summary>
+        /// Sleep between attempts, defaults to 1 second.
+        /// </summary>
+        [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
+        public TimeSpan RetryPeriod { get; set; } = TimeSpan.FromMilliseconds(1000);
+
         /// <summary>
         /// Execute the SQL select for update that will lock the proper database row.
         /// </summary>
@@ -79,6 +92,11 @@ namespace Quartz.Impl.AdoJobStore
             Exception initCause = null;
             // attempt lock two times (to work-around possible race conditions in inserting the lock row the first time running)
             int count = 0;
+
+            // Configurable lock retry attempts
+            var maxRetryLocal = MaxRetry;
+            var retryPeriodLocal = RetryPeriod;
+
             do
             {
                 count++;
@@ -113,10 +131,10 @@ namespace Quartz.Impl.AdoJobStore
 
                                 if (res != 1)
                                 {
-                                    if (count < 3)
+                                    if (count < maxRetryLocal)
                                     {
                                         // pause a bit to give another thread some time to commit the insert of the new lock row
-                                        await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
+                                        await Task.Delay(retryPeriodLocal, cancellationToken).ConfigureAwait(false);
 
                                         // try again ...
                                         continue;
@@ -141,13 +159,13 @@ namespace Quartz.Impl.AdoJobStore
 
                     if (Log.IsDebugEnabled())
                     {
-                        Log.DebugFormat("Lock '{0}' was not obtained by: {1}{2}", lockName, requestorId, count < 3 ? " - will try again." : "");
+                        Log.DebugFormat("Lock '{0}' was not obtained by: {1}{2}", lockName, requestorId, count < maxRetryLocal ? " - will try again." : "");
                     }
 
-                    if (count < 3)
+                    if (count < maxRetryLocal)
                     {
                         // pause a bit to give another thread some time to commit the insert of the new lock row
-                        await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
+                        await Task.Delay(retryPeriodLocal, cancellationToken).ConfigureAwait(false);
 
                         // try again ...
                         continue;
@@ -155,7 +173,7 @@ namespace Quartz.Impl.AdoJobStore
 
                     throw new LockException("Failure obtaining db row lock: " + sqle.Message, sqle);
                 }
-            } while (count < 4);
+            } while (count < maxRetryLocal + 1);
 
             throw new LockException("Failure obtaining db row lock, reached maximum number of attempts. Initial exception (if any) attached as root cause.", initCause);
         }
