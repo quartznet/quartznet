@@ -90,7 +90,7 @@ namespace Quartz
 
         /// <summary>
         /// Create a CronScheduleBuilder with the given cron-expression - which
-        /// is presumed to b e valid cron expression (and hence only a RuntimeException
+        /// is presumed to be valid cron expression (and hence only a RuntimeException
         /// will be thrown if it is not).
         /// </summary>
         /// <remarks>
