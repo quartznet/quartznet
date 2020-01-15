@@ -214,15 +214,16 @@ namespace Quartz.Impl.AdoJobStore
 
         private void SetExpandedSql()
         {
-            if (TablePrefix != null && SchedName != null && sql != null && insertSql != null)
+            if (TablePrefix != null && sql != null && insertSql != null)
             {
-                expandedSQL = AdoJobStoreUtil.ReplaceTablePrefix(sql, TablePrefix, SchedulerNameLiteral);
-                expandedInsertSQL = AdoJobStoreUtil.ReplaceTablePrefix(insertSql, TablePrefix, SchedulerNameLiteral);
+                expandedSQL = AdoJobStoreUtil.ReplaceTablePrefix(sql, TablePrefix);
+                expandedInsertSQL = AdoJobStoreUtil.ReplaceTablePrefix(insertSql, TablePrefix);
             }
         }
 
         private string schedNameLiteral;
 
+        [Obsolete("SchedName is now a sql parameter")]
         protected string SchedulerNameLiteral
         {
             get
@@ -241,7 +242,6 @@ namespace Quartz.Impl.AdoJobStore
             set
             {
                 schedName = value;
-                SetExpandedSql();
             }
         }
 
