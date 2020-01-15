@@ -31,10 +31,10 @@ namespace Quartz.Impl.AdoJobStore
     public class UpdateLockRowSemaphoreMOT : UpdateLockRowSemaphore
     {
         private static readonly string SqlUpdateForLockMOT =
-            $"UPDATE {TablePrefixSubst}{TableLocks} WITH (SNAPSHOT) SET {ColumnLockName} = {ColumnLockName} WHERE {ColumnSchedulerName} = {SchedulerNameSubst} AND {ColumnLockName} = @lockName";
+            $"UPDATE {TablePrefixSubst}{TableLocks} WITH (SNAPSHOT) SET {ColumnLockName} = {ColumnLockName} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnLockName} = @lockName";
 
         private static readonly string SqlInsertLockMOT =
-            $"INSERT INTO {TablePrefixSubst}{TableLocks}({ColumnSchedulerName}, {ColumnLockName}) VALUES ({SchedulerNameSubst}, @lockName)";
+            $"INSERT INTO {TablePrefixSubst}{TableLocks}({ColumnSchedulerName}, {ColumnLockName}) VALUES (@schedulerName, @lockName)";
 
         /// <summary>
         /// Initializes a new instance of the <see cref="UpdateLockRowSemaphoreMOT"/> class.

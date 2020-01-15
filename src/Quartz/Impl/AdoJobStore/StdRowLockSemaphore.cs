@@ -39,10 +39,10 @@ namespace Quartz.Impl.AdoJobStore
     public class StdRowLockSemaphore : DBSemaphore
     {
         public static readonly string SelectForLock =
-            $"SELECT * FROM {TablePrefixSubst}{TableLocks} WHERE {ColumnSchedulerName} = {SchedulerNameSubst} AND {ColumnLockName} = @lockName FOR UPDATE";
+            $"SELECT * FROM {TablePrefixSubst}{TableLocks} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnLockName} = @lockName FOR UPDATE";
 
         public static readonly string InsertLock =
-            $"INSERT INTO {TablePrefixSubst}{TableLocks}({ColumnSchedulerName}, {ColumnLockName}) VALUES ({SchedulerNameSubst}, @lockName)";
+            $"INSERT INTO {TablePrefixSubst}{TableLocks}({ColumnSchedulerName}, {ColumnLockName}) VALUES (@schedulerName, @lockName)";
 
         /// <summary>
         /// Initializes a new instance of the <see cref="StdRowLockSemaphore"/> class.
@@ -104,6 +104,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     using (DbCommand cmd = AdoUtil.PrepareCommand(conn, expandedSql))
                     {
+                        AdoUtil.AddCommandParameter(cmd, "schedulerName", SchedName);
                         AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
 
                         bool found;
@@ -126,6 +127,7 @@ namespace Quartz.Impl.AdoJobStore
 
                             using (DbCommand cmd2 = AdoUtil.PrepareCommand(conn, expandedInsertSql))
                             {
+                                AdoUtil.AddCommandParameter(cmd2, "schedulerName", SchedName);
                                 AdoUtil.AddCommandParameter(cmd2, "lockName", lockName);
                                 int res = await cmd2.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
@@ -141,7 +143,7 @@ namespace Quartz.Impl.AdoJobStore
                                     }
                                     throw new Exception(AdoJobStoreUtil.ReplaceTablePrefix(
                                         "No row exists, and one could not be inserted in table " + TablePrefixSubst + TableLocks +
-                                        " for lock named: " + lockName, TablePrefix, SchedulerNameLiteral));
+                                        " for lock named: " + lockName, TablePrefix));
                                 }
                             }
                         }

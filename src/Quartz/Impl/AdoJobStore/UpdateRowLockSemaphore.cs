@@ -48,10 +48,10 @@ namespace Quartz.Impl.AdoJobStore
     public class UpdateLockRowSemaphore : DBSemaphore
     {
         public static readonly string SqlUpdateForLock =
-            $"UPDATE {TablePrefixSubst}{TableLocks} SET {ColumnLockName} = {ColumnLockName} WHERE {ColumnSchedulerName} = {SchedulerNameSubst} AND {ColumnLockName} = @lockName";
+            $"UPDATE {TablePrefixSubst}{TableLocks} SET {ColumnLockName} = {ColumnLockName} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnLockName} = @lockName";
 
         public static readonly string SqlInsertLock =
-            $"INSERT INTO {TablePrefixSubst}{TableLocks}({ColumnSchedulerName}, {ColumnLockName}) VALUES ({SchedulerNameSubst}, @lockName)";
+            $"INSERT INTO {TablePrefixSubst}{TableLocks}({ColumnSchedulerName}, {ColumnLockName}) VALUES (@schedulerName, @lockName)";
 
         protected virtual int RetryCount => 2;
 
@@ -130,6 +130,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             using (DbCommand cmd = AdoUtil.PrepareCommand(conn, sql))
             {
+                AdoUtil.AddCommandParameter(cmd, "schedulerName", SchedName);
                 AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
 
                 if (Log.IsDebugEnabled())
@@ -156,14 +157,16 @@ namespace Quartz.Impl.AdoJobStore
             {
                 Log.DebugFormat("Inserting new lock row for lock: '{0}' being obtained: {1}", lockName, requestorId);
             }
+
             using (var cmd = AdoUtil.PrepareCommand(conn, sql))
             {
+                AdoUtil.AddCommandParameter(cmd, "schedulerName", SchedName);
                 AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
 
                 if (await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) != 1)
                 {
                     throw new InvalidOperationException(
-                        AdoJobStoreUtil.ReplaceTablePrefix("No row exists, and one could not be inserted in table " + TablePrefixSubst + TableLocks + " for lock named: " + lockName, TablePrefix, SchedulerNameLiteral));
+                        AdoJobStoreUtil.ReplaceTablePrefix("No row exists, and one could not be inserted in table " + TablePrefixSubst + TableLocks + " for lock named: " + lockName, TablePrefix));
                 }
             }
         }

@@ -39,15 +39,21 @@ namespace Quartz.Impl.AdoJobStore
         public void Initialize(string tablePrefix, string schedName, IDbAccessor dbAccessor)
         {
             TablePrefix = tablePrefix;
-            SchedNameLiteral = "'" + schedName + "'";
             DbAccessor = dbAccessor;
+            SchedName = schedName;
+
+            // No longer used in this file
+            SchedNameLiteral = "'" + schedName + "'";
         }
 
         protected string TablePrefix { get; private set; }
 
         protected IDbAccessor DbAccessor { get; private set; }
 
+        [Obsolete("Scheduler name is now added to queries as a parameter")]
         protected string SchedNameLiteral { get; private set; }
+
+        protected string SchedName { get; private set; }
 
         public string GetHandledTriggerTypeDiscriminator()
         {
@@ -64,8 +70,9 @@ namespace Quartz.Impl.AdoJobStore
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
         {
-            using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlDeleteCronTrigger, TablePrefix, SchedNameLiteral)))
+            using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlDeleteCronTrigger, TablePrefix)))
             {
+                DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
                 DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
                 DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
@@ -82,8 +89,9 @@ namespace Quartz.Impl.AdoJobStore
         {
             ICronTrigger cronTrigger = (ICronTrigger) trigger;
 
-            using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlInsertCronTrigger, TablePrefix, SchedNameLiteral)))
+            using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlInsertCronTrigger, TablePrefix)))
             {
+                DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
                 DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
                 DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
                 DbAccessor.AddCommandParameter(cmd, "triggerCronExpression", cronTrigger.CronExpressionString);
@@ -98,8 +106,9 @@ namespace Quartz.Impl.AdoJobStore
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
         {
-            using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectCronTriggers, TablePrefix, SchedNameLiteral)))
+            using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectCronTriggers, TablePrefix)))
             {
+                DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
                 DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
                 DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
@@ -121,7 +130,7 @@ namespace Quartz.Impl.AdoJobStore
                     }
                 }
 
-                throw new InvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectCronTriggers, TablePrefix, SchedNameLiteral));
+                throw new InvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectCronTriggers, TablePrefix));
             }
         }
 
@@ -134,8 +143,9 @@ namespace Quartz.Impl.AdoJobStore
         {
             ICronTrigger cronTrigger = (ICronTrigger) trigger;
 
-            using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlUpdateCronTrigger, TablePrefix, SchedNameLiteral)))
+            using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlUpdateCronTrigger, TablePrefix)))
             {
+                DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
                 DbAccessor.AddCommandParameter(cmd, "triggerCronExpression", cronTrigger.CronExpressionString);
                 DbAccessor.AddCommandParameter(cmd, "timeZoneId", cronTrigger.TimeZone.Id);
                 DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
