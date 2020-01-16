@@ -6,7 +6,7 @@ layout: default
 As you saw in Lesson 2, jobs are rather easy to implement. There are just a few more things that you need to understand about 
 the nature of jobs, about the Execute(..) method of the IJob interface, and about JobDetails.
 
-While a job class that you implement has the code that knows how do do the actual work 
+While a job class that you implement has the code that knows how to do the actual work 
 of the particular type of job, Quartz.NET needs to be informed about various attributes 
 that you may wish an instance of that job to have. This is done via the JobDetail class,
 which was mentioned briefly in the previous section.
