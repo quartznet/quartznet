@@ -2,6 +2,42 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+## Release 3.1.0, xx xx 2020
+
+This release concentrates on performance and some small feature updates. A big change is that now SQL queries use
+parametrized scheduler name, which allows database server to reuse query plans and use indexes more optimally.
+This will help especially clusters which have large number of nodes.
+
+There are also some minor bug fixes present.
+
+* NEW FEATURE
+
+    * Introduced a config parameter `ClusterCheckinMisfireThreshold` (#692)
+	* Giving meaningful names to examples folders (#701)
+	* Added search patterns/sub directory search to directoty scanner job (#411, #708)
+	* Fluent interface for scheduler configuration (#791)
+	* Support every nth week in cron expression (#790)
+	* Enable SQLite job store provider for NetStandard (#802)
+	* Add configurable params for StdRowLockSemaphore for Failure obtaining db row lock
+	* SchedName added to queries as sql paramteter (#818)
+
+* FIXES
+
+    * Allow binary serialization for DirectoryScanJob data (#658)
+	* LibLog - Fixed NLog + Log4net callsite. Added support for NLog structured logging. Optimized Log4net-logger (#705)
+	* Upgrade LibLog to latest version (#749)
+	* RAMJobStore performance improvements (#718, #719, #720)
+	* General performance improvements (#725, #723, #727)
+	* GetTimeBefore() and GetFinalFireTime() should throw NotImplementedException instead of returning null (#731)
+	* Switch to official TimeZoneConverter NuGet package (#739)
+	* Remove invalid TimeSpanParseRule.Days (#782)
+	* Update tables_sqlServer.sql to follow current SQL syntax and structures (#787)
+	* Fix China Standard Time mapping in TimeZoneUtil.cs (#765)
+	* Release BLOCKED triggers in ReleaseAcquiredTrigger (#741 #800)
+	* DailyTimeIntervalTrigger failed to set endingDailyAfterCount = 1
+	* CronTrigger: cover all valid misfire policies, and provide a sensible default and logging when seeing an invalid one
+	
+
 ## Release 3.0.7, Oct 7 2018
 
 This release brings .NET Core 2.1 version of example server and adds new plugin 
