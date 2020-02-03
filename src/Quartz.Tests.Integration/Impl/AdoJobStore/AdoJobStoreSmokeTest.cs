@@ -102,7 +102,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MySQLDelegate, Quartz";
-            return RunAdoJobStoreTest("MySql", "MySQL", serializerType, properties);
+            return RunAdoJobStoreTest("MySqlConnector", "MySQL", serializerType, properties);
         }
 
 #if NETCORE

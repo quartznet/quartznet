@@ -44,7 +44,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore.Common
         [Test]
         public void TestDbMetadataMySql()
         {
-            TestDbMetadata("MySql");
+            TestDbMetadata("MySqlConnector");
         }
 
 #if !NETCORE
