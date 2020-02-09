@@ -11,7 +11,7 @@
     <PackageReference Include="FakeItEasy" Version="5.2.0" />
     <PackageReference Include="FirebirdSql.Data.FirebirdClient" Version="7.1.1" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.2.0" />
-    <PackageReference Include="MySql.Data" Version="8.0.17" />
+    <PackageReference Include="MySqlConnector" Version="0.61.0" />
     <PackageReference Include="NUnit" Version="3.12.0" />
     <PackageReference Include="Npgsql" Version="4.0.9" />
     <PackageReference Include="System.Data.SQLite.Core" Version="1.0.111" />
