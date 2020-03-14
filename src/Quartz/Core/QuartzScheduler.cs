@@ -369,8 +369,8 @@ namespace Quartz.Core
             if (!initialStart.HasValue)
             {
                 initialStart = SystemTime.UtcNow();
-                await StartPlugins(cancellationToken).ConfigureAwait(false);
                 await resources.JobStore.SchedulerStarted(cancellationToken).ConfigureAwait(false);
+                await StartPlugins(cancellationToken).ConfigureAwait(false);
             }
             else
             {
