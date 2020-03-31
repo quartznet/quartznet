@@ -204,15 +204,6 @@ namespace Quartz.Util
         }
 
         /// <summary>
-        /// Adds the given <see cref="Guid" /> value to the <see cref="IJob" />'s
-        /// data map.
-        /// </summary>
-        public virtual void Put(string key, Guid? value)
-        {
-            base.Put(key, value);
-        }
-
-        /// <summary>
         /// Retrieve the identified <see cref="int" /> value from the <see cref="JobDataMap" />.
         /// </summary>
         public virtual int GetInt(string key)

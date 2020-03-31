@@ -199,7 +199,7 @@ namespace Quartz
 
         /// <summary>
         /// Adds the given <see cref="Guid" /> value as a string version to the
-        /// <see cref="IJob" />'s data map. The hypens are omitted from the  <see cref="Guid" />.
+        /// <see cref="IJob" />'s data map. The hyphens are omitted from the  <see cref="Guid" />.
         /// </summary>
         public virtual void PutAsString(string key, Guid value)
         {
@@ -209,7 +209,7 @@ namespace Quartz
 
         /// <summary>
         /// Adds the given <see cref="Guid" /> value as a string version to the
-        /// <see cref="IJob" />'s data map. The hypens are omitted from the  <see cref="Guid" />.
+        /// <see cref="IJob" />'s data map. The hyphens are omitted from the  <see cref="Guid" />.
         /// </summary>
         public virtual void PutAsString(string key, Guid? value)
         {
