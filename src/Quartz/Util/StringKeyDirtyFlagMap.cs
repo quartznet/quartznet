@@ -195,6 +195,24 @@ namespace Quartz.Util
         }
 
         /// <summary>
+        /// Adds the given <see cref="Guid" /> value to the <see cref="IJob" />'s
+        /// data map.
+        /// </summary>
+        public virtual void Put(string key, Guid value)
+        {
+            base.Put(key, value);
+        }
+
+        /// <summary>
+        /// Adds the given <see cref="Guid" /> value to the <see cref="IJob" />'s
+        /// data map.
+        /// </summary>
+        public virtual void Put(string key, Guid? value)
+        {
+            base.Put(key, value);
+        }
+
+        /// <summary>
         /// Retrieve the identified <see cref="int" /> value from the <see cref="JobDataMap" />.
         /// </summary>
         public virtual int GetInt(string key)
@@ -346,6 +364,40 @@ namespace Quartz.Util
         {
             object obj = this[key];
             return (TimeSpan) obj;
+        }
+
+        /// <summary>
+        /// Retrieve the identified <see cref="Guid" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual Guid GetGuid(string key)
+        {
+            object obj = this[key];
+
+            try
+            {
+                return (Guid)obj;
+            }
+            catch (Exception)
+            {
+                throw new InvalidCastException("Identified object is not a Guid.");
+            }
+        }
+
+        /// <summary>
+        /// Retrieve the identified <see cref="Guid" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual Guid? GetNullableGuid(string key)
+        {
+            object obj = this[key];
+
+            try
+            {
+                return (Guid?)obj;
+            }
+            catch (Exception)
+            {
+                throw new InvalidCastException("Identified object is not a nullable Guid.");
+            }
         }
     }
 }
