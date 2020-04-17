@@ -363,15 +363,7 @@ namespace Quartz.Util
         public virtual Guid GetGuid(string key)
         {
             object obj = this[key];
-
-            try
-            {
-                return (Guid)obj;
-            }
-            catch (Exception)
-            {
-                throw new InvalidCastException("Identified object is not a Guid.");
-            }
+            return (Guid)obj;
         }
 
         /// <summary>
@@ -380,15 +372,7 @@ namespace Quartz.Util
         public virtual Guid? GetNullableGuid(string key)
         {
             object obj = this[key];
-
-            try
-            {
-                return (Guid?)obj;
-            }
-            catch (Exception)
-            {
-                throw new InvalidCastException("Identified object is not a nullable Guid.");
-            }
+            return (Guid?)obj;
         }
     }
 }
