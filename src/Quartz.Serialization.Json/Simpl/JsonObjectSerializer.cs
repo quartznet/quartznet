@@ -46,7 +46,8 @@ namespace Quartz.Simpl
                 {
                     IgnoreSerializableInterface = true
                 },
-                NullValueHandling = NullValueHandling.Ignore
+                NullValueHandling = NullValueHandling.Ignore,
+                DateParseHandling = DateParseHandling.DateTimeOffset
             };
         }
 
