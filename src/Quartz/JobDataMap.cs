@@ -198,6 +198,26 @@ namespace Quartz
         }
 
         /// <summary>
+        /// Adds the given <see cref="Guid" /> value as a string version to the
+        /// <see cref="IJob" />'s data map. The hyphens are omitted from the  <see cref="Guid" />.
+        /// </summary>
+        public virtual void PutAsString(string key, Guid value)
+        {
+            string strValue = value.ToString("N");
+            Put(key, strValue);
+        }
+
+        /// <summary>
+        /// Adds the given <see cref="Guid" /> value as a string version to the
+        /// <see cref="IJob" />'s data map. The hyphens are omitted from the  <see cref="Guid" />.
+        /// </summary>
+        public virtual void PutAsString(string key, Guid? value)
+        {
+            string strValue = value.HasValue ? value.Value.ToString("N") : null;
+            Put(key, strValue);
+        }
+
+        /// <summary>
         /// Retrieve the identified <see cref="int" /> value from the <see cref="JobDataMap" />.
         /// </summary>
         public virtual int GetIntValueFromString(string key)
@@ -403,6 +423,45 @@ namespace Quartz
             }
 
             return GetTimeSpan(key);
+        }
+
+        /// <summary>
+        /// Retrieve the identified <see cref="Guid" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual Guid GetGuidValueFromString(string key)
+        {
+            object obj = Get(key);
+            return Guid.Parse((string)obj);
+        }
+
+        /// <summary>
+        /// Retrieve the identified <see cref="Guid" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual Guid GetGuidValue(string key)
+        {
+            object obj = Get(key);
+
+            if (obj is string)
+            {
+                return GetGuidValueFromString(key);
+            }
+
+            return GetGuid(key);
+        }
+
+        /// <summary>
+        /// Retrieve the identified <see cref="Guid" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual Guid? GetNullableGuidValue(string key)
+        {
+            object obj = Get(key);
+
+            if (obj is string)
+            {
+                return (obj == null || ((string)obj).Length == 0) ? (Guid?)null : GetGuidValueFromString(key);
+            }
+
+            return GetNullableGuid(key);
         }
     }
 }
