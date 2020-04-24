@@ -650,11 +650,8 @@ namespace Quartz.Impl.Triggers
                 return null;
             }
 
-            // apply timezone for this date & time
-            fireTime = new DateTimeOffset(fireTime.Value.DateTime, TimeZoneUtil.GetUtcOffset(fireTime.Value, TimeZone));
-
             // d. Calculate and save fireTimeEndDate variable for later use
-            DateTimeOffset fireTimeEndDate;
+			DateTimeOffset fireTimeEndDate;
             if (endTimeOfDay == null)
             {
                 fireTimeEndDate = new TimeOfDay(23, 59, 59).GetTimeOfDayForDate(fireTime).Value;
@@ -768,7 +765,9 @@ namespace Quartz.Impl.Triggers
                     if (daysOfWeek.Contains(dayOfWeekOfFireTime))
                     {
                         fireTime = fireTimeStartDateCal;
-                        break;
+                        // apply timezone for this date & time
+                        fireTime = new DateTimeOffset(fireTime.DateTime, TimeZoneUtil.GetUtcOffset(fireTime, TimeZone));
+						break;
                     }
                 }
             }
