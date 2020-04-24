@@ -2,8 +2,8 @@
 
     <PropertyGroup>
         <AssemblyTitle>Quartz.NET ASP.NET Core integration</AssemblyTitle>
-        <TargetFrameworks>netstandard2.0</TargetFrameworks>
-        <RootNamespace>Quartz.AspNetCore</RootNamespace>
+        <TargetFrameworks>netstandard2.0;netcoreapp3.0</TargetFrameworks>
+        <RootNamespace>Quartz</RootNamespace>
         <GenerateDocumentationFile>True</GenerateDocumentationFile>
         <Copyright>Copyright Lewis Zou (original work) / Marko Lahma (further work)</Copyright>
         <Authors>Lewis Zou, Marko Lahma</Authors>
@@ -21,6 +21,10 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Quartz\Quartz.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="AspNetCore" />
     </ItemGroup>
 
 </Project>

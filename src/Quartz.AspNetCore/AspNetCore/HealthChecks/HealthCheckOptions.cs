@@ -4,7 +4,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 namespace Quartz.AspNetCore.HealthChecks
 {
-    public class HealthCheckOptions
+    internal class HealthCheckOptions
     {
         public string SchedulerHealthCheckName { get; set; }
         public HealthStatus FailureStatus { get; set; }

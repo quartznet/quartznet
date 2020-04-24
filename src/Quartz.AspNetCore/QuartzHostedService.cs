@@ -2,20 +2,18 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
 
 using Quartz.AspNetCore.HealthChecks;
 
-namespace Quartz.AspNetCore
+namespace Quartz
 {
-    public class QuartzHostedService : IHostedService
+    internal class QuartzHostedService : IHostedService
     {
         private readonly IScheduler scheduler;
         private readonly SchedulerHealthCheck healthCheck;
 
         public QuartzHostedService(
             IScheduler scheduler,
-            ILoggerFactory loggerFactory,
             SchedulerHealthCheck healthCheck)
         {
             this.scheduler = scheduler;

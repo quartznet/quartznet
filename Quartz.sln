@@ -35,6 +35,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Plugins.TimeZoneConv
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.AspNetCore", "src\Quartz.AspNetCore\Quartz.AspNetCore.csproj", "{0B08E122-0B16-4F86-BC02-D561EE518D9C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Examples.AspNetCore", "src\Quartz.Examples.AspNetCore\Quartz.Examples.AspNetCore.csproj", "{5224231E-7678-4EC6-B18A-FA302D9553E3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -81,6 +83,10 @@ Global
 		{0B08E122-0B16-4F86-BC02-D561EE518D9C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0B08E122-0B16-4F86-BC02-D561EE518D9C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0B08E122-0B16-4F86-BC02-D561EE518D9C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5224231E-7678-4EC6-B18A-FA302D9553E3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5224231E-7678-4EC6-B18A-FA302D9553E3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5224231E-7678-4EC6-B18A-FA302D9553E3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5224231E-7678-4EC6-B18A-FA302D9553E3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

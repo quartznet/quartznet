@@ -16,7 +16,7 @@ namespace Quartz.Tests.Unit
         public void TestRamJobStore()
         {
             var builder = SchedulerBuilder.Create()
-                .UseMemoryStore()
+                .UseInMemoryStore()
                 .WithDefaultThreadPool(x =>
                     x.WithThreadCount(100)
                 );

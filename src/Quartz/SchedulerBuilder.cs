@@ -102,10 +102,10 @@ namespace Quartz
         /// <summary>
         /// Use memory store, which does not survive process restarts/crashes.
         /// </summary>
-        public SchedulerBuilder UseMemoryStore(Action<MemoryStoreOptions>? options = null)
+        public SchedulerBuilder UseInMemoryStore(Action<InMemoryStoreOptions>? options = null)
         {
             SetProperty("quartz.jobStore.type", typeof(RAMJobStore).AssemblyQualifiedNameWithoutVersion());
-            options?.Invoke(new MemoryStoreOptions(this));
+            options?.Invoke(new InMemoryStoreOptions(this));
             return this;
         }
 
@@ -279,9 +279,9 @@ namespace Quartz
             }
         }
 
-        public class MemoryStoreOptions : PropertiesHolder
+        public class InMemoryStoreOptions : PropertiesHolder
         {
-            protected internal MemoryStoreOptions(SchedulerBuilder parent) : base(parent)
+            protected internal InMemoryStoreOptions(SchedulerBuilder parent) : base(parent)
             {
             }
         }

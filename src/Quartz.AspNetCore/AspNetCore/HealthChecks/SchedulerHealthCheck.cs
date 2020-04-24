@@ -7,7 +7,7 @@ using Quartz.Listener;
 
 namespace Quartz.AspNetCore.HealthChecks
 {
-    public class SchedulerHealthCheck : SchedulerListenerSupport, IHealthCheck
+    internal class SchedulerHealthCheck : SchedulerListenerSupport, IHealthCheck
     {
         private bool running;
         private int errorCount;
