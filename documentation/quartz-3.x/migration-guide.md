@@ -89,7 +89,7 @@ You need to now explicitly state whether you want to use binary or json serializ
 
 * For existing setups you should use the old binary serialization to ensure things work like before
 * For new projects the JSON serialization is recommended as it should be marginally faster and more robust as it's not dealing with binary versioning issues 
-* JSON is more secure and generayy the way forward
+* JSON is more secure and generally the way to use moving forward
 
 If you choose to go with JSON serialization, remember to add NuGet package reference **[Quartz.Serialization.Json](https://www.nuget.org/packages/Quartz.Serialization.Json/)** to your project.
 
