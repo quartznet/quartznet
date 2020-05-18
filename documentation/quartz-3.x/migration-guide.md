@@ -89,11 +89,11 @@ You need to now explicitly state whether you want to use binary or json serializ
 
 * For existing setups you should use the old binary serialization to ensure things work like before
 * For new projects the JSON serialization is recommended as it should be marginally faster and more robust as it's not dealing with binary versioning issues 
-* Binary is not supported when targeting .NET Core!
+* JSON is more secure and generayy the way forward
 
 If you choose to go with JSON serialization, remember to add NuGet package reference **[Quartz.Serialization.Json](https://www.nuget.org/packages/Quartz.Serialization.Json/)** to your project.
 
-Configuring binary serialization strategy, only works against full .NET Framework 
+Configuring binary serialization strategy:
 
 ```c#
 var properties = new NameValueCollection
@@ -105,7 +105,7 @@ var properties = new NameValueCollection
 ISchedulerFactory sf = new StdSchedulerFactory(properties);
 ```
 
-Configuring JSON serialization strategy, works against both full .NET framwork and .NET Core.
+Configuring JSON serialization strategy (recommended):
 
 ```c#
 var properties = new NameValueCollection
