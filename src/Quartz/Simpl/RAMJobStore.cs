@@ -173,7 +173,7 @@ namespace Quartz.Simpl
             lock (lockObject)
             {
                 // unschedule jobs (delete triggers)
-                foreach (string group in triggersByGroup.Keys)
+                foreach (string group in new List<string>(triggersByGroup.Keys))
                 {
                     var keys = GetTriggerKeysInternal(GroupMatcher<TriggerKey>.GroupEquals(group));
                     foreach (TriggerKey key in keys)
@@ -182,7 +182,7 @@ namespace Quartz.Simpl
                     }
                 }
                 // delete jobs
-                foreach (string group in jobsByGroup.Keys)
+                foreach (string group in new List<string>(jobsByGroup.Keys))
                 {
                     var keys = GetJobKeysInternal(GroupMatcher<JobKey>.GroupEquals(group));
                     foreach (JobKey key in keys)
@@ -191,7 +191,7 @@ namespace Quartz.Simpl
                     }
                 }
                 // delete calendars
-                foreach (string name in calendarsByName.Keys)
+                foreach (string name in new List<string>(calendarsByName.Keys))
                 {
                     RemoveCalendarInternal(name);
                 }
