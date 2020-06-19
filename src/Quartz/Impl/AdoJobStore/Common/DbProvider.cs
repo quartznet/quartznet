@@ -51,7 +51,7 @@ namespace Quartz.Impl.AdoJobStore.Common
 
         private static readonly List<DbMetadataFactory> dbMetadataFactories;
         // needs to allow concurrent threads to read and update, since field is static
-        private static readonly ConcurrentDictionary<string, DbMetadata> dbMetadataLookup = new ConcurrentDictionary<string, DbMetadata>();
+        private static readonly ConcurrentDictionary<string, Lazy<DbMetadata>> dbMetadataLookup = new ConcurrentDictionary<string, Lazy<DbMetadata>>();
 
         /// <summary>
         /// Parse metadata once in static constructor.
@@ -100,25 +100,27 @@ namespace Quartz.Impl.AdoJobStore.Common
         ///<param name="metadata"></param>
         public static void RegisterDbMetadata(string dbProviderName, DbMetadata metadata)
         {
-            dbMetadataLookup[dbProviderName] = metadata;
+            var metadataLazy = new Lazy<DbMetadata>(() => metadata);
+            // want to preemptively run the lazy while we have the local variable
+            var lazyValue = metadataLazy.Value;
+            dbMetadataLookup[dbProviderName] = metadataLazy;
         }
 
         private DbMetadata GetDbMetadata(string providerName)
         {
-            if (!dbMetadataLookup.TryGetValue(providerName, out var result))
+            // registering a Lazy, instead of the object directly, we eliminate the chance that the factory code
+            // will run multiple times
+            var result = dbMetadataLookup.GetOrAdd(providerName, (localProviderName) => new Lazy<DbMetadata>(() =>
             {
                 foreach (var dbMetadataFactory in dbMetadataFactories)
                 {
-                    if (dbMetadataFactory.GetProviderNames().Contains(providerName))
+                    if (dbMetadataFactory.GetProviderNames().Contains(localProviderName))
                     {
-                        result = dbMetadataFactory.GetDbMetadata(providerName);
-                        RegisterDbMetadata(providerName, result);
-                        return result;
+                        return dbMetadataFactory.GetDbMetadata(localProviderName);
                     }
                 }
-                throw new ArgumentOutOfRangeException(nameof(providerName), "There is no metadata information for provider '" + providerName + "'");
-            }
-
+                throw new ArgumentOutOfRangeException(nameof(localProviderName), "There is no metadata information for provider '" + localProviderName + "'");
+            })).Value;
             return result;
         }
 
