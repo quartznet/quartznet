@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
@@ -49,7 +50,8 @@ namespace Quartz.Impl.AdoJobStore.Common
         private readonly MethodInfo commandBindByNamePropertySetter;
 
         private static readonly List<DbMetadataFactory> dbMetadataFactories;
-        private static readonly Dictionary<string, DbMetadata> dbMetadataLookup = new Dictionary<string, DbMetadata>();
+        // needs to allow concurrent threads to read and update, since field is static
+        private static readonly ConcurrentDictionary<string, DbMetadata> dbMetadataLookup = new ConcurrentDictionary<string, DbMetadata>();
 
         /// <summary>
         /// Parse metadata once in static constructor.
