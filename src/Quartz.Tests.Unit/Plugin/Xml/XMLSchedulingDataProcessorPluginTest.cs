@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -53,6 +54,9 @@ namespace Quartz.Tests.Unit.Plugin.Xml
             {
                 File.Create(expectedPathFile2);
             }
+
+            // file system can lock for a while
+            await Task.Delay(TimeSpan.FromSeconds(1));
 
             var dataProcessor = new XMLSchedulingDataProcessorPlugin();
             dataProcessor.FileNames = configuredFileName1 + ", " + configuredFileName2;

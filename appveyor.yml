@@ -23,7 +23,8 @@ nuget:
 build_script:
 - cmd: build.cmd Pack
 
-test: off
+test_script:
+  - dotnet test src\Quartz.Tests.Unit\Quartz.Tests.Unit.csproj -c Release
 
 artifacts:
 - path: artifacts/*.nupkg
