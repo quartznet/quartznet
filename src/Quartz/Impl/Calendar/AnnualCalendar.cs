@@ -128,7 +128,7 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         public virtual IReadOnlyCollection<DateTime> DaysExcluded
         {
-            get => new ReadOnlyCompatibleHashSet<DateTime>(excludeDays);
+            get => new HashSet<DateTime>(excludeDays);
             set => excludeDays = value == null ? new SortedSet<DateTime>() : new SortedSet<DateTime>(value);
         }
 

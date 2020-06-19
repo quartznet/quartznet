@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -115,7 +116,7 @@ namespace Quartz.Impl.AdoJobStore
 
             if (daysOfWeekStr != null)
             {
-                var daysOfWeek = new ReadOnlyCompatibleHashSet<DayOfWeek>();
+                var daysOfWeek = new HashSet<DayOfWeek>();
                 string[] nums = daysOfWeekStr.Split(new[] {','}, StringSplitOptions.RemoveEmptyEntries);
                 if (nums.Length > 0)
                 {

@@ -84,7 +84,7 @@ namespace Quartz.Tests.Integration.Xml
 
             await processor.ScheduleJobs(mockScheduler);
 
-            A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Not.IsNull(), A<CancellationToken>._)).MustHaveHappened(Repeated.Exactly.Times(7));
+            A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Not.IsNull(), A<CancellationToken>._)).MustHaveHappened(7, Times.Exactly);
         }
 
         [Test]
@@ -93,8 +93,8 @@ namespace Quartz.Tests.Integration.Xml
         {
             Stream s = ReadJobXmlFromEmbeddedResource("QRTZNET250.xml");
             await processor.ProcessStreamAndScheduleJobs(s, mockScheduler);
-            A.CallTo(() => mockScheduler.AddJob(A<IJobDetail>.That.Not.IsNull(), A<bool>.Ignored, A<bool>.That.IsEqualTo(true), A<CancellationToken>._)).MustHaveHappened(Repeated.Exactly.Twice);
-            A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Not.IsNull(), A<CancellationToken>._)).MustHaveHappened(Repeated.Exactly.Twice);
+            A.CallTo(() => mockScheduler.AddJob(A<IJobDetail>.That.Not.IsNull(), A<bool>.Ignored, A<bool>.That.IsEqualTo(true), A<CancellationToken>._)).MustHaveHappened(2, Times.Exactly);
+            A.CallTo(() => mockScheduler.ScheduleJob(A<ITrigger>.That.Not.IsNull(), A<CancellationToken>._)).MustHaveHappened(2, Times.Exactly);
         }
 
         [Test]

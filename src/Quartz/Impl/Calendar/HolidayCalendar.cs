@@ -50,7 +50,7 @@ namespace Quartz.Impl.Calendar
 		/// </summary>
         public virtual IReadOnlyCollection<DateTime> ExcludedDates
 		{
-            get => new ReadOnlyCompatibleHashSet<DateTime>(dates);
+            get => new HashSet<DateTime>(dates);
 			internal set => dates = new SortedSet<DateTime>(value);
 		}
 

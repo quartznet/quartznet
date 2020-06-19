@@ -90,7 +90,7 @@ namespace Quartz.Impl.Triggers
         private DateTimeOffset? previousFireTimeUtc; // Making a public property which called GetPreviousFireTime/SetPreviousFireTime would make the json attribute unnecessary
         private int repeatInterval = 1;
         private IntervalUnit repeatIntervalUnit = IntervalUnit.Minute;
-        private ReadOnlyCompatibleHashSet<DayOfWeek> daysOfWeek;
+        private HashSet<DayOfWeek> daysOfWeek;
         private TimeOfDay startTimeOfDay;
         private TimeOfDay endTimeOfDay;
         private bool complete;
@@ -874,7 +874,7 @@ namespace Quartz.Impl.Triggers
             {
                 if (daysOfWeek == null)
                 {
-                    daysOfWeek = new ReadOnlyCompatibleHashSet<DayOfWeek>(DailyTimeIntervalScheduleBuilder.AllDaysOfTheWeek);
+                    daysOfWeek = new HashSet<DayOfWeek>(DailyTimeIntervalScheduleBuilder.AllDaysOfTheWeek);
                 }
                 return daysOfWeek;
             }
@@ -890,7 +890,7 @@ namespace Quartz.Impl.Triggers
                     throw new ArgumentException("DaysOfWeek set must contain at least one day.");
                 }
 
-                daysOfWeek = new ReadOnlyCompatibleHashSet<DayOfWeek>(value);
+                daysOfWeek = new HashSet<DayOfWeek>(value);
             }
         }
 

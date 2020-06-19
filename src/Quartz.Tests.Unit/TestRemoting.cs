@@ -13,6 +13,7 @@ namespace Quartz.Tests.Unit
     public class TestRemoting
     {
         [Test]
+        [Explicit]
         public async Task Test()
         {
             var remoteFactory = new StdSchedulerFactory(new NameValueCollection
@@ -22,7 +23,7 @@ namespace Quartz.Tests.Unit
                 ["quartz.scheduler.exporter.channelType"] = "tcp",
                 ["quartz.scheduler.exporter.port"] = "45000",
                 ["quartz.scheduler.exporter.type"] = "Quartz.Simpl.RemotingSchedulerExporter, Quartz",
-                ["quartz.scheduler.instanceName"] = "remoteinstance",
+                ["quartz.scheduler.instanceName"] = "remote scheduler",
                 ["quartz.jobStore.type"] = "Quartz.Simpl.RAMJobStore, Quartz",
                 ["quartz.jobStore.misfireThreshold"] = "60000",
                 ["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz",
@@ -49,7 +50,7 @@ namespace Quartz.Tests.Unit
 
             var remotingFactory = new StdSchedulerFactory(new NameValueCollection
             {
-                ["quartz.scheduler.instanceName"] = "remotinginstance",
+                ["quartz.scheduler.instanceName"] = "remoted scheduler",
                 ["quartz.scheduler.proxy"] = "true",
                 ["quartz.scheduler.proxy.address"] = "tcp://localhost:45000/remoteschedulerbinding",
                 ["quartz.threadPool.threadCount"] = "0",
@@ -64,6 +65,8 @@ namespace Quartz.Tests.Unit
             }
 
             var executingJobs = remotingScheduler.GetCurrentlyExecutingJobs();
+
+            await remoteScheduler.Shutdown();
         }
     }
 

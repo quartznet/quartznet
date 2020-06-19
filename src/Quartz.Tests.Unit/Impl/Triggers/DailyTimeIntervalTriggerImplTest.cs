@@ -417,7 +417,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
         [Test]
         public void TestMonOnly()
         {
-            var daysOfWeek = new ReadOnlyCompatibleHashSet<DayOfWeek>
+            var daysOfWeek = new HashSet<DayOfWeek>
             {
                 DayOfWeek.Monday
             };

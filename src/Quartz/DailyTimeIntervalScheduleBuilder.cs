@@ -109,8 +109,8 @@ namespace Quartz
 
         static DailyTimeIntervalScheduleBuilder()
         {
-            var allDaysOfTheWeek = new ReadOnlyCompatibleHashSet<DayOfWeek>();
-            var mondayThroughFriday = new ReadOnlyCompatibleHashSet<DayOfWeek>();
+            var allDaysOfTheWeek = new HashSet<DayOfWeek>();
+            var mondayThroughFriday = new HashSet<DayOfWeek>();
             foreach (DayOfWeek d in Enum.GetValues(typeof(DayOfWeek)))
             {
                 allDaysOfTheWeek.Add(d);
@@ -121,7 +121,7 @@ namespace Quartz
                 }
             }
 
-            SaturdayAndSunday = new ReadOnlyCompatibleHashSet<DayOfWeek>
+            SaturdayAndSunday = new HashSet<DayOfWeek>
             {
                 DayOfWeek.Sunday,
                 DayOfWeek.Saturday
@@ -129,9 +129,9 @@ namespace Quartz
 
             AllDaysOfTheWeek = allDaysOfTheWeek;
             MondayThroughFriday = mondayThroughFriday;
-            AllDaysOfTheWeek = new ReadOnlyCompatibleHashSet<DayOfWeek>(AllDaysOfTheWeek);
-            MondayThroughFriday = new ReadOnlyCompatibleHashSet<DayOfWeek>(MondayThroughFriday);
-            SaturdayAndSunday = new ReadOnlyCompatibleHashSet<DayOfWeek>(SaturdayAndSunday);
+            AllDaysOfTheWeek = new HashSet<DayOfWeek>(AllDaysOfTheWeek);
+            MondayThroughFriday = new HashSet<DayOfWeek>(MondayThroughFriday);
+            SaturdayAndSunday = new HashSet<DayOfWeek>(SaturdayAndSunday);
         }
 
         protected DailyTimeIntervalScheduleBuilder()
@@ -164,11 +164,11 @@ namespace Quartz
 
             if (daysOfWeek != null)
             {
-                st.DaysOfWeek = new ReadOnlyCompatibleHashSet<DayOfWeek>(daysOfWeek);
+                st.DaysOfWeek = new HashSet<DayOfWeek>(daysOfWeek);
             }
             else
             {
-                st.DaysOfWeek = new ReadOnlyCompatibleHashSet<DayOfWeek>(AllDaysOfTheWeek);
+                st.DaysOfWeek = new HashSet<DayOfWeek>(AllDaysOfTheWeek);
             }
 
             if (startTimeOfDayUtc != null)

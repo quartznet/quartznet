@@ -104,7 +104,7 @@ namespace Quartz.Tests.Unit.Simpl
             var collection = new JobDataMap
             {
                 {"key", "value"},
-                {"key2", DateTime.UtcNow},
+                {"key2", DateTimeOffset.UtcNow},
                 {"jobKey", new JobKey("name", "group")}
             };
 

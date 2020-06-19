@@ -268,8 +268,12 @@ namespace Quartz.Simpl
 
             public void PopulateFieldsToCalendarObject(BaseCalendar value, JObject jObject)
             {
-                var excludedDates = jObject["ExcludedDays"].Values<DateTime>();
-                ((AnnualCalendar) value).DaysExcluded = new ReadOnlyCompatibleHashSet<DateTime>(excludedDates);
+                var annualCalendar = (AnnualCalendar) value;
+                var excludedDates = jObject["ExcludedDays"].Values<DateTimeOffset>();
+                foreach (var date in excludedDates)
+                {
+                    annualCalendar.SetDayExcluded(date.DateTime, true);
+                }
             }
 
             public BaseCalendar Create(JObject value)
@@ -342,10 +346,10 @@ namespace Quartz.Simpl
             public void PopulateFieldsToCalendarObject(BaseCalendar value, JObject jObject)
             {
                 var calendar = (HolidayCalendar) value;
-                var ecludedDates = jObject["ExcludedDates"].Values<DateTime>();
-                foreach (var date in ecludedDates)
+                var excludedDates = jObject["ExcludedDates"].Values<DateTimeOffset>();
+                foreach (var date in excludedDates)
                 {
-                    calendar.AddExcludedDate(date);
+                    calendar.AddExcludedDate(date.DateTime);
                 }
             }
 

@@ -10,6 +10,10 @@ This will help especially clusters which have large number of nodes.
 
 There are also some minor bug fixes present.
 
+* BREAKING CHANGES
+
+     * minimum supported .NET Full Framework is now 4.6.1
+
 * NEW FEATURE
 
     * Introduced a config parameter `ClusterCheckinMisfireThreshold` (#692)
@@ -20,6 +24,7 @@ There are also some minor bug fixes present.
 	* Enable SQLite job store provider for NetStandard (#802)
 	* Add configurable params for StdRowLockSemaphore for Failure obtaining db row lock
 	* SchedName added to queries as sql paramteter (#818)
+	* Server, example and test projects upgraded to user .NET Core 3.1
 
 * FIXES
 
@@ -125,7 +130,7 @@ This is a minor fix release that fixes single issue that still prevented full us
 
 * FIXES
 
-	* Mark ReadOnlyCompatibleHashSet as serializable (#576)
+	* Mark HashSet as serializable (#576)
 
 
 ## Release 3.0.1, Jan 21 2018

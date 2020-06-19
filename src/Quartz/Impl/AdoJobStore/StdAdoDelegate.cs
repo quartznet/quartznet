@@ -1078,7 +1078,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
                 {
-                    var list = new ReadOnlyCompatibleHashSet<JobKey>();
+                    var list = new HashSet<JobKey>();
                     while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
                     {
                         list.Add(new JobKey(rs.GetString(0), rs.GetString(1)));
@@ -2209,7 +2209,7 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, "triggerGroup", parameter);
                 using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
                 {
-                    var keys = new ReadOnlyCompatibleHashSet<TriggerKey>();
+                    var keys = new HashSet<TriggerKey>();
                     while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
                     {
                         keys.Add(new TriggerKey(rs.GetString(0), rs.GetString(1)));
@@ -2929,7 +2929,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default)
         {
-            var instanceNames = new ReadOnlyCompatibleHashSet<string>();
+            var instanceNames = new HashSet<string>();
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectFiredTriggerInstanceNames)))
             {
                 AddCommandParameter(cmd, "schedulerName", schedName);
@@ -3333,7 +3333,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default)
         {
-            var retValue = new ReadOnlyCompatibleHashSet<string>();
+            var retValue = new HashSet<string>();
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectPausedTriggerGroups)))
             {
                 AddCommandParameter(cmd, "schedulerName", schedName);
