@@ -7,7 +7,15 @@
     <Description>Quartz.NET TimeZoneConverter integration https://github.com/mj1856/TimeZoneConverter</Description>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <Authors>Sean Farrow</Authors>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All" />
+  </ItemGroup>
+up>
   <ItemGroup>
     <Compile Include="..\AssemblyInfo.cs" />
   </ItemGroup>
