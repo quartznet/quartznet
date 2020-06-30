@@ -47,7 +47,7 @@ namespace Quartz.Impl.Calendar
     [Serializable]
     public class CronCalendar : BaseCalendar
     {
-        private CronExpression cronExpression;
+        private CronExpression cronExpression = null!;
 
         // ReSharper disable once UnusedMember.Local
         private CronCalendar()
@@ -72,7 +72,7 @@ namespace Quartz.Impl.Calendar
         /// calendar functionality
         /// </param>
         /// <param name="expression">a string representation of the desired cron expression</param>
-        public CronCalendar(ICalendar baseCalendar, string expression) : this(baseCalendar, expression, null)
+        public CronCalendar(ICalendar? baseCalendar, string expression) : this(baseCalendar, expression, null)
         {
         }
 
@@ -87,7 +87,7 @@ namespace Quartz.Impl.Calendar
         /// </param>
         /// <param name="expression">a string representation of the desired cron expression</param>
         /// <param name="timeZone"></param>
-        public CronCalendar(ICalendar baseCalendar, string expression, TimeZoneInfo timeZone) : base(baseCalendar, timeZone)
+        public CronCalendar(ICalendar? baseCalendar, string expression, TimeZoneInfo? timeZone) : base(baseCalendar, timeZone)
         {
             cronExpression = new CronExpression(expression);
         }
@@ -113,7 +113,7 @@ namespace Quartz.Impl.Calendar
             {
                 case 0:
                 case 1:
-                    cronExpression = (CronExpression) info.GetValue("cronExpression", typeof(CronExpression));
+                    cronExpression = (CronExpression) info.GetValue("cronExpression", typeof(CronExpression))!;
                     break;
                 default:
                     throw new NotSupportedException("Unknown serialization version");
@@ -173,7 +173,7 @@ namespace Quartz.Impl.Calendar
                 // testing.
                 if (cronExpression.IsSatisfiedBy(nextIncludedTime))
                 {
-                    nextIncludedTime = cronExpression.GetNextValidTimeAfter(nextIncludedTime).Value;
+                    nextIncludedTime = cronExpression.GetNextValidTimeAfter(nextIncludedTime)!.Value;
                 }
                 else if (CalendarBase != null &&
                          !CalendarBase.IsTimeIncluded(nextIncludedTime))
@@ -268,7 +268,7 @@ namespace Quartz.Impl.Calendar
             return baseEqual && CronExpression.Equals(obj.CronExpression);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (!(obj is CronCalendar))
             {

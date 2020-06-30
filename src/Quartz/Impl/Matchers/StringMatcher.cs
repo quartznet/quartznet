@@ -59,7 +59,7 @@ namespace Quartz.Impl.Matchers
             return result;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (this == obj)
             {
@@ -92,7 +92,7 @@ namespace Quartz.Impl.Matchers
             return true;
         }
 
-        public string CompareToValue { get; private set; }
-        public StringOperator CompareWithOperator { get; private set; }
+        public string CompareToValue { get; private set; } = null!;
+        public StringOperator CompareWithOperator { get; private set; } = null!;
     }
 }

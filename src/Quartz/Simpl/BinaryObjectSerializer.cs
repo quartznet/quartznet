@@ -35,7 +35,7 @@ namespace Quartz.Simpl
         /// Deserializes object from byte array presentation.
         /// </summary>
         /// <param name="data">Data to deserialize object from.</param>
-        public T DeSerialize<T>(byte[] data) where T : class
+        public T? DeSerialize<T>(byte[] data) where T : class
         {
             using (MemoryStream ms = new MemoryStream(data))
             {

@@ -77,8 +77,8 @@ namespace Quartz
         /// <see cref="IOperableTrigger.Triggered" /> method has been called.
         /// </summary>
         Task JobWasExecuted(
-            IJobExecutionContext context, 
-            JobExecutionException jobException, 
+            IJobExecutionContext context,
+            JobExecutionException? jobException,
             CancellationToken cancellationToken = default);
     }
 }

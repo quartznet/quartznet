@@ -19,6 +19,6 @@
         /// Deserializes object from byte array presentation.
         /// </summary>
         /// <param name="data">Data to deserialize object from, always non-null and non-empty.</param>
-        T DeSerialize<T>(byte[] data) where T : class;
+        T? DeSerialize<T>(byte[] data) where T : class;
     }
 }

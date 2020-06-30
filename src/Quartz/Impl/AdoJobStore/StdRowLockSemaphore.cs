@@ -82,14 +82,14 @@ namespace Quartz.Impl.AdoJobStore
         /// Execute the SQL select for update that will lock the proper database row.
         /// </summary>
         protected override async Task ExecuteSQL(
-            Guid requestorId, 
-            ConnectionAndTransactionHolder conn, 
+            Guid requestorId,
+            ConnectionAndTransactionHolder conn,
             string lockName,
-            string expandedSql, 
+            string expandedSql,
             string expandedInsertSql,
             CancellationToken cancellationToken)
         {
-            Exception initCause = null;
+            Exception? initCause = null;
             // attempt lock two times (to work-around possible race conditions in inserting the lock row the first time running)
             int count = 0;
 

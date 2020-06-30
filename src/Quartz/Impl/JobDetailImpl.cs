@@ -55,7 +55,7 @@ namespace Quartz.Impl
     {
         private string name;
         private string group = SchedulerConstants.DefaultGroup;
-        private string description;
+        private string? description;
         private JobDataMap jobDataMap;
         private Type jobType;
 
@@ -84,7 +84,7 @@ namespace Quartz.Impl
         /// <exception cref="ArgumentException">
         /// If name is null or empty, or the group is an empty string.
         /// </exception>
-        public JobDetailImpl(string name, Type jobType) : this(name, null, jobType)
+        public JobDetailImpl(string name, Type jobType) : this(name, SchedulerConstants.DefaultGroup, jobType)
         {
         }
 
@@ -136,7 +136,7 @@ namespace Quartz.Impl
 
             set
             {
-                if (value == null || value.Trim().Length == 0)
+                if (string.IsNullOrWhiteSpace(value))
                 {
                     throw new ArgumentException("Job name cannot be empty.");
                 }
@@ -198,8 +198,13 @@ namespace Quartz.Impl
             }
             set
             {
-                Name = value?.Name;
-                Group = value?.Group;
+                if (value is null)
+                {
+                    throw new ArgumentNullException(nameof(value));
+                }
+
+                Name = value.Name;
+                Group = value.Group;
                 key = value;
             }
         }
@@ -212,7 +217,7 @@ namespace Quartz.Impl
         /// May be useful for remembering/displaying the purpose of the job, though the
         /// description has no meaning to Quartz.
         /// </remarks>
-        public string Description
+        public string? Description
         {
             get => description;
             set => description = value;
@@ -375,7 +380,7 @@ namespace Quartz.Impl
         /// 	<see langword="true"/> if the specified <see cref="T:System.Object"/> is equal to the
         /// current <see cref="T:System.Object"/>; otherwise, <see langword="false"/>.
         /// </returns>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (!(obj is JobDetailImpl jd))
             {

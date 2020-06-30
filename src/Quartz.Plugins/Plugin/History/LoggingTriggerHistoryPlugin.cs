@@ -235,7 +235,7 @@ namespace Quartz.Plugin.History
         /// Get the name of the <see cref="ITriggerListener" />.
         /// </summary>
         /// <value></value>
-        public virtual string Name { get; set; }
+        public virtual string Name { get; set; } = null!;
 
         /// <summary>
         /// Called during creation of the <see cref="IScheduler" /> in order to give
@@ -295,7 +295,7 @@ namespace Quartz.Plugin.History
                 return TaskUtil.CompletedTask;
             }
 
-            object[] args =
+            object?[] args =
             {
                 trigger.Key.Name,
                 trigger.Key.Group,
@@ -332,7 +332,7 @@ namespace Quartz.Plugin.History
                 return TaskUtil.CompletedTask;
             }
 
-            object[] args =
+            object?[] args =
             {
                 trigger.Key.Name,
                 trigger.Key.Group,
@@ -391,7 +391,7 @@ namespace Quartz.Plugin.History
                 instrCode = "SET THIS TRIGGER COMPLETE";
             }
 
-            object[] args =
+            object?[] args =
             {
                 trigger.Key.Name,
                 trigger.Key.Group,

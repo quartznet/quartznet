@@ -67,15 +67,15 @@ namespace Quartz
     public class TriggerBuilder
     {
         private TriggerKey key;
-        private string description;
+        private string? description;
         private DateTimeOffset startTime = SystemTime.UtcNow();
         private DateTimeOffset? endTime;
         private int priority = TriggerConstants.DefaultPriority;
-        private string calendarName;
+        private string? calendarName;
         private JobKey jobKey;
-        private JobDataMap jobDataMap = new JobDataMap();
+        private readonly JobDataMap jobDataMap = new JobDataMap();
 
-        private IScheduleBuilder scheduleBuilder;
+        private IScheduleBuilder? scheduleBuilder;
 
         private TriggerBuilder()
         {
@@ -113,7 +113,7 @@ namespace Quartz
             trig.EndTimeUtc = endTime;
             if (key == null)
             {
-                key = new TriggerKey(Guid.NewGuid().ToString(), null);
+                key = new TriggerKey(Guid.NewGuid().ToString());
             }
             trig.Key = key;
             if (jobKey != null)
@@ -144,7 +144,7 @@ namespace Quartz
         /// <seealso cref="ITrigger.Key" />
         public TriggerBuilder WithIdentity(string name)
         {
-            key = new TriggerKey(name, null);
+            key = new TriggerKey(name);
             return this;
         }
 
@@ -192,7 +192,7 @@ namespace Quartz
         /// <param name="description">the description for the Trigger</param>
         /// <returns>the updated TriggerBuilder</returns>
         /// <seealso cref="ITrigger.Description" />
-        public TriggerBuilder WithDescription(string description)
+        public TriggerBuilder WithDescription(string? description)
         {
             this.description = description;
             return this;
@@ -225,7 +225,7 @@ namespace Quartz
         /// <returns>the updated TriggerBuilder</returns>
         /// <seealso cref="ICalendar" />
         /// <seealso cref="ITrigger.CalendarName" />
-        public TriggerBuilder ModifiedByCalendar(string calendarName)
+        public TriggerBuilder ModifiedByCalendar(string? calendarName)
         {
             this.calendarName = calendarName;
             return this;
@@ -327,7 +327,7 @@ namespace Quartz
         /// <seealso cref="ITrigger.JobKey" />
         public TriggerBuilder ForJob(string jobName)
         {
-            jobKey = new JobKey(jobName, null);
+            jobKey = new JobKey(jobName);
             return this;
         }
 

@@ -65,9 +65,9 @@ namespace Quartz
     /// <seealso cref="IJobDetail" />
     public class JobBuilder
     {
-        private JobKey key;
-        private string description;
-        private Type jobType;
+        private JobKey? key;
+        private string? description;
+        private Type jobType = null!;
         private bool durability;
         private bool shouldRecover;
 
@@ -136,7 +136,7 @@ namespace Quartz
             job.Description = description;
             if (key == null)
             {
-                key = new JobKey(Guid.NewGuid().ToString(), null);
+                key = new JobKey(Guid.NewGuid().ToString());
             }
             job.Key = key;
             job.Durable = durability;
@@ -165,7 +165,7 @@ namespace Quartz
         /// <seealso cref="IJobDetail.Key" />
         public JobBuilder WithIdentity(string name)
         {
-            key = new JobKey(name, null);
+            key = new JobKey(name);
             return this;
         }
 
@@ -211,7 +211,7 @@ namespace Quartz
         /// <param name="description"> the description for the Job</param>
         /// <returns>the updated JobBuilder</returns>
         /// <seealso cref="IJobDetail.Description" />
-        public JobBuilder WithDescription(string description)
+        public JobBuilder WithDescription(string? description)
         {
             this.description = description;
             return this;
@@ -386,9 +386,9 @@ namespace Quartz
         /// </summary>
         /// <param name="newJobDataMap"></param>
         /// <returns></returns>
-        public JobBuilder SetJobData(JobDataMap newJobDataMap)
+        public JobBuilder SetJobData(JobDataMap? newJobDataMap)
         {
-            jobDataMap = newJobDataMap;
+            jobDataMap = newJobDataMap ?? throw new ArgumentNullException(nameof(newJobDataMap));
             return this;
         }
     }

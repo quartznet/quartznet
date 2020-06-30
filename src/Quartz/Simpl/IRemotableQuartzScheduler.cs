@@ -108,7 +108,7 @@ namespace Quartz.Simpl
 
         DateTimeOffset? RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger);
 
-        void TriggerJob(JobKey jobKey, JobDataMap data);
+        void TriggerJob(JobKey jobKey, JobDataMap? data);
 
         void TriggerJob(IOperableTrigger trig);
 
@@ -144,9 +144,9 @@ namespace Quartz.Simpl
 
         IReadOnlyCollection<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher);
 
-        IJobDetail GetJobDetail(JobKey jobKey);
+        IJobDetail? GetJobDetail(JobKey jobKey);
 
-        ITrigger GetTrigger(TriggerKey triggerKey);
+        ITrigger? GetTrigger(TriggerKey triggerKey);
 
         TriggerState GetTriggerState(TriggerKey triggerKey);
 
@@ -154,7 +154,7 @@ namespace Quartz.Simpl
 
         bool DeleteCalendar(string calName);
 
-        ICalendar GetCalendar(string calName);
+        ICalendar? GetCalendar(string calName);
 
         IReadOnlyCollection<string> GetCalendarNames();
 

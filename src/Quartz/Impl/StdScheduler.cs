@@ -363,7 +363,7 @@ namespace Quartz.Impl
         /// </summary>
         public virtual Task TriggerJob(
             JobKey jobKey,
-            JobDataMap data,
+            JobDataMap? data,
             CancellationToken cancellationToken = default)
         {
             return sched.TriggerJob(jobKey, data, cancellationToken);
@@ -518,7 +518,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<IJobDetail> GetJobDetail(
+        public virtual Task<IJobDetail?> GetJobDetail(
             JobKey jobKey,
             CancellationToken cancellationToken = default)
         {
@@ -528,9 +528,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<ITrigger> GetTrigger(
-            TriggerKey triggerKey,
-            CancellationToken cancellationToken = default)
+        public virtual Task<ITrigger?> GetTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
         {
             return sched.GetTrigger(triggerKey, cancellationToken);
         }
@@ -571,9 +569,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<ICalendar> GetCalendar(
-            string calName,
-            CancellationToken cancellationToken = default)
+        public virtual Task<ICalendar?> GetCalendar(string calName, CancellationToken cancellationToken = default)
         {
             return sched.GetCalendar(calName, cancellationToken);
         }

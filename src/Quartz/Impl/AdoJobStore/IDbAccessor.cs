@@ -26,7 +26,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="paramValue">Parameter's value</param>
         /// <param name="dataType">Parameter's data type</param>
         /// <param name="size">Parameter's optional size</param>
-        void AddCommandParameter(DbCommand cmd, string paramName, object paramValue, Enum dataType = null, int? size = null);
+        void AddCommandParameter(DbCommand cmd, string paramName, object? paramValue, Enum? dataType = null, int? size = null);
 
         /// <summary>
         /// Gets the db presentation for boolean value. Subclasses can overwrite this behaviour.
@@ -47,7 +47,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="dateTimeValue">Value to map to database.</param>
         /// <returns></returns>
-        object GetDbDateTimeValue(DateTimeOffset? dateTimeValue);
+        object? GetDbDateTimeValue(DateTimeOffset? dateTimeValue);
 
         /// <summary>
         /// Gets the date/time value from db presentation. Subclasses can overwrite this behaviour.
@@ -61,7 +61,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="timeSpanValue">Value to map to database.</param>
         /// <returns></returns>
-        object GetDbTimeSpanValue(TimeSpan? timeSpanValue);
+        object? GetDbTimeSpanValue(TimeSpan? timeSpanValue);
 
         /// <summary>
         /// Gets the time span value from db presentation. Subclasses can overwrite this behaviour.

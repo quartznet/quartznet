@@ -152,7 +152,7 @@ namespace Quartz.Job
 			try
 			{
 				//with this variable will be done the switching
-				string osName = Environment.GetEnvironmentVariable("OS");
+				string? osName = Environment.GetEnvironmentVariable("OS");
                 if (osName == null)
                 {
                     throw new JobExecutionException("Could not read environment variable for OS");
@@ -269,23 +269,19 @@ namespace Quartz.Job
 			{
 			    try
 			    {
-                    using (StreamReader br = new StreamReader(inputStream))
-                    {
-                        string line;
-
-                        while ((line = br.ReadLine()) != null)
-                        {
-                            if (type == StreamTypeError)
-                            {
-                                enclosingInstance.Log.Warn($"{type}>{line}");
-                            }
-                            else
-                            {
-                                enclosingInstance.Log.Info($"{type}>{line}");
-                            }
-                        }
-                    }
-
+				    using StreamReader br = new StreamReader(inputStream);
+				    string? line;
+				    while ((line = br.ReadLine()) != null)
+				    {
+					    if (type == StreamTypeError)
+					    {
+						    enclosingInstance.Log.Warn($"{type}>{line}");
+					    }
+					    else
+					    {
+						    enclosingInstance.Log.Info($"{type}>{line}");
+					    }
+				    }
 			    }
 				catch (IOException ioe)
 				{

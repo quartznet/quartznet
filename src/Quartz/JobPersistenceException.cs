@@ -55,7 +55,7 @@ namespace Quartz
 		/// and cause.
 		/// </para>
 		/// </summary>
-		public JobPersistenceException(string msg, Exception cause) : base(msg, cause)
+		public JobPersistenceException(string msg, Exception? cause) : base(msg, cause)
 		{
 		}
 	}

@@ -88,9 +88,11 @@ namespace Quartz
         /// </summary>
         public JobDataMap(IDictionary map) : this()
         {
+#pragma warning disable 8605
             foreach (DictionaryEntry entry in map)
+#pragma warning restore 8605
             {
-                Put((string) entry.Key, entry.Value);
+                Put((string) entry.Key, entry.Value!);
             }
 
             // When constructing a new data map from another existing map, we should NOT mark dirty flag as true
@@ -213,8 +215,8 @@ namespace Quartz
         /// </summary>
         public virtual void PutAsString(string key, Guid? value)
         {
-            string strValue = value.HasValue ? value.Value.ToString("N") : null;
-            Put(key, strValue);
+            string? strValue = value?.ToString("N");
+            Put(key, strValue!);
         }
 
         /// <summary>

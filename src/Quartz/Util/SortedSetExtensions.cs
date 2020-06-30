@@ -21,20 +21,18 @@ namespace Quartz.Util
         /// otherwise, the first element in <paramref name="source"/>.
         /// </returns>
         /// <exception cref="ArgumentNullException"><paramref name="source"/> is <see langword="null"/>.</exception>
-        internal static TSource FirstOrDefault<TSource>(this SortedSet<TSource> source)
+        internal static TSource? FirstOrDefault<TSource>(this SortedSet<TSource> source) where TSource : class
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
 
-            using (var enumerator = source.GetEnumerator())
+            using var enumerator = source.GetEnumerator();
+            if (!enumerator.MoveNext())
             {
-                if (!enumerator.MoveNext())
-                {
-                    return default;
-                }
-
-                return enumerator.Current;
+                return null;
             }
+
+            return enumerator.Current;
         }
     }
 }

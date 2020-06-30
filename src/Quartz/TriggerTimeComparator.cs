@@ -13,10 +13,15 @@ namespace Quartz
     [Serializable]
     public class TriggerTimeComparator : IComparer<ITrigger>
     {
-        public int Compare(ITrigger trig1, ITrigger trig2)
+        public int Compare(ITrigger? trig1, ITrigger? trig2)
         {
-            DateTimeOffset? t1 = trig1.GetNextFireTimeUtc();
-            DateTimeOffset? t2 = trig2.GetNextFireTimeUtc();
+            if (trig1 == null && trig2 == null)
+            {
+                return 0;
+            }
+            
+            var t1 = trig1!.GetNextFireTimeUtc();
+            var t2 = trig2!.GetNextFireTimeUtc();
 
             if (t1 != null || t2 != null)
             {

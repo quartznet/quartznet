@@ -48,11 +48,10 @@ namespace Quartz.Impl.AdoJobStore
         public void AddCommandParameter(
             IDbCommand cmd,
             string paramName,
-            object paramValue,
-            Enum dataType,
+            object? paramValue,
+            Enum? dataType,
             int? size)
         {
-
             IDbDataParameter param = cmd.CreateParameter();
             if (dataType != null)
             {
@@ -80,7 +79,7 @@ namespace Quartz.Impl.AdoJobStore
         }
         private void SetDataTypeToCommandParameter(IDbDataParameter param, object parameterType)
         {
-            dbProvider.Metadata.ParameterDbTypeProperty.SetMethod.Invoke(param, new[] { parameterType });
+            dbProvider.Metadata.ParameterDbTypeProperty!.SetMethod!.Invoke(param, new[] { parameterType });
         }
 
         public DbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText)

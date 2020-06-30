@@ -49,7 +49,7 @@ namespace Quartz.Spi
         public TriggerFiredBundle(
             IJobDetail job,
             IOperableTrigger trigger,
-            ICalendar cal,
+            ICalendar? cal,
             bool jobIsRecovering,
             DateTimeOffset fireTimeUtc,
             DateTimeOffset? scheduledFireTimeUtc,
@@ -84,7 +84,7 @@ namespace Quartz.Spi
         /// Gets the calendar.
         /// </summary>
         /// <value>The calendar.</value>
-        public virtual ICalendar Calendar { get; }
+        public virtual ICalendar? Calendar { get; }
 
         /// <summary>
         /// Gets a value indicating whether this <see cref="TriggerFiredBundle"/> is recovering.

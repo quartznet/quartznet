@@ -37,11 +37,10 @@
     <PlatformTarget>AnyCPU</PlatformTarget>
     <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
 
-    <LangVersion>latest</LangVersion>
+    <LangVersion>8</LangVersion>
     <TargetFullFrameworkVersion>net461</TargetFullFrameworkVersion>
 
     <IsTestProject>$(MSBuildProjectName.Contains('Tests'))</IsTestProject>
-
   </PropertyGroup>
 
   <ItemGroup Condition="'$(IsTestProject)' != 'true' and '$(SourceLinkEnabled)' != 'false'">

@@ -51,10 +51,9 @@ namespace Quartz.Examples.Example09
             return TaskUtil.CompletedTask;
         }
 
-        public virtual async Task JobWasExecuted(
-            IJobExecutionContext inContext, 
-            JobExecutionException inException,
-            CancellationToken canncellationToken)
+        public virtual async Task JobWasExecuted(IJobExecutionContext inContext,
+            JobExecutionException? inException,
+            CancellationToken canncellationToken = default)
         {
             log.Info("Job1Listener says: Job was executed.");
 

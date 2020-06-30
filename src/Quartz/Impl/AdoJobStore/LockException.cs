@@ -36,7 +36,7 @@ namespace Quartz.Impl.AdoJobStore
 		{
 		}
 
-		public LockException(string msg, Exception cause) : base(msg, cause)
+		public LockException(string msg, Exception? cause) : base(msg, cause)
 		{
 		}
 

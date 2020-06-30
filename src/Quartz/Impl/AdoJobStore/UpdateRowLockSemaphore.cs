@@ -65,7 +65,7 @@ namespace Quartz.Impl.AdoJobStore
 
         protected UpdateLockRowSemaphore(
             string tablePrefix,
-            string schedName,
+            string? schedName,
             string defaultSQL,
             string defaultInsertSQL,
             IDbProvider dbProvider) : base(tablePrefix, schedName, defaultSQL, defaultInsertSQL, dbProvider)
@@ -83,7 +83,7 @@ namespace Quartz.Impl.AdoJobStore
             string expandedInsertSql,
             CancellationToken cancellationToken)
         {
-            Exception lastFailure = null;
+            Exception? lastFailure = null;
             for (int i = 0; i < RetryCount; i++)
             {
                 try

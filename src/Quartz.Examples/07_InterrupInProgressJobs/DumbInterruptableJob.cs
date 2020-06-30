@@ -37,7 +37,7 @@ namespace Quartz.Examples.Example07
         // logging services
         private static readonly ILog log = LogProvider.GetLogger(typeof (DumbInterruptableJob));
         // job name
-        private JobKey jobKey;
+        private JobKey? jobKey;
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />

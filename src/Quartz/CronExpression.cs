@@ -270,42 +270,42 @@ namespace Quartz
         private static readonly Dictionary<string, int> monthMap = new Dictionary<string, int>(20);
         private static readonly Dictionary<string, int> dayMap = new Dictionary<string, int>(60);
 
-        private TimeZoneInfo timeZone;
+        private TimeZoneInfo? timeZone;
 
         /// <summary>
         /// Seconds.
         /// </summary>
-        [NonSerialized] protected SortedSet<int> seconds;
+        [NonSerialized] protected SortedSet<int> seconds = null!;
 
         /// <summary>
         /// minutes.
         /// </summary>
-        [NonSerialized] protected SortedSet<int> minutes;
+        [NonSerialized] protected SortedSet<int> minutes = null!;
 
         /// <summary>
         /// Hours.
         /// </summary>
-        [NonSerialized] protected SortedSet<int> hours;
+        [NonSerialized] protected SortedSet<int> hours = null!;
 
         /// <summary>
         /// Days of month.
         /// </summary>
-        [NonSerialized] protected SortedSet<int> daysOfMonth;
+        [NonSerialized] protected SortedSet<int> daysOfMonth = null!;
 
         /// <summary>
         /// Months.
         /// </summary>
-        [NonSerialized] protected SortedSet<int> months;
+        [NonSerialized] protected SortedSet<int> months = null!;
 
         /// <summary>
         /// Days of week.
         /// </summary>
-        [NonSerialized] protected SortedSet<int> daysOfWeek;
+        [NonSerialized] protected SortedSet<int> daysOfWeek = null!;
 
         /// <summary>
         /// Years.
         /// </summary>
-        [NonSerialized] protected SortedSet<int> years;
+        [NonSerialized] protected SortedSet<int> years = null!;
 
         /// <summary>
         /// Last day of week.
@@ -379,10 +379,6 @@ namespace Quartz
             dayMap.Add("SAT", 7);
         }
 
-        private CronExpression()
-        {
-        }
-
         ///<summary>
         /// Constructs a new <see cref="CronExpressionString" /> based on the specified
         /// parameter.
@@ -422,12 +418,12 @@ namespace Quartz
             switch (version)
             {
                 case 0:
-                    CronExpressionString = (string) info.GetValue("cronExpressionString", typeof(string));
-                    TimeZone = (TimeZoneInfo) info.GetValue("timeZone", typeof(TimeZoneInfo));
+                    CronExpressionString = (string) info.GetValue("cronExpressionString", typeof(string))!;
+                    TimeZone = (TimeZoneInfo) info.GetValue("timeZone", typeof(TimeZoneInfo))!;
                     break;
                 case 1:
-                    CronExpressionString = (string) info.GetValue("cronExpression", typeof(string));
-                    var timeZoneId = (string) info.GetValue("timeZoneId", typeof(string));
+                    CronExpressionString = (string) info.GetValue("cronExpression", typeof(string))!;
+                    var timeZoneId = (string) info.GetValue("timeZoneId", typeof(string))!;
                     if (!string.IsNullOrEmpty(timeZoneId))
                     {
                         timeZone = TimeZoneUtil.FindTimeZoneById(timeZoneId);
@@ -590,34 +586,13 @@ namespace Quartz
 
             try
             {
-                if (seconds == null)
-                {
-                    seconds = new SortedSet<int>();
-                }
-                if (minutes == null)
-                {
-                    minutes = new SortedSet<int>();
-                }
-                if (hours == null)
-                {
-                    hours = new SortedSet<int>();
-                }
-                if (daysOfMonth == null)
-                {
-                    daysOfMonth = new SortedSet<int>();
-                }
-                if (months == null)
-                {
-                    months = new SortedSet<int>();
-                }
-                if (daysOfWeek == null)
-                {
-                    daysOfWeek = new SortedSet<int>();
-                }
-                if (years == null)
-                {
-                    years = new SortedSet<int>();
-                }
+                seconds ??= new SortedSet<int>();
+                minutes ??= new SortedSet<int>();
+                hours ??= new SortedSet<int>();
+                daysOfMonth ??= new SortedSet<int>();
+                months ??= new SortedSet<int>();
+                daysOfWeek ??= new SortedSet<int>();
+                years ??= new SortedSet<int>();
 
                 int exprOn = Second;
 
@@ -1520,7 +1495,7 @@ namespace Quartz
                 case Year:
                     return years;
                 default:
-                    return null;
+                    throw new ArgumentOutOfRangeException();
             }
         }
 
@@ -2248,7 +2223,7 @@ namespace Quartz
             return copy;
         }
 
-        public void OnDeserialization(object sender)
+        public void OnDeserialization(object? sender)
         {
             BuildExpression(CronExpressionString);
         }
@@ -2274,7 +2249,7 @@ namespace Quartz
         /// true if the specified <see cref="T:System.Object"/> is equal to the current <see cref="T:System.Object"/>; otherwise, false.
         /// </returns>
         /// <param name="obj">The <see cref="T:System.Object"/> to compare with the current <see cref="T:System.Object"/>. </param>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (ReferenceEquals(null, obj)) return false;
             if (ReferenceEquals(this, obj)) return true;

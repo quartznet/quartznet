@@ -15,8 +15,8 @@ namespace Quartz.Server
 	public class QuartzServer : ServiceControl, IQuartzServer
 	{
 		private readonly ILog logger;
-		private ISchedulerFactory schedulerFactory;
-		private IScheduler scheduler;
+		private ISchedulerFactory schedulerFactory = null!;
+		private IScheduler scheduler = null!;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="QuartzServer"/> class.

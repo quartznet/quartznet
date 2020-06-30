@@ -60,8 +60,8 @@ namespace Quartz.Core
 
         private TimeSpan idleWaitTime = DefaultIdleWaitTime;
         private int idleWaitVariableness = 7 * 1000;
-        private CancellationTokenSource cancellationTokenSource;
-        private Task task;
+        private CancellationTokenSource cancellationTokenSource = null!;
+        private Task task = null!;
 
         /// <summary>
         /// Gets the log.
@@ -291,7 +291,7 @@ namespace Quartz.Core
                         if (triggers != null && triggers.Count > 0)
                         {
                             now = SystemTime.UtcNow();
-                            DateTimeOffset triggerTime = triggers[0].GetNextFireTimeUtc().Value;
+                            DateTimeOffset triggerTime = triggers[0].GetNextFireTimeUtc()!.Value;
                             TimeSpan timeUntilTrigger = triggerTime - now;
 
                             while (timeUntilTrigger > TimeSpan.Zero)
@@ -374,8 +374,8 @@ namespace Quartz.Core
                             for (int i = 0; i < bndles.Count; i++)
                             {
                                 TriggerFiredResult result = bndles[i];
-                                TriggerFiredBundle bndle = result.TriggerFiredBundle;
-                                Exception exception = result.Exception;
+                                var bndle = result.TriggerFiredBundle;
+                                var exception = result.Exception;
 
                                 IOperableTrigger trigger = triggers[i];
                                 // TODO SQL exception?
@@ -524,7 +524,7 @@ namespace Quartz.Core
                 {
                     earlier = true;
                 }
-                else if (GetSignaledNextFireTimeUtc().Value < oldTimeUtc)
+                else if (GetSignaledNextFireTimeUtc()!.Value < oldTimeUtc)
                 {
                     earlier = true;
                 }

@@ -75,11 +75,11 @@ namespace Quartz
     {
         private int interval = 1;
         private IntervalUnit intervalUnit = IntervalUnit.Minute;
-        private HashSet<DayOfWeek> daysOfWeek;
-        private TimeOfDay startTimeOfDayUtc;
-        private TimeOfDay endTimeOfDayUtc;
+        private HashSet<DayOfWeek>? daysOfWeek;
+        private TimeOfDay? startTimeOfDayUtc;
+        private TimeOfDay? endTimeOfDayUtc;
         private int repeatCount = DailyTimeIntervalTriggerImpl.RepeatIndefinitely;
-        private TimeZoneInfo timeZone;
+        private TimeZoneInfo? timeZone;
 
         private int misfireInstruction = MisfireInstruction.SmartPolicy;
 
@@ -111,13 +111,14 @@ namespace Quartz
         {
             var allDaysOfTheWeek = new HashSet<DayOfWeek>();
             var mondayThroughFriday = new HashSet<DayOfWeek>();
-            foreach (DayOfWeek d in Enum.GetValues(typeof(DayOfWeek)))
+            foreach (var d in Enum.GetValues(typeof(DayOfWeek)))
             {
-                allDaysOfTheWeek.Add(d);
+                var dayOfWeek = (DayOfWeek) d!;
+                allDaysOfTheWeek.Add(dayOfWeek);
 
-                if (d >= DayOfWeek.Monday && d <= DayOfWeek.Friday)
+                if (dayOfWeek >= DayOfWeek.Monday && dayOfWeek <= DayOfWeek.Friday)
                 {
-                    mondayThroughFriday.Add(d);
+                    mondayThroughFriday.Add(dayOfWeek);
                 }
             }
 
@@ -160,7 +161,7 @@ namespace Quartz
             st.RepeatIntervalUnit = intervalUnit;
             st.MisfireInstruction = misfireInstruction;
             st.RepeatCount = repeatCount;
-            st.TimeZone = timeZone;
+            st.timeZone = timeZone;
 
             if (daysOfWeek != null)
             {
@@ -364,8 +365,8 @@ namespace Quartz
             }
 
             DateTimeOffset today = SystemTime.UtcNow();
-            DateTimeOffset startTimeOfDayDate = startTimeOfDayUtc.GetTimeOfDayForDate(today).Value;
-            DateTimeOffset maxEndTimeOfDayDate = TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59).GetTimeOfDayForDate(today).Value;
+            DateTimeOffset startTimeOfDayDate = startTimeOfDayUtc.GetTimeOfDayForDate(today);
+            DateTimeOffset maxEndTimeOfDayDate = TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59).GetTimeOfDayForDate(today);
 
             //apply proper offsets according to timezone
             TimeZoneInfo targetTimeZone = timeZone ?? TimeZoneInfo.Local;

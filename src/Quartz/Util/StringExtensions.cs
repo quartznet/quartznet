@@ -12,7 +12,7 @@ namespace Quartz.Util
         /// </summary>
         /// <param name="s"></param>
         /// <returns></returns>
-        public static string NullSafeTrim(this string s)
+        public static string? NullSafeTrim(this string s)
         {
             return s?.Trim();
         }
@@ -22,7 +22,7 @@ namespace Quartz.Util
         /// </summary>
         /// <param name="s"></param>
         /// <returns></returns>
-        public static string TrimEmptyToNull(this string s)
+        public static string? TrimEmptyToNull(this string s)
         {
             if (s == null)
             {
@@ -39,7 +39,7 @@ namespace Quartz.Util
             return s;
         }
 
-        public static bool IsNullOrWhiteSpace(this string s)
+        public static bool IsNullOrWhiteSpace(this string? s)
         {
             return s == null || s.Trim().Length == 0;
         }

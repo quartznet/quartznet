@@ -213,12 +213,24 @@ namespace Quartz.Impl
 	    /// <param name="jobStore">The type of job store</param>
 	    /// <param name="schedulerPluginMap"></param>
 	    /// <param name="idleWaitTime">The idle wait time. You can specify TimeSpan.Zero for
-	    /// the default value, which is currently 30000 ms.</param>
-	    public virtual void CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool,
-                                            IJobStore jobStore, IDictionary<string, ISchedulerPlugin> schedulerPluginMap, TimeSpan idleWaitTime)
+	    ///     the default value, which is currently 30000 ms.</param>
+	    public virtual void CreateScheduler(
+		    string schedulerName, 
+		    string schedulerInstanceId,
+		    IThreadPool threadPool,
+		    IJobStore jobStore,
+		    IDictionary<string, ISchedulerPlugin>? schedulerPluginMap, 
+		    TimeSpan idleWaitTime)
 		{
 			CreateScheduler(
-                schedulerName, schedulerInstanceId, threadPool, jobStore, schedulerPluginMap, idleWaitTime, DefaultBatchMaxSize, DefaultBatchTimeWindow);
+                schedulerName,
+                schedulerInstanceId,
+                threadPool,
+                jobStore, 
+                schedulerPluginMap,
+                idleWaitTime, 
+                DefaultBatchMaxSize,
+                DefaultBatchTimeWindow);
 		}
 
 	    /// <summary>
@@ -235,16 +247,25 @@ namespace Quartz.Impl
 	    /// <param name="maxBatchSize">The maximum batch size of triggers, when acquiring them</param>
 	    /// <param name="batchTimeWindow">The time window for which it is allowed to "pre-acquire" triggers to fire</param>
 	    public virtual void CreateScheduler(
-	        string schedulerName,
-	        string schedulerInstanceId,
-	        IThreadPool threadPool,
-	        IJobStore jobStore,
-	        IDictionary<string, ISchedulerPlugin> schedulerPluginMap,
-	        TimeSpan idleWaitTime,
-	        int maxBatchSize,
-	        TimeSpan batchTimeWindow)
+		    string schedulerName,
+		    string schedulerInstanceId,
+		    IThreadPool threadPool,
+		    IJobStore jobStore,
+		    IDictionary<string, ISchedulerPlugin>? schedulerPluginMap,
+		    TimeSpan idleWaitTime,
+		    int maxBatchSize,
+		    TimeSpan batchTimeWindow)
 	    {
-	        CreateScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow, null);
+	        CreateScheduler(
+		        schedulerName,
+		        schedulerInstanceId, 
+		        threadPool, 
+		        jobStore,
+		        schedulerPluginMap,
+		        idleWaitTime,
+		        maxBatchSize,
+		        batchTimeWindow,
+		        null);
 	    }
 
 	    /// <summary>
@@ -262,15 +283,15 @@ namespace Quartz.Impl
 	    /// <param name="batchTimeWindow">The time window for which it is allowed to "pre-acquire" triggers to fire</param>
 	    /// <param name="schedulerExporter">The scheduler exporter to use</param>
 	    public virtual void CreateScheduler(
-            string schedulerName,
-            string schedulerInstanceId,
-            IThreadPool threadPool,
-            IJobStore jobStore,
-            IDictionary<string, ISchedulerPlugin> schedulerPluginMap,
-            TimeSpan idleWaitTime,
-            int maxBatchSize,
-            TimeSpan batchTimeWindow,
-            ISchedulerExporter schedulerExporter)
+		    string schedulerName,
+		    string schedulerInstanceId,
+		    IThreadPool threadPool,
+		    IJobStore jobStore,
+		    IDictionary<string, ISchedulerPlugin>? schedulerPluginMap,
+		    TimeSpan idleWaitTime,
+		    int maxBatchSize,
+		    TimeSpan batchTimeWindow,
+		    ISchedulerExporter? schedulerExporter)
         {
             // Currently only one run-shell factory is available...
             IJobRunShellFactory jrsf = new StdJobRunShellFactory();
@@ -348,8 +369,7 @@ namespace Quartz.Impl
 		/// </summary>
 		/// <returns></returns>
 		/// <throws>  SchedulerException </throws>
-		public virtual Task<IScheduler> GetScheduler(
-			CancellationToken cancellationToken = default)
+		public virtual Task<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
 		{
 			if (!initialized)
 			{
@@ -358,18 +378,15 @@ namespace Quartz.Impl
 			}
 			SchedulerRepository schedRep = SchedulerRepository.Instance;
 
-			return schedRep.Lookup(DefaultSchedulerName, cancellationToken);
+			return schedRep.Lookup(DefaultSchedulerName, cancellationToken)!;
 		}
 
 		/// <summary>
 		/// Returns a handle to the Scheduler with the given name, if it exists.
 		/// </summary>
-		public virtual Task<IScheduler> GetScheduler(
-			string schedName,
-			CancellationToken cancellationToken = default)
+		public virtual Task<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default)
 		{
 			SchedulerRepository schedRep = SchedulerRepository.Instance;
-
 			return schedRep.Lookup(schedName, cancellationToken);
 		}
 	}

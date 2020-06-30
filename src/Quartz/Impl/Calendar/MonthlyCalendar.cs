@@ -86,8 +86,8 @@ namespace Quartz.Impl.Calendar
             {
                 case 0:
                 case 1:
-                    excludeDays = (bool[]) info.GetValue("excludeDays", typeof(bool[]));
-                    excludeAll = (bool) info.GetValue("excludeAll", typeof(bool));
+                    excludeDays = (bool[]) info.GetValue("excludeDays", typeof(bool[]))!;
+                    excludeAll = (bool) info.GetValue("excludeAll", typeof(bool))!;
                     break;
                 default:
                     throw new NotSupportedException("Unknown serialization version");
@@ -289,7 +289,7 @@ namespace Quartz.Impl.Calendar
             return baseEqual && DaysExcluded.SequenceEqual(obj.DaysExcluded);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (!(obj is MonthlyCalendar))
             {

@@ -86,9 +86,8 @@ namespace Quartz.Listener
             chainLinks.Add(firstJob, secondJob);
         }
 
-        public override async Task JobWasExecuted(
-            IJobExecutionContext context, 
-            JobExecutionException jobException,
+        public override async Task JobWasExecuted(IJobExecutionContext context,
+            JobExecutionException? jobException,
             CancellationToken cancellationToken = default)
         {
             chainLinks.TryGetValue(context.JobDetail.Key, out var sj);

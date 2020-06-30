@@ -1087,8 +1087,7 @@ Please add configuration to your application config file to correctly initialize
         /// called, then the default (no-arg) <see cref="Initialize()" /> method
         /// will be called by this method.
         /// </remarks>
-        public virtual async Task<IScheduler> GetScheduler(
-            CancellationToken cancellationToken = default)
+        public virtual async Task<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
         {
             if (cfg == null)
             {
@@ -1097,7 +1096,7 @@ Please add configuration to your application config file to correctly initialize
 
             SchedulerRepository schedRep = SchedulerRepository.Instance;
 
-            IScheduler sched = await schedRep.Lookup(SchedulerName, cancellationToken).ConfigureAwait(false);
+            IScheduler? sched = await schedRep.Lookup(SchedulerName, cancellationToken).ConfigureAwait(false);
 
             if (sched != null)
             {
@@ -1113,7 +1112,7 @@ Please add configuration to your application config file to correctly initialize
 
             sched = await Instantiate().ConfigureAwait(false);
 
-            return sched;
+            return sched!;
         }
 
         /// <summary> <para>
@@ -1121,8 +1120,7 @@ Please add configuration to your application config file to correctly initialize
         /// it has already been instantiated).
         /// </para>
         /// </summary>
-        public virtual Task<IScheduler> GetScheduler(
-            string schedName,
+        public virtual Task<IScheduler?> GetScheduler(string schedName,
             CancellationToken cancellationToken = default)
         {
             return SchedulerRepository.Instance.Lookup(schedName, cancellationToken);

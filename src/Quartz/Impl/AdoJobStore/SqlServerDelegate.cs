@@ -62,8 +62,8 @@ namespace Quartz.Impl.AdoJobStore
         public override void AddCommandParameter(
             DbCommand cmd,
             string paramName,
-            object paramValue,
-            Enum dataType = null,
+            object? paramValue,
+            Enum? dataType = null,
             int? size = null)
         {
             // deeded for SQL Server CE

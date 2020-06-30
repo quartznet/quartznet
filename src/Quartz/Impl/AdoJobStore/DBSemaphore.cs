@@ -41,15 +41,15 @@ namespace Quartz.Impl.AdoJobStore
         private readonly object syncRoot = new object();
         private readonly Dictionary<Guid, HashSet<string>> locks = new Dictionary<Guid, HashSet<string>>();
 
-        private string sql;
-        private string insertSql;
+        private string sql = null!;
+        private string insertSql = null!;
 
-        private string tablePrefix;
+        private string tablePrefix = null!;
 
-        private string schedName;
+        private string? schedName;
 
-        private string expandedSQL;
-        private string expandedInsertSQL;
+        private string expandedSQL = null!;
+        private string expandedInsertSQL = null!;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DBSemaphore"/> class.
@@ -61,7 +61,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="dbProvider">The db provider.</param>
         protected DBSemaphore(
             string tablePrefix, 
-            string schedName, 
+            string? schedName, 
             string defaultSQL, 
             string defaultInsertSQL, 
             IDbProvider dbProvider)

@@ -184,7 +184,7 @@ namespace Quartz.Simpl
 
             foreach (var allowedProperty in formatProviderAllowedProps)
             {
-                if (props.Contains(allowedProperty))
+                if (allowedProperty != null && props.Contains(allowedProperty))
                 {
                     formatProviderAllowedProps[allowedProperty] = props[allowedProperty];
                 }

@@ -67,7 +67,7 @@ namespace Quartz.Impl.Triggers
         private DateTimeOffset startTimeUtc;
 
         [NonSerialized] // we have the key in string fields
-        private TriggerKey key;
+        private TriggerKey? key;
 
 		/// <summary>
         /// Get or sets the name of this <see cref="ITrigger" />.
@@ -78,7 +78,7 @@ namespace Quartz.Impl.Triggers
 			get => name;
 		    set
 			{
-				if (value == null || value.Trim().Length == 0)
+				if (string.IsNullOrWhiteSpace(value))
 				{
 					throw new ArgumentException("Trigger name cannot be null or empty.");
 				}
@@ -125,7 +125,7 @@ namespace Quartz.Impl.Triggers
 			get => jobName;
 		    set
 			{
-				if (value == null || value.Trim().Length == 0)
+				if (string.IsNullOrWhiteSpace(value))
 				{
 					throw new ArgumentException("Job name cannot be null or empty.");
 				}
@@ -233,13 +233,13 @@ namespace Quartz.Impl.Triggers
 		/// Get or set the description given to the <see cref="ITrigger" /> instance by
 		/// its creator (if any).
 		/// </summary>
-		public virtual string Description { get; set; }
+		public virtual string? Description { get; set; }
 
 	    /// <summary>
 		/// Get or set  the <see cref="ICalendar" /> with the given name with
 		/// this Trigger. Use <see langword="null" /> when setting to dis-associate a Calendar.
 		/// </summary>
-		public virtual string CalendarName { get; set; }
+		public virtual string? CalendarName { get; set; }
 
 	    /// <summary>
 		/// Get or set the <see cref="JobDataMap" /> that is associated with the
@@ -409,7 +409,7 @@ namespace Quartz.Impl.Triggers
         /// can be placed into a <see cref="IScheduler" />.
         /// </remarks>
         /// <param name="name">The name.</param>
-        protected AbstractTrigger(string name) : this(name, null)
+        protected AbstractTrigger(string name) : this(name, SchedulerConstants.DefaultGroup)
         {
         }
 
@@ -423,10 +423,10 @@ namespace Quartz.Impl.Triggers
         /// </remarks>
         /// <param name="name">The name.</param>
         /// <param name="group">if <see langword="null" />, Scheduler.DefaultGroup will be used.</param>
-        protected AbstractTrigger(string name, string group)
+        protected AbstractTrigger(string name, string? group)
 		{
 			Name = name;
-			Group = group;
+			Group = group!;
 		}
 
         /// <summary>
@@ -470,7 +470,7 @@ namespace Quartz.Impl.Triggers
 		/// triggering (if any).
         /// </remarks>
 		/// <seealso cref="JobExecutionException" />
-		public abstract void Triggered(ICalendar cal);
+		public abstract void Triggered(ICalendar? cal);
 
 
         /// <summary>
@@ -493,7 +493,7 @@ namespace Quartz.Impl.Triggers
         /// by the scheduler, which is also the same value <see cref="GetNextFireTimeUtc" />
         /// will return (until after the first firing of the <see cref="ITrigger" />).
         /// </returns>
-        public abstract DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar cal);
+        public abstract DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? cal);
 
         /// <summary>
         /// This method should not be used by the Quartz client.
@@ -514,7 +514,7 @@ namespace Quartz.Impl.Triggers
         /// </returns>
         /// <seealso cref="SchedulerInstruction" />
         /// <seealso cref="Triggered" />
-        public virtual SchedulerInstruction ExecutionComplete(IJobExecutionContext context, JobExecutionException result)
+        public virtual SchedulerInstruction ExecutionComplete(IJobExecutionContext context, JobExecutionException? result)
         {
             if (result != null && result.RefireImmediately)
             {
@@ -589,7 +589,7 @@ namespace Quartz.Impl.Triggers
 		/// was created.
 		/// </para>
 		/// </summary>
-		public abstract void UpdateAfterMisfire(ICalendar cal);
+		public abstract void UpdateAfterMisfire(ICalendar? cal);
 
 		/// <summary>
 		/// This method should not be used by the Quartz client.
@@ -665,7 +665,7 @@ namespace Quartz.Impl.Triggers
 	    /// </summary>
 	    /// <param name="other"></param>
 	    /// <returns></returns>
-        public virtual int CompareTo(ITrigger other)
+        public virtual int CompareTo(ITrigger? other)
         {
 	        if ((other == null || other.Key == null) && Key == null)
 	        {
@@ -690,7 +690,7 @@ namespace Quartz.Impl.Triggers
         /// <returns>
         /// true if the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>; otherwise, false.
         /// </returns>
-		public override bool Equals(object obj)
+		public override bool Equals(object? obj)
 		{
             return Equals(obj as AbstractTrigger);
 		}
@@ -700,7 +700,7 @@ namespace Quartz.Impl.Triggers
         /// </summary>
         /// <param name="trigger"></param>
         /// <returns>true if the key of this Trigger equals that of the given Trigger</returns>
-        public virtual bool Equals(AbstractTrigger trigger)
+        public virtual bool Equals(AbstractTrigger? trigger)
         {
             if (trigger?.Key == null || Key == null)
             {

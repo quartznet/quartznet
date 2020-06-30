@@ -22,7 +22,7 @@ namespace Quartz.Simpl
     /// <author>Marko Lahma</author>
     public class JsonObjectSerializer : IObjectSerializer
     {
-        private JsonSerializer serializer;
+        private JsonSerializer serializer = null!;
 
         public void Initialize()
         {
@@ -72,17 +72,13 @@ namespace Quartz.Simpl
         /// Deserializes object from byte array presentation.
         /// </summary>
         /// <param name="obj">Data to deserialize object from.</param>
-        public T DeSerialize<T>(byte[] obj) where T : class
+        public T? DeSerialize<T>(byte[] obj) where T : class
         {
             try
             {
-                using (var ms = new MemoryStream(obj))
-                {
-                    using (var sr = new StreamReader(ms))
-                    {
-                        return (T) serializer.Deserialize(sr, typeof(T));
-                    }
-                }
+                using var ms = new MemoryStream(obj);
+                using var sr = new StreamReader(ms);
+                return (T?) serializer.Deserialize(sr, typeof(T));
             }
             catch (JsonSerializationException e)
             {
@@ -93,15 +89,15 @@ namespace Quartz.Simpl
 
         protected class StringKeyDirtyFlagMapConverter : JsonConverter
         {
-            public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+            public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
             {
-                var map = (StringKeyDirtyFlagMap) value;
+                var map = (StringKeyDirtyFlagMap) value!;
                 serializer.Serialize(writer, map.WrappedMap);
             }
 
-            public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+            public override object ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
             {
-                IDictionary<string, object> innerMap = serializer.Deserialize<IDictionary<string, object>>(reader);
+                IDictionary<string, object> innerMap = serializer.Deserialize<IDictionary<string, object>>(reader)!;
                 JobDataMap map = new JobDataMap(innerMap);
                 return map;
             }
@@ -114,13 +110,13 @@ namespace Quartz.Simpl
 
         protected class CronExpressionConverter : JsonConverter
         {
-            public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+            public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
             {
-                var cronExpression = (CronExpression) value;
+                var cronExpression = (CronExpression) value!;
                 writer.WriteStartObject();
 
                 writer.WritePropertyName("$type");
-                writer.WriteValue(value.GetType().AssemblyQualifiedNameWithoutVersion());
+                writer.WriteValue(value!.GetType().AssemblyQualifiedNameWithoutVersion());
 
                 writer.WritePropertyName("CronExpression");
                 writer.WriteValue(cronExpression.CronExpressionString);
@@ -131,13 +127,13 @@ namespace Quartz.Simpl
                 writer.WriteEndObject();
             }
 
-            public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+            public override object ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
             {
                 JObject jObject = JObject.Load(reader);
-                var cronExpressionString = jObject["CronExpression"].Value<string>();
+                var cronExpressionString = jObject["CronExpression"]!.Value<string>();
 
                 var cronExpression = new CronExpression(cronExpressionString);
-                cronExpression.TimeZone = TimeZoneUtil.FindTimeZoneById(jObject["TimeZoneId"].Value<string>());
+                cronExpression.TimeZone = TimeZoneUtil.FindTimeZoneById(jObject["TimeZoneId"]!.Value<string>());
                 return cronExpression;
             }
 
@@ -170,13 +166,13 @@ namespace Quartz.Simpl
                 return converter;
             }
             
-            public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+            public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
             {
-                var calendar = (BaseCalendar) value;
+                var calendar = (BaseCalendar) value!;
 
                 writer.WriteStartObject();
                 writer.WritePropertyName("$type");
-                var type = value.GetType().AssemblyQualifiedNameWithoutVersion();
+                var type = value!.GetType().AssemblyQualifiedNameWithoutVersion();
                 writer.WriteValue(type);
 
                 writer.WritePropertyName("Description");
@@ -200,21 +196,21 @@ namespace Quartz.Simpl
                 writer.WriteEndObject();
             }
 
-            public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+            public override object ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
             {
                 JObject jObject = JObject.Load(reader);
-                string type = jObject["$type"].Value<string>();
+                string type = jObject["$type"]!.Value<string>();
 
                 var calendarConverter = GetCalendarConverter(type);
                 BaseCalendar target = calendarConverter.Create(jObject);
-                target.Description = jObject["Description"].Value<string>();
-                target.TimeZone = TimeZoneUtil.FindTimeZoneById(jObject["TimeZoneId"].Value<string>());
-                var baseCalendar = jObject["BaseCalendar"].Value<JObject>();
+                target.Description = jObject["Description"]!.Value<string>();
+                target.TimeZone = TimeZoneUtil.FindTimeZoneById(jObject["TimeZoneId"]!.Value<string>());
+                var baseCalendar = jObject["BaseCalendar"]!.Value<JObject>();
                 if (baseCalendar != null)
                 {
-                    var baseCalendarType = Type.GetType(baseCalendar["$type"].Value<string>(), true);
-                    var o = baseCalendar.ToObject(baseCalendarType, serializer);
-                    target.CalendarBase = (ICalendar) o;
+                    var baseCalendarType = Type.GetType(baseCalendar["$type"]!.Value<string>(), true);
+                    var o = baseCalendar.ToObject(baseCalendarType!, serializer);
+                    target.CalendarBase = (ICalendar?) o;
                 }
 
                 calendarConverter.PopulateFieldsToCalendarObject(target, jObject);
@@ -269,7 +265,7 @@ namespace Quartz.Simpl
             public void PopulateFieldsToCalendarObject(BaseCalendar value, JObject jObject)
             {
                 var annualCalendar = (AnnualCalendar) value;
-                var excludedDates = jObject["ExcludedDays"].Values<DateTimeOffset>();
+                var excludedDates = jObject["ExcludedDays"]!.Values<DateTimeOffset>();
                 foreach (var date in excludedDates)
                 {
                     annualCalendar.SetDayExcluded(date.DateTime, true);
@@ -296,7 +292,7 @@ namespace Quartz.Simpl
 
             public BaseCalendar Create(JObject value)
             {
-                string cronExpression = value["CronExpressionString"].Value<string>();
+                string cronExpression = value["CronExpressionString"]!.Value<string>();
                 return new CronCalendar(cronExpression);
             }
         }
@@ -319,13 +315,13 @@ namespace Quartz.Simpl
 
             public void PopulateFieldsToCalendarObject(BaseCalendar value, JObject jObject)
             {
-                ((DailyCalendar) value).InvertTimeRange = jObject["InvertTimeRange"].Value<bool>();
+                ((DailyCalendar) value).InvertTimeRange = jObject["InvertTimeRange"]!.Value<bool>();
             }
 
             public BaseCalendar Create(JObject value)
             {
-                var rangeStartingTime = value["RangeStartingTime"].Value<string>();
-                var rangeEndingTime = value["RangeEndingTime"].Value<string>();
+                var rangeStartingTime = value["RangeStartingTime"]!.Value<string>();
+                var rangeEndingTime = value["RangeEndingTime"]!.Value<string>();
                 return new DailyCalendar(null, rangeStartingTime, rangeEndingTime);
             }
         }
@@ -346,7 +342,7 @@ namespace Quartz.Simpl
             public void PopulateFieldsToCalendarObject(BaseCalendar value, JObject jObject)
             {
                 var calendar = (HolidayCalendar) value;
-                var excludedDates = jObject["ExcludedDates"].Values<DateTimeOffset>();
+                var excludedDates = jObject["ExcludedDates"]!.Values<DateTimeOffset>();
                 foreach (var date in excludedDates)
                 {
                     calendar.AddExcludedDate(date.DateTime);
@@ -374,7 +370,7 @@ namespace Quartz.Simpl
 
             public void PopulateFieldsToCalendarObject(BaseCalendar value, JObject jObject)
             {
-                ((MonthlyCalendar) value).DaysExcluded = jObject["ExcludedDays"].Values<bool>().ToArray();
+                ((MonthlyCalendar) value).DaysExcluded = jObject["ExcludedDays"]!.Values<bool>().ToArray();
             }
 
             public BaseCalendar Create(JObject value)
@@ -398,7 +394,7 @@ namespace Quartz.Simpl
 
             public void PopulateFieldsToCalendarObject(BaseCalendar value, JObject jObject)
             {
-                ((WeeklyCalendar) value).DaysExcluded = jObject["ExcludedDays"].Values<bool>().ToArray();
+                ((WeeklyCalendar) value).DaysExcluded = jObject["ExcludedDays"]!.Values<bool>().ToArray();
             }
 
             public BaseCalendar Create(JObject value)

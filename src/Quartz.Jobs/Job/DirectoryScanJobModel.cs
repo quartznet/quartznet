@@ -23,14 +23,14 @@ namespace Quartz.Job
         {
         }
 
-        internal IReadOnlyList<string> DirectoriesToScan { get; private set; }
-        internal List<FileInfo> CurrentFileList { get; private set; }
-        internal IDirectoryScanListener DirectoryScanListener { get; private set; }
+        internal List<string> DirectoriesToScan { get; private set; } = null!;
+        internal List<FileInfo> CurrentFileList { get; private set; } = null!;
+        internal IDirectoryScanListener DirectoryScanListener { get; private set; } = null!;
         internal DateTime LastModTime { get; private set; }
         internal DateTime MaxAgeDate => DateTime.Now - MinUpdateAge;
         private TimeSpan MinUpdateAge { get; set; }
-        private JobDataMap JobDetailJobDataMap { get; set; }
-        public string SearchPattern { get; internal set; }
+        private JobDataMap JobDetailJobDataMap { get; set; } = null!;
+        public string SearchPattern { get; internal set; } = null!;
         public bool IncludeSubDirectories { get; internal set; }
 
         /// <summary>
@@ -68,8 +68,8 @@ namespace Quartz.Job
                     : new List<FileInfo>(),
                 SearchPattern = mergedJobDataMap.ContainsKey(DirectoryScanJob.SearchPattern) ?
                     mergedJobDataMap.GetString(DirectoryScanJob.SearchPattern) : "*",
-                IncludeSubDirectories = mergedJobDataMap.ContainsKey(DirectoryScanJob.IncludeSubDirectories) ?
-                    mergedJobDataMap.GetBooleanValue(DirectoryScanJob.IncludeSubDirectories) : false
+                IncludeSubDirectories = mergedJobDataMap.ContainsKey(DirectoryScanJob.IncludeSubDirectories) 
+                                        && mergedJobDataMap.GetBooleanValue(DirectoryScanJob.IncludeSubDirectories)
             };
 
             return model;

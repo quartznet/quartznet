@@ -87,7 +87,7 @@ namespace Quartz.Listener
 
         public bool RemoveListener(string listenerName)
         {
-            ITriggerListener listener = listeners.Find(x => x.Name == listenerName);
+            ITriggerListener? listener = listeners.Find(x => x.Name == listenerName);
             if (listener != null)
             {
                 listeners.Remove(listener);

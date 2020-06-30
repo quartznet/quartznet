@@ -44,7 +44,7 @@ namespace Quartz.Simpl
 		/// </summary>
 		/// <param name="cancellationToken"></param>
 		/// <returns>The clusterwide unique instance id.</returns>
-		public override Task<string> GenerateInstanceId(CancellationToken cancellationToken = default)
+		public override Task<string?> GenerateInstanceId(CancellationToken cancellationToken = default)
 		{
 		    return GetHostName(IdMaxLength, cancellationToken);
 		}

@@ -79,13 +79,13 @@ namespace Quartz
         /// Get or set the description given to the <see cref="ITrigger" /> instance by
         /// its creator (if any).
         /// </summary>
-        string Description { get; }
+        string? Description { get; }
 
         /// <summary>
         /// Get or set  the <see cref="ICalendar" /> with the given name with
         /// this Trigger. Use <see langword="null" /> when setting to dis-associate a Calendar.
         /// </summary>
-        string CalendarName { get; }
+        string? CalendarName { get; }
 
         /// <summary>
         /// Get or set the <see cref="JobDataMap" /> that is associated with the 

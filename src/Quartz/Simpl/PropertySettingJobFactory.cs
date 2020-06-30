@@ -110,7 +110,7 @@ namespace Quartz.Simpl
         /// <param name="data">The data to set.</param>
 		public virtual void SetObjectProperties(object obj, JobDataMap data)
 		{
-			Type paramType = null;
+			Type? paramType = null;
 
 			foreach (string name in data.Keys)
 			{
@@ -118,7 +118,7 @@ namespace Quartz.Simpl
 				string propName = c + name.Substring(1);
 
 				object o = data[name];
-				PropertyInfo prop = obj.GetType().GetProperty(propName);
+				var prop = obj.GetType().GetProperty(propName);
 
 				try
 				{
@@ -141,11 +141,11 @@ namespace Quartz.Simpl
 						HandleError($"Cannot set empty string to char property on Job class {obj.GetType()} for property '{name}'");
 					}
 
-                    object goodValue = paramType == typeof (TimeSpan)
+                    var goodValue = paramType == typeof (TimeSpan)
 										   ? ObjectUtils.GetTimeSpanValueForProperty(prop, o)
 										   : ConvertValueIfNecessary(paramType, o);
 
-					prop.GetSetMethod().Invoke(obj, new[] {goodValue});
+					prop.GetSetMethod()!.Invoke(obj, new[] {goodValue});
 				}
 				catch (FormatException nfe)
 				{
@@ -179,7 +179,7 @@ namespace Quartz.Simpl
 			}
 		}
 
-	    protected virtual object ConvertValueIfNecessary(Type requiredType, object newValue)
+	    protected virtual object? ConvertValueIfNecessary(Type requiredType, object? newValue)
 	    {
 	        return ObjectUtils.ConvertValueIfNecessary(requiredType, newValue);
 	    }
@@ -189,7 +189,7 @@ namespace Quartz.Simpl
 			HandleError(message, null);
 		}
 
-		private void HandleError(string message, Exception e)
+		private void HandleError(string message, Exception? e)
 		{
 			if (ThrowIfPropertyNotFound)
 			{

@@ -22,9 +22,9 @@ namespace Quartz.Server
 		private const string DefaultServiceName = "QuartzServer";
 		private const string DefaultServiceDisplayName = "Quartz Server";
 		private const string DefaultServiceDescription = "Quartz Job Scheduling Server";
-	    private static readonly string DefaultServerImplementationType = typeof(QuartzServer).AssemblyQualifiedName;
+	    private static readonly string DefaultServerImplementationType = typeof(QuartzServer).AssemblyQualifiedName!;
 
-	    private static readonly NameValueCollection configuration;
+	    private static readonly NameValueCollection? configuration;
 
         /// <summary>
         /// Initializes the <see cref="Configuration"/> class.
@@ -74,7 +74,7 @@ namespace Quartz.Server
 		/// <returns>The configuration value.</returns>
 		private static string GetConfigurationOrDefault(string configurationKey, string defaultValue)
 		{
-			string retValue = null;
+			string? retValue = null;
             if (configuration != null)
             {
                 retValue = configuration[configurationKey];

@@ -19,10 +19,10 @@ namespace Quartz.Server
         {
             string typeName = Configuration.ServerImplementationType;
 
-            Type t = Type.GetType(typeName, true);
+            Type t = Type.GetType(typeName, true)!;
 
             logger.Debug("Creating new instance of server type '" + typeName + "'");
-            QuartzServer retValue = (QuartzServer) Activator.CreateInstance(t);
+            QuartzServer retValue = (QuartzServer) Activator.CreateInstance(t)!;
             logger.Debug("Instance successfully created");
             return retValue;
         }

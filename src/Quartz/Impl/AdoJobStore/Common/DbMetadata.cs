@@ -32,10 +32,10 @@ namespace Quartz.Impl.AdoJobStore.Common
     /// <author>Marko Lahma</author>
     public class DbMetadata
     {
-        private string parameterDbTypePropertyName;
+        private string parameterDbTypePropertyName = null!;
 
-        private string dbBinaryTypeName;
-        private Enum dbBinaryType;
+        private string? dbBinaryTypeName;
+        private Enum? dbBinaryType;
 
         /// <summary>
         /// Initializes this instance. Parses information and initializes startup
@@ -47,8 +47,13 @@ namespace Quartz.Impl.AdoJobStore.Common
             if (dbBinaryTypeName != null)
             {
                 // not inited yet
+                if (ParameterDbType == null || ParameterType == null)
+                {
+                    throw new ArgumentException($"Couldn't parse parameter db type for database type '{ProductName}'");
+                }
+
                 dbBinaryType = (Enum) Enum.Parse(ParameterDbType, dbBinaryTypeName);
-                ParameterDbTypeProperty = ParameterType.GetProperty(parameterDbTypePropertyName);
+                ParameterDbTypeProperty = ParameterType.GetProperty(parameterDbTypePropertyName)!;
                 if (ParameterDbTypeProperty == null)
                 {
                     throw new ArgumentException($"Couldn't parse parameter db type for database type '{ProductName}'");
@@ -58,44 +63,44 @@ namespace Quartz.Impl.AdoJobStore.Common
 
         /// <summary>Gets or sets the name of the assembly that holds the connection library.</summary>
         /// <value>The name of the assembly.</value>
-        public virtual string AssemblyName { get; set; }
+        public virtual string? AssemblyName { get; set; }
 
         /// <summary>
         /// Gets or sets the name of the product.
         /// </summary>
         /// <value>The name of the product.</value>
-        public virtual string ProductName { get; set; }
+        public virtual string? ProductName { get; set; }
 
         /// <summary>
         /// Gets or sets the type of the connection.
         /// </summary>
         /// <value>The type of the connection.</value>
-        public virtual Type ConnectionType { get; set; }
+        public virtual Type? ConnectionType { get; set; }
 
         /// <summary>
         /// Gets or sets the type of the command.
         /// </summary>
         /// <value>The type of the command.</value>
-        public virtual Type CommandType { get; set; }
+        public virtual Type? CommandType { get; set; }
 
         /// <summary>
         /// Gets or sets the type of the parameter.
         /// </summary>
         /// <value>The type of the parameter.</value>
-        public virtual Type ParameterType { get; set; }
+        public virtual Type? ParameterType { get; set; }
 
         /// <summary>
         /// Gets or sets the parameter name prefix.
         /// </summary>
         /// <value>The parameter name prefix.</value>
-        public virtual string ParameterNamePrefix { get; set; }
+        public virtual string? ParameterNamePrefix { get; set; }
 
         /// <summary>
         /// Gets or sets the type of the exception that is thrown when using driver
         /// library.
         /// </summary>
         /// <value>The type of the exception.</value>
-        public virtual Type ExceptionType { get; set; }
+        public virtual Type? ExceptionType { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether parameters are bind by name when using
@@ -106,19 +111,19 @@ namespace Quartz.Impl.AdoJobStore.Common
 
         /// <summary>Gets or sets the type of the database parameters.</summary>
         /// <value>The type of the parameter db.</value>
-        public virtual Type ParameterDbType { get; set; }
+        public virtual Type? ParameterDbType { get; set; }
 
         /// <summary>
         /// Gets the parameter db type property.
         /// </summary>
         /// <value>The parameter db type property.</value>
-        public virtual PropertyInfo ParameterDbTypeProperty { get; set; }
+        public virtual PropertyInfo? ParameterDbTypeProperty { get; set; }
 
         /// <summary>
         /// Gets the parameter is nullable property.
         /// </summary>
         /// <value>The parameter is nullable property.</value>
-        public virtual PropertyInfo ParameterIsNullableProperty { get; set; }
+        public virtual PropertyInfo? ParameterIsNullableProperty { get; set; }
 
         /// <summary>
         /// Gets or sets the type of the db binary column. This is a string representation of
@@ -132,7 +137,7 @@ namespace Quartz.Impl.AdoJobStore.Common
 
         /// <summary>Gets the type of the db binary.</summary>
         /// <value>The type of the db binary.</value>
-        public virtual Enum DbBinaryType => dbBinaryType;
+        public virtual Enum? DbBinaryType => dbBinaryType;
 
         /// <summary>
         /// Sets the name of the parameter db type property.
