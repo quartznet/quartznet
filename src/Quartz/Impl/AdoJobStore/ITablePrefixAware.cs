@@ -31,6 +31,6 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         string TablePrefix { set; }
 
-        string SchedName { set; }
+        string? SchedName { set; }
     }
 }

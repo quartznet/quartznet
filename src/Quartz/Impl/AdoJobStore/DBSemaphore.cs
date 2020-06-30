@@ -41,15 +41,15 @@ namespace Quartz.Impl.AdoJobStore
         private readonly object syncRoot = new object();
         private readonly Dictionary<Guid, HashSet<string>> locks = new Dictionary<Guid, HashSet<string>>();
 
-        private string sql;
-        private string insertSql;
+        private string sql = null!;
+        private string insertSql = null!;
 
-        private string tablePrefix;
+        private string tablePrefix = null!;
 
-        private string schedName;
+        private string? schedName;
 
-        private string expandedSQL;
-        private string expandedInsertSQL;
+        private string expandedSQL = null!;
+        private string expandedInsertSQL = null!;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="DBSemaphore"/> class.
@@ -61,7 +61,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="dbProvider">The db provider.</param>
         protected DBSemaphore(
             string tablePrefix, 
-            string schedName, 
+            string? schedName, 
             string defaultSQL, 
             string defaultInsertSQL, 
             IDbProvider dbProvider)
@@ -98,7 +98,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>true if the lock was obtained.</returns>
         public async Task<bool> ObtainLock(
             Guid requestorId, 
-            ConnectionAndTransactionHolder conn,
+            ConnectionAndTransactionHolder? conn,
             string lockName,
             CancellationToken cancellationToken = default)
         {
@@ -108,7 +108,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             if (!IsLockOwner(requestorId, lockName))
             {
-                await ExecuteSQL(requestorId, conn, lockName, expandedSQL, expandedInsertSQL, cancellationToken).ConfigureAwait(false);
+                await ExecuteSQL(requestorId, conn!, lockName, expandedSQL, expandedInsertSQL, cancellationToken).ConfigureAwait(false);
 
                 if (Log.IsDebugEnabled())
                 {
@@ -221,7 +221,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        private string schedNameLiteral;
+        private string? schedNameLiteral;
 
         [Obsolete("SchedName is now a sql parameter")]
         protected string SchedulerNameLiteral
@@ -236,7 +236,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public string SchedName
+        public string? SchedName
         {
             get => schedName;
             set

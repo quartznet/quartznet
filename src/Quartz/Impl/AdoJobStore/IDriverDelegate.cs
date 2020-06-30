@@ -250,7 +250,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="classLoadHelper">The class load helper.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The populated JobDetail object</returns>
-        Task<IJobDetail> SelectJobDetail(
+        Task<IJobDetail?> SelectJobDetail(
             ConnectionAndTransactionHolder conn, 
             JobKey jobKey,
             ITypeLoadHelper classLoadHelper,
@@ -541,9 +541,8 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Select the job to which the trigger is associated.
         /// </summary>
-        Task<IJobDetail> SelectJobForTrigger(
-            ConnectionAndTransactionHolder conn,
-            TriggerKey triggerKey, 
+        Task<IJobDetail?> SelectJobForTrigger(ConnectionAndTransactionHolder conn,
+            TriggerKey triggerKey,
             ITypeLoadHelper loadHelper,
             CancellationToken cancellationToken = default);
 
@@ -551,10 +550,9 @@ namespace Quartz.Impl.AdoJobStore
         /// Select the job to which the trigger is associated. Allow option to load actual job class or not. When case of
         /// remove, we do not need to load the type, which in many cases, it's no longer exists.
         /// </summary>
-        Task<IJobDetail> SelectJobForTrigger(
-            ConnectionAndTransactionHolder conn,
-            TriggerKey triggerKey, 
-            ITypeLoadHelper loadHelper, 
+        Task<IJobDetail?> SelectJobForTrigger(ConnectionAndTransactionHolder conn,
+            TriggerKey triggerKey,
+            ITypeLoadHelper loadHelper,
             bool loadJobType,
             CancellationToken cancellationToken = default);
 
@@ -592,8 +590,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The <see cref="ITrigger" /> object.
         /// </returns>
-        Task<IOperableTrigger> SelectTrigger(
-            ConnectionAndTransactionHolder conn, 
+        Task<IOperableTrigger?> SelectTrigger(ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default);
 
@@ -628,8 +625,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="triggerKey">The key identifying the trigger.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>A <see cref="TriggerStatus" /> object, or null</returns>
-        Task<TriggerStatus> SelectTriggerStatus(
-            ConnectionAndTransactionHolder conn, 
+        Task<TriggerStatus?> SelectTriggerStatus(ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default);
 
@@ -810,8 +806,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="calendarName">The name of the calendar.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The Calendar.</returns>
-        Task<ICalendar> SelectCalendar(
-            ConnectionAndTransactionHolder conn,
+        Task<ICalendar?> SelectCalendar(ConnectionAndTransactionHolder conn,
             string calendarName,
             CancellationToken cancellationToken = default);
 
@@ -874,8 +869,7 @@ namespace Quartz.Impl.AdoJobStore
         /// trigger that will be fired at the given fire time, or null if no
         /// trigger will be fired at that time
         /// </returns>
-        Task<TriggerKey> SelectTriggerForFireTime(
-            ConnectionAndTransactionHolder conn, 
+        Task<TriggerKey?> SelectTriggerForFireTime(ConnectionAndTransactionHolder conn,
             DateTimeOffset fireTime,
             CancellationToken cancellationToken = default);
 
@@ -892,7 +886,7 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn, 
             IOperableTrigger trigger, 
             string state, 
-            IJobDetail jobDetail,
+            IJobDetail? jobDetail,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -1019,7 +1013,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns></returns>
         Task<IReadOnlyCollection<SchedulerStateRecord>> SelectSchedulerStateRecords(
             ConnectionAndTransactionHolder conn,
-            string instanceName,
+            string? instanceName,
             CancellationToken cancellationToken = default);
 
         /// <summary>

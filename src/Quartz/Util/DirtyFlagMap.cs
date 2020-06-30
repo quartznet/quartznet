@@ -22,6 +22,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
 using System.Security;
 
@@ -34,7 +35,7 @@ namespace Quartz.Util
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, ISerializable
+    public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, ISerializable where TKey : notnull
     {
         // JsonProperty attributes are used since Json.Net's default behavior is to serialize public members and the properties wrapping these fields are read-only
         private bool dirty;
@@ -93,18 +94,19 @@ namespace Quartz.Util
             switch (version)
             {
                 case 0:
-                    object o = info.GetValue(prefix + "map", typeof(object));
-                    Hashtable oldMap = o as Hashtable;
-                    if (oldMap != null)
+                    object o = info.GetValue(prefix + "map", typeof(object))!;
+                    if (o is Hashtable oldMap)
                     {
                         // need to call ondeserialization to get hashtable
                         // initialized correctly
                         oldMap.OnDeserialization(this);
 
                         map = new Dictionary<TKey, TValue>();
+#pragma warning disable 8605
                         foreach (DictionaryEntry entry in oldMap)
+#pragma warning restore 8605
                         {
-                            map.Add((TKey) entry.Key, (TValue) entry.Value);
+                            map.Add((TKey) entry.Key, (TValue) entry.Value!);
                         }
                     }
                     else
@@ -114,8 +116,8 @@ namespace Quartz.Util
                     }
                     break;
                 case 1:
-                    dirty = (bool) info.GetValue("dirty", typeof(bool));
-                    map = (Dictionary<TKey, TValue>) info.GetValue("map", typeof(Dictionary<TKey, TValue>));
+                    dirty = (bool) info.GetValue("dirty", typeof(bool))!;
+                    map = (Dictionary<TKey, TValue>) info.GetValue("map", typeof(Dictionary<TKey, TValue>))!;
                     break;
                 default:
                     throw new NotSupportedException("Unknown serialization version");
@@ -176,7 +178,7 @@ namespace Quartz.Util
 
         public bool TryGetValue(TKey key, out TValue value)
         {
-            return map.TryGetValue(key, out value);
+            return map.TryGetValue(key, out value!);
         }
 
         /// <summary>
@@ -185,7 +187,7 @@ namespace Quartz.Util
         /// <param name="key">The key.</param>
         public virtual TValue Get(TKey key)
         {
-            return this[key];
+            return this[key]!;
         }
 
         /// <summary>
@@ -196,7 +198,7 @@ namespace Quartz.Util
             get
             {
                 map.TryGetValue(key, out var temp);
-                return temp;
+                return temp!;
             }
             set
             {
@@ -237,9 +239,9 @@ namespace Quartz.Util
             return ((IDictionary) map).Contains(key);
         }
 
-        public void Add(object key, object value)
+        public void Add(object key, object? value)
         {
-            Put((TKey) key, (TValue) value);
+            Put((TKey) key, (TValue) value!);
         }
 
         /// <summary>
@@ -268,10 +270,10 @@ namespace Quartz.Util
             Remove((TKey) key);
         }
 
-        object IDictionary.this[object key]
+        object? IDictionary.this[object key]
         {
             get => this[(TKey) key];
-            set => this[(TKey) key] = (TValue) value;
+            set => this[(TKey) key] = (TValue) value!;
         }
 
         public bool Contains(KeyValuePair<TKey, TValue> item)
@@ -343,7 +345,7 @@ namespace Quartz.Util
         /// 	<para>-or-</para>
         /// 	<para>The <see cref="T:System.Collections.IDictionary"/> has a fixed size.</para>
         /// </exception>
-        public virtual void Add(TKey key, TValue value)
+        public virtual void Add(TKey key, [MaybeNull] TValue value)
         {
             map.Add(key, value);
             dirty = true;
@@ -460,7 +462,7 @@ namespace Quartz.Util
         /// 	<see langword="true"/> if the specified <see cref="T:System.Object"/> is equal to the
         /// current <see cref="T:System.Object"/>; otherwise, <see langword="false"/>.
         /// </returns>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (!(obj is DirtyFlagMap<TKey, TValue>))
             {
@@ -474,7 +476,7 @@ namespace Quartz.Util
                 IEnumerator sourceEnum = Keys.GetEnumerator();
                 while (sourceEnum.MoveNext())
                 {
-                    if (targetAux.Contains(sourceEnum.Current))
+                    if (sourceEnum.Current != null && targetAux.Contains(sourceEnum.Current))
                     {
                         targetAux.Remove(sourceEnum.Current);
                     }
@@ -528,7 +530,7 @@ namespace Quartz.Util
         /// <param name="key">The key.</param>
         /// <param name="val">The val.</param>
         /// <returns></returns>
-        public virtual object Put(TKey key, TValue val)
+        public virtual object? Put(TKey key, TValue val)
         {
             dirty = true;
             map.TryGetValue(key, out var tempObject);

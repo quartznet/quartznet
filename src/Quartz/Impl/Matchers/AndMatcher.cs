@@ -66,8 +66,8 @@ namespace Quartz.Impl.Matchers
             return LeftOperand.IsMatch(key) && RightOperand.IsMatch(key);
         }
 
-        public IMatcher<TKey> LeftOperand { get; private set; }
-        public IMatcher<TKey> RightOperand { get; private set; }
+        public IMatcher<TKey> LeftOperand { get; private set; } = null!;
+        public IMatcher<TKey> RightOperand { get; private set; } = null!;
 
         public override int GetHashCode()
         {
@@ -78,7 +78,7 @@ namespace Quartz.Impl.Matchers
             return result;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (this == obj)
             {

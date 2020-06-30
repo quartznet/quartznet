@@ -49,6 +49,6 @@ namespace Quartz
         /// <summary>
         /// Returns a handle to the Scheduler with the given name, if it exists.
         /// </summary>
-        Task<IScheduler> GetScheduler(string schedName, CancellationToken cancellationToken = default);
+        Task<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default);
 	}
 }

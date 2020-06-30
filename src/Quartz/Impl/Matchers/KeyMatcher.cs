@@ -59,7 +59,7 @@ namespace Quartz.Impl.Matchers
             return CompareToValue.Equals(key);
         }
 
-        public TKey CompareToValue { get; private set; }
+        public TKey CompareToValue { get; private set; } = null!;
 
         public override int GetHashCode()
         {
@@ -69,7 +69,7 @@ namespace Quartz.Impl.Matchers
             return result;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (this == obj)
             {

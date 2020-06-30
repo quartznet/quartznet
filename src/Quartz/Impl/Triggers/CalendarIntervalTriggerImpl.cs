@@ -63,14 +63,14 @@ namespace Quartz.Impl.Triggers
         private DateTimeOffset? nextFireTimeUtc; // Making a public property which called GetNextFireTime/SetNextFireTime would make the json attribute unnecessary
         private DateTimeOffset? previousFireTimeUtc; // Making a public property which called GetPreviousFireTime/SetPreviousFireTime would make the json attribute unnecessary
         private int repeatInterval;
-        private TimeZoneInfo timeZone;
+        internal TimeZoneInfo? timeZone;
 
         // Serializing TimeZones is tricky in .NET Core. This helper will ensure that we get the same timezone on a given platform,
         // but there's not yet a good method of serializing/deserializing timezones cross-platform since Windows timezone IDs don't
         // match IANA tz IDs (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). This feature is coming, but depending
         // on timelines, it may be worth doign the mapping here.
         // More info: https://github.com/dotnet/corefx/issues/7757
-        private string timeZoneInfoId
+        private string? timeZoneInfoId
         {
             get => timeZone?.Id;
             set => timeZone = value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value);
@@ -103,7 +103,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="group">Group for the trigger instance.</param>
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
-        public CalendarIntervalTriggerImpl(string name, string group, IntervalUnit intervalUnit,
+        public CalendarIntervalTriggerImpl(string name, string? group, IntervalUnit intervalUnit,
             int repeatInterval)
             : this(name, group, SystemTime.UtcNow(), null, intervalUnit, repeatInterval)
         {
@@ -134,7 +134,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="endTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to quit repeat firing.</param>
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
-        public CalendarIntervalTriggerImpl(string name, string group, DateTimeOffset startTimeUtc,
+        public CalendarIntervalTriggerImpl(string name, string? group, DateTimeOffset startTimeUtc,
             DateTimeOffset? endTimeUtc, IntervalUnit intervalUnit, int repeatInterval)
             : base(name, group)
         {
@@ -344,7 +344,7 @@ namespace Quartz.Impl.Triggers
         ///     <li>The instruction will be interpreted as <see cref="MisfireInstruction.CalendarIntervalTrigger.FireOnceNow" /></li>
         /// </ul>
         /// </remarks>
-        public override void UpdateAfterMisfire(ICalendar cal)
+        public override void UpdateAfterMisfire(ICalendar? cal)
         {
             int instr = MisfireInstruction;
 
@@ -388,7 +388,7 @@ namespace Quartz.Impl.Triggers
         /// </para>
         /// </summary>
         /// <seealso cref="JobExecutionException" />
-        public override void Triggered(ICalendar calendar)
+        public override void Triggered(ICalendar? calendar)
         {
             TimesTriggered++;
             previousFireTimeUtc = nextFireTimeUtc;
@@ -479,7 +479,7 @@ namespace Quartz.Impl.Triggers
         /// by the scheduler, which is also the same value <see cref="ITrigger.GetNextFireTimeUtc" />
         /// will return (until after the first firing of the <see cref="ITrigger" />).
         /// </returns>
-        public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar calendar)
+        public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? calendar)
         {
             nextFireTimeUtc = TimeZoneUtil.ConvertTime(StartTimeUtc, TimeZone);
 
@@ -820,7 +820,7 @@ namespace Quartz.Impl.Triggers
                 fTime = GetFireTimeAfter(fTime, true);
 
                 // the trigger fires at the end time, that's it!
-                if (fTime == EndTimeUtc)
+                if (fTime == null || fTime == EndTimeUtc)
                 {
                     return fTime;
                 }

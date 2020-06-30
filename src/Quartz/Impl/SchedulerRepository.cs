@@ -79,7 +79,7 @@ namespace Quartz.Impl
 	    /// <summary>
 	    /// Lookups the specified sched name.
 	    /// </summary>
-	    public virtual Task<IScheduler> Lookup(
+	    public virtual Task<IScheduler?> Lookup(
 		    string schedName, 
 		    CancellationToken cancellationToken = default)
 		{

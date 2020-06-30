@@ -52,7 +52,7 @@ namespace Quartz.Util
             timeZoneIdAliases["Asia/Karachi"] = "Pakistan Standard Time";
         }
 
-        public static Func<string, TimeZoneInfo> CustomResolver = id => null;
+        public static Func<string, TimeZoneInfo?> CustomResolver = id => null;
 
         /// <summary>
         /// TimeZoneInfo.ConvertTime is not supported under mono
@@ -106,7 +106,7 @@ namespace Quartz.Util
         /// <returns></returns>
         public static TimeZoneInfo FindTimeZoneById(string id)
         {
-            TimeZoneInfo info = null;
+            TimeZoneInfo? info = null;
             try
             {
                 info = TimeZoneInfo.FindSystemTimeZoneById(id);

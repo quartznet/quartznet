@@ -54,13 +54,12 @@ namespace Quartz.Impl.Matchers
             return new NotMatcher<T>(operand);
         }
 
-
         public bool IsMatch(TKey key)
         {
             return !Operand.IsMatch(key);
         }
 
-        public IMatcher<TKey> Operand { get; private set; }
+        public IMatcher<TKey> Operand { get; private set; } = null!;
 
         public override int GetHashCode()
         {
@@ -70,7 +69,7 @@ namespace Quartz.Impl.Matchers
             return result;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (this == obj)
             {

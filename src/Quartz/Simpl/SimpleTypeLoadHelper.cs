@@ -40,7 +40,7 @@ namespace Quartz.Simpl
 		}
 
 		/// <inheritdoc />
-		public virtual Type LoadType(string name)
+		public virtual Type? LoadType(string? name)
 		{
             if (string.IsNullOrEmpty(name))
             {

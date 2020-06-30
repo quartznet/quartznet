@@ -42,7 +42,7 @@ namespace Quartz.Util
         /// </summary>
         /// <param name="fName">File name to check</param>
         /// <returns>Expanded file name or actual no resolving was done.</returns>
-        public static string ResolveFile(string fName)
+        public static string? ResolveFile(string? fName)
         {
             if (fName != null && fName.StartsWith("~"))
             {
@@ -68,7 +68,7 @@ namespace Quartz.Util
 #if APPCONTEXT
                     fName = Path.Combine(AppContext.BaseDirectory, fName);
 #else // APPCONTEXT
-                    fName = Path.Combine(AppDomain.CurrentDomain.SetupInformation.ApplicationBase, fName);
+                    fName = Path.Combine(AppDomain.CurrentDomain.SetupInformation.ApplicationBase ?? "", fName);
 #endif // APPCONTEXT
                 }
                 catch (SecurityException)

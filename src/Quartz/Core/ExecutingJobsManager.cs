@@ -12,7 +12,7 @@ namespace Quartz.Core
     /// </summary>
     internal class ExecutingJobsManager : IJobListener
     {
-        public virtual string Name => GetType().FullName;
+        public virtual string Name => GetType()!.FullName!;
 
         public virtual int NumJobsCurrentlyExecuting => executingJobs.Count;
 
@@ -33,9 +33,8 @@ namespace Quartz.Core
             return TaskUtil.CompletedTask;
         }
 
-        public virtual Task JobWasExecuted(
-            IJobExecutionContext context,
-            JobExecutionException jobException,
+        public virtual Task JobWasExecuted(IJobExecutionContext context,
+            JobExecutionException? jobException,
             CancellationToken cancellationToken = default)
         {
             executingJobs.TryRemove(((IOperableTrigger) context.Trigger).FireInstanceId, out _);

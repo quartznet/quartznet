@@ -47,7 +47,7 @@ namespace Quartz.Examples.Example12
             // date and time that it is running
             JobKey jobKey = context.JobDetail.Key;
 
-            string message = context.JobDetail.JobDataMap.GetString(Message);
+            var message = context.JobDetail.JobDataMap.GetString(Message);
 
             log.InfoFormat("SimpleJob: {0} executing at {1}", jobKey, DateTime.Now.ToString("r"));
             log.InfoFormat("SimpleJob: msg: {0}", message);

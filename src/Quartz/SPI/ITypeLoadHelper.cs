@@ -37,6 +37,6 @@ namespace Quartz.Spi
 		/// <summary> 
 		/// Return the class with the given name.
 		/// </summary>
-		Type LoadType(string name);
+		Type? LoadType(string? name);
 	}
 }

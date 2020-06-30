@@ -10,6 +10,6 @@ namespace Quartz.Spi
         /// <summary>
         /// Returns a client proxy to a remote <see cref="IRemotableQuartzScheduler" />.
         /// </summary>
-        IRemotableQuartzScheduler GetProxy();
+        IRemotableQuartzScheduler? GetProxy();
     }
 }

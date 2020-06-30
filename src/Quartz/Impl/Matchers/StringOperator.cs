@@ -78,12 +78,12 @@ namespace Quartz.Impl.Matchers
             }
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return Equals(obj as StringOperator);
         }
 
-        public bool Equals(StringOperator other)
+        public bool Equals(StringOperator? other)
         {
             if (other == null)
             {

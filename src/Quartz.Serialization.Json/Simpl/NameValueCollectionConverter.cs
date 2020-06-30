@@ -10,7 +10,7 @@ namespace Quartz.Simpl
     /// </summary>
     public class NameValueCollectionConverter : JsonConverter
     {
-        public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer)
+        public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
         {
             var collection = value as NameValueCollection;
             if (collection == null)
@@ -27,7 +27,7 @@ namespace Quartz.Simpl
             writer.WriteEndObject();
         }
 
-        public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
+        public override object ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
         {
             var nameValueCollection = new NameValueCollection();
             var key = "";
@@ -43,7 +43,7 @@ namespace Quartz.Simpl
                 }
                 if (reader.TokenType == JsonToken.PropertyName)
                 {
-                    key = reader.Value.ToString();
+                    key = reader.Value!.ToString()!;
                 }
                 if (reader.TokenType == JsonToken.String || reader.TokenType == JsonToken.Null)
                 {

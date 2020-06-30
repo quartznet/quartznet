@@ -58,7 +58,7 @@ namespace Quartz
         /// Get or set the description given to the <see cref="IJob" /> instance by its
         /// creator (if any).
         /// </summary>
-        string Description { get; }
+        string? Description { get; }
 
         /// <summary>
         /// Get or sets the instance of <see cref="IJob" /> that will be executed.

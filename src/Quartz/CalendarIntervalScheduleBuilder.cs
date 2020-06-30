@@ -45,7 +45,7 @@ namespace Quartz
         private IntervalUnit intervalUnit = IntervalUnit.Day;
 
         private int misfireInstruction = MisfireInstruction.SmartPolicy;
-        private TimeZoneInfo timeZone;
+        private TimeZoneInfo? timeZone;
         private bool preserveHourOfDayAcrossDaylightSavings;
         private bool skipDayIfHourDoesNotExist;
 
@@ -74,7 +74,7 @@ namespace Quartz
             st.RepeatInterval = interval;
             st.RepeatIntervalUnit = intervalUnit;
             st.MisfireInstruction = misfireInstruction;
-            st.TimeZone = timeZone;
+            st.timeZone = timeZone;
             st.PreserveHourOfDayAcrossDaylightSavings = preserveHourOfDayAcrossDaylightSavings;
             st.SkipDayIfHourDoesNotExist = skipDayIfHourDoesNotExist;
 
@@ -274,7 +274,7 @@ namespace Quartz
         /// <param name="timezone">the time-zone for the schedule</param>
         /// <returns>the updated CalendarIntervalScheduleBuilder</returns>
         /// <seealso cref="ICalendarIntervalTrigger.TimeZone" />
-        public CalendarIntervalScheduleBuilder InTimeZone(TimeZoneInfo timezone)
+        public CalendarIntervalScheduleBuilder InTimeZone(TimeZoneInfo? timezone)
         {
             timeZone = timezone;
             return this;

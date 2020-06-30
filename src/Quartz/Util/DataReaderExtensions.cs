@@ -12,7 +12,7 @@ namespace Quartz.Util
         /// <summary>
         /// Returns string from given column name, or null if DbNull.
         /// </summary>
-        public static string GetString(this IDataReader reader, string columnName)
+        public static string? GetString(this IDataReader reader, string columnName)
         {
             object columnValue = reader[columnName];
             if (columnValue == DBNull.Value)

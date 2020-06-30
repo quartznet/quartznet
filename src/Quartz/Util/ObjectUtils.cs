@@ -43,7 +43,7 @@ namespace Quartz.Util
         /// The <see cref="System.Type"/> we must convert to.
         /// </param>
         /// <returns>The new value, possibly the result of type conversion.</returns>
-        public static object ConvertValueIfNecessary(Type requiredType, object newValue)
+        public static object? ConvertValueIfNecessary(Type requiredType, object? newValue)
         {
             if (newValue != null)
             {
@@ -66,7 +66,7 @@ namespace Quartz.Util
                 }
                 if (requiredType == typeof(Type))
                 {
-                    return Type.GetType(newValue.ToString(), true);
+                    return Type.GetType(newValue.ToString()!, true);
                 }
                 if (newValue.GetType().GetTypeInfo().IsEnum)
                 {
@@ -92,13 +92,14 @@ namespace Quartz.Util
         /// Instantiates an instance of the type specified.
         /// </summary>
         /// <returns></returns>
-        public static T InstantiateType<T>(Type type)
+        public static T InstantiateType<T>(Type? type)
         {
             if (type == null)
             {
                 throw new ArgumentNullException(nameof(type), "Cannot instantiate null");
             }
-            ConstructorInfo ci = type.GetConstructor(Type.EmptyTypes);
+            
+            var ci = type.GetConstructor(Type.EmptyTypes);
             if (ci == null)
             {
                 throw new ArgumentException("Cannot instantiate type which has no empty constructor", type.Name);
@@ -139,10 +140,9 @@ namespace Quartz.Util
             // remove the type
             props.Remove("type");
 
-            foreach (string name in props.Keys)
+            foreach (string? name in props.Keys)
             {
-                string propertyName = CultureInfo.InvariantCulture.TextInfo.ToUpper(name.Substring(0, 1)) +
-                                      name.Substring(1);
+                string propertyName = CultureInfo.InvariantCulture.TextInfo.ToUpper(name!.Substring(0, 1)) + name.Substring(1);
 
                 try
                 {
@@ -157,11 +157,11 @@ namespace Quartz.Util
             }
         }
 
-        public static void SetPropertyValue(object target, string propertyName, object value)
+        public static void SetPropertyValue(object target, string propertyName, object? value)
         {
             Type t = target.GetType();
 
-            PropertyInfo pi = t.GetProperty(propertyName);
+            var pi = t.GetProperty(propertyName);
 
             if (pi == null || !pi.CanWrite)
             {
@@ -183,7 +183,7 @@ namespace Quartz.Util
                 throw new MemberAccessException($"No writable property '{propertyName}' found");
             }
 
-            MethodInfo mi = pi.GetSetMethod();
+            var mi = pi.GetSetMethod();
 
             if (mi == null)
             {
@@ -203,13 +203,13 @@ namespace Quartz.Util
             mi.Invoke(target, new[] {value});
         }
 
-        public static TimeSpan GetTimeSpanValueForProperty(PropertyInfo pi, object value)
+        public static TimeSpan GetTimeSpanValueForProperty(PropertyInfo pi, object? value)
         {
             object[] attributes = pi.GetCustomAttributes(typeof(TimeSpanParseRuleAttribute), false).ToArray();
 
             if (attributes.Length == 0)
             {
-                return (TimeSpan) ConvertValueIfNecessary(typeof(TimeSpan), value);
+                return (TimeSpan) ConvertValueIfNecessary(typeof(TimeSpan), value)!;
             }
 
             TimeSpanParseRuleAttribute attribute = (TimeSpanParseRuleAttribute) attributes[0];

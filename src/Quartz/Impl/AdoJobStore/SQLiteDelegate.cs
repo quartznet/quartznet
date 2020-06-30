@@ -28,7 +28,7 @@ namespace Quartz.Impl.AdoJobStore
     public class SQLiteDelegate : StdAdoDelegate
     {
 #if NETSTANDARD2_0
-        private System.Reflection.MethodInfo getFieldValueMethod;
+        private System.Reflection.MethodInfo? getFieldValueMethod;
 #endif
 
         /// <summary>
@@ -41,25 +41,25 @@ namespace Quartz.Impl.AdoJobStore
             return SqlSelectNextTriggerToAcquire + " LIMIT " + maxCount;
         }
 
-        protected override Task<byte[]> ReadBytesFromBlob(IDataReader dr, int colIndex, CancellationToken cancellationToken)
+        protected override Task<byte[]?> ReadBytesFromBlob(IDataReader dr, int colIndex, CancellationToken cancellationToken)
         {
 #if NETSTANDARD2_0
             if (dr.GetType().Namespace == "Microsoft.Data.Sqlite")
             {
                 if (dr.IsDBNull(colIndex))
                 {
-                    return Task.FromResult<byte[]>(null);
+                    return Task.FromResult<byte[]?>(null);
                 }
 
                 // workaround for GetBytes not being implemented
                 if (getFieldValueMethod == null)
                 {
                     var method = dr.GetType().GetMethod("GetFieldValue");
-                    getFieldValueMethod = method.MakeGenericMethod(typeof(byte[]));
+                    getFieldValueMethod = method!.MakeGenericMethod(typeof(byte[]));
                 }
 
                 var value = getFieldValueMethod.Invoke(dr, new object[] {colIndex});
-                var byteArray = (byte[]) value;
+                var byteArray = (byte[]?) value;
                 return Task.FromResult(byteArray);
             }
 #endif

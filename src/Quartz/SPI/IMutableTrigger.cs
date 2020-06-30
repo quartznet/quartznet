@@ -16,12 +16,12 @@ namespace Quartz.Spi
         /// useful for remembering/displaying the purpose of the trigger, though the
         /// description has no meaning to Quartz.
         /// </summary>
-        new string Description { get; set; }
+        new string? Description { get; set; }
 
         /// <summary>
         /// Associate the <see cref="ICalendar" /> with the given name with this Trigger.
         /// </summary>
-        new string CalendarName { set; get; }
+        new string? CalendarName { set; get; }
 
         /// <summary>
         /// Set the <see cref="JobDataMap" /> to be associated with the

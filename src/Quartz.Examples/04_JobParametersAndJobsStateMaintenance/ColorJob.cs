@@ -60,7 +60,7 @@ namespace Quartz.Examples.Example04
 
             // Grab and print passed parameters
             JobDataMap data = context.JobDetail.JobDataMap;
-            string favoriteColor = data.GetString(FavoriteColor);
+            var favoriteColor = data.GetString(FavoriteColor);
             int count = data.GetInt(ExecutionCount);
             log.InfoFormat(
                 "ColorJob: {0} executing at {1}\n  favorite color is {2}\n  execution count (from job map) is {3}\n  execution count (from job member variable) is {4}",

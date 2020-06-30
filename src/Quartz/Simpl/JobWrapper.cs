@@ -11,10 +11,9 @@ namespace Quartz.Simpl
             Key = jobDetail.Key;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
-            JobWrapper jobWrapper = obj as JobWrapper;
-            if (jobWrapper != null)
+            if (obj is JobWrapper jobWrapper)
             {
                 if (jobWrapper.Key.Equals(Key))
                 {

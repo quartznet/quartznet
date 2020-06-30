@@ -71,7 +71,7 @@ namespace Quartz
         /// </remarks>
         /// <param name="triggerGroup">The trigger group.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        Task TriggersPaused(string triggerGroup, CancellationToken cancellationToken = default);
+        Task TriggersPaused(string? triggerGroup, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler"/> when a <see cref="ITrigger"/>
@@ -89,7 +89,7 @@ namespace Quartz
         /// </remarks>
         /// <param name="triggerGroup">The trigger group.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        Task TriggersResumed(string triggerGroup, CancellationToken cancellationToken = default);
+        Task TriggersResumed(string? triggerGroup, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />

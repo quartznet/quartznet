@@ -45,7 +45,7 @@ namespace Quartz.Impl
     /// <author>Marko Lahma (.NET)</author>
     public class RemoteScheduler : IScheduler
     {
-        private IRemotableQuartzScheduler rsched;
+        private IRemotableQuartzScheduler? rsched;
         private readonly string schedId;
         private readonly IRemotableSchedulerProxyFactory proxyFactory;
 
@@ -398,7 +398,7 @@ namespace Quartz.Impl
         /// </summary>
         public virtual Task TriggerJob(
             JobKey jobKey,
-            JobDataMap data,
+            JobDataMap? data,
             CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.TriggerJob(jobKey, data));
@@ -533,9 +533,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<IJobDetail> GetJobDetail(
-            JobKey jobKey,
-            CancellationToken cancellationToken = default)
+        public virtual Task<IJobDetail?> GetJobDetail(JobKey jobKey, CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.GetJobDetail(jobKey));
         }
@@ -571,7 +569,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<ITrigger> GetTrigger(
+        public virtual Task<ITrigger?> GetTrigger(
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
         {
@@ -614,7 +612,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<ICalendar> GetCalendar(
+        public virtual Task<ICalendar?> GetCalendar(
             string calName,
             CancellationToken cancellationToken = default)
         {
@@ -747,7 +745,7 @@ namespace Quartz.Impl
                 throw initException;
             }
 
-            return rsched;
+            return rsched!;
         }
 
         protected virtual SchedulerException InvalidateHandleCreateException(string msg, Exception cause)

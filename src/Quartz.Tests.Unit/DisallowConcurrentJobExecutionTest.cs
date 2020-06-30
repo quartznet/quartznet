@@ -47,7 +47,7 @@ namespace Quartz.Tests.Unit
             public override string Name => "TestJobListener";
 
             public override Task JobWasExecuted(
-                IJobExecutionContext context, 
+                IJobExecutionContext context,
                 JobExecutionException jobException,
                 CancellationToken cancellationToken = default)
             {

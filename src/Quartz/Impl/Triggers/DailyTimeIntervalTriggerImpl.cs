@@ -90,19 +90,19 @@ namespace Quartz.Impl.Triggers
         private DateTimeOffset? previousFireTimeUtc; // Making a public property which called GetPreviousFireTime/SetPreviousFireTime would make the json attribute unnecessary
         private int repeatInterval = 1;
         private IntervalUnit repeatIntervalUnit = IntervalUnit.Minute;
-        private HashSet<DayOfWeek> daysOfWeek;
-        private TimeOfDay startTimeOfDay;
-        private TimeOfDay endTimeOfDay;
+        private HashSet<DayOfWeek> daysOfWeek = null!;
+        private TimeOfDay startTimeOfDay = null!;
+        private TimeOfDay endTimeOfDay = null!;
         private bool complete;
         private int repeatCount = RepeatIndefinitely;
-        private TimeZoneInfo timeZone;
+        internal TimeZoneInfo? timeZone;
 
         // Serializing TimeZones is tricky in .NET Core. This helper will ensure that we get the same timezone on a given platform,
         // but there's not yet a good method of serializing/deserializing timezones cross-platform since Windows timezone IDs don't
         // match IANA tz IDs (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). This feature is coming, but depending
         // on timelines, it may be worth doign the mapping here.
         // More info: https://github.com/dotnet/corefx/issues/7757
-        private string timeZoneInfoId
+        private string? timeZoneInfoId
         {
             get => timeZone?.Id;
             set => timeZone = value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value);
@@ -142,7 +142,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="intervalUnit">The repeat interval unit. The only intervals that are valid for this type of trigger are
         /// <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
         /// <param name="repeatInterval"></param>
-        public DailyTimeIntervalTriggerImpl(string name, string group, TimeOfDay startTimeOfDayUtc,
+        public DailyTimeIntervalTriggerImpl(string name, string? group, TimeOfDay startTimeOfDayUtc,
             TimeOfDay endTimeOfDayUtc, IntervalUnit intervalUnit, int repeatInterval)
             : this(name, group, SystemTime.UtcNow(), null, startTimeOfDayUtc, endTimeOfDayUtc, intervalUnit,
                 repeatInterval)
@@ -181,7 +181,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="intervalUnit">The repeat interval unit. The only intervals that are valid for this type of trigger are
         /// <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
-        public DailyTimeIntervalTriggerImpl(string name, string group, DateTimeOffset startTimeUtc,
+        public DailyTimeIntervalTriggerImpl(string name, string? group, DateTimeOffset startTimeUtc,
             DateTimeOffset? endTimeUtc, TimeOfDay startTimeOfDayUtc, TimeOfDay endTimeOfDayUtc,
             IntervalUnit intervalUnit, int repeatInterval)
             : base(name, group)
@@ -379,7 +379,7 @@ namespace Quartz.Impl.Triggers
         ///     <li>The instruction will be interpreted as <see cref="MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow" /></li>
         /// </ul>
         /// </remarks>
-        public override void UpdateAfterMisfire(ICalendar cal)
+        public override void UpdateAfterMisfire(ICalendar? cal)
         {
             int instr = MisfireInstruction;
 
@@ -421,7 +421,7 @@ namespace Quartz.Impl.Triggers
         /// </summary>
         /// <param name="calendar"></param>
         /// <see cref="AbstractTrigger.ExecutionComplete"/>
-        public override void Triggered(ICalendar calendar)
+        public override void Triggered(ICalendar? calendar)
         {
             TimesTriggered++;
             previousFireTimeUtc = nextFireTimeUtc;
@@ -512,7 +512,7 @@ namespace Quartz.Impl.Triggers
         /// by the scheduler, which is also the same value <see cref="ITrigger.GetNextFireTimeUtc" />
         /// will return (until after the first firing of the <see cref="ITrigger" />).
         /// </returns>
-        public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar calendar)
+        public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? calendar)
         {
             nextFireTimeUtc = GetFireTimeAfter(StartTimeUtc.AddSeconds(-1));
 
@@ -638,7 +638,7 @@ namespace Quartz.Impl.Triggers
             bool afterTimePastEndTimeOfDay = false;
             if (endTimeOfDay != null)
             {
-                afterTimePastEndTimeOfDay = afterTime.Value > endTimeOfDay.GetTimeOfDayForDate(afterTime).Value;
+                afterTimePastEndTimeOfDay = afterTime.Value > endTimeOfDay.GetTimeOfDayForDate(afterTime.Value);
             }
 
             // c. now we need to move to the next valid day of week if either:
@@ -654,18 +654,18 @@ namespace Quartz.Impl.Triggers
 			DateTimeOffset fireTimeEndDate;
             if (endTimeOfDay == null)
             {
-                fireTimeEndDate = new TimeOfDay(23, 59, 59).GetTimeOfDayForDate(fireTime).Value;
+                fireTimeEndDate = new TimeOfDay(23, 59, 59).GetTimeOfDayForDate(fireTime.Value);
             }
             else
             {
-                fireTimeEndDate = endTimeOfDay.GetTimeOfDayForDate(fireTime).Value;
+                fireTimeEndDate = endTimeOfDay.GetTimeOfDayForDate(fireTime.Value);
             }
 
             // apply the proper offset for the end date
             fireTimeEndDate = new DateTimeOffset(fireTimeEndDate.DateTime, TimeZoneUtil.GetUtcOffset(fireTimeEndDate.DateTime, TimeZone));
 
             // e. Check fireTime against startTime or startTimeOfDay to see which go first.
-            DateTimeOffset fireTimeStartDate = startTimeOfDay.GetTimeOfDayForDate(fireTime).Value;
+            DateTimeOffset fireTimeStartDate = startTimeOfDay.GetTimeOfDayForDate(fireTime.Value);
 
             // apply the proper offset for the start date
             fireTimeStartDate = new DateTimeOffset(fireTimeStartDate.DateTime, TimeZoneUtil.GetUtcOffset(fireTimeStartDate.DateTime, TimeZone));
@@ -749,7 +749,7 @@ namespace Quartz.Impl.Triggers
             // a. Advance or adjust to next dayOfWeek if need to first, starting next day with startTimeOfDay.
             TimeOfDay startTimeOfDay = StartTimeOfDay;
             // Get converted start date based on fireTime; fireTime already has the offset applied
-            DateTimeOffset fireTimeStartDate = startTimeOfDay.GetTimeOfDayForDate(fireTime).Value;
+            DateTimeOffset fireTimeStartDate = startTimeOfDay.GetTimeOfDayForDate(fireTime);
             DateTimeOffset fireTimeStartDateCal = fireTimeStartDate;
             DayOfWeek dayOfWeekOfFireTime = fireTimeStartDateCal.DayOfWeek;
 

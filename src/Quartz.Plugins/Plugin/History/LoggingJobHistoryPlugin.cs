@@ -289,7 +289,7 @@ namespace Quartz.Plugin.History
         /// Get the name of the <see cref="IJobListener" />.
         /// </summary>
         /// <value></value>
-        public string Name { get; set; }
+        public string Name { get; set; } = null!;
 
         /// <summary>
         /// Called during creation of the <see cref="IScheduler" /> in order to give
@@ -347,7 +347,7 @@ namespace Quartz.Plugin.History
 
             ITrigger trigger = context.Trigger;
 
-            object[] args =
+            object?[] args =
             {
                 context.JobDetail.Key.Name,
                 context.JobDetail.Key.Group,
@@ -368,14 +368,13 @@ namespace Quartz.Plugin.History
         /// has been executed, and be for the associated <see cref="ITrigger" />'s
         /// <see cref="IOperableTrigger.Triggered" /> method has been called.
         /// </summary>
-        public virtual Task JobWasExecuted(
-            IJobExecutionContext context,
-            JobExecutionException jobException,
+        public virtual Task JobWasExecuted(IJobExecutionContext context,
+            JobExecutionException? jobException,
             CancellationToken cancellationToken = default)
         {
             ITrigger trigger = context.Trigger;
 
-            object[] args;
+            object?[] args;
 
             if (jobException != null)
             {
@@ -385,12 +384,11 @@ namespace Quartz.Plugin.History
                 }
 
                 string errMsg = jobException.Message;
-                args =
-                    new object[]
-                    {
-                        context.JobDetail.Key.Name, context.JobDetail.Key.Group, SystemTime.UtcNow(), trigger.Key.Name, trigger.Key.Group,
-                        trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, errMsg
-                    };
+                args = new object?[]
+                {
+                    context.JobDetail.Key.Name, context.JobDetail.Key.Group, SystemTime.UtcNow(), trigger.Key.Name, trigger.Key.Group,
+                    trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, errMsg
+                };
 
                 WriteWarning(string.Format(CultureInfo.InvariantCulture, JobFailedMessage, args), jobException);
             }
@@ -401,13 +399,12 @@ namespace Quartz.Plugin.History
                     return TaskUtil.CompletedTask;
                 }
 
-                string result = Convert.ToString(context.Result, CultureInfo.InvariantCulture);
-                args =
-                    new object[]
-                    {
-                        context.JobDetail.Key.Name, context.JobDetail.Key.Group, SystemTime.UtcNow(), trigger.Key.Name, trigger.Key.Group,
-                        trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, result
-                    };
+                var result = Convert.ToString(context.Result, CultureInfo.InvariantCulture);
+                args = new object?[]
+                {
+                    context.JobDetail.Key.Name, context.JobDetail.Key.Group, SystemTime.UtcNow(), trigger.Key.Name, trigger.Key.Group,
+                    trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, result
+                };
 
                 WriteInfo(string.Format(CultureInfo.InvariantCulture, JobSuccessMessage, args));
             }
@@ -432,7 +429,7 @@ namespace Quartz.Plugin.History
 
             ITrigger trigger = context.Trigger;
 
-            object[] args =
+            object?[] args =
             {
                 context.JobDetail.Key.Name,
                 context.JobDetail.Key.Group,

@@ -56,7 +56,7 @@ namespace Quartz.Listener
         /// Construct an instance with the given List of listeners.
         /// </summary>
         /// <param name="listeners">The initial List of SchedulerListeners to broadcast to.</param>
-        public BroadcastSchedulerListener(IEnumerable<ISchedulerListener> listeners)
+        public BroadcastSchedulerListener(IEnumerable<ISchedulerListener> listeners) : this()
         {
             this.listeners.AddRange(listeners);
         }
@@ -101,7 +101,7 @@ namespace Quartz.Listener
             return IterateListenersInGuard(l => l.TriggerFinalized(trigger, cancellationToken), nameof(TriggerFinalized));
         }
 
-        public Task TriggersPaused(string triggerGroup, CancellationToken cancellationToken = default)
+        public Task TriggersPaused(string? triggerGroup, CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.TriggersPaused(triggerGroup, cancellationToken), nameof(TriggersPaused));
         }
@@ -111,7 +111,7 @@ namespace Quartz.Listener
             return IterateListenersInGuard(l => l.TriggerPaused(triggerKey, cancellationToken), nameof(TriggerPaused));
         }
 
-        public Task TriggersResumed(string triggerGroup, CancellationToken cancellationToken = default)
+        public Task TriggersResumed(string? triggerGroup, CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.TriggersResumed(triggerGroup, cancellationToken), nameof(TriggerResumed));
         }

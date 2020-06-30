@@ -75,11 +75,11 @@ namespace Quartz.Plugin.Xml
         /// <value>The log.</value>
         private ILog Log { get; }
 
-        public string Name { get; private set; }
+        public string Name { get; private set; } = null!;
 
-        public IScheduler Scheduler { get; private set; }
+        public IScheduler Scheduler { get; private set; } = null!;
 
-        protected ITypeLoadHelper TypeLoadHelper { get; private set; }
+        protected ITypeLoadHelper TypeLoadHelper { get; private set; } = null!;
 
         /// <summary>
         /// Comma separated list of file names (with paths) to the XML files that should be read.
@@ -273,7 +273,7 @@ namespace Quartz.Plugin.Xml
             return TaskUtil.CompletedTask;
         }
 
-        private async Task ProcessFile(JobFile jobFile, CancellationToken cancellationToken = default)
+        private async Task ProcessFile(JobFile? jobFile, CancellationToken cancellationToken = default)
         {
             if (jobFile == null || jobFile.FileFound == false)
             {
@@ -309,13 +309,13 @@ namespace Quartz.Plugin.Xml
 
         public Task ProcessFile(string filePath, CancellationToken cancellationToken = default)
         {
-            JobFile file = null;
+            JobFile? file = null;
             int idx = jobFiles.FindIndex(pair => pair.Key == filePath);
             if (idx >= 0)
             {
                 file = jobFiles[idx].Value;
             }
-           return ProcessFile(file, cancellationToken);
+            return ProcessFile(file, cancellationToken);
         }
 
         /// <summary>
@@ -336,21 +336,20 @@ namespace Quartz.Plugin.Xml
 
             public bool FileFound { get; private set; }
 
-            public string FilePath { get; private set; }
+            public string FilePath { get; private set; } = null!;
 
-            public string FileBasename { get; private set; }
+            public string FileBasename { get; private set; } = null!;
 
             public Task Initialize(CancellationToken cancellationToken = default)
             {
-                Stream f = null;
+                Stream? f = null;
                 try
                 {
-                    string furl = null;
-
-                    string fName = FileName;
+                    string? furl = null;
+                    var fName = FileName;
 
                     // check for special lookup
-                    fName = FileUtil.ResolveFile(fName);
+                    fName = FileUtil.ResolveFile(fName)!;
 
                     FileInfo file = new FileInfo(fName);
                     if (file.Exists)

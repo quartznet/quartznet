@@ -62,7 +62,7 @@ namespace Quartz.Simpl
         private readonly HashSet<string> pausedJobGroups = new HashSet<string>();
         private readonly HashSet<JobKey> blockedJobs = new HashSet<JobKey>();
         private TimeSpan misfireThreshold = TimeSpan.FromSeconds(5);
-        private ISchedulerSignaler signaler;
+        private ISchedulerSignaler signaler = null!;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="RAMJobStore"/> class.
@@ -520,7 +520,7 @@ namespace Quartz.Simpl
             {
                 // remove from triggers by FQN map
                 var found = triggersByKey.TryRemove(key, out var tw);
-                if (found)
+                if (tw != null)
                 {
                     // remove from triggers by group
                     if (triggersByGroup.TryGetValue(key.Group, out var grpMap))
@@ -579,7 +579,7 @@ namespace Quartz.Simpl
 
                 if (found)
                 {
-                    if (!tw.Trigger.JobKey.Equals(newTrigger.JobKey))
+                    if (!tw!.Trigger.JobKey.Equals(newTrigger.JobKey))
                     {
                         throw new JobPersistenceException("New trigger is not related to the same job as the old trigger.");
                     }
@@ -625,14 +625,14 @@ namespace Quartz.Simpl
         /// <returns>
         /// The desired <see cref="IJob" />, or null if there is no match.
         /// </returns>
-        public virtual Task<IJobDetail> RetrieveJob(
+        public virtual Task<IJobDetail?> RetrieveJob(
             JobKey jobKey,
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult(RetrieveJobInternal(jobKey));
         }
 
-        private IJobDetail RetrieveJobInternal(JobKey jobKey)
+        private IJobDetail? RetrieveJobInternal(JobKey jobKey)
         {
             jobsByKey.TryGetValue(jobKey, out var jw);
             var job = jw?.JobDetail.Clone();
@@ -645,12 +645,12 @@ namespace Quartz.Simpl
         /// <returns>
         /// The desired <see cref="ITrigger" />, or null if there is no match.
         /// </returns>
-        public virtual Task<IOperableTrigger> RetrieveTrigger(
+        public virtual Task<IOperableTrigger?> RetrieveTrigger(
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
         {
             triggersByKey.TryGetValue(triggerKey, out var tw);
-            var trigger = (IOperableTrigger) tw?.Trigger.Clone();
+            var trigger = (IOperableTrigger?) tw?.Trigger.Clone();
             return Task.FromResult(trigger);
         }
 
@@ -849,7 +849,7 @@ namespace Quartz.Simpl
         /// <returns>
         /// The desired <see cref="ICalendar" />, or null if there is no match.
         /// </returns>
-        public virtual Task<ICalendar> RetrieveCalendar(
+        public virtual Task<ICalendar?> RetrieveCalendar(
             string calName,
             CancellationToken cancellationToken = default)
         {
@@ -903,7 +903,7 @@ namespace Quartz.Simpl
         {
             lock (lockObject)
             {
-                HashSet<JobKey> outList = null;
+                HashSet<JobKey>? outList = null;
                 StringOperator op = matcher.CompareWithOperator;
                 string compareToValue = matcher.CompareToValue;
 
@@ -976,7 +976,7 @@ namespace Quartz.Simpl
         {
             lock (lockObject)
             {
-                HashSet<TriggerKey> outList = null;
+                HashSet<TriggerKey>? outList = null;
                 StringOperator op = matcher.CompareWithOperator;
                 string compareToValue = matcher.CompareToValue;
 
@@ -1099,7 +1099,7 @@ namespace Quartz.Simpl
             {
                 foreach (var tw in triggersByKey.Values)
                 {
-                    string tcalName = tw.Trigger.CalendarName;
+                    var tcalName = tw.Trigger.CalendarName;
                     if (tcalName != null && tcalName.Equals(calName))
                     {
                         yield return tw;
@@ -1522,15 +1522,13 @@ namespace Quartz.Simpl
                 return false;
             }
 
-            ICalendar cal = null;
+            ICalendar? cal = null;
             if (tw.Trigger.CalendarName != null)
             {
                 calendarsByName.TryGetValue(tw.Trigger.CalendarName, out cal);
             }
 
             signaler.NotifyTriggerListenersMisfired((IOperableTrigger) tw.Trigger.Clone()).ConfigureAwait(false).GetAwaiter().GetResult();
-            ;
-
             tw.Trigger.UpdateAfterMisfire(cal);
 
             if (!tw.Trigger.GetNextFireTimeUtc().HasValue)
@@ -1700,7 +1698,7 @@ namespace Quartz.Simpl
                         continue;
                     }
 
-                    ICalendar cal = null;
+                    ICalendar? cal = null;
                     if (tw.Trigger.CalendarName != null)
                     {
                         calendarsByName.TryGetValue(tw.Trigger.CalendarName, out cal);
@@ -1720,7 +1718,7 @@ namespace Quartz.Simpl
 
                     var jobDetail = RetrieveJobInternal(trigger.JobKey);
                     TriggerFiredBundle bndle = new TriggerFiredBundle(
-                        jobDetail,
+                        jobDetail!,
                         trigger,
                         cal,
                         false,

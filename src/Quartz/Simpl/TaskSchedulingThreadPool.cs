@@ -26,12 +26,12 @@ namespace Quartz.Simpl
         private readonly object taskListLock = new object();
 
         // The semaphore used to limit concurrency and integers representing maximim concurrent tasks
-        private SemaphoreSlim concurrencySemaphore;
+        private SemaphoreSlim concurrencySemaphore = null!;
 
         private int maxConcurrency;
         protected const int DefaultMaxConcurrency = 10;
 
-        private TaskScheduler scheduler;
+        private TaskScheduler scheduler = null!;
         private bool isInitialized;
 
         /// <summary>
@@ -96,9 +96,9 @@ namespace Quartz.Simpl
         /// </summary>
         public virtual int PoolSize => MaxConcurency;
 
-        public virtual string InstanceId { get; set; }
+        public virtual string InstanceId { get; set; } = null!;
 
-        public virtual string InstanceName { get; set; }
+        public virtual string InstanceName { get; set; } = null!;
 
         public TaskSchedulingThreadPool() : this(DefaultMaxConcurrency)
         {

@@ -56,7 +56,7 @@ namespace Quartz.Listener
         }
 
         public virtual Task TriggersPaused(
-            string triggerGroup,
+            string? triggerGroup,
             CancellationToken cancellationToken = default)
         {
             return TaskUtil.CompletedTask;
@@ -70,7 +70,7 @@ namespace Quartz.Listener
         }
 
         public virtual Task TriggersResumed(
-            string triggerGroup,
+            string? triggerGroup,
             CancellationToken cancellationToken = default)
         {
             return TaskUtil.CompletedTask;

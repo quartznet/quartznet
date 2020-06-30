@@ -58,7 +58,7 @@ namespace Quartz
     /// </summary>
     public class SchedulerBuilder : PropertiesHolder
     {
-        protected SchedulerBuilder(NameValueCollection properties)
+        protected SchedulerBuilder(NameValueCollection? properties)
             : base(properties ?? new NameValueCollection())
         {
         }
@@ -68,7 +68,7 @@ namespace Quartz
         /// </summary>
         /// <param name="properties">Base properties, if any.</param>
         /// <returns>New scheduler builder instance that can be used to build configuration.</returns>
-        public static SchedulerBuilder Create(NameValueCollection properties = null)
+        public static SchedulerBuilder Create(NameValueCollection? properties = null)
         {
             return new SchedulerBuilder(properties);
         }
@@ -102,7 +102,7 @@ namespace Quartz
         /// <summary>
         /// Use memory store, which does not survive process restarts/crashes.
         /// </summary>
-        public SchedulerBuilder UseMemoryStore(Action<MemoryStoreOptions> options = null)
+        public SchedulerBuilder UseMemoryStore(Action<MemoryStoreOptions>? options = null)
         {
             SetProperty("quartz.jobStore.type", typeof(RAMJobStore).AssemblyQualifiedNameWithoutVersion());
             options?.Invoke(new MemoryStoreOptions(this));
@@ -132,7 +132,7 @@ namespace Quartz
         /// <summary>
         /// Uses the default thread pool, which uses the default task scheduler.
         /// </summary>
-        public SchedulerBuilder WithDefaultThreadPool(Action<ThreadPoolOptions> configurer = null)
+        public SchedulerBuilder WithDefaultThreadPool(Action<ThreadPoolOptions>? configurer = null)
         {
             SetProperty("quartz.threadPool.type", typeof(DefaultThreadPool).AssemblyQualifiedNameWithoutVersion());
             configurer?.Invoke(new ThreadPoolOptions(this));
@@ -142,7 +142,7 @@ namespace Quartz
         /// <summary>
         /// Uses a dedicated thread pool, which uses own threads instead of task scheduler shared pool.
         /// </summary>
-        public SchedulerBuilder WithDedicatedThreadPool(Action<ThreadPoolOptions> configurer = null)
+        public SchedulerBuilder WithDedicatedThreadPool(Action<ThreadPoolOptions>? configurer = null)
         {
             SetProperty("quartz.threadPool.type", typeof(DedicatedThreadPool).AssemblyQualifiedNameWithoutVersion());
             configurer?.Invoke(new ThreadPoolOptions(this));
@@ -197,7 +197,7 @@ namespace Quartz
             /// <summary>
             /// Make this instance is part of a cluster.
             /// </summary>
-            public PersistentStoreOptions Clustered(Action<ClusterOptions> options = null)
+            public PersistentStoreOptions Clustered(Action<ClusterOptions>? options = null)
             {
                 return Clustered(true, options);
             }
@@ -205,7 +205,7 @@ namespace Quartz
             /// <summary>
             /// Make this instance is part of a cluster or not.
             /// </summary>
-            public PersistentStoreOptions Clustered(bool clustered, Action<ClusterOptions> options = null)
+            public PersistentStoreOptions Clustered(bool clustered, Action<ClusterOptions>? options = null)
             {
                 SetProperty("quartz.jobStore.clustered", clustered.ToString().ToLowerInvariant());
                 options?.Invoke(new ClusterOptions(this));
@@ -220,7 +220,7 @@ namespace Quartz
             /// <returns></returns>
             public PersistentStoreOptions UseGenericDatabase(
                 string provider,
-                Action<AdoProviderOptions> configurer = null)
+                Action<AdoProviderOptions>? configurer = null)
             {
                 SetProperty("quartz.jobStore.driverDelegateType", typeof(StdAdoDelegate).AssemblyQualifiedNameWithoutVersion());
                 SetProperty("quartz.jobStore.dataSource", SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName);

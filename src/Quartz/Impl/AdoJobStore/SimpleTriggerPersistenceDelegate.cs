@@ -31,14 +31,14 @@ namespace Quartz.Impl.AdoJobStore
 {
     public class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelegate
     {
-        protected IDbAccessor DbAccessor { get; private set; }
+        protected IDbAccessor DbAccessor { get; private set; } = null!;
 
-        protected string TablePrefix { get; private set; }
+        protected string TablePrefix { get; private set; } = null!;
 
         [Obsolete("Scheduler name is now added to queries as a parameter")]
-        protected string SchedNameLiteral { get; private set; }
+        protected string SchedNameLiteral { get; private set; } = null!;
 
-        protected string SchedName { get; private set; }
+        protected string SchedName { get; private set; } = null!;
 
         public void Initialize(string tablePrefix, string schedName, IDbAccessor dbAccessor)
         {

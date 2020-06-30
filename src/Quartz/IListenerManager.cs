@@ -107,7 +107,7 @@ namespace Quartz
         /// </remarks>
         /// <param name="listenerName">the name of the listener to add the matcher to</param>
         /// <returns>the matchers registered for selecting events for the identified listener</returns>
-        IReadOnlyCollection<IMatcher<JobKey>> GetJobListenerMatchers(string listenerName);
+        IReadOnlyCollection<IMatcher<JobKey>>? GetJobListenerMatchers(string listenerName);
 
         /// <summary>
         /// Remove the identified <see cref="IJobListener" /> from the<see cref="IScheduler" />.
@@ -194,7 +194,7 @@ namespace Quartz
         /// </remarks>
         /// <param name="listenerName">the name of the listener to add the matcher to</param>
         /// <returns>the matchers registered for selecting events for the identified listener</returns>
-        IReadOnlyCollection<IMatcher<TriggerKey>> GetTriggerListenerMatchers(string listenerName);
+        IReadOnlyCollection<IMatcher<TriggerKey>>? GetTriggerListenerMatchers(string listenerName);
 
         /// <summary>
         /// Remove the identified <see cref="ITriggerListener" /> from the<see cref="IScheduler" />.

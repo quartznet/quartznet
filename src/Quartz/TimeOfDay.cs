@@ -158,7 +158,7 @@ namespace Quartz
             return false; // must be equal...
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (!(obj is TimeOfDay))
             {
@@ -186,7 +186,16 @@ namespace Quartz
                 return null;
             }
 
-            DateTimeOffset cal = new DateTimeOffset(dateTime.Value.Date, dateTime.Value.Offset);
+            return GetTimeOfDayForDate(dateTime.Value);
+        }
+
+        /// <summary>
+        /// Return a date with time of day reset to this object values. The millisecond value will be zero.
+        /// </summary>
+        /// <param name="dateTime"></param>
+        public DateTimeOffset GetTimeOfDayForDate(DateTimeOffset dateTime)
+        {
+            DateTimeOffset cal = new DateTimeOffset(dateTime.Date, dateTime.Offset);
             TimeSpan t = new TimeSpan(0, Hour, Minute, Second);
             return cal.Add(t);
         }

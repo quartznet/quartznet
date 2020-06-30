@@ -144,12 +144,12 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="txCallback">Callback to execute.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         protected override async Task<T> ExecuteInLock<T>(
-            string lockName,
+            string? lockName,
             Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
             CancellationToken cancellationToken = default)
         {
             bool transOwner = false;
-            ConnectionAndTransactionHolder conn = null;
+            ConnectionAndTransactionHolder? conn = null;
             Guid requestorId = Guid.NewGuid();
             try
             {
@@ -162,7 +162,7 @@ namespace Quartz.Impl.AdoJobStore
                         conn = GetNonManagedTXConnection();
                     }
 
-                    transOwner = await LockHandler.ObtainLock(requestorId, conn, lockName, cancellationToken).ConfigureAwait(false);
+                    transOwner = await LockHandler.ObtainLock(requestorId, conn!, lockName, cancellationToken).ConfigureAwait(false);
                 }
 
                 if (conn == null)
@@ -176,7 +176,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    await ReleaseLock(requestorId, lockName, transOwner, cancellationToken).ConfigureAwait(false);
+                    await ReleaseLock(requestorId, lockName!, transOwner, cancellationToken).ConfigureAwait(false);
                 }
                 finally
                 {

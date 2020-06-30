@@ -181,13 +181,13 @@ namespace Quartz.Impl.Triggers
         private static readonly ILog logger = LogProvider.GetLogger(typeof(CronTriggerImpl));
 
         protected const int YearToGiveupSchedulingAt = 2299;
-        private CronExpression cronEx;
+        private CronExpression? cronEx;
         private DateTimeOffset startTimeUtc = DateTimeOffset.MinValue;
         private DateTimeOffset? endTimeUtc;
         private DateTimeOffset? nextFireTimeUtc; // Making a public property which called GetNextFireTime/SetNextFireTime would make the json attribute unnecessary
         private DateTimeOffset? previousFireTimeUtc; // Making a public property which called GetPreviousFireTime/SetPreviousFireTime would make the json attribute unnecessary
 
-        [NonSerialized] private TimeZoneInfo timeZone;
+        [NonSerialized] private TimeZoneInfo? timeZone;
 
         // With binary serialization, the timeZone doesn't need serialized since it is part of the CronExpression.
         // With json serialization, however, the cron expression is only serialized as a string (CronExpressionString),
@@ -198,7 +198,7 @@ namespace Quartz.Impl.Triggers
         // match IANA tz IDs (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). This feature is coming, but depending
         // on timelines, it may be worth doign the mapping here.
         // More info: https://github.com/dotnet/corefx/issues/7757
-        private string timeZoneInfoId
+        private string? timeZoneInfoId
         {
             get => timeZone?.Id;
             set => timeZone = value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value);
@@ -238,7 +238,7 @@ namespace Quartz.Impl.Triggers
         /// </remarks>
         /// <param name="name">The name of the <see cref="ITrigger" /></param>
         /// <param name="group">The group of the <see cref="ITrigger" /></param>
-        public CronTriggerImpl(string name, string group) : base(name, group)
+        public CronTriggerImpl(string name, string? group) : base(name, group)
         {
             StartTimeUtc = SystemTime.UtcNow();
             TimeZone = TimeZoneInfo.Local;
@@ -420,12 +420,12 @@ namespace Quartz.Impl.Triggers
         /// Gets or sets the cron expression string.
         /// </summary>
         /// <value>The cron expression string.</value>
-        public string CronExpressionString
+        public string? CronExpressionString
         {
             set
             {
                 TimeZoneInfo originalTimeZone = TimeZone;
-                cronEx = new CronExpression(value);
+                cronEx = new CronExpression(value!);
                 cronEx.TimeZone = originalTimeZone;
             }
             get => cronEx?.CronExpressionString;
@@ -611,7 +611,7 @@ namespace Quartz.Impl.Triggers
 
         public override IScheduleBuilder GetScheduleBuilder()
         {
-            CronScheduleBuilder cb = CronScheduleBuilder.CronSchedule(CronExpressionString).InTimeZone(TimeZone);
+            CronScheduleBuilder cb = CronScheduleBuilder.CronSchedule(CronExpressionString!).InTimeZone(TimeZone);
 
             switch (MisfireInstruction)
             {
@@ -717,7 +717,7 @@ namespace Quartz.Impl.Triggers
         /// </para>
         /// </summary>
         /// <param name="cal"></param>
-        public override void UpdateAfterMisfire(ICalendar cal)
+        public override void UpdateAfterMisfire(ICalendar? cal)
         {
             int instr = MisfireInstruction;
 
@@ -797,7 +797,7 @@ namespace Quartz.Impl.Triggers
                        && p.Day == test.Day;
             }
 
-            while (fta.Value < test)
+            while (fta != null && fta.Value < test)
             {
                 fta = GetFireTimeAfter(fta);
             }
@@ -818,7 +818,7 @@ namespace Quartz.Impl.Triggers
         /// </summary>
         /// <param name="cal"></param>
         /// <seealso cref="JobExecutionException" />
-        public override void Triggered(ICalendar cal)
+        public override void Triggered(ICalendar? cal)
         {
             previousFireTimeUtc = nextFireTimeUtc;
             nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
@@ -887,7 +887,7 @@ namespace Quartz.Impl.Triggers
         /// by the scheduler, which is also the same value <see cref="GetNextFireTimeUtc" />
         /// will return (until after the first firing of the <see cref="ITrigger" />).
         /// </returns>
-        public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar cal)
+        public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? cal)
         {
             nextFireTimeUtc = GetFireTimeAfter(startTimeUtc.AddSeconds(-1));
 
@@ -903,7 +903,7 @@ namespace Quartz.Impl.Triggers
         /// Gets the expression summary.
         /// </summary>
         /// <returns></returns>
-        public string GetExpressionSummary()
+        public string? GetExpressionSummary()
         {
             return cronEx?.GetExpressionSummary();
         }

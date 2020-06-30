@@ -47,7 +47,7 @@ namespace Quartz.Impl.AdoJobStore.Common
             "Quartz.Impl.AdoJobStore.Common.dbproviders.properties";
 #endif // NETSTANDARD_DBPROVIDERS
 
-        private readonly MethodInfo commandBindByNamePropertySetter;
+        private readonly MethodInfo? commandBindByNamePropertySetter;
 
         private static readonly List<DbMetadataFactory> dbMetadataFactories;
         // needs to allow concurrent threads to read and update, since field is static
@@ -81,10 +81,10 @@ namespace Quartz.Impl.AdoJobStore.Common
             }
 
             // check if command supports direct setting of BindByName property, needed for Oracle Managed ODP diver at least
-            var property = Metadata.CommandType.GetProperty("BindByName", BindingFlags.Instance | BindingFlags.Public);
+            var property = Metadata.CommandType?.GetProperty("BindByName", BindingFlags.Instance | BindingFlags.Public);
             if (property != null && property.PropertyType == typeof (bool) && property.CanWrite)
             {
-                commandBindByNamePropertySetter = property.GetSetMethod();
+                commandBindByNamePropertySetter = property.GetSetMethod()!;
             }
         }
 

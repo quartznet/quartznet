@@ -64,8 +64,8 @@ namespace Quartz.Impl.AdoJobStore
 
         protected override TriggerPropertyBundle GetTriggerPropertyBundle(SimplePropertiesTriggerProperties props)
         {
-            TimeZoneInfo tz = null; // if we use null, that's ok as system default tz will be used
-            string tzId = props.TimeZoneId;
+            TimeZoneInfo? tz = null; // if we use null, that's ok as system default tz will be used
+            string? tzId = props.TimeZoneId;
             if (string.IsNullOrEmpty(tzId))
             {
                 // we moved to use separate column in v 2.6
@@ -77,7 +77,7 @@ namespace Quartz.Impl.AdoJobStore
             }
 
             CalendarIntervalScheduleBuilder sb = CalendarIntervalScheduleBuilder.Create()
-                .WithInterval(props.Int1, (IntervalUnit) Enum.Parse(typeof(IntervalUnit), props.String1, true))
+                .WithInterval(props.Int1, (IntervalUnit) Enum.Parse(typeof(IntervalUnit), props.String1!, true))
                 .InTimeZone(tz)
                 .PreserveHourOfDayAcrossDaylightSavings(props.Boolean1)
                 .SkipDayIfHourDoesNotExist(props.Boolean2);

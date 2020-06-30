@@ -16,9 +16,9 @@ namespace Quartz.Impl.AdoJobStore
 
         private readonly JobStoreSupport jobStoreSupport;
 
-        private QueuedTaskScheduler taskScheduler;
+        private QueuedTaskScheduler taskScheduler = null!;
         private readonly CancellationTokenSource cancellationTokenSource;
-        private Task task;
+        private Task task = null!;
 
         private int numFails;
 

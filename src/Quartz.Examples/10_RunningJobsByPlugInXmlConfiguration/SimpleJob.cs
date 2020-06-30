@@ -53,7 +53,7 @@ namespace Quartz.Examples.Example10
                 ICollection<string> keys = context.MergedJobDataMap.Keys;
                 foreach (string key in keys)
                 {
-                    string val = context.MergedJobDataMap.GetString(key);
+                    var val = context.MergedJobDataMap.GetString(key);
                     log.InfoFormat(" - jobDataMap entry: {0} = {1}", key, val);
                 }
             }

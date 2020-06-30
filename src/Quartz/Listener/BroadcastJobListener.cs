@@ -87,7 +87,7 @@ namespace Quartz.Listener
 
         public bool RemoveListener(string listenerName)
         {
-            IJobListener listener = listeners.Find(x => x.Name == listenerName);
+            var listener = listeners.Find(x => x.Name == listenerName);
             if (listener != null)
             {
                 listeners.Remove(listener);
@@ -112,9 +112,8 @@ namespace Quartz.Listener
             return IterateListenersInGuard(l => l.JobExecutionVetoed(context, cancellationToken), nameof(JobExecutionVetoed));
         }
 
-        public Task JobWasExecuted(
-            IJobExecutionContext context, 
-            JobExecutionException jobException,
+        public Task JobWasExecuted(IJobExecutionContext context,
+            JobExecutionException? jobException,
             CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.JobWasExecuted(context, jobException, cancellationToken), nameof(JobWasExecuted));
