@@ -43,7 +43,7 @@ namespace Quartz.Simpl
                 }
                 if (reader.TokenType == JsonToken.PropertyName)
                 {
-                    key = reader.Value?.ToString();
+                    key = reader.Value!.ToString()!;
                 }
                 if (reader.TokenType == JsonToken.String || reader.TokenType == JsonToken.Null)
                 {
