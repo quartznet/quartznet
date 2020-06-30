@@ -211,12 +211,12 @@ namespace Quartz.Impl
 
             var props = Util.Configuration.GetSection(ConfigurationSectionName);
             var requestedFile = QuartzEnvironment.GetEnvironmentVariable(PropertiesFile);
-            var propFileName = !string.IsNullOrWhiteSpace(requestedFile) ? requestedFile : "~/quartz.config";
+            string propFileName = !string.IsNullOrWhiteSpace(requestedFile) ? requestedFile : "~/quartz.config";
 
             // check for specials
             try
             {
-                propFileName = FileUtil.ResolveFile(propFileName);
+                propFileName = FileUtil.ResolveFile(propFileName)!;
             }
             catch (SecurityException)
             {
@@ -921,7 +921,7 @@ Please add configuration to your application config file to correctly initialize
 
                         if (js.Clustered)
                         {
-                            schedInstId = await instanceIdGenerator!.GenerateInstanceId().ConfigureAwait(false);
+                            schedInstId = (await instanceIdGenerator!.GenerateInstanceId().ConfigureAwait(false))!;
                         }
                     }
                     catch (Exception e)
