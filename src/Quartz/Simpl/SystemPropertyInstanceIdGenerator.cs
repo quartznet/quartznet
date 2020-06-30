@@ -42,7 +42,7 @@ namespace Quartz.Simpl
                 property += Postpend;
             }
 
-            return Task.FromResult(property);
+            return Task.FromResult<string?>(property);
         }
 
         /// <summary>

@@ -40,7 +40,7 @@ namespace Quartz.Impl.AdoJobStore
             this.dbProvider = dbProvider;
         }
 
-        public void AddCommandParameter(IDbCommand cmd, string paramName, object paramValue)
+        public void AddCommandParameter(IDbCommand cmd, string paramName, object? paramValue)
         {
             AddCommandParameter(cmd, paramName, paramValue, null, null);
         }

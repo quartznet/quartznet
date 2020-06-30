@@ -35,7 +35,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Gets or sets the fire instance id.
         /// </summary>
         /// <value>The fire instance id.</value>
-        public virtual string FireInstanceId { get; set; }
+        public virtual string? FireInstanceId { get; set; }
 
         /// <summary>
         /// Gets or sets the fire timestamp.
@@ -57,25 +57,25 @@ namespace Quartz.Impl.AdoJobStore
         /// Gets or sets the job key.
         /// </summary>
         /// <value>The job key.</value>
-        public virtual JobKey JobKey { get; set; }
+        public virtual JobKey? JobKey { get; set; }
 
         /// <summary>
         /// Gets or sets the scheduler instance id.
         /// </summary>
         /// <value>The scheduler instance id.</value>
-        public virtual string SchedulerInstanceId { get; set; }
+        public virtual string? SchedulerInstanceId { get; set; }
 
         /// <summary>
         /// Gets or sets the trigger key.
         /// </summary>
         /// <value>The trigger key.</value>
-        public virtual TriggerKey TriggerKey { get; set; }
+        public virtual TriggerKey? TriggerKey { get; set; }
 
         /// <summary>
         /// Gets or sets the state of the fire instance.
         /// </summary>
         /// <value>The state of the fire instance.</value>
-        public virtual string FireInstanceState { get; set; }
+        public virtual string? FireInstanceState { get; set; }
 
         /// <summary>
         /// Gets or sets a value indicating whether [job requests recovery].

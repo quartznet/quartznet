@@ -66,13 +66,13 @@ namespace Quartz
     /// <seealso cref="ITrigger" />
     public class TriggerBuilder
     {
-        private TriggerKey key;
+        private TriggerKey? key;
         private string? description;
         private DateTimeOffset startTime = SystemTime.UtcNow();
         private DateTimeOffset? endTime;
         private int priority = TriggerConstants.DefaultPriority;
         private string? calendarName;
-        private JobKey jobKey;
+        private JobKey? jobKey;
         private readonly JobDataMap jobDataMap = new JobDataMap();
 
         private IScheduleBuilder? scheduleBuilder;

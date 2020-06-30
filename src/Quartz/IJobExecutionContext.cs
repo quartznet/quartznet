@@ -27,7 +27,7 @@ namespace Quartz
         /// Get a handle to the <see cref="ICalendar" /> referenced by the <see cref="ITrigger" />
         /// instance that fired the <see cref="IJob" />.
         /// </summary>
-        ICalendar Calendar { get; }
+        ICalendar? Calendar { get; }
 
         /// <summary>
         /// If the <see cref="IJob" /> is being re-executed because of a 'recovery'
@@ -156,7 +156,7 @@ namespace Quartz
         /// execution.
         /// </para>
         /// </remarks>
-        object Result { get; set; }
+        object? Result { get; set; }
 
         /// <summary>
         /// The amount of time the job ran for.  The returned
@@ -186,7 +186,7 @@ namespace Quartz
         /// </summary>
         /// <param name="key">
         /// </param>
-        object Get(object key);
+        object? Get(object key);
 
 #pragma warning disable 1574
         /// <summary>

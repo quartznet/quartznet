@@ -63,7 +63,7 @@ namespace Quartz.Impl.AdoJobStore
         private AdoUtil adoUtil = null!;
         private readonly List<ITriggerPersistenceDelegate> triggerPersistenceDelegates = new List<ITriggerPersistenceDelegate>();
         private string schedNameLiteral = null!;
-        private IObjectSerializer objectSerializer;
+        private IObjectSerializer objectSerializer = null!;
         private readonly Dictionary<string, string> cachedQueries = new Dictionary<string, string>();
 
         protected IDbProvider DbProvider { get; private set; } = null!;
@@ -81,7 +81,7 @@ namespace Quartz.Impl.AdoJobStore
             typeLoadHelper = args.TypeLoadHelper;
             useProperties = args.UseProperties;
             adoUtil = new AdoUtil(args.DbProvider);
-            objectSerializer = args.ObjectSerializer ?? throw new ArgumentNullException("object serializer missing");
+            objectSerializer = args.ObjectSerializer!;
 
             AddDefaultTriggerPersistenceDelegates();
 
@@ -2088,11 +2088,9 @@ namespace Quartz.Impl.AdoJobStore
                         string jobName = rs.GetString(ColumnJobName)!;
                         string jobGroup = rs.GetString(ColumnJobGroup)!;
 
-                        DateTimeOffset? nft = GetDateTimeFromDbValue(nextFireTime);
+                        var nft = GetDateTimeFromDbValue(nextFireTime);
 
-                        status = new TriggerStatus(state, nft);
-                        status.Key = triggerKey;
-                        status.JobKey = new JobKey(jobName, jobGroup);
+                        status = new TriggerStatus(state, nft, triggerKey, new JobKey(jobName, jobGroup));
                     }
                 }
                 return status;

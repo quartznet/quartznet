@@ -60,7 +60,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="schedName">the scheduler name</param>
         /// <param name="selectWithLockSQL">The select with lock SQL.</param>
         /// <param name="dbProvider"></param>
-        public StdRowLockSemaphore(string tablePrefix, string schedName, string selectWithLockSQL, IDbProvider dbProvider)
+        public StdRowLockSemaphore(string tablePrefix, string schedName, string? selectWithLockSQL, IDbProvider dbProvider)
             : base(tablePrefix, schedName, selectWithLockSQL ?? SelectForLock, InsertLock, dbProvider)
         {
         }

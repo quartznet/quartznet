@@ -189,7 +189,7 @@ namespace Quartz.Impl
                 {
                     if (Name == null)
                     {
-                        return null;
+                        return null!;
                     }
                     key = new JobKey(Name, Group);
                 }

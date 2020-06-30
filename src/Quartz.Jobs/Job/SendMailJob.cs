@@ -155,7 +155,7 @@ namespace Quartz.Job
             {
                 throw new ArgumentException(propertyName + " not specified.");
             }
-            return value;
+            return value!;
         }
 
         protected virtual string? GetOptionalParameter(JobDataMap data, string propertyName)

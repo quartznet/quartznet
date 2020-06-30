@@ -370,7 +370,7 @@ Please add configuration to your application config file to correctly initialize
 
             string schedName = cfg!.GetStringProperty(PropertySchedulerInstanceName, "QuartzScheduler")!;
             string threadName = cfg.GetStringProperty(PropertySchedulerThreadName, "{0}_QuartzSchedulerThread".FormatInvariant(schedName))!;
-            string schedInstId = cfg.GetStringProperty(PropertySchedulerInstanceId, DefaultInstanceId)!;
+            var schedInstId = cfg.GetStringProperty(PropertySchedulerInstanceId, DefaultInstanceId)!;
 
             if (schedInstId.Equals(AutoGenerateInstanceId))
             {
@@ -921,7 +921,7 @@ Please add configuration to your application config file to correctly initialize
 
                         if (js.Clustered)
                         {
-                            schedInstId = await instanceIdGenerator.GenerateInstanceId().ConfigureAwait(false);
+                            schedInstId = await instanceIdGenerator!.GenerateInstanceId().ConfigureAwait(false);
                         }
                     }
                     catch (Exception e)
@@ -993,12 +993,10 @@ Please add configuration to your application config file to correctly initialize
                 }
 
                 // set scheduler context data...
-#pragma warning disable 8606
-                foreach (string key in schedCtxtProps)
-#pragma warning restore 8606
+                foreach (var key in schedCtxtProps)
                 {
-                    string val = schedCtxtProps.Get(key);
-                    sched.Context.Put(key!, val);
+                    string val = schedCtxtProps.Get((string) key!);
+                    sched.Context.Put((string) key!, val);
                 }
 
                 // fire up job store, and runshell factory

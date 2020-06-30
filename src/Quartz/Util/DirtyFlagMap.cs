@@ -178,7 +178,7 @@ namespace Quartz.Util
 
         public bool TryGetValue(TKey key, out TValue value)
         {
-            return map.TryGetValue(key, out value);
+            return map.TryGetValue(key, out value!);
         }
 
         /// <summary>

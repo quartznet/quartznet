@@ -35,12 +35,16 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Construct a new TriggerStatus with the status name and nextFireTime.
         /// </summary>
-        /// <param name="status">The trigger's status</param>
-        /// <param name="nextFireTime">The next time trigger will fire</param>
-        public TriggerStatus(string status, DateTimeOffset? nextFireTime)
+        public TriggerStatus(
+            string status,
+            DateTimeOffset? nextFireTime, 
+            TriggerKey triggerKey,
+            JobKey jobKey)
         {
             Status = status;
             NextFireTimeUtc = nextFireTime;
+            Key = triggerKey;
+            JobKey = jobKey;
         }
 
         public JobKey JobKey { get; set; }

@@ -85,9 +85,9 @@ namespace Quartz.Examples
 
         private class TypeNameComparer : IComparer<Type>
         {
-            public int Compare(Type t1, Type t2)
+            public int Compare(Type? t1, Type? t2)
             {
-                if (t1.Namespace!.Length > t2.Namespace!.Length)
+                if (t1!.Namespace!.Length > t2!.Namespace!.Length)
                 {
                     return 1;
                 }

@@ -201,7 +201,8 @@ namespace Quartz.Impl.Triggers
 	        {
                 if (JobName == null)
                 {
-                    return null;
+	                // rare condition when trigger is not fully initialized
+                    return null!;
                 }
                 return new JobKey(JobName, JobGroup);
 	        }

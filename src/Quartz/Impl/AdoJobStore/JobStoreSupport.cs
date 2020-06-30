@@ -27,7 +27,6 @@ using System.Data.SqlClient;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -55,14 +54,14 @@ namespace Quartz.Impl.AdoJobStore
         private bool useProperties;
         protected Type delegateType;
         protected readonly Dictionary<string, ICalendar?> calendarCache = new Dictionary<string, ICalendar?>();
-        private IDriverDelegate driverDelegate;
+        private IDriverDelegate driverDelegate = null!;
         private TimeSpan misfireThreshold = TimeSpan.FromMinutes(1); // one minute
         private TimeSpan? misfirehandlerFrequence;
 
-        private ClusterManager clusterManager;
-        private MisfireHandler misfireHandler;
-        private ITypeLoadHelper typeLoadHelper;
-        private ISchedulerSignaler schedSignaler;
+        private ClusterManager? clusterManager;
+        private MisfireHandler? misfireHandler;
+        private ITypeLoadHelper typeLoadHelper = null!;
+        private ISchedulerSignaler schedSignaler = null!;
 
         private volatile bool schedulerRunning;
         private volatile bool shutdown;
@@ -85,7 +84,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Get or set the datasource name.
         /// </summary>
-        public string DataSource { get; set; }
+        public string DataSource { get; set; } = "";
 
         /// <summary>
         /// Get or set the database connection manager.
@@ -134,12 +133,12 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Get or set the instance Id of the Scheduler (must be unique within a cluster).
         /// </summary>
-        public virtual string InstanceId { get; set; }
+        public virtual string InstanceId { get; set; } = "";
 
         /// <summary>
         /// Get or set the instance Id of the Scheduler (must be unique within this server instance).
         /// </summary>
-        public virtual string InstanceName { get; set; }
+        public virtual string InstanceName { get; set; } = "";
 
         public int ThreadPoolSize
         {
@@ -282,19 +281,19 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Get or set the ADO.NET driver delegate class name.
         /// </summary>
-        public virtual string DriverDelegateType { get; set; }
+        public virtual string DriverDelegateType { get; set; } = null!;
 
         /// <summary>
         /// The driver delegate's initialization string.
         /// </summary>
-        public string DriverDelegateInitString { get; set; }
+        public string? DriverDelegateInitString { get; set; }
 
         /// <summary>
         /// set the SQL statement to use to select and lock a row in the "locks"
         /// table.
         /// </summary>
         /// <seealso cref="StdRowLockSemaphore" />
-        public virtual string SelectWithLockSQL { get; set; }
+        public virtual string? SelectWithLockSQL { get; set; }
 
         protected virtual ITypeLoadHelper TypeLoadHelper => typeLoadHelper;
 
@@ -432,7 +431,7 @@ namespace Quartz.Impl.AdoJobStore
 
         private IDbProvider DbProvider => ConnectionManager.GetDbProvider(DataSource);
 
-        protected internal virtual ISemaphore LockHandler { get; set; }
+        protected internal virtual ISemaphore LockHandler { get; set; } = null!;
 
         /// <summary>
         /// Get whether String-only properties will be handled in JobDataMaps.
@@ -2554,7 +2553,7 @@ namespace Quartz.Impl.AdoJobStore
                         var fireInstanceIds = new HashSet<string>();
                         foreach (FiredTriggerRecord ft in acquired)
                         {
-                            fireInstanceIds.Add(ft.FireInstanceId);
+                            fireInstanceIds.Add(ft.FireInstanceId!);
                         }
                         foreach (IOperableTrigger tr in result)
                         {
@@ -2784,7 +2783,7 @@ namespace Quartz.Impl.AdoJobStore
                         {
                             if (StateExecuting.Equals(ft.FireInstanceState))
                             {
-                                executingTriggers.Add(ft.FireInstanceId);
+                                executingTriggers.Add(ft.FireInstanceId!);
                             }
                         }
                         foreach (TriggerFiredResult tr in result)
@@ -3333,19 +3332,19 @@ namespace Quartz.Impl.AdoJobStore
 
                         foreach (FiredTriggerRecord ftRec in firedTriggerRecs)
                         {
-                            TriggerKey tKey = ftRec.TriggerKey;
-                            JobKey jKey = ftRec.JobKey;
+                            TriggerKey tKey = ftRec.TriggerKey!;
+                            JobKey? jKey = ftRec.JobKey;
 
                             triggerKeys.Add(tKey);
 
                             // release blocked triggers..
-                            if (ftRec.FireInstanceState.Equals(StateBlocked))
+                            if (ftRec.FireInstanceState!.Equals(StateBlocked))
                             {
-                                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey, StateWaiting, StateBlocked, cancellationToken).ConfigureAwait(false);
+                                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, StateWaiting, StateBlocked, cancellationToken).ConfigureAwait(false);
                             }
                             else if (ftRec.FireInstanceState.Equals(StatePausedBlocked))
                             {
-                                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey, StatePaused, StatePausedBlocked, cancellationToken).ConfigureAwait(false);
+                                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, StatePaused, StatePausedBlocked, cancellationToken).ConfigureAwait(false);
                             }
 
                             // release acquired triggers..
@@ -3358,14 +3357,14 @@ namespace Quartz.Impl.AdoJobStore
                             {
                                 // handle jobs marked for recovery that were not fully
                                 // executed..
-                                if (await JobExists(conn, jKey, cancellationToken).ConfigureAwait(false))
+                                if (await JobExists(conn, jKey!, cancellationToken).ConfigureAwait(false))
                                 {
                                     SimpleTriggerImpl rcvryTrig =
                                         new SimpleTriggerImpl(
                                             "recover_" + rec.SchedulerInstanceId + "_" + Convert.ToString(recoverIds++, CultureInfo.InvariantCulture),
                                             SchedulerConstants.DefaultRecoveryGroup, ftRec.FireTimestamp);
 
-                                    rcvryTrig.JobName = jKey.Name;
+                                    rcvryTrig.JobName = jKey!.Name;
                                     rcvryTrig.JobGroup = jKey.Group;
                                     rcvryTrig.MisfireInstruction = MisfireInstruction.SimpleTrigger.FireNow;
                                     rcvryTrig.Priority = ftRec.Priority;
@@ -3394,8 +3393,8 @@ namespace Quartz.Impl.AdoJobStore
                             // free up stateful job's triggers
                             if (ftRec.JobDisallowsConcurrentExecution)
                             {
-                                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey, StateWaiting, StateBlocked, cancellationToken).ConfigureAwait(false);
-                                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey, StatePaused, StatePausedBlocked, cancellationToken).ConfigureAwait(false);
+                                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, StateWaiting, StateBlocked, cancellationToken).ConfigureAwait(false);
+                                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, StatePaused, StatePausedBlocked, cancellationToken).ConfigureAwait(false);
                             }
                         }
 

@@ -221,7 +221,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        private string schedNameLiteral;
+        private string? schedNameLiteral;
 
         [Obsolete("SchedName is now a sql parameter")]
         protected string SchedulerNameLiteral
@@ -236,7 +236,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public string SchedName
+        public string? SchedName
         {
             get => schedName;
             set
