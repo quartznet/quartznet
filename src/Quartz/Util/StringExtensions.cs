@@ -12,7 +12,7 @@ namespace Quartz.Util
         /// </summary>
         /// <param name="s"></param>
         /// <returns></returns>
-        public static string? NullSafeTrim(this string s)
+        public static string? NullSafeTrim(this string? s)
         {
             return s?.Trim();
         }
@@ -44,7 +44,7 @@ namespace Quartz.Util
             return s == null || s.Trim().Length == 0;
         }
 
-        public static string FormatInvariant(this string s, params object[] args)
+        public static string FormatInvariant(this string s, params object?[] args)
         {
             return string.Format(CultureInfo.InvariantCulture, s, args);
         }

@@ -55,11 +55,11 @@ namespace Quartz.Impl.Triggers
     [Serializable]
     public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTrigger>
 	{
-        private string name;
+        private string name = null!;
         private string group = SchedulerConstants.DefaultGroup;
-        private string jobName;
+        private string jobName = null!;
         private string jobGroup = SchedulerConstants.DefaultGroup;
-	    private JobDataMap jobDataMap;
+	    private JobDataMap jobDataMap = null!;
 
 	    private int misfireInstruction = Quartz.MisfireInstruction.InstructionNotSet;
 
@@ -308,9 +308,9 @@ namespace Quartz.Impl.Triggers
         /// implementations, in order to facilitate 'recognizing' instances of fired
         /// <see cref="ITrigger" /> s as their jobs complete execution.
         /// </remarks>
-        public virtual string FireInstanceId { get; set; }
+        public virtual string FireInstanceId { get; set; } = null!;
 
-	    public abstract void SetNextFireTimeUtc(DateTimeOffset? nextFireTime);
+        public abstract void SetNextFireTimeUtc(DateTimeOffset? nextFireTime);
 
         public abstract void SetPreviousFireTimeUtc(DateTimeOffset? previousFireTime);
 

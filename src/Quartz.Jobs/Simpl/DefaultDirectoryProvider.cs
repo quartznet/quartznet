@@ -16,8 +16,8 @@ namespace Quartz.Simpl
         public IReadOnlyList<string> GetDirectoriesToScan(JobDataMap mergedJobDataMap)
         {
             List<string> directoriesToScan = new List<string>();
-            string dirName = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryName);
-            string dirNames = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryNames);
+            var dirName = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryName);
+            var dirNames = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryNames);
 
             if (dirName == null && dirNames == null)
             {

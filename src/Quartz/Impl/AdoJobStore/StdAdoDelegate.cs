@@ -63,7 +63,7 @@ namespace Quartz.Impl.AdoJobStore
         private AdoUtil adoUtil = null!;
         private readonly List<ITriggerPersistenceDelegate> triggerPersistenceDelegates = new List<ITriggerPersistenceDelegate>();
         private string schedNameLiteral = null!;
-        private IObjectSerializer objectSerializer = null!;
+        private IObjectSerializer objectSerializer;
         private readonly Dictionary<string, string> cachedQueries = new Dictionary<string, string>();
 
         protected IDbProvider DbProvider { get; private set; } = null!;
@@ -81,7 +81,7 @@ namespace Quartz.Impl.AdoJobStore
             typeLoadHelper = args.TypeLoadHelper;
             useProperties = args.UseProperties;
             adoUtil = new AdoUtil(args.DbProvider);
-            objectSerializer = args.ObjectSerializer;
+            objectSerializer = args.ObjectSerializer ?? throw new ArgumentNullException("object serializer missing");
 
             AddDefaultTriggerPersistenceDelegates();
 

@@ -92,7 +92,7 @@ namespace Quartz.Util
         /// Instantiates an instance of the type specified.
         /// </summary>
         /// <returns></returns>
-        public static T InstantiateType<T>(Type type)
+        public static T InstantiateType<T>(Type? type)
         {
             if (type == null)
             {

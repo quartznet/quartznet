@@ -76,10 +76,10 @@ namespace Quartz.Impl.AdoJobStore
         /// <seealso cref="JobStoreSupport.ExecuteInNonManagedTXLock" />
         /// <seealso cref="JobStoreSupport.GetNonManagedTXConnection()" />
         /// <seealso cref="JobStoreSupport.GetConnection()" />
-        protected override Task<T?> ExecuteInLock<T>(
+        protected override Task<T> ExecuteInLock<T>(
             string? lockName, 
-            Func<ConnectionAndTransactionHolder, Task<T?>> txCallback,
-            CancellationToken cancellationToken = default) where T : class
+            Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
+            CancellationToken cancellationToken = default)
         {
             return ExecuteInNonManagedTXLock(lockName, txCallback, cancellationToken);
         }

@@ -90,9 +90,9 @@ namespace Quartz.Impl.Triggers
         private DateTimeOffset? previousFireTimeUtc; // Making a public property which called GetPreviousFireTime/SetPreviousFireTime would make the json attribute unnecessary
         private int repeatInterval = 1;
         private IntervalUnit repeatIntervalUnit = IntervalUnit.Minute;
-        private HashSet<DayOfWeek> daysOfWeek;
-        private TimeOfDay startTimeOfDay;
-        private TimeOfDay endTimeOfDay;
+        private HashSet<DayOfWeek> daysOfWeek = null!;
+        private TimeOfDay startTimeOfDay = null!;
+        private TimeOfDay endTimeOfDay = null!;
         private bool complete;
         private int repeatCount = RepeatIndefinitely;
         internal TimeZoneInfo? timeZone;
@@ -102,7 +102,7 @@ namespace Quartz.Impl.Triggers
         // match IANA tz IDs (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). This feature is coming, but depending
         // on timelines, it may be worth doign the mapping here.
         // More info: https://github.com/dotnet/corefx/issues/7757
-        private string timeZoneInfoId
+        private string? timeZoneInfoId
         {
             get => timeZone?.Id;
             set => timeZone = value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value);
@@ -142,7 +142,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="intervalUnit">The repeat interval unit. The only intervals that are valid for this type of trigger are
         /// <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
         /// <param name="repeatInterval"></param>
-        public DailyTimeIntervalTriggerImpl(string name, string group, TimeOfDay startTimeOfDayUtc,
+        public DailyTimeIntervalTriggerImpl(string name, string? group, TimeOfDay startTimeOfDayUtc,
             TimeOfDay endTimeOfDayUtc, IntervalUnit intervalUnit, int repeatInterval)
             : this(name, group, SystemTime.UtcNow(), null, startTimeOfDayUtc, endTimeOfDayUtc, intervalUnit,
                 repeatInterval)
@@ -181,7 +181,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="intervalUnit">The repeat interval unit. The only intervals that are valid for this type of trigger are
         /// <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
-        public DailyTimeIntervalTriggerImpl(string name, string group, DateTimeOffset startTimeUtc,
+        public DailyTimeIntervalTriggerImpl(string name, string? group, DateTimeOffset startTimeUtc,
             DateTimeOffset? endTimeUtc, TimeOfDay startTimeOfDayUtc, TimeOfDay endTimeOfDayUtc,
             IntervalUnit intervalUnit, int repeatInterval)
             : base(name, group)

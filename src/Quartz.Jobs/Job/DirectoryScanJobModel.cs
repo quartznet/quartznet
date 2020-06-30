@@ -67,7 +67,7 @@ namespace Quartz.Job
                     (List<FileInfo>)mergedJobDataMap.Get(DirectoryScanJob.CurrentFileList)
                     : new List<FileInfo>(),
                 SearchPattern = mergedJobDataMap.ContainsKey(DirectoryScanJob.SearchPattern) ?
-                    mergedJobDataMap.GetString(DirectoryScanJob.SearchPattern) : "*",
+                    mergedJobDataMap.GetString(DirectoryScanJob.SearchPattern)! : "*",
                 IncludeSubDirectories = mergedJobDataMap.ContainsKey(DirectoryScanJob.IncludeSubDirectories) 
                                         && mergedJobDataMap.GetBooleanValue(DirectoryScanJob.IncludeSubDirectories)
             };
@@ -103,7 +103,7 @@ namespace Quartz.Job
         private static List<string> GetDirectoriesToScan(SchedulerContext schedCtxt, JobDataMap mergedJobDataMap)
         {
             IDirectoryProvider directoryProvider = new DefaultDirectoryProvider();
-            string explicitDirProviderName = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryProviderName);
+            var explicitDirProviderName = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryProviderName);
 
             if (explicitDirProviderName != null)
             {
@@ -119,7 +119,7 @@ namespace Quartz.Job
 
         private static IDirectoryScanListener GetListener(JobDataMap mergedJobDataMap, SchedulerContext schedCtxt)
         {
-            string listenerName = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryScanListenerName);
+            var listenerName = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryScanListenerName);
 
             if (listenerName == null)
             {

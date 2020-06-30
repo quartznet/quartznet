@@ -154,12 +154,12 @@ namespace Quartz.Simpl
 				}
 				catch (MethodAccessException)
 				{
-                    HandleError($"The setter on Job class {obj.GetType()} for property '{name}' expects a {paramType} but was given a {o.GetType()}");
+                    HandleError($"The setter on Job class {obj.GetType()} for property '{name}' expects a {paramType} but was given a {o?.GetType()}");
 				}
 				catch (ArgumentException e)
 				{
 					HandleError(
-					    $"The setter on Job class {obj.GetType()} for property '{name}' expects a {paramType} but was given {o.GetType()}", e);
+					    $"The setter on Job class {obj.GetType()} for property '{name}' expects a {paramType} but was given {o?.GetType()}", e);
 				}
 				catch (UnauthorizedAccessException e)
 				{

@@ -39,7 +39,7 @@ namespace Quartz.Impl.AdoJobStore
 		/// </returns>
 		Task<bool> ObtainLock(
 			Guid requestorId,
-			ConnectionAndTransactionHolder conn,
+			ConnectionAndTransactionHolder? conn,
 			string lockName,
 			CancellationToken cancellationToken = default);
 

@@ -150,7 +150,7 @@ namespace Quartz.Job
 
         protected virtual string GetRequiredParameter(JobDataMap data, string propertyName)
         {
-            string value = data.GetString(propertyName);
+            var value = data.GetString(propertyName);
             if (string.IsNullOrEmpty(value))
             {
                 throw new ArgumentException(propertyName + " not specified.");
@@ -160,14 +160,8 @@ namespace Quartz.Job
 
         protected virtual string? GetOptionalParameter(JobDataMap data, string propertyName)
         {
-            string value = data.GetString(propertyName);
-
-            if (string.IsNullOrEmpty(value))
-            {
-                return null;
-            }
-
-            return value;
+            var value = data.GetString(propertyName);
+            return string.IsNullOrEmpty(value) ? null : value;
         }
 
         protected virtual void Send(MailInfo mailInfo)

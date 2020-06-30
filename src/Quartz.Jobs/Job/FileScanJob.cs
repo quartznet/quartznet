@@ -107,8 +107,8 @@ namespace Quartz.Job
 				throw new JobExecutionException("Error obtaining scheduler context.", e, false);
 			}
 
-			string fileName = mergedJobDataMap.GetString(FileName);
-			string listenerName = mergedJobDataMap.GetString(FileScanListenerName);
+			var fileName = mergedJobDataMap.GetString(FileName);
+			var listenerName = mergedJobDataMap.GetString(FileScanListenerName);
 
 			if (fileName == null)
 			{

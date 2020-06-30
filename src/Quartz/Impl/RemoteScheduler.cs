@@ -533,8 +533,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task<IJobDetail?> GetJobDetail(JobKey jobKey,
-            CancellationToken cancellationToken = bad)
+        public virtual Task<IJobDetail?> GetJobDetail(JobKey jobKey, CancellationToken cancellationToken = default)
         {
             return CallInGuard(x => x.GetJobDetail(jobKey));
         }

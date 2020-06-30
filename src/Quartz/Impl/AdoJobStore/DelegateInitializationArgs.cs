@@ -43,7 +43,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Object serializer and deserializer strategy to use.
         /// </summary>
-        public IObjectSerializer ObjectSerializer { get; set; }
+        public IObjectSerializer? ObjectSerializer { get; set; }
 
         /// <summary>
         /// Custom driver delegate initialization.

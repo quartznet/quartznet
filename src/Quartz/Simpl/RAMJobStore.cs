@@ -62,7 +62,7 @@ namespace Quartz.Simpl
         private readonly HashSet<string> pausedJobGroups = new HashSet<string>();
         private readonly HashSet<JobKey> blockedJobs = new HashSet<JobKey>();
         private TimeSpan misfireThreshold = TimeSpan.FromSeconds(5);
-        private ISchedulerSignaler signaler;
+        private ISchedulerSignaler signaler = null!;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="RAMJobStore"/> class.

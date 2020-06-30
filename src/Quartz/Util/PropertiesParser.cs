@@ -68,9 +68,9 @@ namespace Quartz.Util
         /// <param name="name">The name.</param>
         /// <param name="defaultValue">The default value.</param>
         /// <returns></returns>
-		public virtual string GetStringProperty(string name, string defaultValue)
+        public virtual string? GetStringProperty(string name, string? defaultValue)
 		{
-			string val = props[name] ?? defaultValue;
+			string? val = props[name] ?? defaultValue;
 			if (val == null)
 			{
 				return defaultValue;
@@ -634,8 +634,7 @@ namespace Quartz.Util
 
                     if (exclude == false)
                     {
-                        string value = GetStringProperty(key, "");
-
+                        var value = GetStringProperty(key, "");
                         if (stripPrefix)
                         {
                             group[key.Substring(prefix.Length)] = value;

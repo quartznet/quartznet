@@ -98,7 +98,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>true if the lock was obtained.</returns>
         public async Task<bool> ObtainLock(
             Guid requestorId, 
-            ConnectionAndTransactionHolder conn,
+            ConnectionAndTransactionHolder? conn,
             string lockName,
             CancellationToken cancellationToken = default)
         {
@@ -108,7 +108,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             if (!IsLockOwner(requestorId, lockName))
             {
-                await ExecuteSQL(requestorId, conn, lockName, expandedSQL, expandedInsertSQL, cancellationToken).ConfigureAwait(false);
+                await ExecuteSQL(requestorId, conn!, lockName, expandedSQL, expandedInsertSQL, cancellationToken).ConfigureAwait(false);
 
                 if (Log.IsDebugEnabled())
                 {

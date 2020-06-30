@@ -45,7 +45,7 @@ namespace Quartz.Impl.AdoJobStore
 	    /// Gets or sets the scheduler instance id.
 	    /// </summary>
 	    /// <value>The scheduler instance id.</value>
-        public virtual string SchedulerInstanceId { get; set; }
+	    public virtual string SchedulerInstanceId { get; set; } = null!;
 	}
 
 }

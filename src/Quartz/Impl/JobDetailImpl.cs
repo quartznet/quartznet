@@ -53,14 +53,14 @@ namespace Quartz.Impl
     [Serializable]
     public class JobDetailImpl : IJobDetail
     {
-        private string name;
+        private string name = null!;
         private string group = SchedulerConstants.DefaultGroup;
         private string? description;
-        private JobDataMap jobDataMap;
-        private Type jobType;
+        private JobDataMap jobDataMap = null!;
+        private Type jobType = null!;
 
         [NonSerialized] // we have the key in string fields
-        private JobKey key;
+        private JobKey key = null!;
 
         /// <summary>
         /// Create a <see cref="IJobDetail" /> with no specified name or group, and
