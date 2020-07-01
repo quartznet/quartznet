@@ -13,10 +13,12 @@ branches:
   - 2.x
 
 services:
-- mssql2016
 - mysql
 - postgresql
 
+init:
+  - net start MSSQL$SQL2019
+ 
 nuget:
   project_feed: true
   disable_publish_on_pr: true
