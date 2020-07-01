@@ -34,8 +34,8 @@ artifacts:
 
 deploy:
 - provider: NuGet
-  server: hhttps://www.myget.org/F/quartznet/api/v3/
-  symbol_server: hhttps://www.myget.org/F/quartznet/api/v3/
+  server: https://www.myget.org/F/quartznet/api/v3/
+  symbol_server: https://www.myget.org/F/quartznet/api/v3/
   api_key:
     secure: vXa9bqFD68eDW9epKh/lUK/h1OdIL92RiKAbc+JfVarllY962DWqMNSKOdvCopy/
   on:
