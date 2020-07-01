@@ -2,7 +2,7 @@
 
     <PropertyGroup>
         <AssemblyTitle>Quartz.NET ASP.NET Core integration</AssemblyTitle>
-        <TargetFrameworks>netstandard2.0;netcoreapp3.0</TargetFrameworks>
+        <TargetFrameworks>netstandard2.0;netcoreapp3.1</TargetFrameworks>
         <RootNamespace>Quartz</RootNamespace>
         <GenerateDocumentationFile>True</GenerateDocumentationFile>
         <Copyright>Copyright Lewis Zou (original work) / Marko Lahma (further work)</Copyright>
@@ -13,9 +13,7 @@
     </ItemGroup>
 
     <ItemGroup>
-        <PackageReference Include="Microsoft.AspNetCore.Hosting" Version="2.2.0" />
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="2.2.0" />
-        <PackageReference Include="Microsoft.AspNetCore.Diagnostics" Version="2.2.0" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="3.1.5" />
         <PackageReference Include="Microsoft.AspNetCore.Diagnostics.HealthChecks" Version="2.2.0" />
     </ItemGroup>
 
