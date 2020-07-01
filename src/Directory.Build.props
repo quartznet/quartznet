@@ -41,7 +41,16 @@
     <TargetFullFrameworkVersion>net461</TargetFullFrameworkVersion>
 
     <IsTestProject>$(MSBuildProjectName.Contains('Tests'))</IsTestProject>
+
   </PropertyGroup>
+
+  <PropertyGroup Condition="$(IsTestProject) == false and ('$(APPVEYOR)' == 'true' or '$(APPVEYOR)' == 'True')">
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <Target Name="PrintInfo" BeforeTargets="BeforeBuild" Condition="'$(ContinuousIntegrationBuild)' == 'True'">
+    <Message Importance="High" Text="Set ContinuousIntegrationBuild to true as running on AppVeyor" />
+  </Target>
 
   <ItemGroup Condition="'$(IsTestProject)' != 'true' and '$(SourceLinkEnabled)' != 'false'">
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All"/>
