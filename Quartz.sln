@@ -37,6 +37,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.AspNetCore", "src\Qu
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Examples.AspNetCore", "src\Quartz.Examples.AspNetCore\Quartz.Examples.AspNetCore.csproj", "{5224231E-7678-4EC6-B18A-FA302D9553E3}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Examples", "Examples", "{FCD766DA-FF68-4A60-9130-07A56C2480F0}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -95,5 +97,7 @@ Global
 		SolutionGuid = {A8666F1F-9B78-4A1D-A3DB-0E91324AB539}
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
+		{E84E25C9-B291-4F51-9599-EFB63EB59569} = {FCD766DA-FF68-4A60-9130-07A56C2480F0}
+		{5224231E-7678-4EC6-B18A-FA302D9553E3} = {FCD766DA-FF68-4A60-9130-07A56C2480F0}
 	EndGlobalSection
 EndGlobal
