@@ -41,9 +41,14 @@
     <TargetFullFrameworkVersion>net461</TargetFullFrameworkVersion>
 
     <IsTestProject>$(MSBuildProjectName.Contains('Tests'))</IsTestProject>
+
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(IsTestProject)' != 'true' and '$(SourceLinkEnabled)' != 'false'">
+  <PropertyGroup Condition="$(IsTestProject) == false and ('$(APPVEYOR)' == 'true' or '$(APPVEYOR)' == 'True')">
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(IsTestProject)' != 'true'">
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All"/>
   </ItemGroup>
 

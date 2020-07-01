@@ -6,16 +6,19 @@ version: '{build}'
 pull_requests:
   do_not_increment_build_number: true
 
+skip_branch_with_pr: true
 branches:
   except:
   - gh-pages
   - 2.x
 
 services:
-- mssql2016
 - mysql
 - postgresql
 
+init:
+  - net start MSSQL$SQL2019
+ 
 nuget:
   project_feed: true
   disable_publish_on_pr: true
