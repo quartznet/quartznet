@@ -19,11 +19,12 @@
 
     <PackageTags>scheduling;tasks;jobs;triggers;scheduler;threading</PackageTags>
     <PackageProjectUrl>https://www.quartz-scheduler.net/</PackageProjectUrl>
-    <PackageLicenseUrl>http://www.apache.org/licenses/LICENSE-2.0</PackageLicenseUrl>
     <PackageReleaseNotes>https://github.com/quartznet/quartznet/releases</PackageReleaseNotes>
-
+    <PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
 
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
 
@@ -35,7 +36,6 @@
     <NoWarn>1701;1702;1705;618;1591</NoWarn>
     <DebugSymbols>True</DebugSymbols>
     <PlatformTarget>AnyCPU</PlatformTarget>
-    <AllowedOutputExtensionsInPackageBuildOutputFolder>$(AllowedOutputExtensionsInPackageBuildOutputFolder);.pdb</AllowedOutputExtensionsInPackageBuildOutputFolder>
 
     <LangVersion>8</LangVersion>
     <TargetFullFrameworkVersion>net461</TargetFullFrameworkVersion>

@@ -26,6 +26,7 @@ There are also some minor bug fixes present.
 	* SchedName added to queries as sql paramteter (#818)
 	* Server, example and test projects upgraded to user .NET Core 3.1
 	* Nullable reference type annotations have been enabled
+	* Symbols are now provided as a separate NuGet symbol package (snupkg)
 
 * FIXES
 

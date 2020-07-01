@@ -27,7 +27,7 @@ test_script:
   - dotnet test src\Quartz.Tests.Unit\Quartz.Tests.Unit.csproj -c Release
 
 artifacts:
-- path: artifacts/*.nupkg
+- path: artifacts/*.*nupkg
   name: NuGet
 - path: artifacts/*.zip
   name: Zip
@@ -37,6 +37,5 @@ deploy:
   server: https://www.myget.org/F/quartznet/api/v2/package
   api_key:
     secure: vXa9bqFD68eDW9epKh/lUK/h1OdIL92RiKAbc+JfVarllY962DWqMNSKOdvCopy/
-  skip_symbols: true
   on:
     branch: master

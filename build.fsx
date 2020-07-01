@@ -62,7 +62,7 @@ Target "Pack" (fun _ ->
         ++ "src/Quartz.Serialization.Json/Quartz.Serialization.Json.csproj"
         |> Seq.iter pack
 
-    !! "build/Release/**/*.nupkg"
+    !! "build/Release/**/*.*nupkg"
         |> Copy "artifacts"
 
 )
