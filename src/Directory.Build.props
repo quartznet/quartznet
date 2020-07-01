@@ -48,11 +48,7 @@
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
   </PropertyGroup>
 
-  <Target Name="PrintInfo" BeforeTargets="BeforeBuild" Condition="'$(ContinuousIntegrationBuild)' == 'True'">
-    <Message Importance="High" Text="Set ContinuousIntegrationBuild to true as running on AppVeyor" />
-  </Target>
-
-  <ItemGroup Condition="'$(IsTestProject)' != 'true' and '$(SourceLinkEnabled)' != 'false'">
+  <ItemGroup Condition="'$(IsTestProject)' != 'true'">
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All"/>
   </ItemGroup>
 
