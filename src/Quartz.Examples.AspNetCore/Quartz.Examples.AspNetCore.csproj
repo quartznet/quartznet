@@ -2,7 +2,8 @@
 
     <PropertyGroup>
         <TargetFramework>netcoreapp3.1</TargetFramework>
-        <SignAssembly>False</SignAssembly>
+        <IsPackable>false</IsPackable>
+        <SignAssembly>false</SignAssembly>
     </PropertyGroup>
 
     <ItemGroup>
@@ -11,7 +12,7 @@
 
     <ItemGroup>
       <PackageReference Include="AspNetCore.HealthChecks.UI" Version="3.1.1" />
+      <PackageReference Include="AspNetCore.HealthChecks.UI.InMemory.Storage" Version="3.1.1" />
     </ItemGroup>
-
 
 </Project>

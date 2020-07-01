@@ -45,7 +45,7 @@ namespace Quartz.Examples.Example16
             log.Info("------- Scheduling Jobs -------------------");
 
             IJobDetail job = JobBuilder
-                .CreateForAsync<AsyncJob>()
+                .Create<AsyncJob>()
                 .WithIdentity("asyncJob")
                 .Build();
 

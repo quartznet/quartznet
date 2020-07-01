@@ -22,9 +22,23 @@ namespace Quartz.Examples.AspNetCore
             services.AddQuartz(quartz => quartz
                 .UseInMemoryStore()
                 .WithDefaultThreadPool(threadPool => threadPool.WithThreadCount(10))
+                .WithJobFactory<MicrosoftDependencyInjectionJobFactory>()
+                .WithId("Scheduler-Core")
+                .WithName("Quartz ASP.NET Core Sample Scheduler")
             );
+            services.AddQuartzJob<ExampleJob>(configure => configure
+                .WithIdentity("job", "group")
+                .WithDescription("my awesome job")
+            );
+            services.AddQuartzTrigger<ExampleJob>(configure => configure
+                .WithIdentity("job", "group")
+                .WithDescription("my awesome job")
+            );
+            services.AddQuartzMicrosoftLoggingBridge();
             services.AddQuartzServer();
-            services.AddHealthChecksUI();
+            services
+                .AddHealthChecksUI()
+                .AddInMemoryStorage();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

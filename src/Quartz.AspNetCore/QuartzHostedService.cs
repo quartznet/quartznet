@@ -9,21 +9,23 @@ namespace Quartz
 {
     internal class QuartzHostedService : IHostedService
     {
-        private readonly IScheduler scheduler;
+        private readonly ISchedulerFactory schedulerFactory;
         private readonly SchedulerHealthCheck healthCheck;
+        private IScheduler scheduler = null!;
 
         public QuartzHostedService(
-            IScheduler scheduler,
+            ISchedulerFactory schedulerFactory,
             SchedulerHealthCheck healthCheck)
         {
-            this.scheduler = scheduler;
+            this.schedulerFactory = schedulerFactory;
             this.healthCheck = healthCheck;
         }
 
-        public Task StartAsync(CancellationToken cancellationToken)
+        public async Task StartAsync(CancellationToken cancellationToken)
         {
+            scheduler = await schedulerFactory.GetScheduler(cancellationToken);
             scheduler.ListenerManager.AddSchedulerListener(healthCheck);
-            return scheduler.Start(cancellationToken);
+            await scheduler.Start(cancellationToken);
         }
 
         public Task StopAsync(CancellationToken cancellationToken)

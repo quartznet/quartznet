@@ -104,7 +104,7 @@ namespace Quartz
         /// </summary>
         public SchedulerBuilder UseInMemoryStore(Action<InMemoryStoreOptions>? options = null)
         {
-            SetProperty("quartz.jobStore.type", typeof(RAMJobStore).AssemblyQualifiedNameWithoutVersion());
+            SetProperty(StdSchedulerFactory.PropertyJobStoreType, typeof(RAMJobStore).AssemblyQualifiedNameWithoutVersion());
             options?.Invoke(new InMemoryStoreOptions(this));
             return this;
         }
@@ -120,10 +120,24 @@ namespace Quartz
             return this;
         }
 
+        public SchedulerBuilder WithJobFactory<T>() where T : IJobFactory
+        {
+            SetProperty(StdSchedulerFactory.PropertySchedulerJobFactoryType, typeof(RAMJobStore).AssemblyQualifiedNameWithoutVersion());
+            return this;
+        }
+
+        /// <summary>
+        /// Finalizes the configuration and builds the scheduler factoryh.
+        /// </summary>
+        public StdSchedulerFactory Build()
+        {
+            return new StdSchedulerFactory(Properties);
+        }
+        
         /// <summary>
         /// Finalizes the configuration and builds the actual scheduler.
         /// </summary>
-        public Task<IScheduler> Build()
+        public Task<IScheduler> BuildScheduler()
         {
             var schedulerFactory = new StdSchedulerFactory(Properties);
             return schedulerFactory.GetScheduler();
@@ -182,7 +196,7 @@ namespace Quartz
         {
             internal PersistentStoreOptions(PropertiesHolder parent) : base(parent)
             {
-                SetProperty("quartz.jobStore.type", typeof(JobStoreTX).AssemblyQualifiedNameWithoutVersion());
+                SetProperty(StdSchedulerFactory.PropertyJobStoreType, typeof(JobStoreTX).AssemblyQualifiedNameWithoutVersion());
             }
 
             /// <summary>

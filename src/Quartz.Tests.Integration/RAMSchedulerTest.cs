@@ -14,7 +14,7 @@ namespace Quartz.Tests.Integration
                 .WithId("AUTO")
                 .WithDefaultThreadPool(x => x.WithThreadCount(threadPoolSize));
 
-            return builder.Build();
+            return builder.BuildScheduler();
         }
     }
 }

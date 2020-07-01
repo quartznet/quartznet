@@ -1,33 +1,17 @@
-﻿using System;
-
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Hosting;
 
 using Quartz.AspNetCore.HealthChecks;
-using Quartz.AspNetCore.Logging;
 
 namespace Quartz
 {
     public static class QuartzServiceCollectionExtensions
     {
-        public static IServiceCollection AddQuartz(
-            this IServiceCollection services,
-            Action<SchedulerBuilder> optionsAction = null)
-        {
-            var builder = SchedulerBuilder.Create();
-            optionsAction?.Invoke(builder);
-
-            var scheduler = builder.Build().GetAwaiter().GetResult();
-            services.AddSingleton(scheduler);
-            services.AddTransient<LoggingProvider>();
-            return services;
-        }
-
         public static IServiceCollection AddQuartzServer(
             this IServiceCollection services)
         {
-            return services.AddSingleton<IHostedService>(p =>
+            return services.AddSingleton<IHostedService>(serviceProvider =>
             {
                 var check = new SchedulerHealthCheck();
                 services.AddSingleton(check);
@@ -36,7 +20,7 @@ namespace Quartz
                     .AddHealthChecks()
                     .AddQuartzHealthCheck("scheduler", check);
 
-                var scheduler = p.GetRequiredService<IScheduler>();
+                var scheduler = serviceProvider.GetRequiredService<ISchedulerFactory>();
                 return new QuartzHostedService(scheduler, check);
             });
         }

@@ -1,8 +1,10 @@
-using Microsoft.Extensions.Logging;
-using Quartz.Logging;
 using System;
 
-namespace Quartz.AspNetCore.Logging
+using Microsoft.Extensions.Logging;
+
+using Quartz.Logging;
+
+namespace Quartz
 {
     internal class LoggingProvider : ILogProvider
     {

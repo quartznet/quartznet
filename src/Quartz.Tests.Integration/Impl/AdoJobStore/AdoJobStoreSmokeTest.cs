@@ -222,7 +222,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             FailFastLoggerFactoryAdapter.Errors.Clear();
 
             // First we must get a reference to a scheduler
-            IScheduler sched = await builder.Build();
+            IScheduler sched = await builder.BuildScheduler();
             SmokeTestPerformer performer = new SmokeTestPerformer();
             await performer.Test(sched, clearJobs, scheduleJobs);
 
