@@ -1,8 +1,12 @@
+using System;
+
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+
+using Quartz.Simpl;
 
 namespace Quartz.Examples.AspNetCore
 {
@@ -19,22 +23,27 @@ namespace Quartz.Examples.AspNetCore
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddRazorPages();
+
+            services.AddQuartzMicrosoftLoggingBridge();
+
             services.AddQuartz(quartz => quartz
+                .WithMicrosoftDependencyInjectionJobFactory()
+                .WithTypeLoadHelper<SimpleTypeLoadHelper>()
                 .UseInMemoryStore()
                 .WithDefaultThreadPool(threadPool => threadPool.WithThreadCount(10))
-                .WithJobFactory<MicrosoftDependencyInjectionJobFactory>()
                 .WithId("Scheduler-Core")
                 .WithName("Quartz ASP.NET Core Sample Scheduler")
             );
+            var jobKey = new JobKey("job", "group");
             services.AddQuartzJob<ExampleJob>(configure => configure
-                .WithIdentity("job", "group")
+                .WithIdentity(jobKey)
                 .WithDescription("my awesome job")
             );
-            services.AddQuartzTrigger<ExampleJob>(configure => configure
-                .WithIdentity("job", "group")
-                .WithDescription("my awesome job")
+            services.AddQuartzTrigger(configure => configure
+                .ForJob(jobKey)
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).RepeatForever())
+                .WithDescription("my awesome trigger")
             );
-            services.AddQuartzMicrosoftLoggingBridge();
             services.AddQuartzServer();
             services
                 .AddHealthChecksUI()

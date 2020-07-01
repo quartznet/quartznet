@@ -413,7 +413,7 @@ Please add configuration to your application config file to correctly initialize
             ITypeLoadHelper loadHelper;
             try
             {
-                loadHelper = ObjectUtils.InstantiateType<ITypeLoadHelper>(typeLoadHelperType ?? typeof(SimpleTypeLoadHelper));
+                loadHelper = InstantiateType<ITypeLoadHelper>(typeLoadHelperType ?? typeof(SimpleTypeLoadHelper));
             }
             catch (Exception e)
             {
@@ -434,7 +434,7 @@ Please add configuration to your application config file to correctly initialize
                 IRemotableSchedulerProxyFactory factory;
                 try
                 {
-                    factory = ObjectUtils.InstantiateType<IRemotableSchedulerProxyFactory>(proxyType);
+                    factory = InstantiateType<IRemotableSchedulerProxyFactory>(proxyType);
                     ObjectUtils.SetObjectProperties(factory, cfg.GetPropertyGroup(PropertySchedulerProxy, true));
                 }
                 catch (Exception e)
@@ -457,7 +457,7 @@ Please add configuration to your application config file to correctly initialize
             {
                 try
                 {
-                    jobFactory = ObjectUtils.InstantiateType<IJobFactory>(jobFactoryType);
+                    jobFactory = InstantiateType<IJobFactory>(jobFactoryType);
                 }
                 catch (Exception e)
                 {
@@ -481,7 +481,7 @@ Please add configuration to your application config file to correctly initialize
             {
                 try
                 {
-                    instanceIdGenerator = ObjectUtils.InstantiateType<IInstanceIdGenerator>(instanceIdGeneratorType);
+                    instanceIdGenerator = InstantiateType<IInstanceIdGenerator>(instanceIdGeneratorType);
                 }
                 catch (Exception e)
                 {
@@ -514,7 +514,7 @@ Please add configuration to your application config file to correctly initialize
 
             try
             {
-                tp = ObjectUtils.InstantiateType<IThreadPool>(tpType);
+                tp = InstantiateType<IThreadPool>(tpType);
             }
             catch (Exception e)
             {
@@ -550,7 +550,7 @@ Please add configuration to your application config file to correctly initialize
                     IDbProvider cp;
                     try
                     {
-                        cp = ObjectUtils.InstantiateType<IDbProvider>(cpType);
+                        cp = InstantiateType<IDbProvider>(cpType);
                     }
                     catch (Exception e)
                     {
@@ -624,7 +624,7 @@ Please add configuration to your application config file to correctly initialize
             Type? jsType = loadHelper.LoadType(cfg.GetStringProperty(PropertyJobStoreType));
             try
             {
-                js = ObjectUtils.InstantiateType<IJobStore>(jsType ?? typeof(RAMJobStore));
+                js = InstantiateType<IJobStore>(jsType ?? typeof(RAMJobStore));
             }
             catch (Exception e)
             {
@@ -653,7 +653,7 @@ Please add configuration to your application config file to correctly initialize
                 tProps = cfg.GetPropertyGroup(PropertyObjectSerializer, true);
                 try
                 {
-                    objectSerializer = ObjectUtils.InstantiateType<IObjectSerializer>(loadHelper.LoadType(objectSerializerType));
+                    objectSerializer = InstantiateType<IObjectSerializer>(loadHelper.LoadType(objectSerializerType));
                     log.Info("Using object serializer: " + objectSerializerType);
 
                     ObjectUtils.SetObjectProperties(objectSerializer, tProps);
@@ -708,7 +708,7 @@ Please add configuration to your application config file to correctly initialize
                         }
                         else
                         {
-                            lockHandler = ObjectUtils.InstantiateType<ISemaphore>(lockHandlerType);
+                            lockHandler = InstantiateType<ISemaphore>(lockHandlerType);
                         }
 
                         tProps = cfg.GetPropertyGroup(PropertyJobStoreLockHandlerPrefix, true);
@@ -882,7 +882,7 @@ Please add configuration to your application config file to correctly initialize
             {
                 try
                 {
-                    exporter = ObjectUtils.InstantiateType<ISchedulerExporter>(loadHelper.LoadType(exporterType));
+                    exporter = InstantiateType<ISchedulerExporter>(loadHelper.LoadType(exporterType));
                 }
                 catch (Exception e)
                 {
@@ -1035,6 +1035,11 @@ Please add configuration to your application config file to correctly initialize
                 await ShutdownFromInstantiateException(tp, qs, tpInited, qsInited).ConfigureAwait(false);
                 throw;
             }
+        }
+
+        protected virtual T InstantiateType<T>(Type? implementationType)
+        {
+            return ObjectUtils.InstantiateType<T>(implementationType);
         }
 
         private async Task ShutdownFromInstantiateException(IThreadPool? tp, QuartzScheduler? qs, bool tpInited, bool qsInited)

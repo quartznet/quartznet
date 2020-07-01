@@ -8,23 +8,16 @@ using Quartz.Logging;
 
 namespace Quartz
 {
-    public static class QuartzServiceCollectionExtensions
+    public static class ServiceCollectionExtensions
     {
         public static IServiceCollection AddQuartz(
             this IServiceCollection services,
             Action<ServiceCollectionSchedulerConfigurator>? configure = null)
         {
-            services.TryAddSingleton(new QuartzConfiguration());
-            services.AddSingleton<ISchedulerFactory>(serviceProvider =>
-            {
-                var builder = new ServiceCollectionSchedulerConfigurator(services);
-                configure?.Invoke(builder);
-
-                // check if logging provider configured and let if configure
-                serviceProvider.GetService<LoggingProvider>();
-
-                return new ServiceCollectionScheduler(serviceProvider, builder.Build());
-            });
+            var builder = new ServiceCollectionSchedulerConfigurator(services);
+            configure?.Invoke(builder);
+            
+            services.AddSingleton<ISchedulerFactory>(serviceProvider => new ServiceCollectionSchedulerFactory(serviceProvider, builder));
             return services;
         }        
         
@@ -50,12 +43,13 @@ namespace Quartz
             this IServiceCollection services,
             Action<ServiceCollectionJobConfigurator>? configure = null) where T : IJob
         {
-            services.TryAddSingleton(new QuartzConfiguration());
-
             var builder = JobBuilder.Create<T>();
             var configurator = new ServiceCollectionJobConfigurator(services, builder);
             configure?.Invoke(configurator);
-            services.AddTransient(x => new QuartzJobRegistration(configurator));
+            var jobDetail = configurator.jobBuilder.Build();
+
+            services.AddTransient(x => jobDetail);
+            services.AddTransient(jobDetail.JobType);
             
             return services;
         }        
@@ -63,13 +57,15 @@ namespace Quartz
         /// <summary>
         /// Adds LibLog configuration to use Microsoft's logging abstraction instead of trying to find one.
         /// </summary>
-        public static IServiceCollection AddQuartzTrigger<T>(this IServiceCollection services, Action<ServiceCollectionJobConfigurator>? configure = null) where T : IJob
+        public static IServiceCollection AddQuartzTrigger(this IServiceCollection services, Action<ServiceCollectionTriggerConfigurator>? configure = null)
         {
-            services.TryAddSingleton(new QuartzConfiguration());
-
-            var builder = JobBuilder.Create<T>();
-            var configurator = new ServiceCollectionJobConfigurator(services, builder);
+            var builder = TriggerBuilder.Create();
+            var configurator = new ServiceCollectionTriggerConfigurator(services, builder);
             configure?.Invoke(configurator);
+            var trigger = configurator.Build();
+            
+            services.AddTransient(x => trigger);
+            
             return services;
         }
     }

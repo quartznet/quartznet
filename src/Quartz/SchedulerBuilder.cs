@@ -31,28 +31,6 @@ using Quartz.Util;
 
 namespace Quartz
 {
-    public abstract class PropertiesHolder
-    {
-        private readonly NameValueCollection properties;
-
-        protected PropertiesHolder(NameValueCollection properties)
-        {
-            this.properties = properties;
-        }
-
-        protected PropertiesHolder(PropertiesHolder parent)
-        {
-            properties = parent.properties;
-        }
-
-        public void SetProperty(string name, string value)
-        {
-            properties[name] = value;
-        }
-
-        internal NameValueCollection Properties => properties;
-    }
-
     /// <summary>
     /// Helper to create common scheduler configurations.
     /// </summary>
@@ -120,9 +98,15 @@ namespace Quartz
             return this;
         }
 
-        public SchedulerBuilder WithJobFactory<T>() where T : IJobFactory
+        public virtual SchedulerBuilder WithJobFactory<T>() where T : IJobFactory
         {
-            SetProperty(StdSchedulerFactory.PropertySchedulerJobFactoryType, typeof(RAMJobStore).AssemblyQualifiedNameWithoutVersion());
+            SetProperty(StdSchedulerFactory.PropertySchedulerJobFactoryType, typeof(T).AssemblyQualifiedNameWithoutVersion());
+            return this;
+        }
+
+        public virtual SchedulerBuilder WithTypeLoadHelper<T>() where T : ITypeLoadHelper
+        {
+            SetProperty(StdSchedulerFactory.PropertySchedulerTypeLoadHelperType, typeof(T).AssemblyQualifiedNameWithoutVersion());
             return this;
         }
 
@@ -146,11 +130,19 @@ namespace Quartz
         /// <summary>
         /// Uses the default thread pool, which uses the default task scheduler.
         /// </summary>
-        public SchedulerBuilder WithDefaultThreadPool(Action<ThreadPoolOptions>? configurer = null)
+        public SchedulerBuilder WithThreadPool<T>(Action<ThreadPoolOptions>? configurer = null) where T : IThreadPool
         {
-            SetProperty("quartz.threadPool.type", typeof(DefaultThreadPool).AssemblyQualifiedNameWithoutVersion());
+            SetProperty("quartz.threadPool.type", typeof(T).AssemblyQualifiedNameWithoutVersion());
             configurer?.Invoke(new ThreadPoolOptions(this));
             return this;
+        } 
+        
+        /// <summary>
+        /// Uses the default thread pool, which uses the default task scheduler.
+        /// </summary>
+        public SchedulerBuilder WithDefaultThreadPool(Action<ThreadPoolOptions>? configurer = null)
+        {
+            return WithThreadPool<DefaultThreadPool>(configurer);
         }
 
         /// <summary>
@@ -158,9 +150,7 @@ namespace Quartz
         /// </summary>
         public SchedulerBuilder WithDedicatedThreadPool(Action<ThreadPoolOptions>? configurer = null)
         {
-            SetProperty("quartz.threadPool.type", typeof(DedicatedThreadPool).AssemblyQualifiedNameWithoutVersion());
-            configurer?.Invoke(new ThreadPoolOptions(this));
-            return this;
+            return WithThreadPool<DedicatedThreadPool>(configurer);
         }
 
         public SchedulerBuilder WithMisfireThreshold(TimeSpan threshold)
