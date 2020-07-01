@@ -15,12 +15,12 @@ namespace Quartz
     internal class ServiceCollectionSchedulerFactory : StdSchedulerFactory
     {
         private readonly IServiceProvider serviceProvider;
-        private readonly ServiceCollectionSchedulerConfigurator configurator;
+        private readonly ServiceCollectionQuartzConfigurator configurator;
         private bool initialized;
 
         public ServiceCollectionSchedulerFactory(
             IServiceProvider serviceProvider, 
-            ServiceCollectionSchedulerConfigurator configurator) : base(configurator.Properties)
+            ServiceCollectionQuartzConfigurator configurator) : base(configurator.Properties)
         {
             this.serviceProvider = serviceProvider;
             this.configurator = configurator;

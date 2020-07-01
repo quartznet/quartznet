@@ -6,8 +6,6 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 
-using Quartz.Simpl;
-
 namespace Quartz.Examples.AspNetCore
 {
     public class Startup
@@ -24,27 +22,38 @@ namespace Quartz.Examples.AspNetCore
         {
             services.AddRazorPages();
 
-            services.AddQuartzMicrosoftLoggingBridge();
+            // base configuration for DI
+            services.AddQuartz(q =>
+            {
+                // hooks LibLog to Microsoft logging without allowing it to detect concrete implementation
+                q.UseQuartzMicrosoftLoggingBridge();
 
-            services.AddQuartz(quartz => quartz
-                .WithMicrosoftDependencyInjectionJobFactory()
-                .WithTypeLoadHelper<SimpleTypeLoadHelper>()
-                .UseInMemoryStore()
-                .WithDefaultThreadPool(threadPool => threadPool.WithThreadCount(10))
-                .WithId("Scheduler-Core")
-                .WithName("Quartz ASP.NET Core Sample Scheduler")
-            );
-            var jobKey = new JobKey("job", "group");
-            services.AddQuartzJob<ExampleJob>(configure => configure
-                .WithIdentity(jobKey)
-                .WithDescription("my awesome job")
-            );
-            services.AddQuartzTrigger(configure => configure
-                .ForJob(jobKey)
-                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).RepeatForever())
-                .WithDescription("my awesome trigger")
-            );
+                q.UseMicrosoftDependencyInjectionJobFactory();
+                q.UseSimpleTypeLoader();
+                q.UseInMemoryStore();
+                q.UseDefaultThreadPool(tp => tp.SetThreadCount(10));
+                
+                q
+                    .SetSchedulerId("Scheduler-Core")
+                    .SetSchedulerName("Quartz ASP.NET Core Sample Scheduler");
+                
+                var jobKey = new JobKey("job", "group");
+                q.AddJob<ExampleJob>(job => job
+                    .StoreDurably()
+                    .WithIdentity(jobKey)
+                    .WithDescription("my awesome job")
+                );
+
+                q.AddTrigger(trigger => trigger
+                    .ForJob(jobKey)
+                    .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).RepeatForever())
+                    .WithDescription("my awesome trigger")
+                );
+            });
+
+            // ASP.NET Core hosting
             services.AddQuartzServer();
+
             services
                 .AddHealthChecksUI()
                 .AddInMemoryStorage();

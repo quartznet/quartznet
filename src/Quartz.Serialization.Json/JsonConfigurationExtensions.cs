@@ -7,9 +7,9 @@ namespace Quartz
         /// <summary>
         /// Use JSON as data serialization strategy.
         /// </summary>
-        public static SchedulerBuilder.PersistentStoreOptions WithJsonSerializer(this SchedulerBuilder.PersistentStoreOptions options)
+        public static void UseJsonSerializer(this SchedulerBuilder.PersistentStoreOptions options)
         {
-            return options.WithSerializer<JsonObjectSerializer>();
+            options.UseSerializer<JsonObjectSerializer>();
         }
     }
 }

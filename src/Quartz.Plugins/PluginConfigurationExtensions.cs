@@ -24,25 +24,25 @@ namespace Quartz
         {
         }
 
-        public XmlSchedulingOptions WithFiles(params string[] fileNames)
+        public XmlSchedulingOptions SetFiles(params string[] fileNames)
         {
             SetProperty("quartz.plugin.xml.fileNames", string.Join(",", fileNames));
             return this;
         }
 
-        public XmlSchedulingOptions FailOnFileNotFound(bool fail = true)
+        public XmlSchedulingOptions SetFailOnFileNotFound(bool fail = true)
         {
             SetProperty("quartz.plugin.xml.failOnFileNotFound", fail.ToString().ToLowerInvariant());
             return this;
         }
 
-        public XmlSchedulingOptions FailOnSchedulingError(bool fail = true)
+        public XmlSchedulingOptions SetFailOnSchedulingError(bool fail = true)
         {
             SetProperty("quartz.plugin.xml.failOnSchedulingError", fail.ToString().ToLowerInvariant());
             return this;
         }
 
-        public XmlSchedulingOptions WithChangeDetection(TimeSpan interval)
+        public XmlSchedulingOptions SetScanInterval(TimeSpan interval)
         {
             SetProperty("quartz.plugin.xml.scanInterval", ((int) interval.TotalSeconds).ToString());
             return this;
