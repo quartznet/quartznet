@@ -35,8 +35,15 @@ artifacts:
 deploy:
 - provider: NuGet
   server: https://www.myget.org/F/quartznet/api/v2/package
-  symbol_server: https://www.myget.org/F/quartznet/api/v3/index.json
   api_key:
     secure: vXa9bqFD68eDW9epKh/lUK/h1OdIL92RiKAbc+JfVarllY962DWqMNSKOdvCopy/
+  skip_symbols: true
   on:
     branch: master
+- provider: NuGet
+  name: production
+  api_key:
+    secure: ZNvfUugU3rYb9t+UWbqt/hspUNLQfjWCvxTFQDpxkEEjLuLNk6amLDfGZZuiZxn4
+  on:
+    branch: master
+    appveyor_repo_tag: true    
