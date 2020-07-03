@@ -2,15 +2,13 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Quartz
 {
-    public class ServiceCollectionTriggerConfigurator : TriggerBuilder
+    internal class ServiceCollectionTriggerConfigurator : TriggerBuilder, IServiceCollectionTriggerConfigurator
     {
         private readonly IServiceCollection services;
-        internal readonly TriggerBuilder builder;
 
-        public ServiceCollectionTriggerConfigurator(IServiceCollection services, TriggerBuilder builder)
+        public ServiceCollectionTriggerConfigurator(IServiceCollection services)
         {
             this.services = services;
-            this.builder = builder;
         }
     }
 }

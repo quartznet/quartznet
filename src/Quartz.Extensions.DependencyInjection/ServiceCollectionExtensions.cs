@@ -40,12 +40,13 @@ namespace Quartz
         /// </summary>
         public static ServiceCollectionQuartzConfigurator AddJob<T>(
             this ServiceCollectionQuartzConfigurator configurator,
-            Action<ServiceCollectionJobConfigurator>? configure = null) where T : IJob
+            Action<IServiceCollectionJobConfigurator>? configure = null) where T : IJob
         {
-            var builder = JobBuilder.Create<T>();
-            var c = new ServiceCollectionJobConfigurator(configurator.Services, builder);
+            var c = new ServiceCollectionJobConfigurator(configurator.Services);
+            c.OfType<T>();
+
             configure?.Invoke(c);
-            var jobDetail = c.jobBuilder.Build();
+            var jobDetail = c.Build();
 
             configurator.Services.AddTransient(x => jobDetail);
             configurator.Services.AddTransient(jobDetail.JobType);
@@ -58,10 +59,9 @@ namespace Quartz
         /// </summary>
         public static ServiceCollectionQuartzConfigurator AddTrigger(
             this ServiceCollectionQuartzConfigurator configurator, 
-            Action<ServiceCollectionTriggerConfigurator>? configure = null)
+            Action<IServiceCollectionTriggerConfigurator>? configure = null)
         {
-            var builder = TriggerBuilder.Create();
-            var c = new ServiceCollectionTriggerConfigurator(configurator.Services, builder);
+            var c = new ServiceCollectionTriggerConfigurator(configurator.Services);
             configure?.Invoke(c);
             var trigger = c.Build();
             

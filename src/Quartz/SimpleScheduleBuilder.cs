@@ -491,6 +491,12 @@ namespace Quartz
     /// </summary>
     public static class SimpleScheduleTriggerBuilderExtensions
     {
+        public static TriggerBuilder WithSimpleSchedule(this TriggerBuilder triggerBuilder)
+        {
+            SimpleScheduleBuilder builder = SimpleScheduleBuilder.Create();
+            return triggerBuilder.WithSchedule(builder);
+        }
+
         public static TriggerBuilder WithSimpleSchedule(this TriggerBuilder triggerBuilder, Action<SimpleScheduleBuilder> action)
         {
             SimpleScheduleBuilder builder = SimpleScheduleBuilder.Create();
@@ -498,10 +504,12 @@ namespace Quartz
             return triggerBuilder.WithSchedule(builder);
         }
 
-        public static TriggerBuilder WithSimpleSchedule(this TriggerBuilder triggerBuilder)
+        public static T WithSimpleSchedule<T>(this T triggerBuilder, Action<SimpleScheduleBuilder>? action = null) where T : ITriggerConfigurator
         {
             SimpleScheduleBuilder builder = SimpleScheduleBuilder.Create();
-            return triggerBuilder.WithSchedule(builder);
+            action?.Invoke(builder);
+            triggerBuilder.WithSchedule(builder);
+            return triggerBuilder;
         }
     }
 }

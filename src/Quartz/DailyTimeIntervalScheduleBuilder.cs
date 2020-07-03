@@ -506,5 +506,13 @@ namespace Quartz
             action(builder);
             return triggerBuilder.WithSchedule(builder);
         }
+        
+        public static T WithDailyTimeIntervalSchedule<T>(this T triggerBuilder, Action<DailyTimeIntervalScheduleBuilder>? action = null) where T : ITriggerConfigurator
+        {
+            DailyTimeIntervalScheduleBuilder builder = DailyTimeIntervalScheduleBuilder.Create();
+            action?.Invoke(builder);
+            triggerBuilder.WithSchedule(builder);
+            return triggerBuilder;
+        }
     }
 }
