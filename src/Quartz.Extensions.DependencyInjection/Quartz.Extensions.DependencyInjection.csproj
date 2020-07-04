@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <AssemblyTitle>Quartz.NET Microsoft.Extensions.DependencyInjection integration</AssemblyTitle>
+        <TargetFrameworks>netstandard2.0;netcoreapp3.1</TargetFrameworks>
+        <RootNamespace>Quartz</RootNamespace>
+        <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <Compile Include="..\AssemblyInfo.cs" />
+    </ItemGroup>
+
+    <ItemGroup>
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="3.1.5" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="2.2.0" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <ProjectReference Include="..\Quartz\Quartz.csproj" />
+    </ItemGroup>
+
+</Project>

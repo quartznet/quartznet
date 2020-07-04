@@ -91,7 +91,7 @@ namespace Quartz.Simpl
 	    /// <throws>  SchedulerException if there is a problem instantiating the Job. </throws>
 	    public override IJob NewJob(TriggerFiredBundle bundle, IScheduler scheduler)
 		{
-			IJob job = base.NewJob(bundle, scheduler);
+			IJob job = InstantiateJob(bundle, scheduler);
 
 			JobDataMap jobDataMap = new JobDataMap();
             jobDataMap.PutAll(scheduler.Context);
@@ -103,7 +103,12 @@ namespace Quartz.Simpl
 			return job;
 		}
 
-        /// <summary>
+	    protected virtual IJob InstantiateJob(TriggerFiredBundle bundle, IScheduler scheduler)
+	    {
+		    return base.NewJob(bundle, scheduler);
+	    }
+
+	    /// <summary>
         /// Sets the object properties.
         /// </summary>
         /// <param name="obj">The object to set properties to.</param>

@@ -56,6 +56,8 @@ Target "Pack" (fun _ ->
                 })
 
     !! "src/Quartz/Quartz.csproj"
+        ++ "src/Quartz.AspNetCore/Quartz.AspNetCore.csproj"
+        ++ "src/Quartz.Extensions.DependencyInjection/Quartz.Extensions.DependencyInjection.csproj"
         ++ "src/Quartz.Jobs/Quartz.Jobs.csproj"
         ++ "src/Quartz.Plugins/Quartz.Plugins.csproj"
         ++ "src/Quartz.Plugins.TimeZoneConverter/Quartz.Plugins.TimeZoneConverter.csproj"

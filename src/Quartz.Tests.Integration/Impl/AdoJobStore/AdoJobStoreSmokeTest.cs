@@ -195,26 +195,32 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             NameValueCollection extraProperties,
             bool clustered = true)
         {
-            var builder = SchedulerBuilder.Create("instance_one", "TestScheduler")
-                .WithDefaultThreadPool(x => x.WithThreadCount(10))
-                .WithMisfireThreshold(TimeSpan.FromSeconds(60))
-                .UsePersistentStore(store =>
-                {
-                    var x = store
-                        .UseProperties(false)
-                        .Clustered(clustered, options => options.WithCheckinInterval(TimeSpan.FromMilliseconds(1000)))
-                        .UseGenericDatabase(dbProvider, db => db.WithConnectionString(dbConnectionStrings[connectionStringId]));
+            var config = SchedulerBuilder.Create("instance_one", "TestScheduler");
+            config.UseDefaultThreadPool(x => x.SetThreadCount(10));
+            config.SetMisfireThreshold(TimeSpan.FromSeconds(60));
 
-                    x = serializerType == "json"
-                        ? x.WithJsonSerializer()
-                        : x.WithBinarySerializer();
-                });
+            config.UsePersistentStore(store =>
+            {
+                var x = store
+                    .UseProperties(false)
+                    .Clustered(clustered, options => options.SetCheckinInterval(TimeSpan.FromMilliseconds(1000)))
+                    .UseGenericDatabase(dbProvider, db => db.SetConnectionString(dbConnectionStrings[connectionStringId]));
+
+                if (serializerType == "json")
+                {
+                    x.UseJsonSerializer();
+                }
+                else
+                {
+                    x.UseBinarySerializer();
+                }
+            });
 
             if (extraProperties != null)
             {
                 foreach (string key in extraProperties.Keys)
                 {
-                    builder.SetProperty(key, extraProperties[key]);
+                    config.SetProperty(key, extraProperties[key]);
                 }
             }
 
@@ -222,7 +228,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             FailFastLoggerFactoryAdapter.Errors.Clear();
 
             // First we must get a reference to a scheduler
-            IScheduler sched = await builder.Build();
+            IScheduler sched = await config.BuildScheduler();
             SmokeTestPerformer performer = new SmokeTestPerformer();
             await performer.Test(sched, clearJobs, scheduleJobs);
 

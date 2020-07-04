@@ -2,7 +2,7 @@
   <PropertyGroup>
     <TargetFrameworks>netcoreapp3.1;$(TargetFullFrameworkVersion)</TargetFrameworks>
     <OutputType>Exe</OutputType>
-    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>
     <Content Include="quartz_jobs.xml">

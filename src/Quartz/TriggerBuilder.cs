@@ -77,7 +77,7 @@ namespace Quartz
 
         private IScheduleBuilder? scheduleBuilder;
 
-        private TriggerBuilder()
+        internal TriggerBuilder()
         {
         }
 

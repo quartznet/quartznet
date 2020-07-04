@@ -128,9 +128,9 @@ namespace Quartz.Xml
         /// <value>The log.</value>
         private ILog Log { get; }
 
-        protected IReadOnlyList<IJobDetail> LoadedJobs => loadedJobs.AsReadOnly();
+        protected virtual IReadOnlyList<IJobDetail> LoadedJobs => loadedJobs.AsReadOnly();
 
-        protected IReadOnlyList<ITrigger> LoadedTriggers => loadedTriggers.AsReadOnly();
+        protected virtual IReadOnlyList<ITrigger> LoadedTriggers => loadedTriggers.AsReadOnly();
 
         protected ITypeLoadHelper TypeLoadHelper { get; }
 

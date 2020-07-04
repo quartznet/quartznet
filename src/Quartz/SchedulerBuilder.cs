@@ -31,28 +31,6 @@ using Quartz.Util;
 
 namespace Quartz
 {
-    public abstract class PropertiesHolder
-    {
-        private readonly NameValueCollection properties;
-
-        protected PropertiesHolder(NameValueCollection properties)
-        {
-            this.properties = properties;
-        }
-
-        protected PropertiesHolder(PropertiesHolder parent)
-        {
-            properties = parent.properties;
-        }
-
-        public void SetProperty(string name, string value)
-        {
-            properties[name] = value;
-        }
-
-        internal NameValueCollection Properties => properties;
-    }
-
     /// <summary>
     /// Helper to create common scheduler configurations.
     /// </summary>
@@ -78,13 +56,13 @@ namespace Quartz
         /// </summary>
         public static SchedulerBuilder Create(string id, string name)
         {
-            return Create().WithId(id).WithName(name);
+            return Create().SetSchedulerId(id).SetSchedulerName(name);
         }
 
         /// <summary>
         /// Sets the instance id of the scheduler (must be unique within a cluster).
         /// </summary>
-        public SchedulerBuilder WithId(string id)
+        public SchedulerBuilder SetSchedulerId(string id)
         {
             SetProperty(StdSchedulerFactory.PropertySchedulerInstanceId, id);
             return this;
@@ -93,7 +71,7 @@ namespace Quartz
         /// <summary>
         /// Sets the instance id of the scheduler (must be unique within this server instance).
         /// </summary>
-        public SchedulerBuilder WithName(string name)
+        public SchedulerBuilder SetSchedulerName(string name)
         {
             SetProperty(StdSchedulerFactory.PropertySchedulerInstanceName, name);
             return this;
@@ -102,14 +80,13 @@ namespace Quartz
         /// <summary>
         /// Use memory store, which does not survive process restarts/crashes.
         /// </summary>
-        public SchedulerBuilder UseMemoryStore(Action<MemoryStoreOptions>? options = null)
+        public void UseInMemoryStore(Action<InMemoryStoreOptions>? options = null)
         {
-            SetProperty("quartz.jobStore.type", typeof(RAMJobStore).AssemblyQualifiedNameWithoutVersion());
-            options?.Invoke(new MemoryStoreOptions(this));
-            return this;
+            SetProperty(StdSchedulerFactory.PropertyJobStoreType, typeof(RAMJobStore).AssemblyQualifiedNameWithoutVersion());
+            options?.Invoke(new InMemoryStoreOptions(this));
         }
 
-        public SchedulerBuilder UsePersistentStore(Action<PersistentStoreOptions> options)
+        public void UsePersistentStore(Action<PersistentStoreOptions> options)
         {
             if (options == null)
             {
@@ -117,13 +94,30 @@ namespace Quartz
             }
 
             options?.Invoke(new PersistentStoreOptions(this));
-            return this;
+        }
+
+        public virtual void UseJobFactory<T>() where T : IJobFactory
+        {
+            SetProperty(StdSchedulerFactory.PropertySchedulerJobFactoryType, typeof(T).AssemblyQualifiedNameWithoutVersion());
+        }
+
+        public virtual void UseTypeLoader<T>() where T : ITypeLoadHelper
+        {
+            SetProperty(StdSchedulerFactory.PropertySchedulerTypeLoadHelperType, typeof(T).AssemblyQualifiedNameWithoutVersion());
         }
 
         /// <summary>
+        /// Finalizes the configuration and builds the scheduler factoryh.
+        /// </summary>
+        public StdSchedulerFactory Build()
+        {
+            return new StdSchedulerFactory(Properties);
+        }
+        
+        /// <summary>
         /// Finalizes the configuration and builds the actual scheduler.
         /// </summary>
-        public Task<IScheduler> Build()
+        public Task<IScheduler> BuildScheduler()
         {
             var schedulerFactory = new StdSchedulerFactory(Properties);
             return schedulerFactory.GetScheduler();
@@ -132,24 +126,29 @@ namespace Quartz
         /// <summary>
         /// Uses the default thread pool, which uses the default task scheduler.
         /// </summary>
-        public SchedulerBuilder WithDefaultThreadPool(Action<ThreadPoolOptions>? configurer = null)
+        public void UseThreadPool<T>(Action<ThreadPoolOptions>? configurer = null) where T : IThreadPool
         {
-            SetProperty("quartz.threadPool.type", typeof(DefaultThreadPool).AssemblyQualifiedNameWithoutVersion());
+            SetProperty("quartz.threadPool.type", typeof(T).AssemblyQualifiedNameWithoutVersion());
             configurer?.Invoke(new ThreadPoolOptions(this));
-            return this;
+        } 
+        
+        /// <summary>
+        /// Uses the default thread pool, which uses the default task scheduler.
+        /// </summary>
+        public void UseDefaultThreadPool(Action<ThreadPoolOptions>? configurer = null)
+        {
+            UseThreadPool<DefaultThreadPool>(configurer);
         }
 
         /// <summary>
         /// Uses a dedicated thread pool, which uses own threads instead of task scheduler shared pool.
         /// </summary>
-        public SchedulerBuilder WithDedicatedThreadPool(Action<ThreadPoolOptions>? configurer = null)
+        public void UseDedicatedThreadPool(Action<ThreadPoolOptions>? configurer = null)
         {
-            SetProperty("quartz.threadPool.type", typeof(DedicatedThreadPool).AssemblyQualifiedNameWithoutVersion());
-            configurer?.Invoke(new ThreadPoolOptions(this));
-            return this;
+            UseThreadPool<DedicatedThreadPool>(configurer);
         }
 
-        public SchedulerBuilder WithMisfireThreshold(TimeSpan threshold)
+        public SchedulerBuilder SetMisfireThreshold(TimeSpan threshold)
         {
             SetProperty("quartz.jobStore.misfireThreshold", ((int) threshold.TotalMilliseconds).ToString());
             return this;
@@ -164,7 +163,7 @@ namespace Quartz
             /// <summary>
             /// The maximum number of thread pool tasks which can be executing in parallel
             /// </summary>
-            public ThreadPoolOptions WithThreadCount(int count)
+            public ThreadPoolOptions SetThreadCount(int count)
             {
                 SetProperty("quartz.threadPool.threadCount", count.ToString());
                 return this;
@@ -182,7 +181,7 @@ namespace Quartz
         {
             internal PersistentStoreOptions(PropertiesHolder parent) : base(parent)
             {
-                SetProperty("quartz.jobStore.type", typeof(JobStoreTX).AssemblyQualifiedNameWithoutVersion());
+                SetProperty(StdSchedulerFactory.PropertyJobStoreType, typeof(JobStoreTX).AssemblyQualifiedNameWithoutVersion());
             }
 
             /// <summary>
@@ -234,15 +233,15 @@ namespace Quartz
             /// <summary>
             /// Configure binary serialization, consider using JSON instead which requires extra package Quartz.Serialization.Json.
             /// </summary>
-            public PersistentStoreOptions WithBinarySerializer()
+            public PersistentStoreOptions UseBinarySerializer()
             {
-                return WithSerializer<BinaryObjectSerializer>();
+                return UseSerializer<BinaryObjectSerializer>();
             }
 
             /// <summary>
             /// Use custom serializer.
             /// </summary>
-            public PersistentStoreOptions WithSerializer<T>() where T : IObjectSerializer
+            public PersistentStoreOptions UseSerializer<T>() where T : IObjectSerializer
             {
                 SetProperty("quartz.serializer.type", typeof(T).AssemblyQualifiedNameWithoutVersion());
                 return this;
@@ -260,7 +259,7 @@ namespace Quartz
             /// with the other instances of the cluster. -- Affects the rate of
             /// detecting failed instances.
             /// </summary>
-            public ClusterOptions WithCheckinInterval(TimeSpan interval)
+            public ClusterOptions SetCheckinInterval(TimeSpan interval)
             {
                 SetProperty("quartz.jobStore.clusterCheckinInterval", ((int) interval.TotalMilliseconds).ToString());
                 return this;
@@ -272,16 +271,16 @@ namespace Quartz
             /// other scheduler instances in a cluster can consider a "misfired" scheduler
             /// instance as failed or dead.
             /// </summary>
-            public ClusterOptions WithCheckinMisfireThreshold(TimeSpan interval)
+            public ClusterOptions SetCheckinMisfireThreshold(TimeSpan interval)
             {
                 SetProperty("quartz.jobStore.clusterCheckinMisfireThreshold", ((int) interval.TotalMilliseconds).ToString());
                 return this;
             }
         }
 
-        public class MemoryStoreOptions : PropertiesHolder
+        public class InMemoryStoreOptions : PropertiesHolder
         {
-            protected internal MemoryStoreOptions(SchedulerBuilder parent) : base(parent)
+            protected internal InMemoryStoreOptions(SchedulerBuilder parent) : base(parent)
             {
             }
         }
@@ -300,7 +299,7 @@ namespace Quartz
             /// <summary>
             /// The prefix that should be pre-pended to all table names, defaults to QRTZ_.
             /// </summary>
-            public AdoProviderOptions WithTablePrefix(string tablePrefix)
+            public AdoProviderOptions SetTablePrefix(string tablePrefix)
             {
                 options.SetProperty("quartz.jobStore.tablePrefix", tablePrefix);
                 return this;
@@ -309,7 +308,7 @@ namespace Quartz
             /// <summary>
             /// Standard connection driver specific connection string.
             /// </summary>
-            public AdoProviderOptions WithConnectionString(string connectionString)
+            public AdoProviderOptions SetConnectionString(string connectionString)
             {
                 options.SetProperty($"quartz.dataSource.{DefaultDataSourceName}.connectionString", connectionString);
                 return this;
@@ -318,7 +317,7 @@ namespace Quartz
             /// <summary>
             /// Use named connection defined in application configuration file.
             /// </summary>
-            public AdoProviderOptions WithConnectionStringName(string connectionStringName)
+            public AdoProviderOptions SetConnectionStringName(string connectionStringName)
             {
                 options.SetProperty($"quartz.dataSource.{DefaultDataSourceName}.connectionStringName", connectionStringName);
                 return this;
@@ -327,17 +326,16 @@ namespace Quartz
             /// <summary>
             /// Use named connection defined in application configuration file.
             /// </summary>
-            public AdoProviderOptions WithDriverDelegate<T>() where T : IDriverDelegate
+            public void UseDriverDelegate<T>() where T : IDriverDelegate
             {
                 options.SetProperty("quartz.jobStore.driverDelegateType", typeof(T).AssemblyQualifiedNameWithoutVersion());
-                return this;
             }
         }
     }
 
     public static class AdoProviderExtensions
     {
-        public static SchedulerBuilder.AdoProviderOptions UseSqlServer(
+        public static void UseSqlServer(
             this SchedulerBuilder.PersistentStoreOptions options,
             Action<SchedulerBuilder.AdoProviderOptions> configurer)
         {
@@ -347,11 +345,9 @@ namespace Quartz
 
             var adoProviderOptions = new SchedulerBuilder.AdoProviderOptions(options);
             configurer.Invoke(adoProviderOptions);
-
-            return adoProviderOptions;
         }
 
-        public static SchedulerBuilder.AdoProviderOptions UsePostgres(
+        public static void UsePostgres(
             this SchedulerBuilder.PersistentStoreOptions options,
             Action<SchedulerBuilder.AdoProviderOptions> configurer)
         {
@@ -361,11 +357,9 @@ namespace Quartz
 
             var adoProviderOptions = new SchedulerBuilder.AdoProviderOptions(options);
             configurer.Invoke(adoProviderOptions);
-
-            return adoProviderOptions;
         }
 
-        public static SchedulerBuilder.AdoProviderOptions UseMySql(
+        public static void UseMySql(
             this SchedulerBuilder.PersistentStoreOptions options,
             Action<SchedulerBuilder.AdoProviderOptions> configurer)
         {
@@ -375,11 +369,9 @@ namespace Quartz
 
             var adoProviderOptions = new SchedulerBuilder.AdoProviderOptions(options);
             configurer.Invoke(adoProviderOptions);
-
-            return adoProviderOptions;
         }
 
-        public static SchedulerBuilder.AdoProviderOptions UseFirebird(
+        public static void UseFirebird(
             this SchedulerBuilder.PersistentStoreOptions options,
             Action<SchedulerBuilder.AdoProviderOptions> configurer)
         {
@@ -389,11 +381,9 @@ namespace Quartz
 
             var adoProviderOptions = new SchedulerBuilder.AdoProviderOptions(options);
             configurer.Invoke(adoProviderOptions);
-
-            return adoProviderOptions;
         }
 
-        public static SchedulerBuilder.AdoProviderOptions UseOracle(
+        public static void UseOracle(
             this SchedulerBuilder.PersistentStoreOptions options,
             Action<SchedulerBuilder.AdoProviderOptions> configurer)
         {
@@ -403,11 +393,9 @@ namespace Quartz
 
             var adoProviderOptions = new SchedulerBuilder.AdoProviderOptions(options);
             configurer.Invoke(adoProviderOptions);
-
-            return adoProviderOptions;
         }
 
-        public static SchedulerBuilder.AdoProviderOptions UseSQLite(
+        public static void UseSQLite(
             this SchedulerBuilder.PersistentStoreOptions options,
             Action<SchedulerBuilder.AdoProviderOptions> configurer)
         {
@@ -417,8 +405,6 @@ namespace Quartz
 
             var adoProviderOptions = new SchedulerBuilder.AdoProviderOptions(options);
             configurer.Invoke(adoProviderOptions);
-
-            return adoProviderOptions;
         }
     }
 }
