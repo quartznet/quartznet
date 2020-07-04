@@ -37,17 +37,29 @@ namespace Quartz.Examples.AspNetCore
                     .SetSchedulerId("Scheduler-Core")
                     .SetSchedulerName("Quartz ASP.NET Core Sample Scheduler");
                 
-                var jobKey = new JobKey("job", "group");
-                q.AddJob<ExampleJob>(job => job
+                var jobKey = new JobKey("awesome job", "awesome group");
+                q.AddJob<ExampleJob>(j => j
                     .StoreDurably()
                     .WithIdentity(jobKey)
                     .WithDescription("my awesome job")
                 );
 
-                q.AddTrigger(trigger => trigger
+                q.AddTrigger(t => t
                     .ForJob(jobKey)
                     .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).RepeatForever())
-                    .WithDescription("my awesome trigger")
+                    .WithDescription("my awesome simple trigger")
+                );
+
+                q.AddTrigger(t => t
+                    .ForJob(jobKey)
+                    .WithCronSchedule(CronScheduleBuilder.DailyAtHourAndMinute(1, 10))
+                    .WithDescription("my awesome cron trigger")
+                );
+
+                q.AddTrigger(t => t
+                    .ForJob(jobKey)
+                    .WithDailyTimeIntervalSchedule(x => x.WithInterval(1, IntervalUnit.Second))
+                    .WithDescription("my awesome daily time interval trigger")
                 );
             });
 

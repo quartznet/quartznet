@@ -368,13 +368,5 @@ namespace Quartz
             action(builder);
             return triggerBuilder.WithSchedule(builder);
         }
-        
-        public static T WithCalendarIntervalSchedule<T>(this T triggerBuilder, Action<CalendarIntervalScheduleBuilder>? action = null) where T : ITriggerConfigurator
-        {
-            CalendarIntervalScheduleBuilder builder = CalendarIntervalScheduleBuilder.Create();
-            action?.Invoke(builder);
-            triggerBuilder.WithSchedule(builder);
-            return triggerBuilder;
-        }
     }
 }

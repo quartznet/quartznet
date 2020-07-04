@@ -20,7 +20,7 @@ namespace Quartz
 
         public ServiceCollectionSchedulerFactory(
             IServiceProvider serviceProvider, 
-            ServiceCollectionQuartzConfigurator configurator) : base(configurator.Properties)
+            ServiceCollectionQuartzConfigurator configurator) : base(configurator.schedulerBuilder.Properties)
         {
             this.serviceProvider = serviceProvider;
             this.configurator = configurator;

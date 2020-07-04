@@ -312,13 +312,5 @@ namespace Quartz
             action(builder);
             return triggerBuilder.WithSchedule(builder);
         }
-        
-        public static T WithCronSchedule<T>(this T triggerBuilder, string cronExpression, Action<CronScheduleBuilder>? action = null) where T : ITriggerConfigurator
-        {
-            CronScheduleBuilder builder = CronScheduleBuilder.CronSchedule(cronExpression);
-            action?.Invoke(builder);
-            triggerBuilder.WithSchedule(builder);
-            return triggerBuilder;
-        }
     }
 }

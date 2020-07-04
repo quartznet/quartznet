@@ -64,7 +64,7 @@ namespace Quartz
     /// <seealso cref="IScheduleBuilder" />
     /// <seealso cref="DateBuilder" />
     /// <seealso cref="ITrigger" />
-    public class TriggerBuilder : ITriggerConfigurator
+    public class TriggerBuilder
     {
         private TriggerKey? key;
         private string? description;

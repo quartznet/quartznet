@@ -17,7 +17,7 @@ namespace Quartz.Examples.AspNetCore
         public async Task Execute(IJobExecutionContext context)
         {
             logger.LogInformation("Example job executing");
-            await Task.Delay(1);
+            await Task.Delay(TimeSpan.FromSeconds(1));
         }
 
         public void Dispose()

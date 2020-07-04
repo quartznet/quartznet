@@ -503,13 +503,5 @@ namespace Quartz
             action(builder);
             return triggerBuilder.WithSchedule(builder);
         }
-
-        public static T WithSimpleSchedule<T>(this T triggerBuilder, Action<SimpleScheduleBuilder>? action = null) where T : ITriggerConfigurator
-        {
-            SimpleScheduleBuilder builder = SimpleScheduleBuilder.Create();
-            action?.Invoke(builder);
-            triggerBuilder.WithSchedule(builder);
-            return triggerBuilder;
-        }
     }
 }
