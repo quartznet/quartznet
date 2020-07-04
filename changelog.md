@@ -4,9 +4,9 @@
 
 ## Release 3.1.0, xx xx 2020
 
-This release concentrates on performance and some small feature updates. A big change is that now SQL queries use
-parametrized scheduler name, which allows database server to reuse query plans and use indexes more optimally.
-This will help especially clusters which have large number of nodes.
+This release concentrates on performance and bringing support to de facto Microsoft libraries like dependency injection and ASP.NET Core hosting.
+A big change is that now SQL queries use parametrized scheduler name, which allows database server to reuse query plans and use indexes more optimally.
+This will help especially clusters which have large number of nodes. The SQL server indexes were also revisited and their amount reduced by using smarter covering indexes.
 
 There are also some minor bug fixes present.
 
@@ -16,6 +16,8 @@ There are also some minor bug fixes present.
 
 * NEW FEATURE
 
+    * Microsoft DI integration via package Quartz.Extensions.DependencyInjection (also allows briding to Microsoft Logging)
+	* ASP.NET Core / Hosting integration and health checks via revisited NuGet package Quartz.AspNetCore (thank you zlzforever for contributing the work)
     * Introduced a config parameter `ClusterCheckinMisfireThreshold` (#692)
 	* Giving meaningful names to examples folders (#701)
 	* Added search patterns/sub directory search to directoty scanner job (#411, #708)
@@ -27,6 +29,7 @@ There are also some minor bug fixes present.
 	* Server, example and test projects upgraded to user .NET Core 3.1
 	* Nullable reference type annotations have been enabled
 	* Symbols are now provided as a separate NuGet symbol package (snupkg)
+	* SQL Server indexes have been fine-tuned, redudancies were removed and you can follow the current scripts to update to latest version of them
 
 * FIXES
 
