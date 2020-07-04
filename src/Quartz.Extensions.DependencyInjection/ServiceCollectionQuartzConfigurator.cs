@@ -28,6 +28,11 @@ namespace Quartz
             UseJobFactory<MicrosoftDependencyInjectionJobFactory>();
         }
 
+        public void UseMicrosoftDependencyInjectionScopedJobFactory()
+        {
+            UseJobFactory<MicrosoftDependencyInjectionScopedJobFactory>();
+        }
+
         public void UseSimpleTypeLoader()
         {
             UseTypeLoader<SimpleTypeLoadHelper>();
