@@ -326,7 +326,7 @@ namespace Quartz
             /// <summary>
             /// Use named connection defined in application configuration file.
             /// </summary>
-            public void UshDriverDelegate<T>() where T : IDriverDelegate
+            public void UseDriverDelegate<T>() where T : IDriverDelegate
             {
                 options.SetProperty("quartz.jobStore.driverDelegateType", typeof(T).AssemblyQualifiedNameWithoutVersion());
             }
