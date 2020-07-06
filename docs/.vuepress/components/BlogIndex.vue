@@ -4,7 +4,7 @@
 <div>
     <div v-for="post in posts">
         <h2>
-            <router-link :to="post.path">{{ post.frontmatter.title }}</router-link>
+            <router-link :to="post.path">{{ post.dateString + ' ' + post.frontmatter.title }}</router-link>
         </h2>
 
         <p>{{ post.frontmatter.description }}</p>
@@ -20,7 +20,11 @@ export default {
         posts() {
             return this.$site.pages
                 .filter(x => x.id === 'post')
-                .sort((a, b) => b.path.localeCompare(a.path));
+                .sort((a, b) => b.path.localeCompare(a.path))
+                                .map(x => {
+                    x.dateString = x.path.substring(1, 11);
+                    return x;
+                });
         }
     }
 }

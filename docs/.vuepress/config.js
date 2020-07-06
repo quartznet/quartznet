@@ -58,7 +58,7 @@ module.exports = {
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Features', link: '/features' },
-      { text: 'Blog', link: '/blog/' },
+      { text: 'Blog', link: '/blog' },
       { text: 'Mailing List', link: '/mailing-list' },
       { text: 'NuGet', link: 'https://nuget.org/packages/Quartz' }
     ],

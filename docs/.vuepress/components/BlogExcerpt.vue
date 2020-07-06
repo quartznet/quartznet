@@ -21,7 +21,7 @@ export default {
                 .map(x => {
                     x.dateString = x.path.substring(1, 11);
                     return x;
-                });;
+                });
         }
     }
 }
