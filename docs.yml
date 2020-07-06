@@ -1,0 +1,24 @@
+branches:
+  only:
+    - master
+    - develop
+only_commits:
+  files:
+    - docs/**/*
+    - docs.yml
+    - package.json
+skip_branch_with_pr: true
+install:
+  - npm install -g npm
+  - ps: $env:path = $env:appdata + "\npm;" + $env:path
+  - npm install --no-optional
+build_script:
+  - node --version && npm --version
+  - "%CMD_IN_ENV% npm run docs:build"
+deploy_script:
+  - git config --global credential.helper store
+  - git config --global user.name "%APPVEYOR_REPO_COMMIT_AUTHOR%"
+  - git config --global user.email "%APPVEYOR_REPO_COMMIT_AUTHOR_EMAIL%"
+  - ps: Add-Content "$env:USERPROFILE\.git-credentials" "https://$($env:access_token):x-oauth-basic@github.com`n"
+  - "%CMD_IN_ENV% npm run docs:publish"
+

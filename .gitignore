@@ -87,3 +87,6 @@ node_modules
 /tools/NUnit*
 /artifacts
 /src/Quartz.Examples.AspNetCore/healthchecksdb
+
+docs/.vuepress/dist
+/node_modules
