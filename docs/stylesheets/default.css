@@ -1,0 +1,239 @@
+/*#############################################################
+Name: Indigo
+Description: A lightweight (7kb images), simple and professional design.
+Date: 2006-07-27
+Author: Viktor Persson
+URL: http://arcsin.se
+
+Feel free to use and modify but please provide credits.
+#############################################################*/
+
+/* standard elements */
+*
+{
+	margin: 0;
+	padding: 0;
+}
+a
+{
+	color: #F70;
+}
+a:hover
+{
+	color: #C60;
+}
+body
+{
+	background: #0094D6 url(../images/bg.gif) repeat-x;
+	margin: 0;
+	box-sizing: border-box;
+	font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+	color: #333;
+	line-height: 1.4;
+	font-size: 14px;
+}
+input
+{
+	color: #555;
+	font: normal 1.1em "Lucida Sans Unicode" ,sans-serif;
+}
+p, cite, code, ul
+{
+	padding-bottom: 1.2em;
+	margin-left: 3px;
+}
+code
+{
+	border: 1px solid #F0F0F0;
+	display: block;
+	margin-bottom: 12px;
+	padding: 8px 10px;
+	white-space: pre;
+}
+cite
+{
+	background: url(../images/quote.gif) no-repeat;
+	color: #666;
+	display: block;
+	font: normal 1.3em "Lucida Sans Unicode" ,serif;
+	padding-left: 28px;
+}
+h1, h2, h3, h4, h5
+{
+	color: #06C;
+	margin-bottom: 5px;
+}
+h3, h4 {
+	color: #000000;
+}
+/* misc */
+.clearer
+{
+	clear: both;
+}
+
+/* structure */
+.container
+{
+	background: url(../images/topleft.gif) no-repeat;
+}
+
+.header
+{
+	height: 92px;
+}
+
+/* title */
+.title
+{
+	float: left;
+	padding: 28px 0 0 76px;
+}
+.title h1
+{
+	color: #ffffff;
+	font-weight: normal;
+}
+/* navigation */
+.navigation
+{
+	float: left;
+	height: 92px;
+	margin-left: 24px;
+	padding: 0 16px;
+}
+.navigation a
+{
+	color: #FFF;
+	float: left;
+	font: bold 1.2em "Trebuchet MS" ,sans-serif;
+	margin-top: 56px;
+	padding: 8px 18px;
+	text-align: center;
+	text-decoration: none;
+}
+.navigation a:hover
+{
+	background-color: #4A91C3;
+	color: #FFF;
+}
+
+/* main */
+.main
+{
+	background: #FFF url(../images/bgmain.gif) no-repeat;
+	clear: both;
+	padding: 12px 12px 0 52px;
+}
+
+/* main left */
+.sidenav
+{
+	float: left;
+	width: 24%;
+}
+.sidenav h1
+{
+	border-bottom: 1px dashed #DDD;
+	color: #E73;
+	font-size: 1.2em;
+	height: 20px;
+	margin-top: 1.2em;
+}
+.sidenav ul
+{
+	margin: 0;
+	padding: 0;
+}
+.sidenav li
+{
+	border-bottom: 1px dashed #EEE;
+	list-style: none;
+	margin: 0;
+}
+.sidenav li a
+{
+	color: #777;
+	display: block;
+	font-size: 1.2em;
+	padding: 3px 6px 3px 18px;
+	text-decoration: none;
+}
+.sidenav li a:hover
+{
+	color: #111;
+	background: url(../images/nav_li.gif) no-repeat;
+}
+
+/* content */
+.content
+{
+	float: left;
+	margin-right: 4%;
+	width: 69%;
+}
+.content .descr
+{
+	color: #C60;
+	margin-bottom: 10px;
+	margin-top: -10px;
+	margin-left: 10px;
+	font-style: italic;
+}
+.content li
+{
+	margin-left: 24px;
+	margin-bottom: .5em;
+}
+
+/* search form */
+.styled
+{
+	border: 3px double #E5E5E5;
+	padding: 2px 3px;
+}
+.button
+{
+	border: 1px solid #AAA;
+	margin-left: 5px;
+	padding: 2px 3px;
+}
+
+/* footer */
+.footer
+{
+	background: #0094D6 url(../images/bgfooter.gif) repeat-x;
+	color: #C1DEF0;
+	line-height: 40px;
+	text-align: center;
+}
+.footer a
+{
+	color: #FFF;
+	text-decoration: none;
+}
+.footer a:hover
+{
+	color: #FFF;
+	text-decoration: underline;
+}
+#PageContentDiv table tr th {
+	background: #666;
+	color: white;
+	font-weight: bold;
+	padding: .3em .5em;
+}
+#PageContentDiv table td {
+	line-height: 1.3;
+}
+#PageContentDiv table tbody tr td {
+	color: #333;
+	padding: 9px 10px;
+	border: 1px solid #ddd;
+	vertical-align: top;
+}
+#PageContentDiv table {
+	border-collapse: collapse;
+	border-spacing: 0;
+	margin-bottom: 10px;
+}
