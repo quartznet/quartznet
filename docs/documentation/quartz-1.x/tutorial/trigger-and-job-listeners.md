@@ -1,6 +1,5 @@
 ---
 title: 'Lesson 7: TriggerListeners and JobListeners'
-layout: default
 ---
 
 Listeners are objects that you create to perform actions based on events occuring within the scheduler.
@@ -66,5 +65,3 @@ or
 
 Listeners are not used by most users of Quartz.NET, but are handy when application requirements create the need
 for the notification of events, without the Job itself explicitly notifying the application.
-
-[&laquo; Lesson 6](crontriggers.html) | [Lesson 8 &raquo;](scheduler-listeners.html)

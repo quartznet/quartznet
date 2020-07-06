@@ -1,6 +1,5 @@
 ---
 title: 'Lesson 10: Configuration, Resource Usage and SchedulerFactory'
-layout: default
 ---
 
 Quartz is architected in modular way, and therefore to get it running, several components need to be "snapped" together. 
@@ -64,5 +63,3 @@ Quartz does not produce much logging information - generally just some informati
 then only messages about serious problems while Jobs are executing. In order to "tune" the logging settings 
 (such as the amount of output, and where the output goes), you need to understand the Commmon.Logging framework, 
 which is beyond the scope of this document, please refer to <a href="http://netcommon.sourceforge.net/documentation.html">Common.Logging Documentation</a>.
-
-[&laquo; Lesson 9](job-stores.html) | [Lesson 11 &raquo;](advanced-enterprise-features.html)

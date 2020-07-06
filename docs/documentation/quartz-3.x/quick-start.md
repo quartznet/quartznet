@@ -15,13 +15,6 @@ Welcome to the Quick Start Guide for Quartz.NET. As you read this guide, expect 
 You can either download the zip file or use the NuGet package.
 NuGet package contains only the binaries needed to run Quartz.NET, zip file comes with source code, samples and Quartz.NET server sample application.
 
-### Zip Archive
-
-**Short version**: Once you've downloaded Quartz.NET, unzip it somewhere, grab the Quartz.dll from bin directory and start to use it.
-
-Quartz core library does not have any hard binary dependencies. You can opt-in to more dependencies when you choose to use JSON serialization package, which requires JSON.NET.
-You need to have at least Quartz.dll beside your app binaries to successfully run Quartz.NET. So just add it as a references to your Visual Studio project that uses them.
-You can find these dlls from extracted archive from path **bin\your-target-framework-version\release\Quartz**.
 
 ## NuGet Package
 
@@ -38,6 +31,15 @@ or from NuGet Command-Line:
 	Install-Package Quartz
 
 If you want to add JSON Serialization, just add the **Quartz.Serialization.Json** package the same way.
+
+
+### Zip Archive
+
+**Short version**: Once you've downloaded Quartz.NET, unzip it somewhere, grab the Quartz.dll from bin directory and start to use it.
+
+Quartz core library does not have any hard binary dependencies. You can opt-in to more dependencies when you choose to use JSON serialization package, which requires JSON.NET.
+You need to have at least Quartz.dll beside your app binaries to successfully run Quartz.NET. So just add it as a references to your Visual Studio project that uses them.
+You can find these dlls from extracted archive from path **bin\your-target-framework-version\release\Quartz**.
 
 ## Configuration
 

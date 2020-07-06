@@ -1,7 +1,5 @@
 ---
 title: 'Lesson 2: Jobs And Triggers'
-prev: using-quartz
-next: more-about-jobs
 ---
 
 As mentioned previously, you can make .NET component executable by the scheduler simply by making it

@@ -24,6 +24,3 @@ layout: default
 
 * [Tutorials for Developing with Quartz](quartz-1.x/tutorial/index.html)
 
-
-
-https://github.com/quartznet/quartznet/tree/gh-pages

@@ -1,6 +1,5 @@
 ---
 title: 'Lesson 3: More About Jobs & JobDetails'
-layout: default
 ---
 
 As you've seen, jobs are rather easy to implement. There are just a few more things that you need to understand about 
@@ -179,5 +178,3 @@ Finally, we need to inform you of a few details of the IJob.Execute(..) method. 
 that you are allowed to throw from the execute method is the JobExecutionException. Because of this, you should generally wrap the entire
 contents of the execute method with a 'try-catch' block. You should also spend some time looking at the documentation for the 
 JobExecutionException, as your job can use it to provide the scheduler various directives as to how you want the exception to be handled.
-
-[&laquo; Lesson 2](jobs-and-triggers.html) | [Lesson 4 &raquo;](more-about-triggers.html)

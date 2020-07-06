@@ -1,7 +1,5 @@
 ---
 title: 'Lesson 1: Using Quartz'
-prev: index
-next: jobs-and-triggers
 ---
 
 Before you can use the scheduler, it needs to be instantiated (who'd have guessed?).

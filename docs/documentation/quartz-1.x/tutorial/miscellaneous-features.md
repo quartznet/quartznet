@@ -1,6 +1,5 @@
 ---
 title:  'Lesson 12: Miscellaneous Features of Quartz'
-layout: default
 ---
 
 ## Plug-Ins
@@ -23,9 +22,3 @@ See the IJobFactory interface, and the associated Scheduler.SetJobFactory(fact) 
 
 Quartz also provides a number of utility Jobs that you can use in your application for doing things like sending
 e-mails and invoking remote objects. These out-of-the-box Jobs can be found documented in the Quartz.Jobs namespace.
-
-[&laquo; Lesson 11](advanced-enterprise-features.html)
-
-
-
-	

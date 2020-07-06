@@ -1,6 +1,5 @@
 ---
 title: 'Lesson 6: CronTrigger'
-layout: default
 ---
 
 CronTriggers are often more useful than SimpleTrigger, if you need a job-firing schedule that recurs based on calendar-like notions, 
@@ -95,5 +94,3 @@ constants (and API documentation has description for their behavior). The instru
 All triggers have the MisfireInstrution.SmartPolicy instruction available for use, and this instruction is also the default for all trigger types. 
 The 'smart policy' instruction is interpreted by CronTrigger as MisfireInstruction.CronTrigger.FireOnceNow. The API documentation for the 
 CronTrigger.UpdateAfterMisfire() method explains the exact details of this behavior.
-
-[&laquo; Lesson 5](simpletriggers.html) | [Lesson 7 &raquo;](trigger-and-job-listeners.html)

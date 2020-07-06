@@ -1,6 +1,5 @@
 ---
 title: 'Lesson 11: Advanced (Enterprise) Features'
-layout: default
 ---
 
 ## Clustering
@@ -19,5 +18,3 @@ if you are unfamiliar with how to do this.
 
 Never fire-up a non-clustered instance against the same set of tables that any other instance is running against. 
 You may get serious data corruption, and will definitely experience eratic behavior.
-
-[&laquo; Lesson 10](configuration-resource-usage-and-scheduler-factory.html) | [Lesson 12 &raquo;](miscellaneous-features.html)

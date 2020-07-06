@@ -1,6 +1,5 @@
 ---
 title: 'Lesson 4: More About Triggers'
-layout: default
 ---
 
 Like jobs, triggers are relatively easy to work with, but do contain a variety of customizable options that you need to
@@ -136,6 +135,3 @@ this can be very useful for setting trigger start-times.
 
 Finally, triggers may have registered listeners, just as jobs may.
 Objects implementing the ITriggerListener interface will receive notifications as a trigger is fired.
-
-
-[&laquo; Lesson 3](more-about-jobs.html) | [Lesson 5 &raquo;](simpletriggers.html)

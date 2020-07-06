@@ -1,6 +1,5 @@
 ---
 title: 'Lesson 9: JobStores'
-layout: default
 ---
 
 JobStore's are responsible for keeping track of all the "work data" that you give to the scheduler: 
@@ -114,5 +113,3 @@ as you avoid the class versioning issues that there are with serializing your no
 **Configuring AdoJobStore to use strings as JobDataMap values (recommended)**
 
     quartz.jobStore.useProperties = true
-
-[&laquo; Lesson 8](scheduler-listeners.html) | [Lesson 10 &raquo;](configuration-resource-usage-and-scheduler-factory.html)

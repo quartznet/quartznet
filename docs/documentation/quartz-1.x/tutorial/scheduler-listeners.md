@@ -1,7 +1,7 @@
 ---
 title: 'Lesson 8: SchedulerListeners'
-layout: default
 ---
+
 SchedulerListeners are much like ITriggerListeners and IJobListeners, except they receive notification of 
 events within the scheduler itself - not necessarily events related to a specific trigger or job.
 
@@ -37,5 +37,3 @@ __The ISchedulerListener Interface__
 ISchedulerListener instances are created and registered in much the same way as the other listener types, 
 except there is no distinction between global and non-global listeners. Scheduler listeners can be 
 virtually any object that implements the ISchedulerListener interface.
-
-[&laquo; Lesson 7](trigger-and-job-listeners.html) | [Lesson 9 &raquo;](job-stores.html)

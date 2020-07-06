@@ -1,6 +1,5 @@
 ---
 title: 'Lesson 5: SimpleTrigger'
-layout: default
 ---
 
 SimpleTrigger should meet your scheduling needs if you need to have a job execute exactly once at a specific moment in time,
@@ -114,5 +113,3 @@ and this instruction is also the default for all trigger types.
 If the 'smart policy' instruction is used, SimpleTrigger dynamically chooses between its various MISFIRE instructions, based on the configuration
 and state of the given SimpleTrigger instance. The documentation for the SimpleTrigger.UpdateAfterMisfire() method explains the exact details of
 this dynamic behavior.
-
-[&laquo; Lesson 4](more-about-triggers.html) | [Lesson 6 &raquo;](crontriggers.html)
