@@ -6,21 +6,21 @@ using Quartz.Spi;
 
 namespace Quartz
 {
-    public interface IServiceCollectionQuartzConfigurator
+    public interface IServiceCollectionQuartzConfigurator : IPropertyConfigurer
     {
         internal IServiceCollection Services { get; }
-        void UseJobFactory<T>() where T : IJobFactory;
-        void UseMicrosoftDependencyInjectionJobFactory();
+        void UseJobFactory<T>(Action<JobFactoryOptions>? configure = null) where T : IJobFactory;
+        void UseMicrosoftDependencyInjectionJobFactory(Action<JobFactoryOptions>? configure = null);
+        void UseMicrosoftDependencyInjectionScopedJobFactory(Action<JobFactoryOptions>? configure = null);
         void UseTypeLoader<T>() where T : ITypeLoadHelper;
         void UseSimpleTypeLoader();
-        void SetProperty(string name, string value);
-        SchedulerBuilder SetSchedulerId(string id);
-        SchedulerBuilder SetSchedulerName(string name);
-        void UseInMemoryStore(Action<SchedulerBuilder.InMemoryStoreOptions>? options = null);
-        void UsePersistentStore(Action<SchedulerBuilder.PersistentStoreOptions> options);
-        void UseThreadPool<T>(Action<SchedulerBuilder.ThreadPoolOptions>? configurer = null) where T : IThreadPool;
-        void UseDefaultThreadPool(Action<SchedulerBuilder.ThreadPoolOptions>? configurer = null);
-        void UseDedicatedThreadPool(Action<SchedulerBuilder.ThreadPoolOptions>? configurer = null);
-        SchedulerBuilder SetMisfireThreshold(TimeSpan threshold);
+        string SchedulerId { set; }
+        string SchedulerName { set; }
+        void UseInMemoryStore(Action<SchedulerBuilder.InMemoryStoreOptions>? configure = null);
+        void UsePersistentStore(Action<SchedulerBuilder.PersistentStoreOptions> configure);
+        void UseThreadPool<T>(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null) where T : IThreadPool;
+        void UseDefaultThreadPool(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null);
+        void UseDedicatedThreadPool(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null);
+        TimeSpan MisfireThreshold { set; }
     }
 }

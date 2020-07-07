@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Specialized;
 using System.Threading.Tasks;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -23,16 +24,6 @@ namespace Quartz
 
         IServiceCollection IServiceCollectionQuartzConfigurator.Services => services;
 
-        public void UseMicrosoftDependencyInjectionJobFactory()
-        {
-            UseJobFactory<MicrosoftDependencyInjectionJobFactory>();
-        }
-
-        public void UseMicrosoftDependencyInjectionScopedJobFactory()
-        {
-            UseJobFactory<MicrosoftDependencyInjectionScopedJobFactory>();
-        }
-
         public void UseSimpleTypeLoader()
         {
             UseTypeLoader<SimpleTypeLoadHelper>();
@@ -43,30 +34,45 @@ namespace Quartz
             schedulerBuilder.SetProperty(name, value);
         }
 
-        public SchedulerBuilder SetSchedulerId(string id)
+        public NameValueCollection Properties => schedulerBuilder.Properties;
+
+        public string SchedulerId
         {
-            return schedulerBuilder.SetSchedulerId(id);
+            set => schedulerBuilder.SetSchedulerId(value);
         }
 
-        public SchedulerBuilder SetSchedulerName(string name)
+        public string SchedulerName
         {
-            return schedulerBuilder.SetSchedulerName(name);
+            set => schedulerBuilder.SetSchedulerName(value);
         }
 
-        public void UseInMemoryStore(Action<SchedulerBuilder.InMemoryStoreOptions>? options = null)
+        public void UseInMemoryStore(Action<SchedulerBuilder.InMemoryStoreOptions>? configure = null)
         {
-            schedulerBuilder.UseInMemoryStore(options);
+            schedulerBuilder.UseInMemoryStore(configure);
         }
 
-        public void UsePersistentStore(Action<SchedulerBuilder.PersistentStoreOptions> options)
+        public void UsePersistentStore(Action<SchedulerBuilder.PersistentStoreOptions> configure)
         {
-            schedulerBuilder.UsePersistentStore(options);
+            schedulerBuilder.UsePersistentStore(configure);
+        }
+        
+        public void UseMicrosoftDependencyInjectionJobFactory(Action<JobFactoryOptions>? configure = null)
+        {
+            UseJobFactory<MicrosoftDependencyInjectionJobFactory>(configure);
         }
 
-        public void UseJobFactory<T>() where T : IJobFactory
+        public void UseMicrosoftDependencyInjectionScopedJobFactory(Action<JobFactoryOptions>? configure = null)
+        {
+            UseJobFactory<MicrosoftDependencyInjectionScopedJobFactory>(configure);
+        }
+        
+        public void UseJobFactory<T>(Action<JobFactoryOptions>? configure = null) where T : IJobFactory
         {
             schedulerBuilder.UseJobFactory<T>();
             services.TryAddSingleton(typeof(IJobFactory), typeof(T));
+            var options = new JobFactoryOptions();
+            configure?.Invoke(options);
+            services.TryAddSingleton(options);
         }
 
         public void UseTypeLoader<T>() where T : ITypeLoadHelper
@@ -85,24 +91,24 @@ namespace Quartz
             return schedulerBuilder.BuildScheduler();
         }
 
-        public void UseThreadPool<T>(Action<SchedulerBuilder.ThreadPoolOptions>? configurer = null) where T : IThreadPool
+        public void UseThreadPool<T>(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null) where T : IThreadPool
         {
-            schedulerBuilder.UseThreadPool<T>(configurer);
+            schedulerBuilder.UseThreadPool<T>(configure);
         }
 
-        public void UseDefaultThreadPool(Action<SchedulerBuilder.ThreadPoolOptions>? configurer = null)
+        public void UseDefaultThreadPool(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null)
         {
-            schedulerBuilder.UseDefaultThreadPool(configurer);
+            schedulerBuilder.UseDefaultThreadPool(configure);
         }
 
-        public void UseDedicatedThreadPool(Action<SchedulerBuilder.ThreadPoolOptions>? configurer = null)
+        public void UseDedicatedThreadPool(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null)
         {
-            schedulerBuilder.UseDedicatedThreadPool(configurer);
+            schedulerBuilder.UseDedicatedThreadPool(configure);
         }
 
-        public SchedulerBuilder SetMisfireThreshold(TimeSpan threshold)
+        public TimeSpan MisfireThreshold
         {
-            return schedulerBuilder.SetMisfireThreshold(threshold);
+            set => schedulerBuilder.SetMisfireThreshold(value);
         }
     }
 }

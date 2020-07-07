@@ -30,16 +30,17 @@ namespace Quartz.Tests.Unit
             config.UsePersistentStore(js =>
             {
                 js.UseJsonSerializer();
-                js.Clustered(options => options
-                    .SetCheckinInterval(TimeSpan.FromSeconds(10))
-                    .SetCheckinMisfireThreshold(TimeSpan.FromSeconds(15))
-                );
+                js.UseClustering(c =>
+                {
+                    c.CheckinInterval = TimeSpan.FromSeconds(10);
+                    c.CheckinMisfireThreshold = TimeSpan.FromSeconds(15);
+                    c.RetryInterval = TimeSpan.FromSeconds(20);
+                });
 
                 js.UseSqlServer(db =>
                 {
-                    db
-                        .SetConnectionString("Server=localhost;Database=quartznet;")
-                        .SetTablePrefix("QRTZ2019_");
+                    db.ConnectionString = "Server=localhost;Database=quartznet;";
+                    db.TablePrefix = "QRTZ2019_";
                 });
             });
             Assert.That(config.Properties["quartz.dataSource.default.connectionString"], Is.EqualTo("Server=localhost;Database=quartznet;"));
@@ -50,6 +51,7 @@ namespace Quartz.Tests.Unit
             Assert.That(config.Properties["quartz.jobStore.tablePrefix"], Is.EqualTo("QRTZ2019_"));
             Assert.That(config.Properties["quartz.jobStore.clusterCheckinInterval"], Is.EqualTo("10000"));
             Assert.That(config.Properties["quartz.jobStore.clusterCheckinMisfireThreshold"], Is.EqualTo("15000"));
+            Assert.That(config.Properties["quartz.jobStore.dbRetryInterval"], Is.EqualTo("20000"));
         }
 
         [Test]
@@ -57,9 +59,8 @@ namespace Quartz.Tests.Unit
         {
             var config = SchedulerBuilder.Create();
             config
-                .UsePersistentStore(options =>
-                    options
-                        .UsePostgres(db => db.SetConnectionString("Server=localhost;Database=quartznet;"))
+                .UsePersistentStore(s =>
+                    s.UsePostgres(("Server=localhost;Database=quartznet;"))
                 );
             Assert.That(config.Properties["quartz.dataSource.default.connectionString"], Is.EqualTo("Server=localhost;Database=quartznet;"));
 
@@ -73,8 +74,8 @@ namespace Quartz.Tests.Unit
         {
             var config = SchedulerBuilder.Create();
             config
-                .UsePersistentStore(options =>
-                    options.UseMySql(db => db.SetConnectionString("Server=localhost;Database=quartznet;"))
+                .UsePersistentStore(s =>
+                    s.UseMySql("Server=localhost;Database=quartznet;")
                 );
             Assert.That(config.Properties["quartz.dataSource.default.connectionString"], Is.EqualTo("Server=localhost;Database=quartznet;"));
 
@@ -88,9 +89,8 @@ namespace Quartz.Tests.Unit
         {
             var config = SchedulerBuilder.Create();
             config
-                .UsePersistentStore(persistence =>
-                    persistence.UseFirebird(db => db
-                        .SetConnectionString("Server=localhost;Database=quartznet;"))
+                .UsePersistentStore(p =>
+                    p.UseFirebird("Server=localhost;Database=quartznet;")
                 );
             Assert.That(config.Properties["quartz.dataSource.default.connectionString"], Is.EqualTo("Server=localhost;Database=quartznet;"));
 
@@ -103,10 +103,9 @@ namespace Quartz.Tests.Unit
         public void TestOracleJsobStore()
         {
             var config = SchedulerBuilder.Create();
-            config
-                .UsePersistentStore(options => 
-                    options.UseOracle(db => db.SetConnectionString("Server=localhost;Database=quartznet;"))
-                      );
+            config.UsePersistentStore(s =>
+                s.UseOracle("Server=localhost;Database=quartznet;")
+            );
             Assert.That(config.Properties["quartz.dataSource.default.connectionString"], Is.EqualTo("Server=localhost;Database=quartznet;"));
 
             Assert.That(config.Properties["quartz.jobStore.type"], Is.EqualTo(typeof(JobStoreTX).AssemblyQualifiedNameWithoutVersion()));
@@ -119,7 +118,7 @@ namespace Quartz.Tests.Unit
         {
             var config = SchedulerBuilder.Create();
             config.UsePersistentStore(options =>
-                options.UseSQLite(db => db.SetConnectionString("Server=localhost;Database=quartznet;"))
+                options.UseSQLite("Server=localhost;Database=quartznet;")
             );
             Assert.That(config.Properties["quartz.dataSource.default.connectionString"], Is.EqualTo("Server=localhost;Database=quartznet;"));
 
@@ -141,12 +140,13 @@ namespace Quartz.Tests.Unit
         public void TestXmlSchedulingPlugin()
         {
             var builder = SchedulerBuilder.Create()
-                .UseXmlSchedulingConfiguration(x => x
-                    .SetFiles("jobs.xml", "jobs2.xml")
-                    .SetScanInterval(TimeSpan.FromSeconds(2))
-                    .SetFailOnFileNotFound()
-                    .SetFailOnSchedulingError()
-                );
+                .UseXmlSchedulingConfiguration(x =>
+                {
+                    x.Files = new[] {"jobs.xml", "jobs2.xml"};
+                    x.ScanInterval = TimeSpan.FromSeconds(2);
+                    x.FailOnFileNotFound = true;
+                    x.FailOnSchedulingError = true;
+                });
 
             Assert.That(builder.Properties["quartz.plugin.xml.type"], Is.EqualTo(typeof(XMLSchedulingDataProcessorPlugin).AssemblyQualifiedNameWithoutVersion()));
             Assert.That(builder.Properties["quartz.plugin.xml.fileNames"], Is.EqualTo("jobs.xml,jobs2.xml"));

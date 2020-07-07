@@ -34,7 +34,7 @@ namespace Quartz
     /// <summary>
     /// Helper to create common scheduler configurations.
     /// </summary>
-    public class SchedulerBuilder : PropertiesHolder
+    public class SchedulerBuilder : PropertiesHolder, IPropertyConfigurer
     {
         protected SchedulerBuilder(NameValueCollection? properties)
             : base(properties ?? new NameValueCollection())
@@ -187,28 +187,18 @@ namespace Quartz
             /// <summary>
             /// Set whether string-only properties will be handled in JobDataMaps.
             /// </summary>
-            public PersistentStoreOptions UseProperties(bool use = true)
+            public bool UseProperties
             {
-                SetProperty("quartz.jobStore.useProperties", use.ToString().ToLowerInvariant());
-                return this;
+                set => SetProperty("quartz.jobStore.useProperties", value.ToString().ToLowerInvariant());
             }
 
             /// <summary>
             /// Make this instance is part of a cluster.
             /// </summary>
-            public PersistentStoreOptions Clustered(Action<ClusterOptions>? options = null)
+            public void UseClustering(Action<ClusterOptions>? options = null)
             {
-                return Clustered(true, options);
-            }
-
-            /// <summary>
-            /// Make this instance is part of a cluster or not.
-            /// </summary>
-            public PersistentStoreOptions Clustered(bool clustered, Action<ClusterOptions>? options = null)
-            {
-                SetProperty("quartz.jobStore.clustered", clustered.ToString().ToLowerInvariant());
+                SetProperty("quartz.jobStore.clustered", "true");
                 options?.Invoke(new ClusterOptions(this));
-                return this;
             }
 
             /// <summary>
@@ -217,34 +207,31 @@ namespace Quartz
             /// <param name="provider">Valid provider name to configure driver details.</param>
             /// <param name="configurer">Callback to refine configuration.</param>
             /// <returns></returns>
-            public PersistentStoreOptions UseGenericDatabase(
+            public void UseGenericDatabase(
                 string provider,
                 Action<AdoProviderOptions>? configurer = null)
             {
                 SetProperty("quartz.jobStore.driverDelegateType", typeof(StdAdoDelegate).AssemblyQualifiedNameWithoutVersion());
-                SetProperty("quartz.jobStore.dataSource", SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName);
+                SetProperty("quartz.jobStore.dataSource", AdoProviderOptions.DefaultDataSourceName);
                 SetProperty($"quartz.dataSource.{AdoProviderOptions.DefaultDataSourceName}.provider", provider);
 
                 configurer?.Invoke(new AdoProviderOptions(this));
-
-                return this;
             }
 
             /// <summary>
             /// Configure binary serialization, consider using JSON instead which requires extra package Quartz.Serialization.Json.
             /// </summary>
-            public PersistentStoreOptions UseBinarySerializer()
+            public void UseBinarySerializer()
             {
-                return UseSerializer<BinaryObjectSerializer>();
+                UseSerializer<BinaryObjectSerializer>();
             }
 
             /// <summary>
             /// Use custom serializer.
             /// </summary>
-            public PersistentStoreOptions UseSerializer<T>() where T : IObjectSerializer
+            public void UseSerializer<T>() where T : IObjectSerializer
             {
                 SetProperty("quartz.serializer.type", typeof(T).AssemblyQualifiedNameWithoutVersion());
-                return this;
             }
         }
 
@@ -259,10 +246,12 @@ namespace Quartz
             /// with the other instances of the cluster. -- Affects the rate of
             /// detecting failed instances.
             /// </summary>
-            public ClusterOptions SetCheckinInterval(TimeSpan interval)
+            /// <remarks>
+            /// Defaults to 7500 milliseconds.
+            /// </remarks>
+            public TimeSpan CheckinInterval
             {
-                SetProperty("quartz.jobStore.clusterCheckinInterval", ((int) interval.TotalMilliseconds).ToString());
-                return this;
+                set => SetProperty("quartz.jobStore.clusterCheckinInterval", ((int) value.TotalMilliseconds).ToString());
             }
 
             /// <summary>
@@ -271,10 +260,23 @@ namespace Quartz
             /// other scheduler instances in a cluster can consider a "misfired" scheduler
             /// instance as failed or dead.
             /// </summary>
-            public ClusterOptions SetCheckinMisfireThreshold(TimeSpan interval)
+            /// <remarks>
+            /// Defaults to 7500 milliseconds.
+            /// </remarks>
+            public TimeSpan CheckinMisfireThreshold
             {
-                SetProperty("quartz.jobStore.clusterCheckinMisfireThreshold", ((int) interval.TotalMilliseconds).ToString());
-                return this;
+                set => SetProperty("quartz.jobStore.clusterCheckinMisfireThreshold", ((int) value.TotalMilliseconds).ToString());
+            }
+
+            /// <summary>
+            /// Gets or sets the database retry interval.
+            /// </summary>
+            /// <remarks>
+            /// Defaults to 15 seconds.
+            /// </remarks>
+            public TimeSpan RetryInterval
+            {
+                set => SetProperty("quartz.jobStore.dbRetryInterval", ((int) value.TotalMilliseconds).ToString());
             }
         }
 
@@ -299,28 +301,25 @@ namespace Quartz
             /// <summary>
             /// The prefix that should be pre-pended to all table names, defaults to QRTZ_.
             /// </summary>
-            public AdoProviderOptions SetTablePrefix(string tablePrefix)
+            public string TablePrefix
             {
-                options.SetProperty("quartz.jobStore.tablePrefix", tablePrefix);
-                return this;
+                set => options.SetProperty("quartz.jobStore.tablePrefix", value);
             }
 
             /// <summary>
             /// Standard connection driver specific connection string.
             /// </summary>
-            public AdoProviderOptions SetConnectionString(string connectionString)
+            public string ConnectionString
             {
-                options.SetProperty($"quartz.dataSource.{DefaultDataSourceName}.connectionString", connectionString);
-                return this;
+                set => options.SetProperty($"quartz.dataSource.{DefaultDataSourceName}.connectionString", value);
             }
 
             /// <summary>
             /// Use named connection defined in application configuration file.
             /// </summary>
-            public AdoProviderOptions SetConnectionStringName(string connectionStringName)
+            public string ConnectionStringName
             {
-                options.SetProperty($"quartz.dataSource.{DefaultDataSourceName}.connectionStringName", connectionStringName);
-                return this;
+                set => options.SetProperty($"quartz.dataSource.{DefaultDataSourceName}.connectionStringName", value);
             }
 
             /// <summary>
@@ -337,6 +336,13 @@ namespace Quartz
     {
         public static void UseSqlServer(
             this SchedulerBuilder.PersistentStoreOptions options,
+            string connectionString)
+        {
+            options.UseSqlServer(c => c.ConnectionString = connectionString);
+        }
+        
+        public static void UseSqlServer(
+            this SchedulerBuilder.PersistentStoreOptions options,
             Action<SchedulerBuilder.AdoProviderOptions> configurer)
         {
             options.SetProperty("quartz.jobStore.driverDelegateType", typeof(SqlServerDelegate).AssemblyQualifiedNameWithoutVersion());
@@ -345,6 +351,13 @@ namespace Quartz
 
             var adoProviderOptions = new SchedulerBuilder.AdoProviderOptions(options);
             configurer.Invoke(adoProviderOptions);
+        }
+        
+        public static void UsePostgres(
+            this SchedulerBuilder.PersistentStoreOptions options,
+            string connectionString)
+        {
+            options.UsePostgres(c => c.ConnectionString = connectionString);
         }
 
         public static void UsePostgres(
@@ -361,6 +374,13 @@ namespace Quartz
 
         public static void UseMySql(
             this SchedulerBuilder.PersistentStoreOptions options,
+            string connectionString)
+        {
+            options.UseMySql(c => c.ConnectionString = connectionString);
+        }
+
+        public static void UseMySql(
+            this SchedulerBuilder.PersistentStoreOptions options,
             Action<SchedulerBuilder.AdoProviderOptions> configurer)
         {
             options.SetProperty("quartz.jobStore.driverDelegateType", typeof(MySQLDelegate).AssemblyQualifiedNameWithoutVersion());
@@ -369,6 +389,13 @@ namespace Quartz
 
             var adoProviderOptions = new SchedulerBuilder.AdoProviderOptions(options);
             configurer.Invoke(adoProviderOptions);
+        }
+
+        public static void UseFirebird(
+            this SchedulerBuilder.PersistentStoreOptions options,
+            string connectionString)
+        {
+            options.UseFirebird(c => c.ConnectionString = connectionString);
         }
 
         public static void UseFirebird(
@@ -385,6 +412,13 @@ namespace Quartz
 
         public static void UseOracle(
             this SchedulerBuilder.PersistentStoreOptions options,
+            string connectionString)
+        {
+            options.UseOracle(c => c.ConnectionString = connectionString);
+        }
+        
+        public static void UseOracle(
+            this SchedulerBuilder.PersistentStoreOptions options,
             Action<SchedulerBuilder.AdoProviderOptions> configurer)
         {
             options.SetProperty("quartz.jobStore.driverDelegateType", typeof(OracleDelegate).AssemblyQualifiedNameWithoutVersion());
@@ -395,6 +429,13 @@ namespace Quartz
             configurer.Invoke(adoProviderOptions);
         }
 
+        public static void UseSQLite(
+            this SchedulerBuilder.PersistentStoreOptions options,
+            string connectionString)
+        {
+            options.UseSQLite(c => c.ConnectionString = connectionString);
+        }
+        
         public static void UseSQLite(
             this SchedulerBuilder.PersistentStoreOptions options,
             Action<SchedulerBuilder.AdoProviderOptions> configurer)

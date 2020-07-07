@@ -2,7 +2,7 @@ using System.Collections.Specialized;
 
 namespace Quartz
 {
-    public abstract class PropertiesHolder
+    public abstract class PropertiesHolder : IPropertyConfigurer
     {
         private readonly NameValueCollection properties;
 
@@ -16,11 +16,16 @@ namespace Quartz
             properties = parent.properties;
         }
 
+        protected PropertiesHolder(IPropertyConfigurer parent)
+        {
+            properties = parent.Properties;
+        }
+
         public void SetProperty(string name, string value)
         {
             properties[name] = value;
         }
 
-        internal NameValueCollection Properties => properties;
+        public NameValueCollection Properties => properties;
     }
 }

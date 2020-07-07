@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace Quartz.Examples.AspNetCore
 {
@@ -22,21 +23,44 @@ namespace Quartz.Examples.AspNetCore
         {
             services.AddRazorPages();
 
+            // easier to see behavior with timestamps
+            services.AddLogging(opt =>
+            {
+                opt.AddConsole(c =>
+                {
+                    c.TimestampFormat = "[HH:mm:ss] ";
+                });
+            });
+            
             // base configuration for DI
             services.AddQuartz(q =>
             {
+                // handy when part of cluster or you want to otherwise identify multiple schedulers
+                q.SchedulerId = "Scheduler-Core";
+                q.SchedulerName = "Quartz ASP.NET Core Sample Scheduler";
+                
                 // hooks LibLog to Microsoft logging without allowing it to detect concrete implementation
+                // if you are using NLog, SeriLog or log4net you shouldn't need this
                 q.UseQuartzMicrosoftLoggingBridge();
 
-                q.UseMicrosoftDependencyInjectionJobFactory();
+                // we could leave DI configuration intact and then jobs need to have public no-arg constructor
+                
+                // the MS DI is expected to produce transient job instances 
+                q.UseMicrosoftDependencyInjectionJobFactory(options =>
+                {
+                    // if we don't have the job in DI, allow fallback to configure via default constructor
+                    options.AllowDefaultConstructor = true;
+                });
+
+                // or 
+                // q.UseMicrosoftDependencyInjectionScopedJobFactory();
+                
+                // these are the defaults
                 q.UseSimpleTypeLoader();
                 q.UseInMemoryStore();
                 q.UseDefaultThreadPool(tp => tp.SetThreadCount(10));
                 
-                q
-                    .SetSchedulerId("Scheduler-Core")
-                    .SetSchedulerName("Quartz ASP.NET Core Sample Scheduler");
-                
+                // configure jobs with code
                 var jobKey = new JobKey("awesome job", "awesome group");
                 q.AddJob<ExampleJob>(j => j
                     .StoreDurably()
@@ -61,10 +85,41 @@ namespace Quartz.Examples.AspNetCore
                     .WithDailyTimeIntervalSchedule(x => x.WithInterval(1, IntervalUnit.Second))
                     .WithDescription("my awesome daily time interval trigger")
                 );
+                
+                // also add XML configuration and poll it for changes
+                q.UseXmlSchedulingConfiguration(x =>
+                {
+                    x.Files = new[] { "~/quartz_jobs.config" };
+                    x.ScanInterval = TimeSpan.FromSeconds(2);
+                    x.FailOnFileNotFound = true;
+                    x.FailOnSchedulingError = true;
+                });
+
+                // convert time zones using converter that can handle Windows/Linux differences
+                q.UseTimeZoneConverter();
+                
+                // example of persistent job store using JSON serializer as an example
+                /*
+                q.UsePersistentStore(s =>
+                {
+                    s.UseProperties = true;
+                    s.UseSQLite(sqlite =>
+                    {
+                        sqlite.ConnectionString = "some connection string";
+                        // this is the default
+                        sqlite.TablePrefix = "QRTZ_";
+                    });
+                    s.UseJsonSerializer();
+                });
+                */
             });
 
             // ASP.NET Core hosting
-            services.AddQuartzServer();
+            services.AddQuartzServer(options =>
+            {
+                // when shutting down we want jobs to complete gracefully
+                options.WaitForJobsToComplete = true;
+            });
 
             services
                 .AddHealthChecksUI()
