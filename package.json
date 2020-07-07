@@ -8,7 +8,6 @@
     "@vuepress/plugin-back-to-top": "^1.5.2",
     "@vuepress/plugin-blog": "^1.9.2",
     "@vuepress/plugin-google-analytics": "^1.5.2",
-    "nodemon": "^2.0.4",
     "vuepress": "^1.5.2"
   },
   "dependencies": {
@@ -19,8 +18,7 @@
   "scripts": {
     "docs:build": "bash -c \"rm -rf docs/.vuepress/dist\" && vuepress build docs",
     "docs:publish": "cd docs/.vuepress/dist && git init && git fetch https://github.com/quartznet/quartznet.github.io.git && git checkout 9966bc53c0685311bc9199498ef2338629f6ec4d && git checkout -b master && git add . && git commit -am \"Deploy Documentation\" && git push --force --set-upstream https://github.com/quartznet/quartznet.github.io.git master",
-    "docs:dev": "vuepress dev docs",
-    "start": "nodemon --ext md,vue,config --watch .vuepress --watch . --exec vuepress dev"
+    "docs:dev": "vuepress dev docs"
   },
   "repository": {
     "type": "git",
