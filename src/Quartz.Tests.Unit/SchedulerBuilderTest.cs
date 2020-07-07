@@ -17,7 +17,7 @@ namespace Quartz.Tests.Unit
         {
             var config = SchedulerBuilder.Create();
             config.UseInMemoryStore();
-            config.UseDefaultThreadPool(x => x.SetThreadCount(100));
+            config.UseDefaultThreadPool(x => x.ThreadCount = 100);
 
             Assert.That(config.Properties["quartz.jobStore.type"], Is.EqualTo(typeof(RAMJobStore).AssemblyQualifiedNameWithoutVersion()));
             Assert.That(config.Properties["quartz.threadPool.threadCount"], Is.EqualTo("100"));
@@ -30,11 +30,11 @@ namespace Quartz.Tests.Unit
             config.UsePersistentStore(js =>
             {
                 js.UseJsonSerializer();
+                js.RetryInterval = TimeSpan.FromSeconds(20);
                 js.UseClustering(c =>
                 {
                     c.CheckinInterval = TimeSpan.FromSeconds(10);
                     c.CheckinMisfireThreshold = TimeSpan.FromSeconds(15);
-                    c.RetryInterval = TimeSpan.FromSeconds(20);
                 });
 
                 js.UseSqlServer(db =>

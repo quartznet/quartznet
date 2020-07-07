@@ -1,11 +1,9 @@
 using System;
 using System.Collections.Specialized;
-using System.Threading.Tasks;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-using Quartz.Impl;
 using Quartz.Simpl;
 using Quartz.Spi;
 
@@ -38,12 +36,12 @@ namespace Quartz
 
         public string SchedulerId
         {
-            set => schedulerBuilder.SetSchedulerId(value);
+            set => schedulerBuilder.SchedulerId = value;
         }
 
         public string SchedulerName
         {
-            set => schedulerBuilder.SetSchedulerName(value);
+            set => schedulerBuilder.SchedulerName = value;
         }
 
         public void UseInMemoryStore(Action<SchedulerBuilder.InMemoryStoreOptions>? configure = null)
@@ -81,16 +79,6 @@ namespace Quartz
             services.TryAddSingleton(typeof(ITypeLoadHelper), typeof(T));
         }
 
-        public StdSchedulerFactory Build()
-        {
-            return schedulerBuilder.Build();
-        }
-
-        public Task<IScheduler> BuildScheduler()
-        {
-            return schedulerBuilder.BuildScheduler();
-        }
-
         public void UseThreadPool<T>(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null) where T : IThreadPool
         {
             schedulerBuilder.UseThreadPool<T>(configure);
@@ -108,7 +96,7 @@ namespace Quartz
 
         public TimeSpan MisfireThreshold
         {
-            set => schedulerBuilder.SetMisfireThreshold(value);
+            set => schedulerBuilder.MisfireThreshold = value;
         }
     }
 }

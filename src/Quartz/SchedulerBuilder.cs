@@ -34,7 +34,7 @@ namespace Quartz
     /// <summary>
     /// Helper to create common scheduler configurations.
     /// </summary>
-    public class SchedulerBuilder : PropertiesHolder, IPropertyConfigurer
+    public class SchedulerBuilder : PropertiesHolder
     {
         protected SchedulerBuilder(NameValueCollection? properties)
             : base(properties ?? new NameValueCollection())
@@ -56,25 +56,26 @@ namespace Quartz
         /// </summary>
         public static SchedulerBuilder Create(string id, string name)
         {
-            return Create().SetSchedulerId(id).SetSchedulerName(name);
+            var builder = Create();
+            builder.SchedulerId = id;
+            builder.SchedulerName = name;
+            return builder;
         }
 
         /// <summary>
         /// Sets the instance id of the scheduler (must be unique within a cluster).
         /// </summary>
-        public SchedulerBuilder SetSchedulerId(string id)
+        public string SchedulerId
         {
-            SetProperty(StdSchedulerFactory.PropertySchedulerInstanceId, id);
-            return this;
+            set => SetProperty(StdSchedulerFactory.PropertySchedulerInstanceId, value);
         }
 
         /// <summary>
         /// Sets the instance id of the scheduler (must be unique within this server instance).
         /// </summary>
-        public SchedulerBuilder SetSchedulerName(string name)
+        public string SchedulerName
         {
-            SetProperty(StdSchedulerFactory.PropertySchedulerInstanceName, name);
-            return this;
+            set => SetProperty(StdSchedulerFactory.PropertySchedulerInstanceName, value);
         }
 
         /// <summary>
@@ -126,32 +127,31 @@ namespace Quartz
         /// <summary>
         /// Uses the default thread pool, which uses the default task scheduler.
         /// </summary>
-        public void UseThreadPool<T>(Action<ThreadPoolOptions>? configurer = null) where T : IThreadPool
+        public void UseThreadPool<T>(Action<ThreadPoolOptions>? configure = null) where T : IThreadPool
         {
             SetProperty("quartz.threadPool.type", typeof(T).AssemblyQualifiedNameWithoutVersion());
-            configurer?.Invoke(new ThreadPoolOptions(this));
+            configure?.Invoke(new ThreadPoolOptions(this));
         } 
         
         /// <summary>
         /// Uses the default thread pool, which uses the default task scheduler.
         /// </summary>
-        public void UseDefaultThreadPool(Action<ThreadPoolOptions>? configurer = null)
+        public void UseDefaultThreadPool(Action<ThreadPoolOptions>? configure = null)
         {
-            UseThreadPool<DefaultThreadPool>(configurer);
+            UseThreadPool<DefaultThreadPool>(configure);
         }
 
         /// <summary>
         /// Uses a dedicated thread pool, which uses own threads instead of task scheduler shared pool.
         /// </summary>
-        public void UseDedicatedThreadPool(Action<ThreadPoolOptions>? configurer = null)
+        public void UseDedicatedThreadPool(Action<ThreadPoolOptions>? configure = null)
         {
-            UseThreadPool<DedicatedThreadPool>(configurer);
+            UseThreadPool<DedicatedThreadPool>(configure);
         }
 
-        public SchedulerBuilder SetMisfireThreshold(TimeSpan threshold)
+        public TimeSpan MisfireThreshold
         {
-            SetProperty("quartz.jobStore.misfireThreshold", ((int) threshold.TotalMilliseconds).ToString());
-            return this;
+            set => SetProperty("quartz.jobStore.misfireThreshold", ((int) value.TotalMilliseconds).ToString());
         }
 
         public class ThreadPoolOptions : PropertiesHolder
@@ -163,10 +163,9 @@ namespace Quartz
             /// <summary>
             /// The maximum number of thread pool tasks which can be executing in parallel
             /// </summary>
-            public ThreadPoolOptions SetThreadCount(int count)
+            public int ThreadCount
             {
-                SetProperty("quartz.threadPool.threadCount", count.ToString());
-                return this;
+                set => SetProperty("quartz.threadPool.threadCount", value.ToString());
             }
         }
 
@@ -190,6 +189,18 @@ namespace Quartz
             public bool UseProperties
             {
                 set => SetProperty("quartz.jobStore.useProperties", value.ToString().ToLowerInvariant());
+            }
+            
+            
+            /// <summary>
+            /// Gets or sets the database retry interval.
+            /// </summary>
+            /// <remarks>
+            /// Defaults to 15 seconds.
+            /// </remarks>
+            public TimeSpan RetryInterval
+            {
+                set => SetProperty("quartz.jobStore.dbRetryInterval", ((int) value.TotalMilliseconds).ToString());
             }
 
             /// <summary>
@@ -266,17 +277,6 @@ namespace Quartz
             public TimeSpan CheckinMisfireThreshold
             {
                 set => SetProperty("quartz.jobStore.clusterCheckinMisfireThreshold", ((int) value.TotalMilliseconds).ToString());
-            }
-
-            /// <summary>
-            /// Gets or sets the database retry interval.
-            /// </summary>
-            /// <remarks>
-            /// Defaults to 15 seconds.
-            /// </remarks>
-            public TimeSpan RetryInterval
-            {
-                set => SetProperty("quartz.jobStore.dbRetryInterval", ((int) value.TotalMilliseconds).ToString());
             }
         }
 

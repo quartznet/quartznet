@@ -58,7 +58,10 @@ namespace Quartz.Examples.AspNetCore
                 // these are the defaults
                 q.UseSimpleTypeLoader();
                 q.UseInMemoryStore();
-                q.UseDefaultThreadPool(tp => tp.SetThreadCount(10));
+                q.UseDefaultThreadPool(tp =>
+                {
+                    tp.ThreadCount = 10;
+                });
                 
                 // configure jobs with code
                 var jobKey = new JobKey("awesome job", "awesome group");
@@ -109,13 +112,19 @@ namespace Quartz.Examples.AspNetCore
                 q.UsePersistentStore(s =>
                 {
                     s.UseProperties = true;
-                    s.UseSQLite(sqlite =>
+                    s.RetryInterval = TimeSpan.FromSeconds(15);
+                    s.UseSqlServer(sqlServer =>
                     {
-                        sqlite.ConnectionString = "some connection string";
+                        sqlServer.ConnectionString = "some connection string";
                         // this is the default
-                        sqlite.TablePrefix = "QRTZ_";
+                        sqlServer.TablePrefix = "QRTZ_";
                     });
                     s.UseJsonSerializer();
+                    s.UseClustering(c =>
+                    {
+                        c.CheckinMisfireThreshold = TimeSpan.FromSeconds(20);
+                        c.CheckinInterval = TimeSpan.FromSeconds(10);
+                    });
                 });
                 */
             });
