@@ -69,20 +69,26 @@ namespace Quartz.Examples.AspNetCore
                 );
 
                 q.AddTrigger(t => t
+                    .WithIdentity("Simple Trigger")    
                     .ForJob(jobKey)
+                    .StartNow()
                     .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).RepeatForever())
                     .WithDescription("my awesome simple trigger")
                 );
 
                 q.AddTrigger(t => t
+                    .WithIdentity("Cron Trigger")    
                     .ForJob(jobKey)
-                    .WithCronSchedule(CronScheduleBuilder.DailyAtHourAndMinute(1, 10))
+                    .StartAt(DateBuilder.EvenSecondDate(DateTimeOffset.UtcNow.AddSeconds(3)))
+                    .WithCronSchedule("0/3 * * * * ?")
                     .WithDescription("my awesome cron trigger")
                 );
 
                 q.AddTrigger(t => t
+                    .WithIdentity("Daily Trigger")    
                     .ForJob(jobKey)
-                    .WithDailyTimeIntervalSchedule(x => x.WithInterval(1, IntervalUnit.Second))
+                    .StartAt(DateBuilder.EvenSecondDate(DateTimeOffset.UtcNow.AddSeconds(5)))
+                    .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second))
                     .WithDescription("my awesome daily time interval trigger")
                 );
                 

@@ -41,7 +41,7 @@
         <job-name>jobName1</job-name>
         <job-group>jobGroup1</job-group>
         <start-time>1982-06-28T18:15:00.0Z</start-time>
-        <end-time>2020-05-04T18:13:51.0Z</end-time>
+        <end-time>2040-05-04T18:13:51.0Z</end-time>
         <misfire-instruction>SmartPolicy</misfire-instruction>
         <repeat-count>100</repeat-count>
         <repeat-interval>3000</repeat-interval>

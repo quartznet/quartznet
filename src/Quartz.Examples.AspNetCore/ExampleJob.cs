@@ -16,7 +16,7 @@ namespace Quartz.Examples.AspNetCore
 
         public async Task Execute(IJobExecutionContext context)
         {
-            logger.LogInformation("Example job executing");
+            logger.LogInformation(context.JobDetail.Key + " job executing, triggered by " + context.Trigger.Key);
             await Task.Delay(TimeSpan.FromSeconds(1));
         }
 
