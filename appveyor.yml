@@ -7,10 +7,17 @@ pull_requests:
   do_not_increment_build_number: true
 
 skip_branch_with_pr: true
+
 branches:
   except:
-  - gh-pages
   - 2.x
+  
+skip_commits:
+  files:
+    - docs/**/*
+    - package.json
+    - docs.yml
+    - readme.md  
 
 services:
 - mysql
@@ -45,6 +52,7 @@ deploy:
     branch: master
 - provider: NuGet
   name: production
+  symbol_server: https://www.nuget.org
   api_key:
     secure: ZNvfUugU3rYb9t+UWbqt/hspUNLQfjWCvxTFQDpxkEEjLuLNk6amLDfGZZuiZxn4
   on:
