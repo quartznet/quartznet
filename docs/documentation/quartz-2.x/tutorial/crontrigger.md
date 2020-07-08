@@ -1,6 +1,5 @@
 ---
 title: 'CronTrigger Tutorial'
-layout: default
 ---
 
 ## Introduction

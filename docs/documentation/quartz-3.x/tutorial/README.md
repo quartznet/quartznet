@@ -4,6 +4,9 @@ prev: false
 next: false
 ---
 
+
+<ApplicableVersion />
+
 * [Lesson 1: Using Quartz](using-quartz.md)
 * [Lesson 2: Jobs And Triggers](jobs-and-triggers.md)
 * [Lesson 3: More About Jobs & JobDetails](more-about-jobs.md)

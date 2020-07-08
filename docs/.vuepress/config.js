@@ -51,10 +51,10 @@ module.exports = {
   ],
   themeConfig: {
     logo: '',
-/*    algolia: {
-      apiKey: 'e458b7be70837c0e85b6b229c4e26664',
-      indexName: 'quartznet'
-    },*/
+    algolia: {
+      apiKey: 'ff33ff2330e37071f7502b015d1e4955',
+      indexName: 'quartz-scheduler'
+    },
     nav: [
       { text: 'Home', link: '/' },
       { text: 'Features', link: '/features' },
@@ -65,10 +65,10 @@ module.exports = {
     sidebarDepth: 1,
     sidebar: [
       {
-        title: 'Documentation (Version 3.x)',
+        title: 'Getting Started',
         collapsable: false,
         children: [
-          ['/documentation/quartz-3.x/quick-start', 'Quick Start'],
+          ['/documentation/quartz-3.x/quick-start', 'Quartz 3 Quick Start'],
           { 
             title: 'Tutorial',
             path: '/documentation/quartz-3.x/tutorial/',

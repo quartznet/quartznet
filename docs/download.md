@@ -3,7 +3,7 @@ title: Download Quartz.NET
 layout: default
 ---
 
-Grab it from NuGet
+Grab it from [NuGet](https://www.nuget.org/packages/Quartz)
 
 ```
 Install-Package Quartz
