@@ -9,11 +9,12 @@ namespace Quartz.Tests.Integration
     {
         protected override Task<IScheduler> CreateScheduler(string name, int threadPoolSize)
         {
-            var config = SchedulerBuilder.Create()
-                .SetSchedulerName(name + "Scheduler")
-                .SetSchedulerId("AUTO");
+            var config = SchedulerBuilder.Create("AUTO", name + "Scheduler");
             
-            config.UseDefaultThreadPool(x => x.SetThreadCount(threadPoolSize));
+            config.UseDefaultThreadPool(x =>
+            {
+                x.ThreadCount = threadPoolSize;
+            });
 
             return config.BuildScheduler();
         }

@@ -11,14 +11,17 @@ namespace Quartz
     {
         private readonly ISchedulerFactory schedulerFactory;
         private readonly SchedulerHealthCheck healthCheck;
+        private readonly QuartzHostedServiceOptions options;
         private IScheduler scheduler = null!;
 
         public QuartzHostedService(
             ISchedulerFactory schedulerFactory,
-            SchedulerHealthCheck healthCheck)
+            SchedulerHealthCheck healthCheck,
+            QuartzHostedServiceOptions options)
         {
             this.schedulerFactory = schedulerFactory;
             this.healthCheck = healthCheck;
+            this.options = options;
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -30,7 +33,7 @@ namespace Quartz
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            return scheduler.Shutdown(cancellationToken);
+            return scheduler.Shutdown(options.WaitForJobsToComplete, cancellationToken);
         }
     }
 }

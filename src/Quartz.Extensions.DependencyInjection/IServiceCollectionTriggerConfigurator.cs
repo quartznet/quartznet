@@ -4,7 +4,7 @@ namespace Quartz
 {
     public interface IServiceCollectionTriggerConfigurator
     {
-                /// <summary>
+        /// <summary>
         /// Use a <see cref="TriggerKey" /> with the given name and default group to
         /// identify the Trigger.
         /// </summary>

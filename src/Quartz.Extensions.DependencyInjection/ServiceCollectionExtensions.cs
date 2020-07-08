@@ -11,6 +11,9 @@ namespace Quartz
 {
     public static class ServiceCollectionExtensions
     {
+        /// <summary>
+        /// Configures Quartz services to underlying service collection. This API maybe change!
+        /// </summary>
         public static IServiceCollection AddQuartz(
             this IServiceCollection services,
             Action<IServiceCollectionQuartzConfigurator>? configure = null)
@@ -22,6 +25,9 @@ namespace Quartz
             return services;
         }        
         
+        /// <summary>
+        /// Configures Quartz services to underlying service collection. This API maybe change!
+        /// </summary>
         public static IServiceCollection AddQuartz(
             this IServiceCollection services,
             NameValueCollection properties,
@@ -49,7 +55,7 @@ namespace Quartz
         }
         
         /// <summary>
-        /// Adds LibLog configuration to use Microsoft's logging abstraction instead of trying to find one.
+        /// Add job to underlying service collection. This API maybe change!
         /// </summary>
         public static IServiceCollectionQuartzConfigurator AddJob<T>(
             this IServiceCollectionQuartzConfigurator configurator,
@@ -68,7 +74,7 @@ namespace Quartz
         }        
 
         /// <summary>
-        /// Adds LibLog configuration to use Microsoft's logging abstraction instead of trying to find one.
+        /// Add trigger to underlying service collection. This API maybe change!
         /// </summary>
         public static IServiceCollectionQuartzConfigurator AddTrigger(
             this IServiceCollectionQuartzConfigurator configurator, 

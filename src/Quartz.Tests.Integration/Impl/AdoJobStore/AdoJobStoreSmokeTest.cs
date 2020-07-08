@@ -196,23 +196,32 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             bool clustered = true)
         {
             var config = SchedulerBuilder.Create("instance_one", "TestScheduler");
-            config.UseDefaultThreadPool(x => x.SetThreadCount(10));
-            config.SetMisfireThreshold(TimeSpan.FromSeconds(60));
+            config.UseDefaultThreadPool(x =>
+            {
+                x.ThreadCount = 10;
+            });
+            config.MisfireThreshold = TimeSpan.FromSeconds(60);
 
             config.UsePersistentStore(store =>
             {
-                var x = store
-                    .UseProperties(false)
-                    .Clustered(clustered, options => options.SetCheckinInterval(TimeSpan.FromMilliseconds(1000)))
-                    .UseGenericDatabase(dbProvider, db => db.SetConnectionString(dbConnectionStrings[connectionStringId]));
+                store.UseProperties = false;
+                    
+                store.UseClustering(c =>
+                {
+                    c.CheckinInterval = TimeSpan.FromMilliseconds(1000);
+                });
+                    
+                store.UseGenericDatabase(dbProvider, db => 
+                    db.ConnectionString = dbConnectionStrings[connectionStringId]
+                );
 
                 if (serializerType == "json")
                 {
-                    x.UseJsonSerializer();
+                    store.UseJsonSerializer();
                 }
                 else
                 {
-                    x.UseBinarySerializer();
+                    store.UseBinarySerializer();
                 }
             });
 
