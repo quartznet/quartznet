@@ -2,7 +2,7 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
-## Release 3.1.0, xx xx 2020
+## Release 3.1.0 beta 1, Jul 8 2020
 
 This release concentrates on performance and bringing support to de facto Microsoft libraries like dependency injection and ASP.NET Core hosting.
 A big change is that now SQL queries use parametrized scheduler name, which allows database server to reuse query plans and use indexes more optimally.
