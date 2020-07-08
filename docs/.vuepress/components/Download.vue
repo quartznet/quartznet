@@ -1,7 +1,7 @@
 <template>
-<div>
-Grab it from [downloads page](/download.md).
-</div>
+    <div>
+        Grab it from <router-link to="/download">downloads page</router-link>.
+    </div>
 </template>
 
 
