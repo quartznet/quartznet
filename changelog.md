@@ -2,6 +2,15 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+
+## Release 3.1.0 beta 2, Jul xx 2020
+
+
+* NEW FEATURES
+
+	* DI configuration now supports adding schdeuler, job and trigger listeners (#877)
+	* DI configuration now processes appsettings.json section "Quartz" looking for key value pairs
+
 ## Release 3.1.0 beta 1, Jul 8 2020
 
 This release concentrates on performance and bringing support to de facto Microsoft libraries like dependency injection and ASP.NET Core hosting.

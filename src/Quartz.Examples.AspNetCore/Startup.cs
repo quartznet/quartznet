@@ -39,7 +39,9 @@ namespace Quartz.Examples.AspNetCore
             {
                 // handy when part of cluster or you want to otherwise identify multiple schedulers
                 q.SchedulerId = "Scheduler-Core";
-                q.SchedulerName = "Quartz ASP.NET Core Sample Scheduler";
+                
+                // we take this from appsettings.json, just show it's possible
+                // q.SchedulerName = "Quartz ASP.NET Core Sample Scheduler";
                 
                 // hooks LibLog to Microsoft logging without allowing it to detect concrete implementation
                 // if you are using NLog, SeriLog or log4net you shouldn't need this

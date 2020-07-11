@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Specialized;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,15 +17,13 @@ namespace Quartz
     internal class ServiceCollectionSchedulerFactory : StdSchedulerFactory
     {
         private readonly IServiceProvider serviceProvider;
-        private readonly ServiceCollectionQuartzConfigurator configurator;
         private bool initialized;
 
         public ServiceCollectionSchedulerFactory(
             IServiceProvider serviceProvider, 
-            ServiceCollectionQuartzConfigurator configurator) : base(configurator.schedulerBuilder.Properties)
+            NameValueCollection properties) : base(properties)
         {
             this.serviceProvider = serviceProvider;
-            this.configurator = configurator;
 
             // check if logging provider configured and let if configure
             serviceProvider.GetService<LoggingProvider>();
