@@ -7,6 +7,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+using Quartz.Impl.Matchers;
+
 namespace Quartz.Examples.AspNetCore
 {
     public class Startup
@@ -107,6 +109,11 @@ namespace Quartz.Examples.AspNetCore
                 // convert time zones using converter that can handle Windows/Linux differences
                 q.UseTimeZoneConverter();
                 
+                // add some listeners
+                q.AddSchedulerListener<SampleSchedulerListener>();
+                q.AddJobListener<SampleJobListener>(GroupMatcher<JobKey>.GroupEquals(jobKey.Group));
+                q.AddTriggerListener<SampleTriggerListener>();
+
                 // example of persistent job store using JSON serializer as an example
                 /*
                 q.UsePersistentStore(s =>
