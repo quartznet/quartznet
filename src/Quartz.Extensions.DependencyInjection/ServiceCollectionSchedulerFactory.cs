@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Specialized;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -15,15 +17,13 @@ namespace Quartz
     internal class ServiceCollectionSchedulerFactory : StdSchedulerFactory
     {
         private readonly IServiceProvider serviceProvider;
-        private readonly ServiceCollectionQuartzConfigurator configurator;
         private bool initialized;
 
         public ServiceCollectionSchedulerFactory(
             IServiceProvider serviceProvider, 
-            ServiceCollectionQuartzConfigurator configurator) : base(configurator.schedulerBuilder.Properties)
+            NameValueCollection properties) : base(properties)
         {
             this.serviceProvider = serviceProvider;
-            this.configurator = configurator;
 
             // check if logging provider configured and let if configure
             serviceProvider.GetService<LoggingProvider>();
@@ -35,6 +35,25 @@ namespace Quartz
             if (initialized)
             {
                 return scheduler;
+            }
+
+            foreach (var listener in serviceProvider.GetServices<ISchedulerListener>())
+            {
+                scheduler.ListenerManager.AddSchedulerListener(listener);
+            }
+
+            var jobListeners = serviceProvider.GetServices<IJobListener>();
+            foreach (var configuration in serviceProvider.GetServices<JobListenerConfiguration>())
+            {
+                var listener = jobListeners.First(x => x.GetType() == configuration.ListenerType);
+                scheduler.ListenerManager.AddJobListener(listener, configuration.Matchers);
+            }
+
+            var triggerListeners = serviceProvider.GetServices<ITriggerListener>();
+            foreach (var configuration in serviceProvider.GetServices<TriggerListenerConfiguration>())
+            {
+                var listener = triggerListeners.First(x => x.GetType() == configuration.ListenerType);
+                scheduler.ListenerManager.AddTriggerListener(listener, configuration.Matchers);
             }
 
             ContainerConfigurationProcessor configurationProcessor = new ContainerConfigurationProcessor(serviceProvider);

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Specialized;
 
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -21,7 +22,26 @@ namespace Quartz
             var builder = new ServiceCollectionQuartzConfigurator(services, SchedulerBuilder.Create());
             configure?.Invoke(builder);
             
-            services.AddSingleton<ISchedulerFactory>(serviceProvider => new ServiceCollectionSchedulerFactory(serviceProvider, builder));
+            services.AddSingleton<ISchedulerFactory>(serviceProvider =>
+            {
+                // try standard appsettings.json
+                var config = serviceProvider.GetService<IConfiguration>();
+                var section = config.GetSection("Quartz");
+                var options = new NameValueCollection();
+
+                foreach (var kvp in section.GetChildren())
+                {
+                    options.Set(kvp.Key, kvp.Value);
+                }
+                
+                // now override with programmatic configuration
+                foreach (string? key in builder.Properties.Keys)
+                {
+                    options.Set(key, builder.Properties[key]);
+                }
+                
+                return new ServiceCollectionSchedulerFactory(serviceProvider, options);
+            });
             return services;
         }        
         
@@ -36,7 +56,7 @@ namespace Quartz
             var builder = new ServiceCollectionQuartzConfigurator(services, SchedulerBuilder.Create(properties));
             configure?.Invoke(builder);
             
-            services.AddSingleton<ISchedulerFactory>(serviceProvider => new ServiceCollectionSchedulerFactory(serviceProvider, builder));
+            services.AddSingleton<ISchedulerFactory>(serviceProvider => new ServiceCollectionSchedulerFactory(serviceProvider, properties));
             return services;
         }        
         

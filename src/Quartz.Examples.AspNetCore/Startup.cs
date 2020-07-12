@@ -7,6 +7,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+using Quartz.Impl.Matchers;
+
 namespace Quartz.Examples.AspNetCore
 {
     public class Startup
@@ -37,7 +39,9 @@ namespace Quartz.Examples.AspNetCore
             {
                 // handy when part of cluster or you want to otherwise identify multiple schedulers
                 q.SchedulerId = "Scheduler-Core";
-                q.SchedulerName = "Quartz ASP.NET Core Sample Scheduler";
+                
+                // we take this from appsettings.json, just show it's possible
+                // q.SchedulerName = "Quartz ASP.NET Core Sample Scheduler";
                 
                 // hooks LibLog to Microsoft logging without allowing it to detect concrete implementation
                 // if you are using NLog, SeriLog or log4net you shouldn't need this
@@ -107,6 +111,11 @@ namespace Quartz.Examples.AspNetCore
                 // convert time zones using converter that can handle Windows/Linux differences
                 q.UseTimeZoneConverter();
                 
+                // add some listeners
+                q.AddSchedulerListener<SampleSchedulerListener>();
+                q.AddJobListener<SampleJobListener>(GroupMatcher<JobKey>.GroupEquals(jobKey.Group));
+                q.AddTriggerListener<SampleTriggerListener>();
+
                 // example of persistent job store using JSON serializer as an example
                 /*
                 q.UsePersistentStore(s =>

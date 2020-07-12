@@ -22,5 +22,9 @@ namespace Quartz
         void UseDefaultThreadPool(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null);
         void UseDedicatedThreadPool(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null);
         TimeSpan MisfireThreshold { set; }
+
+        void AddSchedulerListener<T>() where T : class, ISchedulerListener;
+        void AddJobListener<T>(params IMatcher<JobKey>[] matchers) where T : class, IJobListener;
+        void AddTriggerListener<T>(params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener;
     }
 }

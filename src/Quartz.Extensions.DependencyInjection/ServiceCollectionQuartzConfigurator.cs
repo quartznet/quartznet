@@ -98,5 +98,46 @@ namespace Quartz
         {
             set => schedulerBuilder.MisfireThreshold = value;
         }
+
+        public void AddSchedulerListener<T>() where T : class, ISchedulerListener
+        {
+            services.AddSingleton<ISchedulerListener, T>();
+        }
+
+        public void AddJobListener<T>(params IMatcher<JobKey>[] matchers) where T : class, IJobListener
+        {
+            services.AddSingleton(new JobListenerConfiguration(typeof(T), matchers));
+            services.AddSingleton<IJobListener, T>();
+        }
+
+        public void AddTriggerListener<T>(params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener
+        {
+            services.AddSingleton(new TriggerListenerConfiguration(typeof(T), matchers));
+            services.AddSingleton<ITriggerListener, T>();
+        }
+    }
+
+    internal class JobListenerConfiguration
+    {
+        public JobListenerConfiguration(Type listenerType, IMatcher<JobKey>[] matchers)
+        {
+            ListenerType = listenerType;
+            Matchers = matchers;
+        }
+
+        public Type ListenerType { get; }
+        public IMatcher<JobKey>[] Matchers  {  get;  }
+    }
+
+    internal class TriggerListenerConfiguration
+    {
+        public TriggerListenerConfiguration(Type listenerType, IMatcher<TriggerKey>[] matchers)
+        {
+            ListenerType = listenerType;
+            Matchers = matchers;
+        }
+
+        public Type ListenerType { get; }
+        public IMatcher<TriggerKey>[] Matchers  {  get;  }
     }
 }
