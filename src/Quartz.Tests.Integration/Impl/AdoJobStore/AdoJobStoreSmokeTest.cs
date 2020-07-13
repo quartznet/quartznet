@@ -205,11 +205,14 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             config.UsePersistentStore(store =>
             {
                 store.UseProperties = false;
-                    
-                store.UseClustering(c =>
+
+                if (clustered)
                 {
-                    c.CheckinInterval = TimeSpan.FromMilliseconds(1000);
-                });
+                    store.UseClustering(c =>
+                    {
+                        c.CheckinInterval = TimeSpan.FromMilliseconds(1000);
+                    });
+                }
                     
                 store.UseGenericDatabase(dbProvider, db => 
                     db.ConnectionString = dbConnectionStrings[connectionStringId]

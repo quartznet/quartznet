@@ -10,6 +10,7 @@
 
 	* DI configuration now supports adding schdeuler, job and trigger listeners (#877)
 	* DI configuration now processes appsettings.json section "Quartz" looking for key value pairs
+	* Use Microsoft.Data.SqlClient as SQL Server connection library
 
 ## Release 3.1.0 beta 1, Jul 8 2020
 
