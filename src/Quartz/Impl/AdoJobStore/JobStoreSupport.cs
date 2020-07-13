@@ -3711,19 +3711,20 @@ namespace Quartz.Impl.AdoJobStore
             {
                 await txCallback(holder).ConfigureAwait(false);
                 return null!;
-            }, cancellationToken).ConfigureAwait(false);
+            }, requestorId: null, cancellationToken).ConfigureAwait(false);
         }
 
         protected virtual async Task<T> RetryExecuteInNonManagedTXLock<T>(
             string? lockName,
             Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
+            Guid? requestorId,
             CancellationToken cancellationToken = default)
         {
             for (int retry = 1; !shutdown; retry++)
             {
                 try
                 {
-                    return await ExecuteInNonManagedTXLock(lockName, txCallback, null, cancellationToken).ConfigureAwait(false);
+                    return await ExecuteInNonManagedTXLock(lockName, txCallback, txValidator: null, requestorId, cancellationToken).ConfigureAwait(false);
                 }
                 catch (JobPersistenceException jpe)
                 {
@@ -3776,16 +3777,23 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="txCallback">
         /// The callback to execute after having acquired the given lock.
         /// </param>
-        /// <param name="txValidator"></param>>
+        /// <param name="txValidator"></param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
+        protected Task<T> ExecuteInNonManagedTXLock<T>(
+            string? lockName,
+            Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
+            Func<ConnectionAndTransactionHolder, T, Task<bool>>? txValidator,
+            CancellationToken cancellationToken) => ExecuteInNonManagedTXLock(lockName, txCallback, txValidator, requestorId: null, cancellationToken);
+
         protected async Task<T> ExecuteInNonManagedTXLock<T>(
             string? lockName,
             Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
             Func<ConnectionAndTransactionHolder, T, Task<bool>>? txValidator,
+            Guid? requestorId,
             CancellationToken cancellationToken)
         {
             bool transOwner = false;
-            Guid requestorId = Guid.NewGuid();
+            var lockRequestorId = requestorId ?? Guid.NewGuid();
             ConnectionAndTransactionHolder? conn = null;
             try
             {
@@ -3798,7 +3806,7 @@ namespace Quartz.Impl.AdoJobStore
                         conn = GetNonManagedTXConnection();
                     }
 
-                    transOwner = await LockHandler.ObtainLock(requestorId, conn, lockName, cancellationToken).ConfigureAwait(false);
+                    transOwner = await LockHandler.ObtainLock(lockRequestorId, conn, lockName, cancellationToken).ConfigureAwait(false);
                 }
 
                 if (conn == null)
@@ -3821,6 +3829,7 @@ namespace Quartz.Impl.AdoJobStore
                     if (!await RetryExecuteInNonManagedTXLock(
                         lockName,
                         async connection => await txValidator(connection, result).ConfigureAwait(false),
+                        lockRequestorId,
                         cancellationToken).ConfigureAwait(false))
                     {
                         throw;
@@ -3849,7 +3858,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    await ReleaseLock(requestorId, lockName!, transOwner, cancellationToken).ConfigureAwait(false);
+                    await ReleaseLock(lockRequestorId, lockName!, transOwner, cancellationToken).ConfigureAwait(false);
                 }
                 finally
                 {
