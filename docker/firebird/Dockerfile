@@ -1,4 +1,4 @@
-FROM jacobalberty/firebird:3.0.3
+FROM jacobalberty/firebird:3.0.6
 
 ENV ISC_PASSWORD masterkey
 ENV EnableWireCrypt true
