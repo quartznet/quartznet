@@ -5,6 +5,7 @@
 
 ## Release 3.1.0 beta 2, Jul xx 2020
 
+On the road for 3.1 release, also note beta 1 remarks.
 
 * NEW FEATURES
 
@@ -15,6 +16,7 @@
 * FIXES
 
     * Fix potential scheduler deadlock caused by changed lock request id inside ExecuteInNonManagedTXLock (#794)
+	* Ensure NuGet.exe is part of produced zip to ensure build works (#881)
 
 ## Release 3.1.0 beta 1, Jul 8 2020
 
