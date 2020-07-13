@@ -81,6 +81,7 @@ Target "Zip" (fun _ ->
         ++ "build.*"
         ++ "quartz.net.snk"
         ++ "build/Release/Quartz*/**/*"
+        ++ "tools/NuGet/NuGet.exe"
         -- "src/Quartz.Benchmark/**"
         -- "src/Quartz.Web/**"
         -- "src/AssemblyInfo.cs"
