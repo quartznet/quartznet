@@ -24,8 +24,6 @@ using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
 
-using Microsoft.Data.SqlClient;
-
 using Quartz.Logging;
 using Quartz.Spi;
 
@@ -86,9 +84,9 @@ namespace Quartz.Impl.AdoJobStore
             {
                 ConnectionManager.Shutdown(DataSource);
             }
-            catch (SqlException sqle)
+            catch (Exception ex)
             {
-                Log.WarnException("Database connection shutdown unsuccessful.", sqle);
+                Log.WarnException("Database connection shutdown unsuccessful.", ex);
             }
         }
 
@@ -106,11 +104,6 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     conn.Open();
                 }
-            }
-            catch (SqlException sqle)
-            {
-                throw new JobPersistenceException(
-                    $"Failed to obtain DB connection from data source '{DataSource}': {sqle}", sqle);
             }
             catch (Exception e)
             {
