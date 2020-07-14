@@ -1,6 +1,8 @@
 using System;
 using System.Linq;
 
+using FluentAssertions;
+
 using NUnit.Framework;
 
 using Quartz.Impl.Triggers;
@@ -722,6 +724,23 @@ namespace Quartz.Tests.Unit
 
             var firstFireTime = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 1).First();
             Assert.That(firstFireTime, Is.EqualTo(new DateTimeOffset(2017, 1, 4, 13, 0, 0, TimeSpan.FromHours(-2))));
+        }
+        
+        [Test]
+        public void TriggerBuilderShouldHandleIgnoreMisfirePolicy()
+        {
+            var trigger1 = TriggerBuilder.Create()
+                .WithCalendarIntervalSchedule(x => x
+                    .WithMisfireHandlingInstructionIgnoreMisfires()
+                )
+                .Build();
+
+            var trigger2 = trigger1
+                .GetTriggerBuilder()
+                .Build();
+            
+            trigger1.MisfireInstruction.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
+            trigger2.MisfireInstruction.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
         }
 
         protected override CalendarIntervalTriggerImpl GetTargetObject()

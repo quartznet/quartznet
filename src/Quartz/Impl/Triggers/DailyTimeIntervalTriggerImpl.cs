@@ -971,6 +971,9 @@ namespace Quartz.Impl.Triggers
                 case Quartz.MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow:
                     cb.WithMisfireHandlingInstructionFireAndProceed();
                     break;
+                case Quartz.MisfireInstruction.IgnoreMisfirePolicy: 
+                    cb.WithMisfireHandlingInstructionIgnoreMisfires();
+                    break;
             }
 
             return cb;

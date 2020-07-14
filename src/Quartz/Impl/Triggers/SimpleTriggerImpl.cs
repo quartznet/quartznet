@@ -231,22 +231,30 @@ namespace Quartz.Impl.Triggers
 
 	    public override IScheduleBuilder GetScheduleBuilder()
 	    {
-            SimpleScheduleBuilder sb = SimpleScheduleBuilder.Create()
-            .WithInterval(RepeatInterval)
-            .WithRepeatCount(RepeatCount);
+		    SimpleScheduleBuilder sb = SimpleScheduleBuilder.Create()
+			    .WithInterval(RepeatInterval)
+			    .WithRepeatCount(RepeatCount);
 
             switch (MisfireInstruction)
             {
-                case Quartz.MisfireInstruction.SimpleTrigger.FireNow: sb.WithMisfireHandlingInstructionFireNow();
+                case Quartz.MisfireInstruction.SimpleTrigger.FireNow:
+	                sb.WithMisfireHandlingInstructionFireNow();
                     break;
-                case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount: sb.WithMisfireHandlingInstructionNextWithExistingCount();
+                case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount:
+	                sb.WithMisfireHandlingInstructionNextWithExistingCount();
                     break;
-                case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount : sb.WithMisfireHandlingInstructionNextWithRemainingCount();
+                case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount:
+	                sb.WithMisfireHandlingInstructionNextWithRemainingCount();
                     break;
-                case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount : sb.WithMisfireHandlingInstructionNowWithExistingCount();
+                case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount:
+	                sb.WithMisfireHandlingInstructionNowWithExistingCount();
                     break;
-                case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount: sb.WithMisfireHandlingInstructionNowWithRemainingCount();
+                case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount: 
+	                sb.WithMisfireHandlingInstructionNowWithRemainingCount();
                     break;
+                case Quartz.MisfireInstruction.IgnoreMisfirePolicy: 
+	                sb.WithMisfireHandlingInstructionIgnoreMisfires();
+	                break;
             }
 
             return sb;

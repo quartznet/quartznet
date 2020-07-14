@@ -25,6 +25,8 @@ using System.Collections.Specialized;
 using System.Linq;
 using System.Threading.Tasks;
 
+using FluentAssertions;
+
 using NUnit.Framework;
 
 using Quartz.Impl;
@@ -40,7 +42,6 @@ namespace Quartz.Tests.Unit
     /// </summary>
     /// <author>Zemian Deng saltnlight5@gmail.com</author>
     /// <author>Nuno Maia (.NET)</author>
-    [TestFixture]
     public class DailyTimeIntervalScheduleBuilderTest
     {
         [Test]
@@ -360,6 +361,23 @@ namespace Quartz.Tests.Unit
             var times = TriggerUtils.ComputeFireTimesBetween(trigger, null, startDate, new DateTime(2015, 1, 2));
             Assert.That(times.Count, Is.EqualTo(2), "wrong occurrancy count");
             Assert.That(times[1].ToLocalTime().DateTime, Is.EqualTo(new DateTime(2015, 1, 1, 10, 0, 0)), "wrong occurrancy count");
+        }
+        
+        [Test]
+        public void TriggerBuilderShouldHandleIgnoreMisfirePolicy()
+        {
+            var trigger1 = TriggerBuilder.Create()
+                .WithDailyTimeIntervalSchedule(x => x
+                    .WithMisfireHandlingInstructionIgnoreMisfires()
+                )
+                .Build();
+
+            var trigger2 = trigger1
+                .GetTriggerBuilder()
+                .Build();
+            
+            trigger1.MisfireInstruction.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
+            trigger2.MisfireInstruction.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
         }
     }
 }
