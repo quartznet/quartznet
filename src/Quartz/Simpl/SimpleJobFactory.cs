@@ -70,7 +70,7 @@ namespace Quartz.Simpl
 			}
 			catch (Exception e)
 			{
-				SchedulerException se = new SchedulerException($"Problem instantiating class '{jobDetail.JobType.FullName}'", e);
+				SchedulerException se = new SchedulerException($"Problem instantiating class '{jobDetail.JobType.FullName}: {e.Message}'", e);
 				throw se;
 			}
 		}
