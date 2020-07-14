@@ -9,14 +9,15 @@ On the road for 3.1 release, also note beta 1 remarks.
 
 * NEW FEATURES
 
-	* DI configuration now supports adding schdeuler, job and trigger listeners (#877)
-	* DI configuration now processes appsettings.json section "Quartz" looking for key value pairs (#877)
-	* Use Microsoft.Data.SqlClient as SQL Server connection library (#839)
+    * DI configuration now supports adding schdeuler, job and trigger listeners (#877)
+    * DI configuration now processes appsettings.json section "Quartz" looking for key value pairs (#877)
+    * Use Microsoft.Data.SqlClient as SQL Server connection library (#839)
 	
 * FIXES
 
     * Fix potential scheduler deadlock caused by changed lock request id inside ExecuteInNonManagedTXLock (#794)
-	* Ensure NuGet.exe is part of produced zip to ensure build works (#881)
+    * Ensure NuGet.exe is part of produced zip to ensure build works (#881)
+    * JobDataMap with enum values persisted as JSON can now be set back to job members via PropertySettingJobFactory (#770)  
 
 ## Release 3.1.0 beta 1, Jul 8 2020
 

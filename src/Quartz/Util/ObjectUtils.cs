@@ -71,13 +71,24 @@ namespace Quartz.Util
                 if (newValue.GetType().GetTypeInfo().IsEnum)
                 {
                     // If we couldn't convert the type, but it's an enum type, try convert it as an int
-                    return ConvertValueIfNecessary(requiredType,
-                        Convert.ChangeType(newValue, Convert.GetTypeCode(newValue), null));
+                    return ConvertValueIfNecessary(requiredType, Convert.ChangeType(newValue, Convert.GetTypeCode(newValue), null));
                 }
 
-                throw new NotSupportedException(newValue + " is no a supported value for a target of type " +
-                                                requiredType);
+                if (requiredType.IsEnum)
+                {
+                    // if JSON serializer creates numbers from enums, be prepared for that
+                    try
+                    {
+                        return Enum.ToObject(requiredType, newValue);
+                    }
+                    catch
+                    {
+                    }
+                }
+
+                throw new NotSupportedException($"{newValue} is no a supported value for a target of type {requiredType}");
             }
+
             if (requiredType.GetTypeInfo().IsValueType)
             {
                 return Activator.CreateInstance(requiredType);
@@ -91,7 +102,6 @@ namespace Quartz.Util
         /// <summary>
         /// Instantiates an instance of the type specified.
         /// </summary>
-        /// <returns></returns>
         public static T InstantiateType<T>(Type? type)
         {
             if (type == null)
