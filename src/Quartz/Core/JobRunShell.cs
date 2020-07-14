@@ -102,8 +102,8 @@ namespace Quartz.Core
             }
             catch (Exception e)
             {
-                SchedulerException se = new SchedulerException($"Problem instantiating type '{jobDetail.JobType.FullName}'", e);
-                await sched.NotifySchedulerListenersError($"An error occurred instantiating job to be executed. job= '{jobDetail.Key}'", se, cancellationToken).ConfigureAwait(false);
+                SchedulerException se = new SchedulerException($"Problem instantiating type '{jobDetail.JobType.FullName}: {e.Message}'", e);
+                await sched.NotifySchedulerListenersError($"An error occurred instantiating job to be executed. job= '{jobDetail.Key}, message={e.Message}'", se, cancellationToken).ConfigureAwait(false);
                 throw se;
             }
 
