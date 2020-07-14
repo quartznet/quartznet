@@ -19,6 +19,7 @@ On the road for 3.1 release, also note beta 1 remarks.
     * Ensure NuGet.exe is part of produced zip to ensure build works (#881)
     * JobDataMap with enum values persisted as JSON can now be set back to job members via PropertySettingJobFactory (#770)
     * Ensure GetScheduleBuilder for triggers respects IgnoreMisfirePolicy (#750)  
+    * Remove cron expression validation from XML schema and rely on CronExpression itself (#729)  
 
 ## Release 3.1.0 beta 1, Jul 8 2020
 

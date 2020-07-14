@@ -11,7 +11,6 @@ using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Plugin.Xml
 {
-    [TestFixture]
     public class XMLSchedulingDataProcessorPluginTest
     {
         [Test]

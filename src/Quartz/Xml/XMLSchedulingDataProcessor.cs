@@ -189,14 +189,12 @@ namespace Quartz.Xml
         /// <param name="cancellationToken">The cancellation instruction.</param>
         public virtual async Task ProcessStream(
             Stream stream,
-            string systemId,
+            string? systemId,
             CancellationToken cancellationToken = default)
         {
             Log.InfoFormat("Parsing XML from stream with systemId: {0}", systemId);
-            using (StreamReader sr = new StreamReader(stream))
-            {
-                ProcessInternal(await sr.ReadToEndAsync().ConfigureAwait(false));
-            }
+            using StreamReader sr = new StreamReader(stream);
+            ProcessInternal(await sr.ReadToEndAsync().ConfigureAwait(false));
         }
 
         protected virtual void PrepForProcessing()
