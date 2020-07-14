@@ -46,7 +46,6 @@ namespace Quartz.Tests.Integration.Xml
     /// Tests for <see cref="XMLSchedulingDataProcessor" />.
     /// </summary>
     /// <author>Marko Lahma (.NET)</author>
-    [TestFixture]
     public class XMLSchedulingDataProcessorTest
     {
         private XMLSchedulingDataProcessor processor;
@@ -126,6 +125,14 @@ namespace Quartz.Tests.Integration.Xml
             }).MustHaveHappened();
         }
 
+        [Test]
+        public async Task TestComplexCronValidation()
+        {
+            var s = ReadJobXmlFromEmbeddedResource("ComplexCron.xml");
+            await processor.ProcessStream(s, null);
+            await processor.ScheduleJobs(mockScheduler);
+        }
+        
         /// <summary>
         /// The default XMLSchedulingDataProcessor will setOverWriteExistingData(true), and we want to
         /// test programmatically overriding this value.
