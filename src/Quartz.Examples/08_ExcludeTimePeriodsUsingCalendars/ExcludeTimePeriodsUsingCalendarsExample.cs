@@ -24,7 +24,6 @@ using System.Threading.Tasks;
 
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
-using Quartz.Logging;
 
 namespace Quartz.Examples.Example08
 {
@@ -38,17 +37,15 @@ namespace Quartz.Examples.Example08
     {
         public virtual async Task Run()
         {
-            ILog log = LogProvider.GetLogger(typeof(ExcludeTimePeriodsUsingCalendarsExample));
-
-            log.Info("------- Initializing ----------------------");
+            Console.WriteLine("------- Initializing ----------------------");
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory();
             IScheduler sched = await sf.GetScheduler();
 
-            log.Info("------- Initialization Complete -----------");
+            Console.WriteLine("------- Initialization Complete -----------");
 
-            log.Info("------- Scheduling Jobs -------------------");
+            Console.WriteLine("------- Scheduling Jobs -------------------");
 
             // Add the holiday calendar to the schedule
             AnnualCalendar holidays = new AnnualCalendar();
@@ -90,28 +87,28 @@ namespace Quartz.Examples.Example08
             // print out the first execution date.
             // Note:  Since Halloween (Oct 31) is a holiday, then
             // we will not run until the next day! (Nov 1)
-            log.Info($"{job.Key} will run at: {firstRunTime:r} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
+            Console.WriteLine($"{job.Key} will run at: {firstRunTime:r} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
 
             // All of the jobs have been added to the scheduler, but none of the jobs
             // will run until the scheduler has been started
-            log.Info("------- Starting Scheduler ----------------");
+            Console.WriteLine("------- Starting Scheduler ----------------");
             await sched.Start();
 
             // wait 30 seconds:
             // note:  nothing will run
-            log.Info("------- Waiting 30 seconds... --------------");
+            Console.WriteLine("------- Waiting 30 seconds... --------------");
 
             // wait 30 seconds to show jobs
             await Task.Delay(TimeSpan.FromSeconds(30));
             // executing...
 
             // shut down the scheduler
-            log.Info("------- Shutting Down ---------------------");
+            Console.WriteLine("------- Shutting Down ---------------------");
             await sched.Shutdown(true);
-            log.Info("------- Shutdown Complete -----------------");
+            Console.WriteLine("------- Shutdown Complete -----------------");
 
             SchedulerMetaData metaData = await sched.GetMetaData();
-            log.Info($"Executed {metaData.NumberOfJobsExecuted} jobs.");
+            Console.WriteLine($"Executed {metaData.NumberOfJobsExecuted} jobs.");
         }
     }
 }

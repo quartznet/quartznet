@@ -23,7 +23,6 @@ using System;
 using System.Threading.Tasks;
 
 using Quartz.Impl;
-using Quartz.Logging;
 
 namespace Quartz.Examples.Example01
 {
@@ -37,21 +36,19 @@ namespace Quartz.Examples.Example01
     {
         public virtual async Task Run()
         {
-            ILog log = LogProvider.GetLogger(typeof (SimpleJobSchedulerExample));
-
-            log.Info("------- Initializing ----------------------");
+            Console.WriteLine("------- Initializing ----------------------");
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory();
             IScheduler sched = await sf.GetScheduler();
 
-            log.Info("------- Initialization Complete -----------");
+            Console.WriteLine("------- Initialization Complete -----------");
 
 
             // computer a time that is on the next round minute
             DateTimeOffset runTime = DateBuilder.EvenMinuteDate(DateTimeOffset.UtcNow);
 
-            log.Info("------- Scheduling Job  -------------------");
+            Console.WriteLine("------- Scheduling Job  -------------------");
 
             // define the job and tie it to our HelloJob class
             IJobDetail job = JobBuilder.Create<HelloJob>()
@@ -66,24 +63,24 @@ namespace Quartz.Examples.Example01
 
             // Tell quartz to schedule the job using our trigger
             await sched.ScheduleJob(job, trigger);
-            log.Info($"{job.Key} will run at: {runTime:r}");
+            Console.WriteLine($"{job.Key} will run at: {runTime:r}");
 
             // Start up the scheduler (nothing can actually run until the
             // scheduler has been started)
             await sched.Start();
-            log.Info("------- Started Scheduler -----------------");
+            Console.WriteLine("------- Started Scheduler -----------------");
 
             // wait long enough so that the scheduler as an opportunity to
             // run the job!
-            log.Info("------- Waiting 65 seconds... -------------");
+            Console.WriteLine("------- Waiting 65 seconds... -------------");
 
             // wait 65 seconds to show jobs
             await Task.Delay(TimeSpan.FromSeconds(65));
 
             // shut down the scheduler
-            log.Info("------- Shutting Down ---------------------");
+            Console.WriteLine("------- Shutting Down ---------------------");
             await sched.Shutdown(true);
-            log.Info("------- Shutdown Complete -----------------");
+            Console.WriteLine("------- Shutdown Complete -----------------");
         }
     }
 }

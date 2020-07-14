@@ -23,7 +23,6 @@ using System;
 using System.Threading.Tasks;
 
 using Quartz.Impl;
-using Quartz.Logging;
 
 namespace Quartz.Examples.Example05
 {
@@ -56,17 +55,15 @@ namespace Quartz.Examples.Example05
     {
         public virtual async Task Run()
         {
-            ILog log = LogProvider.GetLogger(typeof (SchedulingJobsSettingMisfireInstructionsExample));
-
-            log.Info("------- Initializing -------------------");
+            Console.WriteLine("------- Initializing -------------------");
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory();
             IScheduler sched = await sf.GetScheduler();
 
-            log.Info("------- Initialization Complete -----------");
+            Console.WriteLine("------- Initialization Complete -----------");
 
-            log.Info("------- Scheduling Jobs -----------");
+            Console.WriteLine("------- Scheduling Jobs -----------");
 
             // jobs can be scheduled before start() has been called
 
@@ -88,7 +85,7 @@ namespace Quartz.Examples.Example05
                 .Build();
 
             DateTimeOffset ft = await sched.ScheduleJob(job, trigger);
-            log.Info($"{job.Key} will run at: {ft:r} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
+            Console.WriteLine($"{job.Key} will run at: {ft:r} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
 
             // statefulJob2 will run every three seconds
             // (but it will delay for ten seconds - and therefore purposely misfire after a few iterations)
@@ -107,26 +104,26 @@ namespace Quartz.Examples.Example05
                 .Build();
             ft = await sched.ScheduleJob(job, trigger);
 
-            log.Info($"{job.Key} will run at: {ft:r} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
+            Console.WriteLine($"{job.Key} will run at: {ft:r} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
 
-            log.Info("------- Starting Scheduler ----------------");
+            Console.WriteLine("------- Starting Scheduler ----------------");
 
             // jobs don't start firing until start() has been called...
             await sched.Start();
 
-            log.Info("------- Started Scheduler -----------------");
+            Console.WriteLine("------- Started Scheduler -----------------");
 
             // sleep for ten minutes for triggers to file....
             await Task.Delay(TimeSpan.FromMinutes(10));
 
-            log.Info("------- Shutting Down ---------------------");
+            Console.WriteLine("------- Shutting Down ---------------------");
 
             await sched.Shutdown(true);
 
-            log.Info("------- Shutdown Complete -----------------");
+            Console.WriteLine("------- Shutdown Complete -----------------");
 
             SchedulerMetaData metaData = await sched.GetMetaData();
-            log.Info($"Executed {metaData.NumberOfJobsExecuted} jobs.");
+            Console.WriteLine($"Executed {metaData.NumberOfJobsExecuted} jobs.");
         }
     }
 }

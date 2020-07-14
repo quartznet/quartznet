@@ -19,12 +19,12 @@
 
 #endregion
 
+using System;
 using System.Collections.Specialized;
 using System.Threading.Tasks;
 
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
-using Quartz.Logging;
 
 namespace Quartz.Examples.Example15
 {
@@ -37,9 +37,7 @@ namespace Quartz.Examples.Example15
     {
         public async Task Run()
         {
-            ILog log = LogProvider.GetLogger(typeof(ConfigureJobSchedulingByUsingXmlConfigurationsExample));
-
-            log.Info("------- Initializing ----------------------");
+            Console.WriteLine("------- Initializing ----------------------");
 
             // First we must get a reference to a scheduler
             var properties = new NameValueCollection
@@ -67,25 +65,25 @@ namespace Quartz.Examples.Example15
             dailyCalendar.InvertTimeRange = true;
             await sched.AddCalendar("cal1", dailyCalendar, false, false);
 
-            log.Info("------- Initialization Complete -----------");
+            Console.WriteLine("------- Initialization Complete -----------");
 
             // all jobs and triggers are now in scheduler
 
             // Start up the scheduler (nothing can actually run until the
             // scheduler has been started)
             await sched.Start();
-            log.Info("------- Started Scheduler -----------------");
+            Console.WriteLine("------- Started Scheduler -----------------");
 
             // wait long enough so that the scheduler as an opportunity to
             // fire the triggers
-            log.Info("------- Waiting 30 seconds... -------------");
+            Console.WriteLine("------- Waiting 30 seconds... -------------");
 
             await Task.Delay(30*1000);
 
             // shut down the scheduler
-            log.Info("------- Shutting Down ---------------------");
+            Console.WriteLine("------- Shutting Down ---------------------");
             await sched.Shutdown(true);
-            log.Info("------- Shutdown Complete -----------------");
+            Console.WriteLine("------- Shutdown Complete -----------------");
         }
     }
 }

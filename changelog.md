@@ -3,7 +3,14 @@
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
 
-## Release 3.1.0 beta 2, Jul xx 2020
+## Release 3.1.0 XXX, Jul xx 2020
+
+* FIXES
+
+    * Remove internal dependencies from examples (#742)
+
+
+## Release 3.1.0 beta 2, Jul 14 2020
 
 On the road for 3.1 release, also note beta 1 remarks.
 

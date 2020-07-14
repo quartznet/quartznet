@@ -168,8 +168,13 @@ namespace Quartz.Job
 
         private class FileInfoComparer : IEqualityComparer<FileInfo>
         {
-            public bool Equals(FileInfo x, FileInfo y)
+            public bool Equals(FileInfo? x, FileInfo? y)
             {
+                if (x is null || y is null)
+                {
+                    return false;
+                }
+                
                 return x.FullName.Equals(y.FullName);
             }
 

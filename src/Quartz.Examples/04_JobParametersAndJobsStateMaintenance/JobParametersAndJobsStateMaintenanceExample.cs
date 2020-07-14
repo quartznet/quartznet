@@ -23,7 +23,6 @@ using System;
 using System.Threading.Tasks;
 
 using Quartz.Impl;
-using Quartz.Logging;
 
 namespace Quartz.Examples.Example04
 {
@@ -37,17 +36,15 @@ namespace Quartz.Examples.Example04
     {
         public virtual async Task Run()
         {
-            ILog log = LogProvider.GetLogger(typeof(JobParametersAndJobsStateMaintenanceExample));
-
-            log.Info("------- Initializing -------------------");
+            Console.WriteLine("------- Initializing -------------------");
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory();
             IScheduler sched = await sf.GetScheduler();
 
-            log.Info("------- Initialization Complete --------");
+            Console.WriteLine("------- Initialization Complete --------");
 
-            log.Info("------- Scheduling Jobs ----------------");
+            Console.WriteLine("------- Scheduling Jobs ----------------");
 
             // get a "nice round" time a few seconds in the future....
             DateTimeOffset startTime = DateBuilder.NextGivenSecondDate(null, 10);
@@ -69,7 +66,7 @@ namespace Quartz.Examples.Example04
 
             // schedule the job to run
             DateTimeOffset scheduleTime1 = await sched.ScheduleJob(job1, trigger1);
-            log.Info($"{job1.Key} will run at: {scheduleTime1:r} and repeat: {trigger1.RepeatCount} times, every {trigger1.RepeatInterval.TotalSeconds} seconds");
+            Console.WriteLine($"{job1.Key} will run at: {scheduleTime1:r} and repeat: {trigger1.RepeatCount} times, every {trigger1.RepeatInterval.TotalSeconds} seconds");
 
             // job2 will also run 5 times, every 10 seconds
 
@@ -90,30 +87,30 @@ namespace Quartz.Examples.Example04
 
             // schedule the job to run
             DateTimeOffset scheduleTime2 = await sched.ScheduleJob(job2, trigger2);
-            log.Info($"{job2.Key} will run at: {scheduleTime2:r} and repeat: {trigger2.RepeatCount} times, every {trigger2.RepeatInterval.TotalSeconds} seconds");
+            Console.WriteLine($"{job2.Key} will run at: {scheduleTime2:r} and repeat: {trigger2.RepeatCount} times, every {trigger2.RepeatInterval.TotalSeconds} seconds");
 
-            log.Info("------- Starting Scheduler ----------------");
+            Console.WriteLine("------- Starting Scheduler ----------------");
 
             // All of the jobs have been added to the scheduler, but none of the jobs
             // will run until the scheduler has been started
             await sched.Start();
 
-            log.Info("------- Started Scheduler -----------------");
+            Console.WriteLine("------- Started Scheduler -----------------");
 
-            log.Info("------- Waiting 60 seconds... -------------");
+            Console.WriteLine("------- Waiting 60 seconds... -------------");
 
             // wait five minutes to show jobs
             await Task.Delay(TimeSpan.FromMinutes(5));
             // executing...
 
-            log.Info("------- Shutting Down ---------------------");
+            Console.WriteLine("------- Shutting Down ---------------------");
 
             await sched.Shutdown(true);
 
-            log.Info("------- Shutdown Complete -----------------");
+            Console.WriteLine("------- Shutdown Complete -----------------");
 
             SchedulerMetaData metaData = await sched.GetMetaData();
-            log.Info($"Executed {metaData.NumberOfJobsExecuted} jobs.");
+            Console.WriteLine($"Executed {metaData.NumberOfJobsExecuted} jobs.");
         }
     }
 }

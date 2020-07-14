@@ -24,7 +24,6 @@ using System.Threading.Tasks;
 
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
-using Quartz.Logging;
 
 namespace Quartz.Examples.Example09
 {
@@ -38,17 +37,15 @@ namespace Quartz.Examples.Example09
     {
         public virtual async Task Run()
         {
-            ILog log = LogProvider.GetLogger(typeof(TriggeringAJobUsingJobListenersExample));
-
-            log.Info("------- Initializing ----------------------");
+            Console.WriteLine("------- Initializing ----------------------");
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory();
             IScheduler sched = await sf.GetScheduler();
 
-            log.Info("------- Initialization Complete -----------");
+            Console.WriteLine("------- Initialization Complete -----------");
 
-            log.Info("------- Scheduling Jobs -------------------");
+            Console.WriteLine("------- Scheduling Jobs -------------------");
 
             // schedule a job to run immediately
             IJobDetail job = JobBuilder.Create<SimpleJob1>()
@@ -70,24 +67,24 @@ namespace Quartz.Examples.Example09
 
             // All of the jobs have been added to the scheduler, but none of the jobs
             // will run until the scheduler has been started
-            log.Info("------- Starting Scheduler ----------------");
+            Console.WriteLine("------- Starting Scheduler ----------------");
             await sched.Start();
 
             // wait 30 seconds:
             // note:  nothing will run
-            log.Info("------- Waiting 30 seconds... --------------");
+            Console.WriteLine("------- Waiting 30 seconds... --------------");
 
             // wait 30 seconds to show jobs
             await Task.Delay(TimeSpan.FromSeconds(30));
             // executing...
 
             // shut down the scheduler
-            log.Info("------- Shutting Down ---------------------");
+            Console.WriteLine("------- Shutting Down ---------------------");
             await sched.Shutdown(true);
-            log.Info("------- Shutdown Complete -----------------");
+            Console.WriteLine("------- Shutdown Complete -----------------");
 
             SchedulerMetaData metaData = await sched.GetMetaData();
-            log.Info($"Executed {metaData.NumberOfJobsExecuted} jobs.");
+            Console.WriteLine($"Executed {metaData.NumberOfJobsExecuted} jobs.");
         }
     }
 }

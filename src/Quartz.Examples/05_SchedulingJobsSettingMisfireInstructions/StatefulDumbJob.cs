@@ -42,7 +42,7 @@ namespace Quartz.Examples.Example05
         /// </summary>
         public virtual async Task Execute(IJobExecutionContext context)
         {
-            Console.Error.WriteLine("---{0} executing.[{1}]", context.JobDetail.Key, DateTime.Now.ToString("r"));
+            Console.WriteLine("---{0} executing.[{1:r}]", context.JobDetail.Key, DateTime.Now);
 
             JobDataMap map = context.JobDetail.JobDataMap;
 
@@ -64,7 +64,7 @@ namespace Quartz.Examples.Example05
 
             await Task.Delay(delay);
 
-            Console.Error.WriteLine("  -{0} complete ({1}).", context.JobDetail.Key, executeCount);
+            Console.WriteLine("  -{0} complete ({1}).", context.JobDetail.Key, executeCount);
         }
     }
 }

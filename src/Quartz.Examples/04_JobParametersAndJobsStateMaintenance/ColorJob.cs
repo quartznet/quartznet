@@ -22,8 +22,6 @@
 using System;
 using System.Threading.Tasks;
 
-using Quartz.Logging;
-
 namespace Quartz.Examples.Example04
 {
     /// <summary>
@@ -36,8 +34,6 @@ namespace Quartz.Examples.Example04
     [DisallowConcurrentExecution]
     public class ColorJob : IJob
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof (ColorJob));
-
         // parameter names specific to this job
         public const string FavoriteColor = "favorite color";
         public const string ExecutionCount = "count";
@@ -62,10 +58,9 @@ namespace Quartz.Examples.Example04
             JobDataMap data = context.JobDetail.JobDataMap;
             var favoriteColor = data.GetString(FavoriteColor);
             int count = data.GetInt(ExecutionCount);
-            log.InfoFormat(
-                "ColorJob: {0} executing at {1}\n  favorite color is {2}\n  execution count (from job map) is {3}\n  execution count (from job member variable) is {4}",
-                jobKey,
-                DateTime.Now.ToString("r"),
+            Console.WriteLine(
+                "ColorJob: {0} executing at {1:r}\n  favorite color is {2}\n  execution count (from job map) is {3}\n  execution count (from job member variable) is {4}",
+                jobKey, DateTime.Now,
                 favoriteColor,
                 count, counter);
 
@@ -78,7 +73,7 @@ namespace Quartz.Examples.Example04
             // This serves no real purpose since job state can not 
             // be maintained via member variables!
             counter++;
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
     }
 }

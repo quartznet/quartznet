@@ -21,12 +21,12 @@
 
 
 #if REMOTING
+using System;
 using System.Collections.Specialized;
 using System.Threading.Tasks;
 
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
-using Quartz.Logging;
 
 namespace Quartz.Examples.Example12
 {
@@ -44,8 +44,6 @@ namespace Quartz.Examples.Example12
     {
         public virtual async Task Run()
         {
-            ILog log = LogProvider.GetLogger(typeof (RemoteClientJobSchedulingExample));
-
             NameValueCollection properties = new NameValueCollection
             {
                 ["quartz.scheduler.instanceName"] = "RemoteClient",
@@ -77,12 +75,12 @@ namespace Quartz.Examples.Example12
             // schedule the job
             await sched.ScheduleJob(job, trigger);
 
-            log.Info("Remote job scheduled, scheduler now has following jobs:");
+            Console.WriteLine("Remote job scheduled, scheduler now has following jobs:");
 
             var keys = await sched.GetJobKeys(GroupMatcher<JobKey>.AnyGroup());
             foreach (var key in keys)
             {
-                log.Info("\t " + key);
+                Console.WriteLine("\t " + key);
             }
         }
     }

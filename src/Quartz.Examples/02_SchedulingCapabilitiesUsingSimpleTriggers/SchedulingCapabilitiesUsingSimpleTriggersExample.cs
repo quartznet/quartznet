@@ -24,7 +24,6 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Impl;
-using Quartz.Logging;
 
 namespace Quartz.Examples.Example02
 {
@@ -38,17 +37,15 @@ namespace Quartz.Examples.Example02
     {
         public virtual async Task Run()
         {
-            ILog log = LogProvider.GetLogger(typeof(SchedulingCapabilitiesUsingSimpleTriggersExample));
-
-            log.Info("------- Initializing -------------------");
+            Console.WriteLine("------- Initializing -------------------");
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory();
             IScheduler sched = await sf.GetScheduler();
 
-            log.Info("------- Initialization Complete --------");
+            Console.WriteLine("------- Initialization Complete --------");
 
-            log.Info("------- Scheduling Jobs ----------------");
+            Console.WriteLine("------- Scheduling Jobs ----------------");
 
             // jobs can be scheduled before sched.start() has been called
 
@@ -67,7 +64,7 @@ namespace Quartz.Examples.Example02
 
             // schedule it to run!
             DateTimeOffset? ft = await sched.ScheduleJob(job, trigger);
-            log.Info(job.Key +
+            Console.WriteLine(job.Key +
                      " will run at: " + ft +
                      " and repeat: " + trigger.RepeatCount +
                      " times, every " + trigger.RepeatInterval.TotalSeconds + " seconds");
@@ -83,7 +80,7 @@ namespace Quartz.Examples.Example02
                 .Build();
 
             ft = await sched.ScheduleJob(job, trigger);
-            log.Info(job.Key +
+            Console.WriteLine(job.Key +
                      " will run at: " + ft +
                      " and repeat: " + trigger.RepeatCount +
                      " times, every " + trigger.RepeatInterval.TotalSeconds + " seconds");
@@ -101,7 +98,7 @@ namespace Quartz.Examples.Example02
                 .Build();
 
             ft = await sched.ScheduleJob(job, trigger);
-            log.Info(job.Key +
+            Console.WriteLine(job.Key +
                      " will run at: " + ft +
                      " and repeat: " + trigger.RepeatCount +
                      " times, every " + trigger.RepeatInterval.TotalSeconds + " seconds");
@@ -117,7 +114,7 @@ namespace Quartz.Examples.Example02
                 .Build();
 
             ft = await sched.ScheduleJob(trigger);
-            log.Info(job.Key +
+            Console.WriteLine(job.Key +
                      " will [also] run at: " + ft +
                      " and repeat: " + trigger.RepeatCount +
                      " times, every " + trigger.RepeatInterval.TotalSeconds + " seconds");
@@ -135,7 +132,7 @@ namespace Quartz.Examples.Example02
                 .Build();
 
             ft = await sched.ScheduleJob(job, trigger);
-            log.Info(job.Key +
+            Console.WriteLine(job.Key +
                      " will run at: " + ft +
                      " and repeat: " + trigger.RepeatCount +
                      " times, every " + trigger.RepeatInterval.TotalSeconds + " seconds");
@@ -151,7 +148,7 @@ namespace Quartz.Examples.Example02
                 .Build();
 
             ft = await sched.ScheduleJob(job, trigger);
-            log.Info(job.Key +
+            Console.WriteLine(job.Key +
                      " will run at: " + ft +
                      " and repeat: " + trigger.RepeatCount +
                      " times, every " + trigger.RepeatInterval.TotalSeconds + " seconds");
@@ -168,18 +165,18 @@ namespace Quartz.Examples.Example02
                 .Build();
 
             ft = await sched.ScheduleJob(job, trigger);
-            log.Info(job.Key +
+            Console.WriteLine(job.Key +
                      " will run at: " + ft +
                      " and repeat: " + trigger.RepeatCount +
                      " times, every " + trigger.RepeatInterval.TotalSeconds + " seconds");
 
-            log.Info("------- Starting Scheduler ----------------");
+            Console.WriteLine("------- Starting Scheduler ----------------");
 
             // All of the jobs have been added to the scheduler, but none of the jobs
             // will run until the scheduler has been started
             await sched.Start();
 
-            log.Info("------- Started Scheduler -----------------");
+            Console.WriteLine("------- Started Scheduler -----------------");
 
             // jobs can also be scheduled after start() has been called...
             // job7 will repeat 20 times, repeat every five minutes
@@ -194,7 +191,7 @@ namespace Quartz.Examples.Example02
                 .Build();
 
             ft = await sched.ScheduleJob(job, trigger);
-            log.Info(job.Key +
+            Console.WriteLine(job.Key +
                      " will run at: " + ft +
                      " and repeat: " + trigger.RepeatCount +
                      " times, every " + trigger.RepeatInterval.TotalSeconds + " seconds");
@@ -207,10 +204,10 @@ namespace Quartz.Examples.Example02
 
             await sched.AddJob(job, true);
 
-            log.Info("'Manually' triggering job8...");
+            Console.WriteLine("'Manually' triggering job8...");
             await sched.TriggerJob(new JobKey("job8", "group1"));
 
-            log.Info("------- Waiting 30 seconds... --------------");
+            Console.WriteLine("------- Waiting 30 seconds... --------------");
 
             try
             {
@@ -224,7 +221,7 @@ namespace Quartz.Examples.Example02
 
             // jobs can be re-scheduled...
             // job 7 will run immediately and repeat 10 times for every second
-            log.Info("------- Rescheduling... --------------------");
+            Console.WriteLine("------- Rescheduling... --------------------");
             trigger = (ISimpleTrigger) TriggerBuilder.Create()
                 .WithIdentity("trigger7", "group1")
                 .StartAt(startTime)
@@ -232,22 +229,22 @@ namespace Quartz.Examples.Example02
                 .Build();
 
             ft = await sched.RescheduleJob(trigger.Key, trigger);
-            log.Info("job7 rescheduled to run at: " + ft);
+            Console.WriteLine("job7 rescheduled to run at: " + ft);
 
-            log.Info("------- Waiting five minutes... ------------");
+            Console.WriteLine("------- Waiting five minutes... ------------");
             // wait five minutes to show jobs
             await Task.Delay(TimeSpan.FromMinutes(5));
             // executing...
 
-            log.Info("------- Shutting Down ---------------------");
+            Console.WriteLine("------- Shutting Down ---------------------");
 
             await sched.Shutdown(true);
 
-            log.Info("------- Shutdown Complete -----------------");
+            Console.WriteLine("------- Shutdown Complete -----------------");
 
             // display some stats about the schedule that just ran
             SchedulerMetaData metaData = await sched.GetMetaData();
-            log.Info($"Executed {metaData.NumberOfJobsExecuted} jobs.");
+            Console.WriteLine($"Executed {metaData.NumberOfJobsExecuted} jobs.");
         }
     }
 }

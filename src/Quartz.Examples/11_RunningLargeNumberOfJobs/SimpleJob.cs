@@ -22,8 +22,6 @@
 using System;
 using System.Threading.Tasks;
 
-using Quartz.Logging;
-
 namespace Quartz.Examples.Example11
 {
     /// <summary>
@@ -33,7 +31,6 @@ namespace Quartz.Examples.Example11
     /// <author>Marko Lahma (.NET)</author>
     public class SimpleJob : IJob
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof (SimpleJob));
         // job parameter
         public const string DelayTime = "delay time";
 
@@ -48,14 +45,14 @@ namespace Quartz.Examples.Example11
             // date and time that it is running
             JobKey jobKey = context.JobDetail.Key;
 
-            log.InfoFormat("Executing job: {0} executing at {1}", jobKey, DateTime.Now.ToString("r"));
+            Console.WriteLine("Executing job: {0} executing at {1:r}", jobKey, DateTime.Now);
 
             // wait for a period of time
             long delayTime = context.JobDetail.JobDataMap.GetLong(DelayTime);
 
             await Task.Delay(new TimeSpan(10000 * delayTime), context.CancellationToken);
 
-            log.InfoFormat("Finished Executing job: {0} at {1}", jobKey, DateTime.Now.ToString("r"));
+            Console.WriteLine("Finished Executing job: {0} at {1:r}", jobKey, DateTime.Now);
         }
     }
 }
