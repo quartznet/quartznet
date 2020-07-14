@@ -19,9 +19,8 @@
 
 #endregion
 
+using System;
 using System.Threading.Tasks;
-
-using Quartz.Logging;
 
 namespace Quartz.Examples.Example14
 {
@@ -32,8 +31,6 @@ namespace Quartz.Examples.Example14
     /// <author>Marko Lahma (.NET)</author>
     public class TriggerEchoJob : IJob
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof (TriggerEchoJob));
-
         /// <summary>
         /// Called by the <see cref="IScheduler"/> when a <see cref="ITrigger"/>
         /// fires that is associated with the <see cref="IJob"/>.
@@ -50,8 +47,8 @@ namespace Quartz.Examples.Example14
         /// <param name="context"></param>
         public Task Execute(IJobExecutionContext context)
         {
-            log.Info("TRIGGER: " + context.Trigger.Key);
-            return TaskUtil.CompletedTask;
+            Console.WriteLine("TRIGGER: " + context.Trigger.Key);
+            return Task.CompletedTask;
         }
     }
 }

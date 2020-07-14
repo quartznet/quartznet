@@ -23,7 +23,6 @@ using System;
 using System.Threading.Tasks;
 
 using Quartz.Impl;
-using Quartz.Logging;
 
 namespace Quartz.Examples.Example16
 {
@@ -35,14 +34,12 @@ namespace Quartz.Examples.Example16
     {
         public virtual async Task Run()
         {
-            ILog log = LogProvider.GetLogger(typeof(RunningAsynchronousJobsExample));
-
             ISchedulerFactory sf = new StdSchedulerFactory();
             IScheduler sched = await sf.GetScheduler();
 
-            log.Info("------- Initialization Complete -----------");
+            Console.WriteLine("------- Initialization Complete -----------");
 
-            log.Info("------- Scheduling Jobs -------------------");
+            Console.WriteLine("------- Scheduling Jobs -------------------");
 
             IJobDetail job = JobBuilder
                 .Create<AsyncJob>()
@@ -57,26 +54,26 @@ namespace Quartz.Examples.Example16
 
             await sched.ScheduleJob(job, trigger);
 
-            log.Info("------- Starting Scheduler ----------------");
+            Console.WriteLine("------- Starting Scheduler ----------------");
 
             // start the schedule
             await sched.Start();
 
-            log.Info("------- Started Scheduler -----------------");
+            Console.WriteLine("------- Started Scheduler -----------------");
 
             await Task.Delay(TimeSpan.FromSeconds(5));
-            log.Info("------- Cancelling job via scheduler.Interrupt() -----------------");
+            Console.WriteLine("------- Cancelling job via scheduler.Interrupt() -----------------");
             await sched.Interrupt(job.Key);
 
-            log.Info("------- Waiting five minutes... -----------");
+            Console.WriteLine("------- Waiting five minutes... -----------");
 
             // wait five minutes to give our job a chance to run
             await Task.Delay(TimeSpan.FromMinutes(5));
 
             // shut down the scheduler
-            log.Info("------- Shutting Down ---------------------");
+            Console.WriteLine("------- Shutting Down ---------------------");
             await sched.Shutdown(true);
-            log.Info("------- Shutdown Complete -----------------");
+            Console.WriteLine("------- Shutdown Complete -----------------");
         }
     }
 }

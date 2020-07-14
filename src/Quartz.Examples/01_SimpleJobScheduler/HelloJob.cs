@@ -22,8 +22,6 @@
 using System;
 using System.Threading.Tasks;
 
-using Quartz.Logging;
-
 namespace Quartz.Examples.Example01
 {
     /// <summary>
@@ -33,8 +31,6 @@ namespace Quartz.Examples.Example01
     /// <author>Marko Lahma (.NET)</author>
     public class HelloJob : IJob
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof (HelloJob));
-
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a
         /// <see cref="ITrigger" /> fires that is associated with
@@ -43,8 +39,8 @@ namespace Quartz.Examples.Example01
         public virtual Task Execute(IJobExecutionContext context)
         {
             // Say Hello to the World and display the date/time
-            log.Info($"Hello World! - {DateTime.Now:r}");
-            return TaskUtil.CompletedTask;
+            Console.WriteLine($"Hello World! - {DateTime.Now:r}");
+            return Task.CompletedTask;
         }
     }
 }

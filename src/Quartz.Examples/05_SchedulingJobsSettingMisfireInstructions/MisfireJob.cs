@@ -22,8 +22,6 @@
 using System;
 using System.Threading.Tasks;
 
-using Quartz.Logging;
-
 namespace Quartz.Examples.Example05
 {
     /// <summary>
@@ -35,9 +33,6 @@ namespace Quartz.Examples.Example05
     [DisallowConcurrentExecution]
     public class MisfireJob : IJob
     {
-        // Logging
-        private static readonly ILog log = LogProvider.GetLogger(typeof (MisfireJob));
-
         // Constants
         public const string NumExecutions = "NumExecutions";
         public const string ExecutionDelay = "ExecutionDelay";
@@ -49,7 +44,7 @@ namespace Quartz.Examples.Example05
         public virtual async Task Execute(IJobExecutionContext context)
         {
             JobKey jobKey = context.JobDetail.Key;
-            log.Info($"---{jobKey} executing at {DateTime.Now:r}");
+            Console.WriteLine($"---{jobKey} executing at {DateTime.Now:r}");
 
             // default delay to five seconds
             int delay = 5;
@@ -63,7 +58,7 @@ namespace Quartz.Examples.Example05
 
             await Task.Delay(TimeSpan.FromSeconds(delay));
 
-            log.Info($"---{jobKey} completed at {DateTime.Now:r}");
+            Console.WriteLine($"---{jobKey} completed at {DateTime.Now:r}");
         }
     }
 }

@@ -23,7 +23,6 @@ using System;
 using System.Threading.Tasks;
 
 using Quartz.Impl;
-using Quartz.Logging;
 
 namespace Quartz.Examples.Example03
 {
@@ -37,17 +36,15 @@ namespace Quartz.Examples.Example03
     {
         public virtual async Task Run()
         {
-            ILog log = LogProvider.GetLogger(typeof(SchedulingCapabilitiesUsingCronTriggersExample));
-
-            log.Info("------- Initializing -------------------");
+            Console.WriteLine("------- Initializing -------------------");
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory();
             IScheduler sched = await sf.GetScheduler();
 
-            log.Info("------- Initialization Complete --------");
+            Console.WriteLine("------- Initialization Complete --------");
 
-            log.Info("------- Scheduling Jobs ----------------");
+            Console.WriteLine("------- Scheduling Jobs ----------------");
 
             // jobs can be scheduled before sched.start() has been called
 
@@ -63,7 +60,7 @@ namespace Quartz.Examples.Example03
                 .Build();
 
             DateTimeOffset ft = await sched.ScheduleJob(job, trigger);
-            log.Info(job.Key + " has been scheduled to run at: " + ft
+            Console.WriteLine(job.Key + " has been scheduled to run at: " + ft
                      + " and repeat based on expression: "
                      + trigger.CronExpressionString);
 
@@ -78,7 +75,7 @@ namespace Quartz.Examples.Example03
                 .Build();
 
             ft = await sched.ScheduleJob(job, trigger);
-            log.Info(job.Key + " has been scheduled to run at: " + ft
+            Console.WriteLine(job.Key + " has been scheduled to run at: " + ft
                      + " and repeat based on expression: "
                      + trigger.CronExpressionString);
 
@@ -93,7 +90,7 @@ namespace Quartz.Examples.Example03
                 .Build();
 
             ft = await sched.ScheduleJob(job, trigger);
-            log.Info(job.Key + " has been scheduled to run at: " + ft
+            Console.WriteLine(job.Key + " has been scheduled to run at: " + ft
                      + " and repeat based on expression: "
                      + trigger.CronExpressionString);
 
@@ -108,7 +105,7 @@ namespace Quartz.Examples.Example03
                 .Build();
 
             ft = await sched.ScheduleJob(job, trigger);
-            log.Info(job.Key + " has been scheduled to run at: " + ft
+            Console.WriteLine(job.Key + " has been scheduled to run at: " + ft
                      + " and repeat based on expression: "
                      + trigger.CronExpressionString);
 
@@ -123,7 +120,7 @@ namespace Quartz.Examples.Example03
                 .Build();
 
             ft = await sched.ScheduleJob(job, trigger);
-            log.Info(job.Key + " has been scheduled to run at: " + ft
+            Console.WriteLine(job.Key + " has been scheduled to run at: " + ft
                      + " and repeat based on expression: "
                      + trigger.CronExpressionString);
 
@@ -138,7 +135,7 @@ namespace Quartz.Examples.Example03
                 .Build();
 
             ft = await sched.ScheduleJob(job, trigger);
-            log.Info(job.Key + " has been scheduled to run at: " + ft
+            Console.WriteLine(job.Key + " has been scheduled to run at: " + ft
                      + " and repeat based on expression: "
                      + trigger.CronExpressionString);
 
@@ -153,33 +150,33 @@ namespace Quartz.Examples.Example03
                 .Build();
 
             ft = await sched.ScheduleJob(job, trigger);
-            log.Info(job.Key + " has been scheduled to run at: " + ft
+            Console.WriteLine(job.Key + " has been scheduled to run at: " + ft
                      + " and repeat based on expression: "
                      + trigger.CronExpressionString);
 
-            log.Info("------- Starting Scheduler ----------------");
+            Console.WriteLine("------- Starting Scheduler ----------------");
 
             // All of the jobs have been added to the scheduler, but none of the
             // jobs
             // will run until the scheduler has been started
             await sched.Start();
 
-            log.Info("------- Started Scheduler -----------------");
+            Console.WriteLine("------- Started Scheduler -----------------");
 
-            log.Info("------- Waiting five minutes... ------------");
+            Console.WriteLine("------- Waiting five minutes... ------------");
 
             // wait five minutes to show jobs
             await Task.Delay(TimeSpan.FromMinutes(5));
             // executing...
 
-            log.Info("------- Shutting Down ---------------------");
+            Console.WriteLine("------- Shutting Down ---------------------");
 
             await sched.Shutdown(true);
 
-            log.Info("------- Shutdown Complete -----------------");
+            Console.WriteLine("------- Shutdown Complete -----------------");
 
             SchedulerMetaData metaData = await sched.GetMetaData();
-            log.Info($"Executed {metaData.NumberOfJobsExecuted} jobs.");
+            Console.WriteLine($"Executed {metaData.NumberOfJobsExecuted} jobs.");
         }
     }
 }

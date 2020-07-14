@@ -23,7 +23,6 @@ using System;
 using System.Threading.Tasks;
 
 using Quartz.Impl;
-using Quartz.Logging;
 
 namespace Quartz.Examples.Example07
 {
@@ -35,19 +34,17 @@ namespace Quartz.Examples.Example07
     /// <author>Marko Lahma (.NET)</author>
     public class InterrupInProgressJobsExample : IExample
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof(InterrupInProgressJobsExample));
-
         public virtual async Task Run()
         {
-            log.Info("------- Initializing ----------------------");
+            Console.WriteLine("------- Initializing ----------------------");
 
             // First we must get a reference to a scheduler
             ISchedulerFactory sf = new StdSchedulerFactory();
             IScheduler sched = await sf.GetScheduler();
 
-            log.Info("------- Initialization Complete -----------");
+            Console.WriteLine("------- Initialization Complete -----------");
 
-            log.Info("------- Scheduling Jobs -------------------");
+            Console.WriteLine("------- Scheduling Jobs -------------------");
 
             // get a "nice round" time a few seconds in the future...
 
@@ -64,14 +61,14 @@ namespace Quartz.Examples.Example07
                 .Build();
 
             DateTimeOffset ft = await sched.ScheduleJob(job, trigger);
-            log.Info($"{job.Key} will run at: {ft:r} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
+            Console.WriteLine($"{job.Key} will run at: {ft:r} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
 
             // start up the scheduler (jobs do not start to fire until
             // the scheduler has been started)
             await sched.Start();
-            log.Info("------- Started Scheduler -----------------");
+            Console.WriteLine("------- Started Scheduler -----------------");
 
-            log.Info("------- Starting loop to interrupt job every 7 seconds ----------");
+            Console.WriteLine("------- Starting loop to interrupt job every 7 seconds ----------");
             for (int i = 0; i < 50; i++)
             {
                 try
@@ -86,13 +83,13 @@ namespace Quartz.Examples.Example07
                 }
             }
 
-            log.Info("------- Shutting Down ---------------------");
+            Console.WriteLine("------- Shutting Down ---------------------");
 
             await sched.Shutdown(true);
 
-            log.Info("------- Shutdown Complete -----------------");
+            Console.WriteLine("------- Shutdown Complete -----------------");
             SchedulerMetaData metaData = await sched.GetMetaData();
-            log.Info($"Executed {metaData.NumberOfJobsExecuted} jobs.");
+            Console.WriteLine($"Executed {metaData.NumberOfJobsExecuted} jobs.");
         }
     }
 }

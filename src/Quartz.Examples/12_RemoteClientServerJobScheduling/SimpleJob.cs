@@ -22,8 +22,6 @@
 using System;
 using System.Threading.Tasks;
 
-using Quartz.Logging;
-
 namespace Quartz.Examples.Example12
 {
     /// <summary>
@@ -33,8 +31,7 @@ namespace Quartz.Examples.Example12
     /// <author>Marko Lahma (.NET)</author>
     public class SimpleJob : IJob
     {
-        public const string Message = "msg";
-        private static readonly ILog log = LogProvider.GetLogger(typeof (SimpleJob));
+        private const string Message = "msg";
 
         /// <summary> 
         /// Called by the <see cref="IScheduler" /> when a
@@ -49,10 +46,10 @@ namespace Quartz.Examples.Example12
 
             var message = context.JobDetail.JobDataMap.GetString(Message);
 
-            log.InfoFormat("SimpleJob: {0} executing at {1}", jobKey, DateTime.Now.ToString("r"));
-            log.InfoFormat("SimpleJob: msg: {0}", message);
+            Console.WriteLine("SimpleJob: {0} executing at {1:r}", jobKey, DateTime.Now);
+            Console.WriteLine("SimpleJob: msg: {0}", message);
 
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
     }
 }

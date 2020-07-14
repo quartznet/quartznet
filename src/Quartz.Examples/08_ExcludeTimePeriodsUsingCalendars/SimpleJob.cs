@@ -22,8 +22,6 @@
 using System;
 using System.Threading.Tasks;
 
-using Quartz.Logging;
-
 namespace Quartz.Examples.Example08
 {
     /// <summary>
@@ -34,8 +32,6 @@ namespace Quartz.Examples.Example08
     /// <author>Marko Lahma (.NET)</author>
     public class SimpleJob : IJob
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof(SimpleJob));
-
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
         /// fires that is associated with the <see cref="IJob" />.
@@ -54,8 +50,8 @@ namespace Quartz.Examples.Example08
             // This job simply prints out its job name and the
             // date and time that it is running
             JobKey jobKey = context.JobDetail.Key;
-            log.InfoFormat("SimpleJob says: {0} executing at {1}", jobKey, DateTime.Now.ToString("r"));
-            return TaskUtil.CompletedTask;
+            Console.WriteLine("SimpleJob says: {0} executing at {1:r}", jobKey, DateTime.Now);
+            return Task.CompletedTask;
         }
     }
 }

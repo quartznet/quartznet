@@ -23,39 +23,35 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
-using Quartz.Logging;
-
 namespace Quartz.Examples.Example09
 {
     /// <author>wkratzer</author>
     /// <author>Marko Lahma (.NET)</author>
     public class SimpleJob1Listener : IJobListener
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof (SimpleJob1Listener));
-
         public virtual string Name => "job1_to_job2";
 
         public virtual Task JobToBeExecuted(
             IJobExecutionContext inContext, 
             CancellationToken canncellationToken)
         {
-            log.Info("Job1Listener says: Job Is about to be executed.");
-            return TaskUtil.CompletedTask;
+            Console.WriteLine("Job1Listener says: Job Is about to be executed.");
+            return Task.CompletedTask;
         }
 
         public virtual Task JobExecutionVetoed(
             IJobExecutionContext inContext,
             CancellationToken canncellationToken)
         {
-            log.Info("Job1Listener says: Job Execution was vetoed.");
-            return TaskUtil.CompletedTask;
+            Console.WriteLine("Job1Listener says: Job Execution was vetoed.");
+            return Task.CompletedTask;
         }
 
         public virtual async Task JobWasExecuted(IJobExecutionContext inContext,
             JobExecutionException? inException,
             CancellationToken canncellationToken = default)
         {
-            log.Info("Job1Listener says: Job was executed.");
+            Console.WriteLine("Job1Listener says: Job was executed.");
 
             // Simple job #2
             IJobDetail job2 = JobBuilder.Create<SimpleJob2>()
@@ -74,7 +70,7 @@ namespace Quartz.Examples.Example09
             }
             catch (SchedulerException e)
             {
-                log.Warn("Unable to schedule job2!");
+                Console.Error.WriteLine("Unable to schedule job2!");
                 Console.Error.WriteLine(e.StackTrace);
             }
         }

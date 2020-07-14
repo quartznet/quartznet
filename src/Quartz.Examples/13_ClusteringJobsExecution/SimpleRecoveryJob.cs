@@ -22,8 +22,6 @@
 using System;
 using System.Threading.Tasks;
 
-using Quartz.Logging;
-
 namespace Quartz.Examples.Example13
 {
     /// <summary>
@@ -33,7 +31,6 @@ namespace Quartz.Examples.Example13
     /// <author>Marko Lahma (.NET)</author>
     public class SimpleRecoveryJob : IJob
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof (SimpleRecoveryJob));
         private const string Count = "count";
 
         /// <summary> 
@@ -48,11 +45,11 @@ namespace Quartz.Examples.Example13
             // if the job is recovering print a message
             if (context.Recovering)
             {
-                log.InfoFormat("SimpleRecoveryJob: {0} RECOVERING at {1}", jobKey, DateTime.Now.ToString("r"));
+                Console.WriteLine("SimpleRecoveryJob: {0} RECOVERING at {1:r}", jobKey, DateTime.Now);
             }
             else
             {
-                log.InfoFormat("SimpleRecoveryJob: {0} starting at {1}", jobKey, DateTime.Now.ToString("r"));
+                Console.WriteLine("SimpleRecoveryJob: {0} starting at {1:r}", jobKey, DateTime.Now);
             }
 
             // delay for ten seconds
@@ -71,7 +68,7 @@ namespace Quartz.Examples.Example13
             count++;
             data.Put(Count, count);
 
-            log.InfoFormat("SimpleRecoveryJob: {0} done at {1}\n Execution #{2}", jobKey, DateTime.Now.ToString("r"), count);
+            Console.WriteLine("SimpleRecoveryJob: {0} done at {1:r}\n Execution #{2}", jobKey, DateTime.Now, count);
         }
     }
 }

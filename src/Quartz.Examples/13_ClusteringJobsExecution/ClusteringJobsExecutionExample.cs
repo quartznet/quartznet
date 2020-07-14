@@ -24,7 +24,6 @@ using System.Collections.Specialized;
 using System.Threading.Tasks;
 
 using Quartz.Impl;
-using Quartz.Logging;
 
 namespace Quartz.Examples.Example13
 {
@@ -70,8 +69,6 @@ namespace Quartz.Examples.Example13
     /// <author>Marko Lahma (.NET)</author>
     public class ClusteringJobsExecutionExample : IExample
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof (ClusteringJobsExecutionExample));
-
         public virtual async Task Run(bool inClearJobs, bool inScheduleJobs)
         {
             NameValueCollection properties = new NameValueCollection
@@ -101,15 +98,15 @@ namespace Quartz.Examples.Example13
 
             if (inClearJobs)
             {
-                log.Warn("***** Deleting existing jobs/triggers *****");
+                Console.WriteLine("***** Deleting existing jobs/triggers *****");
                 await sched.Clear();
             }
 
-            log.Info("------- Initialization Complete -----------");
+            Console.WriteLine("------- Initialization Complete -----------");
 
             if (inScheduleJobs)
             {
-                log.Info("------- Scheduling Jobs ------------------");
+                Console.WriteLine("------- Scheduling Jobs ------------------");
 
                 string schedId = sched.SchedulerInstanceId;
 
@@ -126,7 +123,7 @@ namespace Quartz.Examples.Example13
                     .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(5)))
                     .Build();
 
-                log.InfoFormat("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.Key, trigger.GetNextFireTimeUtc(), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds);
+                Console.WriteLine("{0} will run at: {1} and repeat: {2} times, every {3} seconds", job.Key, trigger.GetNextFireTimeUtc(), trigger.RepeatCount, trigger.RepeatInterval.TotalSeconds);
 
                 count++;
 
@@ -141,7 +138,7 @@ namespace Quartz.Examples.Example13
                     .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(5)))
                     .Build();
 
-                log.Info($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
+                Console.WriteLine($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
                 await sched.ScheduleJob(job, trigger);
 
                 count++;
@@ -157,7 +154,7 @@ namespace Quartz.Examples.Example13
                     .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(3)))
                     .Build();
 
-                log.Info($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
+                Console.WriteLine($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} and repeat: {trigger.RepeatCount} times, every {trigger.RepeatInterval.TotalSeconds} seconds");
                 await sched.ScheduleJob(job, trigger);
 
                 count++;
@@ -173,7 +170,7 @@ namespace Quartz.Examples.Example13
                     .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromSeconds(4)))
                     .Build();
 
-                log.Info($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} & repeat: {trigger.RepeatCount}/{trigger.RepeatInterval}");
+                Console.WriteLine($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} & repeat: {trigger.RepeatCount}/{trigger.RepeatInterval}");
                 await sched.ScheduleJob(job, trigger);
 
                 count++;
@@ -189,22 +186,22 @@ namespace Quartz.Examples.Example13
                     .WithSimpleSchedule(x => x.WithRepeatCount(20).WithInterval(TimeSpan.FromMilliseconds(4500)))
                     .Build();
 
-                log.Info($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} & repeat: {trigger.RepeatCount}/{trigger.RepeatInterval}");
+                Console.WriteLine($"{job.Key} will run at: {trigger.GetNextFireTimeUtc()} & repeat: {trigger.RepeatCount}/{trigger.RepeatInterval}");
                 await sched.ScheduleJob(job, trigger);
             }
 
             // jobs don't start firing until start() has been called...
-            log.Info("------- Starting Scheduler ---------------");
+            Console.WriteLine("------- Starting Scheduler ---------------");
             await sched.Start();
-            log.Info("------- Started Scheduler ----------------");
+            Console.WriteLine("------- Started Scheduler ----------------");
 
-            log.Info("------- Waiting for one hour... ----------");
+            Console.WriteLine("------- Waiting for one hour... ----------");
 
             await Task.Delay(TimeSpan.FromHours(1));
 
-            log.Info("------- Shutting Down --------------------");
+            Console.WriteLine("------- Shutting Down --------------------");
             await sched.Shutdown();
-            log.Info("------- Shutdown Complete ----------------");
+            Console.WriteLine("------- Shutdown Complete ----------------");
         }
 
         public Task Run()

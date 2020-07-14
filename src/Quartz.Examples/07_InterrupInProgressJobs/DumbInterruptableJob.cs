@@ -22,8 +22,6 @@
 using System;
 using System.Threading.Tasks;
 
-using Quartz.Logging;
-
 namespace Quartz.Examples.Example07
 {
     /// <summary>
@@ -34,8 +32,6 @@ namespace Quartz.Examples.Example07
     /// <author>Marko Lahma (.NET)</author>
     public class DumbInterruptableJob : IJob
     {
-        // logging services
-        private static readonly ILog log = LogProvider.GetLogger(typeof (DumbInterruptableJob));
         // job name
         private JobKey? jobKey;
 
@@ -46,7 +42,7 @@ namespace Quartz.Examples.Example07
         public virtual async Task Execute(IJobExecutionContext context)
         {
             jobKey = context.JobDetail.Key;
-            log.InfoFormat("---- {0} executing at {1}", jobKey, DateTime.Now.ToString("r"));
+            Console.WriteLine("---- {0} executing at {1:r}", jobKey, DateTime.Now);
 
             try
             {
@@ -60,7 +56,7 @@ namespace Quartz.Examples.Example07
                     // periodically check if we've been interrupted...
                     if (context.CancellationToken.IsCancellationRequested)
                     {
-                        log.InfoFormat("--- {0}  -- Interrupted... bailing out!", jobKey);
+                        Console.WriteLine("--- {0}  -- Interrupted... bailing out!", jobKey);
                         return; // could also choose to throw a JobExecutionException
                         // if that made for sense based on the particular
                         // job's responsibilities/behaviors
@@ -69,7 +65,7 @@ namespace Quartz.Examples.Example07
             }
             finally
             {
-                log.InfoFormat("---- {0} completed at {1}", jobKey, DateTime.Now.ToString("r"));
+                Console.WriteLine("---- {0} completed at {1:r}", jobKey, DateTime.Now);
             }
         }
     }
