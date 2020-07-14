@@ -140,7 +140,7 @@ namespace Quartz.Simpl
 						// cannot set null to these
 						HandleError($"Cannot set null to property on Job class {obj.GetType()} for property '{name}'");
 					}
-					if (paramType == typeof(char) && o is string && ((string) o).Length != 1)
+					if (paramType == typeof(char) && o is string s && s.Length != 1)
 					{
 						// handle special case
 						HandleError($"Cannot set empty string to char property on Job class {obj.GetType()} for property '{name}'");

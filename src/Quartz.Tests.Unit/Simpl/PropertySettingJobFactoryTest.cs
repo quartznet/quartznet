@@ -17,11 +17,13 @@
  */
 #endregion
 
+using System;
 using System.Collections.Generic;
 
 using NUnit.Framework;
 
 using Quartz.Simpl;
+using Quartz.Spi;
 
 namespace Quartz.Tests.Unit.Simpl
 {
@@ -44,7 +46,10 @@ namespace Quartz.Tests.Unit.Simpl
 		}
 
 		[Test]
-		public void TestSetObjectPropsPrimitives()
+		[TestCase(null)]
+		[TestCase(typeof(JsonObjectSerializer))]
+		[TestCase(typeof(BinaryObjectSerializer))]
+		public void TestSetObjectPropsPrimitives(Type serializerType)
 		{
 			JobDataMap jobDataMap = new JobDataMap();
 			jobDataMap.Put("intValue", 1);
@@ -56,10 +61,22 @@ namespace Quartz.Tests.Unit.Simpl
 			jobDataMap.Put("charValue", 'a');
 			jobDataMap.Put("byteValue", 6);
 			jobDataMap.Put("stringValue", "S1");
-            Dictionary<string, string> map = new Dictionary<string, string>();
+			jobDataMap.Put("enumValue1", DayOfWeek.Monday);
+			jobDataMap.Put("enumValue2", 1);
+			jobDataMap.Put("enumValue3", "Monday");
+
+			var map = new Dictionary<string, string>();
 			map.Add("A", "B");
 			jobDataMap.Put("mapValue", map);
 
+			if (serializerType != null)
+			{
+				var serializer = (IObjectSerializer) Activator.CreateInstance(serializerType);
+				serializer.Initialize();
+				var serialized = serializer.Serialize(jobDataMap);
+				jobDataMap = serializer.DeSerialize<JobDataMap>(serialized);
+			}
+			
 			TestObject myObject = new TestObject();
 			factory.SetObjectProperties(myObject, jobDataMap);
 
@@ -72,6 +89,9 @@ namespace Quartz.Tests.Unit.Simpl
 			Assert.AreEqual('a', myObject.CharValue);
 			Assert.AreEqual((byte) 6, myObject.ByteValue);
 			Assert.AreEqual("S1", myObject.StringValue);
+			Assert.AreEqual(DayOfWeek.Monday, myObject.EnumValue1);
+			Assert.AreEqual(DayOfWeek.Monday, myObject.EnumValue2);
+			Assert.AreEqual(DayOfWeek.Monday, myObject.EnumValue3);
 			Assert.IsTrue(myObject.MapValue.ContainsKey("A"));
 		}
 
@@ -225,6 +245,11 @@ namespace Quartz.Tests.Unit.Simpl
 		    public char CharValue { set; get; }
 
 		    public short ShortValue { set; get; }
+		    
+		    public DayOfWeek EnumValue1 { get; set; }
+
+		    public DayOfWeek EnumValue2 { get; set; }
+		    public DayOfWeek EnumValue3 { get; set; }
 		}
 	}
 }
