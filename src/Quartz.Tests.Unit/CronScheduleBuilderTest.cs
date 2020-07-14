@@ -4,7 +4,6 @@ using NUnit.Framework;
 
 namespace Quartz.Tests.Unit
 {
-    [TestFixture]
     public class CronScheduleBuilderTest
     {
         [Test]

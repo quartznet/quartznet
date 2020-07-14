@@ -623,7 +623,7 @@ namespace Quartz.Impl.Triggers
                 case Quartz.MisfireInstruction.CronTrigger.FireOnceNow:
                     cb.WithMisfireHandlingInstructionFireAndProceed();
                     break;
-                case Quartz.MisfireInstruction.IgnoreMisfirePolicy:
+                case Quartz.MisfireInstruction.IgnoreMisfirePolicy: 
                     cb.WithMisfireHandlingInstructionIgnoreMisfires();
                     break;
                 default:
