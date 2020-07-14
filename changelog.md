@@ -9,7 +9,7 @@ On the road for 3.1 release, also note beta 1 remarks.
 
 * NEW FEATURES
 
-    * DI configuration now supports adding schdeuler, job and trigger listeners (#877)
+    * DI configuration now supports adding scheduler, job and trigger listeners (#877)
     * DI configuration now processes appsettings.json section "Quartz" looking for key value pairs (#877)
     * Use Microsoft.Data.SqlClient as SQL Server connection library (#839)
 	
