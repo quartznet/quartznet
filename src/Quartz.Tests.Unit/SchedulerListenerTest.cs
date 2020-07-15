@@ -26,7 +26,7 @@ namespace Quartz.Tests.Unit
             {
                 jobExecutionCount++;
                 logger.Info("Job executed. jobExecutionCount=" + jobExecutionCount);
-                return TaskUtil.CompletedTask;
+                return Task.CompletedTask;
             }
         }
 

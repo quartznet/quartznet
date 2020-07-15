@@ -114,7 +114,7 @@ namespace Quartz.Simpl
         {
             this.signaler = signaler;
             Log.Info("RAMJobStore initialized.");
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -124,7 +124,7 @@ namespace Quartz.Simpl
         public virtual Task SchedulerStarted(CancellationToken cancellationToken = default)
         {
             // nothing to do
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -134,7 +134,7 @@ namespace Quartz.Simpl
         public Task SchedulerPaused(CancellationToken cancellationToken = default)
         {
             // nothing to do
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -144,7 +144,7 @@ namespace Quartz.Simpl
         public Task SchedulerResumed(CancellationToken cancellationToken = default)
         {
             // nothing to do
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -154,7 +154,7 @@ namespace Quartz.Simpl
         /// </summary>
         public virtual Task Shutdown(CancellationToken cancellationToken = default)
         {
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -197,7 +197,7 @@ namespace Quartz.Simpl
                 }
             }
 
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         private ILog Log { get; }
@@ -215,7 +215,7 @@ namespace Quartz.Simpl
         {
             StoreJobInternal(newJob, false);
             StoreTriggerInternal(newTrigger, false);
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -256,7 +256,7 @@ namespace Quartz.Simpl
             CancellationToken cancellationToken = default)
         {
             StoreJobInternal(newJob, replaceExisting);
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         private void StoreJobInternal(IJobDetail newJob, bool replaceExisting)
@@ -400,7 +400,7 @@ namespace Quartz.Simpl
                 }
             }
 
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -432,7 +432,7 @@ namespace Quartz.Simpl
             CancellationToken cancellationToken = default)
         {
             StoreTriggerInternal(newTrigger, replaceExisting);
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         private void StoreTriggerInternal(
@@ -795,7 +795,7 @@ namespace Quartz.Simpl
                 }
             }
 
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -1116,7 +1116,7 @@ namespace Quartz.Simpl
             CancellationToken cancellationToken = default)
         {
             PauseTriggerInternal(triggerKey);
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         private void PauseTriggerInternal(TriggerKey triggerKey)
@@ -1217,7 +1217,7 @@ namespace Quartz.Simpl
                     PauseTriggerInternal(trigger.Key);
                 }
             }
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -1285,7 +1285,7 @@ namespace Quartz.Simpl
             CancellationToken cancellationToken = default)
         {
             ResumeTriggerInternal(triggerKey);
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         private void ResumeTriggerInternal(TriggerKey triggerKey)
@@ -1408,7 +1408,7 @@ namespace Quartz.Simpl
                     ResumeTriggerInternal(trigger.Key);
                 }
             }
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -1472,7 +1472,7 @@ namespace Quartz.Simpl
                     PauseTriggersInternal(GroupMatcher<TriggerKey>.GroupEquals(groupName));
                 }
             }
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -1499,7 +1499,7 @@ namespace Quartz.Simpl
                 // make sure we don't have anything left in groups
                 pausedTriggerGroups.Clear();
             }
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -1669,7 +1669,7 @@ namespace Quartz.Simpl
                     timeTriggers.Add(tw);
                 }
             }
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -1875,7 +1875,7 @@ namespace Quartz.Simpl
                     }
                 }
             }
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>

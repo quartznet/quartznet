@@ -46,7 +46,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             base.Initialize(loadHelper, signaler, cancellationToken);
             Log.Info("JobStoreTX initialized.");
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>

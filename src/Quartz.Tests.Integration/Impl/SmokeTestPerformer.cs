@@ -417,7 +417,7 @@ namespace Quartz.Tests.Integration.Impl
         {
             TriggeredCount++;
             triggered.Set();
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         public static int TriggeredCount { get; private set; }

@@ -535,7 +535,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
             }
 
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <seealso cref="IJobStore.SchedulerStarted(CancellationToken)" />
@@ -572,7 +572,7 @@ namespace Quartz.Impl.AdoJobStore
         public Task SchedulerPaused(CancellationToken cancellationToken = default)
         {
             schedulerRunning = false;
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -582,7 +582,7 @@ namespace Quartz.Impl.AdoJobStore
         public Task SchedulerResumed(CancellationToken cancellationToken = default)
         {
             schedulerRunning = true;
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>

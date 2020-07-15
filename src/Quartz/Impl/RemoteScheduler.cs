@@ -255,7 +255,7 @@ namespace Quartz.Impl
                 string schedulerName = SchedulerName;
                 GetRemoteScheduler().Shutdown();
                 SchedulerRepository.Instance.Remove(schedulerName);
-                return TaskUtil.CompletedTask;
+                return Task.CompletedTask;
             }
 #if REMOTING
             catch (RemotingException re)
@@ -683,7 +683,7 @@ namespace Quartz.Impl
             try
             {
                 action(GetRemoteScheduler());
-                return TaskUtil.CompletedTask;
+                return Task.CompletedTask;
             }
 #if REMOTING
             catch (RemotingException re)

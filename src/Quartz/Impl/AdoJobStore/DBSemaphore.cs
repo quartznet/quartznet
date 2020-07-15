@@ -166,7 +166,7 @@ namespace Quartz.Impl.AdoJobStore
                     new Exception("stack-trace of wrongful returner"));
             }
 
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>

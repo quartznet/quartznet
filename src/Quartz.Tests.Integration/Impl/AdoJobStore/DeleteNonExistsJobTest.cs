@@ -147,7 +147,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             public Task Execute(IJobExecutionContext context)
             {
                 log.InfoFormat("Job is executing {0}", context);
-                return TaskUtil.CompletedTask;
+                return Task.CompletedTask;
             }
         }
     }

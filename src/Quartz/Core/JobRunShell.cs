@@ -74,7 +74,7 @@ namespace Quartz.Core
         public override Task SchedulerShuttingdown(CancellationToken cancellationToken = default)
         {
             RequestShutdown();
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>

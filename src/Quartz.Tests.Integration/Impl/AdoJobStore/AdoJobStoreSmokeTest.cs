@@ -537,7 +537,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         {
             public Task Execute(IJobExecutionContext context)
             {
-                return TaskUtil.CompletedTask;
+                return Task.CompletedTask;
             }
         }
 
@@ -548,7 +548,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                 try
                 {
                     ((ManualResetEventSlim) context.Scheduler.Context.Get(KeyResetEvent)).Wait(TimeSpan.FromSeconds(20));
-                    return TaskUtil.CompletedTask;
+                    return Task.CompletedTask;
                 }
                 catch (SchedulerException ex)
                 {

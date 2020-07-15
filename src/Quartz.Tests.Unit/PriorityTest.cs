@@ -123,7 +123,7 @@ namespace Quartz.Tests.Unit
             public Task Execute(IJobExecutionContext context)
             {
                 result.Append(context.Trigger.Key.Name);
-                return TaskUtil.CompletedTask;
+                return Task.CompletedTask;
             }
         }
     }
