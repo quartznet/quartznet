@@ -45,7 +45,7 @@ namespace Quartz.Plugin.TimeZoneConverter
         {
             TimeZoneUtil.CustomResolver = TZConvert.GetTimeZoneInfo;
 
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -55,7 +55,7 @@ namespace Quartz.Plugin.TimeZoneConverter
         /// </summary>
         public Task Start(CancellationToken cancellationToken = default)
         {
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -65,7 +65,7 @@ namespace Quartz.Plugin.TimeZoneConverter
         /// </summary>
         public Task Shutdown(CancellationToken cancellationToken = default)
         {
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
     }
 }

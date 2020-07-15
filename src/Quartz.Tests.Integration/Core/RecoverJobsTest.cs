@@ -119,7 +119,7 @@ namespace Quartz.Tests.Integration.Core
                 CancellationToken cancellationToken = new CancellationToken())
             {
                 isJobRecovered.Set();
-                return TaskUtil.CompletedTask;
+                return Task.CompletedTask;
             }
         }
 

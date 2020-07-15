@@ -117,7 +117,7 @@ namespace Quartz.Plugin.Xml
                 return ProcessFile(fName, cancellationToken);
             }
 
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -270,7 +270,7 @@ namespace Quartz.Plugin.Xml
         public virtual Task Shutdown(CancellationToken cancellationToken = default)
         {
             // nothing to do
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         private async Task ProcessFile(JobFile? jobFile, CancellationToken cancellationToken = default)

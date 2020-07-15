@@ -302,7 +302,7 @@ namespace Quartz.Plugin.History
         {
             Name = pluginName;
             scheduler.ListenerManager.AddJobListener(this, EverythingMatcher<JobKey>.AllJobs());
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -313,7 +313,7 @@ namespace Quartz.Plugin.History
         public virtual Task Start(CancellationToken cancellationToken = default)
         {
             // do nothing...
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -324,7 +324,7 @@ namespace Quartz.Plugin.History
         public virtual Task Shutdown(CancellationToken cancellationToken = default)
         {
             // nothing to do...
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -342,7 +342,7 @@ namespace Quartz.Plugin.History
         {
             if (!IsInfoEnabled)
             {
-                return TaskUtil.CompletedTask;
+                return Task.CompletedTask;
             }
 
             ITrigger trigger = context.Trigger;
@@ -360,7 +360,7 @@ namespace Quartz.Plugin.History
             };
 
             WriteInfo(string.Format(CultureInfo.InvariantCulture, JobToBeFiredMessage, args));
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -380,7 +380,7 @@ namespace Quartz.Plugin.History
             {
                 if (!IsWarnEnabled)
                 {
-                    return TaskUtil.CompletedTask;
+                    return Task.CompletedTask;
                 }
 
                 string errMsg = jobException.Message;
@@ -396,7 +396,7 @@ namespace Quartz.Plugin.History
             {
                 if (!IsInfoEnabled)
                 {
-                    return TaskUtil.CompletedTask;
+                    return Task.CompletedTask;
                 }
 
                 var result = Convert.ToString(context.Result, CultureInfo.InvariantCulture);
@@ -408,7 +408,7 @@ namespace Quartz.Plugin.History
 
                 WriteInfo(string.Format(CultureInfo.InvariantCulture, JobSuccessMessage, args));
             }
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -424,7 +424,7 @@ namespace Quartz.Plugin.History
         {
             if (!IsInfoEnabled)
             {
-                return TaskUtil.CompletedTask;
+                return Task.CompletedTask;
             }
 
             ITrigger trigger = context.Trigger;
@@ -442,7 +442,7 @@ namespace Quartz.Plugin.History
             };
 
             WriteInfo(string.Format(CultureInfo.InvariantCulture, JobWasVetoedMessage, args));
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         protected virtual bool IsInfoEnabled => Log.IsInfoEnabled();

@@ -64,7 +64,7 @@ namespace Quartz.Listener
             IJobExecutionContext context, 
             CancellationToken cancellationToken = default)
         {
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -80,7 +80,7 @@ namespace Quartz.Listener
             IJobExecutionContext context,
             CancellationToken cancellationToken = default)
         {
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -95,7 +95,7 @@ namespace Quartz.Listener
             JobExecutionException? jobException,
             CancellationToken cancellationToken = default)
         {
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
     }
 }

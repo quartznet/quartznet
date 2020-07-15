@@ -19,7 +19,7 @@ namespace Quartz.Core
             CancellationToken cancellationToken = default)
         {
             log.ErrorException(msg, cause);
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
     }
 }

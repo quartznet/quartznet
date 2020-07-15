@@ -76,7 +76,7 @@ namespace Quartz.Plugin.Management
                     log.InfoException("Error shutting down Quartz: " + e.Message, e);
                 }
             };
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -87,7 +87,7 @@ namespace Quartz.Plugin.Management
         public virtual Task Start(CancellationToken cancellationToken = default)
         {
             // do nothing.
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -99,7 +99,7 @@ namespace Quartz.Plugin.Management
         {
             // nothing to do in this case (since the scheduler is already shutting
             // down)
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
     }
 }

@@ -129,7 +129,7 @@ namespace Quartz.Job
                     log.Debug($"Directory '{dir}' contents unchanged.");
                 }
             }
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         protected void GetUpdatedOrNewFiles(string dirName, DateTime lastModifiedDate, DateTime maxAgeDate, List<FileInfo> currentFileList,

@@ -144,7 +144,7 @@ namespace Quartz.Impl.AdoJobStore
                     log.WarnException($"Lock '{lockName}' attempt to return by: {requestorId} -- but not owner!", new Exception("stack-trace of wrongful returner"));
                 }
             }
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
