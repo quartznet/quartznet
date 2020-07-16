@@ -17,6 +17,8 @@
     <SignAssembly>True</SignAssembly>
     <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
 
+    <PackageIcon>quartz-logo-small.png</PackageIcon>
+    <PackageIconUrl>https://raw.githubusercontent.com/quartznet/quartznet/master/src/quartz-logo-small.png</PackageIconUrl>
     <PackageTags>scheduling;tasks;jobs;triggers;scheduler;threading</PackageTags>
     <PackageProjectUrl>https://www.quartz-scheduler.net/</PackageProjectUrl>
     <PackageReleaseNotes>https://github.com/quartznet/quartznet/releases</PackageReleaseNotes>
@@ -69,5 +71,9 @@
     <Optimize>true</Optimize>
     <DefineConstants>TRACE;$(DefineConstants)</DefineConstants>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\quartz-logo-small.png" Pack="true" Visible="false" PackagePath=""/>
+  </ItemGroup>  
 
 </Project>

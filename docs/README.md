@@ -1,8 +1,8 @@
 ---
 home: true
-heroImage: 
-heroText: Quartz.NET
-tagline: Open source job scheduling system 
+heroImage: quartz-logo-large.png
+heroText:
+tagline: Open-source job scheduling system for .NET
 actionText: Get Started →
 actionLink: /documentation/quartz-3.x/quick-start
 features:
