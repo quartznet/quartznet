@@ -1,15 +1,16 @@
 module.exports = {
   title: 'Quartz.NET',
-  description: 'A free, open-source scheduling framework for .NET.',
+  description: 'Open-source scheduling framework for .NET.',
   head: [
       ['link', { rel: "apple-touch-icon", sizes: "180x180", href: "/apple-touch-icon.png"}],
+      ['link', { rel: "icon", type: "image/png", sizes: "192x192", href: "/android-icon-192x192.png"}],
       ['link', { rel: "icon", type: "image/png", sizes: "32x32", href: "/favicon-32x32.png"}],
+      ['link', { rel: "icon", type: "image/png", sizes: "96x96", href: "/favicon-96x96.png"}],
       ['link', { rel: "icon", type: "image/png", sizes: "16x16", href: "/favicon-16x16.png"}],
-      ['link', { rel: "manifest", href: "/site.webmanifest"}],
-      ['link', { rel: "mask-icon", href: "/safari-pinned-tab.svg", color: "#3a0839"}],
+      ['link', { rel: "manifest", href: "/manifest.json"}],
       ['link', { rel: "shortcut icon", href: "/favicon.ico"}],
-      ['meta', { name: "msapplication-TileColor", content: "#3a0839"}],
-      ['meta', { name: "msapplication-config", content: "/browserconfig.xml"}],
+      ['meta', { name: "msapplication-TileColor", content: "#ffffff"}],
+      ['meta', { name: "msapplication-TileImage", content: "/ms-icon-144x144.png"}],
       ['meta', { name: "theme-color", content: "#ffffff"}],
       ["script",
         {
@@ -50,7 +51,7 @@ module.exports = {
     ]
   ],
   themeConfig: {
-    logo: '',
+    logo: '/quartz-logo-small.png',
     algolia: {
       apiKey: 'ff33ff2330e37071f7502b015d1e4955',
       indexName: 'quartz-scheduler'
