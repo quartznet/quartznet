@@ -10,7 +10,7 @@
     <Copyright>Copyright Marko Lahma</Copyright>
     <NeutralLanguage>en-US</NeutralLanguage>
 
-    <Authors>Marko Lahma</Authors>
+    <Authors>Marko Lahma, Quartz.NET</Authors>
     <WarningsAsErrors>True</WarningsAsErrors>
 
     <AssemblyOriginatorKeyFile>../../quartz.net.snk</AssemblyOriginatorKeyFile>
