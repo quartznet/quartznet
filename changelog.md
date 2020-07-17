@@ -5,6 +5,10 @@
 
 ## Release 3.1.0 XXX, Jul xx 2020
 
+* NEW FEATURES
+
+	* Upgrade MySqlConnector to 1.0 (namespace has changed) (#890)
+
 * FIXES
 
     * Remove internal dependencies from examples (#742)
