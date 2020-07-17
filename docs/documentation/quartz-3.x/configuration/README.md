@@ -5,6 +5,8 @@ title: Quartz.NET Configuration Reference
 
 # Quartz.NET Configuration Reference
 
+[[toc]]
+
 By default, `StdSchedulerFactory` loads a properties file named `quartz.config` from the "current working directory". If that fails, then the `quartz.config` file located (as an embedded resource) in the Quartz dll is loaded. If you wish to use a file other than these defaults, you must define the system property `quartz.properties` to point to the file you want.
 
 Alternatively, you can explicitly initialize the factory by calling one of the `Initialize(xx)` methods before calling `GetScheduler()` on the `StdSchedulerFactory`.
@@ -19,8 +21,8 @@ These properties configure the identification of the scheduler, and various othe
 
 |Property Name |	Required |	Type |	Default Value |
 |--------------|----------|------|----------------|
-|quartz.scheduler.instanceName	no	string	'QuartzScheduler'
-|quartz.scheduler.instanceId	no	string	'NON_CLUSTERED'
+|quartz.scheduler.instanceName|	no|	string	|'QuartzScheduler'|
+|quartz.scheduler.instanceId	|no	string	|'NON_CLUSTERED'|
 |quartz.scheduler.instanceIdGenerator.type	|no|	string (type name)	| Quartz.Simpl.SimpleInstanceIdGenerator, Quartz |
 |quartz.scheduler.threadName	|no|	string	|instanceName + '_QuartzSchedulerThread'|
 |quartz.scheduler.makeSchedulerThreadDaemon	|no|	boolean	|false|
@@ -84,7 +86,7 @@ The maximum number of triggers that a scheduler node is allowed to acquire (for 
 
 The amount of time in milliseconds that a trigger is allowed to be acquired and fired ahead of its scheduled fire time. Defaults to 0. The larger the number, the more likely batch acquisition of triggers to fire will be able to select and fire more than 1 trigger at a time - at the cost of trigger schedule not being honored precisely (triggers may fire this amount early). This may be useful (for performance’s sake) in situations where the scheduler has very large numbers of triggers that need to be fired at or near the same time.
 
-## Configuration of ThreadPool (tune resources for job execution)
+## ThreadPool
 
 Property Name	Required	Type	Default Value
 quartz.threadPool.class	yes	string (class name)	null
@@ -128,7 +130,7 @@ quartz.threadPool.type = MyLibrary.FooThreadPool, MyLibrary
 quartz.threadPool.somePropOfFooThreadPool = someValue
 ```
 
-## Configuration of Listeners (your application can receive notification of scheduled events)
+## Listeners
 
 Global listeners can be instantiated and configured by StdSchedulerFactory, or your application can do it itself at runtime, and then register the listeners with the scheduler. "Global" listeners listen to the events of every job/trigger rather than just the jobs/triggers that directly reference them.
 
@@ -154,7 +156,7 @@ quartz.jobListener.NAME.propName = propValue
 quartz.jobListener.NAME.prop2Name = prop2Value
 ```
 
-## Configuration of Plug-Ins (add functionality to your scheduler)
+## Plug-Ins
 
 Like listeners configuring plugins through the configuration file consists of giving then a name, and then specifying the class name, and any other properties to be set on the instance. The class must have a no-arg constructor, and the properties are set reflectively. Only primitive data type values (including Strings) are supported.
 
@@ -209,7 +211,11 @@ quartz.plugin.shutdownhook.type = Quartz.Plugins.Management.ShutdownHookPlugin, 
 quartz.plugin.shutdownhook.cleanShutdown = true
 ```
 
-## Configuration of RMI Server and Client (use a Quartz instance from a remote process)
+## Remoting Server and Client
+
+::: warning
+Remoting only works with .NET Full Framework. It's also considered unsafe.
+:::
 
 None of the primary properties are required, and all have 'reasonable' defaults. When using Quartz via RMI, you need to start an instance of Quartz with it configured to "export" its services via RMI. You then create clients to the server by configuring a Quartz scheduler to "proxy" its work to the server.
 
@@ -254,7 +260,7 @@ If you want to connect to (use) a remotely served scheduler, then set the 'quart
 
 NOTE: It does not make sense to specify a 'true' value for both 'quartz.scheduler.rmi.export' and 'quartz.scheduler.rmi.proxy' in the same config file - if you do, the 'export' option will be ignored. A value of 'false' for both 'export' and 'proxy' properties is of course valid, if you’re not using Quartz via RMI.
 
-## Configuration of RAMJobStore (store jobs and triggers in memory)
+## RAMJobStore
 
 RAMJobStore is used to store scheduling information (job, triggers and calendars) within memory. RAMJobStore is fast and lightweight, but all scheduling information is lost when the process terminates.
 
@@ -276,7 +282,7 @@ RAMJobStore can be tuned with the following properties:
 
 The the number of milliseconds the scheduler will 'tolerate' a trigger to pass its next-fire-time by, before being considered "misfired". The default value (if you don’t make an entry of this property in your configuration) is 60000 (60 seconds).
 
-## Configuration of JDBC-JobStoreTX (store jobs and triggers in a database via JDBC)
+## JobStoreTX (ADO.NET)
 
 JDBCJobStore is used to store scheduling information (job, triggers and calendars) within a relational database. There are actually two seperate JDBCJobStore classes that you can select between, depending on the transactional behaviour you need.
 
@@ -414,7 +420,7 @@ The format of the string is as such:
 The StdJDBCDelegate and all of its descendants (all delegates that ship with Quartz) support a property called 'triggerPersistenceDelegateClasses' which can be set to a comma-separated list of classes that implement the TriggerPersistenceDelegate interface for storing custom trigger types. See the Java classes SimplePropertiesTriggerPersistenceDelegateSupport and SimplePropertiesTriggerPersistenceDelegateSupport for examples of writing a persistence delegate for a custom trigger.
 
 
-## Configuration of DataSources (for use by the JDBC-JobStores)
+## DataSources (ADO.NET JobStores)
 
 If you’re using JDBC-Jobstore, you’ll be needing a DataSource for its use (or two DataSources, if you’re using JobStoreCMT).
 
@@ -532,7 +538,7 @@ quartz.dataSource.myCustomDS.someStringProperty = someValue
 quartz.dataSource.myCustomDS.someIntProperty = 5
 
 
-## Configuration of Database Clustering (achieve fail-over and load-balancing with JDBC-JobStore)
+## Clustering
 
 Quartz’s clustering features bring both high availability and scalability to your scheduler via fail-over and load balancing functionality.
 

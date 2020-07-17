@@ -1,5 +1,5 @@
 ---
-title: 'Lesson 9: JobStores'
+title: 'Job Stores'
 ---
 
 JobStore's are responsible for keeping track of all the "work data" that you give to the scheduler: 

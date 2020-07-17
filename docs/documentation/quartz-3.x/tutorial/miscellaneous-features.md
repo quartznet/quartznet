@@ -1,5 +1,5 @@
 ---
-title:  'Lesson 12: Miscellaneous Features of Quartz'
+title:  'Miscellaneous Features'
 ---
 
 ## Plug-Ins

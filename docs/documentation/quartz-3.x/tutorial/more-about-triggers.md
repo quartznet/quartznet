@@ -1,5 +1,5 @@
 ---
-title: 'Lesson 4: More About Triggers'
+title: 'More About Triggers'
 ---
 
 Like jobs, triggers are relatively easy to work with, but do contain a variety of customizable options that you need to

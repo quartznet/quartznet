@@ -1,5 +1,5 @@
 ---
-title: 'Lesson 10: Configuration, Resource Usage and SchedulerFactory'
+title: 'Configuration, Resource Usage and SchedulerFactory'
 ---
 
 Quartz is architected in modular way, and therefore to get it running, several components need to be "snapped" together. 

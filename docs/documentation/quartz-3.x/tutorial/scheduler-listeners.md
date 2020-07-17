@@ -1,5 +1,5 @@
 ---
-title: 'Lesson 8: SchedulerListeners'
+title: 'Scheduler Listeners'
 ---
 
 SchedulerListeners are much like ITriggerListeners and IJobListeners, except they receive notification of 

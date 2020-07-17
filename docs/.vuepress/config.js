@@ -26,7 +26,7 @@ module.exports = {
       '@vuepress/blog',
       {
         directories: [
-          {
+          { 
             // Unique ID of current classification
             id: 'post',
             // Target directory
@@ -90,10 +90,10 @@ module.exports = {
             ]
           },
           ['/documentation/quartz-3.x/configuration/', 'Configuration Reference'],
-          ['/documentation/quartz-3.x/migration-guide', 'Migration Guide' ],
           '/documentation/faq',
           '/documentation/best-practices',
-          ['http://quartznet.sourceforge.net/apidoc/3.0/html', 'API Documentation']
+          ['http://quartznet.sourceforge.net/apidoc/3.0/html', 'API Documentation'],
+          ['/documentation/quartz-3.x/migration-guide', 'Migration Guide' ]
         ]
       },
       {

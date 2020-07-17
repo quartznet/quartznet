@@ -1,5 +1,5 @@
 ---
-title: 'Lesson 6: CronTrigger'
+title: 'CronTrigger'
 ---
 
 CronTriggers are often more useful than SimpleTrigger, if you need a job-firing schedule that recurs based on calendar-like notions, 
@@ -91,7 +91,7 @@ You can also use CronScheduleBuilder's static methods to create schedules.
 **Build a trigger that will fire every other minute, between 8am and 5pm, every day:**
 
 ```csharp
-trigger = TriggerBuilder.Create()
+ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger3", "group1")
     .WithCronSchedule("0 0/2 8-17 * * ?")
     .ForJob("myJob", "group1")
@@ -102,7 +102,7 @@ trigger = TriggerBuilder.Create()
 
 ```csharp
 // we use CronScheduleBuilder's static helper methods here
-trigger = TriggerBuilder.Create()
+ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger3", "group1")
     .WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(10, 42))
     .ForJob(myJobKey)
@@ -112,7 +112,7 @@ trigger = TriggerBuilder.Create()
 or -
 
 ```csharp
-trigger = TriggerBuilder.Create()
+ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger3", "group1")
     .WithCronSchedule("0 42 10 * * ?")
     .ForJob("myJob", "group1")
@@ -122,7 +122,7 @@ trigger = TriggerBuilder.Create()
 **Build a trigger that will fire on Wednesdays at 10:42 am, in a TimeZone other than the system's default:**
 
 ```csharp
-trigger = TriggerBuilder.Create()
+ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger3", "group1")
     .WithSchedule(CronScheduleBuilder
         .WeeklyOnDayAndHourAndMinute(DayOfWeek.Wednesday, 10, 42)
@@ -133,7 +133,7 @@ trigger = TriggerBuilder.Create()
 or -
 
 ```csharp
-trigger = TriggerBuilder.Create()
+ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger3", "group1")
     .WithCronSchedule("0 42 10 ? * WED", x => x
         .InTimeZone(TimeZoneInfo.FindSystemTimeZoneById("Central America Standard Time")))
@@ -158,7 +158,7 @@ CronTrigger.UpdateAfterMisfire() method explains the exact details of this behav
 When building CronTriggers, you specify the misfire instruction as part of the cron schedule (via WithCronSchedule extension method):
 
 ```csharp
-trigger = TriggerBuilder.Create()
+ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger3", "group1")
     .WithCronSchedule("0 0/2 8-17 * * ?", x => x
         .WithMisfireHandlingInstructionFireAndProceed())
