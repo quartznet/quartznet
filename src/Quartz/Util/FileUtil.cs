@@ -65,11 +65,11 @@ namespace Quartz.Util
                 }
                 try
                 {
-#if APPCONTEXT
+#if NETSTANDARD
                     fName = Path.Combine(AppContext.BaseDirectory, fName);
-#else // APPCONTEXT
+#else
                     fName = Path.Combine(AppDomain.CurrentDomain.SetupInformation.ApplicationBase ?? "", fName);
-#endif // APPCONTEXT
+#endif
                 }
                 catch (SecurityException)
                 {
