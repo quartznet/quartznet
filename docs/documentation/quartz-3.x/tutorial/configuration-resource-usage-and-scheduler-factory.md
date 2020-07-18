@@ -14,7 +14,7 @@ The major components that need to be configured before Quartz can do its work ar
 
 Thread pooling has changed a lot since the Task-based jobs were introduced. **TODO document more** 
 
-JobStores and DataSrouces were discussed in Lesson 9 of this tutorial. Worth noting here, is the fact that all JobStores 
+JobStores and DataSources were discussed in Lesson 9 of this tutorial. Worth noting here, is the fact that all JobStores 
 implement the IJobStore interface - and that if one of the bundled JobStores does not fit your needs, then you can make your own.
 
 Finally, you need to create your Scheduler instance. The Scheduler itself needs to be given a name and handed 
