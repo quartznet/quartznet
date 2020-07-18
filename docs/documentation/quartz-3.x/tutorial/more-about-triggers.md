@@ -51,7 +51,7 @@ the tutorial lessons specific to each trigger type.
 ## Calendars
 
 Quartz.NET Calendar objects implementing ICalendar interface can be associated with triggers at the time the trigger is stored in the scheduler. 
-Calendars are useful for excluding blocks of time from the the trigger's firing schedule. For instance, you could 
+Calendars are useful for excluding blocks of time from the trigger's firing schedule. For instance, you could 
 create a trigger that fires a job every weekday at 9:30 am, but then add a Calendar that excludes all of the business's holidays.
 
 Calendar's can be any serializable objects that implement the ICalendar interface, which looks like this:
