@@ -7,9 +7,8 @@ using System.IO;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-#if NETCORE
+
 using Microsoft.Data.Sqlite;
-#endif
 using NUnit.Framework;
 
 using Quartz.Impl;
@@ -105,7 +104,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             return RunAdoJobStoreTest("MySqlConnector", "MySQL", serializerType, properties);
         }
 
-#if NETCORE
         [Test]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public async Task TestSQLiteMicrosoft(string serializerType)
@@ -120,7 +118,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             using (var connection = new SqliteConnection(dbConnectionStrings["SQLite-Microsoft"]))
             {
                 await connection.OpenAsync();
-                string sql = await File.ReadAllTextAsync("../../../../database/tables/tables_sqlite.sql");
+                string sql = File.ReadAllText("../../../../database/tables/tables_sqlite.sql");
 
                 var command = new SqliteCommand(sql, connection);
                 command.ExecuteNonQuery();
@@ -132,7 +130,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SQLiteDelegate, Quartz";
             await RunAdoJobStoreTest("SQLite-Microsoft", "SQLite-Microsoft", serializerType, properties, clustered: false);
         }
-#endif
 
         [Test]
         [TestCaseSource(nameof(GetSerializerTypes))]

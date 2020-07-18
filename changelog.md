@@ -9,6 +9,7 @@
 
     * Upgrade MySqlConnector to 1.0 (namespace has changed) (#890)
     * Support Microsoft.Extensions.Logging.Abstractions (#756)
+    * Support Microsoft.Data.SQLite with full framework (#893)
 
 * FIXES
 
