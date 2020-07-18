@@ -7,7 +7,8 @@
 
 * NEW FEATURES
 
-	* Upgrade MySqlConnector to 1.0 (namespace has changed) (#890)
+    * Upgrade MySqlConnector to 1.0 (namespace has changed) (#890)
+    * Support Microsoft.Extensions.Logging.Abstractions (#756)
 
 * FIXES
 

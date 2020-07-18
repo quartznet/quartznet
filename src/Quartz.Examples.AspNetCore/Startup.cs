@@ -9,12 +9,19 @@ using Microsoft.Extensions.Logging;
 
 using Quartz.Impl.Matchers;
 
+using Serilog;
+
 namespace Quartz.Examples.AspNetCore
 {
     public class Startup
     {
         public Startup(IConfiguration configuration)
         {
+            Log.Logger = new LoggerConfiguration()
+                .Enrich.FromLogContext()
+                .WriteTo.Console()
+                .CreateLogger();
+            
             Configuration = configuration;
         }
 
@@ -23,16 +30,13 @@ namespace Quartz.Examples.AspNetCore
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
-            services.AddRazorPages();
-
-            // easier to see behavior with timestamps
-            services.AddLogging(opt =>
+            services.AddLogging(loggingBuilder =>
             {
-                opt.AddConsole(c =>
-                {
-                    c.TimestampFormat = "[HH:mm:ss] ";
-                });
+                loggingBuilder.ClearProviders();
+                loggingBuilder.AddSerilog(dispose: true);
             });
+            
+            services.AddRazorPages();
             
             // base configuration for DI
             services.AddQuartz(q =>
@@ -45,7 +49,8 @@ namespace Quartz.Examples.AspNetCore
                 
                 // hooks LibLog to Microsoft logging without allowing it to detect concrete implementation
                 // if you are using NLog, SeriLog or log4net you shouldn't need this
-                q.UseQuartzMicrosoftLoggingBridge();
+                // LibLog will be removed in Quartz 4 and Microsoft Logging will become the default
+                q.UseMicrosoftLogging();
 
                 // we could leave DI configuration intact and then jobs need to have public no-arg constructor
                 

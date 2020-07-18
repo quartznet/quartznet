@@ -11,14 +11,18 @@
     <Compile Include="..\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup Condition=" '$(TargetFramework)' == '$(TargetFullFrameworkVersion)' ">
+    <Reference Include="System.Configuration" />
     <Reference Include="System.Runtime.Remoting" />
   </ItemGroup>
+  <ItemGroup Condition=" '$(TargetFramework)' != '$(TargetFullFrameworkVersion)' ">
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="4.7.0" />
+  </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="LibLog" Version="5.0.6">
+    <PackageReference Include="LibLog" Version="5.0.8">
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="System.Configuration.ConfigurationManager" Version="4.7.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="3.1.6" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="2.0.0" />
   </ItemGroup>
   <ItemGroup>
