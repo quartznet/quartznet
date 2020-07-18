@@ -3,10 +3,6 @@ using System.Collections.Specialized;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Logging;
-
-using Quartz.Logging;
 
 namespace Quartz
 {
@@ -59,20 +55,6 @@ namespace Quartz
             services.AddSingleton<ISchedulerFactory>(serviceProvider => new ServiceCollectionSchedulerFactory(serviceProvider, properties));
             return services;
         }        
-        
-        /// <summary>
-        /// Adds LibLog configuration to use Microsoft's logging abstraction instead of trying to find one.
-        /// </summary>
-        public static void UseQuartzMicrosoftLoggingBridge(this IServiceCollectionQuartzConfigurator configurator)
-        {
-            configurator.Services.TryAddSingleton(serviceProvider =>
-            {
-                var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
-                var loggingProvider = new LoggingProvider(loggerFactory);
-                LogProvider.SetCurrentLogProvider(loggingProvider);
-                return loggingProvider;
-            });            
-        }
         
         /// <summary>
         /// Add job to underlying service collection. This API maybe change!

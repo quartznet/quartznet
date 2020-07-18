@@ -4,19 +4,20 @@ using Microsoft.Extensions.Logging;
 
 using Quartz.Logging;
 
-namespace Quartz
+namespace Quartz.Simpl
 {
-    internal class LoggingProvider : ILogProvider
+    internal class MicrosoftLoggingProvider : ILogProvider
     {
         private readonly ILoggerFactory loggerFactory;
 
-        public LoggingProvider(ILoggerFactory loggerFactory)
+        public MicrosoftLoggingProvider(ILoggerFactory loggerFactory)
         {
             this.loggerFactory = loggerFactory;
         }
 
         public Logger GetLogger(string name)
         {
+            var logger = loggerFactory.CreateLogger(name);
             return (level, func, exception, parameters) =>
             {
                 if (func != null)
@@ -26,28 +27,28 @@ namespace Quartz
                     {
                         case Quartz.Logging.LogLevel.Info:
                         {
-                            loggerFactory.CreateLogger(name).LogInformation(exception, message, parameters);
+                            logger.LogInformation(exception, message, parameters);
                             break;
                         }
                         case Quartz.Logging.LogLevel.Debug:
                         {
-                            loggerFactory.CreateLogger(name).LogDebug(exception, message, parameters);
+                            logger.LogDebug(exception, message, parameters);
                             break;
                         }
                         case Quartz.Logging.LogLevel.Error:
                         case Quartz.Logging.LogLevel.Fatal:
                         {
-                            loggerFactory.CreateLogger(name).LogError(exception, message, parameters);
+                            logger.LogError(exception, message, parameters);
                             break;
                         }
                         case Quartz.Logging.LogLevel.Trace:
                         {
-                            loggerFactory.CreateLogger(name).LogTrace(exception, message, parameters);
+                            logger.LogTrace(exception, message, parameters);
                             break;
                         }
                         case Quartz.Logging.LogLevel.Warn:
                         {
-                            loggerFactory.CreateLogger(name).LogWarning(exception, message, parameters);
+                            logger.LogWarning(exception, message, parameters);
                             break;
                         }
                     }

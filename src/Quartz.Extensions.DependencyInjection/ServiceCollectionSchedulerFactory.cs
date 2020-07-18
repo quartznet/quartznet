@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.Impl;
+using Quartz.Simpl;
 using Quartz.Util;
 
 namespace Quartz
@@ -24,13 +25,13 @@ namespace Quartz
             NameValueCollection properties) : base(properties)
         {
             this.serviceProvider = serviceProvider;
-
-            // check if logging provider configured and let if configure
-            serviceProvider.GetService<LoggingProvider>();
         }
 
         public override async Task<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
         {
+            // check if logging provider configured and let if configure
+            serviceProvider.GetService<MicrosoftLoggingProvider>();
+            
             var scheduler = await base.GetScheduler(cancellationToken);
             if (initialized)
             {

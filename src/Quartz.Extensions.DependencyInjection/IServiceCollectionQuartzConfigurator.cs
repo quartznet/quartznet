@@ -9,9 +9,26 @@ namespace Quartz
     public interface IServiceCollectionQuartzConfigurator : IPropertyConfigurer
     {
         internal IServiceCollection Services { get; }
+        
+        /// <summary>
+        /// Configure custom job factory.
+        /// </summary>
         void UseJobFactory<T>(Action<JobFactoryOptions>? configure = null) where T : IJobFactory;
+
+        /// <summary>
+        /// Use <see cref="MicrosoftDependencyInjectionJobFactory"/> to produce Quartz jobs.
+        /// </summary>
         void UseMicrosoftDependencyInjectionJobFactory(Action<JobFactoryOptions>? configure = null);
+        /// <summary>
+        /// Use <see cref="UseMicrosoftDependencyInjectionScopedJobFactory"/> to produce Quartz jobs.
+        /// </summary>
         void UseMicrosoftDependencyInjectionScopedJobFactory(Action<JobFactoryOptions>? configure = null);
+
+        /// <summary>
+        /// Adds wires Microsoft's logging abstraction instead of trying to find one with LibLog.
+        /// </summary>
+        void UseMicrosoftLogging();
+        
         void UseTypeLoader<T>() where T : ITypeLoadHelper;
         void UseSimpleTypeLoader();
         string SchedulerId { set; }

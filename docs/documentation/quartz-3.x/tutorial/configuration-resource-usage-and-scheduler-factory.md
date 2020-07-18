@@ -40,10 +40,35 @@ configuration - or in other words, you end up hard-coding all of the scheduler's
 
 ## Logging
 
-Quartz.NET uses <a href="https://github.com/damianh/LibLog">LibLob library</a> for all of its logging needs. 
+::: tip
+As of Quartz.NET 3.1, you can configure [Microsoft.Extensions.Logging.Abstractions](https://www.nuget.org/packages/Microsoft.Extensions.Logging.Abstractions/) to be used instead of LibLog. 
+:::
+
+### LibLog
+
+Quartz.NET uses <a href="https://github.com/damianh/LibLog">LibLog library</a> for all of its logging needs. 
 Quartz does not produce much logging information - generally just some information during initialization, and 
 then only messages about serious problems while Jobs are executing. In order to "tune" the logging settings 
 (such as the amount of output, and where the output goes), you need to actually configure your logging framework of choice as LibLog mostly delegates the work to
 more full-fledged logging framework like log4net, serilog etc.
 
 Please see <a href="https://github.com/damianh/LibLog/wiki">LibLog Wiki</a> for more information.
+
+### Microsoft.Extensions.Logging.Abstractions
+
+You can configure Microsoft.Extensions.Logging.Abstractions either manually or using services found in [Quartz.Extensions.DependencyInjection](https://www.nuget.org/packages/Quartz.Extensions.DependencyInjection).
+
+#### Manual configuration
+```csharp
+// obtain your logger factory, for example from IServiceProvider
+ILoggerFactory loggerFactory = ...;
+Quartz.LogContext.SetCurrentLogProvider(loggerFactory);
+```
+
+#### Configuration using Microsoft DI integration.
+```csharp
+services.AddQuartz(q =>
+{
+    q.UseMicrosoftLogging();
+});
+```
