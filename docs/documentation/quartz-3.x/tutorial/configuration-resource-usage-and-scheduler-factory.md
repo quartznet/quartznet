@@ -12,9 +12,12 @@ The major components that need to be configured before Quartz can do its work ar
 * DataSources (if necessary)
 * The Scheduler itself
 
-Thread pooling has changed a lot since the Task-based jobs were introduced. **TODO document more** 
+Thread pooling has changed a lot since the Task-based jobs were introduced. 
+Now the default implementation, `DefaultThreadPool` uses [CLR's managed thread pool](https://docs.microsoft.com/en-us/dotnet/standard/threading/the-managed-thread-pool) to execute jobs as tasks.
+You can configure the pool that have max concurrency, which effectively limits how many concurrent tasks can be scheduled to the CLR's thread pool.
+See configuration reference for more details on how to configure the thread pool implementation. 
 
-JobStores and DataSrouces were discussed in Lesson 9 of this tutorial. Worth noting here, is the fact that all JobStores 
+JobStores and DataSources were discussed in Lesson 9 of this tutorial. Worth noting here, is the fact that all JobStores 
 implement the IJobStore interface - and that if one of the bundled JobStores does not fit your needs, then you can make your own.
 
 Finally, you need to create your Scheduler instance. The Scheduler itself needs to be given a name and handed 

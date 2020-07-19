@@ -126,11 +126,15 @@ This may be useful (for performance’s sake) in situations where the scheduler 
 Is the name of the ThreadPool implementation you wish to use.
 The thread pool that ships with Quartz is "Quartz.Simpl.DefaultThreadPool", and should meet the needs of nearly every user.
  
-It has very simple behavior and is very well tested. It dispatches tasks to .NET task queue and ensures that configured max amount of concurrent tasks limit is obeyed. 
+It has very simple behavior and is very well tested. It dispatches tasks to .NET task queue and ensures that configured max amount of concurrent tasks limit is obeyed.
+You should study [CLR's managed thread pool](https://docs.microsoft.com/en-us/dotnet/standard/threading/the-managed-thread-pool) if you want to fine-tune thread pools on CLR level. 
 
-### `quartz.threadPool.threadCount`
+### `quartz.threadPool.maxConcurency`
 
-Can be any positive integer, although you should realize that only numbers between 1 and 100 are very practical. This is the number of threads that are available for concurrent execution of jobs. If you only have a few jobs that fire a few times a day, then 1 thread is plenty! If you have tens of thousands of jobs, with many firing every minute, then you probably want a thread count more like 50 or 100 (this highly depends on the nature of the work that your jobs perform, and your systems resources!).
+This is the number of concurrent tasks that can be dispatched to CLR thread pool.
+If you only have a few jobs that fire a few times a day, then 1 tasks is plenty!
+If you have tens of thousands of jobs, with many firing every minute, then you probably want a max concurrency count more like 50 or 100 (this highly depends on the nature of the work that your jobs perform, and your systems resources!).
+Also note CLR thread pool configuration separate from Quartz itself.
 
 ### Custom ThreadPools
 
