@@ -7,11 +7,15 @@ title: Quartz.NET Configuration Reference
 
 [[toc]]
 
-By default, `StdSchedulerFactory` loads a properties file named `quartz.config` from the "current working directory". If that fails, then the `quartz.config` file located (as an embedded resource) in the Quartz dll is loaded. If you wish to use a file other than these defaults, you must define the system property `quartz.properties` to point to the file you want.
+By default, `StdSchedulerFactory` loads a properties file named `quartz.config` from the "current working directory".
+If that fails, then the `quartz.config` file located (as an embedded resource) in the Quartz dll is loaded.
+If you wish to use a file other than these defaults, you must define the system property `quartz.properties` to point to the file you want.
 
 Alternatively, you can explicitly initialize the factory by calling one of the `Initialize(xx)` methods before calling `GetScheduler()` on the `StdSchedulerFactory`.
 
-Instances of the specified `JobStore`, `ThreadPool`, and other SPI classes will be created by name, and then any additional properties specified for them in the config file will be set on the instance by calling an equivalent property set method. For example if the properties file contains the property `quartz.jobStore.myProp = 10` then after the JobStore class has been instantiated, the setter of property `MyProp` will be called on it. Type conversion to primitive types (int, long, float, double, boolean, and string) are performed before calling the property’s setter method.
+Instances of the specified `IJobStore`, `IThreadPool`, and other SPI classes will be created by name, and then any additional properties specified for them in the config file will be set on the instance by calling an equivalent property set method.
+For example if the properties file contains the property `quartz.jobStore.myProp = 10` then after the JobStore class has been instantiated, the setter of property `MyProp` will be called on it.
+Type conversion to primitive types (int, long, float, double, boolean, and string) are performed before calling the property’s setter method.
 
 One property can reference another property’s value by specifying a value following the convention of `$@other.property.name`, for example, to reference the scheduler’s instance name as the value for some other property, you would use `$@quartz.scheduler.instanceName`.
 
@@ -19,14 +23,13 @@ One property can reference another property’s value by specifying a value foll
 
 These properties configure the identification of the scheduler, and various other "top level" settings.
 
-|Property Name |	Required |	Type |	Default Value |
-|--------------|----------|------|----------------|
-|quartz.scheduler.instanceName|	no|	string	|'QuartzScheduler'|
-|quartz.scheduler.instanceId	|no	string	|'NON_CLUSTERED'|
-|quartz.scheduler.instanceIdGenerator.type	|no|	string (type name)	| Quartz.Simpl.SimpleInstanceIdGenerator, Quartz |
+|Property Name                                          | Required |	Type |	Default Value  |
+|-------------------------------------------------------|----------|---------|-----------------|
+|quartz.scheduler.instanceName                          |no        | string  |'QuartzScheduler'|
+|quartz.scheduler.instanceId                            |no        | string  | 'NON_CLUSTERED' |
+|quartz.scheduler.instanceIdGenerator.type              |no        | string (type name)	| Quartz.Simpl.SimpleInstanceIdGenerator, Quartz |
 |quartz.scheduler.threadName	|no|	string	|instanceName + '_QuartzSchedulerThread'|
 |quartz.scheduler.makeSchedulerThreadDaemon	|no|	boolean	|false|
-|quartz.scheduler.threadsInheritContextClassLoaderOfInitializer	|no|	boolean	|false|
 |quartz.scheduler.idleWaitTime |	no	|long	|30000|
 |quartz.scheduler.dbFailureRetryInterval|	no	|long|	15000|
 |quartz.scheduler.typeLoadHelper.type	|no|	string (type name)	| Quartz.Simpl.SimpleTypeLoadHelper|
@@ -36,53 +39,59 @@ These properties configure the identification of the scheduler, and various othe
 |quartz.scheduler.batchTriggerAcquisitionMaxCount|	no|	int|	1|
 |quartz.scheduler.batchTriggerAcquisitionFireAheadTimeWindow	|no|	long	|0|
 
-**`quartz.scheduler.instanceName`**
+### `quartz.scheduler.instanceName`
 
-Can be any string, and the value has no meaning to the scheduler itself - but rather serves as a mechanism for client code to distinguish schedulers when multiple instances are used within the same program. If you are using the clustering features, you must use the same name for every instance in the cluster that is 'logically' the same Scheduler.
+Can be any string, and the value has no meaning to the scheduler itself - but rather serves as a mechanism for client code to distinguish schedulers when multiple instances are used within the same program.
+If you are using the clustering features, you must use the same name for every instance in the cluster that is 'logically' the same Scheduler.
 
-**`quartz.scheduler.instanceId`**
+### `quartz.scheduler.instanceId`
 
-Can be any string, but must be unique for all schedulers working as if they are the same 'logical' Scheduler within a cluster. You may use the value "AUTO" as the instanceId if you wish the Id to be generated for you. Or the value "SYS_PROP" if you want the value to come from the system property "quartz.scheduler.instanceId".
+Can be any string, but must be unique for all schedulers working as if they are the same 'logical' Scheduler within a cluster.
+You may use the value "AUTO" as the instanceId if you wish the Id to be generated for you. 
+Or the value "SYS_PROP" if you want the value to come from the system property "quartz.scheduler.instanceId".
 
-**`quartz.scheduler.instanceIdGenerator.type`**
+### `quartz.scheduler.instanceIdGenerator.type`
 
-Only used if quartz.scheduler.instanceId is set to "AUTO". Defaults to "quartz.simpl.SimpleInstanceIdGenerator", which generates an instance id based upon host name and time stamp. Other IntanceIdGenerator implementations include SystemPropertyInstanceIdGenerator (which gets the instance id from the system property "quartz.scheduler.instanceId", and HostnameInstanceIdGenerator which uses the local host name (InetAddress.getLocalHost().getHostName()). You can also implement the InstanceIdGenerator interface your self.
+Only used if quartz.scheduler.instanceId is set to "AUTO". Defaults to "quartz.simpl.SimpleInstanceIdGenerator",
+which generates an instance id based upon host name and time stamp. Other `InstanceIdGenerator` implementations include `SystemPropertyInstanceIdGenerator`
+(which gets the instance id from the system property "quartz.scheduler.instanceId", and `HostnameInstanceIdGenerator` which uses the local host name (`Dns.GetHostEntry(Dns.GetHostName())`). 
+You can also implement the InstanceIdGenerator interface your self.
 
-**`quartz.scheduler.threadName`**
+### `quartz.scheduler.threadName`
 
 Can be any String that is a valid name for a java thread. If this property is not specified, the thread will receive the scheduler’s name ("quartz.scheduler.instanceName") plus an the appended string '_QuartzSchedulerThread'.
 
-**`quartz.scheduler.makeSchedulerThreadDaemon`**
+### `quartz.scheduler.makeSchedulerThreadDaemon`
 
 A boolean value ('true' or 'false') that specifies whether the main thread of the scheduler should be a daemon thread or not. See also the quartz.scheduler.makeSchedulerThreadDaemon property for tuning the SimpleThreadPool if that is the thread pool implementation you are using (which is most likely the case).
 
-**`quartz.scheduler.idleWaitTime`**
+### `quartz.scheduler.idleWaitTime`
 
 Is the amount of time in milliseconds that the scheduler will wait before re-queries for available triggers when the scheduler is otherwise idle. Normally you should not have to 'tune' this parameter, unless you’re using XA transactions, and are having problems with delayed firings of triggers that should fire immediately. Values less than 5000 ms are not recommended as it will cause excessive database querying. Values less than 1000 are not legal.
 
-**`quartz.scheduler.dbFailureRetryInterval`**
+### `quartz.scheduler.dbFailureRetryInterval`
 
 Is the amount of time in milliseconds that the scheduler will wait between re-tries when it has detected a loss of connectivity within the JobStore (e.g. to the database). This parameter is obviously not very meaningful when using RamJobStore.
 
-**`quartz.scheduler.typeLoadHelper.type`**
+### `quartz.scheduler.typeLoadHelper.type`
 
 Defaults to the most robust approach, which is to use the "quartz.simpl.CascadingClassLoadHelper" class - which in turn uses every other ClassLoadHelper class until one works. You should probably not find the need to specify any other class for this property, though strange things seem to happen within application servers. All of the current possible ClassLoadHelper implementation can be found in the quartz.simpl package.
 
-**`quartz.scheduler.jobFactory.type`**
+### `quartz.scheduler.jobFactory.type`
 
 The class name of the JobFactory to use. A JobFatcory is responsible for producing instances of JobClasses. The default is 'quartz.simpl.PropertySettingJobFactory', which simply calls newInstance() on the class to produce a new instance each time execution is about to occur. PropertySettingJobFactory also reflectively sets the job’s bean properties using the contents of the SchedulerContext and Job and Trigger JobDataMaps.
 
-**`quartz.context.key.SOME_KEY`**
+### `quartz.context.key.SOME_KEY`
 
 Represent a name-value pair that will be placed into the "scheduler context" as strings. (see Scheduler.getContext()). So for example, the setting "quartz.context.key.MyKey = MyValue" would perform the equivalent of scheduler.getContext().put("MyKey", "MyValue").
 
 NOTE: The Transaction-Related properties should be left out of the config file unless you are using JTA transactions.
 
-**`quartz.scheduler.batchTriggerAcquisitionMaxCount`**
+### `quartz.scheduler.batchTriggerAcquisitionMaxCount`
 
 The maximum number of triggers that a scheduler node is allowed to acquire (for firing) at once. Default value is 1. The larger the number, the more efficient firing is (in situations where there are very many triggers needing to be fired all at once) - but at the cost of possible imbalanced load between cluster nodes. If the value of this property is set to > 1, and JDBC JobStore is used, then the property "quartz.jobStore.acquireTriggersWithinLock" must be set to "true" to avoid data corruption.
 
-**`quartz.scheduler.batchTriggerAcquisitionFireAheadTimeWindow`**
+### `quartz.scheduler.batchTriggerAcquisitionFireAheadTimeWindow`
 
 The amount of time in milliseconds that a trigger is allowed to be acquired and fired ahead of its scheduled fire time. Defaults to 0. The larger the number, the more likely batch acquisition of triggers to fire will be able to select and fire more than 1 trigger at a time - at the cost of trigger schedule not being honored precisely (triggers may fire this amount early). This may be useful (for performance’s sake) in situations where the scheduler has very large numbers of triggers that need to be fired at or near the same time.
 
@@ -96,11 +105,11 @@ quartz.threadPool.class
 
 Is the name of the ThreadPool implementation you wish to use. The threadpool that ships with Quartz is "quartz.simpl.SimpleThreadPool", and should meet the needs of nearly every user. It has very simple behavior and is very well tested. It provides a fixed-size pool of threads that 'live' the lifetime of the Scheduler.
 
-**`quartz.threadPool.threadCount`**
+### `quartz.threadPool.threadCount`
 
 Can be any positive integer, although you should realize that only numbers between 1 and 100 are very practical. This is the number of threads that are available for concurrent execution of jobs. If you only have a few jobs that fire a few times a day, then 1 thread is plenty! If you have tens of thousands of jobs, with many firing every minute, then you probably want a thread count more like 50 or 100 (this highly depends on the nature of the work that your jobs perform, and your systems resources!).
 
-**`quartz.threadPool.threadPriority`**
+### `quartz.threadPool.threadPriority`
 
 Can be any int between Thread.MIN_PRIORITY (which is 1) and Thread.MAX_PRIORITY (which is 10). The default is Thread.NORM_PRIORITY (5).
 
@@ -115,7 +124,7 @@ quartz.threadPool.makeThreadsDaemons
 
 Can be set to "true" to have the threads in the pool created as daemon threads. Default is "false". See also the ConfigMain quartz.scheduler.makeSchedulerThreadDaemon property.
 
-**`quartz.threadPool.threadNamePrefix`**
+### `quartz.threadPool.threadNamePrefix`
 
 The prefix for thread names in the worker pool - will be postpended with a number.
 
@@ -347,53 +356,53 @@ quartz.impl.jdbcjobstore.SybaseDelegate
 
 Note that many databases are known to work with the StdJDBCDelegate, while others are known to work with delegates for other databases, for example Derby works well with the Cloudscape delegate (no surprise there).
 
-**`quartz.jobStore.dataSource`**
+### `quartz.jobStore.dataSource`
 
 The value of this property must be the name of one the DataSources defined in the configuration properties file. See the ConfigDataSources configuration docs for DataSources for more information.
 
-**`quartz.jobStore.tablePrefix`**
+### `quartz.jobStore.tablePrefix`
 
 JDBCJobStore’s "table prefix" property is a string equal to the prefix given to Quartz’s tables that were created in your database. You can have multiple sets of Quartz’s tables within the same database if they use different table prefixes.
 
-**`quartz.jobStore.useProperties`**
+### `quartz.jobStore.useProperties`
 
 The "use properties" flag instructs JDBCJobStore that all values in JobDataMaps will be Strings, and therefore can be stored as name-value pairs, rather than storing more complex objects in their serialized form in the BLOB column. This is can be handy, as you avoid the class versioning issues that can arise from serializing your non-String classes into a BLOB.
 
-**`quartz.jobStore.misfireThreshold`**
+### `quartz.jobStore.misfireThreshold`
 
 The the number of milliseconds the scheduler will 'tolerate' a trigger to pass its next-fire-time by, before being considered "misfired". The default value (if you don’t make an entry of this property in your configuration) is 60000 (60 seconds).
 
-**`quartz.jobStore.isClustered`**
+### `quartz.jobStore.isClustered`
 
 Set to "true" in order to turn on clustering features. This property must be set to "true" if you are having multiple instances of Quartz use the same set of database tables…​ otherwise you will experience havoc. See the configuration docs for clustering for more information.
 
-**`quartz.jobStore.clusterCheckinInterval`**
+### `quartz.jobStore.clusterCheckinInterval`
 
 Set the frequency (in milliseconds) at which this instance "checks-in"* with the other instances of the cluster. Affects the quickness of detecting failed instances.
 
-**`quartz.jobStore.maxMisfiresToHandleAtATime`**
+### `quartz.jobStore.maxMisfiresToHandleAtATime`
 
 The maximum number of misfired triggers the jobstore will handle in a given pass. Handling many (more than a couple dozen) at once can cause the database tables to be locked long enough that the performance of firing other (not yet misfired) triggers may be hampered.
 
-**`quartz.jobStore.dontSetAutoCommitFalse`**
+### `quartz.jobStore.dontSetAutoCommitFalse`
 
 Setting this parameter to "true" tells Quartz not to call setAutoCommit(false) on connections obtained from the DataSource(s). This can be helpful in a few situations, such as if you have a driver that complains if it is called when it is already off. This property defaults to false, because most drivers require that setAutoCommit(false) is called.
 
-**`quartz.jobStore.selectWithLockSQL`**
+### `quartz.jobStore.selectWithLockSQL`
 
 Must be a SQL string that selects a row in the "LOCKS" table and places a lock on the row. If not set, the default is "SELECT * FROM {0}LOCKS WHERE SCHED_NAME = {1} AND LOCK_NAME = ? FOR UPDATE", which works for most databases. The "{0}" is replaced during run-time with the TABLE_PREFIX that you configured above. The "{1}" is replaced with the scheduler’s name.
 
-**`quartz.jobStore.txIsolationLevelSerializable`**
+### `quartz.jobStore.txIsolationLevelSerializable`
 
 A value of "true" tells Quartz (when using JobStoreTX or CMT) to call setTransactionIsolation(Connection.TRANSACTION_SERIALIZABLE) on JDBC connections. This can be helpful to prevent lock timeouts with some databases under high load, and "long-lasting" transactions.
 
-**`quartz.jobStore.acquireTriggersWithinLock`**
+### `quartz.jobStore.acquireTriggersWithinLock`
 
 Whether or not the acquisition of next triggers to fire should occur within an explicit database lock. This was once necessary (in previous versions of Quartz) to avoid dead-locks with particular databases, but is no longer considered necessary, hence the default value is "false".
 
 If "quartz.scheduler.batchTriggerAcquisitionMaxCount" is set to > 1, and JDBC JobStore is used, then this property must be set to "true" to avoid data corruption (as of Quartz 2.1.1 "true" is now the default if batchTriggerAcquisitionMaxCount is set > 1).
 
-**`quartz.jobStore.lockHandler.type`**
+### `quartz.jobStore.lockHandler.type`
 
 The class name to be used to produce an instance of a quartz.impl.jdbcjobstore.Semaphore to be used for locking control on the job store data. This is an advanced configuration feature, which should not be used by most users. By default, Quartz will select the most appropriate (pre-bundled) Semaphore implementation to use. quartz.impl.jdbcjobstore.UpdateLockRowSemaphore QUARTZ-497 may be of interest to MS SQL Server users. See QUARTZ-441.
 
@@ -409,7 +418,7 @@ quartz.jobStore.lockHandler.maxRetry = 7     # Default is 3
 quartz.jobStore.lockHandler.maxRetry = 3000  # Default is 1000 millis
 ```
 
-**`quartz.jobStore.driverDelegateInitString`**
+### `quartz.jobStore.driverDelegateInitString`
 
 A pipe-delimited list of properties (and their values) that can be passed to the DriverDelegate during initialization time.
 

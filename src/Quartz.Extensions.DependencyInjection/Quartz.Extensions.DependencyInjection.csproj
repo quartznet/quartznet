@@ -1,8 +1,8 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <AssemblyTitle>Quartz.NET Microsoft.Extensions.DependencyInjection integration</AssemblyTitle>
-        <TargetFrameworks>netstandard2.0;netcoreapp3.1</TargetFrameworks>
+        <Description>Quartz.NET Microsoft.Extensions.DependencyInjection integration; $(Description)</Description>
+        <TargetFramework>netstandard2.0</TargetFramework>
         <RootNamespace>Quartz</RootNamespace>
         <GenerateDocumentationFile>True</GenerateDocumentationFile>
         <Authors>Facundo Glaeser, Marko Lahma, Quartz.NET</Authors>
