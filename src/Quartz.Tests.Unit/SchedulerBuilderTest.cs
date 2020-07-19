@@ -17,10 +17,10 @@ namespace Quartz.Tests.Unit
         {
             var config = SchedulerBuilder.Create();
             config.UseInMemoryStore();
-            config.UseDefaultThreadPool(x => x.ThreadCount = 100);
+            config.UseDefaultThreadPool(x => x.MaxConcurrency = 100);
 
             Assert.That(config.Properties["quartz.jobStore.type"], Is.EqualTo(typeof(RAMJobStore).AssemblyQualifiedNameWithoutVersion()));
-            Assert.That(config.Properties["quartz.threadPool.threadCount"], Is.EqualTo("100"));
+            Assert.That(config.Properties["quartz.threadPool.maxConcurrency"], Is.EqualTo("100"));
         }
 
         [Test]

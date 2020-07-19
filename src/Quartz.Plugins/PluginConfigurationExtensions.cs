@@ -20,28 +20,28 @@ namespace Quartz
 
     public class XmlSchedulingOptions : PropertiesHolder
     {
-        internal XmlSchedulingOptions(IPropertyConfigurer parent) : base(parent)
+        internal XmlSchedulingOptions(IPropertyConfigurer parent) : base(parent, "quartz.plugin.xml")
         {
         }
 
         public string[] Files
         {
-            set => SetProperty("quartz.plugin.xml.fileNames", string.Join(",", value));
+            set => SetProperty("fileNames", string.Join(",", value));
         }
 
         public bool FailOnFileNotFound
         {
-            set => SetProperty("quartz.plugin.xml.failOnFileNotFound", value.ToString().ToLowerInvariant());
+            set => SetProperty("failOnFileNotFound", value.ToString().ToLowerInvariant());
         }
 
         public bool FailOnSchedulingError
         {
-            set => SetProperty("quartz.plugin.xml.failOnSchedulingError", value.ToString().ToLowerInvariant());
+            set => SetProperty("failOnSchedulingError", value.ToString().ToLowerInvariant());
         }
 
         public TimeSpan ScanInterval
         {
-            set => SetProperty("quartz.plugin.xml.scanInterval", ((int) value.TotalSeconds).ToString());
+            set => SetProperty("scanInterval", ((int) value.TotalSeconds).ToString());
         }
     }
 }

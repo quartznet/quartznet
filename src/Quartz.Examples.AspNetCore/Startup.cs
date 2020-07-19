@@ -69,7 +69,7 @@ namespace Quartz.Examples.AspNetCore
                 q.UseInMemoryStore();
                 q.UseDefaultThreadPool(tp =>
                 {
-                    tp.ThreadCount = 10;
+                    tp.MaxConcurrency = 10;
                 });
                 
                 // configure jobs with code

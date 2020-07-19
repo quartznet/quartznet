@@ -13,7 +13,7 @@ namespace Quartz.Tests.Integration
             
             config.UseDefaultThreadPool(x =>
             {
-                x.ThreadCount = threadPoolSize;
+                x.MaxConcurrency = threadPoolSize;
             });
 
             return config.BuildScheduler();
