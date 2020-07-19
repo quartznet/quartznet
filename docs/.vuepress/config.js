@@ -89,7 +89,7 @@ module.exports = {
               '/documentation/quartz-3.x/tutorial/crontrigger'
             ]
           },
-          ['/documentation/quartz-3.x/configuration/', 'Configuration Reference'],
+          ['/documentation/quartz-3.x/configuration/reference', 'Configuration Reference'],
           '/documentation/faq',
           '/documentation/best-practices',
           ['http://quartznet.sourceforge.net/apidoc/3.0/html', 'API Documentation'],
