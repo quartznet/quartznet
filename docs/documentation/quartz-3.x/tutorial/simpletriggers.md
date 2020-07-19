@@ -1,5 +1,5 @@
 ---
-title: 'Lesson 5: SimpleTrigger'
+title: 'SimpleTrigger'
 ---
 
 SimpleTrigger should meet your scheduling needs if you need to have a job execute exactly once at a specific moment in time,
@@ -40,7 +40,7 @@ ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
 __Build a trigger for a specific moment in time, then repeating every ten seconds ten times:__
 
 ```csharp
-trigger = TriggerBuilder.Create()
+ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger3", "group1")
     .StartAt(myTimeToStartFiring) // if a start time is not given (if this line were omitted), "now" is implied
     .WithSimpleSchedule(x => x
@@ -54,7 +54,7 @@ trigger = TriggerBuilder.Create()
 __Build a trigger that will fire once, five minutes in the future:__
 
 ```csharp
-trigger = (ISimpleTrigger) TriggerBuilder.Create()
+ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger5", "group1")
     .StartAt(DateBuilder.FutureDate(5, IntervalUnit.Minute)) // use DateBuilder to create a date in the future
     .ForJob(myJobKey) // identify job with its JobKey
@@ -64,7 +64,7 @@ trigger = (ISimpleTrigger) TriggerBuilder.Create()
 __Build a trigger that will fire now, then repeat every five minutes, until the hour 22:00:__
 
 ```csharp
-trigger = TriggerBuilder.Create()
+ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger7", "group1")
     .WithSimpleSchedule(x => x
         .WithIntervalInMinutes(5)
@@ -75,7 +75,7 @@ trigger = TriggerBuilder.Create()
 __Build a trigger that will fire at the top of the next hour, then repeat every 2 hours, forever:__
 
 ```csharp
-trigger = TriggerBuilder.Create()
+ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger8") // because group is not specified, "trigger8" will be in the default group
     .StartAt(DateBuilder.EvenHourDate(null)) // get the next even-hour (minutes and seconds zero ("00:00"))
     .WithSimpleSchedule(x => x
@@ -116,7 +116,7 @@ this dynamic behavior.
 When building SimpleTriggers, you specify the misfire instruction as part of the simple schedule (via SimpleSchedulerBuilder):
 
 ```csharp
-trigger = TriggerBuilder.Create()
+ITrigger trigger = TriggerBuilder.Create()
     .WithIdentity("trigger7", "group1")
     .WithSimpleSchedule(x => x
         .WithIntervalInMinutes(5)

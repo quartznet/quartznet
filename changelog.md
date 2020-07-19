@@ -49,35 +49,35 @@ There are also some minor bug fixes present.
 * NEW FEATURE
 
     * Microsoft DI integration via package Quartz.Extensions.DependencyInjection (also allows briding to Microsoft Logging)
-	* ASP.NET Core / Hosting integration and health checks via revisited NuGet package Quartz.AspNetCore (thank you zlzforever for contributing the work)
+    * ASP.NET Core / Hosting integration and health checks via revisited NuGet package Quartz.AspNetCore (thank you zlzforever for contributing the work)
     * Introduced a config parameter `ClusterCheckinMisfireThreshold` (#692)
-	* Giving meaningful names to examples folders (#701)
-	* Added search patterns/sub directory search to directoty scanner job (#411, #708)
-	* Fluent interface for scheduler configuration (#791)
-	* Support every nth week in cron expression (#790)
-	* Enable SQLite job store provider for NetStandard (#802)
-	* Add configurable params for StdRowLockSemaphore for Failure obtaining db row lock
-	* SchedName added to queries as sql paramteter (#818)
-	* Server, example and test projects upgraded to user .NET Core 3.1
-	* Nullable reference type annotations have been enabled
-	* Symbols are now provided as a separate NuGet symbol package (snupkg)
-	* SQL Server indexes have been fine-tuned, redudancies were removed and you can follow the current scripts to update to latest version of them
+    * Giving meaningful names to examples folders (#701)
+    * Added search patterns/sub directory search to directoty scanner job (#411, #708)
+    * Fluent interface for scheduler configuration (#791)
+    * Support every nth week in cron expression (#790)
+    * Enable SQLite job store provider for NetStandard (#802)
+    * Add configurable params for StdRowLockSemaphore for Failure obtaining db row lock
+    * SchedName added to queries as sql paramteter (#818)
+    * Server, example and test projects upgraded to user .NET Core 3.1
+    * Nullable reference type annotations have been enabled
+    * Symbols are now provided as a separate NuGet symbol package (snupkg)
+    * SQL Server indexes have been fine-tuned, redudancies were removed and you can follow the current scripts to update to latest version of them
 
 * FIXES
 
     * Allow binary serialization for DirectoryScanJob data (#658)
-	* LibLog - Fixed NLog + Log4net callsite. Added support for NLog structured logging. Optimized Log4net-logger (#705)
-	* Upgrade LibLog to latest version (#749)
-	* RAMJobStore performance improvements (#718, #719, #720)
-	* General performance improvements (#725, #723, #727)
-	* GetTimeBefore() and GetFinalFireTime() should throw NotImplementedException instead of returning null (#731)
-	* Switch to official TimeZoneConverter NuGet package (#739)
-	* Remove invalid TimeSpanParseRule.Days (#782)
-	* Update tables_sqlServer.sql to follow current SQL syntax and structures (#787)
-	* Fix China Standard Time mapping in TimeZoneUtil.cs (#765)
-	* Release BLOCKED triggers in ReleaseAcquiredTrigger (#741 #800)
-	* DailyTimeIntervalTrigger failed to set endingDailyAfterCount = 1
-	* CronTrigger: cover all valid misfire policies, and provide a sensible default and logging when seeing an invalid one
+    * LibLog - Fixed NLog + Log4net callsite. Added support for NLog structured logging. Optimized Log4net-logger (#705)
+    * Upgrade LibLog to latest version (#749)
+    * RAMJobStore performance improvements (#718, #719, #720)
+    * General performance improvements (#725, #723, #727)
+    * GetTimeBefore() and GetFinalFireTime() should throw NotImplementedException instead of returning null (#731)
+    * Switch to official TimeZoneConverter NuGet package (#739)
+    * Remove invalid TimeSpanParseRule.Days (#782)
+    * Update tables_sqlServer.sql to follow current SQL syntax and structures (#787)
+    * Fix China Standard Time mapping in TimeZoneUtil.cs (#765)
+    * Release BLOCKED triggers in ReleaseAcquiredTrigger (#741 #800)
+    * DailyTimeIntervalTrigger failed to set endingDailyAfterCount = 1
+    * CronTrigger: cover all valid misfire policies, and provide a sensible default and logging when seeing an invalid one
 	
 
 ## Release 3.0.7, Oct 7 2018
@@ -92,15 +92,15 @@ There are also some bug fixes related to AdoJobStore.
 * NEW FEATURE
 
     * Add .NET Core 2.1 version of example server (#682)
-	* New plugin Quartz.Plugins.TimeZoneConverter which allows usage of TimeZoneConverter library (#647)
+    * New plugin Quartz.Plugins.TimeZoneConverter which allows usage of TimeZoneConverter library (#647)
 
 * FIXES
 
     * Added transient codes from EF into new JobStore (#681)
-	* Parametrized queries produced by ReplaceTablePrefix should be cached (#651)
-	* Use TypeNameHandling.Auto for JsonObjectSerializer (#621)
-	* Fix a race condition that could cause duplicate trigger firings (#690)
-	* ISchedulerListener.JobScheduled not called when scheduling multiple jobs (ScheduleJobs) (#678)
+    * Parametrized queries produced by ReplaceTablePrefix should be cached (#651)
+    * Use TypeNameHandling.Auto for JsonObjectSerializer (#621)
+    * Fix a race condition that could cause duplicate trigger firings (#690)
+    * ISchedulerListener.JobScheduled not called when scheduling multiple jobs (ScheduleJobs) (#678)
 
 
 ## Release 3.0.6, Jul 6 2018
@@ -135,8 +135,8 @@ This release fixes couple bugs and adds support for .NET Core version of Oracle'
 
 * FIXES
 
-	* trigger loop encountered using DailyTimeIntervalTrigger across DST start boundary (#610)
-	* Missing ConfigureAwait(false) in some parts of code (#618)
+    * trigger loop encountered using DailyTimeIntervalTrigger across DST start boundary (#610)
+    * Missing ConfigureAwait(false) in some parts of code (#618)
 	
 
 ## Release 3.0.4, Mar 4 2018
@@ -146,18 +146,18 @@ its CancellationTokenSource with calls it makes. Everyone using 3.x is advised t
 
 * FIXES
 
-	* Memory leak caused by CancellationTokenSource sharing (#600)
-	* tables_oracle.sql should use NUMBER(19) instead of NUMBER(13) for long properties (#598)
+    * Memory leak caused by CancellationTokenSource sharing (#600)
+    * tables_oracle.sql should use NUMBER(19) instead of NUMBER(13) for long properties (#598)
 
 
 ## Release 3.0.3, Feb 24 2018
 
 * FIXES
 
-	* XML scheduling no longer requires write access to source XML file (#591)
-	* Improve listener error handling (#589)
-	* SQL command parameters are not defined in 'IsTriggerStillPresent' method (#579)
-	* Source distribution couldn't be built with build.cmd/.sh when no .git directory present (#596)
+    * XML scheduling no longer requires write access to source XML file (#591)
+    * Improve listener error handling (#589)
+    * SQL command parameters are not defined in 'IsTriggerStillPresent' method (#579)
+    * Source distribution couldn't be built with build.cmd/.sh when no .git directory present (#596)
     * Currently executing jobs cannot be retrieved via remoting (#580)
 	
 	
@@ -167,7 +167,7 @@ This is a minor fix release that fixes single issue that still prevented full us
 
 * FIXES
 
-	* Mark HashSet as serializable (#576)
+    * Mark HashSet as serializable (#576)
 
 
 ## Release 3.0.1, Jan 21 2018
@@ -179,8 +179,8 @@ through .NET Remoting infrastructure. Now zip packing is also back and includes 
 * FIXES
 
     * Create zip package as part of release, including Quartz.Server (#572)
-	* A specific CronExpression fails with "Input string was not in a correct format." (#568)
-	* Cannot use remoting due to Task and CancellationToken signatures (#571)
+    * A specific CronExpression fails with "Input string was not in a correct format." (#568)
+    * Cannot use remoting due to Task and CancellationToken signatures (#571)
 
 
 ## Release 3.0, Dec 30 2017
@@ -198,8 +198,8 @@ See 3.x releases for full list.
     * returned .NET Framework 4.5.2 compatibility to better support library consumers like NServiceBus and MassTransit
     * netstandard 2.0 is now minimum for .NET Core
     * support for Microsoft.Data.Sqlite via provider name SQLite-Microsoft, the old provider SQLite also still works
-	* Firebird is supported in .NET Core
-	* Added preliminary support for SQL Server Memory-Optimized tables and Quartz.Impl.AdoJobStore.UpdateLockRowSemaphoreMOT
+    * Firebird is supported in .NET Core
+    * Added preliminary support for SQL Server Memory-Optimized tables and Quartz.Impl.AdoJobStore.UpdateLockRowSemaphoreMOT
 
 * BREAKING CHANGES
 

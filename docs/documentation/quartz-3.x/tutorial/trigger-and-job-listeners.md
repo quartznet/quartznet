@@ -1,5 +1,5 @@
 ---
-title: 'Lesson 7: TriggerListeners and JobListeners'
+title: 'Trigger and Job Listeners'
 ---
 
 Listeners are objects that you create to perform actions based on events occuring within the scheduler.

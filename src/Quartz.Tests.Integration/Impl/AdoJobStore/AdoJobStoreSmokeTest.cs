@@ -195,7 +195,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             var config = SchedulerBuilder.Create("instance_one", "TestScheduler");
             config.UseDefaultThreadPool(x =>
             {
-                x.ThreadCount = 10;
+                x.MaxConcurrency = 10;
             });
             config.MisfireThreshold = TimeSpan.FromSeconds(60);
 

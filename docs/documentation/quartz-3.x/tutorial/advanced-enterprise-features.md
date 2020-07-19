@@ -1,5 +1,5 @@
 ---
-title: 'Lesson 11: Advanced (Enterprise) Features'
+title: 'Advanced (Enterprise) Features'
 ---
 
 ## Clustering

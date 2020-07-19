@@ -1,5 +1,5 @@
 ---
-title: 'Lesson 3: More About Jobs & JobDetails'
+title: 'More About Jobs & JobDetails'
 ---
 
 As you saw in Lesson 2, jobs are rather easy to implement. There are just a few more things that you need to understand about 

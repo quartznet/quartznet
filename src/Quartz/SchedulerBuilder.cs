@@ -156,16 +156,16 @@ namespace Quartz
 
         public class ThreadPoolOptions : PropertiesHolder
         {
-            protected internal ThreadPoolOptions(PropertiesHolder parent) : base(parent)
+            protected internal ThreadPoolOptions(PropertiesHolder parent) : base(parent, "quartz.threadPool")
             {
             }
 
             /// <summary>
-            /// The maximum number of thread pool tasks which can be executing in parallel
+            /// The maximum number of thread pool tasks which can be executing in parallel.
             /// </summary>
-            public int ThreadCount
+            public int MaxConcurrency
             {
-                set => SetProperty("quartz.threadPool.threadCount", value.ToString());
+                set => SetProperty("maxConcurrency", value.ToString());
             }
         }
 

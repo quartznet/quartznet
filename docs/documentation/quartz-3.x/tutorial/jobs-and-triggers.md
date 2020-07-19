@@ -1,5 +1,5 @@
 ---
-title: 'Lesson 2: Jobs And Triggers'
+title: 'Jobs And Triggers'
 ---
 
 ## The Quartz API

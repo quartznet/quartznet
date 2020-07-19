@@ -5,9 +5,9 @@ title: Version Migration Guide
 
 *This document outlines changes needed per version upgrade basis. You need to check the steps for each version you are jumping over. You should also check [the complete change log](https://raw.github.com/quartznet/quartznet/master/changelog.md).*
 
-**If you are a new user starting with the latest version, you don't need to follow this guide. Just jump right to [the tutorial](tutorial/index.html)**
-
-## Upgrading to 3.0 from 2.x
+::: tip
+If you are a new user starting with the latest version, you don't need to follow this guide. Just jump right to [the tutorial](tutorial/index.html)
+:::
 
 Quartz jumped to async/await world and added support for .NET Core with 3.0 release so most significant changes
 can be found on APIs and functionality available depending on whether you target full .NET Framework or the .NET Core. 
@@ -54,7 +54,7 @@ You now need to make sure that you have proper awaits in place when you operate 
 // operating with scheduler is now Task-based and requires appropriate awaits
 await scheduler.ScheduleJob(job, trigger);
 await scheduler.Start();
-await sched.Shutdown(waitForJobsToComplete: true);
+await scheduler.Shutdown(waitForJobsToComplete: true);
 ```
 
 #### Jobs

@@ -1,5 +1,5 @@
 ---
-title: 'Lesson 1: Using Quartz'
+title: 'Using Quartz'
 ---
 
 Before you can use the scheduler, it needs to be instantiated (who'd have guessed?).
@@ -15,32 +15,28 @@ Here's a quick snippet of code, that instantiates and starts a scheduler, and sc
 __Using Quartz.NET__
 
 ```csharp
-    // construct a scheduler factory
-    NameValueCollection props = new NameValueCollection
-    {
-        { "quartz.serializer.type", "binary" }
-    };
-    StdSchedulerFactory factory = new StdSchedulerFactory(props);
-    
-    // get a scheduler
-    IScheduler sched = await factory.GetScheduler();
-    await sched.Start();
-    
-    // define the job and tie it to our HelloJob class
-    IJobDetail job = JobBuilder.Create<HelloJob>()
-        .WithIdentity("myJob", "group1")
-        .Build();
+// construct a scheduler factory
+StdSchedulerFactory factory = new StdSchedulerFactory();
 
-    // Trigger the job to run now, and then every 40 seconds
-    ITrigger trigger = TriggerBuilder.Create()
-        .WithIdentity("myTrigger", "group1")
-        .StartNow()
-        .WithSimpleSchedule(x => x
-            .WithIntervalInSeconds(40)
-            .RepeatForever())
+// get a scheduler
+IScheduler scheduler = await factory.GetScheduler();
+await scheduler.Start();
+
+// define the job and tie it to our HelloJob class
+IJobDetail job = JobBuilder.Create<HelloJob>()
+    .WithIdentity("myJob", "group1")
     .Build();
-	  
-    await sched.ScheduleJob(job, trigger);
+
+// Trigger the job to run now, and then every 40 seconds
+ITrigger trigger = TriggerBuilder.Create()
+    .WithIdentity("myTrigger", "group1")
+    .StartNow()
+    .WithSimpleSchedule(x => x
+        .WithIntervalInSeconds(40)
+        .RepeatForever())
+.Build();
+    
+await scheduler.ScheduleJob(job, trigger);
 ```
 
 As you can see, working with Quartz.NET is rather simple. In [Lesson 2](jobs-and-triggers.md) we'll give a quick overview of Jobs and Triggers, so that you can more fully understand this example.
