@@ -100,7 +100,7 @@ namespace Quartz.Converters
 
         internal static void AddCalendarConverter<TCalendar>(ICalendarSerializer serializer)
         {
-            converters.Add(typeof(TCalendar).AssemblyQualifiedNameWithoutVersion(), serializer);
+            converters[typeof(TCalendar).AssemblyQualifiedNameWithoutVersion()] = serializer;
         }
     }
 }
