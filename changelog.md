@@ -3,7 +3,7 @@
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
 
-## Release 3.1.0 XXX, Jul xx 2020
+## Release 3.1.0 beta 3, Jul 21 2020
 
 * NEW FEATURES
 
