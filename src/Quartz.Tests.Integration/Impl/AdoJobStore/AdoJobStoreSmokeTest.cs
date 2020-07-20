@@ -219,7 +219,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                 {
                     store.UseJsonSerializer(j =>
                     {
-                        j.AddCalendarConverter<CustomCalendar>(new CustomCalendarSerializer());
+                        j.AddCalendarSerializer<CustomCalendar>(new CustomCalendarSerializer());
                     });
                 }
                 else

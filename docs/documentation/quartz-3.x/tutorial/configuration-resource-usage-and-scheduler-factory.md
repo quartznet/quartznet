@@ -18,28 +18,28 @@ You can configure the pool that have max concurrency, which effectively limits h
 See configuration reference for more details on how to configure the thread pool implementation. 
 
 JobStores and DataSources were discussed in Lesson 9 of this tutorial. Worth noting here, is the fact that all JobStores 
-implement the IJobStore interface - and that if one of the bundled JobStores does not fit your needs, then you can make your own.
+implement the `IJobStore` interface - and that if one of the bundled JobStores does not fit your needs, then you can make your own.
 
 Finally, you need to create your Scheduler instance. The Scheduler itself needs to be given a name and handed 
 instances of a JobStore and ThreadPool.
 
 ## StdSchedulerFactory
 
-StdSchedulerFactory is an implementation of the ISchedulerFactory interface. 
-It uses a set of properties (NameValueCollection) to create and initialize a Quartz Scheduler. 
+`StdSchedulerFactory` is an implementation of the `ISchedulerFactory` interface. 
+It uses a set of properties (`NameValueCollection`) to create and initialize a Quartz Scheduler. 
 The properties are generally stored in and loaded from a file, but can also be created by your program and handed directly to the factory. 
-Simply calling getScheduler() on the factory will produce the scheduler, initialize it (and its ThreadPool, JobStore and DataSources), 
+Simply calling `GetScheduler()` on the factory will produce the scheduler, initialize it (and its ThreadPool, JobStore and DataSources), 
 and return a handle to its public interface.
 
-There are some sample configurations (including descriptions of the properties) in the "docs/config" directory of the Quartz distribution. 
-You can find complete documentation in the "Configuration" manual under the "Reference" section of the Quartz documentation.
+You can find complete documentation in the "Configuration Reference" section of the Quartz documentation.
 
 ## DirectSchedulerFactory
 
-DirectSchedulerFactory is another SchedulerFactory implementation. It is useful to those wishing to create their Scheduler 
-instance in a more programatic way. Its use is generally discouraged for the following reasons: (1) it 
-requires the user to have a greater understanding of what they're doing, and (2) it does not allow for declaritive 
-configuration - or in other words, you end up hard-coding all of the scheduler's settings.
+`DirectSchedulerFactory` is another `ISchedulerFactory` implementation. It is useful to those wishing to create their Scheduler 
+instance in a more programmatic way. Its use is generally discouraged for the following reasons:
+ 
+- It requires the user to have a greater understanding of what they're doing, and
+- it does not allow for declarative configuration - or in other words, you end up hard-coding all of the scheduler's settings.
 
 ## Logging
 

@@ -8,19 +8,19 @@ that you can select to meet different scheduling needs.
 
 ## Common Trigger Attributes
 
-Aside from the fact that all trigger types have TriggerKey properties for tracking their identities, 
+Aside from the fact that all trigger types have `TriggerKey` properties for tracking their identities, 
 there are a number of other properties that are common to all trigger types. These common properties are set using the TriggerBuilder
 when you are building the trigger definition (examples of that will follow).
 
 Here is a listing of properties common to all trigger types:
 
-* The **JobKey** property indicates the identity of the job that should be executed when the trigger fires.
-* The **StartTimeUtc** property indicates when the trigger's schedule first comes into affect. 
+* The `JobKey` property indicates the identity of the job that should be executed when the trigger fires.
+* The `StartTimeUtc` property indicates when the trigger's schedule first comes into affect. 
 The value is a DateTimeOffset object that defines a moment in time on a given calendar date. 
 For some trigger types, the trigger will actually fire at the start time, for others it simply marks the time that the schedule should start being followed. 
 This means you can store a trigger with a schedule such as "every 5th day of the month" during January, and if the StartTimeUtc property is set to April 1st,
  it will be a few months before the first firing.
-* The **EndTimeUtc** property indicates when the trigger's schedule should no longer be in effect.
+* The `EndTimeUtc` property indicates when the trigger's schedule should no longer be in effect.
 In other words, a trigger with a schedule of "every 5th day of the month" and with an end time of July 1st will fire for it's last time on June 5th.
 
 Other properties, which take a bit more explanation are discussed in the following sub-sections.
@@ -33,9 +33,13 @@ For this purpose, you can set the priority property on a Trigger. If N Triggers 
 then the first Z Triggers with the highest priority will be executed first. If you do not set a priority on a Trigger, then it will use the default priority of 5.
 Any integer value is allowed for priority, positive or negative.
 
-**Note:** Priorities are only compared when triggers have the same fire time. A trigger scheduled to fire at 10:59 will always fire before one scheduled to fire at 11:00.
+::: tip
+Priorities are only compared when triggers have the same fire time. A trigger scheduled to fire at 10:59 will always fire before one scheduled to fire at 11:00.
+:::
 
-**Note:** When a trigger's job is detected to require recovery, its recovery is scheduled with the same priority as the original trigger.
+::: tip
+When a trigger's job is detected to require recovery, its recovery is scheduled with the same priority as the original trigger.
+:::
 
 ## Misfire Instructions
 
@@ -50,7 +54,7 @@ the tutorial lessons specific to each trigger type.
 
 ## Calendars
 
-Quartz.NET Calendar objects implementing ICalendar interface can be associated with triggers at the time the trigger is stored in the scheduler. 
+Quartz.NET Calendar objects implementing `ICalendar` interface can be associated with triggers at the time the trigger is stored in the scheduler. 
 Calendars are useful for excluding blocks of time from the trigger's firing schedule. For instance, you could 
 create a trigger that fires a job every weekday at 9:30 am, but then add a Calendar that excludes all of the business's holidays.
 
@@ -76,8 +80,8 @@ namespace Quartz
 Even though calendars can 'block out' sections of time as narrow as a millisecond, most likely, you'll be interested in 
 'blocking-out' entire days. As a convenience, Quartz.NET includes the class HolidayCalendar, which does just that.
 
-Calendars must be instantiated and registered with the scheduler via the AddCalendar(..) method. If you use HolidayCalendar, 
-after instantiating it, you should use its AddExcludedDate(DateTime date) method in order to populate it with the days you wish 
+Calendars must be instantiated and registered with the scheduler via the `AddCalendar(..)` method. If you use `HolidayCalendar`, 
+after instantiating it, you should use its `AddExcludedDate(DateTime date)` method in order to populate it with the days you wish 
 to have excluded from scheduling. The same calendar instance can be used with multiple triggers such as this:
 
 __Calendar Example__

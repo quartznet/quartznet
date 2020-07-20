@@ -10,21 +10,22 @@ With this description, you may not find it surprising to find that the propertie
 and end-time, a repeat count, and a repeat interval. All of these properties are exactly what you'd expect them to be, with
 only a couple special notes related to the end-time property.
 
-The repeat count can be zero, a positive integer, or the constant value SimpleTrigger.RepeatIndefinitely.
-The repeat interval property must be TimeSpan.Zero, or a positive TimeSpan value.
+The repeat count can be zero, a positive integer, or the constant value `SimpleTrigger.RepeatIndefinitely`.
+The repeat interval property must be `TimeSpan.Zero`, or a positive TimeSpan value.
 Note that a repeat interval of zero will cause 'repeat count' firings of the trigger to happen concurrently
 (or as close to concurrently as the scheduler can manage).
 
-If you're not already familiar with the DateTime class, you may find it helpful for computing your trigger fire-times,
+If you're not already familiar with the `DateTime` class, you may find it helpful for computing your trigger fire-times,
 depending on the startTimeUtc (or endTimeUtc) that you're trying to create.
 
-The EndTimeUtc property (if it is specified) over-rides the repeat count property. This can be useful if you wish to create a trigger
+The `EndTimeUtc` property (if it is specified) over-rides the repeat count property. This can be useful if you wish to create a trigger
 such as one that fires every 10 seconds until a given moment in time - rather than having to compute the number of times it would
 repeat between the start-time and the end-time, you can simply specify the end-time and then use a repeat count of RepeatIndefinitely
 (you could even specify a repeat count of some huge number that is sure to be more than the number of times the trigger will actually
 fire before the end-time arrives).
 
-SimpleTrigger instances are built using **TriggerBuilder** (for the trigger's main properties) and **WithSimpleSchedule** extension method (for the SimpleTrigger-specific properties).
+SimpleTrigger instances are built using `TriggerBuilder` (for the trigger's main properties) and `WithSimpleSchedule` extension method
+(for the SimpleTrigger-specific properties).
 
 __Build a trigger for a specific moment in time, with no repeats:__
 
@@ -88,29 +89,30 @@ ITrigger trigger = TriggerBuilder.Create()
 await scheduler.scheduleJob(trigger, job);
 ```
 
-Spend some time looking at all of the available methods in the language defined by **TriggerBuilder** and its extension method **WithSimpleSchedule** so that you can be familiar with options available to you that may not have been demonstrated in the examples above.
+Spend some time looking at all of the available methods in the language defined by `TriggerBuilder` and its extension method `WithSimpleSchedule` 
+so that you can be familiar with options available to you that may not have been demonstrated in the examples above.
 
 ## SimpleTrigger Misfire Instructions
 
 SimpleTrigger has several instructions that can be used to inform Quartz.NET what it should do when a misfire occurs.
 (Misfire situations were introduced in the More About Triggers section of this tutorial).
-These instructions are defined as constants on MisfirePolicy.SimpleTrigger (including API documentation describing their behavior).
+These instructions are defined as constants on `MisfirePolicy.SimpleTrigger` (including API documentation describing their behavior).
 The instructions include:
 
 __Misfire Instruction Constants for SimpleTrigger__
 
-* MisfireInstruction.IgnoreMisfirePolicy
-* MisfirePolicy.SimpleTrigger.FireNow
-* MisfirePolicy.SimpleTrigger.RescheduleNowWithExistingRepeatCount
-* MisfirePolicy.SimpleTrigger.RescheduleNowWithRemainingRepeatCount
-* MisfirePolicy.SimpleTrigger.RescheduleNextWithRemainingCount
-* MisfirePolicy.SimpleTrigger.RescheduleNextWithExistingCount
+* `MisfireInstruction.IgnoreMisfirePolicy`
+* `MisfirePolicy.SimpleTrigger.FireNow`
+* `MisfirePolicy.SimpleTrigger.RescheduleNowWithExistingRepeatCount`
+* `MisfirePolicy.SimpleTrigger.RescheduleNowWithRemainingRepeatCount`
+* `MisfirePolicy.SimpleTrigger.RescheduleNextWithRemainingCount`
+* `MisfirePolicy.SimpleTrigger.RescheduleNextWithExistingCount`
 
-You should recall from the earlier lessons that all triggers have the MisfirePolicy.SmartPolicy instruction available for use,
+You should recall from the earlier lessons that all triggers have the `MisfirePolicy.SmartPolicy` instruction available for use,
 and this instruction is also the default for all trigger types.
 
 If the 'smart policy' instruction is used, SimpleTrigger dynamically chooses between its various MISFIRE instructions, based on the configuration
-and state of the given SimpleTrigger instance. The documentation for the SimpleTrigger.UpdateAfterMisfire() method explains the exact details of
+and state of the given SimpleTrigger instance. The documentation for the `SimpleTrigger.UpdateAfterMisfire()` method explains the exact details of
 this dynamic behavior.
 
 When building SimpleTriggers, you specify the misfire instruction as part of the simple schedule (via SimpleSchedulerBuilder):

@@ -22,9 +22,9 @@ namespace Quartz
 
     public class JsonSerializerOptions
     {
-        public void AddCalendarConverter<TCalendar>(ICalendarSerializer serializer)
+        public void AddCalendarSerializer<TCalendar>(ICalendarSerializer serializer)
         {
-            JsonObjectSerializer.AddCalendarConverter<TCalendar>(serializer);
+            JsonObjectSerializer.AddCalendarSerializer<TCalendar>(serializer);
         }
     }
 }

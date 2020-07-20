@@ -83,7 +83,7 @@ namespace Quartz.Simpl
             }
         }
 
-        public static void AddCalendarConverter<TCalendar>(ICalendarSerializer serializer)
+        public static void AddCalendarSerializer<TCalendar>(ICalendarSerializer serializer)
         {
             CalendarConverter.AddCalendarConverter<TCalendar>(serializer);
         }
