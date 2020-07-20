@@ -14,7 +14,7 @@ You need to add NuGet package reference to your project which uses Quartz.
 ```csharp
 var properties = new NameValueCollection
 {
-	["quartz.plugin.timeZoneConverter.type"] = "Quartz.Plugin.TimeZoneConverter, Quartz.Plugins.TimeZoneConverter"
+	["quartz.plugin.timeZoneConverter.type"] = "Quartz.Plugin.TimeZoneConverter.TimeZoneConverterPlugin, Quartz.Plugins.TimeZoneConverter"
 };
 ISchedulerFactory schedulerFactory = new StdSchedulerFactory(properties);
 ```
