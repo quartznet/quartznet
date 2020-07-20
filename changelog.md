@@ -15,6 +15,7 @@
 * FIXES
 
     * Remove internal dependencies from examples (#742)
+    * Properly assign MaxConcurrency in CreateVolatileScheduler (#726) 
 
 
 ## Release 3.1.0 beta 2, Jul 14 2020
