@@ -24,7 +24,7 @@ of seven sub-expressions, that describe individual details of the schedule. Thes
 * 6. Day-of-Week
 * 7. Year (optional field)
 
-An example of a complete cron-expression is the string "0 0 12 ? * WED" - which means "every Wednesday at 12:00 pm".
+An example of a complete cron-expression is the string `0 0 12 ? * WED` - which means "every Wednesday at 12:00 pm".
 
 Individual sub-expressions can contain ranges and/or lists. For example, the day of week field in the previous (which reads "WED")
 example could be replaces with "MON-FRI", "MON, WED, FRI", or even "MON-WED,SAT".
@@ -84,9 +84,10 @@ and every 20 minutes between 1:00 pm and 10:00 pm". The solution in this scenari
 
 ## Building CronTriggers
 
-CronTrigger instances are built using **TriggerBuilder** (for the trigger's main properties) and **WithCronSchedule** extension method (for the CronTrigger-specific properties).
+CronTrigger instances are built using `TriggerBuilder` (for the trigger's main properties) and `WithCronSchedule`
+extension method (for the CronTrigger-specific properties).
 
-You can also use CronScheduleBuilder's static methods to create schedules.
+You can also use `CronScheduleBuilder`'s static methods to create schedules.
 
 **Build a trigger that will fire every other minute, between 8am and 5pm, every day:**
 
@@ -147,15 +148,15 @@ The following instructions can be used to inform Quartz what it should do when a
 (Misfire situations were introduced in the More About Triggers section of this tutorial). These instructions are defined in  as
 constants (and API documentation has description for their behavior). The instructions include:
 
-* MisfireInstruction.IgnoreMisfirePolicy
-* MisfireInstruction.CronTrigger.DoNothing
-* MisfireInstruction.CronTrigger.FireOnceNow
+* `MisfireInstruction.IgnoreMisfirePolicy`
+* `MisfireInstruction.CronTrigger.DoNothing`
+* `MisfireInstruction.CronTrigger.FireOnceNow`
 
-All triggers have the MisfireInstrution.SmartPolicy instruction available for use, and this instruction is also the default for all trigger types. 
+All triggers have the `MisfireInstrution.SmartPolicy` instruction available for use, and this instruction is also the default for all trigger types. 
 The 'smart policy' instruction is interpreted by CronTrigger as MisfireInstruction.CronTrigger.FireOnceNow. The API documentation for the 
-CronTrigger.UpdateAfterMisfire() method explains the exact details of this behavior.
+`CronTrigger.UpdateAfterMisfire()` method explains the exact details of this behavior.
 
-When building CronTriggers, you specify the misfire instruction as part of the cron schedule (via WithCronSchedule extension method):
+When building CronTriggers, you specify the misfire instruction as part of the cron schedule (via `WithCronSchedule` extension method):
 
 ```csharp
 ITrigger trigger = TriggerBuilder.Create()

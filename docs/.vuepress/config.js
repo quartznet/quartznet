@@ -97,6 +97,30 @@ module.exports = {
         ]
       },
       {
+        title: 'Packages',
+        collapsable: false,
+        children: [
+          {
+            title: 'Quartz Core Additions',
+            collapsable: false,
+            children: [
+              ['/documentation/quartz-3.x/packages/quartz-jobs', 'Jobs'],
+              ['/documentation/quartz-3.x/packages/json-serialization', 'JSON Serialization'],
+              ['/documentation/quartz-3.x/packages/quartz-plugins', 'Plugins'],
+            ]
+          },
+          {
+            title: 'Integrations',
+            collapsable: false,
+            children:  [
+              ['/documentation/quartz-3.x/packages/aspnet-core-integration', 'ASP.NET Core Integration'],
+              ['/documentation/quartz-3.x/packages/microsoft-di-integration', 'Microsoft DI Integration'],
+              ['/documentation/quartz-3.x/packages/timezoneconverter-integration', 'TimeZoneConverter Integration'],
+            ]
+          }
+        ]
+      },        
+      {
         title: 'Old Releases',
         children: [
           { 

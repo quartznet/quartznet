@@ -61,9 +61,9 @@ namespace Quartz.Simpl
         protected abstract TaskScheduler GetDefaultScheduler();
 
         /// <summary>
-        /// The maxmimum number of thread pool tasks which can be executing in parallel
+        /// The maximum number of thread pool tasks which can be executing in parallel
         /// </summary>
-        public int MaxConcurency
+        public int MaxConcurrency
         {
             get => maxConcurrency;
             set
@@ -81,8 +81,8 @@ namespace Quartz.Simpl
         /// </remarks>
         public int ThreadCount
         {
-            get => MaxConcurency;
-            set => MaxConcurency = value;
+            get => MaxConcurrency;
+            set => MaxConcurrency = value;
         }
 
         // ReSharper disable once UnusedMember.Global
@@ -94,7 +94,7 @@ namespace Quartz.Simpl
         /// <summary>
         /// The number of tasks that can run concurrently in this thread pool
         /// </summary>
-        public virtual int PoolSize => MaxConcurency;
+        public virtual int PoolSize => MaxConcurrency;
 
         public virtual string InstanceId { get; set; } = null!;
 
@@ -106,7 +106,7 @@ namespace Quartz.Simpl
 
         public TaskSchedulingThreadPool(int maxConcurrency)
         {
-            MaxConcurency = maxConcurrency;
+            MaxConcurrency = maxConcurrency;
         }
 
         /// <summary>
@@ -125,10 +125,10 @@ namespace Quartz.Simpl
             }
 
             // Initialize the concurrency semaphore with the proper initial count
-            concurrencySemaphore = new SemaphoreSlim(MaxConcurency);
+            concurrencySemaphore = new SemaphoreSlim(MaxConcurrency);
             isInitialized = true;
 
-            log.Debug($"TaskSchedulingThreadPool configured with max concurrency of {MaxConcurency} and TaskScheduler {Scheduler.GetType().Name}.");
+            log.Debug($"TaskSchedulingThreadPool configured with max concurrency of {MaxConcurrency} and TaskScheduler {Scheduler.GetType().Name}.");
         }
 
         /// <summary>

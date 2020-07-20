@@ -44,19 +44,20 @@ public interface IJobListener
 
 ## Using Your Own Listeners
 
-To create a listener, simply create an object the implements either the ITriggerListener and/or IJobListener interface. 
+To create a listener, simply create an object the implements either the `ITriggerListener` and/or `IJobListener` interface. 
 Listeners are then registered with the scheduler during run time, and must be given a name (or rather, they must advertise their own 
 name via their Name property. 
 
-For your convenience, rather than implementing those interfaces, your class could also extend the class JobListenerSupport or TriggerListenerSupport
+For your convenience, rather than implementing those interfaces, your class could also extend the class `JobListenerSupport` or `TriggerListenerSupport`
 and simply override the events you're interested in.
 
+Listeners are registered with the scheduler's `ListenerManager` along with a Matcher that describes which Jobs/Triggers the listener wants to receive events for.
 
-Listeners are registered with the scheduler's ListenerManager along with a Matcher that describes which Jobs/Triggers the listener wants to receive events for.
-
-*Listeners are registered with the scheduler during run time, and are NOT stored in the JobStore along with the jobs and triggers. 
+::: tip
+Listeners are registered with the scheduler during run time, and are **NOT** stored in the JobStore along with the jobs and triggers. 
 This is because listeners are typically an integration point with your application. 
-Hence, each time your application runs, the listeners need to be re-registered with the scheduler.*
+Hence, each time your application runs, the listeners need to be re-registered with the scheduler.
+:::
 
 
 **Adding a JobListener that is interested in a particular job:**

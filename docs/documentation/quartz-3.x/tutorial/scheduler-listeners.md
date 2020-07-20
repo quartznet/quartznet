@@ -2,7 +2,7 @@
 title: 'Scheduler Listeners'
 ---
 
-SchedulerListeners are much like ITriggerListeners and IJobListeners, except they receive notification of 
+SchedulerListeners are much like `ITriggerListener`s and `IJobListener`s, except they receive notification of 
 events within the scheduler itself - not necessarily events related to a specific trigger or job.
 
 Scheduler-related events include: the addition of a job/trigger, the removal of a job/trigger, a serious error 
@@ -34,8 +34,8 @@ public interface ISchedulerListener
 } 
 ```
 	
-SchedulerListeners are registered with the scheduler's ListenerManager.
-SchedulerListeners can be virtually any object that implements the ISchedulerListener interface.
+SchedulerListeners are registered with the scheduler's `ListenerManager`.
+SchedulerListeners can be virtually any object that implements the `ISchedulerListener` interface.
 
 **Adding a SchedulerListener:**
 

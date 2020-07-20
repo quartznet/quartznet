@@ -4,9 +4,9 @@ title:  'Miscellaneous Features'
 
 ## Plug-Ins
 
-Quartz provides an interface (ISchedulerPlugin) for plugging-in additional functionality.
+Quartz provides an interface (`ISchedulerPlugin`) for plugging-in additional functionality.
 
-Plugins that ship with Quartz to provide various utililty capabilities can be found documented in the Quartz.Plugins namespace. 
+Plugins that ship with Quartz to provide various utility capabilities can be found documented in the `Quartz.Plugins` namespace. 
 They provide functionality such as auto-scheduling of jobs upon scheduler startup, logging a history of job and trigger events, 
 and ensuring that the scheduler shuts down cleanly when the virtual machine exits.
 
@@ -16,9 +16,15 @@ When a trigger fires, the Job it is associated to is instantiated via the JobFac
 The default JobFactory simply activates a new instance of the job class. You may want to create your own implementation 
 of JobFactory to accomplish things such as having your application's IoC or DI container produce/initialize the job instance.
 
-See the IJobFactory interface, and the associated Scheduler.SetJobFactory(fact) method.
+See the `IJobFactory` interface, and the associated `IScheduler.JobFactory` setter property.
+
+::: tip
+Since Quartz 3.1, there's [built-in support for integrating with Microsoft Dependency Injection](../packages/microsoft-di-integration) which in 
+turn allows to use different IoC container implementations.
+:::
 
 ## 'Factory-Shipped' Jobs
 
 Quartz also provides a number of utility Jobs that you can use in your application for doing things like sending
-e-mails and invoking remote objects. These out-of-the-box Jobs can be found documented in the Quartz.Jobs namespace.
+e-mails and invoking remote objects. These out-of-the-box Jobs can be found documented in the `Quartz.Jobs` namespace and 
+are part of the [Quartz.Jobs NuGet package](https://www.nuget.org/packages/Quartz.Jobs).

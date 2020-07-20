@@ -129,7 +129,7 @@ The thread pool that ships with Quartz is "Quartz.Simpl.DefaultThreadPool", and 
 It has very simple behavior and is very well tested. It dispatches tasks to .NET task queue and ensures that configured max amount of concurrent tasks limit is obeyed.
 You should study [CLR's managed thread pool](https://docs.microsoft.com/en-us/dotnet/standard/threading/the-managed-thread-pool) if you want to fine-tune thread pools on CLR level. 
 
-### `quartz.threadPool.maxConcurency`
+### `quartz.threadPool.maxConcurrency`
 
 This is the number of concurrent tasks that can be dispatched to CLR thread pool.
 If you only have a few jobs that fire a few times a day, then 1 tasks is plenty!

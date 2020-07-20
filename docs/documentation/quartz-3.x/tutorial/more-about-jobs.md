@@ -3,14 +3,14 @@ title: 'More About Jobs & JobDetails'
 ---
 
 As you saw in Lesson 2, jobs are rather easy to implement. There are just a few more things that you need to understand about 
-the nature of jobs, about the Execute(..) method of the IJob interface, and about JobDetails.
+the nature of jobs, about the `Execute(..)` method of the `IJob` interface, and about JobDetails.
 
 While a job class that you implement has the code that knows how to do the actual work 
 of the particular type of job, Quartz.NET needs to be informed about various attributes 
 that you may wish an instance of that job to have. This is done via the JobDetail class,
 which was mentioned briefly in the previous section.
 
-JobDetail instances are built using the JobBuilder class. JobBuilder allows you to describe
+JobDetail instances are built using the `JobBuilder` class. `JobBuilder` allows you to describe
 your job's details using a fluent interface.
 
 Let's take a moment now to discuss a bit about the 'nature' of jobs and the life-cycle of job instances within Quartz.NET. 
@@ -48,20 +48,20 @@ public class HelloJob : IJob
 }
 ```
 
-Notice that we give the scheduler a IJobDetail instance, and that it refers to the job to be executed by simply 
+Notice that we give the scheduler a `IJobDetail` instance, and that it refers to the job to be executed by simply 
 providing the job's class. Each (and every) time the scheduler executes the job, it creates a new instance of the 
-class before calling its Execute(..) method. One of the ramifications of this behavior is the fact that jobs must 
+class before calling its `Execute(..)` method. One of the ramifications of this behavior is the fact that jobs must 
 have a no-arguement constructor. Another ramification is that it does not make sense to have data-fields defined 
 on the job class - as their values would not be preserved between job executions.
 
 You may now be wanting to ask "how can I provide properties/configuration for a Job instance?" and "how can I 
-keep track of a job's state between executions?" The answer to these questions are the same: the key is the JobDataMap, 
+keep track of a job's state between executions?" The answer to these questions are the same: the key is the `JobDataMap`, 
 which is part of the JobDetail object.
 
 ## JobDataMap
 
-The JobDataMap can be used to hold any number of (serializable) objects which you wish to have made available 
-to the job instance when it executes. JobDataMap is an implementation of the IDictionary interface, and has 
+The `JobDataMap` can be used to hold any number of (serializable) objects which you wish to have made available 
+to the job instance when it executes. `JobDataMap` is an implementation of the `IDictionary` interface, and has 
 some added convenience methods for storing and retrieving data of primitive types.
 
 Here's some quick snippets of putting data into the JobDataMap prior to adding the job to the scheduler:
@@ -161,7 +161,7 @@ public class DumbJob : IJob
 }
 ```
 
-You'll notice that the overall code of the class is longer, but the code in the Execute() method is cleaner. 
+You'll notice that the overall code of the class is longer, but the code in the `Execute()` method is cleaner. 
 One could also argue that although the code is longer, that it actually took less coding, if the programmer's IDE was used to auto-generate the properties, 
 rather than having to hand-code the individual calls to retrieve the values from the JobDataMap. The choice is yours.
 
@@ -173,7 +173,7 @@ We'll try to clear that up here and in the section below about job state and con
 You can create a single job class, and store many 'instance definitions' of it within the scheduler by creating multiple instances of JobDetails
 - each with its own set of properties and JobDataMap - and adding them all to the scheduler.
 
-For example, you can create a class that implements the IJob interface called "SalesReportJob".
+For example, you can create a class that implements the `IJob` interface called "SalesReportJob".
 The job might be coded to expect parameters sent to it (via the JobDataMap) to specify the name of the sales person that the sales
 report should be based on. They may then create multiple definitions (JobDetails) of the job, such as "SalesReportForJoe"
 and "SalesReportForMike" which have "joe" and "mike" specified in the corresponding JobDataMaps as input to the respective jobs.
@@ -194,36 +194,36 @@ When we are referring to the class implementing the job interface, we usually us
 Now, some additional notes about a job's state data (aka JobDataMap) and concurrency.
 There are a couple attributes that can be added to your Job class that affect Quartz's behaviour with respect to these aspects.
 
-**DisallowConcurrentExecution** is an attribute that can be added to the Job class that tells Quartz not to execute multiple instances
+`[DisallowConcurrentExecution]` is an attribute that can be added to the Job class that tells Quartz not to execute multiple instances
 of a given job definition (that refers to the given job class) concurrently.
 Notice the wording there, as it was chosen very carefully. In the example from the previous section, if "SalesReportJob" has this attribute,
 than only one instance of "SalesReportForJoe" can execute at a given time, but it can execute concurrently with an instance of "SalesReportForMike".
 The constraint is based upon an instance definition (JobDetail), not on instances of the job class.
 However, it was decided (during the design of Quartz) to have the attribute carried on the class itself, because it does often make a difference to how the class is coded.
 
-**PersistJobDataAfterExecution** is an attribute that can be added to the Job class that tells Quartz to update the stored copy of 
+`[PersistJobDataAfterExecution]` is an attribute that can be added to the Job class that tells Quartz to update the stored copy of 
 the JobDetail's JobDataMap after the Execute() method completes successfully (without throwing an exception), such that the next 
 execution of the same job (JobDetail) receives the updated values rather than the originally stored values. 
-Like the **DisallowConcurrentExecution** attribute, this applies to a job definition instance, not a job class instance,
+Like the `[DisallowConcurrentExecution]` attribute, this applies to a job definition instance, not a job class instance,
 though it was decided to have the job class carry the attribute because it does often make a difference to how the class is coded 
 (e.g. the 'statefulness' will need to be explicitly 'understood' by the code within the execute method).
 
-If you use the **PersistJobDataAfterExecution** attribute, you should strongly consider also using the **DisallowConcurrentExecution** attribute, 
+If you use the **PersistJobDataAfterExecution** attribute, you should strongly consider also using the `[DisallowConcurrentExecution]` attribute, 
 in order to avoid possible confusion (race conditions) of what data was left stored when two instances of the same job (JobDetail) executed concurrently.
 
 ## Other Attributes Of Jobs
 
 Here's a quick summary of the other properties which can be defined for a job instance via the JobDetail object:
 
-* **Durability** - if a job is non-durable, it is automatically deleted from the scheduler once there are no longer any active triggers associated with it.
+* `Durability` - if a job is non-durable, it is automatically deleted from the scheduler once there are no longer any active triggers associated with it.
 In other words, non-durable jobs have a life span bounded by the existence of its triggers.
-* **RequestsRecovery** - if a job "requests recovery", and it is executing during the time of a 'hard shutdown' of the scheduler 
+* `RequestsRecovery` - if a job "requests recovery", and it is executing during the time of a 'hard shutdown' of the scheduler 
 (i.e. the process it is running within crashes, or the machine is shut off), then it is re-executed when the scheduler is started again. 
-In this case, the JobExecutionContext.Recovering property will return true.
+In this case, the `JobExecutionContext.Recovering` property will return true.
 
 ## JobExecutionException
 
-Finally, we need to inform you of a few details of the IJob.Execute(..) method. The only type of exception
+Finally, we need to inform you of a few details of the `IJob.Execute(..)` method. The only type of exception
 that you should throw from the execute method is the JobExecutionException. Because of this, you should generally wrap the entire contents of the
 execute method with a 'try-catch' block. You should also spend some time looking at the documentation for the JobExecutionException,
 as your job can use it to provide the scheduler various directives as to how you want the exception to be handled.

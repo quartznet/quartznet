@@ -16,7 +16,7 @@ namespace Quartz.Simpl
         /// <returns>QueuedTaskScheduler with threadCount == MaxConcurrency</returns>
         protected override TaskScheduler GetDefaultScheduler()
         {
-            return new QueuedTaskScheduler(MaxConcurency);
+            return new QueuedTaskScheduler(MaxConcurrency);
         }
     }
 }
