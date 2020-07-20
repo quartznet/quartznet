@@ -110,12 +110,14 @@ namespace Quartz.Impl
 
 		/// <summary>
 		/// Creates an in memory job store (<see cref="RAMJobStore" />)
-		/// The thread priority is set to Thread.NORM_PRIORITY
 		/// </summary>
-		/// <param name="maxThreads">The number of threads in the thread pool</param>
-		public virtual void CreateVolatileScheduler(int maxThreads)
+		/// <param name="maxConcurrency">The number of allowed concurrent running tasks.</param>
+		public virtual void CreateVolatileScheduler(int maxConcurrency)
 		{
-			IThreadPool threadPool = new DefaultThreadPool();
+			var threadPool = new DefaultThreadPool
+			{
+				MaxConcurrency = maxConcurrency
+			};
 			threadPool.Initialize();
 			IJobStore jobStore = new RAMJobStore();
 			CreateScheduler(threadPool, jobStore);
