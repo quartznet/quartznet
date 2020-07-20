@@ -1,3 +1,6 @@
+using System;
+
+using Quartz.Converters;
 using Quartz.Simpl;
 
 namespace Quartz
@@ -7,9 +10,21 @@ namespace Quartz
         /// <summary>
         /// Use JSON as data serialization strategy.
         /// </summary>
-        public static void UseJsonSerializer(this SchedulerBuilder.PersistentStoreOptions options)
+        public static void UseJsonSerializer(
+            this SchedulerBuilder.PersistentStoreOptions persistentStoreOptions,
+            Action<JsonSerializerOptions>? configure = null)
         {
-            options.UseSerializer<JsonObjectSerializer>();
+            var options = new JsonSerializerOptions();
+            configure?.Invoke(options);
+            persistentStoreOptions.UseSerializer<JsonObjectSerializer>();
+        }
+    }
+
+    public class JsonSerializerOptions
+    {
+        public void AddCalendarConverter<TCalendar>(ICalendarSerializer serializer)
+        {
+            JsonObjectSerializer.AddCalendarConverter<TCalendar>(serializer);
         }
     }
 }
