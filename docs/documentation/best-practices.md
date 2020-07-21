@@ -13,13 +13,13 @@ Only store primitive data types (including strings) in JobDataMap to avoid data 
 
 ### Use the Merged JobDataMap
 
-The JobDataMap that is found on the JobExecutionContext during Job execution serves as a convenience.
+The JobDataMap that is found on the `JobExecutionContext` during Job execution serves as a convenience.
 It is a merge of the JobDataMap found on the JobDetail and the one found on the Trigger, with the value in the latter overriding any same-named values in the former.
 
 Storing JobDataMap values on a Trigger can be useful in the case where you have a Job that is stored in the scheduler for regular/repeated use by multiple Triggers,
 yet with each independent triggering, you want to supply the Job with different data inputs.
 
-In light of all of the above, we recommend as a best practice the following: Code within the Job.Execute(..) method should generally retrieve
+In light of all of the above, we recommend as a best practice the following: Code within the `IJob.Execute(..)` method should generally retrieve
 values from the JobDataMap on found on the JobExecutionContext, rather than directly from the one on the JobDetail.
 
 ## Trigger Tips
@@ -64,7 +64,7 @@ You may need additional connections if your application is also making frequent 
 
 ### Avoid Scheduling Jobs Near the Transition Hours of Daylight Savings Time
 
-NOTE: Specifics of the transition hour and the amount of time the clock moves forward or back varies by locale see: https://secure.wikimedia.org/wikipedia/en/wiki/Daylight_saving_time_around_the_world.
+NOTE: Specifics of the transition hour and the amount of time the clock moves forward or back varies by locale see: [https://secure.wikimedia.org/wikipedia/en/wiki/Daylight_saving_time_around_the_world](https://secure.wikimedia.org/wikipedia/en/wiki/Daylight_saving_time_around_the_world).
 
 SimpleTriggers are not affected by Daylight Savings Time as they always fire at an exact millisecond in time, and repeat an exact number of milliseconds apart.
 
@@ -121,9 +121,9 @@ If a listener throws an exception, it may cause other listeners not to be notifi
 Some users expose Quartz's Scheduler functionality through an application user interface. This can be very useful, though it can also be extremely dangerous.
 
 Be sure you don't mistakenly allow users to define jobs of any type they wish, with whatever parameters they wish. 
-For example, Quartz ships with a pre-made job **NativeJob**, which will execute any arbitrary native (operating system) system command that it is defined to. 
+For example, Quartz.Jobs package ships with a pre-made job `NativeJo`, which will execute any arbitrary native (operating system) system command that it is defined to. 
 Malicious users could use this to take control of, or destroy your system.
 
-Likewise other jobs such as SendEmailJob, and virtually any others could be used for malicious intent.
+Likewise other jobs such as `SendEmailJob`, and virtually any others could be used for malicious intent.
 
 Allowing users to define whatever job they want effectively opens your system to all sorts of vulnerabilities comparable/equivalent to Command Injection Attacks as defined by OWASP and MITRE.

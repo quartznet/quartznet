@@ -30,45 +30,48 @@ or from NuGet Command-Line:
 
 	Install-Package Quartz
 
-If you want to add JSON Serialization, just add the **Quartz.Serialization.Json** package the same way.
+If you want to add JSON Serialization, just add the [Quartz.Serialization.Json](packages/json-serialization) package the same way.
 
 
 ### Zip Archive
 
-**Short version**: Once you've downloaded Quartz.NET, unzip it somewhere, grab the Quartz.dll from bin directory and start to use it.
+**Short version**: Once you've downloaded Quartz.NET, unzip it somewhere, grab the `Quartz.dll` from bin directory and start to use it.
 
 Quartz core library does not have any hard binary dependencies. You can opt-in to more dependencies when you choose to use JSON serialization package, which requires JSON.NET.
-You need to have at least Quartz.dll beside your app binaries to successfully run Quartz.NET. So just add it as a references to your Visual Studio project that uses them.
+You need to have at least `Quartz.dll` beside your app binaries to successfully run Quartz.NET. So just add it as a references to your Visual Studio project that uses them.
 You can find these dlls from extracted archive from path **bin\your-target-framework-version\release\Quartz**.
 
 ## Configuration
 
 This is the big bit! Quartz.NET is a very configurable library. There are three ways (which are not mutually exclusive) to supply Quartz.NET configuration information:
 
-* Programmatically via providing NameValueCollection parameter to scheduler factory
-* Via standard youapp.exe.config configuration file using quartz-element (full .NET framework only)
-* quartz.config file in your application's root directory (works both with .NET Core and full .NET Framework)
+* Programmatically via providing `NameValueCollection` parameter to scheduler factory
+* Via standard `YourApplication.exe.config` configuration file using quartz-element (full .NET framework only)
+* `appsettings.json` (.NET Core)
+* `quartz.config` file in your application's root directory (works both with .NET Core and full .NET Framework)
 
 You can find samples of all these alternatives in the Quartz.NET zip file.
 
-Full documentation of available properties is available in the [Quartz Configuration Reference](configuration/index.html).
+Full documentation of available properties is available in the [Quartz Configuration Reference](configuration/reference).
 
 To get up and running quickly, a basic quartz.config looks something like this:
 
 	quartz.scheduler.instanceName = MyScheduler
 	quartz.jobStore.type = Quartz.Simpl.RAMJobStore, Quartz
-    quartz.threadPool.threadCount = 3
+    quartz.threadPool.maxConcurrency = 3
 
 Remember to set the **Copy to Output Directory** on Visual Studio's file property pages to have value **Copy always**. Otherwise the config will not be seen if it's not in build directory.
 	
 The scheduler created by this configuration has the following characteristics:
 
-* quartz.scheduler.instanceName - This scheduler's name will be "MyScheduler".
-* quartz.threadPool.threadCount - Maximum of 3 jobs can be run simultaneously.
-* quartz.jobStore.type - All of Quartz's data, such as details of jobs and triggers, is held in memory (rather than in a database). 
+* `quartz.scheduler.instanceName` - This scheduler's name will be "MyScheduler".
+* `quartz.threadPool.maxConcurrency` - Maximum of 3 jobs can be run simultaneously.
+* `quartz.jobStore.type` - All of Quartz's data, such as details of jobs and triggers, is held in memory (rather than in a database). 
 Even if you have a database and want to use it with Quartz, I suggest you get Quartz working with the RamJobStore before you open up a whole new dimension by working with a database.
 
-*Actually you don't need to define these properties if you don't want to, Quartz.NET comes with sane defaults*
+::: tip
+Actually you don't need to define these properties if you don't want to, Quartz.NET comes with sane defaults
+:::
 
 ## Starting a Sample Application
 
@@ -106,7 +109,7 @@ namespace QuartzSampleApp
 }
 ```
 
-As of Quartz 3.0 your application will terminate when there's no code left to execute after scheduler.Shutdown(), because there won't be any active threads. You should manually block exiting of application if you want scheduler to keep running also after the Task.Delay and Shutdown has been processed.
+As of Quartz 3.0 your application will terminate when there's no code left to execute after `scheduler.Shutdown()`, because there won't be any active threads. You should manually block exiting of application if you want scheduler to keep running also after the Task.Delay and Shutdown has been processed.
 
 Now running the program will not show anything. When 10 seconds have passed the program will just terminate. Lets add some logging to console.
 

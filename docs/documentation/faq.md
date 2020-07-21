@@ -3,7 +3,9 @@ title: Frequently Asked Questions
 sidebarDepth: 0
 ---
 
-*This FAQ was adapted from Quartz Java*
+::: tip
+This FAQ was adapted from Quartz Java
+:::
 
 # General Questions
 
@@ -64,13 +66,6 @@ There are many reasons! Here are a few:
 
 ...of course to some simple applications these features may not be important, 
 in which case it may then be the right decision not to use Quartz.NET.
-
-## How do I build the Quartz source?
-
-Although Quartz ships "pre-built" many people like to make their own 
-alterations and/or build the latest 'non-released' version of Quartz from 
-Subversion. To do this, follow the instructions in the "README.TXT" file 
-that ships with Quartz.
 
 # Miscellaneous Questions
 
@@ -151,18 +146,19 @@ Trigger referencing it).
 
 **Quartz.NET 2.x**
 
-Implement **IJob** and also decorate your job class with **\[DisallowConcurrentExecution]** attribute. Read the API 
-documentation for **DisallowConcurrentExecutionAttribute** for more information.
+Implement **IJob** and also decorate your job class with `[DisallowConcurrentExecution]` attribute. Read the API 
+documentation for `DisallowConcurrentExecutionAttribute` for more information.
 
 **Quartz.NET 1.x**
 
-Make the job class implement **IStatefulJob** rather than **IJob**. Read the API 
-documentation for **IStatefulJob** for more information.
+Make the job class implement `IStatefulJob` rather than `IJob`. Read the API 
+documentation for `IStatefulJob` for more information.
 
 ## How do I stop a Job that is currently executing?
 
-Quartz 1.x and 2x: See the Quartz.IInterruptableJob interface, and the Scheduler.Interrupt(string, string) method.
-Quartz 3.x: See IJobExecutionContext's CancellationToken.IsCancellationRequested
+Quartz 1.x and 2x: See the `Quartz.IInterruptableJob` interface, and the `IScheduler.Interrupt(string, string)` method.
+
+Quartz 3.x: See `IJobExecutionContext`'s `CancellationToken.IsCancellationRequested`
 
 # Questions About Triggers
 
@@ -180,7 +176,7 @@ involved, since you'll have to inform the listener which job follows which
 				
 Another way is to build a Job that contains within its JobDataMap the name 
 of the next job to fire, and as the job completes (the last step in its 
-Execute() method) have the job schedule the next job. Several people are 
+`Execute()` method) have the job schedule the next job. Several people are 
 doing this and have had good luck. Most have made a base (abstract) class 
 that is a Job that knows how to get the job name and group out of the 
 JobDataMap using special keys (constants) and contains code to schedule the 
@@ -194,7 +190,7 @@ that works better for you.
 
 ## Why isn't my trigger firing?
 
-The most common reason for this is not having called Scheduler.Start(), 
+The most common reason for this is not having called `Scheduler.Start()`, 
 which tells the scheduler to start firing triggers.
 			
 The second most common reason is that the trigger or trigger group 
@@ -282,9 +278,11 @@ First, the obvious, but not-so-practical:
 * Buy a better (more powerful) machine to run your database on.
 * Buy a better RDBMS.
 
-Sencondly, use driver delegate implementation that is specific to your database, like SQLServerDelegate, for best performance.
+Sencondly, use driver delegate implementation that is specific to your database, like `SQLServerDelegate`, for best performance.
 
-*You should also always prefer the latest version of the library. Quartz.NET 2.0 is much more efficient than 1.x series and 2.2.x line again has AdoJobStore related performance improvements over earlier 2.x releases*
+::: tip
+You should also always prefer the latest version of the library. Quartz.NET 2.0 is much more efficient than 1.x series and 2.2.x line again has AdoJobStore related performance improvements over earlier 2.x releases.
+:::
 					
 # Quartz in web environment
 
