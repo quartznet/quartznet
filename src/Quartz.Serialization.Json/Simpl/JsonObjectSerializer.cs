@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
@@ -53,15 +54,18 @@ namespace Quartz.Simpl
         /// <param name="obj">Object to serialize.</param>
         public byte[] Serialize<T>(T obj) where T : class
         {
-            using (var ms = new MemoryStream())
+            if (serializer is null)
             {
-                using (var sw = new StreamWriter(ms))
-                {
-                    serializer.Serialize(sw, obj, typeof(object));
-                }
-
-                return ms.ToArray();
+                throw new InvalidOperationException("The serializer hasn't been initialized, did you forget to call Initialize()?");
             }
+            
+            using var ms = new MemoryStream();
+            using (var sw = new StreamWriter(ms))
+            {
+                serializer.Serialize(sw, obj, typeof(object));
+            }
+
+            return ms.ToArray();
         }
 
         /// <summary>
@@ -70,6 +74,11 @@ namespace Quartz.Simpl
         /// <param name="obj">Data to deserialize object from.</param>
         public T? DeSerialize<T>(byte[] obj) where T : class
         {
+            if (serializer is null)
+            {
+                throw new InvalidOperationException("The serializer hasn't been initialized, did you forget to call Initialize()?");
+            }
+            
             try
             {
                 using var ms = new MemoryStream(obj);
