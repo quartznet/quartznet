@@ -203,6 +203,9 @@ ITrigger trigger = TriggerBuilder.Create()
 
 // Tell quartz to schedule the job using our trigger
 await scheduler.ScheduleJob(job, trigger);
+
+// You could also schedule multiple triggers for the same job with
+// await scheduler.ScheduleJob(job, new List<ITrigger>() { trigger1, trigger2 }, replace: true);
 ```
 
 The complete console application will now look like this

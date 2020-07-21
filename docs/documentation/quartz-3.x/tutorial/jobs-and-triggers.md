@@ -9,7 +9,7 @@ The key interfaces and classes of the Quartz API are:
 * `IScheduler` - the main API for interacting with the scheduler.
 * `IJob` - an interface to be implemented by components that you wish to have executed by the scheduler.
 * `IJobDetail` - used to define instances of Jobs.
-* `ITrigger` - a component that defines the schedule upon which a given Job will be executed.
+* `ITrigger` - a component that defines the schedule upon which a given Job will be executed, job can have multiple associated triggers
 * `JobBuilder` - used to define/build JobDetail instances, which define instances of Jobs.
 * `TriggerBuilder` - used to define/build Trigger instances.
 * `SchedulerBuilder` - used to define/build scheduler instances, requires Quartz 3.1 or later.
@@ -23,22 +23,22 @@ However, the Scheduler will not actually act on any triggers (execute jobs) unti
 Quartz provides "builder" classes that define a Domain Specific Language (or DSL, also sometimes referred to as a "fluent interface"). In the previous lesson you saw an example of it, which we present a portion of here again:
 
 ```csharp
-	// define the job and tie it to our HelloJob class
-	IJobDetail job = JobBuilder.Create<HelloJob>()
-		.WithIdentity("myJob", "group1") // name "myJob", group "group1"
-		.Build();
-		
-	// Trigger the job to run now, and then every 40 seconds
-	ITrigger trigger = TriggerBuilder.Create()
-		.WithIdentity("myTrigger", "group1")
-		.StartNow()
-		.WithSimpleSchedule(x => x
-			.WithIntervalInSeconds(40)
-			.RepeatForever())            
-		.Build();
-		
-	// Tell quartz to schedule the job using our trigger
-	await sched.scheduleJob(job, trigger);
+// define the job and tie it to our HelloJob class
+IJobDetail job = JobBuilder.Create<HelloJob>()
+    .WithIdentity("myJob", "group1") // name "myJob", group "group1"
+    .Build();
+    
+// Trigger the job to run now, and then every 40 seconds
+ITrigger trigger = TriggerBuilder.Create()
+    .WithIdentity("myTrigger", "group1")
+    .StartNow()
+    .WithSimpleSchedule(x => x
+        .WithIntervalInSeconds(40)
+        .RepeatForever())            
+    .Build();
+    
+// Tell quartz to schedule the job using our trigger
+await sched.scheduleJob(job, trigger);
 ```
   
 The block of code that builds the job definition is using `JobBuilder` using fluent interface to create the product, `IJobDetail`.

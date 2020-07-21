@@ -37,6 +37,9 @@ ITrigger trigger = TriggerBuilder.Create()
 .Build();
     
 await scheduler.ScheduleJob(job, trigger);
+
+// You could also schedule multiple triggers for the same job with
+// await scheduler.ScheduleJob(job, new List<ITrigger>() { trigger1, trigger2 }, replace: true);
 ```
 
 As you can see, working with Quartz.NET is rather simple. In [Lesson 2](jobs-and-triggers.md) we'll give a quick overview of Jobs and Triggers, so that you can more fully understand this example.
