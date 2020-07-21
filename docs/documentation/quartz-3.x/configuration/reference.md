@@ -470,7 +470,7 @@ quartz.dataSource.myDS.connectionString = Server=localhost;Database=quartznet;Us
 
 Quartz’s clustering features bring both high availability and scalability to your scheduler via fail-over and load balancing functionality.
 
-Clustering currently only works with the AdoJobstore (JobStoreTX or JobStoreCMT), and essentially works by having each node of the cluster share the same database.
+Clustering currently only works with the AdoJobstore (`JobStoreTX` or `JobStoreCMT`), and essentially works by having each node of the cluster share the same database.
 
 Load-balancing occurs automatically, with each node of the cluster firing jobs as quickly as it can. When a trigger’s firing time occurs, the first node to acquire it (by placing a lock on it) is the node that will fire it.
 
@@ -486,8 +486,8 @@ The clustering feature works best for scaling out long-running and/or cpu-intens
 If you need to scale out to support thousands of short-running (e.g 1 second) jobs, consider partitioning the set of jobs by using multiple distinct schedulers (including multiple clustered schedulers for HA).
 The scheduler makes use of a cluster-wide lock, a pattern that degrades performance as you add more nodes (when going beyond about three nodes - depending upon your database’s capabilities, etc.).
 
-Enable clustering by setting the "quartz.jobStore.isClustered" property to "true". Each instance in the cluster should use the same copy of the quartz.properties file. 
-Exceptions of this would be to use properties files that are identical, with the following allowable exceptions: Different thread pool size, and different value for the "quartz.scheduler.instanceId" property. 
+Enable clustering by setting the `quartz.jobStore.isClustered` property to "true". Each instance in the cluster should use the same copy of the quartz.properties file. 
+Exceptions of this would be to use properties files that are identical, with the following allowable exceptions: Different thread pool size, and different value for the `quartz.scheduler.instanceId` property. 
 Each node in the cluster MUST have a unique instanceId, which is easily done (without needing different properties files) by placing "AUTO" as the value of this property.
 See the info about the configuration properties of AdoJobStore for more information.
 

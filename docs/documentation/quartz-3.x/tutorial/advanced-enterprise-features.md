@@ -14,14 +14,13 @@ Different thread pool size, and different value for the `quartz.scheduler.instan
 Each node in the cluster MUST have a unique instanceId, which is easily done (without needing different properties files) by placing `AUTO` as the value of this property.
 
 ::: danger
-Never run clustering on separate machines, unless their clocks are synchronized using some form of time-sync service (daemon) that runs very regularly
-(the clocks must be within a second of each other).
+Never run clustering on separate machines, unless their clocks are synchronized using some form of time-sync service (daemon) that runs very regularly (the clocks must be within a second of each other).
 See [https://www.nist.gov/pml/time-and-frequency-division/services/internet-time-service-its](https://www.nist.gov/pml/time-and-frequency-division/services/internet-time-service-its) if you are unfamiliar with how to do this.
 :::
 
 ::: danger
-Never fire-up a non-clustered instance against the same set of tables that any other instance is running against. 
-You may get serious data corruption, and will definitely experience eratic behavior.
+Never start (`scheduler.Start()`) a non-clustered instance against the same set of database tables that any other instance is running (`Start()`ed) against. 
+You may get serious data corruption, and will definitely experience erratic behavior.
 :::
 
 ::: danger
