@@ -17,7 +17,7 @@ Quartz.NET is an opensource project aimed at creating a free-for-commercial use 
 
 ## Installation
 
-* Stable builds from NuGet: https://www.nuget.org/packages?q=id%3AQuartz+owner%3Alahma
+* [Stable builds from NuGet](https://www.nuget.org/packages?q=owner%3AQuartz.NET)
 * Pre-release builds from MyGet feed: https://www.myget.org/F/quartznet/api/v3/index.json
 
 ## Building
