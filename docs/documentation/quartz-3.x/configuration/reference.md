@@ -497,8 +497,13 @@ See [https://www.nist.gov/pml/time-and-frequency-division/services/internet-time
 :::
 
 ::: danger
-Never start (scheduler.start()) a non-clustered instance against the same set of database tables that any other instance is running (start()ed) against. 
+Never start (`scheduler.Start()`) a non-clustered instance against the same set of database tables that any other instance is running (`Start()`ed) against. 
 You may get serious data corruption, and will definitely experience erratic behavior.
+:::
+
+::: danger
+Monitor and ensure that your nodes have enough CPU resources to complete jobs.
+When some nodes are in 100% CPU, they may be unable to update the job store and other nodes can consider these jobs lost and recover them by re-running.  
 :::
 
 **Example Properties For A Clustered Scheduler**
