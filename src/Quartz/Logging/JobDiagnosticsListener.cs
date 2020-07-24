@@ -1,8 +1,6 @@
 using System;
 using System.Diagnostics;
 
-using Quartz.Impl;
-
 namespace Quartz.Logging
 {
     /// <summary>
@@ -14,15 +12,15 @@ namespace Quartz.Logging
 
         public JobDiagnosticsListener()
         {
-            diagnosticListener = new DiagnosticListener(OperationName.Job.Execute);
+            diagnosticListener = new DiagnosticListener(DiagnosticHeaders.DefaultListenerName);
         }
 
         internal void JobExecutionVetoed(IJobExecutionContext context)
         {
             // the job actually never started
-            if (diagnosticListener.IsEnabled(OperationName.Job.Vetoed, context))
+            if (diagnosticListener.IsEnabled(OperationName.Job.Veto, context))
             {
-                diagnosticListener.Write(OperationName.Job.Vetoed, context);
+                diagnosticListener.Write(OperationName.Job.Veto, context);
             }
         }
 

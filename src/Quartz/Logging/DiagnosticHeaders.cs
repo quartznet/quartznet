@@ -2,6 +2,8 @@ namespace Quartz.Logging
 {
     public static class DiagnosticHeaders
     {
+        public const string DefaultListenerName = "Quartz";
+        
         public static string SchedulerName = "scheduler.name"; 
         public static string SchedulerId = "scheduler.id"; 
         public static string FireInstanceId = "fire.instance.id"; 

@@ -6,12 +6,12 @@ using OpenTelemetry.Trace;
 
 namespace Quartz.OpenTelemetry.Instrumentation.Implementation
 {
-    internal sealed class JobListener : ListenerHandler
+    internal sealed class QuartzDiagnosticListener : ListenerHandler
     {
         private readonly QuartzInstrumentationOptions options;
         private readonly ActivitySourceAdapter activitySource;
 
-        public JobListener(string sourceName, QuartzInstrumentationOptions options, ActivitySourceAdapter activitySource) 
+        public QuartzDiagnosticListener(string sourceName, QuartzInstrumentationOptions options, ActivitySourceAdapter activitySource) 
             : base(sourceName)
         {
             this.options = options ?? throw new ArgumentNullException(nameof(options));
@@ -20,36 +20,32 @@ namespace Quartz.OpenTelemetry.Instrumentation.Implementation
 
         public override void OnStartActivity(Activity activity, object payload)
         {
-            if (!(payload is IJobExecutionContext jobExecutionContext))
+            if (!options.TracedOperations.Contains(activity.OperationName))
             {
-                QuartzInstrumentationEventSource.Log.NullPayload(nameof(JobListener), nameof(OnStartActivity));
                 return;
             }
-
             activitySource.Start(activity);
-
-            if (activity.IsAllDataRequested)
-            {
-                //SetActivityAttributes(activity, jobExecutionContext, exception: null);
-            }
         }
 
         public override void OnStopActivity(Activity activity, object payload)
         {
-            if (!(payload is IJobExecutionContext))
+            if (!options.TracedOperations.Contains(activity.OperationName))
             {
-                QuartzInstrumentationEventSource.Log.NullPayload(nameof(JobListener), nameof(OnStopActivity));
                 return;
             }
-
             activitySource.Stop(activity);
         }
 
         public override void OnException(Activity activity, object payload)
         {
-            if (!(payload is JobExecutionException exception))
+            if (!options.TracedOperations.Contains(activity.OperationName))
             {
-                QuartzInstrumentationEventSource.Log.NullPayload(nameof(JobListener), nameof(OnStopActivity));
+                return;
+            }
+            
+            if (!(payload is Exception exception))
+            {
+                QuartzInstrumentationEventSource.Log.NullPayload(nameof(QuartzDiagnosticListener), nameof(OnStopActivity));
                 return;
             }
 

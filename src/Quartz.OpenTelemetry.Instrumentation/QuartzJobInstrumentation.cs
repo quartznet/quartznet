@@ -19,7 +19,7 @@ namespace Quartz.OpenTelemetry.Instrumentation
 
         public QuartzJobInstrumentation(ActivitySourceAdapter activitySource, QuartzInstrumentationOptions options)
         {
-            var listener = new JobListener(OperationName.Job.Execute, options, activitySource);
+            var listener = new QuartzDiagnosticListener(DiagnosticHeaders.DefaultListenerName, options, activitySource);
             diagnosticSourceSubscriber = new DiagnosticSourceSubscriber(listener, null);
             diagnosticSourceSubscriber.Subscribe();
         }
