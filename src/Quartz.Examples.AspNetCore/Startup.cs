@@ -7,6 +7,8 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
+using OpenTelemetry.Trace;
+
 using Quartz.Impl.Matchers;
 
 using Serilog;
@@ -30,10 +32,31 @@ namespace Quartz.Examples.AspNetCore
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            // make sure you configure logging and open telemetry before quartz services
+
             services.AddLogging(loggingBuilder =>
             {
                 loggingBuilder.ClearProviders();
                 loggingBuilder.AddSerilog(dispose: true);
+            });
+            
+            services.AddOpenTelemetry(builder =>
+            {
+                builder
+                    .AddQuartzInstrumentation()
+                    .UseZipkinExporter(o =>
+                    {
+                        o.Endpoint = new Uri("http://localhost:9411/api/v2/spans");
+                        o.ServiceName = "Quartz.Examples.AspNetCore";
+                    })
+                    .UseJaegerExporter(o =>
+                    {
+                        o.ServiceName = "Quartz.Examples.AspNetCore";
+
+                        // these are the defaults
+                        o.AgentHost = "localhost";
+                        o.AgentPort = 6831;
+                    });
             });
             
             services.AddRazorPages();
@@ -108,7 +131,7 @@ namespace Quartz.Examples.AspNetCore
                 q.UseXmlSchedulingConfiguration(x =>
                 {
                     x.Files = new[] { "~/quartz_jobs.config" };
-                    x.ScanInterval = TimeSpan.FromSeconds(2);
+                    x.ScanInterval = TimeSpan.FromMinutes(1);
                     x.FailOnFileNotFound = true;
                     x.FailOnSchedulingError = true;
                 });
@@ -149,7 +172,7 @@ namespace Quartz.Examples.AspNetCore
                 // when shutting down we want jobs to complete gracefully
                 options.WaitForJobsToComplete = true;
             });
-
+            
             services
                 .AddHealthChecksUI()
                 .AddInMemoryStorage();

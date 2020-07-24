@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -52,6 +53,7 @@ namespace Quartz.Core
     public class JobRunShell : SchedulerListenerSupport
     {
         private readonly ILog log;
+        private readonly JobDiagnosticsWriter jobExecutionJobDiagnostics = new JobDiagnosticsWriter();
 
         private JobExecutionContextImpl? jec;
         private QuartzScheduler? qs;
@@ -179,6 +181,7 @@ namespace Quartz.Core
 
                     DateTimeOffset startTime = SystemTime.UtcNow();
                     DateTimeOffset endTime;
+                    Activity? activity = null;
 
                     // Execute the job
                     try
@@ -188,6 +191,7 @@ namespace Quartz.Core
                             log.Debug("Calling Execute on job " + jobDetail.Key);
                         }
 
+                        activity = jobExecutionJobDiagnostics.WriteStarted(jec, startTime);
                         await job.Execute(jec).ConfigureAwait(false);
 
                         endTime = SystemTime.UtcNow();
@@ -201,6 +205,7 @@ namespace Quartz.Core
                     {
                         endTime = SystemTime.UtcNow();
                         jobExEx = jee;
+                        jobExecutionJobDiagnostics.WriteException(activity, jobExEx);
                         log.ErrorException($"Job {jobDetail.Key} threw a JobExecutionException: ", jobExEx);
                     }
                     catch (Exception e)
@@ -214,6 +219,8 @@ namespace Quartz.Core
                     }
 
                     jec.JobRunTime = endTime - startTime;
+
+                    jobExecutionJobDiagnostics.WriteStopped(activity, endTime, jec);
 
                     // notify all job listeners
                     if (!await NotifyJobListenersComplete(jec, jobExEx, cancellationToken).ConfigureAwait(false))
@@ -339,6 +346,10 @@ namespace Quartz.Core
             {
                 try
                 {
+                    if (LogContext.Cached.Default.Value.IsEnabled(OperationName.Job.Veto))
+                    {
+                        LogContext.Cached.Default.Value.Write(OperationName.Job.Veto, ctx);
+                    }
                     await qs.NotifyJobListenersWasVetoed(ctx, cancellationToken).ConfigureAwait(false);
                 }
                 catch (SchedulerException se)

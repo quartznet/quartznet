@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;$(TargetFullFrameworkVersion)</TargetFrameworks>
+    <RootNamespace>Quartz.OpenTelemetry.Instrumentation</RootNamespace>
+    <Title>Quartz.NET OpenTelemetry integration</Title>
+    <Description>Quartz.NET OpenTelemetry integration; $(Description)</Description>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="..\AssemblyInfo.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="OpenTelemetry" Version="0.3.0-beta.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz\Quartz.csproj" />
+  </ItemGroup>
+</Project>

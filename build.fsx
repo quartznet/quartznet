@@ -59,6 +59,7 @@ Target "Pack" (fun _ ->
         ++ "src/Quartz.AspNetCore/Quartz.AspNetCore.csproj"
         ++ "src/Quartz.Extensions.DependencyInjection/Quartz.Extensions.DependencyInjection.csproj"
         ++ "src/Quartz.Jobs/Quartz.Jobs.csproj"
+        ++ "src/Quartz.OpenTelemetry.Instrumentation/Quartz.OpenTelemetry.Instrumentation.csproj"
         ++ "src/Quartz.Plugins/Quartz.Plugins.csproj"
         ++ "src/Quartz.Plugins.TimeZoneConverter/Quartz.Plugins.TimeZoneConverter.csproj"
         ++ "src/Quartz.Serialization.Json/Quartz.Serialization.Json.csproj"

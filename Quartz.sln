@@ -41,6 +41,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Examples", "Examples", "{FC
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Extensions.DependencyInjection", "src\Quartz.Extensions.DependencyInjection\Quartz.Extensions.DependencyInjection.csproj", "{FD743112-25F0-4719-B0DF-144C78600955}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.OpenTelemetry.Instrumentation", "src\Quartz.OpenTelemetry.Instrumentation\Quartz.OpenTelemetry.Instrumentation.csproj", "{5B99035A-3623-4584-9AFA-C6D77F5704BD}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -95,6 +97,10 @@ Global
 		{FD743112-25F0-4719-B0DF-144C78600955}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FD743112-25F0-4719-B0DF-144C78600955}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FD743112-25F0-4719-B0DF-144C78600955}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5B99035A-3623-4584-9AFA-C6D77F5704BD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5B99035A-3623-4584-9AFA-C6D77F5704BD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5B99035A-3623-4584-9AFA-C6D77F5704BD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5B99035A-3623-4584-9AFA-C6D77F5704BD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

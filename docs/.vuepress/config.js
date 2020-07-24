@@ -115,6 +115,7 @@ module.exports = {
             children:  [
               ['/documentation/quartz-3.x/packages/aspnet-core-integration', 'ASP.NET Core Integration'],
               ['/documentation/quartz-3.x/packages/microsoft-di-integration', 'Microsoft DI Integration'],
+              ['/documentation/quartz-3.x/packages/opentelemetry-integration', 'OpenTelemetry Integration'],
               ['/documentation/quartz-3.x/packages/timezoneconverter-integration', 'TimeZoneConverter Integration'],
             ]
           }

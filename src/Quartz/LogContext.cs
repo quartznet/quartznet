@@ -1,3 +1,6 @@
+using System;
+using System.Diagnostics;
+
 using Microsoft.Extensions.Logging;
 
 using Quartz.Logging;
@@ -14,6 +17,12 @@ namespace Quartz
         public static void SetCurrentLogProvider(ILoggerFactory loggerFactory)
         {
             LogProvider.SetCurrentLogProvider(new MicrosoftLoggingProvider(loggerFactory));
+        }
+
+        internal static class Cached
+        {
+            internal static readonly Lazy<DiagnosticListener> Default =
+                new Lazy<DiagnosticListener>(() => new DiagnosticListener(DiagnosticHeaders.DefaultListenerName));
         }
     }
 }

@@ -10,13 +10,13 @@ namespace Quartz
     internal class QuartzHostedService : IHostedService
     {
         private readonly ISchedulerFactory schedulerFactory;
-        private readonly SchedulerHealthCheck healthCheck;
+        private readonly QuartzHealthCheck healthCheck;
         private readonly QuartzHostedServiceOptions options;
         private IScheduler scheduler = null!;
 
         public QuartzHostedService(
             ISchedulerFactory schedulerFactory,
-            SchedulerHealthCheck healthCheck,
+            QuartzHealthCheck healthCheck,
             QuartzHostedServiceOptions options)
         {
             this.schedulerFactory = schedulerFactory;
