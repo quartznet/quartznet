@@ -72,6 +72,6 @@ Quartz.LogContext.SetCurrentLogProvider(loggerFactory);
 ```csharp
 services.AddQuartz(q =>
 {
-    q.UseMicrosoftLogging();
+    // this automatically registers the Microsoft Logging
 });
 ```

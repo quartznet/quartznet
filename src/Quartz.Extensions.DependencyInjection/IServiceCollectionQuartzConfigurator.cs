@@ -24,11 +24,6 @@ namespace Quartz
         /// </summary>
         void UseMicrosoftDependencyInjectionScopedJobFactory(Action<JobFactoryOptions>? configure = null);
 
-        /// <summary>
-        /// Adds wires Microsoft's logging abstraction instead of trying to find one with LibLog.
-        /// </summary>
-        void UseMicrosoftLogging();
-        
         void UseTypeLoader<T>() where T : ITypeLoadHelper;
         void UseSimpleTypeLoader();
         string SchedulerId { set; }

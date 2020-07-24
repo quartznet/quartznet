@@ -3,6 +3,11 @@ using System.Collections.Specialized;
 
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
+
+using Quartz.Logging;
+using Quartz.Simpl;
 
 namespace Quartz
 {
@@ -15,6 +20,17 @@ namespace Quartz
             this IServiceCollection services,
             Action<IServiceCollectionQuartzConfigurator>? configure = null)
         {
+            services.TryAddSingleton<MicrosoftLoggingProvider?>(serviceProvider =>
+            {
+                var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
+                if (loggerFactory != null)
+                {
+                    LogContext.SetCurrentLogProvider(loggerFactory);
+                }
+
+                return LogProvider.CurrentLogProvider as MicrosoftLoggingProvider;
+            });
+            
             var builder = new ServiceCollectionQuartzConfigurator(services, SchedulerBuilder.Create());
             configure?.Invoke(builder);
             

@@ -3,9 +3,7 @@ using System.Collections.Specialized;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Logging;
 
-using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
 
@@ -64,19 +62,6 @@ namespace Quartz
         public void UseMicrosoftDependencyInjectionScopedJobFactory(Action<JobFactoryOptions>? configure = null)
         {
             UseJobFactory<MicrosoftDependencyInjectionScopedJobFactory>(configure);
-        }
-
-        public void UseMicrosoftLogging()
-        {
-            services.TryAddSingleton<MicrosoftLoggingProvider?>(serviceProvider =>
-            {
-                var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
-                if (loggerFactory != null)
-                {
-                    LogContext.SetCurrentLogProvider(loggerFactory);
-                }
-                return LogProvider.CurrentLogProvider as MicrosoftLoggingProvider;
-            });            
         }
 
         public void UseJobFactory<T>(Action<JobFactoryOptions>? configure = null) where T : IJobFactory
