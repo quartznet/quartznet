@@ -122,16 +122,14 @@ namespace Quartz
         /// <value>The next fire time.</value>
         DateTimeOffset? NextFireTimeUtc { get; }
 
-#pragma warning disable 1574
         /// <summary>
         /// Get the unique Id that identifies this particular firing instance of the
         /// trigger that triggered this job execution.  It is unique to this
         /// JobExecutionContext instance as well.
         /// </summary>
         ///  <returns>the unique fire instance id</returns>
-        /// <seealso cref="IScheduler.Interrupt(string, CancellationToken)" />
+        /// <seealso cref="IScheduler.Interrupt(System.String, System.Threading.CancellationToken)" />
         string FireInstanceId { get; }
-#pragma warning restore 1574
 
         /// <summary>
         /// Returns the result (if any) that the <see cref="IJob" /> set before its
@@ -188,13 +186,11 @@ namespace Quartz
         /// </param>
         object? Get(object key);
 
-#pragma warning disable 1574
         /// <summary>
         /// Returns the cancellation token which will be cancelled when the job cancellation has been requested via
-        /// <see cref="IScheduler.Interrupt(JobKey, CancellationToken)"/>
-        /// or <see cref="IScheduler.Interrupt(string, CancellationToken)"/>.
+        /// <see cref="IScheduler.Interrupt(Quartz.JobKey, System.Threading.CancellationToken)"/>
+        /// or <see cref="IScheduler.Interrupt(System.String, System.Threading.CancellationToken)"/>.
         /// </summary>
         CancellationToken CancellationToken { get; }
-#pragma warning restore 1574
     }
 }

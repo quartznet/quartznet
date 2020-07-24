@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -52,6 +53,7 @@ namespace Quartz.Core
     public class JobRunShell : SchedulerListenerSupport
     {
         private readonly ILog log;
+        private readonly JobDiagnosticsListener jobDiagnosticsListener = new JobDiagnosticsListener();
 
         private JobExecutionContextImpl? jec;
         private QuartzScheduler? qs;
@@ -179,6 +181,7 @@ namespace Quartz.Core
 
                     DateTimeOffset startTime = SystemTime.UtcNow();
                     DateTimeOffset endTime;
+                    Activity? activity = null;
 
                     // Execute the job
                     try
@@ -188,6 +191,7 @@ namespace Quartz.Core
                             log.Debug("Calling Execute on job " + jobDetail.Key);
                         }
 
+                        activity = jobDiagnosticsListener.JobStarting(jec, startTime);
                         await job.Execute(jec).ConfigureAwait(false);
 
                         endTime = SystemTime.UtcNow();
@@ -214,6 +218,8 @@ namespace Quartz.Core
                     }
 
                     jec.JobRunTime = endTime - startTime;
+
+                    jobDiagnosticsListener.JobEnded(activity, endTime, jec, jobExEx);
 
                     // notify all job listeners
                     if (!await NotifyJobListenersComplete(jec, jobExEx, cancellationToken).ConfigureAwait(false))
@@ -339,6 +345,7 @@ namespace Quartz.Core
             {
                 try
                 {
+                    jobDiagnosticsListener.JobExecutionVetoed(ctx);
                     await qs.NotifyJobListenersWasVetoed(ctx, cancellationToken).ConfigureAwait(false);
                 }
                 catch (SchedulerException se)

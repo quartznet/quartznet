@@ -1,6 +1,5 @@
 using System;
 
-using Quartz.Converters;
 using Quartz.Simpl;
 
 namespace Quartz
