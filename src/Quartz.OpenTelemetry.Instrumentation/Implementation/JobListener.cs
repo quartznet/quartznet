@@ -54,11 +54,8 @@ namespace Quartz.OpenTelemetry.Instrumentation.Implementation
             }
 
             activity.AddTag("error", "true");
-            if (options.IncludeExceptionDetails)
-            {
-                activity.AddTag("error.message", exception.Message);
-                activity.AddTag("error.stack", exception.StackTrace);
-            }
+            activity.AddTag("error.message", options.IncludeExceptionDetails ? exception.Message : $"{nameof(QuartzInstrumentationOptions.IncludeExceptionDetails)} is disabled");
+            activity.AddTag("error.stacktrace", options.IncludeExceptionDetails ? exception.StackTrace : $"{nameof(QuartzInstrumentationOptions.IncludeExceptionDetails)} is disabled");
         }
     }
 }
