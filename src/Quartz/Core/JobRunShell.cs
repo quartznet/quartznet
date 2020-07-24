@@ -205,6 +205,7 @@ namespace Quartz.Core
                     {
                         endTime = SystemTime.UtcNow();
                         jobExEx = jee;
+                        jobDiagnosticsListener.JobExecutionException(activity, jobExEx);
                         log.ErrorException($"Job {jobDetail.Key} threw a JobExecutionException: ", jobExEx);
                     }
                     catch (Exception e)
@@ -219,7 +220,7 @@ namespace Quartz.Core
 
                     jec.JobRunTime = endTime - startTime;
 
-                    jobDiagnosticsListener.JobEnded(activity, endTime, jec, jobExEx);
+                    jobDiagnosticsListener.JobEnded(activity, endTime, jec);
 
                     // notify all job listeners
                     if (!await NotifyJobListenersComplete(jec, jobExEx, cancellationToken).ConfigureAwait(false))

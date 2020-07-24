@@ -26,7 +26,6 @@ namespace Quartz.OpenTelemetry.Instrumentation.Implementation
                 return;
             }
 
-            activity.SetKind(ActivityKind.Server);
             activitySource.Start(activity);
 
             if (activity.IsAllDataRequested)
@@ -37,21 +36,28 @@ namespace Quartz.OpenTelemetry.Instrumentation.Implementation
 
         public override void OnStopActivity(Activity activity, object payload)
         {
-            if (!(payload is Tuple<IJobExecutionContext, Exception?> tuple))
+            if (!(payload is IJobExecutionContext))
             {
                 QuartzInstrumentationEventSource.Log.NullPayload(nameof(JobListener), nameof(OnStopActivity));
                 return;
             }
 
-            var (_, exception) = tuple;
-            if (exception != null)
+            activitySource.Stop(activity);
+        }
+
+        public override void OnException(Activity activity, object payload)
+        {
+            if (!(payload is JobExecutionException exception))
             {
-                activity.AddTag("error", "true");
-                if (options.IncludeExceptionDetails)
-                {
-                    activity.AddTag("error.message", exception.Message);
-                    activity.AddTag("error.stack", exception.StackTrace);
-                }
+                QuartzInstrumentationEventSource.Log.NullPayload(nameof(JobListener), nameof(OnStopActivity));
+                return;
+            }
+
+            activity.AddTag("error", "true");
+            if (options.IncludeExceptionDetails)
+            {
+                activity.AddTag("error.message", exception.Message);
+                activity.AddTag("error.stack", exception.StackTrace);
             }
         }
     }

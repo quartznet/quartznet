@@ -11,6 +11,7 @@
     * Support Microsoft.Extensions.Logging.Abstractions (#756)
     * Support Microsoft.Data.SQLite with full framework (#893)
     * Support custom calendar JSON serialization (#697)
+	* Add OpenTelemetry support (#867)
 
 * FIXES
 

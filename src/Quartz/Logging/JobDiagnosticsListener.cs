@@ -1,6 +1,8 @@
 using System;
 using System.Diagnostics;
 
+using Quartz.Impl;
+
 namespace Quartz.Logging
 {
     /// <summary>
@@ -47,7 +49,15 @@ namespace Quartz.Logging
             return activity;
         }
 
-        internal void JobEnded(Activity? activity, DateTimeOffset endTimeUtc, IJobExecutionContext context, JobExecutionException? jobException)
+        public void JobExecutionException(Activity? activity, JobExecutionException exception)
+        {
+            if (activity != null && diagnosticListener.IsEnabled(OperationName.Job.Execute))
+            {
+                diagnosticListener.Write(OperationName.Job.Execute + ".Exception", exception);
+            }
+        }
+
+        internal void JobEnded(Activity? activity, DateTimeOffset endTimeUtc, IJobExecutionContext context)
         {
             if (activity != null && diagnosticListener.IsEnabled(OperationName.Job.Execute))
             {
