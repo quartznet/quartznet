@@ -19,9 +19,9 @@ export default {
     computed: {
         posts() {
             return this.$site.pages
-                .filter(x => x.id === 'post')
+                .filter(x => x.id === 'post' && x.frontmatter.hidden !== true)
                 .sort((a, b) => b.path.localeCompare(a.path))
-                                .map(x => {
+                .map(x => {
                     x.dateString = x.path.substring(1, 11);
                     return x;
                 });
