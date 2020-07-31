@@ -8,6 +8,10 @@ events within the scheduler itself - not necessarily events related to a specifi
 Scheduler-related events include: the addition of a job/trigger, the removal of a job/trigger, a serious error 
 within the scheduler, notification of the scheduler being shutdown, and others.
 
+::: danger
+Make sure your scheduler listeners never throw an exception (use a try-catch) and that they can handle internal problems.
+Quartz can get in unpredictable state when it is unable to determine whether required logic in listener was completed successfully when listener notification failed.
+:::
 
 __The ISchedulerListener Interface__
 
