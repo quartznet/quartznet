@@ -8,6 +8,11 @@ As you can probably guess, TriggerListeners receive events related to triggers, 
 Trigger-related events include: trigger firings, trigger mis-firings (discussed in the "Triggers" section of this document),
 and trigger completions (the jobs fired off by the trigger is finished).
 
+::: danger
+Make sure your trigger and job listeners never throw an exception (use a try-catch) and that they can handle internal problems.
+Jobs can get stuck after Quartz is unable to determine whether required logic in listener was completed successfully when listener notification failed.
+:::
+
 __The ITriggerListener Interface__
 
 ```csharp
