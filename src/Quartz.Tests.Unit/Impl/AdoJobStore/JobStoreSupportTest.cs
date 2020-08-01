@@ -12,7 +12,6 @@ using Quartz.Impl.AdoJobStore;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore
 {
-    [TestFixture]
     public class JobStoreSupportTest
     {
         private TestJobStoreSupport jobStoreSupport;
