@@ -2,6 +2,18 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+## Release 3.2.0, Aug xx 2020
+
+This is a release that focuses on restructuring some packages that warrants for a minor version number increment.
+
+Now Quartz no longer has hard dependency on Microsoft.Data.SqlClient, you need to add that dependency to your project
+if you are using Microsoft SQL Server as backing store for your project. Now requirement is in line with other providers/drivers. 
+
+* (POSSIBLY) BREAKING CHANGES
+
+    * Remove dependency on Microsoft.Data.SqlClient (#912) 
+    
+
 ## Release 3.1.0, Jul 24 2020
 
 This release concentrates on performance and bringing support to de facto Microsoft libraries like dependency injection and ASP.NET Core hosting.
