@@ -43,6 +43,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Extensions.Dependenc
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.OpenTelemetry.Instrumentation", "src\Quartz.OpenTelemetry.Instrumentation\Quartz.OpenTelemetry.Instrumentation.csproj", "{5B99035A-3623-4584-9AFA-C6D77F5704BD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Extensions.Hosting", "src\Quartz.Extensions.Hosting\Quartz.Extensions.Hosting.csproj", "{7CC26420-E06F-44EA-AF23-7861B56906BB}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -101,6 +103,10 @@ Global
 		{5B99035A-3623-4584-9AFA-C6D77F5704BD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5B99035A-3623-4584-9AFA-C6D77F5704BD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5B99035A-3623-4584-9AFA-C6D77F5704BD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7CC26420-E06F-44EA-AF23-7861B56906BB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7CC26420-E06F-44EA-AF23-7861B56906BB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7CC26420-E06F-44EA-AF23-7861B56906BB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7CC26420-E06F-44EA-AF23-7861B56906BB}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
