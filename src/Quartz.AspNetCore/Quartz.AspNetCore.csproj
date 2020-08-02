@@ -18,6 +18,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Quartz.Extensions.DependencyInjection\Quartz.Extensions.DependencyInjection.csproj" />
+      <ProjectReference Include="..\Quartz.Extensions.Hosting\Quartz.Extensions.Hosting.csproj" />
       <ProjectReference Include="..\Quartz\Quartz.csproj" />
     </ItemGroup>
 

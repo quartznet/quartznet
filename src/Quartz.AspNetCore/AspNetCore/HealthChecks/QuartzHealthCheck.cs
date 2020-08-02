@@ -30,7 +30,7 @@ namespace Quartz.AspNetCore.HealthChecks
 
             return Task.FromResult(result);
         }
-
+        
         public override Task SchedulerError(string msg, SchedulerException cause, CancellationToken cancellationToken = default)
         {
             errorCount++;
