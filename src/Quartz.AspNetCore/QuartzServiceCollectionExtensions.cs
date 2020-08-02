@@ -2,7 +2,6 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.Extensions.Hosting;
 
 using Quartz.AspNetCore.HealthChecks;
 
@@ -14,28 +13,18 @@ namespace Quartz
             this IServiceCollection services,
             Action<QuartzHostedServiceOptions>? configure = null)
         {
-            var check = new QuartzHealthCheck();
             services
                 .AddHealthChecks()
-                .AddQuartzHealthCheck("scheduler", check);
+                .AddQuartzHealthCheck<QuartzHealthCheck>("scheduler");
 
-            return services.AddSingleton<IHostedService>(serviceProvider =>
-            {
-                var scheduler = serviceProvider.GetRequiredService<ISchedulerFactory>();
-
-                var options = new QuartzHostedServiceOptions();
-                configure?.Invoke(options);
-                
-                return new QuartzHostedService(scheduler, check, options);
-            });
+            return services.AddQuartzHostedService(configure);
         }
 
-        private static IHealthChecksBuilder AddQuartzHealthCheck(
+        private static IHealthChecksBuilder AddQuartzHealthCheck<T>(
             this IHealthChecksBuilder builder,
-            string suffix,
-            IHealthCheck healthCheck)
+            string suffix) where T : class, IHealthCheck
         {
-            return builder.AddCheck($"quartz-{suffix}", healthCheck);
+            return builder.AddCheck<T>($"quartz-{suffix}");
         }
     }
 }

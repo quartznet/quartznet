@@ -3,25 +3,27 @@ using System.Threading.Tasks;
 
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
-using Quartz.Listener;
-
 namespace Quartz.AspNetCore.HealthChecks
 {
-    internal class QuartzHealthCheck : SchedulerListenerSupport, IHealthCheck
+    internal class QuartzHealthCheck : IHealthCheck
     {
-        private bool running;
-        private int errorCount;
+        private readonly IQuartzHostedServiceListener listener;
+
+        public QuartzHealthCheck(IQuartzHostedServiceListener listener)
+        {
+            this.listener = listener;
+        }
 
         Task<HealthCheckResult> IHealthCheck.CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken)
         {
             HealthCheckResult result;
-            if (!running)
+            if (!listener.Running)
             {
                 result = HealthCheckResult.Unhealthy($"Quartz scheduler is not running");
             }
-            else if (errorCount > 0)
+            else if (listener.ErrorCount > 0)
             {
-                result = HealthCheckResult.Unhealthy($"Quartz scheduler has experienced {errorCount} errors");
+                result = HealthCheckResult.Unhealthy($"Quartz scheduler has experienced {listener.ErrorCount} errors");
             }
             else
             {
@@ -29,24 +31,6 @@ namespace Quartz.AspNetCore.HealthChecks
             }
 
             return Task.FromResult(result);
-        }
-
-        public override Task SchedulerError(string msg, SchedulerException cause, CancellationToken cancellationToken = default)
-        {
-            errorCount++;
-            return Task.CompletedTask;
-        }
-
-        public override Task SchedulerStarted(CancellationToken cancellationToken = default)
-        {
-            running = true;
-            return Task.CompletedTask;
-        }
-
-        public override Task SchedulerShutdown(CancellationToken cancellationToken = default)
-        {
-            running = false;
-            return Task.CompletedTask;
         }
     }
 }
