@@ -58,6 +58,7 @@ Target "Pack" (fun _ ->
     !! "src/Quartz/Quartz.csproj"
         ++ "src/Quartz.AspNetCore/Quartz.AspNetCore.csproj"
         ++ "src/Quartz.Extensions.DependencyInjection/Quartz.Extensions.DependencyInjection.csproj"
+        ++ "src/Quartz.Extensions.Hosting/Quartz.Extensions.Hosting.csproj"
         ++ "src/Quartz.Jobs/Quartz.Jobs.csproj"
         ++ "src/Quartz.OpenTelemetry.Instrumentation/Quartz.OpenTelemetry.Instrumentation.csproj"
         ++ "src/Quartz.Plugins/Quartz.Plugins.csproj"

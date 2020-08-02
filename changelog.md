@@ -11,8 +11,11 @@ if you are using Microsoft SQL Server as backing store for your project. Now req
 
 * (POSSIBLY) BREAKING CHANGES
 
-    * Remove dependency on Microsoft.Data.SqlClient (#912) 
+    * Remove dependency on Microsoft.Data.SqlClient (#912)
     
+* NEW FEATURE 
+ 
+    * Introduce separate Quartz.Extensions.Hosting (#911)
 
 ## Release 3.1.0, Jul 24 2020
 
