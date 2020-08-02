@@ -13,18 +13,22 @@ namespace Quartz
             this IServiceCollection services,
             Action<QuartzHostedServiceOptions>? configure = null)
         {
+            var check = new QuartzHealthCheck();
             services
                 .AddHealthChecks()
-                .AddQuartzHealthCheck<QuartzHealthCheck>("scheduler");
+                .AddQuartzHealthCheck<QuartzHealthCheck>("scheduler", check);
+
+            services.AddSingleton<ISchedulerListener>(check);
 
             return services.AddQuartzHostedService(configure);
         }
 
         private static IHealthChecksBuilder AddQuartzHealthCheck<T>(
             this IHealthChecksBuilder builder,
-            string suffix) where T : class, IHealthCheck
+            string suffix,
+            IHealthCheck check)
         {
-            return builder.AddCheck<T>($"quartz-{suffix}");
+            return builder.AddCheck($"quartz-{suffix}", check);
         }
     }
 }
