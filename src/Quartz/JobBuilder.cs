@@ -63,11 +63,11 @@ namespace Quartz
     /// <seealso cref="TriggerBuilder" />
     /// <seealso cref="DateBuilder" />
     /// <seealso cref="IJobDetail" />
-    public class JobBuilder
+    public class JobBuilder : IJobConfigurator
     {
-        private JobKey key;
-        private string description;
-        private Type jobType;
+        private JobKey? key;
+        private string? description;
+        private Type jobType = null!;
         private bool durability;
         private bool shouldRecover;
 
@@ -116,13 +116,13 @@ namespace Quartz
         /// and set the class name of the job to be executed.
         /// </summary>
         /// <returns>a new JobBuilder</returns>
+        [Obsolete]
         public static JobBuilder CreateForAsync<T>() where T : IJob
         {
             JobBuilder b = new JobBuilder();
             b.OfType(typeof(T));
             return b;
         }
-
 
         /// <summary>
         /// Produce the <see cref="IJobDetail" /> instance defined by this JobBuilder.
@@ -136,7 +136,7 @@ namespace Quartz
             job.Description = description;
             if (key == null)
             {
-                key = new JobKey(Guid.NewGuid().ToString(), null);
+                key = new JobKey(Guid.NewGuid().ToString());
             }
             job.Key = key;
             job.Durable = durability;
@@ -165,7 +165,7 @@ namespace Quartz
         /// <seealso cref="IJobDetail.Key" />
         public JobBuilder WithIdentity(string name)
         {
-            key = new JobKey(name, null);
+            key = new JobKey(name);
             return this;
         }
 
@@ -211,7 +211,7 @@ namespace Quartz
         /// <param name="description"> the description for the Job</param>
         /// <returns>the updated JobBuilder</returns>
         /// <seealso cref="IJobDetail.Description" />
-        public JobBuilder WithDescription(string description)
+        public JobBuilder WithDescription(string? description)
         {
             this.description = description;
             return this;
@@ -248,43 +248,11 @@ namespace Quartz
         /// <remarks>
         /// If not explicitly set, the default value is <see langword="false" />.
         /// </remarks>
-        /// <returns>the updated JobBuilder</returns>
-        /// <seealso cref="IJobDetail.RequestsRecovery" />
-        public JobBuilder RequestRecovery()
-        {
-            shouldRecover = true;
-            return this;
-        }
-
-        /// <summary>
-        /// Instructs the <see cref="IScheduler" /> whether or not the job
-        /// should be re-executed if a 'recovery' or 'fail-over' situation is
-        /// encountered.
-        /// </summary>
-        /// <remarks>
-        /// If not explicitly set, the default value is <see langword="false" />.
-        /// </remarks>
         /// <param name="shouldRecover"></param>
         /// <returns>the updated JobBuilder</returns>
-        public JobBuilder RequestRecovery(bool shouldRecover)
+        public JobBuilder RequestRecovery(bool shouldRecover = true)
         {
             this.shouldRecover = shouldRecover;
-            return this;
-        }
-
-        /// <summary>
-        /// Whether or not the job should remain stored after it is
-        /// orphaned (no <see cref="ITrigger" />s point to it).
-        /// </summary>
-        /// <remarks>
-        /// If not explicitly set, the default value is <see langword="false" />
-        /// - this method sets the value to <code>true</code>.
-        /// </remarks>
-        /// <returns>the updated JobBuilder</returns>
-        /// <seealso cref="IJobDetail.Durable" />
-        public JobBuilder StoreDurably()
-        {
-            durability = true;
             return this;
         }
 
@@ -298,7 +266,7 @@ namespace Quartz
         /// <param name="durability">the value to set for the durability property.</param>
         ///<returns>the updated JobBuilder</returns>
         /// <seealso cref="IJobDetail.Durable" />
-        public JobBuilder StoreDurably(bool durability)
+        public JobBuilder StoreDurably(bool durability = true)
         {
             this.durability = durability;
             return this;
@@ -388,9 +356,9 @@ namespace Quartz
         /// </summary>
         /// <param name="newJobDataMap"></param>
         /// <returns></returns>
-        public JobBuilder SetJobData(JobDataMap newJobDataMap)
+        public JobBuilder SetJobData(JobDataMap? newJobDataMap)
         {
-            jobDataMap = newJobDataMap;
+            jobDataMap = newJobDataMap ?? throw new ArgumentNullException(nameof(newJobDataMap));
             return this;
         }
     }

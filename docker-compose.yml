@@ -1,14 +1,15 @@
 version: '2'
 services:
-  quartz:
-    container_name: quartz
-    build: .
-    depends_on:
-     - mysql
-     - postgres
-     - firebird
-     - oracle
-    entrypoint: ./build.sh TestLinux
+
+# quartz:
+#    container_name: quartz
+#    build: .
+#    depends_on:
+#     - mysql
+#     - postgres
+#     - firebird
+#     - oracle
+#    entrypoint: ./build.sh TestLinux
 
   mysql:
     container_name: mysql
@@ -37,13 +38,13 @@ services:
     ports:
      - "3050:3050"
 
-  oracle:
-    container_name: oracle
-    build: docker/oracle
-    ports:
-     - "1521:1521"
-    environment:
-     - ORACLE_ALLOW_REMOTE:true
+#  oracle:
+#    container_name: oracle
+#    build: docker/oracle
+#    ports:
+#     - "1521:1521"
+#    environment:
+#     - ORACLE_ALLOW_REMOTE:true
 
   sqlserver:
     container_name: sqlserver
@@ -56,4 +57,22 @@ services:
     build: docker/sqlserver-mot
     ports:
      - "1444:1433"
+
+
+  zipkin:
+    container_name: zipkin
+    image: openzipkin/zipkin-slim
+    
+  jaeger:
+    container_name: jaeger
+    image: jaegertracing/all-in-one
+    ports:
+      - "5775:5775/udp"
+      - "6831:6831/udp"
+      - "6832:6832/udp"
+      - "5778:5778"
+      - "16686:16686"
+      - "14268:14268"
+      - "14250:14250"
+      - "9411:9411"
 

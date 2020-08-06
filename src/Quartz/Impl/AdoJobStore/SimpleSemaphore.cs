@@ -54,8 +54,8 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <returns>True if the lock was obtained.</returns>
         public virtual Task<bool> ObtainLock(
-            Guid requestorId, 
-            ConnectionAndTransactionHolder conn, 
+            Guid requestorId,
+            ConnectionAndTransactionHolder? conn,
             string lockName,
             CancellationToken cancellationToken = default)
         {
@@ -144,7 +144,7 @@ namespace Quartz.Impl.AdoJobStore
                     log.WarnException($"Lock '{lockName}' attempt to return by: {requestorId} -- but not owner!", new Exception("stack-trace of wrongful returner"));
                 }
             }
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>

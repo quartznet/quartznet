@@ -18,7 +18,7 @@ namespace Quartz.Impl.AdoJobStore
 
         private readonly CancellationTokenSource cancellationTokenSource;
         private readonly QueuedTaskScheduler taskScheduler;
-        private Task task;
+        private Task task = null!;
 
         internal MisfireHandler(JobStoreSupport jobStoreSupport)
         {

@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
@@ -40,16 +41,17 @@ namespace Quartz.Impl.AdoJobStore.Common
 		protected const string PropertyDbProvider = StdSchedulerFactory.PropertyDbProvider;
         protected const string DbProviderSectionName = StdSchedulerFactory.ConfigurationSectionName;
         protected const string DbProviderResourceName =
-#if NETSTANDARD_DBPROVIDERS
+#if NETSTANDARD
             "Quartz.Impl.AdoJobStore.Common.dbproviders.netstandard.properties";
-#else // NETSTANDARD_DBPROVIDERS
+#else
             "Quartz.Impl.AdoJobStore.Common.dbproviders.properties";
-#endif // NETSTANDARD_DBPROVIDERS
+#endif
 
-        private readonly MethodInfo commandBindByNamePropertySetter;
+        private readonly MethodInfo? commandBindByNamePropertySetter;
 
-        private static readonly IList<DbMetadataFactory> dbMetadataFactories;
-        private static readonly Dictionary<string, DbMetadata> dbMetadataLookup = new Dictionary<string, DbMetadata>();
+        private static readonly List<DbMetadataFactory> dbMetadataFactories;
+        // needs to allow concurrent threads to read and update, since field is static
+        private static readonly ConcurrentDictionary<string, DbMetadata> dbMetadataLookup = new ConcurrentDictionary<string, DbMetadata>();
 
         /// <summary>
         /// Parse metadata once in static constructor.
@@ -79,10 +81,10 @@ namespace Quartz.Impl.AdoJobStore.Common
             }
 
             // check if command supports direct setting of BindByName property, needed for Oracle Managed ODP diver at least
-            var property = Metadata.CommandType.GetProperty("BindByName", BindingFlags.Instance | BindingFlags.Public);
+            var property = Metadata.CommandType?.GetProperty("BindByName", BindingFlags.Instance | BindingFlags.Public);
             if (property != null && property.PropertyType == typeof (bool) && property.CanWrite)
             {
-                commandBindByNamePropertySetter = property.GetSetMethod();
+                commandBindByNamePropertySetter = property.GetSetMethod()!;
             }
         }
 

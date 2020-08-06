@@ -109,7 +109,7 @@ namespace Quartz.Util
                 throw new ArgumentException("DataSource name cannot be null or empty", nameof(dsName));
             }
 
-            IDbProvider provider;
+            IDbProvider? provider;
             lock (syncRoot)
             {
                 providers.TryGetValue(dsName, out provider);

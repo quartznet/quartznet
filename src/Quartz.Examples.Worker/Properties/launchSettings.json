@@ -1,0 +1,10 @@
+﻿{
+  "profiles": {
+    "Quartz.Examples.Worker": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "DOTNET_ENVIRONMENT": "Development"
+      }
+    }
+  }
+}

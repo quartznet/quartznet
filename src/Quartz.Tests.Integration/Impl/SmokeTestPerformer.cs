@@ -1,7 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
+
+using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 using NUnit.Framework;
 
@@ -64,7 +68,12 @@ namespace Quartz.Tests.Integration.Impl
                     await scheduler.AddCalendar("cronCalendar", cronCalendar, true, true);
                     await scheduler.AddCalendar("holidayCalendar", holidayCalendar, true, true);
 
-                    Assert.IsNotNull(scheduler.GetCalendar("annualCalendar"));
+                    await scheduler.AddCalendar("customCalendar", new CustomCalendar(), true, true);
+                    var customCalendar = (CustomCalendar) await scheduler.GetCalendar("customCalendar");
+                    Assert.That(customCalendar, Is.Not.Null);
+                    Assert.That(customCalendar.SomeCustomProperty, Is.True);
+
+                    Assert.IsNotNull(await scheduler.GetCalendar("annualCalendar"));
 
                     JobDetailImpl lonelyJob = new JobDetailImpl("lonelyJob", "lonelyGroup", typeof (SimpleRecoveryJob));
                     lonelyJob.Durable = true;
@@ -417,7 +426,7 @@ namespace Quartz.Tests.Integration.Impl
         {
             TriggeredCount++;
             triggered.Set();
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         public static int TriggeredCount { get; private set; }
@@ -431,6 +440,58 @@ namespace Quartz.Tests.Integration.Impl
         public static void WaitForTrigger(TimeSpan timeout)
         {
             triggered.Wait(timeout);
+        }
+    }
+
+    [Serializable]
+    internal class CustomCalendar : BaseCalendar
+    {
+        public bool SomeCustomProperty { get; set; } = true;
+
+        public CustomCalendar()
+        {
+        }
+
+        public CustomCalendar(ICalendar baseCalendar) : base(baseCalendar)
+        {
+        }
+
+        public CustomCalendar(TimeZoneInfo timeZone) : base(timeZone)
+        {
+        }
+
+        public CustomCalendar(ICalendar baseCalendar, TimeZoneInfo timeZone) : base(baseCalendar, timeZone)
+        {
+        }
+
+        protected CustomCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
+        {
+            SomeCustomProperty = info?.GetBoolean("SomeCustomProperty") ?? true;
+        }
+
+        public override void GetObjectData(SerializationInfo info, StreamingContext context)
+        {
+            base.GetObjectData(info, context);
+            info?.AddValue("SomeCustomProperty", SomeCustomProperty);
+        }
+    }
+
+    internal class CustomCalendarSerializer : CalendarSerializer<CustomCalendar>
+    {
+        protected override CustomCalendar Create(JObject source)
+        {
+            return new CustomCalendar();
+        }
+
+        protected override void SerializeFields(JsonWriter writer, CustomCalendar calendar)
+        {
+            writer.WritePropertyName("SomeCustomProperty");
+            writer.WriteValue(calendar.SomeCustomProperty);
+        }
+
+        protected override void DeserializeFields(CustomCalendar calendar, JObject source)
+        {
+            calendar.SomeCustomProperty = source["SomeCustomProperty"]!.Value<bool>();
         }
     }
 }

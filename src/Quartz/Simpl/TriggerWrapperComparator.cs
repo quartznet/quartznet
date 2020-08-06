@@ -10,12 +10,12 @@ namespace Quartz.Simpl
     {
         private readonly TriggerTimeComparator ttc = new TriggerTimeComparator();
 
-        public int Compare(TriggerWrapper trig1, TriggerWrapper trig2)
+        public int Compare(TriggerWrapper? trig1, TriggerWrapper? trig2)
         {
-            return ttc.Compare(trig1.Trigger, trig2.Trigger);
+            return ttc.Compare(trig1?.Trigger, trig2?.Trigger);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is TriggerWrapperComparator;
         }
@@ -27,7 +27,7 @@ namespace Quartz.Simpl
         /// true if the current object is equal to the <paramref name="other"/> parameter; otherwise, false.
         /// </returns>
         /// <param name="other">An object to compare with this object.</param>
-        public bool Equals(TriggerWrapperComparator other)
+        public bool Equals(TriggerWrapperComparator? other)
         {
             return true;
         }

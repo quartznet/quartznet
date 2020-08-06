@@ -20,14 +20,13 @@
 #endregion
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
-using System.Data.SqlClient;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -54,15 +53,15 @@ namespace Quartz.Impl.AdoJobStore
         private string tablePrefix = DefaultTablePrefix;
         private bool useProperties;
         protected Type delegateType;
-        protected readonly Dictionary<string, ICalendar> calendarCache = new Dictionary<string, ICalendar>();
-        private IDriverDelegate driverDelegate;
+        protected readonly Dictionary<string, ICalendar?> calendarCache = new Dictionary<string, ICalendar?>();
+        private IDriverDelegate driverDelegate = null!;
         private TimeSpan misfireThreshold = TimeSpan.FromMinutes(1); // one minute
         private TimeSpan? misfirehandlerFrequence;
 
-        private ClusterManager clusterManager;
-        private MisfireHandler misfireHandler;
-        private ITypeLoadHelper typeLoadHelper;
-        private ISchedulerSignaler schedSignaler;
+        private ClusterManager? clusterManager;
+        private MisfireHandler? misfireHandler;
+        private ITypeLoadHelper typeLoadHelper = null!;
+        private ISchedulerSignaler schedSignaler = null!;
 
         private volatile bool schedulerRunning;
         private volatile bool shutdown;
@@ -85,7 +84,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Get or set the datasource name.
         /// </summary>
-        public string DataSource { get; set; }
+        public string DataSource { get; set; } = "";
 
         /// <summary>
         /// Get or set the database connection manager.
@@ -134,12 +133,12 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Get or set the instance Id of the Scheduler (must be unique within a cluster).
         /// </summary>
-        public virtual string InstanceId { get; set; }
+        public virtual string InstanceId { get; set; } = "";
 
         /// <summary>
         /// Get or set the instance Id of the Scheduler (must be unique within this server instance).
         /// </summary>
-        public virtual string InstanceName { get; set; }
+        public virtual string InstanceName { get; set; } = "";
 
         public int ThreadPoolSize
         {
@@ -151,7 +150,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         public int RetryableActionErrorLogThreshold { get; set; }
 
-        public IObjectSerializer ObjectSerializer { get; set; }
+        public IObjectSerializer? ObjectSerializer { get; set; }
 
         public virtual long EstimatedTimeToReleaseAndAcquireTrigger { get; } = 70;
 
@@ -282,19 +281,19 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Get or set the ADO.NET driver delegate class name.
         /// </summary>
-        public virtual string DriverDelegateType { get; set; }
+        public virtual string DriverDelegateType { get; set; } = null!;
 
         /// <summary>
         /// The driver delegate's initialization string.
         /// </summary>
-        public string DriverDelegateInitString { get; set; }
+        public string? DriverDelegateInitString { get; set; }
 
         /// <summary>
         /// set the SQL statement to use to select and lock a row in the "locks"
         /// table.
         /// </summary>
         /// <seealso cref="StdRowLockSemaphore" />
-        public virtual string SelectWithLockSQL { get; set; }
+        public virtual string? SelectWithLockSQL { get; set; }
 
         protected virtual ITypeLoadHelper TypeLoadHelper => typeLoadHelper;
 
@@ -397,7 +396,7 @@ namespace Quartz.Impl.AdoJobStore
                         {
                             if (!string.IsNullOrWhiteSpace(DriverDelegateType))
                             {
-                                delegateType = TypeLoadHelper.LoadType(DriverDelegateType);
+                                delegateType = TypeLoadHelper.LoadType(DriverDelegateType)!;
                             }
 
                             IDbProvider dbProvider = ConnectionManager.GetDbProvider(DataSource);
@@ -411,7 +410,7 @@ namespace Quartz.Impl.AdoJobStore
                             args.ObjectSerializer = ObjectSerializer;
                             args.InitString = DriverDelegateInitString;
 
-                            ConstructorInfo ctor = delegateType.GetConstructor(new Type[0]);
+                            var ctor = delegateType.GetConstructor(Type.EmptyTypes);
                             if (ctor == null)
                             {
                                 throw new InvalidConfigurationException("Configured delegate does not have public constructor that takes no arguments");
@@ -432,7 +431,7 @@ namespace Quartz.Impl.AdoJobStore
 
         private IDbProvider DbProvider => ConnectionManager.GetDbProvider(DataSource);
 
-        protected internal virtual ISemaphore LockHandler { get; set; }
+        protected internal virtual ISemaphore LockHandler { get; set; } = null!;
 
         /// <summary>
         /// Get whether String-only properties will be handled in JobDataMaps.
@@ -503,7 +502,7 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         if (SelectWithLockSQL == null)
                         {
-                            const string DefaultLockSql = "SELECT * FROM {0}LOCKS WITH (UPDLOCK,ROWLOCK) WHERE " + ColumnSchedulerName + " = {1} AND LOCK_NAME = @lockName";
+                            const string DefaultLockSql = "SELECT * FROM {0}LOCKS WITH (UPDLOCK,ROWLOCK) WHERE " + ColumnSchedulerName + " = @schedulerName AND LOCK_NAME = @lockName";
                             Log.InfoFormat("Detected usage of SqlServerDelegate - defaulting 'selectWithLockSQL' to '" + DefaultLockSql + "'.", TablePrefix, "'" + InstanceName + "'");
                             SelectWithLockSQL = DefaultLockSql;
                         }
@@ -526,13 +525,16 @@ namespace Quartz.Impl.AdoJobStore
                     Log.Warn("Detected usage of SqlServerDelegate and UpdateLockRowSemaphore, removing 'quartz.jobStore.lockHandler.type' would allow more efficient SQL Server specific (UPDLOCK,ROWLOCK) row access");
                 }
                 // be ready to give a friendly warning if SQL Server provider and wrong delegate
-                if (DbProvider != null && DbProvider.Metadata.ConnectionType == typeof (SqlConnection) && !(Delegate is SqlServerDelegate))
+                if (DbProvider.Metadata.ConnectionType?.Namespace != null
+                    && DbProvider.Metadata.ConnectionType.Namespace.Contains("SqlClient")
+                    && DbProvider.Metadata.ConnectionType.Name == "SqlConnection"
+                    && !(Delegate is SqlServerDelegate))
                 {
                     Log.Warn("Detected usage of SQL Server provider without SqlServerDelegate, SqlServerDelegate would provide better performance");
                 }
             }
 
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <seealso cref="IJobStore.SchedulerStarted(CancellationToken)" />
@@ -569,7 +571,7 @@ namespace Quartz.Impl.AdoJobStore
         public Task SchedulerPaused(CancellationToken cancellationToken = default)
         {
             schedulerRunning = false;
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -579,7 +581,7 @@ namespace Quartz.Impl.AdoJobStore
         public Task SchedulerResumed(CancellationToken cancellationToken = default)
         {
             schedulerRunning = true;
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -719,7 +721,7 @@ namespace Quartz.Impl.AdoJobStore
             // triggers right away.
             int maxMisfiresToHandleAtATime = recovering ? -1 : MaxMisfiresToHandleAtATime;
 
-            IList<TriggerKey> misfiredTriggers = new List<TriggerKey>();
+            List<TriggerKey> misfiredTriggers = new List<TriggerKey>();
             DateTimeOffset earliestNewTime = DateTimeOffset.MaxValue;
 
             // We must still look for the MISFIRED state in case triggers were left
@@ -749,8 +751,7 @@ namespace Quartz.Impl.AdoJobStore
 
             foreach (TriggerKey triggerKey in misfiredTriggers)
             {
-                IOperableTrigger trig = await RetrieveTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-
+                var trig = await RetrieveTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
                 if (trig == null)
                 {
                     continue;
@@ -777,7 +778,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             try
             {
-                IOperableTrigger trig = await RetrieveTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+                var trig = (await RetrieveTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false))!;
 
                 DateTimeOffset misfireTime = SystemTime.UtcNow();
                 if (MisfireThreshold > TimeSpan.Zero)
@@ -803,7 +804,7 @@ namespace Quartz.Impl.AdoJobStore
         private async Task DoUpdateOfMisfiredTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trig,
             bool forceState, string newStateIfNotComplete, bool recovering)
         {
-            ICalendar cal = null;
+            ICalendar? cal = null;
             if (trig.CalendarName != null)
             {
                 cal = await RetrieveCalendar(conn, trig.CalendarName).ConfigureAwait(false);
@@ -835,7 +836,7 @@ namespace Quartz.Impl.AdoJobStore
             IOperableTrigger newTrigger,
             CancellationToken cancellationToken = default)
         {
-            await ExecuteInLock<object>(LockOnInsert ? LockTriggerAccess : null, async conn =>
+            await ExecuteInLock<object?>(LockOnInsert ? LockTriggerAccess : null, async conn =>
             {
                 await StoreJob(conn, newJob, false, cancellationToken).ConfigureAwait(false);
                 await StoreTrigger(conn, newTrigger, newJob, false, StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
@@ -975,7 +976,7 @@ namespace Quartz.Impl.AdoJobStore
         protected virtual async Task StoreTrigger(
             ConnectionAndTransactionHolder conn,
             IOperableTrigger newTrigger,
-            IJobDetail job,
+            IJobDetail? job,
             bool replaceExisting,
             string state,
             bool forceState,
@@ -1197,22 +1198,21 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="jobKey">The key identifying the job.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The desired <see cref="IJob" />, or null if there is no match.</returns>
-        public Task<IJobDetail> RetrieveJob(
-            JobKey jobKey,
+        public Task<IJobDetail?> RetrieveJob(JobKey jobKey,
             CancellationToken cancellationToken = default)
         {
             // no locks necessary for read...
             return ExecuteWithoutLock(conn => RetrieveJob(conn, jobKey, cancellationToken), cancellationToken);
         }
 
-        protected virtual async Task<IJobDetail> RetrieveJob(
+        protected virtual async Task<IJobDetail?> RetrieveJob(
             ConnectionAndTransactionHolder conn,
             JobKey jobKey,
             CancellationToken cancellationToken = default)
         {
             try
             {
-                IJobDetail job = await Delegate.SelectJobDetail(conn, jobKey, TypeLoadHelper, cancellationToken).ConfigureAwait(false);
+                var job = await Delegate.SelectJobDetail(conn, jobKey, TypeLoadHelper, cancellationToken).ConfigureAwait(false);
                 return job;
             }
             catch (TypeLoadException e)
@@ -1274,7 +1274,7 @@ namespace Quartz.Impl.AdoJobStore
         protected virtual async Task<bool> RemoveTrigger(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
-            IJobDetail job,
+            IJobDetail? job,
             CancellationToken cancellationToken = default)
         {
             bool removedTrigger;
@@ -1317,7 +1317,7 @@ namespace Quartz.Impl.AdoJobStore
             {
             }
 
-            public Type LoadType(string name)
+            public Type? LoadType(string? name)
             {
                 return null;
             }
@@ -1343,7 +1343,7 @@ namespace Quartz.Impl.AdoJobStore
             try
             {
                 // this must be called before we delete the trigger, obviously
-                IJobDetail job = await Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoadHelper, cancellationToken).ConfigureAwait(false);
+                var job = await Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoadHelper, cancellationToken).ConfigureAwait(false);
 
                 if (job == null)
                 {
@@ -1373,8 +1373,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="triggerKey">The key identifying the trigger.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The desired <see cref="ITrigger" />, or null if there is no match.</returns>
-        public Task<IOperableTrigger> RetrieveTrigger(
-            TriggerKey triggerKey,
+        public Task<IOperableTrigger?> RetrieveTrigger(TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
         {
             return ExecuteWithoutLock( // no locks necessary for read...
@@ -1382,14 +1381,14 @@ namespace Quartz.Impl.AdoJobStore
                 cancellationToken);
         }
 
-        protected virtual async Task<IOperableTrigger> RetrieveTrigger(
+        protected virtual async Task<IOperableTrigger?> RetrieveTrigger(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
         {
             try
             {
-                IOperableTrigger trigger = await Delegate.SelectTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+                var trigger = await Delegate.SelectTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
                 return trigger;
             }
             catch (Exception e)
@@ -1629,23 +1628,21 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="calName">The name of the <see cref="ICalendar" /> to be retrieved.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The desired <see cref="ICalendar" />, or null if there is no match.</returns>
-        public Task<ICalendar> RetrieveCalendar(
-            string calName,
-            CancellationToken cancellationToken = default)
+        public Task<ICalendar?> RetrieveCalendar(string calName, CancellationToken cancellationToken = default)
         {
             return ExecuteWithoutLock( // no locks necessary for read...
                 conn => RetrieveCalendar(conn, calName, cancellationToken),
                 cancellationToken);
         }
 
-        protected virtual async Task<ICalendar> RetrieveCalendar(
+        protected virtual async Task<ICalendar?> RetrieveCalendar(
             ConnectionAndTransactionHolder conn,
             string calName,
             CancellationToken cancellationToken = default)
         {
             // all calendars are persistent, but we lazy-cache them during run
             // time as long as we aren't running clustered.
-            ICalendar cal = null;
+            ICalendar? cal = null;
             if (!Clustered)
             {
                 calendarCache.TryGetValue(calName, out cal);
@@ -2196,9 +2193,9 @@ namespace Quartz.Impl.AdoJobStore
         {
             try
             {
-                TriggerStatus status = await Delegate.SelectTriggerStatus(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+                TriggerStatus? status = await Delegate.SelectTriggerStatus(conn, triggerKey, cancellationToken).ConfigureAwait(false);
 
-                if (status == null || !status.NextFireTimeUtc.HasValue || status.NextFireTimeUtc == DateTimeOffset.MinValue)
+                if (status?.NextFireTimeUtc == null || status.NextFireTimeUtc == DateTimeOffset.MinValue)
                 {
                     return;
                 }
@@ -2273,7 +2270,7 @@ namespace Quartz.Impl.AdoJobStore
             return await ExecuteInLock(LockTriggerAccess, async conn =>
             {
                 IReadOnlyCollection<JobKey> jobKeys = await GetJobNames(conn, matcher, cancellationToken).ConfigureAwait(false);
-                var groupNames = new ReadOnlyCompatibleHashSet<string>();
+                var groupNames = new HashSet<string>();
 
                 foreach (JobKey jobKey in jobKeys)
                 {
@@ -2336,7 +2333,7 @@ namespace Quartz.Impl.AdoJobStore
                     }
                 }
 
-                return new ReadOnlyCompatibleHashSet<string>(groups);
+                return new HashSet<string>(groups);
             }
             catch (Exception e)
             {
@@ -2539,7 +2536,7 @@ namespace Quartz.Impl.AdoJobStore
             TimeSpan timeWindow,
             CancellationToken cancellationToken = default)
         {
-            string lockName;
+            string? lockName;
             if (AcquireTriggersWithinLock || maxCount > 1)
             {
                 lockName = LockTriggerAccess;
@@ -2559,7 +2556,7 @@ namespace Quartz.Impl.AdoJobStore
                         var fireInstanceIds = new HashSet<string>();
                         foreach (FiredTriggerRecord ft in acquired)
                         {
-                            fireInstanceIds.Add(ft.FireInstanceId);
+                            fireInstanceIds.Add(ft.FireInstanceId!);
                         }
                         foreach (IOperableTrigger tr in result)
                         {
@@ -2616,7 +2613,7 @@ namespace Quartz.Impl.AdoJobStore
                     foreach (TriggerKey triggerKey in keys)
                     {
                         // If our trigger is no longer available, try a new one.
-                        IOperableTrigger nextTrigger = await RetrieveTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+                        var nextTrigger = await RetrieveTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
                         if (nextTrigger == null)
                         {
                             continue; // next trigger
@@ -2628,7 +2625,7 @@ namespace Quartz.Impl.AdoJobStore
                         IJobDetail job;
                         try
                         {
-                            job = await RetrieveJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
+                            job = (await RetrieveJob(conn, jobKey, cancellationToken).ConfigureAwait(false))!;
                         }
                         catch (JobPersistenceException jpe)
                         {
@@ -2655,7 +2652,18 @@ namespace Quartz.Impl.AdoJobStore
 
                         var nextFireTimeUtc = nextTrigger.GetNextFireTimeUtc();
 
-                        if (nextFireTimeUtc == null || nextFireTimeUtc > batchEnd)
+                        // A trigger should not return NULL on nextFireTime when fetched from DB.
+                        // But for whatever reason if we do have this (BAD trigger implementation or
+                        // data?), we then should log a warning and continue to next trigger.
+                        // User would need to manually fix these triggers from DB as they will not
+                        // able to be clean up by Quartz since we are not returning it to be processed.
+                        if (nextFireTimeUtc == null)
+                        {
+                            Log.Warn($"Trigger {nextTrigger.Key} returned null on nextFireTime and yet still exists in DB!");
+                            continue;
+                        }
+
+                        if (nextFireTimeUtc > batchEnd)
                         {
                             break;
                         }
@@ -2674,7 +2682,7 @@ namespace Quartz.Impl.AdoJobStore
                         if (acquiredTriggers.Count == 0)
                         {
                             var now = SystemTime.UtcNow();
-                            var nextFireTime = nextTrigger.GetNextFireTimeUtc().GetValueOrDefault(DateTimeOffset.MinValue);
+                            var nextFireTime = nextFireTimeUtc.Value;
                             var max = now > nextFireTime ? now : nextFireTime;
 
                             batchEnd = max + timeWindow;
@@ -2726,6 +2734,7 @@ namespace Quartz.Impl.AdoJobStore
             try
             {
                 await Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Key, StateWaiting, StateAcquired, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTriggerStateFromOtherState(conn, trigger.Key, StateWaiting, StateBlocked, cancellationToken).ConfigureAwait(false);
                 await Delegate.DeleteFiredTrigger(conn, trigger.FireInstanceId, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
@@ -2749,7 +2758,7 @@ namespace Quartz.Impl.AdoJobStore
                         TriggerFiredResult result;
                         try
                         {
-                            TriggerFiredBundle bundle = await TriggerFired(conn, trigger, cancellationToken).ConfigureAwait(false);
+                            var bundle = await TriggerFired(conn, trigger, cancellationToken).ConfigureAwait(false);
                             result = new TriggerFiredResult(bundle);
                         }
                         catch (JobPersistenceException jpe)
@@ -2777,7 +2786,7 @@ namespace Quartz.Impl.AdoJobStore
                         {
                             if (StateExecuting.Equals(ft.FireInstanceState))
                             {
-                                executingTriggers.Add(ft.FireInstanceId);
+                                executingTriggers.Add(ft.FireInstanceId!);
                             }
                         }
                         foreach (TriggerFiredResult tr in result)
@@ -2797,13 +2806,13 @@ namespace Quartz.Impl.AdoJobStore
                 cancellationToken).ConfigureAwait(false);
         }
 
-        protected virtual async Task<TriggerFiredBundle> TriggerFired(
+        protected virtual async Task<TriggerFiredBundle?> TriggerFired(
             ConnectionAndTransactionHolder conn,
             IOperableTrigger trigger,
             CancellationToken cancellationToken = default)
         {
-            IJobDetail job;
-            ICalendar cal = null;
+            IJobDetail? job;
+            ICalendar? cal = null;
 
             // Make sure trigger wasn't deleted, paused, or completed...
             try
@@ -2939,7 +2948,7 @@ namespace Quartz.Impl.AdoJobStore
                     {
                         // double check for possible reschedule within job
                         // execution, which would cancel the need to delete...
-                        TriggerStatus stat = await Delegate.SelectTriggerStatus(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+                        var stat = await Delegate.SelectTriggerStatus(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
                         if (stat != null && !stat.NextFireTimeUtc.HasValue)
                         {
                             await RemoveTrigger(conn, trigger.Key, jobDetail, cancellationToken).ConfigureAwait(false);
@@ -3101,7 +3110,7 @@ namespace Quartz.Impl.AdoJobStore
                 // work to be done before we acquire the lock (since that is expensive,
                 // and is almost never necessary).  This must be done in a separate
                 // transaction to prevent a deadlock under recovery conditions.
-                IReadOnlyList<SchedulerStateRecord> failedRecords = null;
+                IReadOnlyList<SchedulerStateRecord>? failedRecords = null;
                 if (!firstCheckIn)
                 {
                     failedRecords = await ClusterCheckIn(conn, cancellationToken).ConfigureAwait(false);
@@ -3326,19 +3335,19 @@ namespace Quartz.Impl.AdoJobStore
 
                         foreach (FiredTriggerRecord ftRec in firedTriggerRecs)
                         {
-                            TriggerKey tKey = ftRec.TriggerKey;
-                            JobKey jKey = ftRec.JobKey;
+                            TriggerKey tKey = ftRec.TriggerKey!;
+                            JobKey? jKey = ftRec.JobKey;
 
                             triggerKeys.Add(tKey);
 
                             // release blocked triggers..
-                            if (ftRec.FireInstanceState.Equals(StateBlocked))
+                            if (ftRec.FireInstanceState!.Equals(StateBlocked))
                             {
-                                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey, StateWaiting, StateBlocked, cancellationToken).ConfigureAwait(false);
+                                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, StateWaiting, StateBlocked, cancellationToken).ConfigureAwait(false);
                             }
                             else if (ftRec.FireInstanceState.Equals(StatePausedBlocked))
                             {
-                                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey, StatePaused, StatePausedBlocked, cancellationToken).ConfigureAwait(false);
+                                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, StatePaused, StatePausedBlocked, cancellationToken).ConfigureAwait(false);
                             }
 
                             // release acquired triggers..
@@ -3351,14 +3360,14 @@ namespace Quartz.Impl.AdoJobStore
                             {
                                 // handle jobs marked for recovery that were not fully
                                 // executed..
-                                if (await JobExists(conn, jKey, cancellationToken).ConfigureAwait(false))
+                                if (await JobExists(conn, jKey!, cancellationToken).ConfigureAwait(false))
                                 {
                                     SimpleTriggerImpl rcvryTrig =
                                         new SimpleTriggerImpl(
                                             "recover_" + rec.SchedulerInstanceId + "_" + Convert.ToString(recoverIds++, CultureInfo.InvariantCulture),
                                             SchedulerConstants.DefaultRecoveryGroup, ftRec.FireTimestamp);
 
-                                    rcvryTrig.JobName = jKey.Name;
+                                    rcvryTrig.JobName = jKey!.Name;
                                     rcvryTrig.JobGroup = jKey.Group;
                                     rcvryTrig.MisfireInstruction = MisfireInstruction.SimpleTrigger.FireNow;
                                     rcvryTrig.Priority = ftRec.Priority;
@@ -3387,8 +3396,8 @@ namespace Quartz.Impl.AdoJobStore
                             // free up stateful job's triggers
                             if (ftRec.JobDisallowsConcurrentExecution)
                             {
-                                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey, StateWaiting, StateBlocked, cancellationToken).ConfigureAwait(false);
-                                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey, StatePaused, StatePausedBlocked, cancellationToken).ConfigureAwait(false);
+                                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, StateWaiting, StateBlocked, cancellationToken).ConfigureAwait(false);
+                                await Delegate.UpdateTriggerStatesForJobFromOtherState(conn, jKey!, StatePaused, StatePausedBlocked, cancellationToken).ConfigureAwait(false);
                             }
                         }
 
@@ -3459,7 +3468,7 @@ namespace Quartz.Impl.AdoJobStore
         /// from the datasource.
         /// </remarks>
         /// <seealso cref="CloseConnection(ConnectionAndTransactionHolder)" />
-        protected virtual void CleanupConnection(ConnectionAndTransactionHolder conn)
+        protected virtual void CleanupConnection(ConnectionAndTransactionHolder? conn)
         {
             if (conn != null)
             {
@@ -3479,7 +3488,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Rollback the supplied connection.
         /// </summary>
-        protected virtual void RollbackConnection(ConnectionAndTransactionHolder cth, Exception cause)
+        protected virtual void RollbackConnection(ConnectionAndTransactionHolder? cth, Exception cause)
         {
             if (cth == null)
             {
@@ -3503,126 +3512,167 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>If the exception is identified as transient.</returns>
         protected virtual bool IsTransient(Exception ex)
         {
-            var sqlException = ex as SqlException ?? ex?.InnerException as SqlException;
-
-            if (sqlException != null)
+            var isTransientProperty = ex.GetType().GetProperty("IsTransient");
+            if (isTransientProperty != null)
             {
-                // https://docs.microsoft.com/en-us/dotnet/api/system.data.sqlclient.sqlexception?view=netframework-4.7.2
-                // "SqlException always contains at least one instance of SqlError"
-                foreach (SqlError err in sqlException.Errors)
+                try
                 {
-                    switch (err.Number)
-                    {
-                        // SQL Error Code: 49920
-                        // Cannot process request. Too many operations in progress for subscription "%ld".
-                        // The service is busy processing multiple requests for this subscription.
-                        // Requests are currently blocked for resource optimization. Query sys.dm_operation_status for operation status.
-                        // Wait until pending requests are complete or delete one of your pending requests and retry your request later.
-                        case 49920:
-                        // SQL Error Code: 49919
-                        // Cannot process create or update request. Too many create or update operations in progress for subscription "%ld".
-                        // The service is busy processing multiple create or update requests for your subscription or server.
-                        // Requests are currently blocked for resource optimization. Query sys.dm_operation_status for pending operations.
-                        // Wait till pending create or update requests are complete or delete one of your pending requests and
-                        // retry your request later.
-                        case 49919:
-                        // SQL Error Code: 49918
-                        // Cannot process request. Not enough resources to process request.
-                        // The service is currently busy.Please retry the request later.
-                        case 49918:
-                        // SQL Error Code: 41839
-                        // Transaction exceeded the maximum number of commit dependencies.
-                        case 41839:
-                        // SQL Error Code: 41325
-                        // The current transaction failed to commit due to a serializable validation failure.
-                        case 41325:
-                        // SQL Error Code: 41305
-                        // The current transaction failed to commit due to a repeatable read validation failure.
-                        case 41305:
-                        // SQL Error Code: 41302
-                        // The current transaction attempted to update a record that has been updated since the transaction started.
-                        case 41302:
-                        // SQL Error Code: 41301
-                        // Dependency failure: a dependency was taken on another transaction that later failed to commit.
-                        case 41301:
-                        // SQL Error Code: 40613
-                        // Database XXXX on server YYYY is not currently available. Please retry the connection later.
-                        // If the problem persists, contact customer support, and provide them the session tracing ID of ZZZZZ.
-                        case 40613:
-                        // SQL Error Code: 40501
-                        // The service is currently busy. Retry the request after 10 seconds. Code: (reason code to be decoded).
-                        case 40501:
-                        // SQL Error Code: 40197
-                        // The service has encountered an error processing your request. Please try again.
-                        case 40197:
-                        // SQL Error Code: 10929
-                        // Resource ID: %d. The %s minimum guarantee is %d, maximum limit is %d and the current usage for the database is %d.
-                        // However, the server is currently too busy to support requests greater than %d for this database.
-                        // For more information, see http://go.microsoft.com/fwlink/?LinkId=267637. Otherwise, please try again.
-                        case 10929:
-                        // SQL Error Code: 10928
-                        // Resource ID: %d. The %s limit for the database is %d and has been reached. For more information,
-                        // see http://go.microsoft.com/fwlink/?LinkId=267637.
-                        case 10928:
-                        // SQL Error Code: 10060
-                        // A network-related or instance-specific error occurred while establishing a connection to SQL Server.
-                        // The server was not found or was not accessible. Verify that the instance name is correct and that SQL Server
-                        // is configured to allow remote connections. (provider: TCP Provider, error: 0 - A connection attempt failed
-                        // because the connected party did not properly respond after a period of time, or established connection failed
-                        // because connected host has failed to respond.)"}
-                        case 10060:
-                        // SQL Error Code: 10054
-                        // A transport-level error has occurred when sending the request to the server.
-                        // (provider: TCP Provider, error: 0 - An existing connection was forcibly closed by the remote host.)
-                        case 10054:
-                        // SQL Error Code: 10053
-                        // A transport-level error has occurred when receiving results from the server.
-                        // An established connection was aborted by the software in your host machine.
-                        case 10053:
-                        // SQL Error Code: 1205
-                        // Deadlock
-                        case 1205:
-                        // SQL Error Code: 233
-                        // The client was unable to establish a connection because of an error during connection initialization process before login.
-                        // Possible causes include the following: the client tried to connect to an unsupported version of SQL Server;
-                        // the server was too busy to accept new connections; or there was a resource limitation (insufficient memory or maximum
-                        // allowed connections) on the server. (provider: TCP Provider, error: 0 - An existing connection was forcibly closed by
-                        // the remote host.)
-                        case 233:
-                        // SQL Error Code: 121
-                        // The semaphore timeout period has expired
-                        case 121:
-                        // SQL Error Code: 64
-                        // A connection was successfully established with the server, but then an error occurred during the login process.
-                        // (provider: TCP Provider, error: 0 - The specified network name is no longer available.)
-                        case 64:
-                        // DBNETLIB Error Code: 20
-                        // The instance of SQL Server you attempted to connect to does not support encryption.
-                        case 20:
-                        // Login to read - secondary failed due to long wait on 'HADR_DATABASE_WAIT_FOR_TRANSITION_TO_VERSIONING'.
-                        // The replica is not available for login because row versions are missing for transactions that were in-flight
-                        // when the replica was recycled.The issue can be resolved by rolling back or committing the active transactions on
-                        // the primary replica.Occurrences of this condition can be minimized by avoiding long write transactions on the primary.
-                        case 4221:
-                        // Cannot open database "%.*ls" requested by the login. The login failed
-                        case 4060:
-                        // SQL Error Code: 11001
-                        // A network-related or instance-specific error occurred while establishing a connection to SQL Server.
-                        // The server was not found or was not accessible. Verify that the instance name is correct and that SQL
-                        // Server is configured to allow remote connections. (provider: TCP Provider, error: 0 - No such host is known.)
-                        case 11001:
-                            return true;
-                            // This exception can be thrown even if the operation completed succesfully, so it's safer to let the application fail.
-                            // DBNETLIB Error Code: -2
-                            // Timeout expired. The timeout period elapsed prior to completion of the operation or the server is not responding. The statement has been terminated.
-                            //case -2:
-                    }
+                    return (bool) (isTransientProperty.GetValue(ex) ?? false);
                 }
-                return false;
+                catch
+                {
+                    // ignore
+                }
             }
+
+            try
+            {
+                if (InspectSqlException(ex))
+                {
+                    return true;
+                }
+            }
+            catch
+            {
+                // ignore
+            }
+            
 
             return ex is TimeoutException;
         }
+
+        private static bool InspectSqlException(Exception ex)
+        {
+            var sqlException = ex.GetType().GetProperty("Errors") != null
+                ? ex
+                : ex?.InnerException;
+
+            var errors = (IEnumerable?) sqlException?.GetType().GetProperty("Errors")?.GetValue(sqlException);
+            if (sqlException is null || errors is null)
+            {
+                return false;
+            }
+
+            // https://docs.microsoft.com/en-us/dotnet/api/system.data.sqlclient.sqlexception?view=netframework-4.7.2
+            // "SqlException always contains at least one instance of SqlError"
+            foreach (var err in errors)
+            {
+                if (err is null)
+                {
+                    continue;
+                }
+
+                var errorNumber = Convert.ToInt32(err.GetType().GetProperty("Number")?.GetValue(err));
+                switch (errorNumber)
+                {
+                    // SQL Error Code: 49920
+                    // Cannot process request. Too many operations in progress for subscription "%ld".
+                    // The service is busy processing multiple requests for this subscription.
+                    // Requests are currently blocked for resource optimization. Query sys.dm_operation_status for operation status.
+                    // Wait until pending requests are complete or delete one of your pending requests and retry your request later.
+                    case 49920:
+                    // SQL Error Code: 49919
+                    // Cannot process create or update request. Too many create or update operations in progress for subscription "%ld".
+                    // The service is busy processing multiple create or update requests for your subscription or server.
+                    // Requests are currently blocked for resource optimization. Query sys.dm_operation_status for pending operations.
+                    // Wait till pending create or update requests are complete or delete one of your pending requests and
+                    // retry your request later.
+                    case 49919:
+                    // SQL Error Code: 49918
+                    // Cannot process request. Not enough resources to process request.
+                    // The service is currently busy.Please retry the request later.
+                    case 49918:
+                    // SQL Error Code: 41839
+                    // Transaction exceeded the maximum number of commit dependencies.
+                    case 41839:
+                    // SQL Error Code: 41325
+                    // The current transaction failed to commit due to a serializable validation failure.
+                    case 41325:
+                    // SQL Error Code: 41305
+                    // The current transaction failed to commit due to a repeatable read validation failure.
+                    case 41305:
+                    // SQL Error Code: 41302
+                    // The current transaction attempted to update a record that has been updated since the transaction started.
+                    case 41302:
+                    // SQL Error Code: 41301
+                    // Dependency failure: a dependency was taken on another transaction that later failed to commit.
+                    case 41301:
+                    // SQL Error Code: 40613
+                    // Database XXXX on server YYYY is not currently available. Please retry the connection later.
+                    // If the problem persists, contact customer support, and provide them the session tracing ID of ZZZZZ.
+                    case 40613:
+                    // SQL Error Code: 40501
+                    // The service is currently busy. Retry the request after 10 seconds. Code: (reason code to be decoded).
+                    case 40501:
+                    // SQL Error Code: 40197
+                    // The service has encountered an error processing your request. Please try again.
+                    case 40197:
+                    // SQL Error Code: 10929
+                    // Resource ID: %d. The %s minimum guarantee is %d, maximum limit is %d and the current usage for the database is %d.
+                    // However, the server is currently too busy to support requests greater than %d for this database.
+                    // For more information, see http://go.microsoft.com/fwlink/?LinkId=267637. Otherwise, please try again.
+                    case 10929:
+                    // SQL Error Code: 10928
+                    // Resource ID: %d. The %s limit for the database is %d and has been reached. For more information,
+                    // see http://go.microsoft.com/fwlink/?LinkId=267637.
+                    case 10928:
+                    // SQL Error Code: 10060
+                    // A network-related or instance-specific error occurred while establishing a connection to SQL Server.
+                    // The server was not found or was not accessible. Verify that the instance name is correct and that SQL Server
+                    // is configured to allow remote connections. (provider: TCP Provider, error: 0 - A connection attempt failed
+                    // because the connected party did not properly respond after a period of time, or established connection failed
+                    // because connected host has failed to respond.)"}
+                    case 10060:
+                    // SQL Error Code: 10054
+                    // A transport-level error has occurred when sending the request to the server.
+                    // (provider: TCP Provider, error: 0 - An existing connection was forcibly closed by the remote host.)
+                    case 10054:
+                    // SQL Error Code: 10053
+                    // A transport-level error has occurred when receiving results from the server.
+                    // An established connection was aborted by the software in your host machine.
+                    case 10053:
+                    // SQL Error Code: 1205
+                    // Deadlock
+                    case 1205:
+                    // SQL Error Code: 233
+                    // The client was unable to establish a connection because of an error during connection initialization process before login.
+                    // Possible causes include the following: the client tried to connect to an unsupported version of SQL Server;
+                    // the server was too busy to accept new connections; or there was a resource limitation (insufficient memory or maximum
+                    // allowed connections) on the server. (provider: TCP Provider, error: 0 - An existing connection was forcibly closed by
+                    // the remote host.)
+                    case 233:
+                    // SQL Error Code: 121
+                    // The semaphore timeout period has expired
+                    case 121:
+                    // SQL Error Code: 64
+                    // A connection was successfully established with the server, but then an error occurred during the login process.
+                    // (provider: TCP Provider, error: 0 - The specified network name is no longer available.)
+                    case 64:
+                    // DBNETLIB Error Code: 20
+                    // The instance of SQL Server you attempted to connect to does not support encryption.
+                    case 20:
+                    // Login to read - secondary failed due to long wait on 'HADR_DATABASE_WAIT_FOR_TRANSITION_TO_VERSIONING'.
+                    // The replica is not available for login because row versions are missing for transactions that were in-flight
+                    // when the replica was recycled.The issue can be resolved by rolling back or committing the active transactions on
+                    // the primary replica.Occurrences of this condition can be minimized by avoiding long write transactions on the primary.
+                    case 4221:
+                    // Cannot open database "%.*ls" requested by the login. The login failed
+                    case 4060:
+                    // SQL Error Code: 11001
+                    // A network-related or instance-specific error occurred while establishing a connection to SQL Server.
+                    // The server was not found or was not accessible. Verify that the instance name is correct and that SQL
+                    // Server is configured to allow remote connections. (provider: TCP Provider, error: 0 - No such host is known.)
+                    case 11001:
+                        return true;
+                    // This exception can be thrown even if the operation completed succesfully, so it's safer to let the application fail.
+                    // DBNETLIB Error Code: -2
+                    // Timeout expired. The timeout period elapsed prior to completion of the operation or the server is not responding. The statement has been terminated.
+                    //case -2:
+                }
+            }
+
+            return false;
+        } 
 
 
         /// <summary>
@@ -3657,14 +3707,14 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         protected async Task ExecuteInLock(
-            string lockName,
+            string? lockName,
             Func<ConnectionAndTransactionHolder, Task> txCallback,
             CancellationToken cancellationToken = default)
         {
             await ExecuteInLock<object>(lockName, async conn =>
             {
                 await txCallback(conn).ConfigureAwait(false);
-                return null;
+                return null!;
             }, cancellationToken).ConfigureAwait(false);
         }
 
@@ -3683,32 +3733,33 @@ namespace Quartz.Impl.AdoJobStore
         /// </param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         protected abstract Task<T> ExecuteInLock<T>(
-            string lockName,
+            string? lockName,
             Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
             CancellationToken cancellationToken = default);
 
         protected virtual async Task RetryExecuteInNonManagedTXLock(
-            string lockName,
+            string? lockName,
             Func<ConnectionAndTransactionHolder, Task> txCallback,
             CancellationToken cancellationToken = default)
         {
             await RetryExecuteInNonManagedTXLock<object>(lockName, async holder =>
             {
                 await txCallback(holder).ConfigureAwait(false);
-                return null;
-            }, cancellationToken).ConfigureAwait(false);
+                return null!;
+            }, requestorId: null, cancellationToken).ConfigureAwait(false);
         }
 
         protected virtual async Task<T> RetryExecuteInNonManagedTXLock<T>(
-            string lockName,
+            string? lockName,
             Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
+            Guid? requestorId,
             CancellationToken cancellationToken = default)
         {
             for (int retry = 1; !shutdown; retry++)
             {
                 try
                 {
-                    return await ExecuteInNonManagedTXLock(lockName, txCallback, null, cancellationToken).ConfigureAwait(false);
+                    return await ExecuteInNonManagedTXLock(lockName, txCallback, txValidator: null, requestorId, cancellationToken).ConfigureAwait(false);
                 }
                 catch (JobPersistenceException jpe)
                 {
@@ -3742,7 +3793,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         protected Task<T> ExecuteInNonManagedTXLock<T>(
-            string lockName,
+            string? lockName,
             Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
             CancellationToken cancellationToken)
         {
@@ -3761,17 +3812,24 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="txCallback">
         /// The callback to execute after having acquired the given lock.
         /// </param>
-        /// <param name="txValidator"></param>>
+        /// <param name="txValidator"></param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        protected async Task<T> ExecuteInNonManagedTXLock<T>(
-            string lockName,
+        protected Task<T> ExecuteInNonManagedTXLock<T>(
+            string? lockName,
             Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
-            Func<ConnectionAndTransactionHolder, T, Task<bool>> txValidator,
+            Func<ConnectionAndTransactionHolder, T, Task<bool>>? txValidator,
+            CancellationToken cancellationToken) => ExecuteInNonManagedTXLock(lockName, txCallback, txValidator, requestorId: null, cancellationToken);
+
+        protected async Task<T> ExecuteInNonManagedTXLock<T>(
+            string? lockName,
+            Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
+            Func<ConnectionAndTransactionHolder, T, Task<bool>>? txValidator,
+            Guid? requestorId,
             CancellationToken cancellationToken)
         {
             bool transOwner = false;
-            Guid requestorId = Guid.NewGuid();
-            ConnectionAndTransactionHolder conn = null;
+            var lockRequestorId = requestorId ?? Guid.NewGuid();
+            ConnectionAndTransactionHolder? conn = null;
             try
             {
                 if (lockName != null)
@@ -3783,7 +3841,7 @@ namespace Quartz.Impl.AdoJobStore
                         conn = GetNonManagedTXConnection();
                     }
 
-                    transOwner = await LockHandler.ObtainLock(requestorId, conn, lockName, cancellationToken).ConfigureAwait(false);
+                    transOwner = await LockHandler.ObtainLock(lockRequestorId, conn, lockName, cancellationToken).ConfigureAwait(false);
                 }
 
                 if (conn == null)
@@ -3806,6 +3864,7 @@ namespace Quartz.Impl.AdoJobStore
                     if (!await RetryExecuteInNonManagedTXLock(
                         lockName,
                         async connection => await txValidator(connection, result).ConfigureAwait(false),
+                        lockRequestorId,
                         cancellationToken).ConfigureAwait(false))
                     {
                         throw;
@@ -3834,7 +3893,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    await ReleaseLock(requestorId, lockName, transOwner, cancellationToken).ConfigureAwait(false);
+                    await ReleaseLock(lockRequestorId, lockName!, transOwner, cancellationToken).ConfigureAwait(false);
                 }
                 finally
                 {

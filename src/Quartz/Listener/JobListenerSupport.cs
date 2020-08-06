@@ -64,7 +64,7 @@ namespace Quartz.Listener
             IJobExecutionContext context, 
             CancellationToken cancellationToken = default)
         {
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -80,7 +80,7 @@ namespace Quartz.Listener
             IJobExecutionContext context,
             CancellationToken cancellationToken = default)
         {
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -91,12 +91,11 @@ namespace Quartz.Listener
         /// <param name="context"></param>
         /// <param name="jobException"></param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        public virtual Task JobWasExecuted(
-            IJobExecutionContext context,
-            JobExecutionException jobException,
+        public virtual Task JobWasExecuted(IJobExecutionContext context,
+            JobExecutionException? jobException,
             CancellationToken cancellationToken = default)
         {
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
     }
 }

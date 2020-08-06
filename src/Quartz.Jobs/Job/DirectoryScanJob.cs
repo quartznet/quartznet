@@ -53,6 +53,19 @@ namespace Quartz.Job
 
         internal const string LastModifiedTime = "LAST_MODIFIED_TIME";
 
+        /// <summary>
+        /// The search string to match against the names of files. 
+        /// Can contain combination of valid literal path and wildcard (* and ?) characters
+        /// </summary>
+        internal const string SearchPattern = "SEARCH_PATTERN";
+
+        ///<see cref="JobDataMap"/> Key to specify wether to scan sub directories for file changes.
+        internal const string IncludeSubDirectories = "INCLUDE_SUB_DIRECTORIES";
+
+        ///<see cref="JobDataMap"/> key to store the current file list of the scanned directories. 
+        ///This is required to find out deleted files during next iteration.
+        internal const string CurrentFileList = "CURRENT_FILE_LIST";
+
         private readonly ILog log;
 
         public DirectoryScanJob()
@@ -70,20 +83,24 @@ namespace Quartz.Job
         {
             DirectoryScanJobModel model = DirectoryScanJobModel.GetInstance(context);
 
+            List<FileInfo> allFiles = new List<FileInfo>();
             List<FileInfo> updatedFiles = new List<FileInfo>();
+            List<FileInfo> deletedFiles = new List<FileInfo>();
             Parallel.ForEach(model.DirectoriesToScan, d =>
             {
-                var newOrUpdatedFiles = GetUpdatedOrNewFiles(d, model.LastModTime, model.MaxAgeDate);
-                lock (updatedFiles)
-                {
-                    foreach (var fileInfo in newOrUpdatedFiles)
-                    {
-                        updatedFiles.Add(fileInfo);
-                    }
-                }
+                List<FileInfo> dirAllFiles;
+                List<FileInfo> dirNewOrUpdatedFiles;
+                List<FileInfo> dirDeletedFiles;
+
+                GetUpdatedOrNewFiles(d, model.LastModTime, model.MaxAgeDate, model.CurrentFileList,
+                    out dirAllFiles, out dirNewOrUpdatedFiles, out dirDeletedFiles, model.SearchPattern, model.IncludeSubDirectories);
+
+                AddToList(updatedFiles, dirNewOrUpdatedFiles);
+                AddToList(deletedFiles, dirDeletedFiles);
+                AddToList(allFiles, dirAllFiles);
             });
 
-            if (updatedFiles.Any())
+            if (updatedFiles.Any() || deletedFiles.Any())
             {
                 foreach (var fileInfo in updatedFiles)
                 {
@@ -91,10 +108,19 @@ namespace Quartz.Job
                 }
 
                 // notify call back...
-                model.DirectoryScanListener.FilesUpdatedOrAdded(updatedFiles);
+                if (updatedFiles.Any())
+                {
+                    model.DirectoryScanListener.FilesUpdatedOrAdded(updatedFiles);
+                    DateTime latestWriteTimeFromFiles = updatedFiles.Select(x => x.LastWriteTime).Max();
+                    model.UpdateLastModifiedDate(latestWriteTimeFromFiles);
+                }
+                if (deletedFiles.Any())
+                {
+                    model.DirectoryScanListener.FilesDeleted(deletedFiles);
+                }
 
-                DateTime latestWriteTimeFromFiles = updatedFiles.Select(x => x.LastWriteTime).Max();
-                model.UpdateLastModifiedDate(latestWriteTimeFromFiles);
+                //Update current file list
+                model.UpdateFileList(allFiles);
             }
             else if (log.IsDebugEnabled())
             {
@@ -103,22 +129,59 @@ namespace Quartz.Job
                     log.Debug($"Directory '{dir}' contents unchanged.");
                 }
             }
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
-        protected List<FileInfo> GetUpdatedOrNewFiles(string dirName, DateTime lastModifiedDate, DateTime maxAgeDate)
+        protected void GetUpdatedOrNewFiles(string dirName, DateTime lastModifiedDate, DateTime maxAgeDate, List<FileInfo> currentFileList,
+            out List<FileInfo> allFiles, out List<FileInfo> updatedFiles, out List<FileInfo> deletedFiles, string searchPattern = "*", bool includeSubDirectories = false)
         {
+            updatedFiles = new List<FileInfo>();
+            deletedFiles = new List<FileInfo>();
+            allFiles = new List<FileInfo>();
+
             DirectoryInfo dir = new DirectoryInfo(dirName);
             if (!dir.Exists)
             {
                 log.Warn($"Directory '{dirName}' does not exist.");
-                return new List<FileInfo>();
+                return;
             }
 
-            FileInfo[] files = dir.GetFiles();
-            return files
+            SearchOption searchOption = includeSubDirectories ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
+            FileInfo[] files = dir.GetFiles(searchPattern, searchOption);
+            updatedFiles = files
                 .Where(fileInfo => fileInfo.LastWriteTime > lastModifiedDate && fileInfo.LastWriteTime < maxAgeDate)
                 .ToList();
+            allFiles = files.ToList();
+            deletedFiles = currentFileList.Except(allFiles, new FileInfoComparer()).ToList();
+        }
+
+        private static void AddToList(List<FileInfo> fileList, List<FileInfo> updatedFileList)
+        {
+            lock (fileList)
+            {
+                foreach (var fileInfo in updatedFileList)
+                {
+                    fileList.Add(fileInfo);
+                }
+            }
+        }
+
+        private class FileInfoComparer : IEqualityComparer<FileInfo>
+        {
+            public bool Equals(FileInfo? x, FileInfo? y)
+            {
+                if (x is null || y is null)
+                {
+                    return false;
+                }
+                
+                return x.FullName.Equals(y.FullName);
+            }
+
+            public int GetHashCode(FileInfo obj)
+            {
+                return obj.FullName.GetHashCode();
+            }
         }
     }
 }

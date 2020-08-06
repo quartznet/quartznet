@@ -26,7 +26,7 @@ using Quartz.Logging;
 namespace Quartz.Job
 {
 	/// <summary> 
-	/// Inspects a file and compares whether it's "last modified date" has changed
+	/// Inspects a file and compares whether its "last modified date" has changed
 	/// since the last time it was inspected.  If the file has been updated, the
 	/// job invokes a "call-back" method on an identified 
 	/// <see cref="IFileScanListener" /> that can be found in the 
@@ -107,8 +107,8 @@ namespace Quartz.Job
 				throw new JobExecutionException("Error obtaining scheduler context.", e, false);
 			}
 
-			string fileName = mergedJobDataMap.GetString(FileName);
-			string listenerName = mergedJobDataMap.GetString(FileScanListenerName);
+			var fileName = mergedJobDataMap.GetString(FileName);
+			var listenerName = mergedJobDataMap.GetString(FileScanListenerName);
 
 			if (fileName == null)
 			{

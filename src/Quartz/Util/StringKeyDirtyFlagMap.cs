@@ -90,7 +90,7 @@ namespace Quartz.Util
         /// 	<see langword="true"/> if the specified <see cref="T:System.Object"/> is equal to the
         /// current <see cref="T:System.Object"/>; otherwise, <see langword="false"/>.
         /// </returns>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return base.Equals(obj);
         }
@@ -189,7 +189,16 @@ namespace Quartz.Util
         /// Adds the given <see cref="string" /> value to the <see cref="IJob" />'s
         /// data map.
         /// </summary>
-        public virtual void Put(string key, string value)
+        public virtual void Put(string key, string? value)
+        {
+            base.Put(key, value!);
+        }
+
+        /// <summary>
+        /// Adds the given <see cref="Guid" /> value to the <see cref="IJob" />'s
+        /// data map.
+        /// </summary>
+        public virtual void Put(string key, Guid value)
         {
             base.Put(key, value);
         }
@@ -199,7 +208,7 @@ namespace Quartz.Util
         /// </summary>
         public virtual int GetInt(string key)
         {
-            object obj = this[key];
+            var obj = this[key];
 
             try
             {
@@ -216,7 +225,7 @@ namespace Quartz.Util
         /// </summary>
         public virtual long GetLong(string key)
         {
-            object obj = this[key];
+            var obj = this[key];
 
             try
             {
@@ -233,7 +242,7 @@ namespace Quartz.Util
         /// </summary>
         public virtual float GetFloat(string key)
         {
-            object obj = this[key];
+            var obj = this[key];
 
             try
             {
@@ -250,7 +259,7 @@ namespace Quartz.Util
         /// </summary>
         public virtual double GetDouble(string key)
         {
-            object obj = this[key];
+            var obj = this[key];
 
             try
             {
@@ -267,7 +276,7 @@ namespace Quartz.Util
         /// </summary>
         public virtual bool GetBoolean(string key)
         {
-            object obj = this[key];
+            var obj = this[key];
 
             try
             {
@@ -284,7 +293,7 @@ namespace Quartz.Util
         /// </summary>
         public virtual char GetChar(string key)
         {
-            object obj = this[key];
+            var obj = this[key];
 
             try
             {
@@ -299,13 +308,13 @@ namespace Quartz.Util
         /// <summary>
         /// Retrieve the identified <see cref="string" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public virtual string GetString(string key)
+        public virtual string? GetString(string key)
         {
-            object obj = this[key];
+            var obj = this[key];
 
             try
             {
-                return (string) obj;
+                return (string?) obj;
             }
             catch (Exception)
             {
@@ -318,7 +327,7 @@ namespace Quartz.Util
         /// </summary>
         public virtual DateTime GetDateTime(string key)
         {
-            object obj = this[key];
+            var obj = this[key];
 
             try
             {
@@ -335,8 +344,8 @@ namespace Quartz.Util
         /// </summary>
         public virtual DateTimeOffset GetDateTimeOffset(string key)
         {
-            object obj = this[key];
-            return (DateTimeOffset) obj;
+            var obj = this[key];
+            return (DateTimeOffset) obj!;
         }
 
         /// <summary>
@@ -344,8 +353,26 @@ namespace Quartz.Util
         /// </summary>
         public virtual TimeSpan GetTimeSpan(string key)
         {
-            object obj = this[key];
-            return (TimeSpan) obj;
+            var obj = this[key];
+            return (TimeSpan) obj!;
+        }
+
+        /// <summary>
+        /// Retrieve the identified <see cref="Guid" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual Guid GetGuid(string key)
+        {
+            var obj = this[key];
+            return (Guid) obj!;
+        }
+
+        /// <summary>
+        /// Retrieve the identified <see cref="Guid" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual Guid? GetNullableGuid(string key)
+        {
+            var obj = this[key];
+            return (Guid?) obj;
         }
     }
 }

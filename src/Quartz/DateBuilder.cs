@@ -63,7 +63,7 @@ namespace Quartz
         private int hour;
         private int minute;
         private int second;
-        private TimeZoneInfo tz;
+        private TimeZoneInfo? tz;
 
         /// <summary>
         /// Create a DateBuilder, with initial settings for the current date 

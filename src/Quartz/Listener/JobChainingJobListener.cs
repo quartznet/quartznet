@@ -50,7 +50,7 @@ namespace Quartz.Listener
     /// <author>Marko Lahma (.NET)</author>
     public class JobChainingJobListener : JobListenerSupport
     {
-        private readonly IDictionary<JobKey, JobKey> chainLinks;
+        private readonly Dictionary<JobKey, JobKey> chainLinks;
         private readonly ILog log;
 
         /// <summary>
@@ -86,9 +86,8 @@ namespace Quartz.Listener
             chainLinks.Add(firstJob, secondJob);
         }
 
-        public override async Task JobWasExecuted(
-            IJobExecutionContext context, 
-            JobExecutionException jobException,
+        public override async Task JobWasExecuted(IJobExecutionContext context,
+            JobExecutionException? jobException,
             CancellationToken cancellationToken = default)
         {
             chainLinks.TryGetValue(context.JobDetail.Key, out var sj);

@@ -31,17 +31,23 @@ namespace Quartz.Impl.AdoJobStore
 {
     public class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelegate
     {
-        protected IDbAccessor DbAccessor { get; private set; }
+        protected IDbAccessor DbAccessor { get; private set; } = null!;
 
-        protected string TablePrefix { get; private set; }
+        protected string TablePrefix { get; private set; } = null!;
 
-        protected string SchedNameLiteral { get; private set; }
+        [Obsolete("Scheduler name is now added to queries as a parameter")]
+        protected string SchedNameLiteral { get; private set; } = null!;
+
+        protected string SchedName { get; private set; } = null!;
 
         public void Initialize(string tablePrefix, string schedName, IDbAccessor dbAccessor)
         {
             TablePrefix = tablePrefix;
-            SchedNameLiteral = "'" + schedName + "'";
+            SchedName = schedName;
             DbAccessor = dbAccessor;
+
+            // No longer required
+            SchedNameLiteral = "'" + schedName + "'";
         }
 
         public string GetHandledTriggerTypeDiscriminator()
@@ -59,8 +65,9 @@ namespace Quartz.Impl.AdoJobStore
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
         {
-            using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlDeleteSimpleTrigger, TablePrefix, SchedNameLiteral)))
+            using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlDeleteSimpleTrigger, TablePrefix)))
             {
+                DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
                 DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
                 DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
@@ -77,8 +84,9 @@ namespace Quartz.Impl.AdoJobStore
         {
             ISimpleTrigger simpleTrigger = (ISimpleTrigger) trigger;
 
-            using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlInsertSimpleTrigger, TablePrefix, SchedNameLiteral)))
+            using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlInsertSimpleTrigger, TablePrefix)))
             {
+                DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
                 DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
                 DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
                 DbAccessor.AddCommandParameter(cmd, "triggerRepeatCount", simpleTrigger.RepeatCount);
@@ -94,8 +102,9 @@ namespace Quartz.Impl.AdoJobStore
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
         {
-            using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, TablePrefix, SchedNameLiteral)))
+            using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, TablePrefix)))
             {
+                DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
                 DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
                 DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
@@ -117,7 +126,7 @@ namespace Quartz.Impl.AdoJobStore
                         return new TriggerPropertyBundle(sb, statePropertyNames, statePropertyValues);
                     }
                 }
-                throw new InvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, TablePrefix, SchedNameLiteral));
+                throw new InvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, TablePrefix));
             }
         }
 
@@ -130,8 +139,9 @@ namespace Quartz.Impl.AdoJobStore
         {
             ISimpleTrigger simpleTrigger = (ISimpleTrigger) trigger;
 
-            using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlUpdateSimpleTrigger, TablePrefix, SchedNameLiteral)))
+            using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlUpdateSimpleTrigger, TablePrefix)))
             {
+                DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
                 DbAccessor.AddCommandParameter(cmd, "triggerRepeatCount", simpleTrigger.RepeatCount);
                 DbAccessor.AddCommandParameter(cmd, "triggerRepeatInterval", DbAccessor.GetDbTimeSpanValue(simpleTrigger.RepeatInterval));
                 DbAccessor.AddCommandParameter(cmd, "triggerTimesTriggered", simpleTrigger.TimesTriggered);

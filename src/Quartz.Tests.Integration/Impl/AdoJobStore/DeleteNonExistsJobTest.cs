@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 
 using Quartz.Impl;
+using Quartz.Logging;
 using Quartz.Util;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore
@@ -146,7 +147,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             public Task Execute(IJobExecutionContext context)
             {
                 log.InfoFormat("Job is executing {0}", context);
-                return TaskUtil.CompletedTask;
+                return Task.CompletedTask;
             }
         }
     }

@@ -21,7 +21,6 @@
 
 using System;
 using System.Data.Common;
-using System.Data.SqlClient;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -69,7 +68,7 @@ namespace Quartz.Impl.AdoJobStore
             base.Initialize(loadHelper, signaler, cancellationToken);
 
             Log.Info("JobStoreCMT initialized.");
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -85,9 +84,9 @@ namespace Quartz.Impl.AdoJobStore
             {
                 ConnectionManager.Shutdown(DataSource);
             }
-            catch (SqlException sqle)
+            catch (Exception ex)
             {
-                Log.WarnException("Database connection shutdown unsuccessful.", sqle);
+                Log.WarnException("Database connection shutdown unsuccessful.", ex);
             }
         }
 
@@ -105,11 +104,6 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     conn.Open();
                 }
-            }
-            catch (SqlException sqle)
-            {
-                throw new JobPersistenceException(
-                    $"Failed to obtain DB connection from data source '{DataSource}': {sqle}", sqle);
             }
             catch (Exception e)
             {
@@ -144,12 +138,12 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="txCallback">Callback to execute.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         protected override async Task<T> ExecuteInLock<T>(
-            string lockName,
+            string? lockName,
             Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
             CancellationToken cancellationToken = default)
         {
             bool transOwner = false;
-            ConnectionAndTransactionHolder conn = null;
+            ConnectionAndTransactionHolder? conn = null;
             Guid requestorId = Guid.NewGuid();
             try
             {
@@ -162,7 +156,7 @@ namespace Quartz.Impl.AdoJobStore
                         conn = GetNonManagedTXConnection();
                     }
 
-                    transOwner = await LockHandler.ObtainLock(requestorId, conn, lockName, cancellationToken).ConfigureAwait(false);
+                    transOwner = await LockHandler.ObtainLock(requestorId, conn!, lockName, cancellationToken).ConfigureAwait(false);
                 }
 
                 if (conn == null)
@@ -176,7 +170,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    await ReleaseLock(requestorId, lockName, transOwner, cancellationToken).ConfigureAwait(false);
+                    await ReleaseLock(requestorId, lockName!, transOwner, cancellationToken).ConfigureAwait(false);
                 }
                 finally
                 {

@@ -44,7 +44,7 @@ namespace Quartz
         {
         }
 
-        public TriggerKey(string name) : base(name, null)
+        public TriggerKey(string name) : base(name)
         {
         }
 

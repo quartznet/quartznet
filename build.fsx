@@ -1,7 +1,9 @@
 #r "packages/FAKE/tools/FakeLib.dll"
 
+open System
 open Fake
 open Fake.AssemblyInfoFile
+open Fake.EnvironmentHelper
 open Fake.Git
 
 let commitHash =
@@ -12,6 +14,15 @@ let commitHash =
         ""
 
 let configuration = getBuildParamOrDefault "configuration" "Release"
+
+let tagName = EnvironmentHelper.environVarOrDefault "APPVEYOR_REPO_TAG_NAME" ""
+
+let versionSuffix =
+    if System.String.IsNullOrWhiteSpace tagName
+    then
+        sprintf "preview-%s" (DateTime.UtcNow.ToString "yyyyMMdd-HHmm")
+    else
+        ""
 
 Target "Clean" (fun _ ->
     !! "artifacts" ++ "package" ++ "src/*/bin" ++ "src/*/obj" ++ "test/*/bin" ++ "test/*/obj" ++ "build" ++ "deploy"
@@ -40,17 +51,22 @@ Target "Pack" (fun _ ->
     let pack f = DotNetCli.Pack (fun p ->
                 { p with
                     Configuration = "Release"
+                    VersionSuffix  = versionSuffix
                     Project = f
                 })
 
     !! "src/Quartz/Quartz.csproj"
+        ++ "src/Quartz.AspNetCore/Quartz.AspNetCore.csproj"
+        ++ "src/Quartz.Extensions.DependencyInjection/Quartz.Extensions.DependencyInjection.csproj"
+        ++ "src/Quartz.Extensions.Hosting/Quartz.Extensions.Hosting.csproj"
         ++ "src/Quartz.Jobs/Quartz.Jobs.csproj"
+        ++ "src/Quartz.OpenTelemetry.Instrumentation/Quartz.OpenTelemetry.Instrumentation.csproj"
         ++ "src/Quartz.Plugins/Quartz.Plugins.csproj"
         ++ "src/Quartz.Plugins.TimeZoneConverter/Quartz.Plugins.TimeZoneConverter.csproj"
         ++ "src/Quartz.Serialization.Json/Quartz.Serialization.Json.csproj"
         |> Seq.iter pack
 
-    !! "build/Release/**/*.nupkg"
+    !! "build/Release/**/*.*nupkg"
         |> Copy "artifacts"
 
 )
@@ -67,6 +83,7 @@ Target "Zip" (fun _ ->
         ++ "build.*"
         ++ "quartz.net.snk"
         ++ "build/Release/Quartz*/**/*"
+        ++ "tools/NuGet/NuGet.exe"
         -- "src/Quartz.Benchmark/**"
         -- "src/Quartz.Web/**"
         -- "src/AssemblyInfo.cs"
@@ -85,7 +102,7 @@ Target "Zip" (fun _ ->
     CreateDir "artifacts"
 
     !! ("package/**/*.*") 
-       |> Zip "package" (sprintf @"./artifacts/Quartz.NET-%s.zip" buildVersion)
+       |> Zip "package" (sprintf @"./artifacts/Quartz.NET-%s.zip" versionSuffix)
 
 )
 

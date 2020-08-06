@@ -11,7 +11,6 @@ using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Plugin.Xml
 {
-    [TestFixture]
     public class XMLSchedulingDataProcessorPluginTest
     {
         [Test]
@@ -44,14 +43,14 @@ namespace Quartz.Tests.Unit.Plugin.Xml
             string expectedPathFile1 = FileUtil.ResolveFile(configuredFileName1);
             if (!File.Exists(expectedPathFile1))
             {
-                File.Create(expectedPathFile1);
+                File.Create(expectedPathFile1).Close();
             }
 
             string configuredFileName2 = "~/File2.xml";
             string expectedPathFile2 = FileUtil.ResolveFile(configuredFileName2);
             if (!File.Exists(expectedPathFile2))
             {
-                File.Create(expectedPathFile2);
+                File.Create(expectedPathFile2).Close();
             }
 
             var dataProcessor = new XMLSchedulingDataProcessorPlugin();

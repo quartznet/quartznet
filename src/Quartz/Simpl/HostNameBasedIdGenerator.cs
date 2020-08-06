@@ -50,10 +50,9 @@ namespace Quartz.Simpl
         /// <param name="cancellationToken"></param>
         /// <returns> The clusterwide unique instance id.
         /// </returns>
-        public abstract Task<string> GenerateInstanceId(
-            CancellationToken cancellationToken = default);
+        public abstract Task<string?> GenerateInstanceId(CancellationToken cancellationToken = default);
 
-        protected async Task<string> GetHostName(
+        protected async Task<string?> GetHostName(
             int maxLength, 
             CancellationToken cancellationToken = default)
         {

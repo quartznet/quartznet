@@ -83,7 +83,7 @@ namespace Quartz.Impl
         private TimeSpan? jobRunTime;
 
         [NonSerialized]
-        private readonly IDictionary<object, object> data = new Dictionary<object, object>();
+        private readonly Dictionary<object, object> data = new Dictionary<object, object>();
         [NonSerialized]
         private readonly CancellationTokenSource cancellationTokenSource;
         [NonSerialized]
@@ -131,7 +131,7 @@ namespace Quartz.Impl
         /// Get a handle to the <see cref="ICalendar" /> referenced by the <see cref="ITrigger" />
         /// instance that fired the <see cref="IJob" />.
         /// </summary>
-        public virtual ICalendar Calendar { get; }
+        public virtual ICalendar? Calendar { get; }
 
         /// <summary>
         /// If the <see cref="IJob" /> is being re-executed because of a 'recovery'
@@ -145,8 +145,8 @@ namespace Quartz.Impl
             {
                 if (Recovering)
                 {
-                    return new TriggerKey(jobDataMap.GetString(SchedulerConstants.FailedJobOriginalTriggerName),
-                        jobDataMap.GetString(SchedulerConstants.FailedJobOriginalTriggerGroup));
+                    return new TriggerKey(jobDataMap.GetString(SchedulerConstants.FailedJobOriginalTriggerName)!,
+                        jobDataMap.GetString(SchedulerConstants.FailedJobOriginalTriggerGroup)!);
                 }
 
                 throw new InvalidOperationException("Not a recovering job");
@@ -253,7 +253,7 @@ namespace Quartz.Impl
         /// execution.
         /// </para>
         /// </remarks>
-        public virtual object Result { get; set; }
+        public virtual object? Result { get; set; }
 
         /// <summary>
         /// The amount of time the job ran for.  The returned
@@ -319,7 +319,7 @@ namespace Quartz.Impl
         /// </summary>
         /// <param name="key">
         /// </param>
-        public virtual object Get(object key)
+        public virtual object? Get(object key)
         {
             data.TryGetValue(key, out var retValue);
             return retValue;

@@ -75,11 +75,11 @@ namespace Quartz
     {
         private int interval = 1;
         private IntervalUnit intervalUnit = IntervalUnit.Minute;
-        private HashSet<DayOfWeek> daysOfWeek;
-        private TimeOfDay startTimeOfDayUtc;
-        private TimeOfDay endTimeOfDayUtc;
+        private HashSet<DayOfWeek>? daysOfWeek;
+        private TimeOfDay? startTimeOfDayUtc;
+        private TimeOfDay? endTimeOfDayUtc;
         private int repeatCount = DailyTimeIntervalTriggerImpl.RepeatIndefinitely;
-        private TimeZoneInfo timeZone;
+        private TimeZoneInfo? timeZone;
 
         private int misfireInstruction = MisfireInstruction.SmartPolicy;
 
@@ -109,19 +109,20 @@ namespace Quartz
 
         static DailyTimeIntervalScheduleBuilder()
         {
-            var allDaysOfTheWeek = new ReadOnlyCompatibleHashSet<DayOfWeek>();
-            var mondayThroughFriday = new ReadOnlyCompatibleHashSet<DayOfWeek>();
-            foreach (DayOfWeek d in Enum.GetValues(typeof(DayOfWeek)))
+            var allDaysOfTheWeek = new HashSet<DayOfWeek>();
+            var mondayThroughFriday = new HashSet<DayOfWeek>();
+            foreach (var d in Enum.GetValues(typeof(DayOfWeek)))
             {
-                allDaysOfTheWeek.Add(d);
+                var dayOfWeek = (DayOfWeek) d!;
+                allDaysOfTheWeek.Add(dayOfWeek);
 
-                if (d >= DayOfWeek.Monday && d <= DayOfWeek.Friday)
+                if (dayOfWeek >= DayOfWeek.Monday && dayOfWeek <= DayOfWeek.Friday)
                 {
-                    mondayThroughFriday.Add(d);
+                    mondayThroughFriday.Add(dayOfWeek);
                 }
             }
 
-            SaturdayAndSunday = new ReadOnlyCompatibleHashSet<DayOfWeek>
+            SaturdayAndSunday = new HashSet<DayOfWeek>
             {
                 DayOfWeek.Sunday,
                 DayOfWeek.Saturday
@@ -129,9 +130,9 @@ namespace Quartz
 
             AllDaysOfTheWeek = allDaysOfTheWeek;
             MondayThroughFriday = mondayThroughFriday;
-            AllDaysOfTheWeek = new ReadOnlyCompatibleHashSet<DayOfWeek>(AllDaysOfTheWeek);
-            MondayThroughFriday = new ReadOnlyCompatibleHashSet<DayOfWeek>(MondayThroughFriday);
-            SaturdayAndSunday = new ReadOnlyCompatibleHashSet<DayOfWeek>(SaturdayAndSunday);
+            AllDaysOfTheWeek = new HashSet<DayOfWeek>(AllDaysOfTheWeek);
+            MondayThroughFriday = new HashSet<DayOfWeek>(MondayThroughFriday);
+            SaturdayAndSunday = new HashSet<DayOfWeek>(SaturdayAndSunday);
         }
 
         protected DailyTimeIntervalScheduleBuilder()
@@ -160,15 +161,15 @@ namespace Quartz
             st.RepeatIntervalUnit = intervalUnit;
             st.MisfireInstruction = misfireInstruction;
             st.RepeatCount = repeatCount;
-            st.TimeZone = timeZone;
+            st.timeZone = timeZone;
 
             if (daysOfWeek != null)
             {
-                st.DaysOfWeek = new ReadOnlyCompatibleHashSet<DayOfWeek>(daysOfWeek);
+                st.DaysOfWeek = new HashSet<DayOfWeek>(daysOfWeek);
             }
             else
             {
-                st.DaysOfWeek = new ReadOnlyCompatibleHashSet<DayOfWeek>(AllDaysOfTheWeek);
+                st.DaysOfWeek = new HashSet<DayOfWeek>(AllDaysOfTheWeek);
             }
 
             if (startTimeOfDayUtc != null)
@@ -324,7 +325,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Set the trigger to begin firing each day at the given time.
+        /// The TimeOfDay for this trigger to start firing each day.
         /// </summary>
         /// <param name="timeOfDayUtc"></param>
         /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
@@ -335,7 +336,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Set the startTimeOfDay for this trigger to end firing each day at the given time.
+        /// The TimeOfDay for this trigger to end firing each day.
         /// </summary>
         /// <param name="timeOfDayUtc"></param>
         /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
@@ -364,8 +365,8 @@ namespace Quartz
             }
 
             DateTimeOffset today = SystemTime.UtcNow();
-            DateTimeOffset startTimeOfDayDate = startTimeOfDayUtc.GetTimeOfDayForDate(today).Value;
-            DateTimeOffset maxEndTimeOfDayDate = TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59).GetTimeOfDayForDate(today).Value;
+            DateTimeOffset startTimeOfDayDate = startTimeOfDayUtc.GetTimeOfDayForDate(today);
+            DateTimeOffset maxEndTimeOfDayDate = TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59).GetTimeOfDayForDate(today);
 
             //apply proper offsets according to timezone
             TimeZoneInfo targetTimeZone = timeZone ?? TimeZoneInfo.Local;

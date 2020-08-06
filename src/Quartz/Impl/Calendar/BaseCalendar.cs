@@ -43,7 +43,7 @@ namespace Quartz.Impl.Calendar
     [Serializable]
     public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
     {
-        private TimeZoneInfo timeZone;
+        private TimeZoneInfo? timeZone;
 
         /// <summary>
         /// Initializes a new instance of the <see cref="BaseCalendar"/> class.
@@ -56,7 +56,7 @@ namespace Quartz.Impl.Calendar
         /// Initializes a new instance of the <see cref="BaseCalendar"/> class.
         /// </summary>
         /// <param name="baseCalendar">The base calendar.</param>
-        public BaseCalendar(ICalendar baseCalendar)
+        public BaseCalendar(ICalendar? baseCalendar)
         {
             CalendarBase = baseCalendar;
         }
@@ -75,7 +75,7 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         /// <param name="baseCalendar">The base calendar.</param>
         /// <param name="timeZone">The time zone.</param>
-        public BaseCalendar(ICalendar baseCalendar, TimeZoneInfo timeZone)
+        public BaseCalendar(ICalendar? baseCalendar, TimeZoneInfo? timeZone)
         {
             CalendarBase = baseCalendar;
             this.timeZone = timeZone;
@@ -118,10 +118,10 @@ namespace Quartz.Impl.Calendar
             switch (version)
             {
                 case 0:
-                    timeZone = (TimeZoneInfo) info.GetValue(prefix + "timeZone", typeof(TimeZoneInfo));
+                    timeZone = (TimeZoneInfo) info.GetValue(prefix + "timeZone", typeof(TimeZoneInfo))!;
                     break;
                 case 1:
-                    var timeZoneId = (string) info.GetValue(prefix + "timeZoneId", typeof(string));
+                    var timeZoneId = (string) info.GetValue(prefix + "timeZoneId", typeof(string))!;
                     if (!string.IsNullOrEmpty(timeZoneId))
                     {
                         timeZone = Util.TimeZoneUtil.FindTimeZoneById(timeZoneId);
@@ -131,8 +131,8 @@ namespace Quartz.Impl.Calendar
                     throw new NotSupportedException("Unknown serialization version");
             }
 
-            CalendarBase = (ICalendar) info.GetValue(prefix + "baseCalendar", typeof(ICalendar));
-            Description = (string) info.GetValue(prefix + "description", typeof(string));
+            CalendarBase = (ICalendar) info.GetValue(prefix + "baseCalendar", typeof(ICalendar))!;
+            Description = (string) info.GetValue(prefix + "description", typeof(string))!;
         }
 
         [System.Security.SecurityCritical]
@@ -165,13 +165,13 @@ namespace Quartz.Impl.Calendar
         /// Gets or sets the description given to the <see cref="ICalendar" /> instance by
         /// its creator (if any).
         /// </summary>
-        public string Description { get; set; }
+        public string? Description { get; set; }
 
         /// <summary>
         /// Set a new base calendar or remove the existing one
         /// </summary>
         /// <value></value>
-        public ICalendar CalendarBase { set; get; }
+        public ICalendar? CalendarBase { set; get; }
 
         /// <summary>
         /// Check if date/time represented by timeStamp is included. If included
@@ -231,19 +231,19 @@ namespace Quartz.Impl.Calendar
         protected BaseCalendar CloneFields(BaseCalendar clone)
         {
             clone.Description = Description;
-            clone.TimeZone = timeZone;
+            clone.TimeZone = TimeZone;
             clone.CalendarBase = CalendarBase?.Clone();
             return clone;
         }
 
-        public bool Equals(BaseCalendar other)
+        public bool Equals(BaseCalendar? other)
         {
             if (ReferenceEquals(null, other)) return false;
             if (ReferenceEquals(this, other)) return true;
             return Equals(CalendarBase, other.CalendarBase) && string.Equals(Description, other.Description) && Equals(TimeZone, other.TimeZone);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (ReferenceEquals(null, obj)) return false;
             if (ReferenceEquals(this, obj)) return true;

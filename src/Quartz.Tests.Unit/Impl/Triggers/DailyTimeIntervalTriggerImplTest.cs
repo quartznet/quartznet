@@ -417,7 +417,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
         [Test]
         public void TestMonOnly()
         {
-            var daysOfWeek = new ReadOnlyCompatibleHashSet<DayOfWeek>
+            var daysOfWeek = new HashSet<DayOfWeek>
             {
                 DayOfWeek.Monday
             };
@@ -860,6 +860,44 @@ namespace Quartz.Tests.Unit.Impl.Triggers
         }
 
         [Test]
+        public void TestDayLightSaving3()
+        {
+	        var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+	        //UTC: 2020/3/7/ 00:00  EST: 2020/3/6 19:00
+			var startTime = new DateTimeOffset(2020, 3, 7, 0, 0, 0, TimeSpan.Zero);
+	        var trigger = DailyTimeIntervalScheduleBuilder.Create()
+		        .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(17, 00))
+		        .EndingDailyAt(TimeOfDay.HourAndMinuteOfDay(19, 30))
+		        .OnDaysOfTheWeek(new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday })
+		        .WithIntervalInHours(2)
+		        .InTimeZone(timeZoneInfo)
+		        .Build();
+
+	        var first = trigger.GetFireTimeAfter(startTime);
+	        //UTC: 2020/3/9/ 21:00  EST: 2020/3/9 17:00
+			Assert.That(first, Is.EqualTo(new DateTimeOffset(2020, 3, 9, 21, 0, 0, TimeSpan.Zero)));
+        }
+
+        [Test]
+        public void TestDayLightSaving4()
+        {
+	        var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+			//UTC: 2019/11/1/ 23:00  EST: 2019/11/1 19:00
+			var startTime = new DateTimeOffset(2019, 11, 1, 23, 0, 0, TimeSpan.Zero);
+			var trigger = DailyTimeIntervalScheduleBuilder.Create()
+		        .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(17, 00))
+		        .EndingDailyAt(TimeOfDay.HourAndMinuteOfDay(19, 30))
+		        .OnDaysOfTheWeek(new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday })
+		        .WithIntervalInHours(2)
+		        .InTimeZone(timeZoneInfo)
+		        .Build();
+
+	        var first = trigger.GetFireTimeAfter(startTime);
+	        //UTC: 2019/11/4/ 22:00  EST: 2019/11/1 17:00
+			Assert.That(first, Is.EqualTo(new DateTimeOffset(2019, 11, 4, 22, 0, 0, TimeSpan.Zero)));
+        }
+
+		[Test]
         [Explicit]
         public void TestPassingMidnight()
         {

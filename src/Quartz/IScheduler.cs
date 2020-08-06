@@ -659,9 +659,7 @@ namespace Quartz
         /// JobDetail.  If you wish to modify the JobDetail, you must re-store the
         /// JobDetail afterward (e.g. see <see cref="AddJob(IJobDetail, bool, CancellationToken)" />).
         /// </remarks>
-        Task<IJobDetail> GetJobDetail(
-            JobKey jobKey,
-            CancellationToken cancellationToken = default);
+        Task<IJobDetail?> GetJobDetail(JobKey jobKey, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get the <see cref="ITrigger" /> instance with the given key.
@@ -671,9 +669,7 @@ namespace Quartz
         /// trigger.  If you wish to modify the trigger, you must re-store the
         /// trigger afterward (e.g. see <see cref="RescheduleJob(TriggerKey, ITrigger, CancellationToken)" />).
         /// </remarks>
-        Task<ITrigger> GetTrigger(
-            TriggerKey triggerKey,
-            CancellationToken cancellationToken = default);
+        Task<ITrigger?> GetTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get the current state of the identified <see cref="ITrigger" />.
@@ -721,7 +717,7 @@ namespace Quartz
         /// <summary>
         /// Get the <see cref="ICalendar" /> instance with the given name.
         /// </summary>
-        Task<ICalendar> GetCalendar(string calName, CancellationToken cancellationToken = default);
+        Task<ICalendar?> GetCalendar(string calName, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get the names of all registered <see cref="ICalendar" />.

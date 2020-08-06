@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 
 using Quartz.Impl;
+using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
 
@@ -86,7 +87,7 @@ namespace Quartz.Tests.Integration.Core
             }
 
             lastFireTime = now;
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         public static List<TimeSpan> Durations { get; } = new List<TimeSpan>();

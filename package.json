@@ -1,0 +1,33 @@
+{
+  "name": "quartznet-docs",
+  "version": "0.1.0",
+  "description": "Quartz.NET Documentation",
+  "main": "index.js",
+  "devDependencies": {
+    "@vuepress/plugin-active-header-links": "^1.5.2",
+    "@vuepress/plugin-back-to-top": "^1.5.2",
+    "@vuepress/plugin-blog": "^1.9.2",
+    "@vuepress/plugin-google-analytics": "^1.5.2",
+    "vuepress": "^1.5.2"
+  },
+  "dependencies": {
+    "esm": "^3.2.25",
+    "remove-markdown": "^0.3.0",
+    "vue-tweet-embed": "^2.4.0"
+  },
+  "scripts": {
+    "docs:build": "bash -c \"rm -rf docs/.vuepress/dist\" && vuepress build docs",
+    "docs:publish": "cd docs/.vuepress/dist && git init && git fetch https://github.com/quartznet/quartznet.github.io.git && git checkout 9966bc53c0685311bc9199498ef2338629f6ec4d && git checkout -b master && git add . && git commit -am \"Deploy Documentation\" && git push --force --set-upstream https://github.com/quartznet/quartznet.github.io.git master",
+    "docs:dev": "vuepress dev docs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/quartznet/quartznet.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/quartznet/quartznet/issues"
+  },
+  "homepage": "https://github.com/quartznet/quartznet"
+}

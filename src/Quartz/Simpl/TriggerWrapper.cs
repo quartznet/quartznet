@@ -36,7 +36,7 @@ namespace Quartz.Simpl
             JobKey = trigger.JobKey;
         }
 
-        public bool Equals(TriggerWrapper other)
+        public bool Equals(TriggerWrapper? other)
         {
             return other != null && other.TriggerKey.Equals(TriggerKey);
         }
@@ -48,7 +48,7 @@ namespace Quartz.Simpl
         /// <returns>
         /// true if the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>; otherwise, false.
         /// </returns>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return Equals(obj as TriggerWrapper);
         }

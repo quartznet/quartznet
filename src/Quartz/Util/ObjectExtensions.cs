@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Reflection;
 
 namespace Quartz.Util
@@ -8,7 +9,9 @@ namespace Quartz.Util
     /// </summary>
     public static class ObjectExtensions
     {
+        private static readonly ConcurrentDictionary<Type, string> assemblyQualifiedNameCache = new ConcurrentDictionary<Type, string>();
+
         public static string AssemblyQualifiedNameWithoutVersion(this Type type)
-            => $"{type.FullName}, {type.GetTypeInfo().Assembly.GetName().Name}";
+            => assemblyQualifiedNameCache.GetOrAdd(type, x => x.FullName + ", " + x.GetTypeInfo().Assembly.GetName().Name);
     }
 }

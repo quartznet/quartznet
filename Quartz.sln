@@ -33,6 +33,20 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Plugins", "src\Quart
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Plugins.TimeZoneConverter", "src\Quartz.Plugins.TimeZoneConverter\Quartz.Plugins.TimeZoneConverter.csproj", "{88F6D094-A4CD-4B89-84FB-FBD0821A9D99}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.AspNetCore", "src\Quartz.AspNetCore\Quartz.AspNetCore.csproj", "{0B08E122-0B16-4F86-BC02-D561EE518D9C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Examples.AspNetCore", "src\Quartz.Examples.AspNetCore\Quartz.Examples.AspNetCore.csproj", "{5224231E-7678-4EC6-B18A-FA302D9553E3}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Examples", "Examples", "{FCD766DA-FF68-4A60-9130-07A56C2480F0}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Extensions.DependencyInjection", "src\Quartz.Extensions.DependencyInjection\Quartz.Extensions.DependencyInjection.csproj", "{FD743112-25F0-4719-B0DF-144C78600955}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.OpenTelemetry.Instrumentation", "src\Quartz.OpenTelemetry.Instrumentation\Quartz.OpenTelemetry.Instrumentation.csproj", "{5B99035A-3623-4584-9AFA-C6D77F5704BD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Extensions.Hosting", "src\Quartz.Extensions.Hosting\Quartz.Extensions.Hosting.csproj", "{7CC26420-E06F-44EA-AF23-7861B56906BB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Examples.Worker", "src\Quartz.Examples.Worker\Quartz.Examples.Worker.csproj", "{2BB03F5A-7736-42E9-A572-5D60336A9BFF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -75,11 +89,40 @@ Global
 		{88F6D094-A4CD-4B89-84FB-FBD0821A9D99}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{88F6D094-A4CD-4B89-84FB-FBD0821A9D99}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{88F6D094-A4CD-4B89-84FB-FBD0821A9D99}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0B08E122-0B16-4F86-BC02-D561EE518D9C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0B08E122-0B16-4F86-BC02-D561EE518D9C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0B08E122-0B16-4F86-BC02-D561EE518D9C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0B08E122-0B16-4F86-BC02-D561EE518D9C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5224231E-7678-4EC6-B18A-FA302D9553E3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5224231E-7678-4EC6-B18A-FA302D9553E3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5224231E-7678-4EC6-B18A-FA302D9553E3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5224231E-7678-4EC6-B18A-FA302D9553E3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{FD743112-25F0-4719-B0DF-144C78600955}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{FD743112-25F0-4719-B0DF-144C78600955}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{FD743112-25F0-4719-B0DF-144C78600955}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{FD743112-25F0-4719-B0DF-144C78600955}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5B99035A-3623-4584-9AFA-C6D77F5704BD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5B99035A-3623-4584-9AFA-C6D77F5704BD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5B99035A-3623-4584-9AFA-C6D77F5704BD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5B99035A-3623-4584-9AFA-C6D77F5704BD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7CC26420-E06F-44EA-AF23-7861B56906BB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7CC26420-E06F-44EA-AF23-7861B56906BB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7CC26420-E06F-44EA-AF23-7861B56906BB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7CC26420-E06F-44EA-AF23-7861B56906BB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2BB03F5A-7736-42E9-A572-5D60336A9BFF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2BB03F5A-7736-42E9-A572-5D60336A9BFF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2BB03F5A-7736-42E9-A572-5D60336A9BFF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2BB03F5A-7736-42E9-A572-5D60336A9BFF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {A8666F1F-9B78-4A1D-A3DB-0E91324AB539}
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{E84E25C9-B291-4F51-9599-EFB63EB59569} = {FCD766DA-FF68-4A60-9130-07A56C2480F0}
+		{5224231E-7678-4EC6-B18A-FA302D9553E3} = {FCD766DA-FF68-4A60-9130-07A56C2480F0}
+		{2BB03F5A-7736-42E9-A572-5D60336A9BFF} = {FCD766DA-FF68-4A60-9130-07A56C2480F0}
 	EndGlobalSection
 EndGlobal

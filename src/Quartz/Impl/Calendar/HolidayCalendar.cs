@@ -50,7 +50,7 @@ namespace Quartz.Impl.Calendar
 		/// </summary>
         public virtual IReadOnlyCollection<DateTime> ExcludedDates
 		{
-            get => new ReadOnlyCompatibleHashSet<DateTime>(dates);
+            get => new HashSet<DateTime>(dates);
 			internal set => dates = new SortedSet<DateTime>(value);
 		}
 
@@ -97,7 +97,7 @@ namespace Quartz.Impl.Calendar
                 case 1:
                     throw new NotSupportedException("cannot deserialize old version, use latest Quartz 2.x version to re-serialize all HolidayCalendar instances in database");
                 case 2:
-                    dates = new SortedSet<DateTime>((DateTime[]) info.GetValue("dates", typeof(DateTime[])));
+                    dates = new SortedSet<DateTime>((DateTime[]) info.GetValue("dates", typeof(DateTime[]))!);
                     break;
                 default:
                     throw new NotSupportedException("Unknown serialization version");
@@ -219,7 +219,7 @@ namespace Quartz.Impl.Calendar
             return baseEqual && ExcludedDates.SequenceEqual(obj.ExcludedDates);
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (!(obj is HolidayCalendar))
             {

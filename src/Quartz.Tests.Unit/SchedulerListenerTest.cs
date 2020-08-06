@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 
 using Quartz.Impl;
+using Quartz.Logging;
 
 namespace Quartz.Tests.Unit
 {
@@ -25,7 +26,7 @@ namespace Quartz.Tests.Unit
             {
                 jobExecutionCount++;
                 logger.Info("Job executed. jobExecutionCount=" + jobExecutionCount);
-                return TaskUtil.CompletedTask;
+                return Task.CompletedTask;
             }
         }
 

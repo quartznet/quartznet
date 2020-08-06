@@ -14,7 +14,7 @@ namespace Quartz.Spi
         /// Constructor.
         ///</summary>
         ///<param name="triggerFiredBundle"></param>
-        public TriggerFiredResult(TriggerFiredBundle triggerFiredBundle)
+        public TriggerFiredResult(TriggerFiredBundle? triggerFiredBundle)
         {
             TriggerFiredBundle = triggerFiredBundle;
         }
@@ -30,11 +30,11 @@ namespace Quartz.Spi
         ///<summary>
         /// Bundle.
         ///</summary>
-        public TriggerFiredBundle TriggerFiredBundle { get; }
+        public TriggerFiredBundle? TriggerFiredBundle { get; }
 
         /// <summary>
         /// Possible exception.
         /// </summary>
-        public Exception Exception { get; }
+        public Exception? Exception { get; }
     }
 }

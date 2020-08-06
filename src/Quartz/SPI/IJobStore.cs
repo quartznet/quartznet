@@ -182,8 +182,7 @@ namespace Quartz.Spi
         /// <returns>
         /// The desired <see cref="IJob" />, or null if there is no match.
         /// </returns>
-        Task<IJobDetail> RetrieveJob(
-            JobKey jobKey,
+        Task<IJobDetail?> RetrieveJob(JobKey jobKey,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -251,8 +250,7 @@ namespace Quartz.Spi
         /// The desired <see cref="ITrigger" />, or null if there is no
         /// match.
         /// </returns>
-        Task<IOperableTrigger> RetrieveTrigger(
-            TriggerKey triggerKey, 
+        Task<IOperableTrigger?> RetrieveTrigger(TriggerKey triggerKey,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -345,9 +343,7 @@ namespace Quartz.Spi
         /// The desired <see cref="ICalendar" />, or null if there is no
         /// match.
         /// </returns>
-        Task<ICalendar> RetrieveCalendar(
-            string calName, 
-            CancellationToken cancellationToken = default);
+        Task<ICalendar?> RetrieveCalendar(string calName, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Get the number of <see cref="IJob" />s that are

@@ -26,12 +26,12 @@ namespace Quartz.Simpl
         private readonly object taskListLock = new object();
 
         // The semaphore used to limit concurrency and integers representing maximim concurrent tasks
-        private SemaphoreSlim concurrencySemaphore;
+        private SemaphoreSlim concurrencySemaphore = null!;
 
         private int maxConcurrency;
         protected const int DefaultMaxConcurrency = 10;
 
-        private TaskScheduler scheduler;
+        private TaskScheduler scheduler = null!;
         private bool isInitialized;
 
         /// <summary>
@@ -61,9 +61,9 @@ namespace Quartz.Simpl
         protected abstract TaskScheduler GetDefaultScheduler();
 
         /// <summary>
-        /// The maxmimum number of thread pool tasks which can be executing in parallel
+        /// The maximum number of thread pool tasks which can be executing in parallel
         /// </summary>
-        public int MaxConcurency
+        public int MaxConcurrency
         {
             get => maxConcurrency;
             set
@@ -73,7 +73,7 @@ namespace Quartz.Simpl
         }
 
         /// <summary>
-        /// The maxmimum number of thread pool tasks which can be executing in parallel
+        /// The maximum number of thread pool tasks which can be executing in parallel
         /// </summary>
         /// <remarks>
         /// This alias for MaximumConcurrency is meant to make config files previously used with
@@ -81,8 +81,8 @@ namespace Quartz.Simpl
         /// </remarks>
         public int ThreadCount
         {
-            get => MaxConcurency;
-            set => MaxConcurency = value;
+            get => MaxConcurrency;
+            set => MaxConcurrency = value;
         }
 
         // ReSharper disable once UnusedMember.Global
@@ -94,11 +94,11 @@ namespace Quartz.Simpl
         /// <summary>
         /// The number of tasks that can run concurrently in this thread pool
         /// </summary>
-        public virtual int PoolSize => MaxConcurency;
+        public virtual int PoolSize => MaxConcurrency;
 
-        public virtual string InstanceId { get; set; }
+        public virtual string InstanceId { get; set; } = null!;
 
-        public virtual string InstanceName { get; set; }
+        public virtual string InstanceName { get; set; } = null!;
 
         public TaskSchedulingThreadPool() : this(DefaultMaxConcurrency)
         {
@@ -106,7 +106,7 @@ namespace Quartz.Simpl
 
         public TaskSchedulingThreadPool(int maxConcurrency)
         {
-            MaxConcurency = maxConcurrency;
+            MaxConcurrency = maxConcurrency;
         }
 
         /// <summary>
@@ -125,10 +125,10 @@ namespace Quartz.Simpl
             }
 
             // Initialize the concurrency semaphore with the proper initial count
-            concurrencySemaphore = new SemaphoreSlim(MaxConcurency);
+            concurrencySemaphore = new SemaphoreSlim(MaxConcurrency);
             isInitialized = true;
 
-            log.Debug($"TaskSchedulingThreadPool configured with max concurrency of {MaxConcurency} and TaskScheduler {Scheduler.GetType().Name}.");
+            log.Debug($"TaskSchedulingThreadPool configured with max concurrency of {MaxConcurrency} and TaskScheduler {Scheduler.GetType().Name}.");
         }
 
         /// <summary>
@@ -220,10 +220,7 @@ namespace Quartz.Simpl
             concurrencySemaphore.Release();
             lock (taskListLock)
             {
-                if (completedTask != null && runningTasks.Contains(completedTask))
-                {
-                    runningTasks.Remove(completedTask);
-                }
+                runningTasks.Remove(completedTask);
             }
         }
 
@@ -241,15 +238,14 @@ namespace Quartz.Simpl
             // If waitForJobsToComplete is true, wait for runningTasks
             if (waitForJobsToComplete)
             {
-                log.DebugFormat($"Waiting for {runningTasks.Count} threads to complete.");
-
-                Task[] tasksArray = new Task[0];
+                Task[] tasksArray;
                 lock (taskListLock)
                 {
                     // Cancellation has been signaled, so no new tasks will begin once
                     // shutdown has acquired this lock
                     tasksArray = runningTasks.ToArray();
                 }
+                log.DebugFormat($"Waiting for {tasksArray.Length} threads to complete.");
                 Task.WaitAll(tasksArray);
                 log.Debug("No executing jobs remaining, all threads stopped.");
             }

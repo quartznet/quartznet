@@ -1,0 +1,22 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<div class="text-center">
+    <h1 class="display-4">Scheduled Triggers</h1>
+    @foreach (var trigger in Model.Triggers)
+    {
+        <span>@trigger.Group / @trigger.Name</span>
+        <br/>
+    }
+
+    <h1 class="display-4">Currently Executing Jobs</h1>
+    @foreach (var job in Model.CurrentlyExecutingJobs)
+    {
+        <span>@job.JobDetail.Key.Group / @job.JobDetail.Key.Name  - triggered by @job.Trigger.Key.Group / @job.Trigger.Key.Name</span>
+        <br/>
+    }
+
+</div>

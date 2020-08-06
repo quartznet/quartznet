@@ -10,7 +10,7 @@ namespace Quartz.Util
     {
         private static readonly ILog log = LogProvider.GetLogger(typeof(Configuration));
         
-        internal static NameValueCollection GetSection(string sectionName)
+        internal static NameValueCollection? GetSection(string sectionName)
         {
             try
             {

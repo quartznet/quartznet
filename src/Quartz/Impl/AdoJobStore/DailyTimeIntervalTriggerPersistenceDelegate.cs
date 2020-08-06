@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -99,11 +100,11 @@ namespace Quartz.Impl.AdoJobStore
         {
             int repeatCount = (int) props.Long1;
             int interval = props.Int1;
-            string intervalUnitStr = props.String1;
-            string daysOfWeekStr = props.String2;
-            string timeOfDayStr = props.String3;
+            var intervalUnitStr = props.String1;
+            var daysOfWeekStr = props.String2;
+            var timeOfDayStr = props.String3;
 
-            IntervalUnit intervalUnit = (IntervalUnit) Enum.Parse(typeof (IntervalUnit), intervalUnitStr, true);
+            IntervalUnit intervalUnit = (IntervalUnit) Enum.Parse(typeof (IntervalUnit), intervalUnitStr!, true);
             DailyTimeIntervalScheduleBuilder scheduleBuilder = DailyTimeIntervalScheduleBuilder.Create()
                 .WithInterval(interval, intervalUnit)
                 .WithRepeatCount(repeatCount);
@@ -115,7 +116,7 @@ namespace Quartz.Impl.AdoJobStore
 
             if (daysOfWeekStr != null)
             {
-                var daysOfWeek = new ReadOnlyCompatibleHashSet<DayOfWeek>();
+                var daysOfWeek = new HashSet<DayOfWeek>();
                 string[] nums = daysOfWeekStr.Split(new[] {','}, StringSplitOptions.RemoveEmptyEntries);
                 if (nums.Length > 0)
                 {

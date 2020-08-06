@@ -33,12 +33,12 @@ namespace Quartz.Core
 	/// <author>Marko Lahma (.NET)</author>
 	public class QuartzSchedulerResources
 	{
-        private string name;
-        private string instanceId;
-        private string threadName;
-        private IThreadPool threadPool;
-        private IJobStore jobStore;
-        private IJobRunShellFactory jobRunShellFactory;
+        private string name = null!;
+        private string instanceId = null!;
+        private string threadName = null!;
+        private IThreadPool threadPool = null!;
+        private IJobStore jobStore =  null!;
+        private IJobRunShellFactory jobRunShellFactory = null!;
 
 	    public QuartzSchedulerResources()
 	    {
@@ -57,7 +57,7 @@ namespace Quartz.Core
 			get => name;
             set
 			{
-				if (value == null || value.Trim().Length == 0)
+				if (string.IsNullOrWhiteSpace(value))
 				{
 					throw new ArgumentException("Scheduler name cannot be empty.");
 				}
@@ -83,7 +83,7 @@ namespace Quartz.Core
 			get => instanceId;
 		    set
 			{
-				if (value == null || value.Trim().Length == 0)
+				if (string.IsNullOrWhiteSpace(value))
 				{
 					throw new ArgumentException("Scheduler instanceId cannot be empty.");
 				}
@@ -104,7 +104,7 @@ namespace Quartz.Core
 			get => threadName;
 		    set
 			{
-				if (value == null || value.Trim().Length == 0)
+				if (string.IsNullOrWhiteSpace(value))
 				{
 					throw new ArgumentException("Scheduler thread name cannot be empty.");
 				}
@@ -203,7 +203,7 @@ namespace Quartz.Core
 	    /// Gets or sets the scheduler exporter.
 	    /// </summary>
 	    /// <value>The scheduler exporter.</value>
-	    public ISchedulerExporter SchedulerExporter { get; set; }
+	    public ISchedulerExporter? SchedulerExporter { get; set; }
 
 	    /// <summary>
 	    /// Gets or sets the batch time window.

@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -52,9 +53,10 @@ namespace Quartz.Core
     public class JobRunShell : SchedulerListenerSupport
     {
         private readonly ILog log;
+        private readonly JobDiagnosticsWriter jobExecutionJobDiagnostics = new JobDiagnosticsWriter();
 
-        private JobExecutionContextImpl jec;
-        private QuartzScheduler qs;
+        private JobExecutionContextImpl? jec;
+        private QuartzScheduler? qs;
         private readonly IScheduler scheduler;
         private readonly TriggerFiredBundle firedTriggerBundle;
 
@@ -74,7 +76,7 @@ namespace Quartz.Core
         public override Task SchedulerShuttingdown(CancellationToken cancellationToken = default)
         {
             RequestShutdown();
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -102,8 +104,8 @@ namespace Quartz.Core
             }
             catch (Exception e)
             {
-                SchedulerException se = new SchedulerException($"Problem instantiating type '{jobDetail.JobType.FullName}'", e);
-                await sched.NotifySchedulerListenersError($"An error occurred instantiating job to be executed. job= '{jobDetail.Key}'", se, cancellationToken).ConfigureAwait(false);
+                SchedulerException se = new SchedulerException($"Problem instantiating type '{jobDetail.JobType.FullName}: {e.Message}'", e);
+                await sched.NotifySchedulerListenersError($"An error occurred instantiating job to be executed. job= '{jobDetail.Key}, message={e.Message}'", se, cancellationToken).ConfigureAwait(false);
                 throw se;
             }
 
@@ -124,15 +126,15 @@ namespace Quartz.Core
         /// <param name="cancellationToken">The cancellation instruction.</param>
         public virtual async Task Run(CancellationToken cancellationToken = default)
         {
-            qs.AddInternalSchedulerListener(this);
+            qs!.AddInternalSchedulerListener(this);
 
             try
             {
-                IOperableTrigger trigger = (IOperableTrigger) jec.Trigger;
+                IOperableTrigger trigger = (IOperableTrigger) jec!.Trigger;
                 IJobDetail jobDetail = jec.JobDetail;
                 do
                 {
-                    JobExecutionException jobExEx = null;
+                    JobExecutionException? jobExEx = null;
                     IJob job = jec.JobInstance;
 
                     try
@@ -179,6 +181,7 @@ namespace Quartz.Core
 
                     DateTimeOffset startTime = SystemTime.UtcNow();
                     DateTimeOffset endTime;
+                    Activity? activity = null;
 
                     // Execute the job
                     try
@@ -188,6 +191,7 @@ namespace Quartz.Core
                             log.Debug("Calling Execute on job " + jobDetail.Key);
                         }
 
+                        activity = jobExecutionJobDiagnostics.WriteStarted(jec, startTime);
                         await job.Execute(jec).ConfigureAwait(false);
 
                         endTime = SystemTime.UtcNow();
@@ -201,6 +205,7 @@ namespace Quartz.Core
                     {
                         endTime = SystemTime.UtcNow();
                         jobExEx = jee;
+                        jobExecutionJobDiagnostics.WriteException(activity, jobExEx);
                         log.ErrorException($"Job {jobDetail.Key} threw a JobExecutionException: ", jobExEx);
                     }
                     catch (Exception e)
@@ -214,6 +219,8 @@ namespace Quartz.Core
                     }
 
                     jec.JobRunTime = endTime - startTime;
+
+                    jobExecutionJobDiagnostics.WriteStopped(activity, endTime, jec);
 
                     // notify all job listeners
                     if (!await NotifyJobListenersComplete(jec, jobExEx, cancellationToken).ConfigureAwait(false))
@@ -326,13 +333,12 @@ namespace Quartz.Core
             // notify all trigger listeners
             try
             {
-                vetoed = await qs.NotifyTriggerListenersFired(ctx, cancellationToken).ConfigureAwait(false);
+                vetoed = await qs!.NotifyTriggerListenersFired(ctx, cancellationToken).ConfigureAwait(false);
             }
             catch (SchedulerException se)
             {
                 string msg = $"Unable to notify TriggerListener(s) while firing trigger (Trigger and Job will NOT be fired!). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
-                await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
-
+                await qs!.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
                 return false;
             }
 
@@ -340,6 +346,10 @@ namespace Quartz.Core
             {
                 try
                 {
+                    if (LogContext.Cached.Default.Value.IsEnabled(OperationName.Job.Veto))
+                    {
+                        LogContext.Cached.Default.Value.Write(OperationName.Job.Veto, ctx);
+                    }
                     await qs.NotifyJobListenersWasVetoed(ctx, cancellationToken).ConfigureAwait(false);
                 }
                 catch (SchedulerException se)
@@ -368,17 +378,17 @@ namespace Quartz.Core
 
         private async Task<bool> NotifyJobListenersComplete(
             IJobExecutionContext ctx,
-            JobExecutionException jobExEx,
+            JobExecutionException? jobExEx,
             CancellationToken cancellationToken = default)
         {
             try
             {
-                await qs.NotifyJobListenersWasExecuted(ctx, jobExEx, cancellationToken).ConfigureAwait(false);
+                await qs!.NotifyJobListenersWasExecuted(ctx, jobExEx, cancellationToken).ConfigureAwait(false);
             }
             catch (SchedulerException se)
             {
                 string msg = $"Unable to notify JobListener(s) of Job that was executed: (error will be ignored). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
-                await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
+                await qs!.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
 
                 return false;
             }
@@ -393,13 +403,12 @@ namespace Quartz.Core
         {
             try
             {
-                await qs.NotifyTriggerListenersComplete(ctx, instCode, cancellationToken).ConfigureAwait(false);
+                await qs!.NotifyTriggerListenersComplete(ctx, instCode, cancellationToken).ConfigureAwait(false);
             }
             catch (SchedulerException se)
             {
                 string msg = $"Unable to notify TriggerListener(s) of Job that was executed: (error will be ignored). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
-                await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
-
+                await qs!.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
                 return false;
             }
 

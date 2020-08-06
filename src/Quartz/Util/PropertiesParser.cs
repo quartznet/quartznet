@@ -56,7 +56,7 @@ namespace Quartz.Util
         /// </summary>
         /// <param name="name">The name.</param>
         /// <returns></returns>
-		public virtual string GetStringProperty(string name)
+		public virtual string? GetStringProperty(string? name)
 		{
 			string val = props.Get(name);
 		    return val?.Trim();
@@ -68,9 +68,9 @@ namespace Quartz.Util
         /// <param name="name">The name.</param>
         /// <param name="defaultValue">The default value.</param>
         /// <returns></returns>
-		public virtual string GetStringProperty(string name, string defaultValue)
+        public virtual string? GetStringProperty(string name, string? defaultValue)
 		{
-			string val = props[name] ?? defaultValue;
+			string? val = props[name] ?? defaultValue;
 			if (val == null)
 			{
 				return defaultValue;
@@ -88,7 +88,7 @@ namespace Quartz.Util
         /// </summary>
         /// <param name="name">The name.</param>
         /// <returns></returns>
-		public virtual IList<string> GetStringArrayProperty(string name)
+		public virtual IList<string>? GetStringArrayProperty(string name)
 		{
 			return GetStringArrayProperty(name, null);
 		}
@@ -99,9 +99,9 @@ namespace Quartz.Util
         /// <param name="name">The name.</param>
         /// <param name="defaultValue">The default value.</param>
         /// <returns></returns>
-		public virtual IList<string> GetStringArrayProperty(string name, string[] defaultValue)
+		public virtual IList<string>? GetStringArrayProperty(string name, string[]? defaultValue)
 		{
-            string vals = GetStringProperty(name);
+            var vals = GetStringProperty(name);
             if (vals == null)
             {
                 return defaultValue;
@@ -128,7 +128,7 @@ namespace Quartz.Util
         /// <returns></returns>
 		public virtual bool GetBooleanProperty(string name)
 		{
-			string val = GetStringProperty(name);
+			var val = GetStringProperty(name);
 			if (val == null)
 			{
 				return false;
@@ -145,7 +145,7 @@ namespace Quartz.Util
         /// <returns></returns>
 		public virtual bool GetBooleanProperty(string name, bool defaultValue)
 		{
-			string val = GetStringProperty(name);
+			var val = GetStringProperty(name);
 			if (val == null)
 			{
 				return defaultValue;
@@ -161,7 +161,7 @@ namespace Quartz.Util
         /// <returns></returns>
 		public virtual byte GetByteProperty(string name)
 		{
-			string val = GetStringProperty(name);
+			var val = GetStringProperty(name);
 			if (val == null)
 			{
 				throw new FormatException(" null string");
@@ -185,7 +185,7 @@ namespace Quartz.Util
         /// <returns></returns>
 		public virtual byte GetByteProperty(string name, byte defaultValue)
 		{
-			string val = GetStringProperty(name);
+			var val = GetStringProperty(name);
 			if (val == null)
 			{
 			    return defaultValue;
@@ -208,7 +208,7 @@ namespace Quartz.Util
         /// <returns></returns>
 		public virtual char GetCharProperty(string name)
 		{
-			string param = GetStringProperty(name);
+			var param = GetStringProperty(name);
 			if (param == null)
 			{
 				return '\x0000';
@@ -230,7 +230,7 @@ namespace Quartz.Util
         /// <returns></returns>
 		public virtual char GetCharProperty(string name, char defaultValue)
 		{
-			string param = GetStringProperty(name);
+			var param = GetStringProperty(name);
 			if (param == null)
 			{
 				return defaultValue;
@@ -251,7 +251,7 @@ namespace Quartz.Util
         /// <returns></returns>
 		public virtual double GetDoubleProperty(string name)
 		{
-			string val = GetStringProperty(name);
+			var val = GetStringProperty(name);
 			if (val == null)
 			{
 				throw new FormatException(" null string");
@@ -275,7 +275,7 @@ namespace Quartz.Util
         /// <returns></returns>
 		public virtual double GetDoubleProperty(string name, double defaultValue)
 		{
-			string val = GetStringProperty(name);
+			var val = GetStringProperty(name);
 			if (val == null)
 			{
 				return defaultValue;
@@ -298,7 +298,7 @@ namespace Quartz.Util
         /// <returns></returns>
 		public virtual float GetFloatProperty(string name)
 		{
-			string val = GetStringProperty(name);
+			var val = GetStringProperty(name);
 			if (val == null)
 			{
 				throw new FormatException(" null string");
@@ -322,7 +322,7 @@ namespace Quartz.Util
         /// <returns></returns>
 		public virtual float GetFloatProperty(string name, float defaultValue)
 		{
-			string val = GetStringProperty(name);
+			var val = GetStringProperty(name);
 			if (val == null)
 			{
 				return defaultValue;
@@ -345,7 +345,7 @@ namespace Quartz.Util
         /// <returns></returns>
 		public virtual int GetIntProperty(string name)
 		{
-			string val = GetStringProperty(name);
+			var val = GetStringProperty(name);
 			if (val == null)
 			{
 				throw new FormatException(" null string");
@@ -369,7 +369,7 @@ namespace Quartz.Util
         /// <returns></returns>
 		public virtual int GetIntProperty(string name, int defaultValue)
 		{
-			string val = GetStringProperty(name);
+			var val = GetStringProperty(name);
 			if (val == null)
 			{
 				return defaultValue;
@@ -390,7 +390,7 @@ namespace Quartz.Util
         /// </summary>
         /// <param name="name">The name.</param>
         /// <returns></returns>
-        public virtual IList<int> GetIntArrayProperty(string name)
+        public virtual IList<int>? GetIntArrayProperty(string name)
 		{
 			return GetIntArrayProperty(name, null);
 		}
@@ -401,9 +401,9 @@ namespace Quartz.Util
 	    /// <param name="name">The name.</param>
 	    /// <param name="defaultValue">The default value.</param>
 	    /// <returns></returns>
-        public virtual IList<int> GetIntArrayProperty(string name, IList<int> defaultValue)
+        public virtual IList<int>? GetIntArrayProperty(string name, IList<int>? defaultValue)
 		{
-			string vals = GetStringProperty(name);
+			var vals = GetStringProperty(name);
 			if (vals == null)
 			{
 				return defaultValue;
@@ -444,7 +444,7 @@ namespace Quartz.Util
         /// <returns></returns>
 		public virtual long GetLongProperty(string name)
 		{
-			string val = GetStringProperty(name);
+			var val = GetStringProperty(name);
 			if (val == null)
 			{
 				throw new FormatException(" null string");
@@ -468,7 +468,7 @@ namespace Quartz.Util
         /// <returns></returns>
 		public virtual long GetLongProperty(string name, long def)
 		{
-			string val = GetStringProperty(name);
+			var val = GetStringProperty(name);
 			if (val == null)
 			{
 				return def;
@@ -492,7 +492,7 @@ namespace Quartz.Util
         /// <returns></returns>
         public virtual TimeSpan GetTimeSpanProperty(string name, TimeSpan def)
         {
-            string val = GetStringProperty(name);
+            var val = GetStringProperty(name);
             if (val == null)
             {
                 return def;
@@ -515,7 +515,7 @@ namespace Quartz.Util
         /// <returns></returns>
 		public virtual short GetShortProperty(string name)
 		{
-			string val = GetStringProperty(name);
+			var val = GetStringProperty(name);
 			if (val == null)
 			{
 				throw new FormatException(" null string");
@@ -539,7 +539,7 @@ namespace Quartz.Util
         /// <returns></returns>
 		public virtual short GetShortProperty(string name, short defaultValue)
 		{
-			string val = GetStringProperty(name);
+			var val = GetStringProperty(name);
 			if (val == null)
 			{
 				return defaultValue;
@@ -569,9 +569,9 @@ namespace Quartz.Util
 				prefix += ".";
 			}
 
-			foreach (string key in props.Keys)
+			foreach (string? key in props.Keys)
 			{
-				if (key.StartsWith(prefix))
+				if (key != null && key.StartsWith(prefix))
 				{
 					string groupName = key.Substring(prefix.Length, key.IndexOf('.', prefix.Length) - prefix.Length);
 					groups.Add(groupName);
@@ -610,7 +610,7 @@ namespace Quartz.Util
         /// <param name="stripPrefix">Whether to strip off the given <paramref name="prefix" /> in the result's keys.</param>
         /// <param name="excludedPrefixes">Optional array of fully qualified prefixes to exclude.  For example if <see paramref="prefix" /> is "a.b.c", then <see paramref="excludedPrefixes" /> might be "a.b.c.ignore".</param>
         /// <returns>Group of <see cref="NameValueCollection" /> that start with the given prefix, optionally have that prefix removed, and do not include properties that start with one of the given excluded prefixes.</returns>
-        public virtual NameValueCollection GetPropertyGroup(string prefix, bool stripPrefix, string[] excludedPrefixes)
+        public virtual NameValueCollection GetPropertyGroup(string prefix, bool stripPrefix, string[]? excludedPrefixes)
         {
             NameValueCollection group = new NameValueCollection();
 
@@ -619,9 +619,9 @@ namespace Quartz.Util
                 prefix += ".";
             }
 
-            foreach (string key in props.Keys)
+            foreach (string? key in props.Keys)
             {
-                if (key.StartsWith(prefix))
+                if (key != null && key.StartsWith(prefix))
                 {
                     bool exclude = false;
                     if (excludedPrefixes != null)
@@ -634,8 +634,7 @@ namespace Quartz.Util
 
                     if (exclude == false)
                     {
-                        string value = GetStringProperty(key, "");
-
+                        var value = GetStringProperty(key, "");
                         if (stripPrefix)
                         {
                             group[key.Substring(prefix.Length)] = value;
@@ -658,9 +657,10 @@ namespace Quartz.Util
         /// <param name="resourceName">The file name to read resources from.</param>
         /// <returns></returns>
         public static PropertiesParser ReadFromEmbeddedAssemblyResource(string resourceName)
-        {
-            return ReadFromStream(typeof(IScheduler).GetTypeInfo().Assembly.GetManifestResourceStream(resourceName));
-        }
+         {
+	         var stream = typeof(IScheduler).GetTypeInfo().Assembly.GetManifestResourceStream(resourceName);
+	         return ReadFromStream(stream ?? throw new ArgumentException("cannot find resource " + resourceName));
+         }
 
         /// <summary>
         /// Reads the properties from file system.
@@ -677,7 +677,7 @@ namespace Quartz.Util
 	        NameValueCollection props = new NameValueCollection();
 	        using (StreamReader sr = new StreamReader(stream))
 	        {
-	            string line;
+	            string? line;
 	            while ((line = sr.ReadLine()) != null)
 	            {
 	                line = line.TrimStart();

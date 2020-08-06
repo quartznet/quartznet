@@ -1,17 +1,14 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
-#if !NETCORE
 using System.Data.SQLite;
-#endif
 using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-#if NETCORE
+
 using Microsoft.Data.Sqlite;
-#endif
 using NUnit.Framework;
 
 using Quartz.Impl;
@@ -19,6 +16,7 @@ using Quartz.Impl.Calendar;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
+using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
@@ -103,23 +101,24 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         {
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.MySQLDelegate, Quartz";
-            return RunAdoJobStoreTest("MySql", "MySQL", serializerType, properties);
+            return RunAdoJobStoreTest("MySqlConnector", "MySQL", serializerType, properties);
         }
 
-#if NETCORE
         [Test]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public async Task TestSQLiteMicrosoft(string serializerType)
         {
-            if (File.Exists("test.db"))
+	        var dbFilename = $"test-{serializerType}.db";
+	        
+	        if (File.Exists(dbFilename))
             {
-                File.Delete("test.db");
+                File.Delete(dbFilename);
             }
 
             using (var connection = new SqliteConnection(dbConnectionStrings["SQLite-Microsoft"]))
             {
                 await connection.OpenAsync();
-                string sql = await File.ReadAllTextAsync("../../../../database/tables/tables_sqlite.sql");
+                string sql = File.ReadAllText("../../../../database/tables/tables_sqlite.sql");
 
                 var command = new SqliteCommand(sql, connection);
                 command.ExecuteNonQuery();
@@ -131,7 +130,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SQLiteDelegate, Quartz";
             await RunAdoJobStoreTest("SQLite-Microsoft", "SQLite-Microsoft", serializerType, properties, clustered: false);
         }
-#endif
 
         [Test]
         [TestCaseSource(nameof(GetSerializerTypes))]
@@ -151,18 +149,18 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             return RunAdoJobStoreTest("OracleODPManaged", "Oracle", serializerType, properties);
         }
 
-#if !NETSTANDARD_DBPROVIDERS
-
         [Test]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public async Task TestSQLite(string serializerType)
         {
-            while (File.Exists("test.db"))
+	        var dbFilename = $"test-{serializerType}.db";
+
+	        while (File.Exists(dbFilename))
             {
-                File.Delete("test.db");
+                File.Delete(dbFilename);
             }
 
-            SQLiteConnection.CreateFile("test.db");
+            SQLiteConnection.CreateFile(dbFilename);
 
             using (var connection = new SQLiteConnection(dbConnectionStrings["SQLite"]))
             {
@@ -180,8 +178,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             await RunAdoJobStoreTest("SQLite", "SQLite", serializerType, properties, clustered: false);
         }
 
-#endif // NETSTANDARD_DBPROVIDERS
-
         public static string[] GetSerializerTypes() => new[] {"json", "binary"};
 
         private Task RunAdoJobStoreTest(string dbProvider, string connectionStringId, string serializerType)
@@ -196,43 +192,55 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             NameValueCollection extraProperties,
             bool clustered = true)
         {
-            NameValueCollection properties = new NameValueCollection();
+            var config = SchedulerBuilder.Create("instance_one", "TestScheduler");
+            config.UseDefaultThreadPool(x =>
+            {
+                x.MaxConcurrency = 10;
+            });
+            config.MisfireThreshold = TimeSpan.FromSeconds(60);
 
-            properties["quartz.scheduler.instanceName"] = "TestScheduler";
-            properties["quartz.scheduler.instanceId"] = "instance_one";
-            properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
-            properties["quartz.threadPool.threadCount"] = "10";
-            properties["quartz.jobStore.misfireThreshold"] = "60000";
-            properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
-            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz";
-            properties["quartz.jobStore.useProperties"] = "false";
-            properties["quartz.jobStore.dataSource"] = "default";
-            properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
-            properties["quartz.jobStore.clustered"] = clustered.ToString();
-            properties["quartz.jobStore.clusterCheckinInterval"] = 1000.ToString();
-            properties["quartz.serializer.type"] = serializerType;
+            config.UsePersistentStore(store =>
+            {
+                store.UseProperties = false;
+
+                if (clustered)
+                {
+                    store.UseClustering(c =>
+                    {
+                        c.CheckinInterval = TimeSpan.FromMilliseconds(1000);
+                    });
+                }
+                    
+                store.UseGenericDatabase(dbProvider, db => 
+                    db.ConnectionString = dbConnectionStrings[connectionStringId]
+                );
+
+                if (serializerType == "json")
+                {
+                    store.UseJsonSerializer(j =>
+                    {
+                        j.AddCalendarSerializer<CustomCalendar>(new CustomCalendarSerializer());
+                    });
+                }
+                else
+                {
+                    store.UseBinarySerializer();
+                }
+            });
 
             if (extraProperties != null)
             {
                 foreach (string key in extraProperties.Keys)
                 {
-                    properties[key] = extraProperties[key];
+                    config.SetProperty(key, extraProperties[key]);
                 }
             }
-
-            if (!dbConnectionStrings.TryGetValue(connectionStringId, out var connectionString))
-            {
-                throw new Exception("Unknown connection string id: " + connectionStringId);
-            }
-            properties["quartz.dataSource.default.connectionString"] = connectionString;
-            properties["quartz.dataSource.default.provider"] = dbProvider;
 
             // Clear any old errors from the log
             FailFastLoggerFactoryAdapter.Errors.Clear();
 
             // First we must get a reference to a scheduler
-            ISchedulerFactory sf = new StdSchedulerFactory(properties);
-            IScheduler sched = await sf.GetScheduler();
+            IScheduler sched = await config.BuildScheduler();
             SmokeTestPerformer performer = new SmokeTestPerformer();
             await performer.Test(sched, clearJobs, scheduleJobs);
 
@@ -529,7 +537,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         {
             public Task Execute(IJobExecutionContext context)
             {
-                return TaskUtil.CompletedTask;
+                return Task.CompletedTask;
             }
         }
 
@@ -540,7 +548,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                 try
                 {
                     ((ManualResetEventSlim) context.Scheduler.Context.Get(KeyResetEvent)).Wait(TimeSpan.FromSeconds(20));
-                    return TaskUtil.CompletedTask;
+                    return Task.CompletedTask;
                 }
                 catch (SchedulerException ex)
                 {

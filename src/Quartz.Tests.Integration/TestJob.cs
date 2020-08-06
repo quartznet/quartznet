@@ -42,7 +42,7 @@ namespace Quartz.Tests.Integration
         public Task Execute(IJobExecutionContext context)
         {
             JobHasFired = true;
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>

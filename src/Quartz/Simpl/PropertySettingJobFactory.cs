@@ -91,7 +91,7 @@ namespace Quartz.Simpl
 	    /// <throws>  SchedulerException if there is a problem instantiating the Job. </throws>
 	    public override IJob NewJob(TriggerFiredBundle bundle, IScheduler scheduler)
 		{
-			IJob job = base.NewJob(bundle, scheduler);
+			IJob job = InstantiateJob(bundle, scheduler);
 
 			JobDataMap jobDataMap = new JobDataMap();
             jobDataMap.PutAll(scheduler.Context);
@@ -103,14 +103,19 @@ namespace Quartz.Simpl
 			return job;
 		}
 
-        /// <summary>
+	    protected virtual IJob InstantiateJob(TriggerFiredBundle bundle, IScheduler scheduler)
+	    {
+		    return base.NewJob(bundle, scheduler);
+	    }
+
+	    /// <summary>
         /// Sets the object properties.
         /// </summary>
         /// <param name="obj">The object to set properties to.</param>
         /// <param name="data">The data to set.</param>
 		public virtual void SetObjectProperties(object obj, JobDataMap data)
 		{
-			Type paramType = null;
+			Type? paramType = null;
 
 			foreach (string name in data.Keys)
 			{
@@ -118,7 +123,7 @@ namespace Quartz.Simpl
 				string propName = c + name.Substring(1);
 
 				object o = data[name];
-				PropertyInfo prop = obj.GetType().GetProperty(propName);
+				var prop = obj.GetType().GetProperty(propName);
 
 				try
 				{
@@ -135,17 +140,17 @@ namespace Quartz.Simpl
 						// cannot set null to these
 						HandleError($"Cannot set null to property on Job class {obj.GetType()} for property '{name}'");
 					}
-					if (paramType == typeof(char) && o is string && ((string) o).Length != 1)
+					if (paramType == typeof(char) && o is string s && s.Length != 1)
 					{
 						// handle special case
 						HandleError($"Cannot set empty string to char property on Job class {obj.GetType()} for property '{name}'");
 					}
 
-                    object goodValue = paramType == typeof (TimeSpan)
+                    var goodValue = paramType == typeof (TimeSpan)
 										   ? ObjectUtils.GetTimeSpanValueForProperty(prop, o)
 										   : ConvertValueIfNecessary(paramType, o);
 
-					prop.GetSetMethod().Invoke(obj, new[] {goodValue});
+					prop.GetSetMethod()!.Invoke(obj, new[] {goodValue});
 				}
 				catch (FormatException nfe)
 				{
@@ -154,12 +159,12 @@ namespace Quartz.Simpl
 				}
 				catch (MethodAccessException)
 				{
-                    HandleError($"The setter on Job class {obj.GetType()} for property '{name}' expects a {paramType} but was given a {o.GetType()}");
+                    HandleError($"The setter on Job class {obj.GetType()} for property '{name}' expects a {paramType} but was given a {o?.GetType()}");
 				}
 				catch (ArgumentException e)
 				{
 					HandleError(
-					    $"The setter on Job class {obj.GetType()} for property '{name}' expects a {paramType} but was given {o.GetType()}", e);
+					    $"The setter on Job class {obj.GetType()} for property '{name}' expects a {paramType} but was given {o?.GetType()}", e);
 				}
 				catch (UnauthorizedAccessException e)
 				{
@@ -179,7 +184,7 @@ namespace Quartz.Simpl
 			}
 		}
 
-	    protected virtual object ConvertValueIfNecessary(Type requiredType, object newValue)
+	    protected virtual object? ConvertValueIfNecessary(Type requiredType, object? newValue)
 	    {
 	        return ObjectUtils.ConvertValueIfNecessary(requiredType, newValue);
 	    }
@@ -189,7 +194,7 @@ namespace Quartz.Simpl
 			HandleError(message, null);
 		}
 
-		private void HandleError(string message, Exception e)
+		private void HandleError(string message, Exception? e)
 		{
 			if (ThrowIfPropertyNotFound)
 			{

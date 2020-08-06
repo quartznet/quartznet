@@ -119,8 +119,7 @@ namespace Quartz.Job
 		{
 			JobDataMap data = context.MergedJobDataMap;
 
-			string command = data.GetString(PropertyCommand);
-
+			string command = data.GetString(PropertyCommand) ?? throw new JobExecutionException("command missing");
 			string parameters = data.GetString(PropertyParameters) ?? "";
 
 		    bool wait = true;
@@ -134,14 +133,13 @@ namespace Quartz.Job
 				consumeStreams = data.GetBooleanValue(PropertyConsumeStreams);
 			}
 
-            string workingDirectory = data.GetString(PropertyWorkingDirectory);
-
+            var workingDirectory = data.GetString(PropertyWorkingDirectory);
 			int exitCode = RunNativeCommand(command, parameters, workingDirectory, wait, consumeStreams);
 		    context.Result = exitCode;
             return Task.FromResult(true);
         }
 
-		private int RunNativeCommand(string command, string parameters, string workingDirectory, bool wait, bool consumeStreams)
+		private int RunNativeCommand(string command, string parameters, string? workingDirectory, bool wait, bool consumeStreams)
 		{
 			string[] cmd;
 			string[] args = new string[2];
@@ -152,7 +150,7 @@ namespace Quartz.Job
 			try
 			{
 				//with this variable will be done the switching
-				string osName = Environment.GetEnvironmentVariable("OS");
+				string? osName = Environment.GetEnvironmentVariable("OS");
                 if (osName == null)
                 {
                     throw new JobExecutionException("Could not read environment variable for OS");
@@ -269,23 +267,19 @@ namespace Quartz.Job
 			{
 			    try
 			    {
-                    using (StreamReader br = new StreamReader(inputStream))
-                    {
-                        string line;
-
-                        while ((line = br.ReadLine()) != null)
-                        {
-                            if (type == StreamTypeError)
-                            {
-                                enclosingInstance.Log.Warn($"{type}>{line}");
-                            }
-                            else
-                            {
-                                enclosingInstance.Log.Info($"{type}>{line}");
-                            }
-                        }
-                    }
-
+				    using StreamReader br = new StreamReader(inputStream);
+				    string? line;
+				    while ((line = br.ReadLine()) != null)
+				    {
+					    if (type == StreamTypeError)
+					    {
+						    enclosingInstance.Log.Warn($"{type}>{line}");
+					    }
+					    else
+					    {
+						    enclosingInstance.Log.Info($"{type}>{line}");
+					    }
+				    }
 			    }
 				catch (IOException ioe)
 				{

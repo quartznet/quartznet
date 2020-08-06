@@ -51,13 +51,13 @@ namespace Quartz
         /// useful for remembering/displaying the purpose of the calendar, though
         /// the description has no meaning to Quartz.
         /// </summary>
-        string Description { get; set; }
+        string? Description { get; set; }
 
 		/// <summary>
 		/// Set a new base calendar or remove the existing one.
 		/// Get the base calendar.
 		/// </summary>
-		ICalendar CalendarBase { set; get; }
+		ICalendar? CalendarBase { set; get; }
 
 		/// <summary>
 		/// Determine whether the given UTC time  is 'included' by the

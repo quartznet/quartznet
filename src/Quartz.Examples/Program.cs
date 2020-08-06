@@ -63,7 +63,7 @@ namespace Quartz.Examples
                 foreach (Type t in typeList)
                 {
                     string counterString = $"[{counter}]".PadRight(4);
-                    Console.WriteLine("{0} {1} {2}", counterString, t.Namespace.Substring(t.Namespace.LastIndexOf(".") + 1), t.Name);
+                    Console.WriteLine("{0} {1} {2}", counterString, t.Namespace!.Substring(t.Namespace.LastIndexOf(".") + 1), t.Name);
                     typeMap.Add(counter++, t);
                 }
 
@@ -85,9 +85,9 @@ namespace Quartz.Examples
 
         private class TypeNameComparer : IComparer<Type>
         {
-            public int Compare(Type t1, Type t2)
+            public int Compare(Type? t1, Type? t2)
             {
-                if (t1.Namespace.Length > t2.Namespace.Length)
+                if (t1!.Namespace!.Length > t2!.Namespace!.Length)
                 {
                     return 1;
                 }

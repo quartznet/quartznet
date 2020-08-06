@@ -17,7 +17,7 @@ namespace Quartz.Spi
         /// triggering (if any).
         /// </remarks>
         /// <seealso cref="JobExecutionException" />
-        void Triggered(ICalendar calendar);
+        void Triggered(ICalendar? calendar);
 
         /// <summary>
         /// This method should not be used by the Quartz client.
@@ -39,7 +39,7 @@ namespace Quartz.Spi
         /// by the scheduler, which is also the same value <see cref="ITrigger.GetNextFireTimeUtc" />
         /// will return (until after the first firing of the <see cref="ITrigger" />).
         /// </returns>     
-        DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar calendar);
+        DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? calendar);
 
         /// <summary>
         /// This method should not be used by the Quartz client.
@@ -63,7 +63,7 @@ namespace Quartz.Spi
         /// <seealso cref="SchedulerInstruction.DeleteTrigger" />
         /// <seealso cref="SchedulerInstruction.SetTriggerComplete" />
         /// <seealso cref="Triggered" />
-        SchedulerInstruction ExecutionComplete(IJobExecutionContext context, JobExecutionException result);
+        SchedulerInstruction ExecutionComplete(IJobExecutionContext context, JobExecutionException? result);
 
         /// <summary> 
         /// This method should not be used by the Quartz client.
@@ -76,7 +76,7 @@ namespace Quartz.Spi
         /// was created.
         /// </para>
         /// </summary>
-        void UpdateAfterMisfire(ICalendar cal);
+        void UpdateAfterMisfire(ICalendar? cal);
 
         /// <summary> 
         /// This method should not be used by the Quartz client.
@@ -91,13 +91,11 @@ namespace Quartz.Spi
         /// <param name="misfireThreshold"></param>
         void UpdateWithNewCalendar(ICalendar cal, TimeSpan misfireThreshold);
 
-
         /// <summary>
         /// Validates whether the properties of the <see cref="IJobDetail" /> are
         /// valid for submission into a <see cref="IScheduler" />.
         /// </summary>
         void Validate();
-
 
         /// <summary> 
         /// This method should not be used by the Quartz client.

@@ -85,7 +85,7 @@ namespace Quartz.Job
 
             try
             {
-                string portString = GetOptionalParameter(data, PropertySmtpPort);
+                var portString = GetOptionalParameter(data, PropertySmtpPort);
                 int? port = null;
                 if (!string.IsNullOrEmpty(portString))
                 {
@@ -116,10 +116,10 @@ namespace Quartz.Job
             string subject = GetRequiredParameter(data, PropertySubject);
             string message = GetRequiredParameter(data, PropertyMessage);
 
-            string cc = GetOptionalParameter(data, PropertyCcRecipient);
-            string replyTo = GetOptionalParameter(data, PropertyReplyTo);
+            string? cc = GetOptionalParameter(data, PropertyCcRecipient);
+            string? replyTo = GetOptionalParameter(data, PropertyReplyTo);
 
-            string encoding = GetOptionalParameter(data, PropertyEncoding);
+            string? encoding = GetOptionalParameter(data, PropertyEncoding);
 
             MailMessage mailMessage = new MailMessage();
             mailMessage.To.Add(to);
@@ -150,24 +150,18 @@ namespace Quartz.Job
 
         protected virtual string GetRequiredParameter(JobDataMap data, string propertyName)
         {
-            string value = data.GetString(propertyName);
+            var value = data.GetString(propertyName);
             if (string.IsNullOrEmpty(value))
             {
                 throw new ArgumentException(propertyName + " not specified.");
             }
-            return value;
+            return value!;
         }
 
-        protected virtual string GetOptionalParameter(JobDataMap data, string propertyName)
+        protected virtual string? GetOptionalParameter(JobDataMap data, string propertyName)
         {
-            string value = data.GetString(propertyName);
-
-            if (string.IsNullOrEmpty(value))
-            {
-                return null;
-            }
-
-            return value;
+            var value = data.GetString(propertyName);
+            return string.IsNullOrEmpty(value) ? null : value;
         }
 
         protected virtual void Send(MailInfo mailInfo)
@@ -198,15 +192,15 @@ namespace Quartz.Job
 
         public class MailInfo
         {
-            public MailMessage MailMessage { get; set; }
+            public MailMessage MailMessage { get; set; } = null!;
 
-            public string SmtpHost { get; set; }
+            public string SmtpHost { get; set; } = null!;
 
             public int? SmtpPort { get; set; }
 
-            public string SmtpUserName { get; set; }
+            public string? SmtpUserName { get; set; }
 
-            public string SmtpPassword { get; set; }
+            public string? SmtpPassword { get; set; }
         }
     }
 }

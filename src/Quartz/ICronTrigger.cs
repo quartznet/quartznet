@@ -157,7 +157,7 @@ namespace Quartz
         /// Gets or sets the cron expression string.
         /// </summary>
         /// <value>The cron expression string.</value>
-        string CronExpressionString { set; get; }
+        string? CronExpressionString { set; get; }
 
         /// <summary>
         /// Sets the time zone for which the <see cref="CronExpressionString" /> of this
@@ -177,6 +177,6 @@ namespace Quartz
         /// Gets the expression summary.
         /// </summary>
         /// <returns></returns>
-        string GetExpressionSummary();
+        string? GetExpressionSummary();
     }
 }

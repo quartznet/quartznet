@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 
 using Quartz.Simpl;
@@ -22,12 +23,15 @@ namespace Quartz.Job
         {
         }
 
-        internal IReadOnlyList<string> DirectoriesToScan { get; private set; }
-        internal IDirectoryScanListener DirectoryScanListener { get; private set; }
+        internal List<string> DirectoriesToScan { get; private set; } = null!;
+        internal List<FileInfo> CurrentFileList { get; private set; } = null!;
+        internal IDirectoryScanListener DirectoryScanListener { get; private set; } = null!;
         internal DateTime LastModTime { get; private set; }
         internal DateTime MaxAgeDate => DateTime.Now - MinUpdateAge;
         private TimeSpan MinUpdateAge { get; set; }
-        private JobDataMap JobDetailJobDataMap { get; set; }
+        private JobDataMap JobDetailJobDataMap { get; set; } = null!;
+        public string SearchPattern { get; internal set; } = null!;
+        public bool IncludeSubDirectories { get; internal set; }
 
         /// <summary>
         /// Creates an instance of DirectoryScanJobModel by inspecting the provided IJobExecutionContext <see cref="IJobExecutionContext"/>
@@ -58,7 +62,14 @@ namespace Quartz.Job
                     : TimeSpan.FromSeconds(5), // default of 5 seconds
                 JobDetailJobDataMap = context.JobDetail.JobDataMap,
                 DirectoriesToScan = GetDirectoriesToScan(schedCtxt, mergedJobDataMap)
-                    .Distinct().ToList()
+                    .Distinct().ToList(),
+                CurrentFileList = mergedJobDataMap.ContainsKey(DirectoryScanJob.CurrentFileList) ?
+                    (List<FileInfo>)mergedJobDataMap.Get(DirectoryScanJob.CurrentFileList)
+                    : new List<FileInfo>(),
+                SearchPattern = mergedJobDataMap.ContainsKey(DirectoryScanJob.SearchPattern) ?
+                    mergedJobDataMap.GetString(DirectoryScanJob.SearchPattern)! : "*",
+                IncludeSubDirectories = mergedJobDataMap.ContainsKey(DirectoryScanJob.IncludeSubDirectories) 
+                                        && mergedJobDataMap.GetBooleanValue(DirectoryScanJob.IncludeSubDirectories)
             };
 
             return model;
@@ -79,11 +90,20 @@ namespace Quartz.Job
             JobDetailJobDataMap.Put(DirectoryScanJob.LastModifiedTime, newLastModifiedDate);
         }
 
+        /// <summary>
+        /// Updates the file list for comparison in next iteration
+        /// </summary>
+        /// <param name="fileList"></param>
+        internal void UpdateFileList(List<FileInfo> fileList)
+        {
+            JobDetailJobDataMap.Put(DirectoryScanJob.CurrentFileList, fileList);
+        }
+
 
         private static List<string> GetDirectoriesToScan(SchedulerContext schedCtxt, JobDataMap mergedJobDataMap)
         {
             IDirectoryProvider directoryProvider = new DefaultDirectoryProvider();
-            string explicitDirProviderName = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryProviderName);
+            var explicitDirProviderName = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryProviderName);
 
             if (explicitDirProviderName != null)
             {
@@ -99,7 +119,7 @@ namespace Quartz.Job
 
         private static IDirectoryScanListener GetListener(JobDataMap mergedJobDataMap, SchedulerContext schedCtxt)
         {
-            string listenerName = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryScanListenerName);
+            var listenerName = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryScanListenerName);
 
             if (listenerName == null)
             {

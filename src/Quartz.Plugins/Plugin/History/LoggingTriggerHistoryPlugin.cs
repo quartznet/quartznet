@@ -235,7 +235,7 @@ namespace Quartz.Plugin.History
         /// Get the name of the <see cref="ITriggerListener" />.
         /// </summary>
         /// <value></value>
-        public virtual string Name { get; set; }
+        public virtual string Name { get; set; } = null!;
 
         /// <summary>
         /// Called during creation of the <see cref="IScheduler" /> in order to give
@@ -248,7 +248,7 @@ namespace Quartz.Plugin.History
         {
             Name = pluginName;
             scheduler.ListenerManager.AddTriggerListener(this, EverythingMatcher<TriggerKey>.AllTriggers());
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -259,7 +259,7 @@ namespace Quartz.Plugin.History
         public virtual Task Start(CancellationToken cancellationToken = default)
         {
             // do nothing...
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -270,7 +270,7 @@ namespace Quartz.Plugin.History
         public virtual Task Shutdown(CancellationToken cancellationToken = default)
         {
             // nothing to do...
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -292,10 +292,10 @@ namespace Quartz.Plugin.History
         {
             if (!IsInfoEnabled)
             {
-                return TaskUtil.CompletedTask;
+                return Task.CompletedTask;
             }
 
-            object[] args =
+            object?[] args =
             {
                 trigger.Key.Name,
                 trigger.Key.Group,
@@ -308,7 +308,7 @@ namespace Quartz.Plugin.History
             };
 
             WriteInfo(string.Format(CultureInfo.InvariantCulture, TriggerFiredMessage, args));
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -329,10 +329,10 @@ namespace Quartz.Plugin.History
         {
             if (!IsInfoEnabled)
             {
-                return TaskUtil.CompletedTask;
+                return Task.CompletedTask;
             }
 
-            object[] args =
+            object?[] args =
             {
                 trigger.Key.Name,
                 trigger.Key.Group,
@@ -344,7 +344,7 @@ namespace Quartz.Plugin.History
             };
 
             WriteInfo(string.Format(CultureInfo.InvariantCulture, TriggerMisfiredMessage, args));
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -366,7 +366,7 @@ namespace Quartz.Plugin.History
         {
             if (!IsInfoEnabled)
             {
-                return TaskUtil.CompletedTask;
+                return Task.CompletedTask;
             }
 
             string instrCode = "UNKNOWN";
@@ -391,7 +391,7 @@ namespace Quartz.Plugin.History
                 instrCode = "SET THIS TRIGGER COMPLETE";
             }
 
-            object[] args =
+            object?[] args =
             {
                 trigger.Key.Name,
                 trigger.Key.Group,
@@ -406,7 +406,7 @@ namespace Quartz.Plugin.History
             };
 
             WriteInfo(string.Format(CultureInfo.InvariantCulture, TriggerCompleteMessage, args));
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>

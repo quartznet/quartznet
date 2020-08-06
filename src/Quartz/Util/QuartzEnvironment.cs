@@ -22,7 +22,7 @@ namespace Quartz.Util
         /// <summary>
         /// Retrieves the value of an environment variable from the current process.
         /// </summary>
-        public static string GetEnvironmentVariable(string key)
+        public static string? GetEnvironmentVariable(string key)
         {
             try
             {
@@ -38,15 +38,15 @@ namespace Quartz.Util
         /// <summary>
         /// Retrieves all environment variable names and their values from the current process.
         /// </summary>
-        public static IDictionary<string, string> GetEnvironmentVariables()
+        public static IDictionary<string, string?> GetEnvironmentVariables()
         {
-            var retValue = new Dictionary<string, string>();
+            var retValue = new Dictionary<string, string?>();
             try
             {
                 IDictionary variables = Environment.GetEnvironmentVariables();
-                foreach (string key in variables.Keys)
+                foreach (string? key in variables.Keys)
                 {
-                    retValue[key] = variables[key] as string;
+                    retValue[key!] = variables[key!] as string;
                 }
             }
             catch (SecurityException)

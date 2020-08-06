@@ -19,7 +19,6 @@
 
 #endregion
 
-using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -35,8 +34,6 @@ namespace Quartz.Plugin.TimeZoneConverter
     /// </summary>
     public class TimeZoneConverterPlugin : ISchedulerPlugin
     {
-        private Func<string, TimeZoneInfo> originalResolver;
-
         /// <summary>
         /// Called during creation of the <see cref="IScheduler" /> in order to give
         /// the <see cref="ISchedulerPlugin" /> a chance to Initialize.
@@ -46,8 +43,9 @@ namespace Quartz.Plugin.TimeZoneConverter
             IScheduler scheduler,
             CancellationToken cancellationToken = default)
         {
-            // do nothing...
-            return TaskUtil.CompletedTask;
+            TimeZoneUtil.CustomResolver = TZConvert.GetTimeZoneInfo;
+
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -57,9 +55,7 @@ namespace Quartz.Plugin.TimeZoneConverter
         /// </summary>
         public Task Start(CancellationToken cancellationToken = default)
         {
-            originalResolver = TimeZoneUtil.CustomResolver;
-            TimeZoneUtil.CustomResolver = TZConvert.GetTimeZoneInfo;
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -69,8 +65,7 @@ namespace Quartz.Plugin.TimeZoneConverter
         /// </summary>
         public Task Shutdown(CancellationToken cancellationToken = default)
         {
-            TimeZoneUtil.CustomResolver = originalResolver;
-            return TaskUtil.CompletedTask;
+            return Task.CompletedTask;
         }
     }
 }

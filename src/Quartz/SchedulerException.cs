@@ -73,7 +73,7 @@ namespace Quartz
         /// </summary>
         /// <param name="msg">The MSG.</param>
         /// <param name="cause">The cause.</param>
-        public SchedulerException(string msg, Exception cause) : base(msg, cause)
+        public SchedulerException(string msg, Exception? cause) : base(msg, cause)
         {
         }
 

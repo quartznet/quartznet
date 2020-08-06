@@ -36,10 +36,18 @@ namespace Quartz.Util
         /// </summary>
         public const string DefaultGroup = "DEFAULT";
 
-        private string name;
-        private string group;
+        private string name = null!;
+        private string group = null!;
 
         protected Key()
+        {
+        }
+
+        /// <summary>
+        /// Construct a new key with the given name and group.
+        /// </summary>
+        /// <param name="name">the name</param>
+        public Key(string name) : this(name, DefaultGroup)
         {
         }
 
@@ -51,14 +59,7 @@ namespace Quartz.Util
         public Key(string name, string group)
         {
             this.name = name ?? throw new ArgumentNullException(nameof(name), "Name cannot be null.");
-            if (group != null)
-            {
-                this.group = group;
-            }
-            else
-            {
-                this.group = DefaultGroup;
-            }
+            this.group = group ?? DefaultGroup;
         }
 
         /// <summary>
@@ -108,7 +109,7 @@ namespace Quartz.Util
             return result;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (this == obj)
             {
@@ -148,8 +149,13 @@ namespace Quartz.Util
             return true;
         }
 
-        public int CompareTo(Key<T> o)
+        public int CompareTo(Key<T>? o)
         {
+            if (o is null)
+            {
+                return 1;
+            }
+            
             if (group.Equals(DefaultGroup) && !o.group.Equals(DefaultGroup))
             {
                 return -1;

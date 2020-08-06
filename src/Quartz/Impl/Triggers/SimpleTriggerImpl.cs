@@ -59,7 +59,7 @@ namespace Quartz.Impl.Triggers
         /// Create a <see cref="SimpleTriggerImpl" /> that will occur immediately, and
         /// not repeat.
         /// </summary>
-        public SimpleTriggerImpl(string name) : this(name, null)
+        public SimpleTriggerImpl(string name) : this(name, SchedulerConstants.DefaultGroup)
         {
         }
 
@@ -85,7 +85,7 @@ namespace Quartz.Impl.Triggers
         /// Create a <see cref="SimpleTriggerImpl" /> that will occur immediately, and
         /// repeat at the given interval the given number of times.
         /// </summary>
-        public SimpleTriggerImpl(string name, string group, int repeatCount, TimeSpan repeatInterval)
+        public SimpleTriggerImpl(string name, string? group, int repeatCount, TimeSpan repeatInterval)
             : this(name, group, SystemTime.UtcNow(), null, repeatCount, repeatInterval)
         {
         }
@@ -103,7 +103,7 @@ namespace Quartz.Impl.Triggers
         /// Create a <see cref="SimpleTriggerImpl" /> that will occur at the given time,
         /// and not repeat.
         /// </summary>
-        public SimpleTriggerImpl(string name, string group, DateTimeOffset startTimeUtc)
+        public SimpleTriggerImpl(string name, string? group, DateTimeOffset startTimeUtc)
             : this(name, group, startTimeUtc, null, 0, TimeSpan.Zero)
         {
         }
@@ -139,8 +139,13 @@ namespace Quartz.Impl.Triggers
         /// <param name="repeatCount">The number of times for the <see cref="ITrigger" /> to repeat
         /// firing, use <see cref="RepeatIndefinitely "/> for unlimited times.</param>
         /// <param name="repeatInterval">The time span to pause between the repeat firing.</param>
-        public SimpleTriggerImpl(string name, string group, DateTimeOffset startTimeUtc,
-            DateTimeOffset? endTimeUtc, int repeatCount, TimeSpan repeatInterval)
+        public SimpleTriggerImpl(
+	        string name,
+	        string? group,
+	        DateTimeOffset startTimeUtc,
+            DateTimeOffset? endTimeUtc,
+	        int repeatCount,
+	        TimeSpan repeatInterval)
             : base(name, group)
         {
             StartTimeUtc = startTimeUtc;
@@ -226,22 +231,30 @@ namespace Quartz.Impl.Triggers
 
 	    public override IScheduleBuilder GetScheduleBuilder()
 	    {
-            SimpleScheduleBuilder sb = SimpleScheduleBuilder.Create()
-            .WithInterval(RepeatInterval)
-            .WithRepeatCount(RepeatCount);
+		    SimpleScheduleBuilder sb = SimpleScheduleBuilder.Create()
+			    .WithInterval(RepeatInterval)
+			    .WithRepeatCount(RepeatCount);
 
             switch (MisfireInstruction)
             {
-                case Quartz.MisfireInstruction.SimpleTrigger.FireNow: sb.WithMisfireHandlingInstructionFireNow();
+                case Quartz.MisfireInstruction.SimpleTrigger.FireNow:
+	                sb.WithMisfireHandlingInstructionFireNow();
                     break;
-                case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount: sb.WithMisfireHandlingInstructionNextWithExistingCount();
+                case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount:
+	                sb.WithMisfireHandlingInstructionNextWithExistingCount();
                     break;
-                case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount : sb.WithMisfireHandlingInstructionNextWithRemainingCount();
+                case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount:
+	                sb.WithMisfireHandlingInstructionNextWithRemainingCount();
                     break;
-                case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount : sb.WithMisfireHandlingInstructionNowWithExistingCount();
+                case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount:
+	                sb.WithMisfireHandlingInstructionNowWithExistingCount();
                     break;
-                case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount: sb.WithMisfireHandlingInstructionNowWithRemainingCount();
+                case Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount: 
+	                sb.WithMisfireHandlingInstructionNowWithRemainingCount();
                     break;
+                case Quartz.MisfireInstruction.IgnoreMisfirePolicy: 
+	                sb.WithMisfireHandlingInstructionIgnoreMisfires();
+	                break;
             }
 
             return sb;
@@ -331,7 +344,7 @@ namespace Quartz.Impl.Triggers
 		/// </li>
 		/// </ul>
 		/// </remarks>
-		public override void UpdateAfterMisfire(ICalendar cal)
+		public override void UpdateAfterMisfire(ICalendar? cal)
 		{
 			int instr = MisfireInstruction;
 			if (instr == Quartz.MisfireInstruction.SmartPolicy)
@@ -402,7 +415,7 @@ namespace Quartz.Impl.Triggers
 
 				if (newFireTime.HasValue)
 				{
-					int timesMissed = ComputeNumTimesFiredBetween(nextFireTimeUtc, newFireTime);
+					int timesMissed = ComputeNumTimesFiredBetween(nextFireTimeUtc!.Value, newFireTime!.Value);
 					TimesTriggered = TimesTriggered + timesMissed;
 				}
 
@@ -430,7 +443,7 @@ namespace Quartz.Impl.Triggers
 			else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount)
 			{
 				DateTimeOffset newFireTime = SystemTime.UtcNow();
-				int timesMissed = ComputeNumTimesFiredBetween(nextFireTimeUtc, newFireTime);
+				int timesMissed = ComputeNumTimesFiredBetween(nextFireTimeUtc!.Value, newFireTime);
 
 				if (repeatCount != 0 && repeatCount != RepeatIndefinitely)
 				{
@@ -463,7 +476,7 @@ namespace Quartz.Impl.Triggers
 		/// triggering (if any).
 		/// </summary>
 		/// <seealso cref="JobExecutionException" />
-		public override void Triggered(ICalendar cal)
+		public override void Triggered(ICalendar? cal)
 		{
 			timesTriggered++;
 			previousFireTimeUtc = nextFireTimeUtc;
@@ -542,7 +555,7 @@ namespace Quartz.Impl.Triggers
 		/// by the scheduler, which is also the same value <see cref="GetNextFireTimeUtc" />
 		/// will return (until after the first firing of the <see cref="ITrigger" />).
 		/// </returns>
-        public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar cal)
+        public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? cal)
     	{
 			nextFireTimeUtc = StartTimeUtc;
 
@@ -660,12 +673,12 @@ namespace Quartz.Impl.Triggers
 		/// </summary>
         public virtual DateTimeOffset? GetFireTimeBefore(DateTimeOffset? endUtc)
 		{
-			if (endUtc.Value < StartTimeUtc)
+			if (endUtc != null && endUtc.Value < StartTimeUtc)
 			{
 				return null;
 			}
 
-			int numFires = ComputeNumTimesFiredBetween(StartTimeUtc, endUtc);
+			int numFires = ComputeNumTimesFiredBetween(StartTimeUtc, endUtc!.Value);
 			return StartTimeUtc.AddMilliseconds(numFires*repeatInterval.TotalMilliseconds);
 		}
 
@@ -675,9 +688,9 @@ namespace Quartz.Impl.Triggers
         /// <param name="startTimeUtc">The UTC start date and time.</param>
         /// <param name="endTimeUtc">The UTC end date and time.</param>
         /// <returns></returns>
-        public virtual int ComputeNumTimesFiredBetween(DateTimeOffset? startTimeUtc, DateTimeOffset? endTimeUtc)
+        public virtual int ComputeNumTimesFiredBetween(DateTimeOffset startTimeUtc, DateTimeOffset endTimeUtc)
 		{
-			long time = (long) (endTimeUtc.Value - startTimeUtc.Value).TotalMilliseconds;
+			long time = (long) (endTimeUtc - startTimeUtc).TotalMilliseconds;
 			return (int) (time/repeatInterval.TotalMilliseconds);
 		}
 

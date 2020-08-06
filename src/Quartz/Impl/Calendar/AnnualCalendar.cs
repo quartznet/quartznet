@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
 
@@ -79,11 +80,12 @@ namespace Quartz.Impl.Calendar
             {
                 case 0:
                     // 1.x
-                    object o = info.GetValue("excludeDays", typeof(object));
-                    var oldFormat = o as System.Collections.ArrayList;
-                    if (oldFormat != null)
+                    object o = info.GetValue("excludeDays", typeof(object))!;
+                    if (o is ArrayList oldFormat)
                     {
+#pragma warning disable 8605
                         foreach (DateTime dateTime in oldFormat)
+#pragma warning restore 8605
                         {
                             excludeDays.Add(dateTime);
                         }
@@ -99,7 +101,7 @@ namespace Quartz.Impl.Calendar
                     }
                     break;
                 case 1:
-                    var dateTimeOffsets = (List<DateTimeOffset>) info.GetValue("excludeDays", typeof(List<DateTimeOffset>));
+                    var dateTimeOffsets = (List<DateTimeOffset>) info.GetValue("excludeDays", typeof(List<DateTimeOffset>))!;
                     excludeDays = new SortedSet<DateTime>();
                     foreach (var offset in dateTimeOffsets)
                     {
@@ -107,7 +109,7 @@ namespace Quartz.Impl.Calendar
                     }
                     break;
                 case 2:
-                    excludeDays = (SortedSet<DateTime>) info.GetValue("excludeDays", typeof(SortedSet<DateTime>));
+                    excludeDays = (SortedSet<DateTime>) info.GetValue("excludeDays", typeof(SortedSet<DateTime>))!;
                     break;
                 default:
                     throw new NotSupportedException("Unknown serialization version");
@@ -128,7 +130,7 @@ namespace Quartz.Impl.Calendar
         /// </summary>
         public virtual IReadOnlyCollection<DateTime> DaysExcluded
         {
-            get => new ReadOnlyCompatibleHashSet<DateTime>(excludeDays);
+            get => new HashSet<DateTime>(excludeDays);
             set => excludeDays = value == null ? new SortedSet<DateTime>() : new SortedSet<DateTime>(value);
         }
 
@@ -290,7 +292,7 @@ namespace Quartz.Impl.Calendar
             return toReturn;
         }
 
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             if (!(obj is AnnualCalendar))
             {
