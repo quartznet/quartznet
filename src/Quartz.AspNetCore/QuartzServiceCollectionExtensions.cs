@@ -1,9 +1,10 @@
 ﻿using System;
 
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Diagnostics.HealthChecks;
 
+#if SUPPORTS_HEALTH_CHECKS
 using Quartz.AspNetCore.HealthChecks;
+#endif
 
 namespace Quartz
 {
@@ -13,22 +14,16 @@ namespace Quartz
             this IServiceCollection services,
             Action<QuartzHostedServiceOptions>? configure = null)
         {
+#if SUPPORTS_HEALTH_CHECKS
             var check = new QuartzHealthCheck();
             services
                 .AddHealthChecks()
-                .AddQuartzHealthCheck<QuartzHealthCheck>("scheduler", check);
+                .AddCheck("quartz-scheduler", check);
 
             services.AddSingleton<ISchedulerListener>(check);
+#endif
 
             return services.AddQuartzHostedService(configure);
-        }
-
-        private static IHealthChecksBuilder AddQuartzHealthCheck<T>(
-            this IHealthChecksBuilder builder,
-            string suffix,
-            IHealthCheck check)
-        {
-            return builder.AddCheck($"quartz-{suffix}", check);
         }
     }
 }
