@@ -65,7 +65,12 @@ You can configure Microsoft.Extensions.Logging.Abstractions either manually or u
 ```csharp
 // obtain your logger factory, for example from IServiceProvider
 ILoggerFactory loggerFactory = ...;
+
+// Quartz 3.1
 Quartz.LogContext.SetCurrentLogProvider(loggerFactory);
+
+// Quartz 3.2 onwards
+Quartz.Logging.LogContext.SetCurrentLogProvider(loggerFactory);
 ```
 
 #### Configuration using Microsoft DI integration.

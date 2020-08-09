@@ -3,10 +3,9 @@ using System.Diagnostics;
 
 using Microsoft.Extensions.Logging;
 
-using Quartz.Logging;
 using Quartz.Simpl;
 
-namespace Quartz
+namespace Quartz.Logging
 {
     public static class LogContext
     {

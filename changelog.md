@@ -9,9 +9,10 @@ This is a release that focuses on restructuring some packages that warrants for 
 Now Quartz no longer has hard dependency on Microsoft.Data.SqlClient, you need to add that dependency to your project
 if you are using Microsoft SQL Server as backing store for your project. Now requirement is in line with other providers/drivers. 
 
-* (POSSIBLY) BREAKING CHANGES
+* BREAKING CHANGES
 
     * Remove dependency on Microsoft.Data.SqlClient (#912)
+    * LogContext moved from Quartz namespace to Quartz.Logging namespace (#915)
     
 * NEW FEATURE 
  
