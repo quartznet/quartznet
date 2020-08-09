@@ -13,6 +13,7 @@ if you are using Microsoft SQL Server as backing store for your project. Now req
 
     * Remove dependency on Microsoft.Data.SqlClient (#912)
     * LogContext moved from Quartz namespace to Quartz.Logging namespace (#915)
+    * For Full Framework, System.Data.SqlClient is again the default provider, Microsoft.Data can be used via provider MicrosoftDataSqlClient (#916)
     
 * NEW FEATURE 
  

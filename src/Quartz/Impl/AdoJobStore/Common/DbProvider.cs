@@ -103,7 +103,7 @@ namespace Quartz.Impl.AdoJobStore.Common
             dbMetadataLookup[dbProviderName] = metadata;
         }
 
-        private DbMetadata GetDbMetadata(string providerName)
+        private static DbMetadata GetDbMetadata(string providerName)
         {
             if (!dbMetadataLookup.TryGetValue(providerName, out var result))
             {
