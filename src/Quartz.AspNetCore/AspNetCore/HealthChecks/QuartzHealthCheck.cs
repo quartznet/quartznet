@@ -1,3 +1,4 @@
+#if SUPPORTS_HEALTH_CHECKS
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -50,3 +51,4 @@ namespace Quartz.AspNetCore.HealthChecks
         }
     }
 }
+#endif
