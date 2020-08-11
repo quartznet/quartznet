@@ -8,6 +8,7 @@ using Microsoft.Extensions.Logging;
 
 using Quartz.Logging;
 using Quartz.Simpl;
+using Quartz.Spi;
 
 namespace Quartz
 {
@@ -33,6 +34,9 @@ namespace Quartz
             
             var builder = new ServiceCollectionQuartzConfigurator(services, SchedulerBuilder.Create());
             configure?.Invoke(builder);
+            
+            // Note that we can't call UseSimpleTypeLoader(), as that would overwrite any other configured type loaders
+            services.TryAddSingleton(typeof(ITypeLoadHelper), typeof(SimpleTypeLoadHelper));
             
             services.AddSingleton<ISchedulerFactory>(serviceProvider =>
             {
