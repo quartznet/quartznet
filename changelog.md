@@ -19,6 +19,7 @@ if you are using Microsoft SQL Server as backing store for your project. Now req
 
     * Revert change in 3.1: CronExpression/cron trigger throwing NotImplementedException when calculating final fire time (#905)
     * Use 2.1 as the minimum version for the .NET Platform Extensions (#923)
+    * ServiceCollection.AddQuartz() should register default ITypeLoadHelper if none supplied (#924)
 
 * NEW FEATURE 
  
