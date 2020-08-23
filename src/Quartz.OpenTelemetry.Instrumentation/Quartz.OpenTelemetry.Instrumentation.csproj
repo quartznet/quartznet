@@ -11,7 +11,7 @@
     <Compile Include="..\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="OpenTelemetry" Version="0.4.0-beta.2" />
+    <PackageReference Include="OpenTelemetry" Version="0.6.0-beta.1" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Quartz\Quartz.csproj" />

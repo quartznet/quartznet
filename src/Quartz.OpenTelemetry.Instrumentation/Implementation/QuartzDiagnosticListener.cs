@@ -24,7 +24,7 @@ namespace Quartz.OpenTelemetry.Instrumentation.Implementation
             {
                 return;
             }
-            activitySource.Start(activity);
+            activitySource.Start(activity, ActivityKind.Server);
         }
 
         public override void OnStopActivity(Activity activity, object payload)

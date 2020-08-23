@@ -42,16 +42,16 @@ namespace Quartz.Examples.AspNetCore
                 loggingBuilder.AddSerilog(dispose: true);
             });
 
-            services.AddOpenTelemetry(builder =>
+            services.AddOpenTelemetryTracing(builder =>
             {
                 builder
                     .AddQuartzInstrumentation()
-                    .UseZipkinExporter(o =>
+                    .AddZipkinExporter(o =>
                     {
                         o.Endpoint = new Uri("http://localhost:9411/api/v2/spans");
                         o.ServiceName = "Quartz.Examples.AspNetCore";
                     })
-                    .UseJaegerExporter(o =>
+                    .AddJaegerExporter(o =>
                     {
                         o.ServiceName = "Quartz.Examples.AspNetCore";
 
