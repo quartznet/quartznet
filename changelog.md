@@ -7,7 +7,9 @@
 This is a release that focuses on restructuring some packages that warrants for a minor version number increment.
 
 Now Quartz no longer has hard dependency on Microsoft.Data.SqlClient, you need to add that dependency to your project
-if you are using Microsoft SQL Server as backing store for your project. Now requirement is in line with other providers/drivers. 
+if you are using Microsoft SQL Server as backing store for your project. Now requirement is in line with other providers/drivers.
+
+There's also important fix for SQL Server where varying text parameter sizes caused query plan pollution.
 
 * BREAKING CHANGES
 
@@ -20,6 +22,7 @@ if you are using Microsoft SQL Server as backing store for your project. Now req
     * Revert change in 3.1: CronExpression/cron trigger throwing NotImplementedException when calculating final fire time (#905)
     * Use 2.1 as the minimum version for the .NET Platform Extensions (#923)
     * ServiceCollection.AddQuartz() should register default ITypeLoadHelper if none supplied (#924)
+    * SqlServer AdoJobStore SqlParameter without text size generates pressure on server (#939)
 
 * NEW FEATURE 
  
