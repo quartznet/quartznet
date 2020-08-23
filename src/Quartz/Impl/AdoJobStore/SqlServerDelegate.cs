@@ -78,6 +78,12 @@ namespace Quartz.Impl.AdoJobStore
                 size = -1;
             }
 
+            // avoid size inferred from value that cause multiple query plans
+            if (size == null && paramValue is string)
+            {
+                size = 4000;
+            }
+
             base.AddCommandParameter(cmd, paramName, paramValue, dataType, size);
         }
     }
