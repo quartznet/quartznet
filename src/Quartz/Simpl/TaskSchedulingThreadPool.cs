@@ -110,7 +110,7 @@ namespace Quartz.Simpl
         }
 
         /// <summary>
-        /// Initializes the tread pool for use
+        /// Initializes the thread pool for use
         /// </summary>
         /// <remarks>
         /// Note that after invoking this method, neither
