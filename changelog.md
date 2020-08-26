@@ -27,6 +27,7 @@ There's also important fix for SQL Server where varying text parameter sizes cau
 * NEW FEATURE 
  
     * Introduce separate Quartz.Extensions.Hosting (#911)
+    * You can now schedule job and trigger in MS DI integration with single .ScheduleJob call (#943)
 
 ## Release 3.1.0, Jul 24 2020
 
@@ -39,7 +40,7 @@ There is also a very important bug fix present for lock handling on retries. The
 * BREAKING CHANGES
 
     * minimum supported .NET Full Framework is now 4.6.1
-	* changed SQL commands format in `Quartz.Impl.AdoJobStore.JobStoreSupport` (see also [#818](https://github.com/quartznet/quartznet/pull/818)). Affected are only schedulers that use customized configurations of SQL commands in `Quartz.Impl.AdoJobStore.JobStoreSupport`, e.g. `SelectWithLockSQL`. Migration example:
+    * changed SQL commands format in `Quartz.Impl.AdoJobStore.JobStoreSupport` (see also [#818](https://github.com/quartznet/quartznet/pull/818)). Affected are only schedulers that use customized configurations of SQL commands in `Quartz.Impl.AdoJobStore.JobStoreSupport`, e.g. `SelectWithLockSQL`. Migration example:
 ```xml
 <!-- Quartz <=3.0.7 -->
 <item key="quartz.jobStore.selectWithLockSQL">SELECT * FROM {0}LOCKS WITH (UPDLOCK,ROWLOCK) WHERE SCHED_NAME = {1} AND LOCK_NAME = @lockName</item>
@@ -123,7 +124,7 @@ On the road for 3.1 release, also note beta 1 remarks.
     * DI configuration now supports adding scheduler, job and trigger listeners (#877)
     * DI configuration now processes appsettings.json section "Quartz" looking for key value pairs (#877)
     * Use Microsoft.Data.SqlClient as SQL Server connection library (#839)
-	
+    
 * FIXES
 
     * Fix potential scheduler deadlock caused by changed lock request id inside ExecuteInNonManagedTXLock (#794)
@@ -176,7 +177,7 @@ There are also some minor bug fixes present.
     * Release BLOCKED triggers in ReleaseAcquiredTrigger (#741 #800)
     * DailyTimeIntervalTrigger failed to set endingDailyAfterCount = 1
     * CronTrigger: cover all valid misfire policies, and provide a sensible default and logging when seeing an invalid one
-	
+    
 
 ## Release 3.0.7, Oct 7 2018
 
@@ -235,7 +236,7 @@ This release fixes couple bugs and adds support for .NET Core version of Oracle'
 
     * trigger loop encountered using DailyTimeIntervalTrigger across DST start boundary (#610)
     * Missing ConfigureAwait(false) in some parts of code (#618)
-	
+    
 
 ## Release 3.0.4, Mar 4 2018
 
@@ -257,8 +258,8 @@ its CancellationTokenSource with calls it makes. Everyone using 3.x is advised t
     * SQL command parameters are not defined in 'IsTriggerStillPresent' method (#579)
     * Source distribution couldn't be built with build.cmd/.sh when no .git directory present (#596)
     * Currently executing jobs cannot be retrieved via remoting (#580)
-	
-	
+    
+    
 ## Release 3.0.2, Jan 25 2018
 
 This is a minor fix release that fixes single issue that still prevented full usage of remoting.
@@ -712,10 +713,10 @@ This release contains some bug fixes and some compile time breaking changes.
 
     * DailyTimeIntervalTriggerPersistenceDelegate does not store weekdays in correct format
     * DisallowConcurrentExecution decorated triggers not being updated after TriggerCompleted
-	* DailyTimeIntervalTrigger does not work as expected
+    * DailyTimeIntervalTrigger does not work as expected
 
 * Improvement
-	* ADO.NET job store: force UTC ticks when storing datetimes
+    * ADO.NET job store: force UTC ticks when storing datetimes
 
 # Release 2.0 beta 1, October 2, 2011
 
@@ -845,9 +846,9 @@ This release contains some bug fixes and some compile time breaking changes.
     * [QRTZNET-114] - Express intervals and durations using TimeSpan instead of ints and longs
 
 * Breaking changes:
-	* Public API has changed with the introduction of TimeSpan usage,
-	  changes should show only as compile time errors and should be easily
-	  fixable.
+    * Public API has changed with the introduction of TimeSpan usage,
+      changes should show only as compile time errors and should be easily
+      fixable.
 
 ## Release 1.0 RC 1, July 28, 2008
 
