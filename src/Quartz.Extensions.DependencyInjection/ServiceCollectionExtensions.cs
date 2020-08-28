@@ -187,5 +187,16 @@ namespace Quartz
             configurator.Services.AddSingleton(new CalendarConfiguration(name, calendar, replace, updateTriggers));
             return configurator;
         }
+
+        public static IServiceCollectionQuartzConfigurator AddCalendar(
+            this IServiceCollectionQuartzConfigurator configurator,
+            string name,
+            ICalendar calendar,
+            bool replace,
+            bool updateTriggers)
+        {
+            configurator.Services.AddSingleton(new CalendarConfiguration(name, calendar, replace, updateTriggers));
+            return configurator;
+        }
     }
 }
