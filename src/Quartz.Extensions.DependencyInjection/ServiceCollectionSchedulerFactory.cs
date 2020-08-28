@@ -21,7 +21,7 @@ namespace Quartz
         private bool initialized;
 
         public ServiceCollectionSchedulerFactory(
-            IServiceProvider serviceProvider, 
+            IServiceProvider serviceProvider,
             NameValueCollection properties) : base(properties)
         {
             this.serviceProvider = serviceProvider;
@@ -31,7 +31,7 @@ namespace Quartz
         {
             // check if logging provider configured and let if configure
             serviceProvider.GetService<MicrosoftLoggingProvider>();
-            
+
             var scheduler = await base.GetScheduler(cancellationToken);
             if (initialized)
             {
@@ -55,6 +55,12 @@ namespace Quartz
             {
                 var listener = triggerListeners.First(x => x.GetType() == configuration.ListenerType);
                 scheduler.ListenerManager.AddTriggerListener(listener, configuration.Matchers);
+            }
+
+            var calendars = serviceProvider.GetServices<CalendarConfiguration>();
+            foreach (var configuration in calendars)
+            {
+                await scheduler.AddCalendar(configuration.Name, configuration.Calendar, configuration.Replace, configuration.UpdateTriggers, cancellationToken);
             }
 
             ContainerConfigurationProcessor configurationProcessor = new ContainerConfigurationProcessor(serviceProvider);

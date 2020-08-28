@@ -28,6 +28,7 @@ There's also important fix for SQL Server where varying text parameter sizes cau
  
     * Introduce separate Quartz.Extensions.Hosting (#911)
     * You can now schedule job and trigger in MS DI integration with single .ScheduleJob call (#943)
+    * Support adding calendars to MS DI via AddCalendar<T> (#945)
 
 ## Release 3.1.0, Jul 24 2020
 

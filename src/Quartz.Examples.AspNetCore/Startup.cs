@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 
 using OpenTelemetry.Trace;
 
+using Quartz.Impl.Calendar;
 using Quartz.Impl.Matchers;
 
 using Serilog;
@@ -23,7 +24,7 @@ namespace Quartz.Examples.AspNetCore
                 .Enrich.FromLogContext()
                 .WriteTo.Console()
                 .CreateLogger();
-            
+
             Configuration = configuration;
         }
 
@@ -39,7 +40,7 @@ namespace Quartz.Examples.AspNetCore
                 loggingBuilder.ClearProviders();
                 loggingBuilder.AddSerilog(dispose: true);
             });
-            
+
             services.AddOpenTelemetry(builder =>
             {
                 builder
@@ -58,29 +59,29 @@ namespace Quartz.Examples.AspNetCore
                         o.AgentPort = 6831;
                     });
             });
-            
+
             services.AddRazorPages();
-            
+
             // base configuration for DI
             services.AddQuartz(q =>
             {
                 // handy when part of cluster or you want to otherwise identify multiple schedulers
                 q.SchedulerId = "Scheduler-Core";
-                
+
                 // we take this from appsettings.json, just show it's possible
                 // q.SchedulerName = "Quartz ASP.NET Core Sample Scheduler";
 
                 // we could leave DI configuration intact and then jobs need to have public no-arg constructor
-                // the MS DI is expected to produce transient job instances 
+                // the MS DI is expected to produce transient job instances
                 q.UseMicrosoftDependencyInjectionJobFactory(options =>
                 {
                     // if we don't have the job in DI, allow fallback to configure via default constructor
                     options.AllowDefaultConstructor = true;
                 });
 
-                // or 
+                // or
                 // q.UseMicrosoftDependencyInjectionScopedJobFactory();
-                
+
                 // these are the defaults
                 q.UseSimpleTypeLoader();
                 q.UseInMemoryStore();
@@ -112,7 +113,7 @@ namespace Quartz.Examples.AspNetCore
                 );
 
                 q.AddTrigger(t => t
-                    .WithIdentity("Simple Trigger")    
+                    .WithIdentity("Simple Trigger")
                     .ForJob(jobKey)
                     .StartNow()
                     .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).RepeatForever())
@@ -120,19 +121,28 @@ namespace Quartz.Examples.AspNetCore
                 );
 
                 q.AddTrigger(t => t
-                    .WithIdentity("Cron Trigger")    
+                    .WithIdentity("Cron Trigger")
                     .ForJob(jobKey)
                     .StartAt(DateBuilder.EvenSecondDate(DateTimeOffset.UtcNow.AddSeconds(3)))
                     .WithCronSchedule("0/3 * * * * ?")
                     .WithDescription("my awesome cron trigger")
                 );
 
+                const string calendarName = "myHolidayCalendar";
+                q.AddCalendar<HolidayCalendar>(
+                    name: calendarName,
+                    replace: true,
+                    updateTriggers: true,
+                    x => x.AddExcludedDate(new DateTime(2020, 5, 15))
+                );
+
                 q.AddTrigger(t => t
-                    .WithIdentity("Daily Trigger")    
+                    .WithIdentity("Daily Trigger")
                     .ForJob(jobKey)
                     .StartAt(DateBuilder.EvenSecondDate(DateTimeOffset.UtcNow.AddSeconds(5)))
                     .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second))
                     .WithDescription("my awesome daily time interval trigger")
+                    .ModifiedByCalendar(calendarName)
                 );
 
                 // also add XML configuration and poll it for changes
@@ -146,7 +156,7 @@ namespace Quartz.Examples.AspNetCore
 
                 // convert time zones using converter that can handle Windows/Linux differences
                 q.UseTimeZoneConverter();
-                
+
                 // add some listeners
                 q.AddSchedulerListener<SampleSchedulerListener>();
                 q.AddJobListener<SampleJobListener>(GroupMatcher<JobKey>.GroupEquals(jobKey.Group));
@@ -180,7 +190,7 @@ namespace Quartz.Examples.AspNetCore
                 // when shutting down we want jobs to complete gracefully
                 options.WaitForJobsToComplete = true;
             });
-            
+
             services
                 .AddHealthChecksUI()
                 .AddInMemoryStorage();

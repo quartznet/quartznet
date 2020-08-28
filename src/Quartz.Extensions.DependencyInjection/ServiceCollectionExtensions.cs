@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 
+using Quartz.Impl.Calendar;
 using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
@@ -31,13 +32,13 @@ namespace Quartz
 
                 return LogProvider.CurrentLogProvider as MicrosoftLoggingProvider;
             });
-            
+
             var builder = new ServiceCollectionQuartzConfigurator(services, SchedulerBuilder.Create());
             configure?.Invoke(builder);
-            
+
             // Note that we can't call UseSimpleTypeLoader(), as that would overwrite any other configured type loaders
             services.TryAddSingleton(typeof(ITypeLoadHelper), typeof(SimpleTypeLoadHelper));
-            
+
             services.AddSingleton<ISchedulerFactory>(serviceProvider =>
             {
                 // try standard appsettings.json
@@ -49,18 +50,18 @@ namespace Quartz
                 {
                     options.Set(kvp.Key, kvp.Value);
                 }
-                
+
                 // now override with programmatic configuration
                 foreach (string? key in builder.Properties.Keys)
                 {
                     options.Set(key, builder.Properties[key]);
                 }
-                
+
                 return new ServiceCollectionSchedulerFactory(serviceProvider, options);
             });
             return services;
-        }        
-        
+        }
+
         /// <summary>
         /// Configures Quartz services to underlying service collection. This API maybe change!
         /// </summary>
@@ -71,11 +72,11 @@ namespace Quartz
         {
             var builder = new ServiceCollectionQuartzConfigurator(services, SchedulerBuilder.Create(properties));
             configure?.Invoke(builder);
-            
+
             services.AddSingleton<ISchedulerFactory>(serviceProvider => new ServiceCollectionSchedulerFactory(serviceProvider, properties));
             return services;
-        }        
-        
+        }
+
         /// <summary>
         /// Add job to underlying service collection. This API maybe change!
         /// </summary>
@@ -112,7 +113,7 @@ namespace Quartz
         /// Add trigger to underlying service collection. This API maybe change!
         /// </summary>
         public static IServiceCollectionQuartzConfigurator AddTrigger(
-            this IServiceCollectionQuartzConfigurator configurator, 
+            this IServiceCollectionQuartzConfigurator configurator,
             Action<IServiceCollectionTriggerConfigurator>? configure = null)
         {
             var c = new ServiceCollectionTriggerConfigurator(configurator.Services);
@@ -123,9 +124,9 @@ namespace Quartz
             {
                 throw new InvalidOperationException("Trigger hasn't been associated with a job");
             }
-            
+
             configurator.Services.AddTransient(x => trigger);
-            
+
             return configurator;
         }
 
@@ -147,7 +148,7 @@ namespace Quartz
 
             configurator.Services.AddTransient(x => jobDetail);
             configurator.Services.AddTransient(jobDetail.JobType);
-            
+
             var triggerConfigurator = new ServiceCollectionTriggerConfigurator(configurator.Services);
             triggerConfigurator.ForJob(jobDetail);
 
@@ -172,6 +173,19 @@ namespace Quartz
             configure?.Invoke(builder);
             var jobDetail = builder.Build();
             return jobDetail;
+        }
+
+        public static IServiceCollectionQuartzConfigurator AddCalendar<T>(
+            this IServiceCollectionQuartzConfigurator configurator,
+            string name,
+            bool replace,
+            bool updateTriggers,
+            Action<T> configure) where T : ICalendar, new()
+        {
+            var calendar = new T();
+            configure(calendar);
+            configurator.Services.AddSingleton(new CalendarConfiguration(name, calendar, replace, updateTriggers));
+            return configurator;
         }
     }
 }
