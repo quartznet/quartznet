@@ -83,17 +83,30 @@ namespace Quartz
             this IServiceCollectionQuartzConfigurator configurator,
             Action<IServiceCollectionJobConfigurator>? configure = null) where T : IJob
         {
-            var c = new ServiceCollectionJobConfigurator(configurator.Services);
-            c.OfType<T>();
+            return AddJob<T>(configurator, null, configure);
+        }
 
-            configure?.Invoke(c);
-            var jobDetail = c.Build();
+        /// <summary>
+        /// Add job to underlying service collection. This API maybe change!
+        /// </summary>
+        public static IServiceCollectionQuartzConfigurator AddJob<T>(
+            this IServiceCollectionQuartzConfigurator configurator,
+            JobKey? jobKey = null,
+            Action<IServiceCollectionJobConfigurator>? configure = null) where T : IJob
+        {
+            var c = new ServiceCollectionJobConfigurator(configurator.Services);
+            if (jobKey != null)
+            {
+                c.WithIdentity(jobKey);
+            }
+
+            var jobDetail = ConfigureAndBuildJobDetail<T>(c, configure);
 
             configurator.Services.AddTransient(x => jobDetail);
             configurator.Services.AddTransient(jobDetail.JobType);
-            
+
             return configurator;
-        }        
+        }
 
         /// <summary>
         /// Add trigger to underlying service collection. This API maybe change!
@@ -105,10 +118,60 @@ namespace Quartz
             var c = new ServiceCollectionTriggerConfigurator(configurator.Services);
             configure?.Invoke(c);
             var trigger = c.Build();
+
+            if (trigger.JobKey is null)
+            {
+                throw new InvalidOperationException("Trigger hasn't been associated with a job");
+            }
             
             configurator.Services.AddTransient(x => trigger);
             
             return configurator;
+        }
+
+        /// <summary>
+        /// Schedule job with trigger to underlying service collection. This API maybe change!
+        /// </summary>
+        public static IServiceCollectionQuartzConfigurator ScheduleJob<T>(
+            this IServiceCollectionQuartzConfigurator configurator,
+            Action<IServiceCollectionTriggerConfigurator> trigger,
+            Action<IServiceCollectionJobConfigurator>? job = null) where T : IJob
+        {
+            if (trigger is null)
+            {
+                throw new ArgumentNullException(nameof(trigger));
+            }
+
+            var jobConfigurator = new ServiceCollectionJobConfigurator(configurator.Services);
+            var jobDetail = ConfigureAndBuildJobDetail<T>(jobConfigurator, job);
+
+            configurator.Services.AddTransient(x => jobDetail);
+            configurator.Services.AddTransient(jobDetail.JobType);
+            
+            var triggerConfigurator = new ServiceCollectionTriggerConfigurator(configurator.Services);
+            triggerConfigurator.ForJob(jobDetail);
+
+            trigger.Invoke(triggerConfigurator);
+            var t = triggerConfigurator.Build();
+
+            if (t.JobKey is null || !t.JobKey.Equals(jobDetail.Key))
+            {
+                throw new InvalidOperationException("Trigger doesn't refer to job being scheduled");
+            }
+
+            configurator.Services.AddTransient(x => t);
+
+            return configurator;
+        }
+
+        private static IJobDetail ConfigureAndBuildJobDetail<T>(
+            ServiceCollectionJobConfigurator builder,
+            Action<IServiceCollectionJobConfigurator>? configure) where T : IJob
+        {
+            builder.OfType<T>();
+            configure?.Invoke(builder);
+            var jobDetail = builder.Build();
+            return jobDetail;
         }
     }
 }
