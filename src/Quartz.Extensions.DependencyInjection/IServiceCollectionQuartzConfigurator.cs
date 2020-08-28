@@ -9,7 +9,7 @@ namespace Quartz
     public interface IServiceCollectionQuartzConfigurator : IPropertyConfigurer
     {
         internal IServiceCollection Services { get; }
-        
+
         /// <summary>
         /// Configure custom job factory.
         /// </summary>

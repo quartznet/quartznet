@@ -9,7 +9,7 @@ using Quartz.Spi;
 
 namespace Quartz
 {
-    internal class ServiceCollectionQuartzConfigurator : IServiceCollectionQuartzConfigurator 
+    internal class ServiceCollectionQuartzConfigurator : IServiceCollectionQuartzConfigurator
     {
         private readonly IServiceCollection services;
         internal readonly SchedulerBuilder schedulerBuilder;
@@ -53,7 +53,7 @@ namespace Quartz
         {
             schedulerBuilder.UsePersistentStore(configure);
         }
-        
+
         public void UseMicrosoftDependencyInjectionJobFactory(Action<JobFactoryOptions>? configure = null)
         {
             UseJobFactory<MicrosoftDependencyInjectionJobFactory>(configure);
@@ -115,29 +115,5 @@ namespace Quartz
             services.AddSingleton(new TriggerListenerConfiguration(typeof(T), matchers));
             services.AddSingleton<ITriggerListener, T>();
         }
-    }
-
-    internal class JobListenerConfiguration
-    {
-        public JobListenerConfiguration(Type listenerType, IMatcher<JobKey>[] matchers)
-        {
-            ListenerType = listenerType;
-            Matchers = matchers;
-        }
-
-        public Type ListenerType { get; }
-        public IMatcher<JobKey>[] Matchers  {  get;  }
-    }
-
-    internal class TriggerListenerConfiguration
-    {
-        public TriggerListenerConfiguration(Type listenerType, IMatcher<TriggerKey>[] matchers)
-        {
-            ListenerType = listenerType;
-            Matchers = matchers;
-        }
-
-        public Type ListenerType { get; }
-        public IMatcher<TriggerKey>[] Matchers  {  get;  }
     }
 }

@@ -104,12 +104,22 @@ public void ConfigureServices(IServiceCollection services)
             .WithDescription("my awesome cron trigger")
         );
 
+        // you can add calendars too (requires version 3.2)
+        const string calendarName = "myHolidayCalendar";
+        q.AddCalendar<HolidayCalendar>(
+            name: calendarName,
+            replace: true,
+            updateTriggers: true,
+            x => x.AddExcludedDate(new DateTime(2020, 5, 15))
+        );
+
         q.AddTrigger(t => t
-            .WithIdentity("Daily Trigger")    
+            .WithIdentity("Daily Trigger")
             .ForJob(jobKey)
             .StartAt(DateBuilder.EvenSecondDate(DateTimeOffset.UtcNow.AddSeconds(5)))
             .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second))
             .WithDescription("my awesome daily time interval trigger")
+            .ModifiedByCalendar(calendarName)
         );
         
         // also add XML configuration and poll it for changes
