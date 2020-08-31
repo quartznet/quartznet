@@ -2,7 +2,7 @@
 provides integration with [hosted services](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services).
 
 ::: tip
-Quartz 3.2 or later required.
+Quartz 3.2 or later required for Quartz.Extensions.Hosting. You can use package Quartz.AspNetCore with version 3.1.
 :::
 
 ## Installation
