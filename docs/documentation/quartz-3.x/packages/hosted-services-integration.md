@@ -9,6 +9,12 @@ Quartz 3.2 or later required.
 
 You need to add NuGet package reference to your project which uses Quartz.
 
+**Quartz 3.1**
+
+    Install-Package Quartz.AspNetCore 
+
+**Quartz 3.2 onwards**
+
     Install-Package Quartz.Extensions.Hosting
 
 ## Using
