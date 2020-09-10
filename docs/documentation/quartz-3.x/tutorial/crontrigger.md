@@ -74,7 +74,7 @@ Here are some full examples:
 | 0 15 10 ? * *				| Fire at 10:15am every day|
 | 0 15 10 * * ?				| Fire at 10:15am every day|
 | 0 15 10 * * ? *			| Fire at 10:15am every day|
-| 0 15 10 * * ?				| 2005	Fire at 10:15am every day during the year 2005|
+| 0 15 10 * * ?	2005			| Fire at 10:15am every day during the year 2005|
 | 0 * 14 * * ?				| Fire every minute starting at 2pm and ending at 2:59pm, every day|
 | 0 0/5 14 * * ?			| Fire every 5 minutes starting at 2pm and ending at 2:55pm, every day|
 | 0 0/5 14,18 * * ?			| Fire every 5 minutes starting at 2pm and ending at 2:55pm, AND fire every 5 minutes starting at 6pm and ending at 6:55pm, every day|
