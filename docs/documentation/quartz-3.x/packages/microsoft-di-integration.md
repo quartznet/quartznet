@@ -34,6 +34,10 @@ You can also configure properties using standard .NET Core `appsettings.json` in
 }
 ````
 
+## DI aware job factories
+
+Quartz comes with two built-in alternatives for job factory which can be configured via either calling `UseMicrosoftDependencyInjectionJobFactory` or `UseMicrosoftDependencyInjectionScopedJobFactory`. The former doesn't utilize scopes and is a bit more lightweight but the latter is required if you want to consume scoped services like Entity Framework's DbContext.
+
 **Example Startup.ConfigureServices configuration**
 
 ```csharp
@@ -48,14 +52,15 @@ public void ConfigureServices(IServiceCollection services)
         // q.SchedulerName = "Quartz ASP.NET Core Sample Scheduler";
         
         // we could leave DI configuration intact and then jobs need to have public no-arg constructor
-        // the MS DI is expected to produce transient job instances 
+        // the MS DI is expected to produce transient job instances
+        // this WONT'T work with scoped services like EF Core's DbContext
         q.UseMicrosoftDependencyInjectionJobFactory(options =>
         {
             // if we don't have the job in DI, allow fallback to configure via default constructor
             options.AllowDefaultConstructor = true;
         });
 
-        // or 
+        // or for scoped service support like EF Core DbContext
         // q.UseMicrosoftDependencyInjectionScopedJobFactory();
         
         // these are the defaults
