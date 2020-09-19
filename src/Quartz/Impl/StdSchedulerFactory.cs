@@ -209,6 +209,12 @@ namespace Quartz.Impl
                 throw initException;
             }
 
+            var props = InitializeProperties(Log, throwOnProblem: true);
+            Initialize(OverrideWithSysProps(props ?? new NameValueCollection()));
+        }
+
+        internal static NameValueCollection? InitializeProperties(ILog logger, bool throwOnProblem)
+        {
             var props = Util.Configuration.GetSection(ConfigurationSectionName);
             var requestedFile = QuartzEnvironment.GetEnvironmentVariable(PropertiesFile);
             string propFileName = !string.IsNullOrWhiteSpace(requestedFile) ? requestedFile : "~/quartz.config";
@@ -220,7 +226,7 @@ namespace Quartz.Impl
             }
             catch (SecurityException)
             {
-                log.WarnFormat("Unable to resolve file path '{0}' due to security exception, probably running under medium trust");
+                logger.WarnFormat("Unable to resolve file path '{0}' due to security exception, probably running under medium trust");
                 propFileName = "quartz.config";
             }
 
@@ -231,13 +237,14 @@ namespace Quartz.Impl
                 {
                     PropertiesParser pp = PropertiesParser.ReadFromFileResource(propFileName!);
                     props = pp.UnderlyingProperties;
-                    Log.Info($"Quartz.NET properties loaded from configuration file '{propFileName}'");
+                    logger?.Info($"Quartz.NET properties loaded from configuration file '{propFileName}'");
                 }
                 catch (Exception ex)
                 {
-                    Log.ErrorException("Could not load properties for Quartz from file {0}: {1}".FormatInvariant(propFileName!, ex.Message), ex);
+                    logger?.ErrorException("Could not load properties for Quartz from file {0}: {1}".FormatInvariant(propFileName!, ex.Message), ex);
                 }
             }
+
             if (props == null)
             {
                 // read from assembly
@@ -245,20 +252,23 @@ namespace Quartz.Impl
                 {
                     PropertiesParser pp = PropertiesParser.ReadFromEmbeddedAssemblyResource("Quartz.quartz.config");
                     props = pp.UnderlyingProperties;
-                    Log.Info("Default Quartz.NET properties loaded from embedded resource file");
+                    logger?.Info("Default Quartz.NET properties loaded from embedded resource file");
                 }
                 catch (Exception ex)
                 {
-                    Log.ErrorException("Could not load default properties for Quartz from Quartz assembly: {0}".FormatInvariant(ex.Message), ex);
+                    logger?.ErrorException("Could not load default properties for Quartz from Quartz assembly: {0}".FormatInvariant(ex.Message), ex);
                 }
             }
-            if (props == null)
+
+            if (props == null && throwOnProblem)
             {
                 throw new SchedulerConfigException(
                     @"Could not find <quartz> configuration section from your application config or load default configuration from assembly.
 Please add configuration to your application config file to correctly initialize Quartz.");
             }
-            Initialize(OverrideWithSysProps(props));
+
+
+            return props;
         }
 
         /// <summary>
