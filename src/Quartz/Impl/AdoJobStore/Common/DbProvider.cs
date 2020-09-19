@@ -22,12 +22,14 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Collections.Specialized;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
 using System.Reflection;
 using System.Text;
 
+using Quartz.Logging;
 using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore.Common
@@ -54,13 +56,14 @@ namespace Quartz.Impl.AdoJobStore.Common
         private static readonly ConcurrentDictionary<string, DbMetadata> dbMetadataLookup = new ConcurrentDictionary<string, DbMetadata>();
 
         /// <summary>
-        /// Parse metadata once in static constructor.
+        /// Parse metadata once.
         /// </summary>
         static DbProvider()
         {
+            var properties = StdSchedulerFactory.InitializeProperties(LogProvider.NoOpLogger.Instance, throwOnProblem: false);
             dbMetadataFactories = new List<DbMetadataFactory>
             {
-                new ConfigurationBasedDbMetadataFactory(DbProviderSectionName, PropertyDbProvider),
+                new ConfigurationBasedDbMetadataFactory(properties ?? new NameValueCollection(), PropertyDbProvider),
                 new EmbeddedAssemblyResourceDbMetadataFactory(DbProviderResourceName, PropertyDbProvider)
             };
         }

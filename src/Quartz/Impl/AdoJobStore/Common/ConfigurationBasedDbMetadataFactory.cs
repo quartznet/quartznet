@@ -11,24 +11,23 @@ namespace Quartz.Impl.AdoJobStore.Common
     /// </summary>
     public class ConfigurationBasedDbMetadataFactory : DbMetadataFactory
     {
-        private readonly string sectionName;
-        private readonly string providerNamePrefix;
+        private readonly string propertyGroupName;
+        private readonly NameValueCollection properties;
 
         /// <summary>
-        /// Initializes a new instance of the <see cref="EmbeddedAssemblyResourceDbMetadataFactory" /> class.
+        /// Initializes a new instance of the <see cref="ConfigurationBasedDbMetadataFactory" /> class.
         /// </summary>
-        /// <param name="sectionName">Name of the configuration section.</param>
-        /// <param name="providerNamePrefix">The provider name prefix.</param>
-        /// <exception cref="System.ArgumentNullException">The providerNamePrefix cannot be null or empty.</exception>
-        public ConfigurationBasedDbMetadataFactory(string sectionName, string providerNamePrefix)
+        /// <param name="properties">Name of the configuration section.</param>
+        /// <param name="propertyGroupName">The provider name prefix.</param>
+        public ConfigurationBasedDbMetadataFactory(NameValueCollection properties, string propertyGroupName)
         {
-            if (string.IsNullOrEmpty(providerNamePrefix))
+            if (string.IsNullOrEmpty(propertyGroupName))
             {
-                throw new ArgumentNullException(nameof(providerNamePrefix));
+                throw new ArgumentNullException(nameof(propertyGroupName));
             }
 
-            this.sectionName = sectionName;
-            this.providerNamePrefix = providerNamePrefix;
+            this.properties = properties ?? throw new ArgumentNullException(nameof(properties));
+            this.propertyGroupName = propertyGroupName;
         }
 
         /// <summary>
@@ -37,8 +36,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <returns>The properties parser</returns>
         protected virtual PropertiesParser GetPropertiesParser()
         {
-            var settings = Util.Configuration.GetSection(sectionName) ?? new NameValueCollection();
-            var result = new PropertiesParser(settings);
+            var result = new PropertiesParser(properties);
             return result;
         }
 
@@ -49,7 +47,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         public override IReadOnlyCollection<string> GetProviderNames()
         {
             PropertiesParser pp = GetPropertiesParser();
-            var result = pp.GetPropertyGroups(providerNamePrefix);
+            var result = pp.GetPropertyGroups(propertyGroupName);
             return result;
         }
 
@@ -63,7 +61,7 @@ namespace Quartz.Impl.AdoJobStore.Common
             try
             {
                 PropertiesParser pp = GetPropertiesParser();
-                NameValueCollection props = pp.GetPropertyGroup(providerNamePrefix + "." + providerName, true);
+                NameValueCollection props = pp.GetPropertyGroup(propertyGroupName + "." + providerName, true);
                 DbMetadata metadata = new DbMetadata();
 
                 ObjectUtils.SetObjectProperties(metadata, props);

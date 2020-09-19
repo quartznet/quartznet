@@ -23,6 +23,7 @@ There's also important fix for SQL Server where varying text parameter sizes cau
     * Use 2.1 as the minimum version for the .NET Platform Extensions (#923)
     * ServiceCollection.AddQuartz() should register default ITypeLoadHelper if none supplied (#924)
     * SqlServer AdoJobStore SqlParameter without text size generates pressure on server (#939)
+    * DbProvider initialization logic should also read quartz.config (#951)
 
 * NEW FEATURE 
  

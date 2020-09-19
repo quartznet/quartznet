@@ -6,7 +6,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 
-using Quartz.Impl.Calendar;
 using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
