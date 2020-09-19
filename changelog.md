@@ -24,6 +24,7 @@ There's also important fix for SQL Server where varying text parameter sizes cau
     * ServiceCollection.AddQuartz() should register default ITypeLoadHelper if none supplied (#924)
     * SqlServer AdoJobStore SqlParameter without text size generates pressure on server (#939)
     * DbProvider initialization logic should also read quartz.config (#951)
+    * LoggingJobHistoryPlugin and LoggingTriggerHistoryPlugin names are null with IoC configuration (#926)
 
 * NEW FEATURE 
  
