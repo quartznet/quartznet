@@ -289,7 +289,7 @@ namespace Quartz.Plugin.History
         /// Get the name of the <see cref="IJobListener" />.
         /// </summary>
         /// <value></value>
-        public string Name { get; set; } = null!;
+        public virtual string Name { get; set; } = "Logging Job History Plugin";
 
         /// <summary>
         /// Called during creation of the <see cref="IScheduler" /> in order to give
