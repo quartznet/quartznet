@@ -102,7 +102,7 @@ In-progress Jobs marked "recoverable" are automatically re-executed after a sche
 
 This means the job should be coded in such a way that its work is idempotent.
 
-## Listeners (TriggerListener, JobListener, SchedulerListener
+## Listeners (TriggerListener, JobListener, SchedulerListener)
 
 ### Keep Code In Listeners Concise And Efficient
 
@@ -121,7 +121,7 @@ If a listener throws an exception, it may cause other listeners not to be notifi
 Some users expose Quartz's Scheduler functionality through an application user interface. This can be very useful, though it can also be extremely dangerous.
 
 Be sure you don't mistakenly allow users to define jobs of any type they wish, with whatever parameters they wish. 
-For example, Quartz.Jobs package ships with a pre-made job `NativeJo`, which will execute any arbitrary native (operating system) system command that it is defined to. 
+For example, Quartz.Jobs package ships with a pre-made job `NativeJob`, which will execute any arbitrary native (operating system) system command that it is defined to. 
 Malicious users could use this to take control of, or destroy your system.
 
 Likewise other jobs such as `SendEmailJob`, and virtually any others could be used for malicious intent.
