@@ -2,6 +2,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 
 namespace Quartz
 {
@@ -13,10 +14,10 @@ namespace Quartz
 
         public QuartzHostedService(
             ISchedulerFactory schedulerFactory,
-            QuartzHostedServiceOptions options)
+            IOptions<QuartzHostedServiceOptions> options)
         {
             this.schedulerFactory = schedulerFactory;
-            this.options = options;
+            this.options = options.Value;
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)

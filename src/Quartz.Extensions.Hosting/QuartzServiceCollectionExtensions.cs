@@ -11,15 +11,11 @@ namespace Quartz
             this IServiceCollection services,
             Action<QuartzHostedServiceOptions>? configure = null)
         {
-            return services.AddSingleton<IHostedService>(serviceProvider =>
+            if (configure != null)
             {
-                var scheduler = serviceProvider.GetRequiredService<ISchedulerFactory>();
-
-                var options = new QuartzHostedServiceOptions();
-                configure?.Invoke(options);
-                
-                return new QuartzHostedService(scheduler, options);
-            });
+                services.Configure(configure);
+            }
+            return services.AddSingleton<IHostedService, QuartzHostedService>();
         }
     }
 }

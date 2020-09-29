@@ -1,8 +1,6 @@
-using System;
 using System.Collections.Generic;
-using System.Linq;
 
-using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 using Quartz.Spi;
 using Quartz.Xml;
@@ -14,19 +12,21 @@ namespace Quartz
     /// </summary>
     internal class ContainerConfigurationProcessor : XMLSchedulingDataProcessor
     {
-        private readonly IServiceProvider serviceProvider;
+        private readonly IOptions<QuartzOptions> options;
 
-        public ContainerConfigurationProcessor(IServiceProvider serviceProvider) 
-            : base(serviceProvider.GetRequiredService<ITypeLoadHelper>())
+        public ContainerConfigurationProcessor(
+            ITypeLoadHelper typeLoadHelper,
+            IOptions<QuartzOptions> options) 
+            : base(typeLoadHelper)
         {
-            this.serviceProvider = serviceProvider;
-            var options = serviceProvider.GetService<QuartzSchedulingOptions>() ?? new QuartzSchedulingOptions();
-            OverWriteExistingData = options.OverWriteExistingData;
-            IgnoreDuplicates = options.IgnoreDuplicates;
-            ScheduleTriggerRelativeToReplacedTrigger = options.ScheduleTriggerRelativeToReplacedTrigger;
+            this.options = options;
         }
 
-        protected override IReadOnlyList<IJobDetail> LoadedJobs => serviceProvider.GetServices<IJobDetail>().ToList();
-        protected override IReadOnlyList<ITrigger> LoadedTriggers => serviceProvider.GetServices<ITrigger>().ToList();
+        public override bool OverWriteExistingData => options.Value.Scheduling.OverWriteExistingData;
+        public override bool IgnoreDuplicates => options.Value.Scheduling.IgnoreDuplicates;
+        public override bool ScheduleTriggerRelativeToReplacedTrigger => options.Value.Scheduling.ScheduleTriggerRelativeToReplacedTrigger;
+
+        protected override IReadOnlyList<IJobDetail> LoadedJobs => options.Value.JobDetails;
+        protected override IReadOnlyList<ITrigger> LoadedTriggers => options.Value.Triggers;
     }
 }

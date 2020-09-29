@@ -4,8 +4,8 @@ namespace Quartz
 {
     public static class TriggerExtensions
     {
-        public static IServiceCollectionTriggerConfigurator WithDailyTimeIntervalSchedule(
-            this IServiceCollectionTriggerConfigurator triggerBuilder,
+        public static ITriggerConfigurator WithDailyTimeIntervalSchedule(
+            this ITriggerConfigurator triggerBuilder,
             Action<DailyTimeIntervalScheduleBuilder>? action = null)
         {
             DailyTimeIntervalScheduleBuilder builder = DailyTimeIntervalScheduleBuilder.Create();
@@ -14,16 +14,16 @@ namespace Quartz
             return triggerBuilder;
         }
 
-        public static IServiceCollectionTriggerConfigurator WithDailyTimeIntervalSchedule(
-            this IServiceCollectionTriggerConfigurator triggerBuilder,
+        public static ITriggerConfigurator WithDailyTimeIntervalSchedule(
+            this ITriggerConfigurator triggerBuilder,
             DailyTimeIntervalScheduleBuilder schedule)
         {
             triggerBuilder.WithSchedule(schedule);
             return triggerBuilder;
         }
 
-        public static IServiceCollectionTriggerConfigurator WithCalendarIntervalSchedule(
-            this IServiceCollectionTriggerConfigurator triggerBuilder,
+        public static ITriggerConfigurator WithCalendarIntervalSchedule(
+            this ITriggerConfigurator triggerBuilder,
             Action<CalendarIntervalScheduleBuilder>? action = null)
         {
             CalendarIntervalScheduleBuilder builder = CalendarIntervalScheduleBuilder.Create();
@@ -32,16 +32,16 @@ namespace Quartz
             return triggerBuilder;
         }
 
-        public static IServiceCollectionTriggerConfigurator WithCalendarIntervalSchedule(
-            this IServiceCollectionTriggerConfigurator triggerBuilder,
+        public static ITriggerConfigurator WithCalendarIntervalSchedule(
+            this ITriggerConfigurator triggerBuilder,
             CalendarIntervalScheduleBuilder schedule)
         {
             triggerBuilder.WithSchedule(schedule);
             return triggerBuilder;
         }
 
-        public static IServiceCollectionTriggerConfigurator WithCronSchedule(
-            this IServiceCollectionTriggerConfigurator triggerBuilder,
+        public static ITriggerConfigurator WithCronSchedule(
+            this ITriggerConfigurator triggerBuilder,
             string cronExpression,
             Action<CronScheduleBuilder>? action = null)
         {
@@ -51,16 +51,16 @@ namespace Quartz
             return triggerBuilder;
         }
 
-        public static IServiceCollectionTriggerConfigurator WithCronSchedule(
-            this IServiceCollectionTriggerConfigurator triggerBuilder,
+        public static ITriggerConfigurator WithCronSchedule(
+            this ITriggerConfigurator triggerBuilder,
             CronScheduleBuilder schedule)
         {
             triggerBuilder.WithSchedule(schedule);
             return triggerBuilder;
         }
 
-        public static IServiceCollectionTriggerConfigurator WithSimpleSchedule(
-            this IServiceCollectionTriggerConfigurator triggerBuilder,
+        public static ITriggerConfigurator WithSimpleSchedule(
+            this ITriggerConfigurator triggerBuilder,
             Action<SimpleScheduleBuilder>? action = null)
         {
             SimpleScheduleBuilder builder = SimpleScheduleBuilder.Create();
@@ -69,8 +69,8 @@ namespace Quartz
             return triggerBuilder;
         }
 
-        public static IServiceCollectionTriggerConfigurator WithSimpleSchedule(
-            this IServiceCollectionTriggerConfigurator triggerBuilder,
+        public static ITriggerConfigurator WithSimpleSchedule(
+            this ITriggerConfigurator triggerBuilder,
             SimpleScheduleBuilder schedule)
         {
             triggerBuilder.WithSchedule(schedule);

@@ -1,10 +1,10 @@
 ﻿using System;
 using System.Collections.Specialized;
 
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 using Quartz.Logging;
 using Quartz.Simpl;
@@ -21,44 +21,7 @@ namespace Quartz
             this IServiceCollection services,
             Action<IServiceCollectionQuartzConfigurator>? configure = null)
         {
-            services.TryAddSingleton<MicrosoftLoggingProvider?>(serviceProvider =>
-            {
-                var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
-                if (loggerFactory != null)
-                {
-                    LogContext.SetCurrentLogProvider(loggerFactory);
-                }
-
-                return LogProvider.CurrentLogProvider as MicrosoftLoggingProvider;
-            });
-
-            var builder = new ServiceCollectionQuartzConfigurator(services, SchedulerBuilder.Create());
-            configure?.Invoke(builder);
-
-            // Note that we can't call UseSimpleTypeLoader(), as that would overwrite any other configured type loaders
-            services.TryAddSingleton(typeof(ITypeLoadHelper), typeof(SimpleTypeLoadHelper));
-
-            services.AddSingleton<ISchedulerFactory>(serviceProvider =>
-            {
-                // try standard appsettings.json
-                var config = serviceProvider.GetService<IConfiguration>();
-                var section = config.GetSection("Quartz");
-                var options = new NameValueCollection();
-
-                foreach (var kvp in section.GetChildren())
-                {
-                    options.Set(kvp.Key, kvp.Value);
-                }
-
-                // now override with programmatic configuration
-                foreach (string? key in builder.Properties.Keys)
-                {
-                    options.Set(key, builder.Properties[key]);
-                }
-
-                return new ServiceCollectionSchedulerFactory(serviceProvider, options);
-            });
-            return services;
+            return AddQuartz(services, new NameValueCollection(), configure);
         }
 
         /// <summary>
@@ -69,10 +32,39 @@ namespace Quartz
             NameValueCollection properties,
             Action<IServiceCollectionQuartzConfigurator>? configure = null)
         {
-            var builder = new ServiceCollectionQuartzConfigurator(services, SchedulerBuilder.Create(properties));
-            configure?.Invoke(builder);
+            services.TryAddSingleton<MicrosoftLoggingProvider?>(serviceProvider =>
+            {
+                var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
+                if (loggerFactory != null)
+                {
+                    LogContext.SetCurrentLogProvider(loggerFactory);
+                }
 
-            services.AddSingleton<ISchedulerFactory>(serviceProvider => new ServiceCollectionSchedulerFactory(serviceProvider, properties));
+                return LogProvider.CurrentLogProvider as MicrosoftLoggingProvider;
+            });
+            
+            // Note that we can't call UseSimpleTypeLoader(), as that would overwrite any other configured type loaders
+            services.TryAddSingleton(typeof(ITypeLoadHelper), typeof(SimpleTypeLoadHelper));
+
+            var schedulerBuilder = SchedulerBuilder.Create(properties);
+            if (configure != null)
+            {
+                var target = new ServiceCollectionQuartzConfigurator(services, schedulerBuilder);
+                configure(target);
+            }
+            
+            services.Configure<QuartzOptions>(options =>
+            {
+                foreach (var key in schedulerBuilder.Properties.AllKeys)
+                {
+                    options[key] = schedulerBuilder.Properties[key];
+                }
+            });
+            
+            services.AddSingleton<ContainerConfigurationProcessor>();
+            services.AddSingleton<IPostConfigureOptions<QuartzOptions>, QuartzConfiguration>();
+            services.AddSingleton<ISchedulerFactory, ServiceCollectionSchedulerFactory>();
+
             return services;
         }
 
@@ -80,42 +72,45 @@ namespace Quartz
         /// Add job to underlying service collection. This API maybe change!
         /// </summary>
         public static IServiceCollectionQuartzConfigurator AddJob<T>(
-            this IServiceCollectionQuartzConfigurator configurator,
-            Action<IServiceCollectionJobConfigurator>? configure = null) where T : IJob
+            this IServiceCollectionQuartzConfigurator options,
+            Action<IJobConfigurator>? configure = null) where T : IJob
         {
-            return AddJob<T>(configurator, null, configure);
+            return AddJob<T>(options, null, configure);
         }
 
         /// <summary>
         /// Add job to underlying service collection. This API maybe change!
         /// </summary>
         public static IServiceCollectionQuartzConfigurator AddJob<T>(
-            this IServiceCollectionQuartzConfigurator configurator,
+            this IServiceCollectionQuartzConfigurator options,
             JobKey? jobKey = null,
-            Action<IServiceCollectionJobConfigurator>? configure = null) where T : IJob
+            Action<IJobConfigurator>? configure = null) where T : IJob
         {
-            var c = new ServiceCollectionJobConfigurator(configurator.Services);
+            var c = new JobConfigurator();
             if (jobKey != null)
             {
                 c.WithIdentity(jobKey);
             }
 
             var jobDetail = ConfigureAndBuildJobDetail<T>(c, configure);
+            
+            options.Services.Configure<QuartzOptions>(x =>
+            {
+                x.JobDetails.Add(jobDetail);
+            });
+            options.Services.TryAddTransient(jobDetail.JobType);
 
-            configurator.Services.AddTransient(x => jobDetail);
-            configurator.Services.AddTransient(jobDetail.JobType);
-
-            return configurator;
+            return options;
         }
 
         /// <summary>
         /// Add trigger to underlying service collection. This API maybe change!
         /// </summary>
         public static IServiceCollectionQuartzConfigurator AddTrigger(
-            this IServiceCollectionQuartzConfigurator configurator,
-            Action<IServiceCollectionTriggerConfigurator>? configure = null)
+            this IServiceCollectionQuartzConfigurator options,
+            Action<ITriggerConfigurator>? configure = null)
         {
-            var c = new ServiceCollectionTriggerConfigurator(configurator.Services);
+            var c = new TriggerConfigurator();
             configure?.Invoke(c);
             var trigger = c.Build();
 
@@ -124,31 +119,38 @@ namespace Quartz
                 throw new InvalidOperationException("Trigger hasn't been associated with a job");
             }
 
-            configurator.Services.AddTransient(x => trigger);
+            options.Services.Configure<QuartzOptions>(x =>
+            {
+                x.Triggers.Add(trigger);
+            });
 
-            return configurator;
+            return options;
         }
 
         /// <summary>
         /// Schedule job with trigger to underlying service collection. This API maybe change!
         /// </summary>
         public static IServiceCollectionQuartzConfigurator ScheduleJob<T>(
-            this IServiceCollectionQuartzConfigurator configurator,
-            Action<IServiceCollectionTriggerConfigurator> trigger,
-            Action<IServiceCollectionJobConfigurator>? job = null) where T : IJob
+            this IServiceCollectionQuartzConfigurator options,
+            Action<ITriggerConfigurator> trigger,
+            Action<IJobConfigurator>? job = null) where T : IJob
         {
             if (trigger is null)
             {
                 throw new ArgumentNullException(nameof(trigger));
             }
 
-            var jobConfigurator = new ServiceCollectionJobConfigurator(configurator.Services);
+            var jobConfigurator = new JobConfigurator();
             var jobDetail = ConfigureAndBuildJobDetail<T>(jobConfigurator, job);
 
-            configurator.Services.AddTransient(x => jobDetail);
-            configurator.Services.AddTransient(jobDetail.JobType);
+            options.Services.Configure<QuartzOptions>(quartzOptions =>
+            {
+                quartzOptions.JobDetails.Add(jobDetail);
+            });
+            
+            options.Services.TryAddTransient(jobDetail.JobType);
 
-            var triggerConfigurator = new ServiceCollectionTriggerConfigurator(configurator.Services);
+            var triggerConfigurator = new TriggerConfigurator();
             triggerConfigurator.ForJob(jobDetail);
 
             trigger.Invoke(triggerConfigurator);
@@ -159,14 +161,17 @@ namespace Quartz
                 throw new InvalidOperationException("Trigger doesn't refer to job being scheduled");
             }
 
-            configurator.Services.AddTransient(x => t);
-
-            return configurator;
+            options.Services.Configure<QuartzOptions>(quartzOptions =>
+            {
+                quartzOptions.Triggers.Add(t);
+            });
+            
+            return options;
         }
 
         private static IJobDetail ConfigureAndBuildJobDetail<T>(
-            ServiceCollectionJobConfigurator builder,
-            Action<IServiceCollectionJobConfigurator>? configure) where T : IJob
+            JobConfigurator builder,
+            Action<IJobConfigurator>? configure) where T : IJob
         {
             builder.OfType<T>();
             configure?.Invoke(builder);
