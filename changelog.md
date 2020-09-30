@@ -25,6 +25,7 @@ There's also important fix for SQL Server where varying text parameter sizes cau
     * SqlServer AdoJobStore SqlParameter without text size generates pressure on server (#939)
     * DbProvider initialization logic should also read quartz.config (#951)
     * LoggingJobHistoryPlugin and LoggingTriggerHistoryPlugin names are null with IoC configuration (#926)
+    * Improve options pattern to allow better custom configuration story (#955)
 
 * NEW FEATURE 
  
