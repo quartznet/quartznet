@@ -62,7 +62,7 @@ namespace Quartz.Examples.AspNetCore
             });
 
             services.AddRazorPages();
-            
+
             // base configuration for DI
             services.AddQuartz(q =>
             {

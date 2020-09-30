@@ -9,7 +9,7 @@ namespace Quartz
     internal class QuartzHostedService : IHostedService
     {
         private readonly ISchedulerFactory schedulerFactory;
-        private readonly QuartzHostedServiceOptions options;
+        private readonly IOptions<QuartzHostedServiceOptions> options;
         private IScheduler scheduler = null!;
 
         public QuartzHostedService(
@@ -17,7 +17,7 @@ namespace Quartz
             IOptions<QuartzHostedServiceOptions> options)
         {
             this.schedulerFactory = schedulerFactory;
-            this.options = options.Value;
+            this.options = options;
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
@@ -28,7 +28,7 @@ namespace Quartz
 
         public Task StopAsync(CancellationToken cancellationToken)
         {
-            return scheduler.Shutdown(options.WaitForJobsToComplete, cancellationToken);
+            return scheduler.Shutdown(options.Value.WaitForJobsToComplete, cancellationToken);
         }
     }
 }
