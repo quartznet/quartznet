@@ -1569,7 +1569,7 @@ namespace Quartz.Core
         {
             var listeners = new List<ITriggerListener>();
             listeners.AddRange(ListenerManager.GetTriggerListeners());
-            listeners.AddRange(InternalTriggerListeners);
+            listeners.AddRange(internalTriggerListeners.Values);
             return listeners;
         }
 
@@ -1577,7 +1577,7 @@ namespace Quartz.Core
         {
             var listeners = new List<IJobListener>();
             listeners.AddRange(ListenerManager.GetJobListeners());
-            listeners.AddRange(InternalJobListeners);
+            listeners.AddRange(internalJobListeners.Values);
             return listeners;
         }
 
@@ -1703,12 +1703,14 @@ namespace Quartz.Core
             var listeners = BuildTriggerListenerList();
 
             // notify all trigger listeners in the list
-            foreach (ITriggerListener tl in listeners)
+            for (var i = 0; i < listeners.Count; i++)
             {
+                ITriggerListener tl = listeners[i];
                 if (!MatchTriggerListener(tl, jec.Trigger.Key))
                 {
                     continue;
                 }
+
                 try
                 {
                     await tl.TriggerComplete(jec.Trigger, jec, instCode, cancellationToken).ConfigureAwait(false);
@@ -1731,11 +1733,12 @@ namespace Quartz.Core
             CancellationToken cancellationToken = default)
         {
             // build a list of all job listeners that are to be notified...
-            IEnumerable<IJobListener> listeners = BuildJobListenerList();
+            var listeners = BuildJobListenerList();
 
             // notify all job listeners
-            foreach (IJobListener jl in listeners)
+            for (var i = 0; i < listeners.Count; i++)
             {
+                IJobListener jl = listeners[i];
                 if (!MatchJobListener(jl, jec.JobDetail.Key))
                 {
                     continue;
@@ -1795,11 +1798,12 @@ namespace Quartz.Core
             CancellationToken cancellationToken = default)
         {
             // build a list of all job listeners that are to be notified...
-            IEnumerable<IJobListener> listeners = BuildJobListenerList();
+            var listeners = BuildJobListenerList();
 
             // notify all job listeners
-            foreach (IJobListener jl in listeners)
+            for (var i = 0; i < listeners.Count; i++)
             {
+                IJobListener jl = listeners[i];
                 if (!MatchJobListener(jl, jec.JobDetail.Key))
                 {
                     continue;
@@ -1828,11 +1832,12 @@ namespace Quartz.Core
             CancellationToken cancellationToken = default)
         {
             // build a list of all scheduler listeners that are to be notified...
-            IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
+            var schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
-            foreach (ISchedulerListener sl in schedListeners)
+            for (var i = 0; i < schedListeners.Count; i++)
             {
+                ISchedulerListener sl = schedListeners[i];
                 try
                 {
                     await sl.SchedulerError(msg, se, cancellationToken).ConfigureAwait(false);
@@ -1865,11 +1870,12 @@ namespace Quartz.Core
             CancellationToken cancellationToken = default)
         {
             // build a list of all scheduler listeners that are to be notified...
-            IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
+            var schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
-            foreach (ISchedulerListener sl in schedListeners)
+            for (var i = 0; i < schedListeners.Count; i++)
             {
+                ISchedulerListener sl = schedListeners[i];
                 try
                 {
                     if (triggerKey == null)
@@ -1913,18 +1919,19 @@ namespace Quartz.Core
             CancellationToken cancellationToken = default)
         {
             // build a list of all job listeners that are to be notified...
-            IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
+            var schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
-            foreach (ISchedulerListener sl in schedListeners)
+            for (var i = 0; i < schedListeners.Count; i++)
             {
+                ISchedulerListener sl = schedListeners[i];
                 try
                 {
-                    await sl.TriggersPaused(group, cancellationToken).ConfigureAwait(false);
+                    await sl.TriggersPaused(@group, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
-                    log.ErrorException($"Error while notifying SchedulerListener of paused group: {group}", e);
+                    log.ErrorException($"Error while notifying SchedulerListener of paused group: {@group}", e);
                 }
             }
         }
@@ -1937,11 +1944,12 @@ namespace Quartz.Core
             CancellationToken cancellationToken = default)
         {
             // build a list of all job listeners that are to be notified...
-            IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
+            var schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
-            foreach (ISchedulerListener sl in schedListeners)
+            for (var i = 0; i < schedListeners.Count; i++)
             {
+                ISchedulerListener sl = schedListeners[i];
                 try
                 {
                     await sl.TriggerPaused(triggerKey, cancellationToken).ConfigureAwait(false);
@@ -1973,11 +1981,12 @@ namespace Quartz.Core
             CancellationToken cancellationToken = default)
         {
             // build a list of all job listeners that are to be notified...
-            IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
+            var schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
-            foreach (ISchedulerListener sl in schedListeners)
+            for (var i = 0; i < schedListeners.Count; i++)
             {
+                ISchedulerListener sl = schedListeners[i];
                 try
                 {
                     await sl.TriggerResumed(triggerKey, cancellationToken).ConfigureAwait(false);
@@ -1997,11 +2006,12 @@ namespace Quartz.Core
             CancellationToken cancellationToken = default)
         {
             // build a list of all job listeners that are to be notified...
-            IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
+            var schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
-            foreach (ISchedulerListener sl in schedListeners)
+            for (var i = 0; i < schedListeners.Count; i++)
             {
+                ISchedulerListener sl = schedListeners[i];
                 try
                 {
                     sl.JobPaused(jobKey, cancellationToken);
@@ -2021,18 +2031,19 @@ namespace Quartz.Core
             CancellationToken cancellationToken = default)
         {
             // build a list of all job listeners that are to be notified...
-            IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
+            var schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
-            foreach (ISchedulerListener sl in schedListeners)
+            for (var i = 0; i < schedListeners.Count; i++)
             {
+                ISchedulerListener sl = schedListeners[i];
                 try
                 {
-                    await sl.JobsPaused(group, cancellationToken).ConfigureAwait(false);
+                    await sl.JobsPaused(@group, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
-                    log.ErrorException($"Error while notifying SchedulerListener of paused group: {group}", e);
+                    log.ErrorException($"Error while notifying SchedulerListener of paused group: {@group}", e);
                 }
             }
         }
@@ -2045,11 +2056,12 @@ namespace Quartz.Core
             CancellationToken cancellationToken = default)
         {
             // build a list of all job listeners that are to be notified...
-            IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
+            var schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
-            foreach (ISchedulerListener sl in schedListeners)
+            for (var i = 0; i < schedListeners.Count; i++)
             {
+                ISchedulerListener sl = schedListeners[i];
                 try
                 {
                     await sl.JobResumed(jobKey, cancellationToken).ConfigureAwait(false);
@@ -2069,18 +2081,19 @@ namespace Quartz.Core
             CancellationToken cancellationToken = default)
         {
             // build a list of all job listeners that are to be notified...
-            IEnumerable<ISchedulerListener> schedListeners = BuildSchedulerListenerList();
+            var schedListeners = BuildSchedulerListenerList();
 
             // notify all scheduler listeners
-            foreach (ISchedulerListener sl in schedListeners)
+            for (var i = 0; i < schedListeners.Count; i++)
             {
+                ISchedulerListener sl = schedListeners[i];
                 try
                 {
-                    await sl.JobsResumed(group, cancellationToken).ConfigureAwait(false);
+                    await sl.JobsResumed(@group, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception e)
                 {
-                    log.ErrorException($"Error while notifying SchedulerListener of resumed group: {group}", e);
+                    log.ErrorException($"Error while notifying SchedulerListener of resumed group: {@group}", e);
                 }
             }
         }

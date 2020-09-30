@@ -47,6 +47,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Extensions.Hosting",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Examples.Worker", "src\Quartz.Examples.Worker\Quartz.Examples.Worker.csproj", "{2BB03F5A-7736-42E9-A572-5D60336A9BFF}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Benchmark", "src\Quartz.Benchmark\Quartz.Benchmark.csproj", "{23DEAB6E-D12C-40F6-A50E-6584FEAA389C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -113,6 +115,10 @@ Global
 		{2BB03F5A-7736-42E9-A572-5D60336A9BFF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2BB03F5A-7736-42E9-A572-5D60336A9BFF}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2BB03F5A-7736-42E9-A572-5D60336A9BFF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{23DEAB6E-D12C-40F6-A50E-6584FEAA389C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{23DEAB6E-D12C-40F6-A50E-6584FEAA389C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{23DEAB6E-D12C-40F6-A50E-6584FEAA389C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{23DEAB6E-D12C-40F6-A50E-6584FEAA389C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
