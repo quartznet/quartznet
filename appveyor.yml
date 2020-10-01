@@ -17,8 +17,6 @@ skip_commits:
     - docs/**/*
     - package.json
     - docs.yml
-    - README.md  
-    - changelog.md  
 
 services:
 - mysql
