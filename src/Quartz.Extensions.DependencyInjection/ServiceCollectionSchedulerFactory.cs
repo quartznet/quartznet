@@ -1,10 +1,10 @@
 using System;
-using System.Collections.Specialized;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 using Quartz.Impl;
 using Quartz.Simpl;
@@ -18,13 +18,18 @@ namespace Quartz
     internal class ServiceCollectionSchedulerFactory : StdSchedulerFactory
     {
         private readonly IServiceProvider serviceProvider;
+        private readonly IOptions<QuartzOptions> options;
+        private readonly ContainerConfigurationProcessor processor;
         private bool initialized;
 
         public ServiceCollectionSchedulerFactory(
             IServiceProvider serviceProvider,
-            NameValueCollection properties) : base(properties)
+            IOptions<QuartzOptions> options,
+            ContainerConfigurationProcessor processor)
         {
             this.serviceProvider = serviceProvider;
+            this.options = options;
+            this.processor = processor;
         }
 
         public override async Task<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
@@ -32,6 +37,7 @@ namespace Quartz
             // check if logging provider configured and let if configure
             serviceProvider.GetService<MicrosoftLoggingProvider>();
 
+            base.Initialize(options.Value);
             var scheduler = await base.GetScheduler(cancellationToken);
             if (initialized)
             {
@@ -63,8 +69,7 @@ namespace Quartz
                 await scheduler.AddCalendar(configuration.Name, configuration.Calendar, configuration.Replace, configuration.UpdateTriggers, cancellationToken);
             }
 
-            ContainerConfigurationProcessor configurationProcessor = new ContainerConfigurationProcessor(serviceProvider);
-            await configurationProcessor.ScheduleJobs(scheduler, cancellationToken);
+            await processor.ScheduleJobs(scheduler, cancellationToken);
             initialized = true;
             return scheduler;
         }

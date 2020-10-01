@@ -103,7 +103,7 @@ namespace Quartz.Xml
         /// error will occur.
         /// </remarks>
         /// <seealso cref="IgnoreDuplicates" />
-        public bool OverWriteExistingData { get; set; }
+        public virtual bool OverWriteExistingData { get; set; }
 
         /// <summary>
         /// If true (and <see cref="OverWriteExistingData" /> is false) then any
@@ -111,7 +111,7 @@ namespace Quartz.Xml
         /// in the scheduler will be ignored, and no error will be produced.
         /// </summary>
         /// <seealso cref="OverWriteExistingData"/>
-        public bool IgnoreDuplicates { get; set; }
+        public virtual bool IgnoreDuplicates { get; set; }
 
         /// <summary>
         /// If true (and <see cref="OverWriteExistingData" /> is true) then any
@@ -120,7 +120,7 @@ namespace Quartz.Xml
         /// new trigger's last fire time will be updated to old trigger's last fire time
         /// and trigger's next fire time will updated to be next from this last fire time.
         /// </summary>
-        public bool ScheduleTriggerRelativeToReplacedTrigger { get; set; }
+        public virtual bool ScheduleTriggerRelativeToReplacedTrigger { get; set; }
 
         /// <summary>
         /// Gets the log.

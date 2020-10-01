@@ -1,146 +1,138 @@
 using System;
 
-using Microsoft.Extensions.DependencyInjection;
-
 namespace Quartz
 {
-    internal class ServiceCollectionTriggerConfigurator : IServiceCollectionTriggerConfigurator
+    internal class TriggerConfigurator : ITriggerConfigurator
     {
-        private readonly IServiceCollection services;
         private readonly TriggerBuilder triggerBuilder = new TriggerBuilder();
 
-        public ServiceCollectionTriggerConfigurator(IServiceCollection services)
-        {
-            this.services = services;
-        }
-
-        public IServiceCollectionTriggerConfigurator WithIdentity(string name)
+        public ITriggerConfigurator WithIdentity(string name)
         {
             triggerBuilder.WithIdentity(name);
             return this;
         }
 
-        public IServiceCollectionTriggerConfigurator WithIdentity(string name, string @group)
+        public ITriggerConfigurator WithIdentity(string name, string @group)
         {
             triggerBuilder.WithIdentity(name, @group);
             return this;
         }
 
-        public IServiceCollectionTriggerConfigurator WithIdentity(TriggerKey key)
+        public ITriggerConfigurator WithIdentity(TriggerKey key)
         {
             triggerBuilder.WithIdentity(key);
             return this;
         }
 
-        public IServiceCollectionTriggerConfigurator WithDescription(string? description)
+        public ITriggerConfigurator WithDescription(string? description)
         {
             triggerBuilder.WithDescription(description);
             return this;
         }
 
-        public IServiceCollectionTriggerConfigurator WithPriority(int priority)
+        public ITriggerConfigurator WithPriority(int priority)
         {
             triggerBuilder.WithPriority(priority);
             return this;
         }
 
-        public IServiceCollectionTriggerConfigurator ModifiedByCalendar(string? calendarName)
+        public ITriggerConfigurator ModifiedByCalendar(string? calendarName)
         {
             triggerBuilder.ModifiedByCalendar(calendarName);
             return this;
         }
 
-        public IServiceCollectionTriggerConfigurator StartAt(DateTimeOffset startTimeUtc)
+        public ITriggerConfigurator StartAt(DateTimeOffset startTimeUtc)
         {
             triggerBuilder.StartAt(startTimeUtc);
             return this;
         }
 
-        public IServiceCollectionTriggerConfigurator StartNow()
+        public ITriggerConfigurator StartNow()
         {
             triggerBuilder.StartNow();
             return this;
         }
 
-        public IServiceCollectionTriggerConfigurator EndAt(DateTimeOffset? endTimeUtc)
+        public ITriggerConfigurator EndAt(DateTimeOffset? endTimeUtc)
         {
             triggerBuilder.EndAt(endTimeUtc);
             return this;
         }
 
-        public IServiceCollectionTriggerConfigurator WithSchedule(IScheduleBuilder scheduleBuilder)
+        public ITriggerConfigurator WithSchedule(IScheduleBuilder scheduleBuilder)
         {
             triggerBuilder.WithSchedule(scheduleBuilder);
             return this;
         }
 
-        public IServiceCollectionTriggerConfigurator ForJob(JobKey jobKey)
+        public ITriggerConfigurator ForJob(JobKey jobKey)
         {
             triggerBuilder.ForJob(jobKey);
             return this;
         }
 
-        public IServiceCollectionTriggerConfigurator ForJob(string jobName)
+        public ITriggerConfigurator ForJob(string jobName)
         {
             triggerBuilder.ForJob(jobName);
             return this;
         }
 
-        public IServiceCollectionTriggerConfigurator ForJob(string jobName, string jobGroup)
+        public ITriggerConfigurator ForJob(string jobName, string jobGroup)
         {
             triggerBuilder.ForJob(jobName, jobGroup);
             return this;
         }
 
-        public IServiceCollectionTriggerConfigurator ForJob(IJobDetail jobDetail)
+        public ITriggerConfigurator ForJob(IJobDetail jobDetail)
         {
             triggerBuilder.ForJob(jobDetail);
             return this;
         }
 
-        public IServiceCollectionTriggerConfigurator UsingJobData(JobDataMap newJobDataMap)
+        public ITriggerConfigurator UsingJobData(JobDataMap newJobDataMap)
         {
             triggerBuilder.UsingJobData(newJobDataMap);
             return this;
         }
 
-        public IServiceCollectionTriggerConfigurator UsingJobData(string key, string value)
+        public ITriggerConfigurator UsingJobData(string key, string value)
         {
             triggerBuilder.UsingJobData(key, value);
             return this;
         }
 
-        public IServiceCollectionTriggerConfigurator UsingJobData(string key, int value)
+        public ITriggerConfigurator UsingJobData(string key, int value)
         {
             triggerBuilder.UsingJobData(key, value);
             return this;
         }
 
-        public IServiceCollectionTriggerConfigurator UsingJobData(string key, long value)
+        public ITriggerConfigurator UsingJobData(string key, long value)
         {
             triggerBuilder.UsingJobData(key, value);
             return this;
         }
 
-        public IServiceCollectionTriggerConfigurator UsingJobData(string key, float value)
+        public ITriggerConfigurator UsingJobData(string key, float value)
         {
             triggerBuilder.UsingJobData(key, value);
             return this;
         }
 
-        public IServiceCollectionTriggerConfigurator UsingJobData(string key, double value)
+        public ITriggerConfigurator UsingJobData(string key, double value)
         {
             triggerBuilder.UsingJobData(key, value);
             return this;
         }
 
-        public IServiceCollectionTriggerConfigurator UsingJobData(string key, decimal value)
+        public ITriggerConfigurator UsingJobData(string key, decimal value)
         {
             triggerBuilder.UsingJobData(key, value);
             return this;
         }
 
-        public IServiceCollectionTriggerConfigurator UsingJobData(string key, bool value)
+        public ITriggerConfigurator UsingJobData(string key, bool value)
         {
             triggerBuilder.UsingJobData(key, value);
             return this;

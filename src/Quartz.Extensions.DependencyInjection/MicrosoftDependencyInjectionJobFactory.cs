@@ -1,6 +1,7 @@
 using System;
 
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 
 using Quartz.Simpl;
 using Quartz.Spi;
@@ -10,11 +11,11 @@ namespace Quartz
     internal sealed class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
     {
         private readonly IServiceProvider serviceProvider;
-        private readonly JobFactoryOptions options;
+        private readonly IOptions<QuartzOptions> options;
 
         public MicrosoftDependencyInjectionJobFactory(
             IServiceProvider serviceProvider,
-            JobFactoryOptions options)
+            IOptions<QuartzOptions> options)
         {
             this.serviceProvider = serviceProvider;
             this.options = options;
@@ -22,7 +23,7 @@ namespace Quartz
 
         protected override IJob InstantiateJob(TriggerFiredBundle bundle, IScheduler scheduler)
         {
-            if (!options.AllowDefaultConstructor)
+            if (!options.Value.JobFactory.AllowDefaultConstructor)
             {
                 return (IJob) serviceProvider.GetRequiredService(bundle.JobDetail.JobType);
             }

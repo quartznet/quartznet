@@ -6,6 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 using OpenTelemetry.Trace;
 
@@ -183,6 +184,26 @@ namespace Quartz.Examples.AspNetCore
                 });
                 */
             });
+            
+            // we can use options pattern to support hooking your own configuration with Quartz's
+            // because we don't use service registration api, we need to manally ensure the job is present in DI
+            services.AddTransient<ExampleJob>();
+                        
+            services.Configure<SampleOptions>(Configuration.GetSection("Sample"));
+            services.AddOptions<QuartzOptions>()
+                .Configure<IOptions<SampleOptions>>((options, dep) =>
+                {
+                    if (!string.IsNullOrWhiteSpace(dep.Value.CronSchedule))
+                    {
+                        var jobKey = new JobKey("options-custom-job", "custom");
+                        options.AddJob<ExampleJob>(j => j.WithIdentity(jobKey));
+                        options.AddTrigger(trigger => trigger
+                            .WithIdentity("options-custom-trigger", "custom")
+                            .ForJob(jobKey)
+                            .WithCronSchedule(dep.Value.CronSchedule));
+                    }
+                });
+
 
             // ASP.NET Core hosting
             services.AddQuartzServer(options =>

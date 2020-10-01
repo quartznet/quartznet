@@ -12,9 +12,11 @@ namespace Quartz
     internal class ServiceCollectionQuartzConfigurator : IServiceCollectionQuartzConfigurator
     {
         private readonly IServiceCollection services;
-        internal readonly SchedulerBuilder schedulerBuilder;
+        private readonly SchedulerBuilder schedulerBuilder;
 
-        internal ServiceCollectionQuartzConfigurator(IServiceCollection collection, SchedulerBuilder schedulerBuilder)
+        internal ServiceCollectionQuartzConfigurator(
+            IServiceCollection collection,
+            SchedulerBuilder schedulerBuilder)
         {
             services = collection;
             this.schedulerBuilder = schedulerBuilder;
@@ -68,9 +70,13 @@ namespace Quartz
         {
             schedulerBuilder.UseJobFactory<T>();
             services.TryAddSingleton(typeof(IJobFactory), typeof(T));
-            var options = new JobFactoryOptions();
-            configure?.Invoke(options);
-            services.TryAddSingleton(options);
+            if (configure != null)
+            {
+                services.Configure<QuartzOptions>(options =>
+                {
+                    configure(options.JobFactory);
+                });
+            };
         }
 
         public void UseTypeLoader<T>() where T : ITypeLoadHelper
