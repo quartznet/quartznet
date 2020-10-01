@@ -32,6 +32,7 @@ namespace Quartz
             NameValueCollection properties,
             Action<IServiceCollectionQuartzConfigurator>? configure = null)
         {
+            services.AddOptions();
             services.TryAddSingleton<MicrosoftLoggingProvider?>(serviceProvider =>
             {
                 var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
@@ -61,9 +62,14 @@ namespace Quartz
                 }
             });
             
-            services.AddSingleton<ContainerConfigurationProcessor>();
-            services.AddSingleton<IPostConfigureOptions<QuartzOptions>, QuartzConfiguration>();
-            services.AddSingleton<ISchedulerFactory, ServiceCollectionSchedulerFactory>();
+            services.TryAddSingleton<ContainerConfigurationProcessor>();
+            services.TryAddSingleton<ISchedulerFactory, ServiceCollectionSchedulerFactory>();
+
+            // Note: TryAddEnumerable() is used here to ensure the initializers are registered only once.
+            services.TryAddEnumerable(new []
+            {
+                ServiceDescriptor.Singleton<IPostConfigureOptions<QuartzOptions>, QuartzConfiguration>()
+            });
 
             return services;
         }

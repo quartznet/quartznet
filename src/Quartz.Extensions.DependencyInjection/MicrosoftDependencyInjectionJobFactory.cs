@@ -11,19 +11,19 @@ namespace Quartz
     internal sealed class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
     {
         private readonly IServiceProvider serviceProvider;
-        private readonly QuartzOptions options;
+        private readonly IOptions<QuartzOptions> options;
 
         public MicrosoftDependencyInjectionJobFactory(
             IServiceProvider serviceProvider,
             IOptions<QuartzOptions> options)
         {
             this.serviceProvider = serviceProvider;
-            this.options = options.Value;
+            this.options = options;
         }
 
         protected override IJob InstantiateJob(TriggerFiredBundle bundle, IScheduler scheduler)
         {
-            if (!options.JobFactory.AllowDefaultConstructor)
+            if (!options.Value.JobFactory.AllowDefaultConstructor)
             {
                 return (IJob) serviceProvider.GetRequiredService(bundle.JobDetail.JobType);
             }
