@@ -69,7 +69,7 @@ namespace Quartz
         public void UseJobFactory<T>(Action<JobFactoryOptions>? configure = null) where T : IJobFactory
         {
             schedulerBuilder.UseJobFactory<T>();
-            services.TryAddSingleton(typeof(IJobFactory), typeof(T));
+            services.Replace(new ServiceDescriptor(typeof(IJobFactory), typeof(T), ServiceLifetime.Singleton));
             if (configure != null)
             {
                 services.Configure<QuartzOptions>(options =>
@@ -82,7 +82,7 @@ namespace Quartz
         public void UseTypeLoader<T>() where T : ITypeLoadHelper
         {
             schedulerBuilder.UseTypeLoader<T>();
-            services.TryAddSingleton(typeof(ITypeLoadHelper), typeof(T));
+            services.Replace(new ServiceDescriptor(typeof(ITypeLoadHelper), typeof(T), ServiceLifetime.Singleton));
         }
 
         public void UseThreadPool<T>(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null) where T : IThreadPool

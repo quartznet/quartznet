@@ -102,7 +102,7 @@ namespace Quartz
             
             options.Services.Configure<QuartzOptions>(x =>
             {
-                x.JobDetails.Add(jobDetail);
+                x.jobDetails.Add(jobDetail);
             });
             options.Services.TryAddTransient(jobDetail.JobType);
 
@@ -127,7 +127,7 @@ namespace Quartz
 
             options.Services.Configure<QuartzOptions>(x =>
             {
-                x.Triggers.Add(trigger);
+                x.triggers.Add(trigger);
             });
 
             return options;
@@ -151,7 +151,7 @@ namespace Quartz
 
             options.Services.Configure<QuartzOptions>(quartzOptions =>
             {
-                quartzOptions.JobDetails.Add(jobDetail);
+                quartzOptions.jobDetails.Add(jobDetail);
             });
             
             options.Services.TryAddTransient(jobDetail.JobType);
@@ -169,7 +169,7 @@ namespace Quartz
 
             options.Services.Configure<QuartzOptions>(quartzOptions =>
             {
-                quartzOptions.Triggers.Add(t);
+                quartzOptions.triggers.Add(t);
             });
             
             return options;

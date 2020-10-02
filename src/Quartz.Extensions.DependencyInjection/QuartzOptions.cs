@@ -8,6 +8,9 @@ namespace Quartz
 {
     public class QuartzOptions : NameValueCollection
     {
+        internal readonly List<IJobDetail> jobDetails = new List<IJobDetail>();
+        internal readonly List<ITrigger> triggers = new List<ITrigger>();
+
         public string? SchedulerId
         {
             get => this[StdSchedulerFactory.PropertySchedulerInstanceId];
@@ -30,15 +33,15 @@ namespace Quartz
 
         public JobFactoryOptions JobFactory { get; set; } = new JobFactoryOptions();
 
-        internal List<IJobDetail> JobDetails { get; set; } = new List<IJobDetail>();
-        internal List<ITrigger> Triggers { get; set; } = new List<ITrigger>();
-        internal List<CalendarConfiguration> Calendars { get; set; } = new List<CalendarConfiguration>();
+        internal IReadOnlyList<IJobDetail> JobDetails => jobDetails;
+
+        internal IReadOnlyList<ITrigger> Triggers => triggers;
 
         public QuartzOptions AddJob(Type jobType, Action<JobBuilder> configure)
         {
             var builder = JobBuilder.Create(jobType);
             configure(builder);
-            JobDetails.Add(builder.Build());
+            jobDetails.Add(builder.Build());
             return this;
         }
 
@@ -46,7 +49,7 @@ namespace Quartz
         {
             var builder = JobBuilder.Create<T>();
             configure(builder);
-            JobDetails.Add(builder.Build());
+            jobDetails.Add(builder.Build());
             return this;
         }
 
@@ -54,7 +57,7 @@ namespace Quartz
         {
             var builder = TriggerBuilder.Create();
             configure(builder);
-            Triggers.Add(builder.Build());
+            triggers.Add(builder.Build());
             return this;
         }
     }
