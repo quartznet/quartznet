@@ -5,6 +5,7 @@
     <Title>Quartz.NET OpenTelemetry integration</Title>
     <Description>Quartz.NET OpenTelemetry integration; $(Description)</Description>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <NoWarn>$(NoWarn);NU5104</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\AssemblyInfo.cs" />
