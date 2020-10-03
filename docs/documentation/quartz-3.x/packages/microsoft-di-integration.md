@@ -51,12 +51,14 @@ public void ConfigureServices(IServiceCollection services)
         // we take this from appsettings.json, just show it's possible
         // q.SchedulerName = "Quartz ASP.NET Core Sample Scheduler";
         
-        // we could leave DI configuration intact and then jobs need to have public no-arg constructor
+        // we could leave DI configuration intact and then jobs need
+        // to have public no-arg constructor
         // the MS DI is expected to produce transient job instances
         // this WONT'T work with scoped services like EF Core's DbContext
         q.UseMicrosoftDependencyInjectionJobFactory(options =>
         {
-            // if we don't have the job in DI, allow fallback to configure via default constructor
+            // if we don't have the job in DI, allow fallback 
+			// to configure via default constructor
             options.AllowDefaultConstructor = true;
         });
 
@@ -71,7 +73,8 @@ public void ConfigureServices(IServiceCollection services)
             tp.MaxConcurrency = 10;
         });
 
-        // quickest way to create a job with single trigger is to use ScheduleJob (requires version 3.2)
+        // quickest way to create a job with single trigger is to use ScheduleJob
+        // (requires version 3.2)
         q.ScheduleJob<ExampleJob>(trigger => trigger
             .WithIdentity("Combined Configuration Trigger")
             .StartAt(DateBuilder.EvenSecondDate(DateTimeOffset.UtcNow.AddSeconds(7)))
@@ -165,5 +168,25 @@ public void ConfigureServices(IServiceCollection services)
         });
         */
     });
+	
+	// we can use options pattern to support hooking your own configuration
+	// because we don't use service registration api, 
+	// we need to manually ensure the job is present in DI
+	services.AddTransient<ExampleJob>();
+				
+	services.Configure<SampleOptions>(Configuration.GetSection("Sample"));
+	services.AddOptions<QuartzOptions>()
+		.Configure<IOptions<SampleOptions>>((options, dep) =>
+		{
+			if (!string.IsNullOrWhiteSpace(dep.Value.CronSchedule))
+			{
+				var jobKey = new JobKey("options-custom-job", "custom");
+				options.AddJob<ExampleJob>(j => j.WithIdentity(jobKey));
+				options.AddTrigger(trigger => trigger
+					.WithIdentity("options-custom-trigger", "custom")
+					.ForJob(jobKey)
+					.WithCronSchedule(dep.Value.CronSchedule));
+			}
+		});	
 }
 ```

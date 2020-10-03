@@ -2,7 +2,7 @@
 provides integration with [ASP.NET Core hosted services](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services).
 
 ::: tip
-Quartz 3.1 or later required.
+If you only need the generic host, [generic host integration](hosted-services-integration) might suffice.
 :::
 
 ## Installation
