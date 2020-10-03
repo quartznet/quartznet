@@ -35,11 +35,14 @@ namespace Quartz
             services.AddOptions();
             services.TryAddSingleton<MicrosoftLoggingProvider?>(serviceProvider =>
             {
-                var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
-                if (loggerFactory != null)
+                var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
+
+                if (loggerFactory is null)
                 {
-                    LogContext.SetCurrentLogProvider(loggerFactory);
+                    throw new InvalidOperationException($"{nameof(ILoggerFactory)} service is required");
                 }
+
+                LogContext.SetCurrentLogProvider(loggerFactory);
 
                 return LogProvider.CurrentLogProvider as MicrosoftLoggingProvider;
             });
