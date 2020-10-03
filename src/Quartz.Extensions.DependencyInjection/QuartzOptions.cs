@@ -33,9 +33,9 @@ namespace Quartz
 
         public JobFactoryOptions JobFactory { get; set; } = new JobFactoryOptions();
 
-        internal IReadOnlyList<IJobDetail> JobDetails => jobDetails;
+        public IReadOnlyList<IJobDetail> JobDetails => jobDetails;
 
-        internal IReadOnlyList<ITrigger> Triggers => triggers;
+        public IReadOnlyList<ITrigger> Triggers => triggers;
 
         public QuartzOptions AddJob(Type jobType, Action<JobBuilder> configure)
         {
