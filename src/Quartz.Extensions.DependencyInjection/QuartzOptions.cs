@@ -6,7 +6,7 @@ using Quartz.Impl;
 
 namespace Quartz
 {
-    public class QuartzOptions : NameValueCollection
+    public class QuartzOptions : NameValueCollection, IDictionary<string, string>
     {
         internal readonly List<IJobDetail> jobDetails = new List<IJobDetail>();
         internal readonly List<ITrigger> triggers = new List<ITrigger>();
@@ -25,7 +25,15 @@ namespace Quartz
 
         public TimeSpan? MisfireThreshold
         {
-            get => TimeSpan.FromMilliseconds(int.Parse(this["quartz.jobStore.misfireThreshold"]));
+            get
+            {
+                var value = this["quartz.jobStore.misfireThreshold"];
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    return null;
+                }
+                return TimeSpan.FromMilliseconds(int.Parse(value));
+            }
             set => this["quartz.jobStore.misfireThreshold"] =  value != null ? ((int) value.Value.TotalMilliseconds).ToString() : "";
         }
 
@@ -60,5 +68,51 @@ namespace Quartz
             triggers.Add(builder.Build());
             return this;
         }
+
+        IEnumerator<KeyValuePair<string, string>> IEnumerable<KeyValuePair<string, string>>.GetEnumerator()
+        {
+            throw new NotImplementedException();
+        }
+
+        void ICollection<KeyValuePair<string, string>>.Add(KeyValuePair<string, string> item)
+        {
+            throw new NotImplementedException();
+        }
+
+        bool ICollection<KeyValuePair<string, string>>.Contains(KeyValuePair<string, string> item)
+        {
+            throw new NotImplementedException();
+        }
+
+        void ICollection<KeyValuePair<string, string>>.CopyTo(KeyValuePair<string, string>[] array, int arrayIndex)
+        {
+            throw new NotImplementedException();
+        }
+
+        bool ICollection<KeyValuePair<string, string>>.Remove(KeyValuePair<string, string> item)
+        {
+            throw new NotImplementedException();
+        }
+
+        bool ICollection<KeyValuePair<string, string>>.IsReadOnly => false;
+
+        bool IDictionary<string, string>.ContainsKey(string key)
+        {
+            throw new NotImplementedException();
+        }
+
+        bool IDictionary<string, string>.Remove(string key)
+        {
+            throw new NotImplementedException();
+        }
+
+        bool IDictionary<string, string>.TryGetValue(string key, out string value)
+        {
+            throw new NotImplementedException();
+        }
+
+        ICollection<string> IDictionary<string, string>.Keys => throw new NotImplementedException();
+
+        ICollection<string> IDictionary<string, string>.Values => throw new NotImplementedException();
     }
 }

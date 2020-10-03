@@ -2,6 +2,15 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+## Release 3.2.1, Oct xxx 2020
+
+This is a maintenance release containing mostly bud fixes.
+
+* FIXES
+
+  * Make QuartzOptions Triggers and JobDetails public (#981)
+  * Fix configuration system injection for dictionary/quartz.jobStore.misfireThreshold in DI (#983)
+
 ## Release 3.2.0, Oct 1 2020
 
 This is a release that focuses on restructuring some packages that warrants for a minor version number increment.

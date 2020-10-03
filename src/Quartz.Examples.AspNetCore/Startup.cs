@@ -64,6 +64,7 @@ namespace Quartz.Examples.AspNetCore
             services.AddRazorPages();
 
             // base configuration for DI
+            services.Configure<QuartzOptions>(Configuration.GetSection("Quartz"));
             services.AddQuartz(q =>
             {
                 // handy when part of cluster or you want to otherwise identify multiple schedulers
@@ -188,7 +189,7 @@ namespace Quartz.Examples.AspNetCore
             // we can use options pattern to support hooking your own configuration with Quartz's
             // because we don't use service registration api, we need to manally ensure the job is present in DI
             services.AddTransient<ExampleJob>();
-                        
+
             services.Configure<SampleOptions>(Configuration.GetSection("Sample"));
             services.AddOptions<QuartzOptions>()
                 .Configure<IOptions<SampleOptions>>((options, dep) =>
