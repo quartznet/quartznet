@@ -1,8 +1,8 @@
-[![Downloads](https://img.shields.io/nuget/dt/Quartz)]
+[![Downloads](https://img.shields.io/nuget/dt/Quartz)](#)
 [![Build status](https://ci.appveyor.com/api/projects/status/d9ahvu9u77qjhx9r/branch/master?svg=true)](https://ci.appveyor.com/project/lahma/quartznet-6fcn8/branch/master)
 [![NuGet](http://img.shields.io/nuget/v/Quartz.svg)](https://www.nuget.org/packages/Quartz/)
 [![NuGet pre-release](http://img.shields.io/nuget/vpre/Quartz.svg)](https://www.nuget.org/packages/Quartz/)
-[![MyGet pre-release](https://img.shields.io/myget/quartznet/vpre/Quartz)]
+[![MyGet pre-release](https://img.shields.io/myget/quartznet/vpre/Quartz)](#)
 [![Join the chat at https://gitter.im/quartznet/quartznet](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/quartznet/quartznet?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 # Quartz.NET - Job Scheduler for the .NET Platform
