@@ -10,10 +10,7 @@ This is a maintenance release containing mostly bud fixes.
 
   * Make QuartzOptions Triggers and JobDetails public (#981)
   * Fix configuration system injection for dictionary/quartz.jobStore.misfireThreshold in DI (#983)
-
-* NEW FEATURE
-
-  * Allow concurrent access to XML file with job and trigger definitions (#993)
+  * XMLSchedulingDataProcessor can cause IOException due to file locking (#993)
 
 ## Release 3.2.0, Oct 1 2020
 
