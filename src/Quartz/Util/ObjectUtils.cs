@@ -106,15 +106,15 @@ namespace Quartz.Util
         {
             if (type == null)
             {
-                throw new ArgumentNullException(nameof(type), "Cannot instantiate null");
+                ExceptionHelper.ThrowArgumentNullException(nameof(type), "Cannot instantiate null");
             }
             
             var ci = type.GetConstructor(Type.EmptyTypes);
             if (ci == null)
             {
-                throw new ArgumentException("Cannot instantiate type which has no empty constructor", type.Name);
+                ExceptionHelper.ThrowArgumentException("Cannot instantiate type which has no empty constructor", type.Name);
             }
-            return (T) ci.Invoke(new object[0]);
+            return (T) ci.Invoke(Array.Empty<object>());
         }
 
         /// <summary>

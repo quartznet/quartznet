@@ -105,7 +105,7 @@ namespace Quartz.Impl
             PreviousFireTimeUtc = firedBundle.PrevFireTimeUtc;
             NextFireTimeUtc = firedBundle.NextFireTimeUtc;
 
-            jobDataMap = new JobDataMap();
+            jobDataMap = new JobDataMap(jobDetail.JobDataMap.Count + trigger.JobDataMap.Count);
             jobDataMap.PutAll(jobDetail.JobDataMap);
             jobDataMap.PutAll(trigger.JobDataMap);
             cancellationTokenSource = new CancellationTokenSource();
@@ -195,10 +195,7 @@ namespace Quartz.Impl
         /// interfaces.
         /// </para>
         /// </summary>
-        public virtual IJob JobInstance
-        {
-            get { return jobInstance; }
-        }
+        public virtual IJob JobInstance => jobInstance;
 
         /// <summary>
         /// The actual time the trigger fired. For instance the scheduled time may
