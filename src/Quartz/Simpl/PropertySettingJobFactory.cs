@@ -123,17 +123,17 @@ namespace Quartz.Simpl
 		{
 			foreach (string name in data.Keys)
 			{
-				SetJobProperty((IJob) obj, name, data[name]);
+				SetObjectProperty(obj, name, data[name]);
 			}
 		}
 
 	    /// <summary>
-	    /// Sets specific property to job, handles conversion and error conditions.
+	    /// Sets specific property to object, handles conversion and error conditions.
 	    /// </summary>
 	    /// <param name="job">Job instance to set property value to.</param>
 	    /// <param name="name">Property name to set.</param>
 	    /// <param name="value">Value to set.</param>
-	    protected virtual void SetJobProperty(IJob job, string name, object? value)
+	    protected virtual void SetObjectProperty(object job, string name, object? value)
 	    {
 		    string c = CultureInfo.InvariantCulture.TextInfo.ToUpper(name.Substring(0, 1));
 		    string propName = c + name.Substring(1);
