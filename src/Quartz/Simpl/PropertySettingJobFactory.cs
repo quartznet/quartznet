@@ -95,14 +95,23 @@ namespace Quartz.Simpl
 
 			var jobDataMap = BuildJobDataMap(bundle, scheduler);
 
-			SetObjectProperties(job, jobDataMap);
+			if (jobDataMap.Count > 0)
+			{
+				SetObjectProperties(job, jobDataMap);
+			}
 
 			return job;
 		}
 
 	    protected virtual JobDataMap BuildJobDataMap(TriggerFiredBundle bundle, IScheduler scheduler)
 	    {
-		    JobDataMap jobDataMap = new JobDataMap();
+		    var capacity = scheduler.Context.Count + bundle.JobDetail.JobDataMap.Count + bundle.Trigger.JobDataMap.Count;
+		    JobDataMap jobDataMap = new JobDataMap(capacity);
+		    if (capacity == 0)
+		    {
+			    return jobDataMap;
+		    }
+
 		    jobDataMap.PutAll(scheduler.Context);
 		    jobDataMap.PutAll(bundle.JobDetail.JobDataMap);
 		    jobDataMap.PutAll(bundle.Trigger.JobDataMap);
@@ -135,8 +144,12 @@ namespace Quartz.Simpl
 	    /// <param name="value">Value to set.</param>
 	    protected virtual void SetObjectProperty(object job, string name, object? value)
 	    {
-		    string c = CultureInfo.InvariantCulture.TextInfo.ToUpper(name.Substring(0, 1));
-		    string propName = c + name.Substring(1);
+		    string propName = name; 
+		    if (!char.IsUpper(name[0]))
+		    {
+			    var c = char.ToUpper(name[0]);
+			    propName = c + name.Substring(1);
+		    }
 
 		    var o = value;
 		    var prop = job.GetType().GetProperty(propName);

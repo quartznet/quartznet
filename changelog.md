@@ -22,7 +22,7 @@ now also works as expected.
 * IMPROVEMENTS
   
   * Unify MS dependency injection job factory logic and configuration (#995)
-  * Improve job dispatch performance to reduce latency before hitting Execute (#996)
+  * Improve job dispatch performance to reduce latency before hitting Execute (RAMJobStore) (#996)
 
 ## Release 3.2.0, Oct 1 2020
 
