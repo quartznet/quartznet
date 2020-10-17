@@ -8,9 +8,9 @@ namespace Quartz.Benchmark
     {
         private static void Main(string[] args)
         {
-            //BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run();
+            BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run();
 
-            DispatchBenchmark();
+            //DispatchBenchmark();
         }
 
         private static void DispatchBenchmark()

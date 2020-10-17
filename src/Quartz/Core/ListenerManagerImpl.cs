@@ -129,7 +129,9 @@ namespace Quartz.Core
         {
             lock (globalJobListeners)
             {
-                return new List<IJobListener>(globalJobListeners.Values);
+                return globalJobListeners.Count > 0 
+                    ? new List<IJobListener>(globalJobListeners.Values) 
+                    : EmptyReadOnlyCollection<IJobListener>.Instance;
             }
         }
 
@@ -268,7 +270,9 @@ namespace Quartz.Core
         {
             lock (globalTriggerListeners)
             {
-                return new List<ITriggerListener>(globalTriggerListeners.Values);
+                return globalTriggerListeners.Count > 0
+                    ? new List<ITriggerListener>(globalTriggerListeners.Values)
+                    : EmptyReadOnlyCollection<ITriggerListener>.Instance;
             }
         }
 
@@ -300,7 +304,9 @@ namespace Quartz.Core
         {
             lock (schedulerListeners)
             {
-                return schedulerListeners.AsReadOnly();
+                return schedulerListeners.Count > 0 
+                    ? new List<ISchedulerListener>(schedulerListeners)
+                    : EmptyReadOnlyCollection<ISchedulerListener>.Instance;
             }
         }
     }

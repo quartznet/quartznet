@@ -1570,7 +1570,7 @@ namespace Quartz.Core
         {
             var listeners = ListenerManager.GetTriggerListeners();
 
-            if (listeners.Count == 0 && internalTriggerListeners.Count == 0)
+            if (listeners.Count == 0 && !internalTriggerListeners.GetEnumerator().MoveNext())
             {
                 // default case that we don't have any 
                 return null;
