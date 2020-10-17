@@ -59,7 +59,7 @@ namespace Quartz.Job
         /// </summary>
         internal const string SearchPattern = "SEARCH_PATTERN";
 
-        ///<see cref="JobDataMap"/> Key to specify wether to scan sub directories for file changes.
+        ///<see cref="JobDataMap"/> Key to specify whether to scan sub directories for file changes.
         internal const string IncludeSubDirectories = "INCLUDE_SUB_DIRECTORIES";
 
         ///<see cref="JobDataMap"/> key to store the current file list of the scanned directories. 

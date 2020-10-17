@@ -86,10 +86,6 @@ namespace Quartz.Examples.AspNetCore
                     options.CreateScope = false;
                 });
 
-                // or
-                // q.UseMicrosoftDependencyInjectionScopedJobFactory();
-                // which is same as calling UseMicrosoftDependencyInjectionJobFactory() with options.CreateScope = true
-
                 // these are the defaults
                 q.UseSimpleTypeLoader();
                 q.UseInMemoryStore();
