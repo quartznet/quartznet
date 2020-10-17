@@ -41,7 +41,7 @@ namespace Quartz.Impl
     /// <author>Marko Lahma (.NET)</author>
     public class StdScheduler : IScheduler
     {
-        private readonly QuartzScheduler sched;
+        internal readonly QuartzScheduler sched;
 
         /// <summary>
         /// Construct a <see cref="StdScheduler" /> instance to proxy the given

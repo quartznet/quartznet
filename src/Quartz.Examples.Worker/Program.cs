@@ -34,17 +34,16 @@ namespace Quartz.Examples.Worker
                         // we take this from appsettings.json, just show it's possible
                         // q.SchedulerName = "Quartz ASP.NET Core Sample Scheduler";
 
-                        // we could leave DI configuration intact and then jobs need to have public no-arg constructor
-                        // the MS DI is expected to produce transient job instances 
+                        // this is default configuration if you don't alter it
                         q.UseMicrosoftDependencyInjectionJobFactory(options =>
                         {
                             // if we don't have the job in DI, allow fallback to configure via default constructor
                             options.AllowDefaultConstructor = true;
+                    
+                            // set to true if you want to inject scoped services like Entity Framework's DbContext
+                            options.CreateScope = false;
                         });
 
-                        // or 
-                        // q.UseMicrosoftDependencyInjectionScopedJobFactory();
-                        
                         // these are the defaults
                         q.UseSimpleTypeLoader();
                         q.UseInMemoryStore();
@@ -52,6 +51,14 @@ namespace Quartz.Examples.Worker
                         {
                             tp.MaxConcurrency = 10;
                         });
+                        
+                        // quickest way to create a job with single trigger is to use ScheduleJob
+                        q.ScheduleJob<ExampleJob>(trigger => trigger
+                            .WithIdentity("Combined Configuration Trigger")
+                            .StartAt(DateBuilder.EvenSecondDate(DateTimeOffset.UtcNow.AddSeconds(7)))
+                            .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second))
+                            .WithDescription("my awesome trigger configured for a job with single call")
+                        );
                         
                         // configure jobs with code
                         var jobKey = new JobKey("awesome job", "awesome group");

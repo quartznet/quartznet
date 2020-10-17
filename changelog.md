@@ -4,13 +4,24 @@
 
 ## Release 3.2.1, Oct xxx 2020
 
-This is a maintenance release containing mostly bud fixes.
+This is a maintenance release containing mostly bug fixes.
+
+MS dependency injection job factory configuration was unified and you can now configure relevant options 
+like whether to create a separate scope with using just the UseMicrosoftDependencyInjectionJobFactory and its callback.
+Now scoped jobs also get their properties set from job data map.
+
+Pre-configuring Quartz options from appsettings.json with services.Configure<QuartzOptions>(Configuration.GetSection("Quartz"));
+now also works as expected.
 
 * FIXES
 
   * Make QuartzOptions Triggers and JobDetails public (#981)
   * Fix configuration system injection for dictionary/quartz.jobStore.misfireThreshold in DI (#983)
   * XMLSchedulingDataProcessor can cause IOException due to file locking (#993)
+  
+* IMPROVEMENTS
+  
+  * Unify MS dependency injection job factory logic and configuration (#995)
 
 ## Release 3.2.0, Oct 1 2020
 
