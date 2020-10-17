@@ -396,28 +396,60 @@ namespace Quartz.Core
             return true;
         }
 
-        private async Task<bool> NotifyTriggerListenersComplete(
+        private Task<bool> NotifyTriggerListenersComplete(
             IJobExecutionContext ctx,
             SchedulerInstruction instCode,
             CancellationToken cancellationToken = default)
         {
-            try
+            var nextFireTimeUtc = ctx.Trigger.GetNextFireTimeUtc();
+
+            // check if we can do quick path
+            if (nextFireTimeUtc != null)
             {
-                await qs!.NotifyTriggerListenersComplete(ctx, instCode, cancellationToken).ConfigureAwait(false);
+                try
+                {
+                    var task = qs!.NotifyTriggerListenersComplete(ctx, instCode, cancellationToken);
+                    return task.IsCompletedSuccessfully() ? Task.FromResult(true) : DoNotify(task);
+                }
+                catch (SchedulerException se)
+                {
+                    return NotifyError(se);
+                }
             }
-            catch (SchedulerException se)
+            
+            return NotifyAwaited();
+
+            async Task<bool> NotifyAwaited()
+            {
+                await DoNotify(qs!.NotifyTriggerListenersComplete(ctx, instCode, cancellationToken));
+
+                if (!nextFireTimeUtc.HasValue)
+                {
+                    await qs.NotifySchedulerListenersFinalized(ctx.Trigger, cancellationToken).ConfigureAwait(false);
+                }
+
+                return true;
+            }
+
+            async Task<bool> DoNotify(Task t)
+            {
+                try
+                {
+                    await t.ConfigureAwait(false);
+                    return true;
+                }
+                catch (SchedulerException se)
+                {
+                    return await NotifyError(se);
+                }
+            }
+
+            async Task<bool> NotifyError(SchedulerException se)
             {
                 string msg = $"Unable to notify TriggerListener(s) of Job that was executed: (error will be ignored). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
                 await qs!.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
                 return false;
             }
-
-            if (!ctx.Trigger.GetNextFireTimeUtc().HasValue)
-            {
-                await qs.NotifySchedulerListenersFinalized(ctx.Trigger, cancellationToken).ConfigureAwait(false);
-            }
-
-            return true;
         }
 
         [Serializable]

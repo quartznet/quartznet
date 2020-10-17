@@ -21,8 +21,14 @@ namespace Quartz.Benchmark
         {
             scheduler = (StdScheduler) new StdSchedulerFactory().GetScheduler().GetAwaiter().GetResult();
             var job = JobBuilder.Create<NoOpJob>().Build();
-            var trigger = (IOperableTrigger) TriggerBuilder.Create().ForJob(job.Key).WithSimpleSchedule().StartNow().Build();
+            var trigger = (IOperableTrigger) TriggerBuilder.Create()
+                .ForJob(job.Key)
+                .WithSimpleSchedule()
+                .StartNow()
+                .Build();
+
             trigger.FireInstanceId = "fire-instance-id";
+            trigger.SetNextFireTimeUtc(DateTimeOffset.UtcNow.AddSeconds(10));
             var bundle = new TriggerFiredBundle(job, trigger, null, false, DateTimeOffset.UtcNow, null, null, null);
             shell = new JobRunShell(scheduler, bundle);
         }

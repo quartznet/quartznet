@@ -2155,7 +2155,8 @@ namespace Quartz.Core
         }
 
         protected virtual async Task NotifySchedulerListeners(
-            Func<ISchedulerListener, Task> notifier, string action)
+            Func<ISchedulerListener, Task> notifier, 
+            string action)
         {
             // notify all scheduler listeners
             var listeners = BuildSchedulerListenerList();
