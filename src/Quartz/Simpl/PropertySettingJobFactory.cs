@@ -93,15 +93,21 @@ namespace Quartz.Simpl
 		{
 			IJob job = InstantiateJob(bundle, scheduler);
 
-			JobDataMap jobDataMap = new JobDataMap();
-            jobDataMap.PutAll(scheduler.Context);
-			jobDataMap.PutAll(bundle.JobDetail.JobDataMap);
-			jobDataMap.PutAll(bundle.Trigger.JobDataMap);
+			var jobDataMap = BuildJobDataMap(bundle, scheduler);
 
 			SetObjectProperties(job, jobDataMap);
 
 			return job;
 		}
+
+	    protected virtual JobDataMap BuildJobDataMap(TriggerFiredBundle bundle, IScheduler scheduler)
+	    {
+		    JobDataMap jobDataMap = new JobDataMap();
+		    jobDataMap.PutAll(scheduler.Context);
+		    jobDataMap.PutAll(bundle.JobDetail.JobDataMap);
+		    jobDataMap.PutAll(bundle.Trigger.JobDataMap);
+		    return jobDataMap;
+	    }
 
 	    protected virtual IJob InstantiateJob(TriggerFiredBundle bundle, IScheduler scheduler)
 	    {
@@ -115,74 +121,88 @@ namespace Quartz.Simpl
         /// <param name="data">The data to set.</param>
 		public virtual void SetObjectProperties(object obj, JobDataMap data)
 		{
-			Type? paramType = null;
-
 			foreach (string name in data.Keys)
 			{
-				string c = CultureInfo.InvariantCulture.TextInfo.ToUpper(name.Substring(0, 1));
-				string propName = c + name.Substring(1);
-
-				object o = data[name];
-				var prop = obj.GetType().GetProperty(propName);
-
-				try
-				{
-					if (prop == null)
-					{
-						HandleError($"No property on Job class {obj.GetType()} for property '{name}'");
-						continue;
-					}
-
-					paramType = prop.PropertyType;
-
-					if (o == null && (paramType.GetTypeInfo().IsPrimitive || paramType.GetTypeInfo().IsEnum))
-					{
-						// cannot set null to these
-						HandleError($"Cannot set null to property on Job class {obj.GetType()} for property '{name}'");
-					}
-					if (paramType == typeof(char) && o is string s && s.Length != 1)
-					{
-						// handle special case
-						HandleError($"Cannot set empty string to char property on Job class {obj.GetType()} for property '{name}'");
-					}
-
-                    var goodValue = paramType == typeof (TimeSpan)
-										   ? ObjectUtils.GetTimeSpanValueForProperty(prop, o)
-										   : ConvertValueIfNecessary(paramType, o);
-
-					prop.GetSetMethod()!.Invoke(obj, new[] {goodValue});
-				}
-				catch (FormatException nfe)
-				{
-					HandleError(
-					    $"The setter on Job class {obj.GetType()} for property '{name}' expects a {paramType} but was given {o}", nfe);
-				}
-				catch (MethodAccessException)
-				{
-                    HandleError($"The setter on Job class {obj.GetType()} for property '{name}' expects a {paramType} but was given a {o?.GetType()}");
-				}
-				catch (ArgumentException e)
-				{
-					HandleError(
-					    $"The setter on Job class {obj.GetType()} for property '{name}' expects a {paramType} but was given {o?.GetType()}", e);
-				}
-				catch (UnauthorizedAccessException e)
-				{
-					HandleError(
-					    $"The setter on Job class {obj.GetType()} for property '{name}' could not be accessed.", e);
-				}
-				catch (TargetInvocationException e)
-				{
-					HandleError(
-					    $"The setter on Job class {obj.GetType()} for property '{name}' could not be accessed.", e);
-				}
-                catch (Exception e)
-                {
-                    HandleError(
-                        $"The setter on Job class {obj.GetType()} for property '{name}' threw exception when processing.", e);
-                }
+				SetJobProperty((IJob) obj, name, data[name]);
 			}
 		}
+
+	    /// <summary>
+	    /// Sets specific property to job, handles conversion and error conditions.
+	    /// </summary>
+	    /// <param name="job">Job instance to set property value to.</param>
+	    /// <param name="name">Property name to set.</param>
+	    /// <param name="value">Value to set.</param>
+	    protected virtual void SetJobProperty(IJob job, string name, object value)
+	    {
+		    string c = CultureInfo.InvariantCulture.TextInfo.ToUpper(name.Substring(0, 1));
+		    string propName = c + name.Substring(1);
+
+		    object o = value;
+		    var prop = job.GetType().GetProperty(propName);
+
+		    Type? paramType = null;
+		    try
+		    {
+			    if (prop == null)
+			    {
+				    HandleError($"No property on Job class {job.GetType()} for property '{name}'");
+				    return;
+			    }
+
+			    paramType = prop.PropertyType;
+
+			    if (o == null && (paramType.GetTypeInfo().IsPrimitive || paramType.GetTypeInfo().IsEnum))
+			    {
+				    // cannot set null to these
+				    HandleError($"Cannot set null to property on Job class {job.GetType()} for property '{name}'");
+			    }
+
+			    if (paramType == typeof(char) && o is string s && s.Length != 1)
+			    {
+				    // handle special case
+				    HandleError($"Cannot set empty string to char property on Job class {job.GetType()} for property '{name}'");
+			    }
+
+			    var goodValue = paramType == typeof(TimeSpan)
+				    ? ObjectUtils.GetTimeSpanValueForProperty(prop, o)
+				    : ConvertValueIfNecessary(paramType, o);
+
+			    prop.GetSetMethod()!.Invoke(job, new[] {goodValue});
+		    }
+		    catch (FormatException nfe)
+		    {
+			    HandleError(
+				    $"The setter on Job class {job.GetType()} for property '{name}' expects a {paramType} but was given {o}",
+				    nfe);
+		    }
+		    catch (MethodAccessException)
+		    {
+			    HandleError(
+				    $"The setter on Job class {job.GetType()} for property '{name}' expects a {paramType} but was given a {o?.GetType()}");
+		    }
+		    catch (ArgumentException e)
+		    {
+			    HandleError(
+				    $"The setter on Job class {job.GetType()} for property '{name}' expects a {paramType} but was given {o?.GetType()}",
+				    e);
+		    }
+		    catch (UnauthorizedAccessException e)
+		    {
+			    HandleError(
+				    $"The setter on Job class {job.GetType()} for property '{name}' could not be accessed.", e);
+		    }
+		    catch (TargetInvocationException e)
+		    {
+			    HandleError(
+				    $"The setter on Job class {job.GetType()} for property '{name}' could not be accessed.", e);
+		    }
+		    catch (Exception e)
+		    {
+			    HandleError(
+				    $"The setter on Job class {job.GetType()} for property '{name}' threw exception when processing.", e);
+		    }
+	    }
 
 	    protected virtual object? ConvertValueIfNecessary(Type requiredType, object? newValue)
 	    {

@@ -63,13 +63,19 @@ namespace Quartz
 
         public void UseMicrosoftDependencyInjectionScopedJobFactory(Action<JobFactoryOptions>? configure = null)
         {
-            UseJobFactory<MicrosoftDependencyInjectionScopedJobFactory>(configure);
+            void ScopeConfiguration(JobFactoryOptions options)
+            {
+                options.CreateScope = true;
+                configure?.Invoke(options);
+            }
+
+            UseJobFactory<MicrosoftDependencyInjectionJobFactory>(ScopeConfiguration);
         }
 
         public void UseJobFactory<T>(Action<JobFactoryOptions>? configure = null) where T : IJobFactory
         {
             schedulerBuilder.UseJobFactory<T>();
-            services.Replace(new ServiceDescriptor(typeof(IJobFactory), typeof(T), ServiceLifetime.Singleton));
+            services.Replace(ServiceDescriptor.Singleton(typeof(IJobFactory), typeof(T)));
             if (configure != null)
             {
                 services.Configure<QuartzOptions>(options =>
@@ -82,7 +88,7 @@ namespace Quartz
         public void UseTypeLoader<T>() where T : ITypeLoadHelper
         {
             schedulerBuilder.UseTypeLoader<T>();
-            services.Replace(new ServiceDescriptor(typeof(ITypeLoadHelper), typeof(T), ServiceLifetime.Singleton));
+            services.Replace(ServiceDescriptor.Singleton(typeof(ITypeLoadHelper), typeof(T)));
         }
 
         public void UseThreadPool<T>(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null) where T : IThreadPool

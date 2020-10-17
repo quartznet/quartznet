@@ -8,6 +8,7 @@ using Microsoft.Extensions.Options;
 
 using Quartz.Impl;
 using Quartz.Simpl;
+using Quartz.Spi;
 using Quartz.Util;
 
 namespace Quartz
@@ -76,6 +77,13 @@ namespace Quartz
 
         protected override T InstantiateType<T>(Type? implementationType)
         {
+            if (typeof(T) == typeof(IJobFactory) && options.Value.JobFactory.Type != null)
+            {
+                // TODO cleanup
+                // do final override
+                implementationType = options.Value.JobFactory.Type;
+            }
+        
             var service = serviceProvider.GetService<T>();
             if (service is null)
             {

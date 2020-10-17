@@ -394,7 +394,7 @@ Please add configuration to your application config file to correctly initialize
             }
 
             Type? typeLoadHelperType = LoadType(cfg.GetStringProperty(PropertySchedulerTypeLoadHelperType));
-            Type? jobFactoryType = LoadType(cfg.GetStringProperty(PropertySchedulerJobFactoryType, null));
+            Type? jobFactoryType = LoadType(cfg.GetStringProperty(PropertySchedulerJobFactoryType)) ?? typeof(PropertySettingJobFactory);
 
             idleWaitTime = cfg.GetTimeSpanProperty(PropertySchedulerIdleWaitTime, idleWaitTime);
             if (idleWaitTime > TimeSpan.Zero && idleWaitTime < TimeSpan.FromMilliseconds(1000))
