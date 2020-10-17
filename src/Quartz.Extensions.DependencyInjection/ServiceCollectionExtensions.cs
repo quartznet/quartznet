@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
+using Quartz.Impl;
 using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
@@ -47,9 +48,6 @@ namespace Quartz
                 return LogProvider.CurrentLogProvider as MicrosoftLoggingProvider;
             });
             
-            // Note that we can't call UseSimpleTypeLoader(), as that would overwrite any other configured type loaders
-            services.TryAddSingleton(typeof(ITypeLoadHelper), typeof(SimpleTypeLoadHelper));
-
             var schedulerBuilder = SchedulerBuilder.Create(properties);
             if (configure != null)
             {
@@ -57,11 +55,31 @@ namespace Quartz
                 configure(target);
             }
             
+            
+            // try to add services if not present with defaults, without overriding other configuration
+            if (string.IsNullOrWhiteSpace(properties[StdSchedulerFactory.PropertySchedulerTypeLoadHelperType]))
+            {
+                services.TryAddSingleton(typeof(ITypeLoadHelper), typeof(SimpleTypeLoadHelper));
+            }
+
+            var allowDefaultConstructor = false;
+            if (string.IsNullOrWhiteSpace(properties[StdSchedulerFactory.PropertySchedulerJobFactoryType]))
+            {
+                // there's no explicit job factory defined, use MS version and allow default constructor
+                services.TryAddSingleton(typeof(IJobFactory), typeof(MicrosoftDependencyInjectionJobFactory));
+                allowDefaultConstructor = true;
+            }
+            
             services.Configure<QuartzOptions>(options =>
             {
                 foreach (var key in schedulerBuilder.Properties.AllKeys)
                 {
                     options[key] = schedulerBuilder.Properties[key];
+                }
+
+                if (allowDefaultConstructor)
+                {
+                    options.JobFactory.AllowDefaultConstructor = true;
                 }
             });
             

@@ -2,11 +2,12 @@ using System;
 
 using Microsoft.Extensions.DependencyInjection;
 
+using Quartz.Simpl;
 using Quartz.Spi;
 
 namespace Quartz
 {
-    public interface IServiceCollectionQuartzConfigurator : IPropertyConfigurer
+    public interface IServiceCollectionQuartzConfigurator : IPropertyConfigurer, IPropertyConfigurationRoot
     {
         internal IServiceCollection Services { get; }
 

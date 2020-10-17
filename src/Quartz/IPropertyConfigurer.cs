@@ -17,4 +17,11 @@ namespace Quartz
     {
         void SetProperty(string name, string value);
     }
+
+    /// <summary>
+    /// Marker interface to to target outside configuration extensions better.
+    /// </summary>
+    public interface IPropertyConfigurationRoot : IPropertySetter
+    {
+    }
 }

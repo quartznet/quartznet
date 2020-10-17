@@ -4,10 +4,9 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
-using Quartz.Simpl;
 using Quartz.Spi;
 
-namespace Quartz
+namespace Quartz.Simpl
 {
     /// <summary>
     /// Integrates job instantiation with Microsoft DI system.

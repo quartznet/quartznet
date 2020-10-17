@@ -9,7 +9,7 @@ namespace Quartz
     {
         public static T UseXmlSchedulingConfiguration<T>(
             this T configurer,
-            Action<XmlSchedulingOptions> configure) where T : IPropertySetter
+            Action<XmlSchedulingOptions> configure) where T : IPropertyConfigurationRoot
         {
             configurer.SetProperty("quartz.plugin.xml.type", typeof(XMLSchedulingDataProcessorPlugin).AssemblyQualifiedNameWithoutVersion());
             configure.Invoke(new XmlSchedulingOptions(configurer));

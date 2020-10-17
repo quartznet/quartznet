@@ -34,7 +34,7 @@ namespace Quartz
     /// <summary>
     /// Helper to create common scheduler configurations.
     /// </summary>
-    public class SchedulerBuilder : PropertiesHolder
+    public class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationRoot
     {
         protected SchedulerBuilder(NameValueCollection? properties)
             : base(properties ?? new NameValueCollection())
