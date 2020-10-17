@@ -28,7 +28,7 @@ namespace Quartz
         protected override IJob InstantiateJob(TriggerFiredBundle bundle, IScheduler scheduler)
         {
             IJob job;
-            if (!options.Value.JobFactory.AllowDefaultConstructor)
+            if (!options.Value.JobFactory.AllowDefaultConstructor || options.Value.JobFactory.CreateScope)
             {
                 job = (IJob) serviceProvider.GetRequiredService(bundle.JobDetail.JobType);
             }
