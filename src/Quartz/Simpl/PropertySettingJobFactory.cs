@@ -133,12 +133,12 @@ namespace Quartz.Simpl
 	    /// <param name="job">Job instance to set property value to.</param>
 	    /// <param name="name">Property name to set.</param>
 	    /// <param name="value">Value to set.</param>
-	    protected virtual void SetJobProperty(IJob job, string name, object value)
+	    protected virtual void SetJobProperty(IJob job, string name, object? value)
 	    {
 		    string c = CultureInfo.InvariantCulture.TextInfo.ToUpper(name.Substring(0, 1));
 		    string propName = c + name.Substring(1);
 
-		    object o = value;
+		    var o = value;
 		    var prop = job.GetType().GetProperty(propName);
 
 		    Type? paramType = null;
@@ -172,35 +172,27 @@ namespace Quartz.Simpl
 		    }
 		    catch (FormatException nfe)
 		    {
-			    HandleError(
-				    $"The setter on Job class {job.GetType()} for property '{name}' expects a {paramType} but was given {o}",
-				    nfe);
+			    HandleError($"The setter on Job class {job.GetType()} for property '{name}' expects a {paramType} but was given {o}", nfe);
 		    }
 		    catch (MethodAccessException)
 		    {
-			    HandleError(
-				    $"The setter on Job class {job.GetType()} for property '{name}' expects a {paramType} but was given a {o?.GetType()}");
+			    HandleError($"The setter on Job class {job.GetType()} for property '{name}' expects a {paramType} but was given a {o?.GetType()}");
 		    }
 		    catch (ArgumentException e)
 		    {
-			    HandleError(
-				    $"The setter on Job class {job.GetType()} for property '{name}' expects a {paramType} but was given {o?.GetType()}",
-				    e);
+			    HandleError($"The setter on Job class {job.GetType()} for property '{name}' expects a {paramType} but was given {o?.GetType()}", e);
 		    }
 		    catch (UnauthorizedAccessException e)
 		    {
-			    HandleError(
-				    $"The setter on Job class {job.GetType()} for property '{name}' could not be accessed.", e);
+			    HandleError($"The setter on Job class {job.GetType()} for property '{name}' could not be accessed.", e);
 		    }
 		    catch (TargetInvocationException e)
 		    {
-			    HandleError(
-				    $"The setter on Job class {job.GetType()} for property '{name}' could not be accessed.", e);
+			    HandleError($"The setter on Job class {job.GetType()} for property '{name}' could not be accessed.", e);
 		    }
 		    catch (Exception e)
 		    {
-			    HandleError(
-				    $"The setter on Job class {job.GetType()} for property '{name}' threw exception when processing.", e);
+			    HandleError($"The setter on Job class {job.GetType()} for property '{name}' threw exception when processing.", e);
 		    }
 	    }
 
@@ -209,12 +201,7 @@ namespace Quartz.Simpl
 	        return ObjectUtils.ConvertValueIfNecessary(requiredType, newValue);
 	    }
 
-		private void HandleError(string message)
-		{
-			HandleError(message, null);
-		}
-
-		private void HandleError(string message, Exception? e)
+	    private void HandleError(string message, Exception? e = null)
 		{
 			if (ThrowIfPropertyNotFound)
 			{
