@@ -45,7 +45,7 @@ namespace Quartz.Simpl
         {
             if (options.Value.JobFactory.AllowDefaultConstructor)
             {
-                return (IJob)(serviceProvider.GetService(bundle.JobDetail.JobType)?? base.InstantiateJob(bundle, scheduler));
+                return (IJob)(serviceProvider.GetService(bundle.JobDetail.JobType) ?? base.InstantiateJob(bundle, scheduler));
             }
 
             return (IJob) serviceProvider.GetRequiredService(bundle.JobDetail.JobType);
