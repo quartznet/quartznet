@@ -2,7 +2,7 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
-## Release 3.2.1, Oct xxx 2020
+## Release 3.2.1, Oct 18 2020
 
 This is a maintenance release containing mostly bug fixes.
 
