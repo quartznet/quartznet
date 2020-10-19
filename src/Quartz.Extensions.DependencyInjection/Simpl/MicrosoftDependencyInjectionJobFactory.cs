@@ -26,26 +26,29 @@ namespace Quartz.Simpl
 
         protected override IJob InstantiateJob(TriggerFiredBundle bundle, IScheduler scheduler)
         {
-            IJob job;
-            if (!options.Value.JobFactory.AllowDefaultConstructor || options.Value.JobFactory.CreateScope)
-            {
-                job = (IJob) serviceProvider.GetRequiredService(bundle.JobDetail.JobType);
-            }
-            else
-            {
-                job = (IJob) (serviceProvider.GetService(bundle.JobDetail.JobType) ?? base.InstantiateJob(bundle, scheduler));
-            }
-            
             if (options.Value.JobFactory.CreateScope)
             {
                 //  Generate a scope for the job, this allows the job to be registered
                 //	using .AddScoped<T>() which means we can use scoped dependencies 
                 //	e.g. database contexts
                 var scope = serviceProvider.CreateScope();
-                job = new ScopedJob(scope, job);
+
+                var job = CreateJob(bundle, scheduler, scope.ServiceProvider);
+
+                return new ScopedJob(scope, job);
             }
-            
-            return job;
+
+            return CreateJob(bundle, scheduler, serviceProvider);
+        }
+
+        private IJob CreateJob(TriggerFiredBundle bundle, IScheduler scheduler, IServiceProvider serviceProvider)
+        {
+            if (options.Value.JobFactory.AllowDefaultConstructor)
+            {
+                return (IJob)(serviceProvider.GetService(bundle.JobDetail.JobType) ?? base.InstantiateJob(bundle, scheduler));
+            }
+
+            return (IJob) serviceProvider.GetRequiredService(bundle.JobDetail.JobType);
         }
 
         public override void ReturnJob(IJob job)
