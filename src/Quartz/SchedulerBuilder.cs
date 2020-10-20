@@ -132,7 +132,15 @@ namespace Quartz
             SetProperty("quartz.threadPool.type", typeof(T).AssemblyQualifiedNameWithoutVersion());
             configure?.Invoke(new ThreadPoolOptions(this));
         } 
-        
+
+        /// <summary>
+        /// Uses the zero size thread pool, which is used only for database administration nodes.
+        /// </summary>
+        public void UseZeroSizeThreadPool(Action<ThreadPoolOptions>? configure = null)
+        {
+            UseThreadPool<ZeroSizeThreadPool>(configure);
+        }
+
         /// <summary>
         /// Uses the default thread pool, which uses the default task scheduler.
         /// </summary>
