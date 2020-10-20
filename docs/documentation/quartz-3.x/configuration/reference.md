@@ -320,7 +320,7 @@ JobStoreTX can be tuned with the following properties:
 |quartz.jobStore.tablePrefix    |no|    string  |"QRTZ_"|
 |quartz.jobStore.useProperties| no  |boolean|   false|
 |quartz.jobStore.misfireThreshold|  no| int |60000|
-|quartz.jobStore.isClustered|   no  |boolean    |false|
+|quartz.jobStore.clustered|   no  |boolean    |false|
 |quartz.jobStore.clusterCheckinInterval |no |long|  15000|
 |quartz.jobStore.maxMisfiresToHandleAtATime |no|    int|    20|
 |quartz.jobStore.selectWithLockSQL| no| string| "SELECT * FROM {0}LOCKS WHERE SCHED_NAME = {1} AND LOCK_NAME = ? FOR UPDATE"|
@@ -360,7 +360,7 @@ This is can be handy, as you avoid the type versioning issues that can arise fro
 The the number of milliseconds the scheduler will 'tolerate' a trigger to pass its next-fire-time by, before being considered "misfired".
 The default value (if you don’t make an entry of this property in your configuration) is 60000 (60 seconds).
 
-### `quartz.jobStore.isClustered`
+### `quartz.jobStore.clustered`
 
 Set to "true" in order to turn on clustering features.
 This property must be set to "true" if you are having multiple instances of Quartz use the same set of database tables…​ otherwise you will experience havoc. 
@@ -486,7 +486,7 @@ The clustering feature works best for scaling out long-running and/or cpu-intens
 If you need to scale out to support thousands of short-running (e.g 1 second) jobs, consider partitioning the set of jobs by using multiple distinct schedulers (including multiple clustered schedulers for HA).
 The scheduler makes use of a cluster-wide lock, a pattern that degrades performance as you add more nodes (when going beyond about three nodes - depending upon your database’s capabilities, etc.).
 
-Enable clustering by setting the `quartz.jobStore.isClustered` property to "true". Each instance in the cluster should use the same copy of the quartz.properties file. 
+Enable clustering by setting the `quartz.jobStore.clustered` property to "true". Each instance in the cluster should use the same copy of the quartz.properties file. 
 Exceptions of this would be to use properties files that are identical, with the following allowable exceptions: Different thread pool size, and different value for the `quartz.scheduler.instanceId` property. 
 Each node in the cluster MUST have a unique instanceId, which is easily done (without needing different properties files) by placing "AUTO" as the value of this property.
 See the info about the configuration properties of AdoJobStore for more information.
@@ -535,7 +535,7 @@ quartz.jobStore.useProperties = true
 quartz.jobStore.dataSource = myDS
 quartz.jobStore.tablePrefix = QRTZ_
 
-quartz.jobStore.isClustered = true
+quartz.jobStore.clustered = true
 quartz.jobStore.clusterCheckinInterval = 20000
 
 #============================================================================
