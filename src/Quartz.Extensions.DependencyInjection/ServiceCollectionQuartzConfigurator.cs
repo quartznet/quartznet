@@ -101,6 +101,11 @@ namespace Quartz
             schedulerBuilder.UseDefaultThreadPool(configure);
         }
 
+        public void UseZeroSizeThreadPool(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null)
+        {
+            schedulerBuilder.UseZeroSizeThreadPool(configure);
+        }
+
         public void UseDedicatedThreadPool(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null)
         {
             schedulerBuilder.UseDedicatedThreadPool(configure);

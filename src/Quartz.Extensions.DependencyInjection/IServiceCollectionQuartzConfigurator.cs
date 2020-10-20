@@ -33,6 +33,7 @@ namespace Quartz
         void UsePersistentStore(Action<SchedulerBuilder.PersistentStoreOptions> configure);
         void UseThreadPool<T>(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null) where T : IThreadPool;
         void UseDefaultThreadPool(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null);
+        void UseZeroSizeThreadPool(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null);
         void UseDedicatedThreadPool(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null);
         TimeSpan MisfireThreshold { set; }
 

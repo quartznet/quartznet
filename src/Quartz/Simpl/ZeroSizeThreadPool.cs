@@ -115,7 +115,7 @@ namespace Quartz.Simpl
         /// </remarks>
         public bool RunInThread(Func<Task> runnable)
         {
-            throw new NotSupportedException("This ThreadPool should not be used on Scheduler instances that are start()ed.");
+            throw new NotSupportedException("This ThreadPool should not be used on Scheduler instances that are started.");
         }
 
         /// <summary>
@@ -133,7 +133,7 @@ namespace Quartz.Simpl
         /// </remarks>
         public virtual int BlockForAvailableThreads()
         {
-            throw new NotSupportedException("This ThreadPool should not be used on Scheduler instances that are start()ed.");
+            throw new NotSupportedException("This ThreadPool should not be used on Scheduler instances that are started.");
         }
 
     }
