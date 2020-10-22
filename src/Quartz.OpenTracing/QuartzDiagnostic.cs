@@ -6,6 +6,7 @@ using Quartz.Logging;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using static Quartz.Logging.OperationName;
 
 namespace Quartz.OpenTracing
@@ -123,15 +124,7 @@ namespace Quartz.OpenTracing
         }
 
         private bool IgnoreEvent(IJobExecutionContext context)
-        {
-            foreach (var ignore in options.IgnorePatterns)
-            {
-                if (ignore(context))
-                    return true;
-            }
-
-            return false;
-        }
+            => options.IgnorePatterns.Any(ignore => ignore(context));
 
         private void SetSpanException(ISpan span, JobExecutionException exception)
         {
