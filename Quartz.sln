@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.26127.3
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.30611.23
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{7E6034DE-2AF7-42CE-B9E3-A1B3B582E6DA}"
 	ProjectSection(SolutionItems) = preProject
@@ -33,21 +33,23 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Plugins", "src\Quart
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Plugins.TimeZoneConverter", "src\Quartz.Plugins.TimeZoneConverter\Quartz.Plugins.TimeZoneConverter.csproj", "{88F6D094-A4CD-4B89-84FB-FBD0821A9D99}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.AspNetCore", "src\Quartz.AspNetCore\Quartz.AspNetCore.csproj", "{0B08E122-0B16-4F86-BC02-D561EE518D9C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.AspNetCore", "src\Quartz.AspNetCore\Quartz.AspNetCore.csproj", "{0B08E122-0B16-4F86-BC02-D561EE518D9C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Examples.AspNetCore", "src\Quartz.Examples.AspNetCore\Quartz.Examples.AspNetCore.csproj", "{5224231E-7678-4EC6-B18A-FA302D9553E3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Examples.AspNetCore", "src\Quartz.Examples.AspNetCore\Quartz.Examples.AspNetCore.csproj", "{5224231E-7678-4EC6-B18A-FA302D9553E3}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Examples", "Examples", "{FCD766DA-FF68-4A60-9130-07A56C2480F0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Extensions.DependencyInjection", "src\Quartz.Extensions.DependencyInjection\Quartz.Extensions.DependencyInjection.csproj", "{FD743112-25F0-4719-B0DF-144C78600955}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Extensions.DependencyInjection", "src\Quartz.Extensions.DependencyInjection\Quartz.Extensions.DependencyInjection.csproj", "{FD743112-25F0-4719-B0DF-144C78600955}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.OpenTelemetry.Instrumentation", "src\Quartz.OpenTelemetry.Instrumentation\Quartz.OpenTelemetry.Instrumentation.csproj", "{5B99035A-3623-4584-9AFA-C6D77F5704BD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.OpenTelemetry.Instrumentation", "src\Quartz.OpenTelemetry.Instrumentation\Quartz.OpenTelemetry.Instrumentation.csproj", "{5B99035A-3623-4584-9AFA-C6D77F5704BD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Extensions.Hosting", "src\Quartz.Extensions.Hosting\Quartz.Extensions.Hosting.csproj", "{7CC26420-E06F-44EA-AF23-7861B56906BB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Extensions.Hosting", "src\Quartz.Extensions.Hosting\Quartz.Extensions.Hosting.csproj", "{7CC26420-E06F-44EA-AF23-7861B56906BB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Examples.Worker", "src\Quartz.Examples.Worker\Quartz.Examples.Worker.csproj", "{2BB03F5A-7736-42E9-A572-5D60336A9BFF}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Examples.Worker", "src\Quartz.Examples.Worker\Quartz.Examples.Worker.csproj", "{2BB03F5A-7736-42E9-A572-5D60336A9BFF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Benchmark", "src\Quartz.Benchmark\Quartz.Benchmark.csproj", "{23DEAB6E-D12C-40F6-A50E-6584FEAA389C}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Benchmark", "src\Quartz.Benchmark\Quartz.Benchmark.csproj", "{23DEAB6E-D12C-40F6-A50E-6584FEAA389C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.OpenTracing", "src\Quartz.OpenTracing\Quartz.OpenTracing.csproj", "{A41539B5-18CC-4881-9E88-3C0BA55716D3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -119,16 +121,20 @@ Global
 		{23DEAB6E-D12C-40F6-A50E-6584FEAA389C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{23DEAB6E-D12C-40F6-A50E-6584FEAA389C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{23DEAB6E-D12C-40F6-A50E-6584FEAA389C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A41539B5-18CC-4881-9E88-3C0BA55716D3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A41539B5-18CC-4881-9E88-3C0BA55716D3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A41539B5-18CC-4881-9E88-3C0BA55716D3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A41539B5-18CC-4881-9E88-3C0BA55716D3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {A8666F1F-9B78-4A1D-A3DB-0E91324AB539}
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{E84E25C9-B291-4F51-9599-EFB63EB59569} = {FCD766DA-FF68-4A60-9130-07A56C2480F0}
 		{5224231E-7678-4EC6-B18A-FA302D9553E3} = {FCD766DA-FF68-4A60-9130-07A56C2480F0}
 		{2BB03F5A-7736-42E9-A572-5D60336A9BFF} = {FCD766DA-FF68-4A60-9130-07A56C2480F0}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {A8666F1F-9B78-4A1D-A3DB-0E91324AB539}
 	EndGlobalSection
 EndGlobal
