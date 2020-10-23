@@ -1535,7 +1535,6 @@ namespace Quartz.Simpl
             {
                 tw.state = InternalTriggerState.Complete;
                 signaler.NotifySchedulerListenersFinalized(tw.Trigger).ConfigureAwait(false).GetAwaiter().GetResult();
-                ;
                 lock (lockObject)
                 {
                     timeTriggers.Remove(tw);
