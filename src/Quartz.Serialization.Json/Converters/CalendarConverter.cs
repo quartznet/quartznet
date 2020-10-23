@@ -82,12 +82,9 @@ namespace Quartz.Converters
                 target.Description = jObject["Description"]!.Value<string>();
                 target.TimeZone = TimeZoneUtil.FindTimeZoneById(jObject["TimeZoneId"]!.Value<string>());
                 var baseCalendar = jObject["BaseCalendar"]!.Value<JObject>();
-                if (baseCalendar != null)
-                {
-                    var baseCalendarType = Type.GetType(baseCalendar["$type"]!.Value<string>(), true);
-                    var o = baseCalendar.ToObject(baseCalendarType!, serializer);
-                    target.CalendarBase = (ICalendar?) o;
-                }
+                var baseCalendarType = Type.GetType(baseCalendar["$type"]!.Value<string>(), true);
+                var o = baseCalendar.ToObject(baseCalendarType!, serializer);
+                target.CalendarBase = (ICalendar?) o;
             }
             calendarConverter.DeserializeFields(calendar, jObject);
             return calendar;
