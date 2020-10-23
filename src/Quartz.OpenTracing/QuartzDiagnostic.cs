@@ -88,7 +88,7 @@ namespace Quartz.OpenTracing
                     return;
                 }
 
-                string operationName = options.OperationNameResolver(eventName, jobContext);
+                var operationName = options.OperationNameResolver(jobContext);
 
                 tracer.BuildSpan(operationName)
                     .WithTag(Tags.SpanKind, Tags.SpanKindServer)

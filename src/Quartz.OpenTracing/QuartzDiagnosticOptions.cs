@@ -6,10 +6,7 @@ namespace Quartz.OpenTracing
     public class QuartzDiagnosticOptions
     {
         private string _componentName = "Quartz";
-        private Func<string, IJobExecutionContext, string> _operationNameResolver = (eventName, job) =>
-        {
-            return $"{eventName} {job.JobDetail.Key.Name}";
-        };
+        private Func<IJobExecutionContext, string> _operationNameResolver = job => $"Job {job.JobDetail.Key.Name}";
 
         /// <summary>
         /// Allows changing the "component" tag of created spans.
@@ -30,7 +27,7 @@ namespace Quartz.OpenTracing
         /// <summary>
         /// A delegate that returns the OpenTracing "operation name" for the given job.
         /// </summary>
-        public Func<string, IJobExecutionContext, string> OperationNameResolver
+        public Func<IJobExecutionContext, string> OperationNameResolver
         {
             get => _operationNameResolver;
             set => _operationNameResolver = value ?? throw new ArgumentNullException(nameof(OperationNameResolver));
