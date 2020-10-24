@@ -66,6 +66,14 @@ namespace Quartz.Util
                 try
                 {
 #if NETSTANDARD
+                    if (string.IsNullOrWhiteSpace(AppContext.BaseDirectory))
+                    {
+                        // can happen under Xamarin android, see https://github.com/quartznet/quartznet/issues/1008
+                        // and https://github.com/xamarin/xamarin-android/issues/3489
+                        logger.WarnFormat("Unable to resolve file path '{0}' as AppContext.BaseDirectory returned null/empty", fName);
+                        return null;
+                    }
+                    
                     fName = Path.Combine(AppContext.BaseDirectory, fName);
 #else
                     fName = Path.Combine(AppDomain.CurrentDomain.SetupInformation.ApplicationBase ?? "", fName);
@@ -73,8 +81,8 @@ namespace Quartz.Util
                 }
                 catch (SecurityException)
                 {
-                    logger.WarnFormat("Cannot determine path for relative file '{0}' because of security exception");
-                    throw;
+                    logger.WarnFormat("Unable to resolve file path '{0}' due to security exception, probably running under medium trust", fName);
+                    return null;
                 }
             }
 

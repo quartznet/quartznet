@@ -169,7 +169,7 @@ namespace Quartz.Xml
             CancellationToken cancellationToken = default)
         {
             // resolve file name first
-            fileName = FileUtil.ResolveFile(fileName)!;
+            fileName = FileUtil.ResolveFile(fileName) ?? fileName;
 
             Log.InfoFormat("Parsing XML file: {0} with systemId: {1}", fileName, systemId);
 

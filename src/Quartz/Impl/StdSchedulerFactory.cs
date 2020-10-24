@@ -220,15 +220,7 @@ namespace Quartz.Impl
             string propFileName = !string.IsNullOrWhiteSpace(requestedFile) ? requestedFile : "~/quartz.config";
 
             // check for specials
-            try
-            {
-                propFileName = FileUtil.ResolveFile(propFileName)!;
-            }
-            catch (SecurityException)
-            {
-                logger.WarnFormat("Unable to resolve file path '{0}' due to security exception, probably running under medium trust");
-                propFileName = "quartz.config";
-            }
+            propFileName = FileUtil.ResolveFile(propFileName) ?? "quartz.config";
 
             if (props == null && File.Exists(propFileName))
             {

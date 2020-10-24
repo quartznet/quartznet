@@ -2,6 +2,15 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+
+## Release vNext, Oct xx 2020
+
+
+* FIXES
+
+  * Xamarin android can't get scheduler (#1008)
+
+
 ## Release 3.2.2, Oct 19 2020
 
 This release addresses regression in scoped job resolution which was introduced by job factory refactoring done in 3.2.1.
