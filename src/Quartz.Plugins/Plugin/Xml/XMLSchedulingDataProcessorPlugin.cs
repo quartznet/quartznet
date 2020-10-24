@@ -349,7 +349,7 @@ namespace Quartz.Plugin.Xml
                     var fName = FileName;
 
                     // check for special lookup
-                    fName = FileUtil.ResolveFile(fName)!;
+                    fName = FileUtil.ResolveFile(fName) ?? fName;
 
                     FileInfo file = new FileInfo(fName);
                     if (file.Exists)
