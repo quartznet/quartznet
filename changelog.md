@@ -9,6 +9,7 @@
 * FIXES
 
   * Xamarin android can't get scheduler (#1008)
+  * Autofac job factory registration fails (#1011)
 
 
 ## Release 3.2.2, Oct 19 2020
