@@ -6,7 +6,7 @@ Quartz 3.1 or later required.
 :::
 
 ::: danger
-The OpenTelemetry integration libraries are in beta so this integration can break and change behavior.
+The integration library can still live a bit and thus integration API can have breaking changes and change behavior.
 :::
 
 ## Installation

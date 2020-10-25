@@ -117,6 +117,7 @@ module.exports = {
               ['/documentation/quartz-3.x/packages/hosted-services-integration', 'Hosted Services Integration'],
               ['/documentation/quartz-3.x/packages/microsoft-di-integration', 'Microsoft DI Integration'],
               ['/documentation/quartz-3.x/packages/opentelemetry-integration', 'OpenTelemetry Integration'],
+              ['/documentation/quartz-3.x/packages/opentracing-integration', 'OpenTracing Integration'],
               ['/documentation/quartz-3.x/packages/timezoneconverter-integration', 'TimeZoneConverter Integration'],
             ]
           }

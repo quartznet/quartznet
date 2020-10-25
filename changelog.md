@@ -5,6 +5,12 @@
 
 ## Release vNext, Oct xx 2020
 
+This release addresses issue with Autofac integration and adds new integration package Quartz.OpenTracing to allow
+integration with OpenTracing.
+
+* NEW FEATURE
+
+  * Add Quartz.OpenTracing support (#1006)
 
 * FIXES
 
