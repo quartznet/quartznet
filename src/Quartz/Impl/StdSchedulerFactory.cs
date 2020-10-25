@@ -26,7 +26,6 @@ using System.Configuration;
 using System.Globalization;
 using System.IO;
 using System.Reflection;
-using System.Security;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -386,7 +385,6 @@ Please add configuration to your application config file to correctly initialize
             }
 
             Type? typeLoadHelperType = LoadType(cfg.GetStringProperty(PropertySchedulerTypeLoadHelperType));
-            Type? jobFactoryType = LoadType(cfg.GetStringProperty(PropertySchedulerJobFactoryType)) ?? typeof(PropertySettingJobFactory);
 
             idleWaitTime = cfg.GetTimeSpanProperty(PropertySchedulerIdleWaitTime, idleWaitTime);
             if (idleWaitTime > TimeSpan.Zero && idleWaitTime < TimeSpan.FromMilliseconds(1000))
@@ -454,6 +452,8 @@ Please add configuration to your application config file to correctly initialize
                 return remoteScheduler;
             }
 
+
+            Type? jobFactoryType = LoadType(cfg.GetStringProperty(PropertySchedulerJobFactoryType));
             IJobFactory? jobFactory = null;
             if (jobFactoryType != null)
             {
