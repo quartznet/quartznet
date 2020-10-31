@@ -3,10 +3,10 @@ title: Download Quartz.NET
 layout: default
 ---
 
-Grab it from [NuGet](https://www.nuget.org/packages/Quartz)
+You can install Quartz and related packages using [NuGet](https://www.nuget.org/packages/Quartz)
 
 ```
 Install-Package Quartz
 ```
 
-or [ZIP from GitHub releases](https://github.com/quartznet/quartznet/releases)
+or you can download the [ZIP from GitHub releases](https://github.com/quartznet/quartznet/releases) which also contains source code and examples.

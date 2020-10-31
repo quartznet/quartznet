@@ -1,6 +1,6 @@
 <template>
     <div>
-        Grab it from <router-link to="/download">downloads page</router-link>.
+        <router-link to="/download">See download and installation instructions</router-link>.
     </div>
 </template>
 
