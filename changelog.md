@@ -3,7 +3,7 @@
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
 
-## Release vNext, Oct xx 2020
+## Release 3.2.3, Oct 31 2020
 
 This release addresses issue with Autofac integration and adds new integration package Quartz.OpenTracing to allow
 integration with OpenTracing.
@@ -14,7 +14,7 @@ integration with OpenTracing.
 
 * FIXES
 
-  * Xamarin android can't get scheduler (#1008)
+  * Xamarin Android can't get scheduler (#1008)
   * Autofac job factory registration fails (#1011)
 
 
