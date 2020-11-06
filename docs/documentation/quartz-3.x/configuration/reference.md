@@ -205,7 +205,7 @@ Job initialization plugin reads a set of jobs and triggers from an XML file, and
 
 **Sample configuration of JobInitializationPlugin**
 ```
-quartz.plugin.jobInitializer.type = Quartz.Plugins.Xml.XMLSchedulingDataProcessorPlugin, Quartz.Plugins
+quartz.plugin.jobInitializer.type = Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin, Quartz.Plugins
 quartz.plugin.jobInitializer.fileNames = data/my_job_data.xml
 quartz.plugin.jobInitializer.failOnFileNotFound = true
 ```
