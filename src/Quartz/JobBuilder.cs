@@ -277,7 +277,7 @@ namespace Quartz
         /// </summary>
         ///<returns>the updated JobBuilder</returns>
         /// <seealso cref="IJobDetail.JobDataMap" />
-        public JobBuilder UsingJobData(string key, string value)
+        public JobBuilder UsingJobData(string key, string? value)
         {
             jobDataMap.Put(key, value);
             return this;
