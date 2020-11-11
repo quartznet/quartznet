@@ -331,7 +331,10 @@ namespace Quartz.Util
 
             try
             {
-                return Convert.ToDateTime(obj, CultureInfo.InvariantCulture);
+                return
+                    obj is DateTimeOffset dto
+                        ? dto.DateTime
+                        : Convert.ToDateTime(obj, CultureInfo.InvariantCulture);
             }
             catch (Exception)
             {
