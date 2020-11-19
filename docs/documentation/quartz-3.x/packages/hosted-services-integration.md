@@ -46,6 +46,9 @@ public class Program
             .UseSerilog()
             .ConfigureServices((hostContext, services) =>
             {
+                // base configuration from appsettings.json
+                services.Configure<QuartzOptions>(Configuration.GetSection("Quartz"));
+
                 // base configuration for DI
                 services.AddQuartz(q =>
                 {
