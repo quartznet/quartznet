@@ -43,6 +43,8 @@ Quartz comes with two built-in alternatives for job factory which can be configu
 ```csharp
 public void ConfigureServices(IServiceCollection services)
 {
+    // base configuration from appsettings.json
+    services.Configure<QuartzOptions>(Configuration.GetSection("Quartz"));
     services.AddQuartz(q =>
     {
         // handy when part of cluster or you want to otherwise identify multiple schedulers
