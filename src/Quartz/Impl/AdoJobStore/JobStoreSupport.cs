@@ -767,7 +767,15 @@ namespace Quartz.Impl.AdoJobStore
                     continue;
                 }
 
-                await DoUpdateOfMisfiredTrigger(conn, trig, false, StateWaiting, recovering).ConfigureAwait(false);
+                try
+                {
+                    await DoUpdateOfMisfiredTrigger(conn, trig, false, StateWaiting, recovering).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    Log.ErrorException($"Error updating misfired trigger: '{trig.Key}'", e);
+                    continue;
+                }
 
                 DateTimeOffset? nextTime = trig.GetNextFireTimeUtc();
                 if (nextTime.HasValue && nextTime.Value < earliestNewTime)
