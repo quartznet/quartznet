@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -751,13 +751,31 @@ namespace Quartz.Impl.AdoJobStore
 
             foreach (TriggerKey triggerKey in misfiredTriggers)
             {
-                var trig = await RetrieveTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+                IOperableTrigger? trig;
+                try
+                {
+                    trig = await RetrieveTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    Log.ErrorException($"Error retrieving the misfired trigger: '{triggerKey}'", e);
+                    continue;
+                }
+
                 if (trig == null)
                 {
                     continue;
                 }
 
-                await DoUpdateOfMisfiredTrigger(conn, trig, false, StateWaiting, recovering).ConfigureAwait(false);
+                try
+                {
+                    await DoUpdateOfMisfiredTrigger(conn, trig, false, StateWaiting, recovering).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    Log.ErrorException($"Error updating misfired trigger: '{trig.Key}'", e);
+                    continue;
+                }
 
                 DateTimeOffset? nextTime = trig.GetNextFireTimeUtc();
                 if (nextTime.HasValue && nextTime.Value < earliestNewTime)
