@@ -67,7 +67,7 @@ namespace Quartz.Listener
 
             if (numTries > maxRetries)
             {
-                log.InfoFormat("Job with ID and type: {Key}, {JobType} has run {maxRetries} times and has                   failed each time.", context.JobDetail.Key, context.JobDetail.JobType, maxRetries);
+                log.InfoFormat("Job with ID and type: {Key}, {JobType} has run {maxRetries} times and has failed each time.", context.JobDetail.Key, context.JobDetail.JobType, maxRetries);
 
                 return;
             }
@@ -77,7 +77,7 @@ namespace Quartz.Listener
                                         .StartAt(DateTime.Now.AddSeconds(interval * numTries))
                                         .Build();
 
-            log.InfoFormat("Job with ID and type: {Key}, {JobType} has thrown the exception: {Exception}.                   Running again in {Time} seconds.", context.JobDetail.Key, context.JobDetail.JobType, jobException, interval * numTries);
+            log.InfoFormat("Job with ID and type: {Key}, {JobType} has thrown the exception: {Exception}.Running again in {Time} seconds.", context.JobDetail.Key, context.JobDetail.JobType, jobException, interval * numTries);
 
             await context.Scheduler.RescheduleJob(context.Trigger.Key, trigger);
         }
