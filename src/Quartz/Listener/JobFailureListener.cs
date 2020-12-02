@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Quartz.Logging;
 
 namespace Quartz.Listener
 {
@@ -10,8 +11,14 @@ namespace Quartz.Listener
         private const string MaxRetriesKey = nameof(MaxRetriesKey);
         private const string NumTriesKey = nameof(NumTriesKey);
         private const string FailureTriggerGroup = nameof(FailureTriggerGroup);
+        private readonly ILog log;
 
         public string Name => nameof(JobFailureListener);
+
+        public JobFailureListener()
+        {
+            log = LogProvider.GetLogger(GetType());
+        }
 
         public Task JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
@@ -60,6 +67,8 @@ namespace Quartz.Listener
 
             if (numTries > maxRetries)
             {
+                log.InfoFormat("Job with ID and type: {Key}, {JobType} has run {maxRetries} times and has                   failed each time.", context.JobDetail.Key, context.JobDetail.JobType, maxRetries);
+
                 return;
             }
 
@@ -67,6 +76,8 @@ namespace Quartz.Listener
                                         .WithIdentity(Guid.NewGuid().ToString(), FailureTriggerGroup)
                                         .StartAt(DateTime.Now.AddSeconds(interval * numTries))
                                         .Build();
+
+            log.InfoFormat("Job with ID and type: {Key}, {JobType} has thrown the exception: {Exception}.                   Running again in {Time} seconds.", context.JobDetail.Key, context.JobDetail.JobType, jobException, interval * numTries);
 
             await context.Scheduler.RescheduleJob(context.Trigger.Key, trigger);
         }
