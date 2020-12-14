@@ -93,8 +93,8 @@ A better solution is to release the worker thread (exit the job) and allow other
 
 A Job's execute method should contain a try-catch block that handles all possible exceptions.
 
-If a job throws an exception, Quartz will typically immediately re-execute it (and it will likely throw the same exception again).
-It's better if the job catches all exception it may encounter, handle them, and reschedule itself, or other jobs. to work around the issue.
+If a job throws an exception, Quartz will typically immediately re-execute it, meaning the job can and likely will throw the same exception again. This can lead to wasted resources and, in the worst cases, unstable or crashed applications.
+It's better if the job catches all exceptions it may encounter, handles them, and reschedules itself or other jobs to work around the issue.
 
 ### Recoverability and Idempotence
 
