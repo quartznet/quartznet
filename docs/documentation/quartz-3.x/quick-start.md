@@ -100,7 +100,7 @@ namespace QuartzSampleApp
             await scheduler.Start();
 
             // some sleep to show what's happening
-            await Task.Delay(TimeSpan.FromSeconds(60));
+            await Task.Delay(TimeSpan.FromSeconds(10));
 
             // and last shut down the scheduler when you are ready to close your program
             await scheduler.Shutdown();
