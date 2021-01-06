@@ -197,6 +197,9 @@ namespace Quartz.Core
                         endTime = SystemTime.UtcNow();
                     }
                     catch (OperationCanceledException)
+                    
+                    // handle only scheduler-related cancellations
+                    when (cancellationToken.IsCancellationRequested)
                     {
                         endTime = SystemTime.UtcNow();
                         log.InfoFormat($"Job {jobDetail.Key} was cancelled");
