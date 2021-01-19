@@ -3,6 +3,20 @@
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
 
+## Release 3.2.4, Jan 19 2021
+
+This release is a maintenance release with couple of bug fixes. The most important fix for this release is that
+now Quartz distinguishes between external code task cancellation (say HttpClient) and job cancellation triggered by using
+the Quartz API's Interrupt method. Earlier Quartz incorrectly considered also other TaskCanceledExceptions as clean instead of being errors.
+
+* FIXES
+
+  * JobRunShell silently handles OperationCanceledException which is not correct in terms of job retry handling (#1064)
+  * Handled exceptions thrown while retrieving the misfired trigger (#1040)
+  * FileScanJob is faling after upgrading from 3.0.7 to 3.2.3 (#1027)
+  * JobBuilder.UsingJobData(string key, string value) should be JobBuilder.UsingJobData(string key, string? value) (#1025)
+
+
 ## Release 3.2.3, Oct 31 2020
 
 This release addresses issue with Autofac integration and adds new integration package Quartz.OpenTracing to allow
