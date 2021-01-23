@@ -221,8 +221,8 @@ namespace Quartz.Xml
             MaybeThrowValidationException();
 
             // deserialize as object model
-            XmlSerializer xs = new XmlSerializer(typeof (QuartzXmlConfiguration20));
-            QuartzXmlConfiguration20 data = (QuartzXmlConfiguration20) xs.Deserialize(new StringReader(xml));
+            var xs = new XmlSerializer(typeof (QuartzXmlConfiguration20));
+            var data = (QuartzXmlConfiguration20?) xs.Deserialize(new StringReader(xml));
 
             if (data == null)
             {
@@ -575,19 +575,27 @@ namespace Quartz.Xml
         {
             try
             {
-                XmlReaderSettings settings = new XmlReaderSettings();
-                settings.ValidationType = ValidationType.Schema;
-                settings.ValidationFlags |= XmlSchemaValidationFlags.ProcessInlineSchema;
-                settings.ValidationFlags |= XmlSchemaValidationFlags.ProcessSchemaLocation;
-                settings.ValidationFlags |= XmlSchemaValidationFlags.ReportValidationWarnings;
+                var settings = new XmlReaderSettings
+                {
+                    ValidationType = ValidationType.Schema, 
+                    ValidationFlags = XmlSchemaValidationFlags.ProcessInlineSchema 
+                                      | XmlSchemaValidationFlags.ProcessSchemaLocation 
+                                      | XmlSchemaValidationFlags.ReportValidationWarnings
+                };
 
                 using var stream = typeof(XMLSchedulingDataProcessor).Assembly.GetManifestResourceStream(QuartzXsdResourceName);
-                XmlSchema schema = XmlSchema.Read(stream, XmlValidationCallBack);
-                settings.Schemas.Add(schema);
+
+                if (stream is null)
+                {
+                    throw new Exception("Could not read XSD from embedded resource");
+                }
+                
+                var schema = XmlSchema.Read(stream, XmlValidationCallBack);
+                settings.Schemas.Add(schema!);
                 settings.ValidationEventHandler += XmlValidationCallBack;
 
                 // stream to validate
-                using XmlReader reader = XmlReader.Create(new StringReader(xml), settings);
+                using var reader = XmlReader.Create(new StringReader(xml), settings);
                 while (reader.Read())
                 {
                 }
@@ -598,7 +606,7 @@ namespace Quartz.Xml
             }
         }
 
-        private void XmlValidationCallBack(object sender, ValidationEventArgs e)
+        private void XmlValidationCallBack(object? sender, ValidationEventArgs e)
         {
             if (e.Severity == XmlSeverityType.Error)
             {

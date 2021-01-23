@@ -2,7 +2,7 @@
 
     <PropertyGroup>
         <OutputType>Exe</OutputType>
-        <TargetFramework>netcoreapp3.1</TargetFramework>
+        <TargetFramework>net5.0</TargetFramework>
         <Nullable>disable</Nullable>
     </PropertyGroup>
 
@@ -12,7 +12,6 @@
 
     <ItemGroup>
       <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj" />
-      <ProjectReference Include="..\Quartz\Quartz.csproj" />
     </ItemGroup>
 
 </Project>

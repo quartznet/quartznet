@@ -58,7 +58,7 @@ namespace Quartz.Util
         /// <returns></returns>
 		public virtual string? GetStringProperty(string? name)
 		{
-			string val = props.Get(name);
+			var val = props.Get(name);
 		    return val?.Trim();
 		}
 

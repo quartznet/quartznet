@@ -1,8 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>netcoreapp2.1;netcoreapp3.1;$(TargetFullFrameworkVersion)</TargetFrameworks>
+    <TargetFrameworks>net5.0;net472</TargetFrameworks>
     <IsPackable>false</IsPackable>
     <Nullable>disable</Nullable>
+    <NoWarn>SYSLIB0011;CS0618</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="Xml\TestData\*" />
@@ -15,11 +16,11 @@
     <Compile Include="..\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="FakeItEasy" Version="6.2.0" />
+    <PackageReference Include="FakeItEasy" Version="6.2.1" />
     <PackageReference Include="FluentAssertions" Version="5.10.3" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="2.0.0" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="16.6.1" />
-    <PackageReference Include="NUnit" Version="3.12.0" />
+    <PackageReference Include="NUnit" Version="3.13.0" />
     <PackageReference Include="NUnit3TestAdapter" Version="3.17.0" />
   </ItemGroup>
   <ItemGroup>
@@ -29,7 +30,7 @@
     <ProjectReference Include="..\Quartz.Plugins.TimeZoneConverter\Quartz.Plugins.TimeZoneConverter.csproj" />
     <ProjectReference Include="..\Quartz.Serialization.Json\Quartz.Serialization.Json.csproj" />
   </ItemGroup>
-  <PropertyGroup Condition=" '$(TargetFramework)' == 'netcoreapp2.1' Or '$(TargetFramework)' == 'netcoreapp3.1' ">
+  <PropertyGroup Condition=" '$(TargetFramework)' == 'net5.0' ">
     <DefineConstants>$(DefineConstants);NETCORE</DefineConstants>
   </PropertyGroup>
 </Project>

@@ -1,9 +1,9 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
+    <TargetFrameworks>net461;net472;netstandard2.0</TargetFrameworks>
     <RootNamespace>Quartz</RootNamespace>
-	<Title>Quartz.NET JSON Serialization</Title>
+    <Title>Quartz.NET JSON Serialization</Title>
     <Description>Quartz.NET JSON Serialization Support; $(Description)</Description>
-    <TargetFrameworks>netstandard2.0;$(TargetFullFrameworkVersion)</TargetFrameworks>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>

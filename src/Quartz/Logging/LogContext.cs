@@ -18,10 +18,12 @@ namespace Quartz.Logging
             LogProvider.SetCurrentLogProvider(new MicrosoftLoggingProvider(loggerFactory));
         }
 
+#if DIAGNOSTICS_SOURCE
         internal static class Cached
         {
             internal static readonly Lazy<DiagnosticListener> Default =
                 new Lazy<DiagnosticListener>(() => new DiagnosticListener(DiagnosticHeaders.DefaultListenerName));
         }
+#endif
     }
 }

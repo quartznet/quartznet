@@ -3,6 +3,29 @@
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
 
+## Release 3.3, XXX XX 2021
+
+This release addresses problems with using Quartz with .NET Full Framework lower than 4.7.2. ValueTask loading
+could fail due the dependencies brought with activity source support. Now activity sources are only supported when
+using .NET Framework >= 4.7.2 and netstandard >= 2.0. This also raises requirement the same way for package
+Quartz.OpenTelemetry.Instrumentation.
+
+* BREAKING CHANGES
+
+  * Activity source listener is not longer part of net461 build, only net472
+  * Quartz.AspNetCore integration package minimum .NET Core version is now 3.1 for HealthChecks support
+  
+* NEW FEATURES
+
+  * Separate build configuration for .NET Framework 4.7.2
+  * OpenTelemetry integration upgraded to target OpenTelemetry 1.0.0-rc1.1
+  
+* FIXES
+
+  * Jobs not firing after upgrade to 3.2.x (from 3.0.7) on Microsoft Server 2008 R2 (#1083)
+  * Jobs are not fired (#1072)
+
+
 ## Release 3.2.4, Jan 19 2021
 
 This release is a maintenance release with couple of bug fixes. The most important fix for this release is that

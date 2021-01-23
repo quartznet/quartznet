@@ -52,6 +52,14 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Benchmark", "src\Qua
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.OpenTracing", "src\Quartz.OpenTracing\Quartz.OpenTracing.csproj", "{A41539B5-18CC-4881-9E88-3C0BA55716D3}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GitHub", "GitHub", "{354EFE76-4FA8-45C9-A3D4-585B8E00D242}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Workflows", "Workflows", "{BB894600-46FC-4EAD-84C8-F98622A3D012}"
+ProjectSection(SolutionItems) = preProject
+	.github\workflows\publish.yml = .github\workflows\publish.yml
+	.github\workflows\build.yml = .github\workflows\build.yml
+EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -134,6 +142,8 @@ Global
 		{E84E25C9-B291-4F51-9599-EFB63EB59569} = {FCD766DA-FF68-4A60-9130-07A56C2480F0}
 		{5224231E-7678-4EC6-B18A-FA302D9553E3} = {FCD766DA-FF68-4A60-9130-07A56C2480F0}
 		{2BB03F5A-7736-42E9-A572-5D60336A9BFF} = {FCD766DA-FF68-4A60-9130-07A56C2480F0}
+		{354EFE76-4FA8-45C9-A3D4-585B8E00D242} = {7E6034DE-2AF7-42CE-B9E3-A1B3B582E6DA}
+		{BB894600-46FC-4EAD-84C8-F98622A3D012} = {354EFE76-4FA8-45C9-A3D4-585B8E00D242}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {A8666F1F-9B78-4A1D-A3DB-0E91324AB539}
