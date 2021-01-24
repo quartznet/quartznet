@@ -374,14 +374,6 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
 
         public override object SyncRoot => throw new NotImplementedException();
 
-#if !NETCORE
-        public override bool IsFixedSize => throw new NotImplementedException();
-
-        public override bool IsReadOnly => throw new NotImplementedException();
-
-        public override bool IsSynchronized => throw new NotImplementedException();
-#endif
-
         public override int IndexOf(string parameterName)
         {
             throw new NotImplementedException();

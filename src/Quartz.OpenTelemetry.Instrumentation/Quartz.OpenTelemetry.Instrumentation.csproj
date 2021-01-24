@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;$(TargetFullFrameworkVersion)</TargetFrameworks>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <RootNamespace>Quartz.OpenTelemetry.Instrumentation</RootNamespace>
     <Title>Quartz.NET OpenTelemetry integration</Title>
     <Description>Quartz.NET OpenTelemetry integration; $(Description)</Description>

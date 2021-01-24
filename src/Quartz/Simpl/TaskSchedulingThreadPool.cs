@@ -3,7 +3,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-using Quartz.Logging;
+using Microsoft.Extensions.Logging;
+
 using Quartz.Spi;
 
 namespace Quartz.Simpl
@@ -13,7 +14,7 @@ namespace Quartz.Simpl
     /// </summary>
     public abstract class TaskSchedulingThreadPool : IThreadPool
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof(TaskSchedulingThreadPool));
+        private readonly ILogger<TaskSchedulingThreadPool> logger;
 
         // The token source used to cancel thread pool execution at shutdown
         // Note that cancellation is not propagated to the user-scheduled tasks currently executing,
@@ -33,6 +34,14 @@ namespace Quartz.Simpl
 
         private TaskScheduler scheduler = null!;
         private bool isInitialized;
+
+        public TaskSchedulingThreadPool(
+            ILogger<TaskSchedulingThreadPool> logger,
+            int maxConcurrency = DefaultMaxConcurrency)
+        {
+            this.logger = logger;
+            MaxConcurrency = maxConcurrency;
+        }
 
         /// <summary>
         /// The TaskScheduler used to schedule tasks queued by users
@@ -88,7 +97,7 @@ namespace Quartz.Simpl
         // ReSharper disable once UnusedMember.Global
         public string ThreadPriority
         {
-            set => log.Warn("Thread priority is no longer supported for thread pool, ignoring");
+            set => logger.LogWarning("Thread priority is no longer supported for thread pool, ignoring");
         }
 
         /// <summary>
@@ -99,15 +108,6 @@ namespace Quartz.Simpl
         public virtual string InstanceId { get; set; } = null!;
 
         public virtual string InstanceName { get; set; } = null!;
-
-        public TaskSchedulingThreadPool() : this(DefaultMaxConcurrency)
-        {
-        }
-
-        public TaskSchedulingThreadPool(int maxConcurrency)
-        {
-            MaxConcurrency = maxConcurrency;
-        }
 
         /// <summary>
         /// Initializes the thread pool for use
@@ -128,7 +128,7 @@ namespace Quartz.Simpl
             concurrencySemaphore = new SemaphoreSlim(MaxConcurrency);
             isInitialized = true;
 
-            log.Debug($"TaskSchedulingThreadPool configured with max concurrency of {MaxConcurrency} and TaskScheduler {Scheduler.GetType().Name}.");
+            logger.LogDebug("TaskSchedulingThreadPool configured with max concurrency of {MaxConcurrency} and TaskScheduler {SchedulerName}.", MaxConcurrency, Scheduler.GetType().Name);
         }
 
         /// <summary>
@@ -230,7 +230,7 @@ namespace Quartz.Simpl
         /// <param name="waitForJobsToComplete">True to wait for currently executing tasks to finish; false otherwise</param>
         public void Shutdown(bool waitForJobsToComplete = true)
         {
-            log.Debug("Shutting down threadpool...");
+            logger.LogDebug("Shutting down thread pool...");
 
             // Cancel using our shutdown token
             shutdownCancellation.Cancel();
@@ -245,11 +245,11 @@ namespace Quartz.Simpl
                     // shutdown has acquired this lock
                     tasksArray = runningTasks.ToArray();
                 }
-                log.DebugFormat($"Waiting for {tasksArray.Length} threads to complete.");
+                logger.LogDebug($"Waiting for {tasksArray.Length} threads to complete.");
                 Task.WaitAll(tasksArray);
-                log.Debug("No executing jobs remaining, all threads stopped.");
+                logger.LogDebug("No executing jobs remaining, all threads stopped.");
             }
-            log.Debug("Shutdown of threadpool complete.");
+            logger.LogDebug("Shutdown of thread pool complete.");
         }
     }
 }

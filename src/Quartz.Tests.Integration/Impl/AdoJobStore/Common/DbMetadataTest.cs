@@ -47,23 +47,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore.Common
             TestDbMetadata("MySqlConnector");
         }
 
-#if !NETCORE
-        
-        [Test]
-        public void TestDbMetadataOracleODP()
-        {
-            TestDbMetadata("OracleODP");
-        }
-
-        [Test]
-        public void TestDbMetadataOracleODPManaged()
-        {
-            var provider = TestDbMetadata("OracleODPManaged");
-            var command = (Oracle.ManagedDataAccess.Client.OracleCommand) provider.CreateCommand();
-            Assert.That(command.BindByName, Is.True, "bind by name should default to true");
-        }
-#endif
-
         private static DbProvider TestDbMetadata(string dbname, bool hashCustomBinaryType = true)
         {
             DbProvider dbp = new DbProvider(dbname, "foo");

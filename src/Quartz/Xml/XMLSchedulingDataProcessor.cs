@@ -26,8 +26,9 @@ using System.Xml;
 using System.Xml.Schema;
 using System.Xml.Serialization;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Impl.Matchers;
-using Quartz.Logging;
 using Quartz.Spi;
 using Quartz.Util;
 using Quartz.Xml.JobSchedulingData20;
@@ -66,6 +67,8 @@ namespace Quartz.Xml
         public const string QuartzXmlFileName = "quartz_jobs.xml";
         public const string QuartzXsdResourceName = "Quartz.Xml.job_scheduling_data_2_0.xsd";
 
+        private readonly ILogger<XMLSchedulingDataProcessor> Log;
+
         // pre-processing commands
         private readonly List<string> jobGroupsToDelete = new List<string>();
         private readonly List<string> triggerGroupsToDelete = new List<string>();
@@ -85,11 +88,11 @@ namespace Quartz.Xml
         /// <summary>
         /// Constructor for XMLSchedulingDataProcessor.
         /// </summary>
-        public XMLSchedulingDataProcessor(ITypeLoadHelper typeLoadHelper)
+        public XMLSchedulingDataProcessor(
+            ILogger<XMLSchedulingDataProcessor> logger,
+            ITypeLoadHelper typeLoadHelper)
         {
-            OverWriteExistingData = true;
-            IgnoreDuplicates = false;
-            Log = LogProvider.GetLogger(GetType());
+            Log = logger;
             TypeLoadHelper = typeLoadHelper;
         }
 
@@ -103,7 +106,7 @@ namespace Quartz.Xml
         /// error will occur.
         /// </remarks>
         /// <seealso cref="IgnoreDuplicates" />
-        public virtual bool OverWriteExistingData { get; set; }
+        public virtual bool OverWriteExistingData { get; set; } = true;
 
         /// <summary>
         /// If true (and <see cref="OverWriteExistingData" /> is false) then any
@@ -121,12 +124,6 @@ namespace Quartz.Xml
         /// and trigger's next fire time will updated to be next from this last fire time.
         /// </summary>
         public virtual bool ScheduleTriggerRelativeToReplacedTrigger { get; set; }
-
-        /// <summary>
-        /// Gets the log.
-        /// </summary>
-        /// <value>The log.</value>
-        private ILog Log { get; }
 
         protected virtual IReadOnlyList<IJobDetail> LoadedJobs => loadedJobs.AsReadOnly();
 

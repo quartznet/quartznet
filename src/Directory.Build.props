@@ -32,7 +32,7 @@
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
 
-    <VersionPrefix>3.2.4</VersionPrefix>
+    <VersionPrefix>4.0.0-beta1</VersionPrefix>
     <VersionSuffix Condition="'$(VersionSuffix)'!='' AND '$(BuildNumber)' != ''">$(VersionSuffix)-$(BuildNumber)</VersionSuffix>
 
     <CLSCompliant>True</CLSCompliant>
@@ -41,32 +41,17 @@
     <DebugSymbols>True</DebugSymbols>
     <PlatformTarget>AnyCPU</PlatformTarget>
 
-    <LangVersion>8</LangVersion>
-    <TargetFullFrameworkVersion>net461</TargetFullFrameworkVersion>
+    <LangVersion>latest</LangVersion>
 
-    <IsTestProject>$(MSBuildProjectName.Contains('Tests'))</IsTestProject>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(IsTestProject)' == 'False' and ( '$(APPVEYOR)' == 'true' or '$(APPVEYOR)' == 'True' )">
+  <PropertyGroup Condition=" '$(APPVEYOR)' == 'true' ">
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
   </PropertyGroup>
 
-  <ItemGroup Condition="'$(IsTestProject)' != 'true'">
+  <ItemGroup>
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All"/>
   </ItemGroup>
-
-  <PropertyGroup Condition=" '$(TargetFramework)' == '$(TargetFullFrameworkVersion)' ">
-    <DefineConstants>$(DefineConstants);REMOTING</DefineConstants>
-  </PropertyGroup>
-
-  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
-    <DefineConstants>DEBUG;TRACE;$(DefineConstants)</DefineConstants>
-  </PropertyGroup>
-
-  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
-    <Optimize>true</Optimize>
-    <DefineConstants>TRACE;$(DefineConstants)</DefineConstants>
-  </PropertyGroup>
 
   <ItemGroup>
     <None Include="..\quartz-logo-small.png" Pack="true" Visible="false" PackagePath=""/>

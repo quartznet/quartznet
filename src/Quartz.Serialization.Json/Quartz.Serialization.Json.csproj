@@ -3,7 +3,7 @@
     <RootNamespace>Quartz</RootNamespace>
 	<Title>Quartz.NET JSON Serialization</Title>
     <Description>Quartz.NET JSON Serialization Support; $(Description)</Description>
-    <TargetFrameworks>netstandard2.0;$(TargetFullFrameworkVersion)</TargetFrameworks>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
