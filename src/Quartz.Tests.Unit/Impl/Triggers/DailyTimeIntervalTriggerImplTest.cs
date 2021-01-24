@@ -31,6 +31,8 @@ using Quartz.Job;
 using Quartz.Spi;
 using Quartz.Util;
 
+using TimeZoneConverter;
+
 namespace Quartz.Tests.Unit.Impl.Triggers
 {
     /// <summary>
@@ -823,7 +825,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
         [Category("windowstimezoneid")]
         public void TestDayLightSaving()
         {
-            var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById("GMT Standard Time");
+            var timeZoneInfo = TZConvert.GetTimeZoneInfo("GMT Standard Time");
 
             var trigger = DailyTimeIntervalScheduleBuilder.Create()
                 .StartingDailyAt(TimeOfDay.HourAndMinuteOfDay(22, 15))
@@ -846,7 +848,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
         [Test]
         public void TestDayLightSaving2()
         {
-            var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time");
+            var timeZoneInfo = TZConvert.GetTimeZoneInfo("Central Standard Time");
 
             var trigger = DailyTimeIntervalScheduleBuilder.Create()
                 .OnEveryDay()
@@ -862,7 +864,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
         [Test]
         public void TestDayLightSaving3()
         {
-	        var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+	        var timeZoneInfo = TZConvert.GetTimeZoneInfo("Eastern Standard Time");
 	        //UTC: 2020/3/7/ 00:00  EST: 2020/3/6 19:00
 			var startTime = new DateTimeOffset(2020, 3, 7, 0, 0, 0, TimeSpan.Zero);
 	        var trigger = DailyTimeIntervalScheduleBuilder.Create()
@@ -881,7 +883,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
         [Test]
         public void TestDayLightSaving4()
         {
-	        var timeZoneInfo = TimeZoneInfo.FindSystemTimeZoneById("Eastern Standard Time");
+	        var timeZoneInfo = TZConvert.GetTimeZoneInfo("Eastern Standard Time");
 			//UTC: 2019/11/1/ 23:00  EST: 2019/11/1 19:00
 			var startTime = new DateTimeOffset(2019, 11, 1, 23, 0, 0, TimeSpan.Zero);
 			var trigger = DailyTimeIntervalScheduleBuilder.Create()
@@ -970,7 +972,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
         {
             var trigger = (IOperableTrigger) TriggerBuilder.Create()
                 .WithDailyTimeIntervalSchedule(x => x
-                    .InTimeZone(TimeZoneInfo.FindSystemTimeZoneById("GTB Standard Time"))
+                    .InTimeZone(TZConvert.GetTimeZoneInfo("GTB Standard Time"))
                     .StartingDailyAt(new TimeOfDay(0, 0, 0))
                     .EndingDailyAt(new TimeOfDay(22, 0, 0))
                     .WithInterval(15, IntervalUnit.Minute)

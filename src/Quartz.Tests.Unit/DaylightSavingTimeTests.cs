@@ -21,6 +21,8 @@ using System;
 
 using NUnit.Framework;
 
+using TimeZoneConverter;
+
 namespace Quartz.Tests.Unit
 {
     [TestFixture]
@@ -44,7 +46,7 @@ namespace Quartz.Tests.Unit
         [Test]
         public void ShouldHandleDstSpringForwardTransition()
         {
-            TimeZoneInfo tz = TimeZoneInfo.FindSystemTimeZoneById("Pacific Standard Time");
+            TimeZoneInfo tz = TZConvert.GetTimeZoneInfo("Pacific Standard Time");
 
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("trigger1", "group1")
@@ -70,7 +72,7 @@ namespace Quartz.Tests.Unit
         [Test]
         public void ShouldHandleDstFallBackTransition()
         {
-            TimeZoneInfo tz = TimeZoneInfo.FindSystemTimeZoneById("Pacific Standard Time");
+            TimeZoneInfo tz = TZConvert.GetTimeZoneInfo("Pacific Standard Time");
 
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("trigger1", "group1")
@@ -96,7 +98,7 @@ namespace Quartz.Tests.Unit
         [Test]
         public void ShouldHandleDstFallBackTransition_AndNotRunTwiceOnTheSameDay()
         {
-            TimeZoneInfo tz = TimeZoneInfo.FindSystemTimeZoneById("Pacific Standard Time");
+            TimeZoneInfo tz = TZConvert.GetTimeZoneInfo("Pacific Standard Time");
 
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("trigger1", "group1")
