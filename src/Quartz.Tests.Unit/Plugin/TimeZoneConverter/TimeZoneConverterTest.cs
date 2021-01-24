@@ -11,7 +11,7 @@ namespace Quartz.Tests.Unit.Plugin.TimeZoneConverter
     public class TimeZoneConverterTest
     {
         [Test]
-        [Platform("Windows")]
+        [Platform("WIN")]
         public async Task ResolveIanaTimeZone()
         {
             Assert.Throws<TimeZoneNotFoundException>(() => TimeZoneInfo.FindSystemTimeZoneById("Canada/Saskatchewan"));

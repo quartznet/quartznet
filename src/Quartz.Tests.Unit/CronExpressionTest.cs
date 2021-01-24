@@ -524,6 +524,7 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
+        [Platform("WIN")]
         public void TestDaylightSaving_QRTZNETZ186()
         {
             CronExpression expression = new CronExpression("0 15 * * * ?");

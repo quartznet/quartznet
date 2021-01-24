@@ -37,7 +37,7 @@
     <DebugSymbols>True</DebugSymbols>
 
     <LangVersion>latest</LangVersion>
-    
+
   </PropertyGroup>
   
   <PropertyGroup Condition="$(MSBuildProjectName.Contains('Example')) == false">
