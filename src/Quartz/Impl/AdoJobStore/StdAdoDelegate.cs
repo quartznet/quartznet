@@ -162,12 +162,12 @@ namespace Quartz.Impl.AdoJobStore
             triggerPersistenceDelegates.Add(del);
         }
 
-        public virtual ITriggerPersistenceDelegate FindTriggerPersistenceDelegate(IOperableTrigger trigger)
+        public virtual ITriggerPersistenceDelegate? FindTriggerPersistenceDelegate(IOperableTrigger trigger)
         {
             return triggerPersistenceDelegates.FirstOrDefault(del => del.CanHandleTriggerType(trigger));
         }
 
-        public virtual ITriggerPersistenceDelegate FindTriggerPersistenceDelegate(string discriminator)
+        public virtual ITriggerPersistenceDelegate? FindTriggerPersistenceDelegate(string discriminator)
         {
             return triggerPersistenceDelegates.FirstOrDefault(del => del.GetHandledTriggerTypeDiscriminator() == discriminator);
         }
@@ -833,8 +833,8 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, "jobName", jobKey.Name);
                 AddCommandParameter(cmd, "jobGroup", jobKey.Group);
 
-                object o = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-                if (o != null)
+                var o = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                if (o is not null)
                 {
                     return (bool) o;
                 }
@@ -1013,11 +1013,14 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default)
         {
-            using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectNumJobs)))
+            using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectNumJobs));
+            AddCommandParameter(cmd, "schedulerName", schedName);
+            var o = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+            if (o is not null)
             {
-                AddCommandParameter(cmd, "schedulerName", schedName);
-                return (int) await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                return (int) o;
             }
+            return 0;
         }
 
         /// <summary>
@@ -1167,7 +1170,7 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, "triggerState", state);
                 string paramName = "triggerType";
 
-                ITriggerPersistenceDelegate tDel = FindTriggerPersistenceDelegate(trigger);
+                var tDel = FindTriggerPersistenceDelegate(trigger);
                 string type = TriggerTypeBlob;
                 if (tDel != null)
                 {
@@ -1274,7 +1277,7 @@ namespace Quartz.Impl.AdoJobStore
 
             AddCommandParameter(cmd, "triggerState", state);
 
-            ITriggerPersistenceDelegate tDel = FindTriggerPersistenceDelegate(trigger);
+            var tDel = FindTriggerPersistenceDelegate(trigger);
 
             string type = TriggerTypeBlob;
             if (tDel != null)
@@ -1912,7 +1915,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             else
             {
-                ITriggerPersistenceDelegate tDel = FindTriggerPersistenceDelegate(triggerType);
+                var tDel = FindTriggerPersistenceDelegate(triggerType);
 
                 if (tDel == null)
                 {
@@ -3229,13 +3232,13 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         protected virtual IDictionary ConvertFromProperty(NameValueCollection properties)
         {
-            IDictionary<string, string> data = new Dictionary<string, string>();
-            foreach (string key in properties.AllKeys)
+            var data = new Dictionary<string, string?>();
+            foreach (var key in properties.AllKeys)
             {
-                data[key] = properties[key];
+                data[key!] = properties[key];
             }
 
-            return (IDictionary) data;
+            return data;
         }
 
         /// <summary>
@@ -3294,7 +3297,9 @@ namespace Quartz.Impl.AdoJobStore
                 return null;
             }
 
-            byte[] outbyte = new byte[dr.GetBytes(colIndex, 0, null, 0, int.MaxValue)];
+            // If you pass a buffer that is null, GetBytes returns the length of the entire field in bytes, not the remaining size based on the buffer offset parameter.
+            var length = dr.GetBytes(colIndex, 0, null!, 0, int.MaxValue);
+            byte[] outbyte = new byte[length];
             dr.GetBytes(colIndex, 0, outbyte, 0, outbyte.Length);
             using (MemoryStream stream = new MemoryStream())
             {

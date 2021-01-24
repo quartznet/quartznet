@@ -11,7 +11,7 @@ using static Quartz.Logging.OperationName;
 
 namespace Quartz.OpenTracing
 {
-    internal sealed class QuartzDiagnostic : IObserver<DiagnosticListener>, IObserver<KeyValuePair<string, object>>
+    internal sealed class QuartzDiagnostic : IObserver<DiagnosticListener>, IObserver<KeyValuePair<string, object?>>
     {
         private ILogger<QuartzDiagnostic> logger { get; }
         private ITracer tracer { get; }
@@ -54,7 +54,7 @@ namespace Quartz.OpenTracing
             _subscriptions.Clear();
         }
 
-        void IObserver<KeyValuePair<string, object>>.OnNext(KeyValuePair<string, object> value)
+        void IObserver<KeyValuePair<string, object?>>.OnNext(KeyValuePair<string, object?> value)
         {
             try
             {
@@ -66,15 +66,15 @@ namespace Quartz.OpenTracing
             }
         }
 
-        void IObserver<KeyValuePair<string, object>>.OnError(Exception error)
+        void IObserver<KeyValuePair<string, object?>>.OnError(Exception error)
         { }
 
-        void IObserver<KeyValuePair<string, object>>.OnCompleted()
+        void IObserver<KeyValuePair<string, object?>>.OnCompleted()
         { }
 
         private bool IsEnabled(string eventName) => eventName == Job.Execute;
 
-        private void OnNext(string eventName, object untypedArg)
+        private void OnNext(string eventName, object? untypedArg)
         {
             if (eventName == jobExecuteStartEventName)
             {

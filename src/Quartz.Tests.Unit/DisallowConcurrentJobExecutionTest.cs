@@ -98,7 +98,9 @@ namespace Quartz.Tests.Unit
             await scheduler.Shutdown(true);
 
             Assert.AreEqual(2, jobExecDates.Count);
-            Assert.Greater(jobExecDates[1] - jobExecDates[0], jobBlockTime);
+            
+            // there can be some jitter
+            Assert.Greater((jobExecDates[1] - jobExecDates[0]).TotalMilliseconds, jobBlockTime.TotalMilliseconds - 1);
         }
 
         /** QTZ-202 */
@@ -128,7 +130,7 @@ namespace Quartz.Tests.Unit
             await scheduler.Shutdown(true);
 
             Assert.AreEqual(2, jobExecDates.Count);
-            Assert.Greater(jobExecDates[1] - jobExecDates[0], jobBlockTime);
+            Assert.Greater((jobExecDates[1] - jobExecDates[0]).TotalMilliseconds, jobBlockTime.TotalMilliseconds - 1);
         }
     }
 }

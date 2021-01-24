@@ -10,6 +10,8 @@ using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
 
+using TimeZoneConverter;
+
 namespace Quartz.Tests.Unit
 {
     [TestFixture(typeof(BinaryObjectSerializer))]
@@ -714,7 +716,7 @@ namespace Quartz.Tests.Unit
         [Test(Description = "https://github.com/quartznet/quartznet/issues/505")]
         public void ShouldRespectTimeZoneForFirstFireTime()
         {
-            var tz = TimeZoneUtil.FindTimeZoneById("E. South America Standard Time");
+            var tz = TZConvert.GetTimeZoneInfo("E. South America Standard Time");
             var dailyTrigger = (IOperableTrigger) TriggerBuilder.Create()
                 .StartAt(new DateTime(2017, 1, 4, 15, 0, 0, DateTimeKind.Utc))
                 .WithCalendarIntervalSchedule(x => x

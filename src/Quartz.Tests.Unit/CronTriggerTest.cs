@@ -25,7 +25,8 @@ using NUnit.Framework;
 
 using Quartz.Impl.Triggers;
 using Quartz.Spi;
-using Quartz.Util;
+
+using TimeZoneConverter;
 
 namespace Quartz.Tests.Unit
 {
@@ -48,7 +49,7 @@ namespace Quartz.Tests.Unit
             {
                 tzStr = "GMT Standard Time";
             }
-            TimeZoneInfo tz = TimeZoneUtil.FindTimeZoneById(tzStr);
+            TimeZoneInfo tz = TZConvert.GetTimeZoneInfo(tzStr);
             CronTriggerImpl trigger = new CronTriggerImpl();
             trigger.Name = "Quartz-579";
             trigger.Group = SchedulerConstants.DefaultGroup;

@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard2.0</TargetFramework>
+    <TargetFrameworks>net472;netstandard2.0</TargetFrameworks>
     <RootNamespace>Quartz.OpenTracing</RootNamespace>
     <Title>Quartz.NET OpenTracing integration</Title>
     <Description>Quartz.NET OpenTracing integration</Description>

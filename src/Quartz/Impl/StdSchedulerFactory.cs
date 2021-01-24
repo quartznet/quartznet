@@ -316,16 +316,18 @@ Please add configuration to your application config file to correctly initialize
             }
 
             // now check against allowed
-            foreach (string configurationKey in cfg.UnderlyingProperties.AllKeys)
+            foreach (var configurationKey in cfg.UnderlyingProperties.AllKeys)
             {
-                if (!configurationKey.StartsWith(ConfigurationKeyPrefix) || configurationKey.StartsWith(ConfigurationKeyPrefixServer))
+                if (configurationKey is null 
+                    || !configurationKey.StartsWith(ConfigurationKeyPrefix)
+                    || configurationKey.StartsWith(ConfigurationKeyPrefixServer))
                 {
                     // don't bother if truly unknown property
                     continue;
                 }
 
-                bool isMatch = false;
-                foreach (string supportedKey in supportedKeys)
+                var isMatch = false;
+                foreach (var supportedKey in supportedKeys)
                 {
                     if (CultureInfo.InvariantCulture.CompareInfo.IsPrefix(configurationKey, supportedKey, CompareOptions.None))
                     {
@@ -405,9 +407,8 @@ Please add configuration to your application config file to correctly initialize
             bool interruptJobsOnShutdown = cfg.GetBooleanProperty(PropertySchedulerInterruptJobsOnShutdown, false);
             bool interruptJobsOnShutdownWithWait = cfg.GetBooleanProperty(PropertySchedulerInterruptJobsOnShutdownWithWait, false);
 
-            NameValueCollection schedCtxtProps = cfg.GetPropertyGroup(PropertySchedulerContextPrefix, true);
-
-            bool proxyScheduler = cfg.GetBooleanProperty(PropertySchedulerProxy, false);
+            var schedCtxtProps = cfg.GetPropertyGroup(PropertySchedulerContextPrefix, true);
+            var proxyScheduler = cfg.GetBooleanProperty(PropertySchedulerProxy, false);
 
             // Create type load helper
             ITypeLoadHelper loadHelper;
@@ -579,13 +580,13 @@ Please add configuration to your application config file to correctly initialize
                 }
                 else
                 {
-                    string? dsProvider = pp.GetStringProperty(PropertyDataSourceProvider, null);
-                    string? dsConnectionString = pp.GetStringProperty(PropertyDataSourceConnectionString, null);
-                    string? dsConnectionStringName = pp.GetStringProperty(PropertyDataSourceConnectionStringName, null);
+                    var dsProvider = pp.GetStringProperty(PropertyDataSourceProvider, null);
+                    var dsConnectionString = pp.GetStringProperty(PropertyDataSourceConnectionString, null);
+                    var dsConnectionStringName = pp.GetStringProperty(PropertyDataSourceConnectionStringName, null);
 
                     if (dsConnectionString == null && !string.IsNullOrEmpty(dsConnectionStringName))
                     {
-                        ConnectionStringSettings connectionStringSettings = ConfigurationManager.ConnectionStrings[dsConnectionStringName];
+                        var connectionStringSettings = ConfigurationManager.ConnectionStrings[dsConnectionStringName];
                         if (connectionStringSettings == null)
                         {
                             initException = new SchedulerException("Named connection string '{0}' not found for DataSource: {1}".FormatInvariant(dsConnectionStringName, dataSourceName));
@@ -694,7 +695,7 @@ Please add configuration to your application config file to correctly initialize
             if (js is JobStoreSupport jobStoreSupport)
             {
                 // Install custom lock handler (Semaphore)
-                Type? lockHandlerType = loadHelper.LoadType(cfg.GetStringProperty(PropertyJobStoreLockHandlerType));
+                var lockHandlerType = loadHelper.LoadType(cfg.GetStringProperty(PropertyJobStoreLockHandlerType));
                 if (lockHandlerType != null)
                 {
                     try
@@ -750,9 +751,8 @@ Please add configuration to your application config file to correctly initialize
             ISchedulerPlugin[] plugins = new ISchedulerPlugin[pluginNames.Count];
             for (int i = 0; i < pluginNames.Count; i++)
             {
-                NameValueCollection pp = cfg.GetPropertyGroup("{0}.{1}".FormatInvariant(PropertyPluginPrefix, pluginNames[i]), true);
-
-                string plugInType = pp[PropertyPluginType];
+                var pp = cfg.GetPropertyGroup("{0}.{1}".FormatInvariant(PropertyPluginPrefix, pluginNames[i]), true);
+                var plugInType = pp[PropertyPluginType];
 
                 if (plugInType == null)
                 {
@@ -788,9 +788,8 @@ Please add configuration to your application config file to correctly initialize
             IJobListener[] jobListeners = new IJobListener[jobListenerNames.Count];
             for (int i = 0; i < jobListenerNames.Count; i++)
             {
-                NameValueCollection lp = cfg.GetPropertyGroup("{0}.{1}".FormatInvariant(PropertyJobListenerPrefix, jobListenerNames[i]), true);
-
-                string listenerType = lp[PropertyListenerType];
+                var lp = cfg.GetPropertyGroup("{0}.{1}".FormatInvariant(PropertyJobListenerPrefix, jobListenerNames[i]), true);
+                var listenerType = lp[PropertyListenerType];
 
                 if (listenerType == null)
                 {
@@ -831,9 +830,8 @@ Please add configuration to your application config file to correctly initialize
             ITriggerListener[] triggerListeners = new ITriggerListener[triggerListenerNames.Count];
             for (int i = 0; i < triggerListenerNames.Count; i++)
             {
-                NameValueCollection lp = cfg.GetPropertyGroup("{0}.{1}".FormatInvariant(PropertyTriggerListenerPrefix, triggerListenerNames[i]), true);
-
-                string listenerType = lp[PropertyListenerType];
+                var lp = cfg.GetPropertyGroup("{0}.{1}".FormatInvariant(PropertyTriggerListenerPrefix, triggerListenerNames[i]), true);
+                var listenerType = lp[PropertyListenerType];
 
                 if (listenerType == null)
                 {
@@ -997,7 +995,7 @@ Please add configuration to your application config file to correctly initialize
                 // set scheduler context data...
                 foreach (var key in schedCtxtProps)
                 {
-                    string val = schedCtxtProps.Get((string) key!);
+                    var val = schedCtxtProps.Get((string) key!);
                     sched.Context.Put((string) key!, val);
                 }
 

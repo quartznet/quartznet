@@ -53,7 +53,9 @@ namespace Quartz.Core
     public class JobRunShell : SchedulerListenerSupport
     {
         private readonly ILog log;
+#if DIAGNOSTICS_SOURCE
         private readonly JobDiagnosticsWriter jobExecutionJobDiagnostics = new JobDiagnosticsWriter();
+#endif
 
         private JobExecutionContextImpl? jec;
         private QuartzScheduler? qs;
@@ -181,7 +183,10 @@ namespace Quartz.Core
 
                     DateTimeOffset startTime = SystemTime.UtcNow();
                     DateTimeOffset endTime;
+                    
+#if DIAGNOSTICS_SOURCE
                     Activity? activity = null;
+#endif
 
                     // Execute the job
                     try
@@ -191,7 +196,10 @@ namespace Quartz.Core
                             log.Debug("Calling Execute on job " + jobDetail.Key);
                         }
 
+#if DIAGNOSTICS_SOURCE
                         activity = jobExecutionJobDiagnostics.WriteStarted(jec, startTime);
+#endif
+
                         await job.Execute(jec).ConfigureAwait(false);
 
                         endTime = SystemTime.UtcNow();
@@ -208,7 +216,9 @@ namespace Quartz.Core
                     {
                         endTime = SystemTime.UtcNow();
                         jobExEx = jee;
+#if DIAGNOSTICS_SOURCE
                         jobExecutionJobDiagnostics.WriteException(activity, jobExEx);
+#endif
                         log.ErrorException($"Job {jobDetail.Key} threw a JobExecutionException: ", jobExEx);
                     }
                     catch (Exception e)
@@ -223,7 +233,9 @@ namespace Quartz.Core
 
                     jec.JobRunTime = endTime - startTime;
 
+#if DIAGNOSTICS_SOURCE
                     jobExecutionJobDiagnostics.WriteStopped(activity, endTime, jec);
+#endif
 
                     // notify all job listeners
                     if (!await NotifyJobListenersComplete(jec, jobExEx, cancellationToken).ConfigureAwait(false))
@@ -340,7 +352,7 @@ namespace Quartz.Core
             }
             catch (SchedulerException se)
             {
-                string msg = $"Unable to notify TriggerListener(s) while firing trigger (Trigger and Job will NOT be fired!). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
+                var msg = $"Unable to notify TriggerListener(s) while firing trigger (Trigger and Job will NOT be fired!). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
                 await qs!.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
                 return false;
             }
@@ -349,15 +361,18 @@ namespace Quartz.Core
             {
                 try
                 {
+#if DIAGNOSTICS_SOURCE
                     if (LogContext.Cached.Default.Value.IsEnabled(OperationName.Job.Veto))
                     {
                         LogContext.Cached.Default.Value.Write(OperationName.Job.Veto, ctx);
                     }
+#endif
+
                     await qs.NotifyJobListenersWasVetoed(ctx, cancellationToken).ConfigureAwait(false);
                 }
                 catch (SchedulerException se)
                 {
-                    string msg = $"Unable to notify JobListener(s) of vetoed execution while firing trigger (Trigger and Job will NOT be fired!). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
+                    var msg = $"Unable to notify JobListener(s) of vetoed execution while firing trigger (Trigger and Job will NOT be fired!). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
                     await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
                 }
                 throw new VetoedException(this);

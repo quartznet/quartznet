@@ -156,7 +156,7 @@ namespace Quartz.Util
 
                 try
                 {
-                    object value = props[name];
+                    var value = props[name];
                     SetPropertyValue(obj, propertyName, value);
                 }
                 catch (Exception nfe)
