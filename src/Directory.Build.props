@@ -13,10 +13,6 @@
     <Authors>Marko Lahma, Quartz.NET</Authors>
     <WarningsAsErrors>True</WarningsAsErrors>
 
-    <AssemblyOriginatorKeyFile>../../quartz.net.snk</AssemblyOriginatorKeyFile>
-    <SignAssembly>True</SignAssembly>
-    <PublicSign Condition=" '$(OS)' != 'Windows_NT' ">true</PublicSign>
-
     <PackageIcon>quartz-logo-small.png</PackageIcon>
     <PackageIconUrl>https://raw.githubusercontent.com/quartznet/quartznet/master/src/quartz-logo-small.png</PackageIconUrl>
     <PackageTags>scheduling;tasks;jobs;triggers;scheduler;threading</PackageTags>
@@ -43,8 +39,14 @@
     <LangVersion>latest</LangVersion>
     
   </PropertyGroup>
+  
+  <PropertyGroup Condition="$(MSBuildProjectName.Contains('Example')) == false">
+    <AssemblyOriginatorKeyFile>../../quartz.net.snk</AssemblyOriginatorKeyFile>
+    <SignAssembly>true</SignAssembly>
+    <PublicSign>true</PublicSign>    
+  </PropertyGroup>
 
-  <PropertyGroup Condition=" '$(APPVEYOR)' == 'True' ">
+  <PropertyGroup Condition=" '$(APPVEYOR)' == 'true' OR '$(GITHUB_ACTIONS)' == 'true' ">
     <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
   </PropertyGroup>
 

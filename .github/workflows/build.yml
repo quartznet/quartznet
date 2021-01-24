@@ -15,13 +15,18 @@ on:
     - 'readme.md'
 
 jobs:
-  build:
-
-    runs-on: ubuntu-latest
+  build_test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
     env:
         DOTNET_NOLOGO: true
         DOTNET_CLI_TELEMETRY_OPTOUT: 1
 
+    name: Build & Test
+  
     steps:
     - name: Checkout source code
       uses: actions/checkout@v2
@@ -39,5 +44,22 @@ jobs:
       with:
         dotnet-version: 5.0.*
 
-    - name: Test
-      run: dotnet test --configuration Release
+    - name: Build
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        chmod u+x build.sh 
+        ./build.sh
+        
+    - name: Build
+      if: matrix.os == 'windows-latest'
+      shell: cmd
+      run: |
+        ./build.cmd
+        
+    - name: Unit Tests
+      run: |
+        dotnet test -c Release --no-restore --no-build ./src/Quartz.Tests.Unit/Quartz.Tests.Unit.csproj 
+
+#    - name: Integration Tests
+#      run: |
+#        dotnet test -c Release --no-restore --no-build ./src/Quartz.Tests.Integration/Quartz.Tests.Integration.csproj 
