@@ -29,8 +29,8 @@ An example of a complete cron-expression is the string `0 0 12 ? * WED` - which 
 Individual sub-expressions can contain ranges and/or lists. For example, the day of week field in the previous (which reads "WED")
 example could be replaces with "MON-FRI", "MON, WED, FRI", or even "MON-WED,SAT".
 
-Wild-cards (the '*' character) can be used to say "every" possible value of this field. Therefore the '*' character in the
-"Month" field of the previous example simply means "every month". A '*' in the Day-Of-Week field would obviously mean "every day of the week".
+Wild-cards (the `*` character) can be used to say "every" possible value of this field. Therefore the `*` character in the
+"Month" field of the previous example simply means "every month". A `*` in the Day-Of-Week field would obviously mean "every day of the week".
 
 All of the fields have a set of valid values that can be specified. These values should be fairly obvious - such as the numbers 
 0 to 59 for seconds and minutes, and the values 0 to 23 for hours. Day-of-Month can be any value 0-31, but you need to be careful 
