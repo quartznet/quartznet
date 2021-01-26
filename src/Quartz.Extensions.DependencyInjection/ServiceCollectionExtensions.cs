@@ -113,22 +113,36 @@ namespace Quartz
             JobKey? jobKey = null,
             Action<IJobConfigurator>? configure = null) where T : IJob
         {
-            var c = new JobConfigurator();
-            if (jobKey != null)
+            return AddJob(options,typeof(T), jobKey, configure);
+        }
+        /// <summary>
+        /// Add job to underlying service collection.jobType shoud be implement `IJob`
+        /// </summary>
+        public static IServiceCollectionQuartzConfigurator AddJob(
+           this IServiceCollectionQuartzConfigurator options,
+           Type jobType,
+           JobKey? jobKey = null,
+           Action<IJobConfigurator>? configure = null)
+        {
+            if (typeof(IJob).IsAssignableFrom(jobType))
             {
-                c.WithIdentity(jobKey);
+                var c = new JobConfigurator();
+                if (jobKey != null)
+                {
+                    c.WithIdentity(jobKey);
+                }
+
+                var jobDetail = ConfigureAndBuildJobDetail(jobType, c, configure);
+
+                options.Services.Configure<QuartzOptions>(x =>
+                {
+                    x.jobDetails.Add(jobDetail);
+                });
+                options.Services.TryAddTransient(jobDetail.JobType);
             }
-
-            var jobDetail = ConfigureAndBuildJobDetail<T>(c, configure);
-            
-            options.Services.Configure<QuartzOptions>(x =>
-            {
-                x.jobDetails.Add(jobDetail);
-            });
-            options.Services.TryAddTransient(jobDetail.JobType);
-
             return options;
         }
+
 
         /// <summary>
         /// Add trigger to underlying service collection. This API maybe change!
@@ -200,7 +214,15 @@ namespace Quartz
             JobConfigurator builder,
             Action<IJobConfigurator>? configure) where T : IJob
         {
-            builder.OfType<T>();
+            return ConfigureAndBuildJobDetail(typeof(T), builder, configure);
+        }
+
+        private static IJobDetail ConfigureAndBuildJobDetail(
+            Type type,
+            JobConfigurator builder,
+            Action<IJobConfigurator>? configure)
+        {
+            builder.OfType(type);
             configure?.Invoke(builder);
             var jobDetail = builder.Build();
             return jobDetail;
