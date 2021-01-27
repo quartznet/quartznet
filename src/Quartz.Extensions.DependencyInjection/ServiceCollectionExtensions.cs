@@ -47,15 +47,15 @@ namespace Quartz
 
                 return LogProvider.CurrentLogProvider as MicrosoftLoggingProvider;
             });
-            
+
             var schedulerBuilder = SchedulerBuilder.Create(properties);
             if (configure != null)
             {
                 var target = new ServiceCollectionQuartzConfigurator(services, schedulerBuilder);
                 configure(target);
             }
-            
-            
+
+
             // try to add services if not present with defaults, without overriding other configuration
             if (string.IsNullOrWhiteSpace(properties[StdSchedulerFactory.PropertySchedulerTypeLoadHelperType]))
             {
@@ -69,7 +69,7 @@ namespace Quartz
                 services.TryAddSingleton(typeof(IJobFactory), typeof(MicrosoftDependencyInjectionJobFactory));
                 allowDefaultConstructor = true;
             }
-            
+
             services.Configure<QuartzOptions>(options =>
             {
                 foreach (var key in schedulerBuilder.Properties.AllKeys)
@@ -82,12 +82,12 @@ namespace Quartz
                     options.JobFactory.AllowDefaultConstructor = true;
                 }
             });
-            
+
             services.TryAddSingleton<ContainerConfigurationProcessor>();
             services.TryAddSingleton<ISchedulerFactory, ServiceCollectionSchedulerFactory>();
 
             // Note: TryAddEnumerable() is used here to ensure the initializers are registered only once.
-            services.TryAddEnumerable(new []
+            services.TryAddEnumerable(new[]
             {
                 ServiceDescriptor.Singleton<IPostConfigureOptions<QuartzOptions>, QuartzConfiguration>()
             });
@@ -102,7 +102,7 @@ namespace Quartz
             this IServiceCollectionQuartzConfigurator options,
             Action<IJobConfigurator>? configure = null) where T : IJob
         {
-            return AddJob<T>(options, null, configure);
+            return AddJob(options,typeof(T), null, configure);
         }
 
         /// <summary>
@@ -113,14 +113,29 @@ namespace Quartz
             JobKey? jobKey = null,
             Action<IJobConfigurator>? configure = null) where T : IJob
         {
+            return AddJob(options, typeof(T), jobKey, configure);
+        }
+        /// <summary>
+        /// Add job to underlying service collection.jobType shoud be implement `IJob`
+        /// </summary>
+        public static IServiceCollectionQuartzConfigurator AddJob(
+           this IServiceCollectionQuartzConfigurator options,
+           Type jobType,
+           JobKey? jobKey = null,
+           Action<IJobConfigurator>? configure = null)
+        {
+            if (!typeof(IJob).IsAssignableFrom(jobType))
+            {
+                ExceptionHelper.ThrowArgumentException("jobType must implement the IJob interface", nameof(jobType));
+            }
             var c = new JobConfigurator();
             if (jobKey != null)
             {
                 c.WithIdentity(jobKey);
             }
 
-            var jobDetail = ConfigureAndBuildJobDetail<T>(c, configure);
-            
+            var jobDetail = ConfigureAndBuildJobDetail(jobType, c, configure);
+
             options.Services.Configure<QuartzOptions>(x =>
             {
                 x.jobDetails.Add(jobDetail);
@@ -129,6 +144,7 @@ namespace Quartz
 
             return options;
         }
+
 
         /// <summary>
         /// Add trigger to underlying service collection. This API maybe change!
@@ -168,13 +184,13 @@ namespace Quartz
             }
 
             var jobConfigurator = new JobConfigurator();
-            var jobDetail = ConfigureAndBuildJobDetail<T>(jobConfigurator, job);
+            var jobDetail = ConfigureAndBuildJobDetail(typeof(T),jobConfigurator, job);
 
             options.Services.Configure<QuartzOptions>(quartzOptions =>
             {
                 quartzOptions.jobDetails.Add(jobDetail);
             });
-            
+
             options.Services.TryAddTransient(jobDetail.JobType);
 
             var triggerConfigurator = new TriggerConfigurator();
@@ -192,15 +208,18 @@ namespace Quartz
             {
                 quartzOptions.triggers.Add(t);
             });
-            
+
             return options;
         }
 
-        private static IJobDetail ConfigureAndBuildJobDetail<T>(
+      
+
+        private static IJobDetail ConfigureAndBuildJobDetail(
+            Type type,
             JobConfigurator builder,
-            Action<IJobConfigurator>? configure) where T : IJob
+            Action<IJobConfigurator>? configure)
         {
-            builder.OfType<T>();
+            builder.OfType(type);
             configure?.Invoke(builder);
             var jobDetail = builder.Build();
             return jobDetail;
