@@ -85,18 +85,15 @@ namespace Quartz.Impl.AdoJobStore
 
         public void Close()
         {
-            if (connection != null)
+            try
             {
-                try
-                {
-                    connection.Close();
-                }
-                catch (Exception e)
-                {
-                    log.ErrorException(
-                        "Unexpected exception closing Connection." +
-                        "  This is often due to a Connection being returned after or during shutdown.", e);
-                }
+                connection.Close();
+            }
+            catch (Exception e)
+            {
+                log.ErrorException(
+                    "Unexpected exception closing Connection." +
+                    "  This is often due to a Connection being returned after or during shutdown.", e);
             }
         }
 

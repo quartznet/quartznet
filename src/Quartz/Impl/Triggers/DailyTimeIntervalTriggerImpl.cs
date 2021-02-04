@@ -971,19 +971,13 @@ namespace Quartz.Impl.Triggers
                 case Quartz.MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow:
                     cb.WithMisfireHandlingInstructionFireAndProceed();
                     break;
-                case Quartz.MisfireInstruction.IgnoreMisfirePolicy: 
+                case Quartz.MisfireInstruction.IgnoreMisfirePolicy:
                     cb.WithMisfireHandlingInstructionIgnoreMisfires();
                     break;
             }
 
             return cb;
         }
-
-        /// <summary>
-        /// This trigger has no additional properties besides what's defined in this class.
-        /// </summary>
-        /// <returns></returns>
-        public override bool HasAdditionalProperties => false;
 
         /// <summary>
         /// Tells whether this Trigger instance can handle events

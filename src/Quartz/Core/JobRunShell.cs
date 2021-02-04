@@ -183,7 +183,7 @@ namespace Quartz.Core
 
                     DateTimeOffset startTime = SystemTime.UtcNow();
                     DateTimeOffset endTime;
-                    
+
 #if DIAGNOSTICS_SOURCE
                     Activity? activity = null;
 #endif
@@ -205,7 +205,7 @@ namespace Quartz.Core
                         endTime = SystemTime.UtcNow();
                     }
                     catch (OperationCanceledException)
-                    
+
                     // handle only scheduler-related cancellations
                     when (cancellationToken.IsCancellationRequested)
                     {
@@ -434,12 +434,12 @@ namespace Quartz.Core
                     return NotifyError(se);
                 }
             }
-            
+
             return NotifyAwaited();
 
             async Task<bool> NotifyAwaited()
             {
-                await DoNotify(qs!.NotifyTriggerListenersComplete(ctx, instCode, cancellationToken));
+                await DoNotify(qs!.NotifyTriggerListenersComplete(ctx, instCode, cancellationToken)).ConfigureAwait(false);
 
                 if (!nextFireTimeUtc.HasValue)
                 {
@@ -458,7 +458,7 @@ namespace Quartz.Core
                 }
                 catch (SchedulerException se)
                 {
-                    return await NotifyError(se);
+                    return await NotifyError(se).ConfigureAwait(false);
                 }
             }
 
