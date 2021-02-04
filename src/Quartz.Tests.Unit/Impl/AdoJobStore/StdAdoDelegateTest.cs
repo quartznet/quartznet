@@ -308,7 +308,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
                 this.testDelegate = testDelegate;
             }
 
-            public override ITriggerPersistenceDelegate FindTriggerPersistenceDelegate(string discriminator)
+            protected override ITriggerPersistenceDelegate FindTriggerPersistenceDelegate(string discriminator)
             {
                 return testDelegate;
             }

@@ -34,8 +34,6 @@ namespace Quartz.Impl.AdoJobStore
     /// in order to protect resources from being altered by multiple threads at the
     /// same time.
     /// </summary>
-    /// <author>James House</author>
-    /// <author>Marko Lahma (.NET)</author>
     public class StdRowLockSemaphore : DBSemaphore
     {
         public static readonly string SelectForLock =
