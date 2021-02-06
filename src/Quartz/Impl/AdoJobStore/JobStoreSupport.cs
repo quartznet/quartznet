@@ -2663,11 +2663,10 @@ namespace Quartz.Impl.AdoJobStore
 
                         if (job.ConcurrentExecutionDisallowed)
                         {
-                            if (acquiredJobKeysForNoConcurrentExec.Contains(jobKey))
+                            if (!acquiredJobKeysForNoConcurrentExec.Add(jobKey))
                             {
                                 continue; // next trigger
                             }
-                            acquiredJobKeysForNoConcurrentExec.Add(jobKey);
                         }
 
                         var nextFireTimeUtc = nextTrigger.GetNextFireTimeUtc();
