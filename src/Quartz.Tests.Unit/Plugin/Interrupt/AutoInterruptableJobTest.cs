@@ -1,10 +1,12 @@
-﻿using System.Collections.Specialized;
+﻿using System;
+using System.Collections.Specialized;
 using System.Threading;
 using System.Threading.Tasks;
 
 using NUnit.Framework;
 
 using Quartz.Impl;
+using Quartz.Job;
 using Quartz.Plugin.Interrupt;
 using Quartz.Util;
 
@@ -43,6 +45,37 @@ namespace Quartz.Tests.Unit.Plugin.Interrupt
         [Test]
         public async Task TestJobAutoInterruption()
         {
+            var scheduler = await CreateScheduler<TestInterruptableJob>();
+
+            await sync.WaitAsync(); // make sure the job starts running...
+
+            var executingJobs = await scheduler.GetCurrentlyExecutingJobs();
+
+            Assert.That(executingJobs.Count, Is.EqualTo(1), "Number of executing jobs should be 1");
+
+            await sync.WaitAsync(); // wait for the job to terminate
+
+            Assert.That(TestInterruptableJob.interrupted, "Expected interrupted flag to be set on job class ");
+
+            await scheduler.Clear();
+
+            await scheduler.Shutdown();
+        }
+
+        [Test]
+        public async Task TestJobAutoInterruptionWhenNoInterrupt()
+        {
+            var scheduler = await CreateScheduler<NoOpJob>();
+
+            await Task.Delay(TimeSpan.FromSeconds(2));
+            
+            await scheduler.Clear();
+
+            await scheduler.Shutdown();
+        }
+
+        private static async Task<IScheduler> CreateScheduler<T>() where T : IJob
+        {
             // create a simple scheduler
 
             var config = new NameValueCollection
@@ -61,7 +94,7 @@ namespace Quartz.Tests.Unit.Plugin.Interrupt
 
             var jobDataMap = new JobDataMap();
             jobDataMap.PutAsString(JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable, true);
-            var job = JobBuilder.Create<TestInterruptableJob>()
+            var job = JobBuilder.Create<T>()
                 .WithIdentity("j1")
                 .SetJobData(jobDataMap)
                 .Build();
@@ -74,19 +107,7 @@ namespace Quartz.Tests.Unit.Plugin.Interrupt
 
             await scheduler.ScheduleJob(job, trigger);
 
-            await sync.WaitAsync(); // make sure the job starts running...
-
-            var executingJobs = await scheduler.GetCurrentlyExecutingJobs();
-
-            Assert.That(executingJobs.Count, Is.EqualTo(1), "Number of executing jobs should be 1");
-
-            await sync.WaitAsync(); // wait for the job to terminate
-
-            Assert.That(TestInterruptableJob.interrupted, "Expected interrupted flag to be set on job class ");
-
-            await scheduler.Clear();
-
-            await scheduler.Shutdown();
+            return scheduler;
         }
     }
 }

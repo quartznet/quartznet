@@ -21,7 +21,7 @@ namespace Quartz.Plugin.Interrupt
     {
         private const string JobInterruptMonitorKey = "JOB_INTERRUPT_MONITOR_KEY";
         private static readonly TimeSpan defaultMaxRunTime = TimeSpan.FromMinutes(5);
-        
+
         public const string JobDataMapKeyAutoInterruptable = "AutoInterruptable";
         public const string JobDataMapKeyMaxRunTime = "MaxRunTime";
 
@@ -49,11 +49,8 @@ namespace Quartz.Plugin.Interrupt
         {
             var monitor = new InterruptMonitor(fireInstanceId, jobkey, scheduler, delay);
             Task.Factory.StartNew(
-                () => monitor.Run().ContinueWith(_ =>
-                {
-                    interruptMonitors.TryRemove(monitor.FireInstanceId, out var m);
-                }),
-                monitor.cancellationTokenSource.Token, 
+                monitor.Run,
+                monitor.cancellationTokenSource.Token,
                 TaskCreationOptions.HideScheduler,
                 taskScheduler).Unwrap();
 
@@ -70,7 +67,7 @@ namespace Quartz.Plugin.Interrupt
         public override string Name => name;
 
         public override Task TriggerFired(
-            ITrigger trigger, 
+            ITrigger trigger,
             IJobExecutionContext context,
             CancellationToken cancellationToken = default)
         {
@@ -90,7 +87,7 @@ namespace Quartz.Plugin.Interrupt
                     }
 
                     monitorPlugin.ScheduleJobInterruptMonitor(context.FireInstanceId, context.JobDetail.Key, jobDataDelay);
-                    log.Debug("Job's Interrupt Monitor has been scheduled to interrupt with the delay :"+ jobDataDelay);
+                    log.Debug("Job's Interrupt Monitor has been scheduled to interrupt with the delay :" + jobDataDelay);
                 }
             }
             catch (SchedulerException e)
@@ -108,19 +105,11 @@ namespace Quartz.Plugin.Interrupt
             CancellationToken cancellationToken = default)
         {
             // cancel the interrupt task if job is complete
-            if (interruptMonitors.TryGetValue(context.FireInstanceId, out var monitor))
+            if (interruptMonitors.TryRemove(context.FireInstanceId, out var monitor))
             {
-                try
-                {
-                    monitor.Cancel();
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine(e);
-                    throw;
-                }
+                monitor.Cancel();
             }
-            
+
             return Task.CompletedTask;
         }
 
@@ -129,13 +118,13 @@ namespace Quartz.Plugin.Interrupt
             log.Info("Registering Job Interrupt Monitor Plugin");
             this.name = name;
 
-            taskScheduler = new QueuedTaskScheduler(threadCount: 1, threadName: "JobInterruptMonitorPlugin");
+            taskScheduler = new QueuedTaskScheduler(1, "JobInterruptMonitorPlugin");
             scheduler.Context.Put(JobInterruptMonitorKey, this);
             this.scheduler = scheduler;
 
             // Set the trigger Listener as this class to the ListenerManager here
             this.scheduler.ListenerManager.AddTriggerListener(this);
-            
+
             return Task.CompletedTask;
         }
 
@@ -155,7 +144,7 @@ namespace Quartz.Plugin.Interrupt
                 this.jobKey = jobKey;
                 this.scheduler = scheduler;
                 this.delay = delay;
-                
+
                 cancellationTokenSource = new CancellationTokenSource();
             }
 
@@ -174,7 +163,7 @@ namespace Quartz.Plugin.Interrupt
                 catch (TaskCanceledException)
                 {
                     // OK, run completed before need to cancel
-                } 
+                }
                 catch (SchedulerException ex)
                 {
                     log.Error($"Error interrupting Job: {ex.Message}", ex);
