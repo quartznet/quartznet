@@ -198,49 +198,6 @@ namespace Quartz.Impl.AdoJobStore
         //---------------------------------------------------------------------------
 
         /// <summary>
-        /// Insert the job detail record.
-        /// </summary>
-        /// <returns>Number of rows inserted.</returns>
-        public virtual async Task<int> InsertJobDetail(
-            ConnectionAndTransactionHolder conn,
-            IJobDetail job,
-            CancellationToken cancellationToken = default)
-        {
-            byte[]? baos = null;
-            if (job.JobDataMap.Count > 0)
-            {
-                baos = SerializeJobData(job.JobDataMap);
-            }
-
-            int insertResult;
-
-            using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertJobDetail));
-            AddCommandParameter(cmd, "schedulerName", schedName);
-            AddCommandParameter(cmd, "jobName", job.Key.Name);
-            AddCommandParameter(cmd, "jobGroup", job.Key.Group);
-            AddCommandParameter(cmd, "jobDescription", job.Description);
-            AddCommandParameter(cmd, "jobType", GetStorableJobTypeName(job.JobType));
-            AddCommandParameter(cmd, "jobDurable", GetDbBooleanValue(job.Durable));
-            AddCommandParameter(cmd, "jobVolatile", GetDbBooleanValue(job.ConcurrentExecutionDisallowed));
-            AddCommandParameter(cmd, "jobStateful", GetDbBooleanValue(job.PersistJobDataAfterExecution));
-            AddCommandParameter(cmd, "jobRequestsRecovery", GetDbBooleanValue(job.RequestsRecovery));
-
-            string paramName = "jobDataMap";
-            if (baos != null)
-            {
-                AddCommandParameter(cmd, paramName, baos, DbProvider.Metadata.DbBinaryType);
-            }
-            else
-            {
-                AddCommandParameter(cmd, paramName, null, DbProvider.Metadata.DbBinaryType);
-            }
-
-            insertResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-
-            return insertResult;
-        }
-
-        /// <summary>
         /// Gets the db presentation for boolean value. Subclasses can overwrite this behaviour.
         /// </summary>
         /// <param name="booleanValue">Value to map to database.</param>
@@ -323,21 +280,56 @@ namespace Quartz.Impl.AdoJobStore
             return null;
         }
 
-        private async Task<IDictionary?> ReadMapFromReader(DbDataReader rs, int colIndex)
+        private Task<IDictionary?> ReadMapFromReader(DbDataReader rs, int colIndex)
         {
-            if (CanUseProperties)
+            var isDbNullTask = rs.IsDBNullAsync(colIndex);
+            if (isDbNullTask.IsCompleted && isDbNullTask.Result)
             {
+                return Task.FromResult<IDictionary?>(null);
+            }
+
+            return Awaited(isDbNullTask);
+
+            async Task<IDictionary?> Awaited(Task<bool> isDbNull)
+            {
+                if (await isDbNull.ConfigureAwait(false))
+                {
+                    return null;
+                }            
+                
+                if (CanUseProperties)
+                {
+                    try
+                    {
+                        var properties = await GetMapFromProperties(rs, colIndex).ConfigureAwait(false);
+                        return properties;
+                    }
+                    catch (InvalidCastException)
+                    {
+                        // old data from user error or XML scheduling plugin data
+                        try
+                        {
+                            return await GetObjectFromBlob<IDictionary>(rs, colIndex).ConfigureAwait(false);
+                        }
+                        catch
+                        {
+                        }
+
+                        // throw original exception
+                        throw;
+                    }
+                }
                 try
                 {
-                    var properties = await GetMapFromProperties(rs, colIndex).ConfigureAwait(false);
-                    return properties;
+                    return await GetObjectFromBlob<IDictionary>(rs, colIndex).ConfigureAwait(false);
                 }
                 catch (InvalidCastException)
                 {
-                    // old data from user error or XML scheduling plugin data
+                    // old data from user error?
                     try
                     {
-                        return await GetObjectFromBlob<IDictionary>(rs, colIndex).ConfigureAwait(false);
+                        // we use this then
+                        return await GetMapFromProperties(rs, colIndex).ConfigureAwait(false);
                     }
                     catch
                     {
@@ -346,25 +338,6 @@ namespace Quartz.Impl.AdoJobStore
                     // throw original exception
                     throw;
                 }
-            }
-            try
-            {
-                return await GetObjectFromBlob<IDictionary>(rs, colIndex).ConfigureAwait(false);
-            }
-            catch (InvalidCastException)
-            {
-                // old data from user error?
-                try
-                {
-                    // we use this then
-                    return await GetMapFromProperties(rs, colIndex).ConfigureAwait(false);
-                }
-                catch
-                {
-                }
-
-                // throw original exception
-                throw;
             }
         }
 
@@ -538,7 +511,7 @@ namespace Quartz.Impl.AdoJobStore
         private byte[]? SerializeProperties(JobDataMap data)
         {
             byte[]? retValue = null;
-            if (null != data)
+            if (data.Count > 0)
             {
                 NameValueCollection properties = ConvertToProperty(data.WrappedMap);
                 retValue = SerializeObject(properties);

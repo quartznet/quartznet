@@ -32,7 +32,7 @@ namespace Quartz.Impl.AdoJobStore
             IJobDetail job,
             CancellationToken cancellationToken = default)
         {
-            byte[]? baos = SerializeJobData(job.JobDataMap);
+            var jobData = SerializeJobData(job.JobDataMap);
 
             using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateJobDetail));
             AddCommandParameter(cmd, "schedulerName", schedName);
@@ -42,7 +42,7 @@ namespace Quartz.Impl.AdoJobStore
             AddCommandParameter(cmd, "jobVolatile", GetDbBooleanValue(job.ConcurrentExecutionDisallowed));
             AddCommandParameter(cmd, "jobStateful", GetDbBooleanValue(job.PersistJobDataAfterExecution));
             AddCommandParameter(cmd, "jobRequestsRecovery", GetDbBooleanValue(job.RequestsRecovery));
-            AddCommandParameter(cmd, "jobDataMap", baos, DbProvider.Metadata.DbBinaryType);
+            AddCommandParameter(cmd, "jobDataMap", jobData, DbProvider.Metadata.DbBinaryType);
             AddCommandParameter(cmd, "jobName", job.Key.Name);
             AddCommandParameter(cmd, "jobGroup", job.Key.Group);
 
@@ -92,26 +92,6 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <inheritdoc />
-        public virtual async Task<bool> IsJobStateful(
-            ConnectionAndTransactionHolder conn,
-            JobKey jobKey,
-            CancellationToken cancellationToken = default)
-        {
-            using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobNonConcurrent));
-            AddCommandParameter(cmd, "schedulerName", schedName);
-            AddCommandParameter(cmd, "jobName", jobKey.Name);
-            AddCommandParameter(cmd, "jobGroup", jobKey.Group);
-
-            var o = await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
-            if (o is not null)
-            {
-                return (bool) o;
-            }
-
-            return false;
-        }
-
-        /// <inheritdoc />
         public virtual async Task<bool> JobExists(
             ConnectionAndTransactionHolder conn,
             JobKey jobKey,
@@ -136,11 +116,11 @@ namespace Quartz.Impl.AdoJobStore
             IJobDetail job,
             CancellationToken cancellationToken = default)
         {
-            byte[]? baos = SerializeJobData(job.JobDataMap);
+            var jobData = SerializeJobData(job.JobDataMap);
 
             using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateJobData));
             AddCommandParameter(cmd, "schedulerName", schedName);
-            AddCommandParameter(cmd, "jobDataMap", baos, DbProvider.Metadata.DbBinaryType);
+            AddCommandParameter(cmd, "jobDataMap", jobData, DbProvider.Metadata.DbBinaryType);
             AddCommandParameter(cmd, "jobName", job.Key.Name);
             AddCommandParameter(cmd, "jobGroup", job.Key.Group);
 
@@ -172,7 +152,7 @@ namespace Quartz.Impl.AdoJobStore
                 job.Durable = GetBooleanFromDbValue(rs[ColumnIsDurable]);
                 job.RequestsRecovery = GetBooleanFromDbValue(rs[ColumnRequestsRecovery]);
 
-                IDictionary? map = await ReadMapFromReader(rs, 6).ConfigureAwait(false);
+                var map = await ReadMapFromReader(rs, 6).ConfigureAwait(false);
 
                 if (map != null)
                 {
@@ -291,6 +271,11 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>the serialized data as byte array</returns>
         public virtual byte[]? SerializeJobData(JobDataMap data)
         {
+            if (data.Count == 0)
+            {
+                return null;
+            }
+            
             bool skipStringPropertySerialization = data.ContainsKey(FileScanListenerName) || data.ContainsKey(DirectoryScanListenerName);
             if (CanUseProperties && !skipStringPropertySerialization)
             {
@@ -332,6 +317,34 @@ namespace Quartz.Impl.AdoJobStore
             }
 
             return GetObjectFromBlob<T>(rs, colIndex);
+        }
+
+        /// <summary>
+        /// Insert the job detail record.
+        /// </summary>
+        /// <returns>Number of rows inserted.</returns>
+        public virtual async Task<int> InsertJobDetail(
+            ConnectionAndTransactionHolder conn,
+            IJobDetail job,
+            CancellationToken cancellationToken = default)
+        {
+            var jobData = SerializeJobData(job.JobDataMap);
+
+            using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertJobDetail));
+            AddCommandParameter(cmd, "schedulerName", schedName);
+            AddCommandParameter(cmd, "jobName", job.Key.Name);
+            AddCommandParameter(cmd, "jobGroup", job.Key.Group);
+            AddCommandParameter(cmd, "jobDescription", job.Description);
+            AddCommandParameter(cmd, "jobType", GetStorableJobTypeName(job.JobType));
+            AddCommandParameter(cmd, "jobDurable", GetDbBooleanValue(job.Durable));
+            AddCommandParameter(cmd, "jobVolatile", GetDbBooleanValue(job.ConcurrentExecutionDisallowed));
+            AddCommandParameter(cmd, "jobStateful", GetDbBooleanValue(job.PersistJobDataAfterExecution));
+            AddCommandParameter(cmd, "jobRequestsRecovery", GetDbBooleanValue(job.RequestsRecovery));
+            AddCommandParameter(cmd, "jobDataMap", jobData, DbProvider.Metadata.DbBinaryType);
+
+            var insertResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+
+            return insertResult;
         }
     }
 }

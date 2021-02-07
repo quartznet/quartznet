@@ -45,7 +45,6 @@ namespace Quartz.Impl.AdoJobStore
 		public const string ColumnJobName = "JOB_NAME";
 		public const string ColumnJobGroup = "JOB_GROUP";
 		public const string ColumnIsDurable = "IS_DURABLE";
-		public const string ColumnIsVolatile = "IS_VOLATILE";
         public const string ColumnIsNonConcurrent = "IS_NONCONCURRENT";
         public const string ColumnIsUpdateData = "IS_UPDATE_DATA";
 		public const string ColumnRequestsRecovery = "REQUESTS_RECOVERY";

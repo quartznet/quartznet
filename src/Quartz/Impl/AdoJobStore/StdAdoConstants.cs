@@ -161,9 +161,6 @@ namespace Quartz.Impl.AdoJobStore
         public static readonly string SqlSelectJobGroups =
             $"SELECT DISTINCT({ColumnJobGroup}) FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName";
 
-        public static readonly string SqlSelectJobNonConcurrent =
-            $"SELECT {ColumnIsNonConcurrent} FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup";
-
         public static readonly string SqlSelectJobsInGroupLike =
             $"SELECT {ColumnJobName}, {ColumnJobGroup} FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobGroup} LIKE @jobGroup";
 
@@ -187,11 +184,13 @@ namespace Quartz.Impl.AdoJobStore
 
         public static readonly string SqlSelectNextTriggerToAcquire =
             $@"SELECT
-                {ColumnTriggerName}, {ColumnTriggerGroup}
+                t.{ColumnTriggerName}, t.{ColumnTriggerGroup}, jd.{ColumnJobClass}
               FROM
-                {TablePrefixSubst}{TableTriggers}
+                {TablePrefixSubst}{TableTriggers} t
+              JOIN
+                {TablePrefixSubst}{TableJobDetails} jd ON (jd.{ColumnJobGroup} = t.{ColumnJobGroup} AND jd.{ColumnJobName} = t.{ColumnJobName}) 
               WHERE
-                {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerState} = @state AND {ColumnNextFireTime} <= @noLaterThan AND ({ColumnMifireInstruction} = -1 OR ({ColumnMifireInstruction} <> -1 AND {ColumnNextFireTime} >= @noEarlierThan))
+                t.{ColumnSchedulerName} = @schedulerName AND {ColumnTriggerState} = @state AND {ColumnNextFireTime} <= @noLaterThan AND ({ColumnMifireInstruction} = -1 OR ({ColumnMifireInstruction} <> -1 AND {ColumnNextFireTime} >= @noEarlierThan))
               ORDER BY 
                 {ColumnNextFireTime} ASC, {ColumnPriority} DESC";
 

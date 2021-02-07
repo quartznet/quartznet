@@ -1218,7 +1218,8 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="jobKey">The key identifying the job.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The desired <see cref="IJob" />, or null if there is no match.</returns>
-        public Task<IJobDetail?> RetrieveJob(JobKey jobKey,
+        public Task<IJobDetail?> RetrieveJob(
+            JobKey jobKey,
             CancellationToken cancellationToken = default)
         {
             // no locks necessary for read...
@@ -2620,18 +2621,20 @@ namespace Quartz.Impl.AdoJobStore
                 currentLoopCount++;
                 try
                 {
-                    var keys = await Delegate.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, maxCount, cancellationToken).ConfigureAwait(false);
+                    var results = await Delegate.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, maxCount, cancellationToken).ConfigureAwait(false);
 
                     // No trigger is ready to fire yet.
-                    if (keys == null || keys.Count == 0)
+                    if (results.Count == 0)
                     {
                         return acquiredTriggers;
                     }
 
                     DateTimeOffset batchEnd = noLaterThan;
 
-                    foreach (TriggerKey triggerKey in keys)
+                    foreach (var result in results)
                     {
+                        var triggerKey = new TriggerKey(result.TriggerName, result.TriggerGroup);
+
                         // If our trigger is no longer available, try a new one.
                         var nextTrigger = await RetrieveTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
                         if (nextTrigger == null)
@@ -2641,11 +2644,10 @@ namespace Quartz.Impl.AdoJobStore
 
                         // If trigger's job is set as @DisallowConcurrentExecution, and it has already been added to result, then
                         // put it back into the timeTriggers set and continue to search for next trigger.
-                        JobKey jobKey = nextTrigger.JobKey;
-                        IJobDetail job;
+                        Type jobType;
                         try
                         {
-                            job = (await RetrieveJob(conn, jobKey, cancellationToken).ConfigureAwait(false))!;
+                            jobType = typeLoadHelper.LoadType(result.JobType)!;
                         }
                         catch (JobPersistenceException jpe)
                         {
@@ -2661,9 +2663,9 @@ namespace Quartz.Impl.AdoJobStore
                             continue;
                         }
 
-                        if (job.ConcurrentExecutionDisallowed)
+                        if (ObjectUtils.IsAttributePresent(jobType, typeof(DisallowConcurrentExecutionAttribute)))
                         {
-                            if (!acquiredJobKeysForNoConcurrentExec.Add(jobKey))
+                            if (!acquiredJobKeysForNoConcurrentExec.Add(nextTrigger.JobKey))
                             {
                                 continue; // next trigger
                             }
@@ -2770,7 +2772,7 @@ namespace Quartz.Impl.AdoJobStore
                 LockTriggerAccess,
                 async conn =>
                 {
-                    List<TriggerFiredResult> results = new List<TriggerFiredResult>();
+                    List<TriggerFiredResult> results = new(triggers.Count);
 
                     foreach (IOperableTrigger trigger in triggers)
                     {

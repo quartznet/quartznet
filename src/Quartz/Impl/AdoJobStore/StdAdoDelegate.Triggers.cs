@@ -283,11 +283,7 @@ namespace Quartz.Impl.AdoJobStore
             IJobDetail jobDetail,
             CancellationToken cancellationToken = default)
         {
-            byte[]? baos = null;
-            if (trigger.JobDataMap.Count > 0)
-            {
-                baos = SerializeJobData(trigger.JobDataMap);
-            }
+            var jobData = SerializeJobData(trigger.JobDataMap);
 
             using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlInsertTrigger));
             AddCommandParameter(cmd, "schedulerName", schedName);
@@ -299,7 +295,6 @@ namespace Quartz.Impl.AdoJobStore
             AddCommandParameter(cmd, "triggerNextFireTime", GetDbDateTimeValue(trigger.GetNextFireTimeUtc()));
             AddCommandParameter(cmd, "triggerPreviousFireTime", GetDbDateTimeValue(trigger.GetPreviousFireTimeUtc()));
             AddCommandParameter(cmd, "triggerState", state);
-            string paramName = "triggerType";
 
             var tDel = FindTriggerPersistenceDelegate(trigger);
             string type = TriggerTypeBlob;
@@ -308,22 +303,13 @@ namespace Quartz.Impl.AdoJobStore
                 type = tDel.GetHandledTriggerTypeDiscriminator();
             }
 
-            AddCommandParameter(cmd, paramName, type);
+            AddCommandParameter(cmd, "triggerType", type);
             AddCommandParameter(cmd, "triggerStartTime", GetDbDateTimeValue(trigger.StartTimeUtc));
             AddCommandParameter(cmd, "triggerEndTime", GetDbDateTimeValue(trigger.EndTimeUtc));
             AddCommandParameter(cmd, "triggerCalendarName", trigger.CalendarName);
             AddCommandParameter(cmd, "triggerMisfireInstruction", trigger.MisfireInstruction);
-
-            paramName = "triggerJobJobDataMap";
-            if (baos != null)
-            {
-                AddCommandParameter(cmd, paramName, baos, DbProvider.Metadata.DbBinaryType);
-            }
-            else
-            {
-                AddCommandParameter(cmd, paramName, null, DbProvider.Metadata.DbBinaryType);
-            }
-
+            AddCommandParameter(cmd, "triggerJobJobDataMap", jobData, DbProvider.Metadata.DbBinaryType);
+            
             AddCommandParameter(cmd, "triggerPriority", trigger.Priority);
 
             int insertResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
@@ -366,12 +352,8 @@ namespace Quartz.Impl.AdoJobStore
             CancellationToken cancellationToken = default)
         {
             // save some clock cycles by unnecessarily writing job data blob ...
-            bool updateJobData = trigger.JobDataMap.Dirty;
-            byte[]? baos = null;
-            if (updateJobData)
-            {
-                baos = SerializeJobData(trigger.JobDataMap);
-            }
+            var updateJobData = trigger.JobDataMap.Dirty;
+            var jobData = updateJobData ? SerializeJobData(trigger.JobDataMap) : null;
 
             DbCommand cmd;
 
@@ -412,15 +394,7 @@ namespace Quartz.Impl.AdoJobStore
             const string JobDataMapParameter = "triggerJobJobDataMap";
             if (updateJobData)
             {
-                if (baos != null)
-                {
-                    AddCommandParameter(cmd, JobDataMapParameter, baos, DbProvider.Metadata.DbBinaryType);
-                }
-                else
-                {
-                    AddCommandParameter(cmd, JobDataMapParameter, null, DbProvider.Metadata.DbBinaryType);
-                }
-
+                AddCommandParameter(cmd, JobDataMapParameter, jobData, DbProvider.Metadata.DbBinaryType);
                 AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
                 AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
             }
@@ -1070,7 +1044,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <inheritdoc />
-        public virtual async Task<IReadOnlyCollection<TriggerKey>> SelectTriggerToAcquire(
+        public virtual async Task<IReadOnlyCollection<TriggerAcquireResult>> SelectTriggerToAcquire(
             ConnectionAndTransactionHolder conn,
             DateTimeOffset noLaterThan,
             DateTimeOffset noEarlierThan,
@@ -1083,7 +1057,7 @@ namespace Quartz.Impl.AdoJobStore
             }
 
             using var cmd = PrepareCommand(conn, ReplaceTablePrefix(GetSelectNextTriggerToAcquireSql(maxCount)));
-            List<TriggerKey> nextTriggers = new();
+            List<TriggerAcquireResult> nextTriggers = new();
 
             AddCommandParameter(cmd, "schedulerName", schedName);
             AddCommandParameter(cmd, "state", StateWaiting);
@@ -1103,7 +1077,11 @@ namespace Quartz.Impl.AdoJobStore
 
                 if (nextTriggers.Count < maxCount)
                 {
-                    nextTriggers.Add(new TriggerKey((string) rs[ColumnTriggerName], (string) rs[ColumnTriggerGroup]));
+                    var result = new TriggerAcquireResult(
+                        (string) rs[ColumnTriggerName],
+                        (string) rs[ColumnTriggerGroup],
+                        (string) rs[ColumnJobClass]);
+                    nextTriggers.Add(result);
                 }
                 else
                 {

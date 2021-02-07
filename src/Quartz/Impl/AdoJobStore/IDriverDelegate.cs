@@ -207,18 +207,6 @@ namespace Quartz.Impl.AdoJobStore
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Check whether or not the given job is stateful.
-        /// </summary>
-        /// <param name="conn">The DB Connection</param>
-        /// <param name="jobKey">The key identifying the job.</param>
-        /// <param name="cancellationToken">The cancellation instruction.</param>
-        /// <returns> true if the job exists and is stateful, false otherwise</returns>
-        Task<bool> IsJobStateful(
-            ConnectionAndTransactionHolder conn, 
-            JobKey jobKey,
-            CancellationToken cancellationToken = default);
-
-        /// <summary>
         /// Check whether or not the given job exists.
         /// </summary>
         /// <param name="conn">The DB Connection</param>
@@ -1026,7 +1014,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="maxCount">maximum number of trigger keys allow to acquired in the returning list.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>A (never null, possibly empty) list of the identifiers (Key objects) of the next triggers to be fired.</returns>
-        Task<IReadOnlyCollection<TriggerKey>> SelectTriggerToAcquire(
+        Task<IReadOnlyCollection<TriggerAcquireResult>> SelectTriggerToAcquire(
             ConnectionAndTransactionHolder conn, 
             DateTimeOffset noLaterThan, 
             DateTimeOffset noEarlierThan, 
@@ -1096,4 +1084,19 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default);
     }
+
+    public class TriggerAcquireResult
+    {
+        public TriggerAcquireResult(string triggerName, string triggerGroup, string jobType)
+        {
+            TriggerName = triggerName;
+            TriggerGroup = triggerGroup;
+            JobType = jobType;
+        }
+
+        public string TriggerName { get; }
+        public string TriggerGroup { get; }
+        public string JobType { get; }
+    }
 }
+
