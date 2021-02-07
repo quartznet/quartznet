@@ -157,9 +157,19 @@ namespace Quartz
             UseThreadPool<DedicatedThreadPool>(configure);
         }
 
+        /// <summary>
+        /// The time span by which a trigger must have missed its
+        /// next-fire-time, in order for it to be considered "misfired" and thus
+        /// have its misfire instruction applied.
+        /// </summary>
         public TimeSpan MisfireThreshold
         {
             set => SetProperty("quartz.jobStore.misfireThreshold", ((int) value.TotalMilliseconds).ToString());
+        }
+
+        public int MaxBatchSize
+        {
+            set => SetProperty(StdSchedulerFactory.PropertySchedulerMaxBatchSize, value.ToString());
         }
 
         public class ThreadPoolOptions : PropertiesHolder
