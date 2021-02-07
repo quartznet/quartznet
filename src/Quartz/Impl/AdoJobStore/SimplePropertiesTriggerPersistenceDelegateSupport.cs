@@ -126,14 +126,12 @@ namespace Quartz.Impl.AdoJobStore
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
         {
-            using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(DeleteSimplePropsTrigger, TablePrefix)))
-            {
-                DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
-                DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-                DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+            using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(DeleteSimplePropsTrigger, TablePrefix));
+            DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
+            DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+            DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
-                return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-            }
+            return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
 
         public async Task<int> InsertExtendedTriggerProperties(
@@ -145,27 +143,25 @@ namespace Quartz.Impl.AdoJobStore
         {
             SimplePropertiesTriggerProperties properties = GetTriggerProperties(trigger);
 
-            using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(InsertSimplePropsTrigger, TablePrefix)))
-            {
-                DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
-                DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-                DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
+            using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(InsertSimplePropsTrigger, TablePrefix));
+            DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
+            DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
+            DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
 
-                DbAccessor.AddCommandParameter(cmd, "string1", properties.String1);
-                DbAccessor.AddCommandParameter(cmd, "string2", properties.String2);
-                DbAccessor.AddCommandParameter(cmd, "string3", properties.String3);
-                DbAccessor.AddCommandParameter(cmd, "int1", properties.Int1);
-                DbAccessor.AddCommandParameter(cmd, "int2", properties.Int2);
-                DbAccessor.AddCommandParameter(cmd, "long1", properties.Long1);
-                DbAccessor.AddCommandParameter(cmd, "long2", properties.Long2);
-                DbAccessor.AddCommandParameter(cmd, "decimal1", properties.Decimal1);
-                DbAccessor.AddCommandParameter(cmd, "decimal2", properties.Decimal2);
-                DbAccessor.AddCommandParameter(cmd, "boolean1", DbAccessor.GetDbBooleanValue(properties.Boolean1));
-                DbAccessor.AddCommandParameter(cmd, "boolean2", DbAccessor.GetDbBooleanValue(properties.Boolean2));
-                DbAccessor.AddCommandParameter(cmd, "timeZoneId", properties.TimeZoneId);
+            DbAccessor.AddCommandParameter(cmd, "string1", properties.String1);
+            DbAccessor.AddCommandParameter(cmd, "string2", properties.String2);
+            DbAccessor.AddCommandParameter(cmd, "string3", properties.String3);
+            DbAccessor.AddCommandParameter(cmd, "int1", properties.Int1);
+            DbAccessor.AddCommandParameter(cmd, "int2", properties.Int2);
+            DbAccessor.AddCommandParameter(cmd, "long1", properties.Long1);
+            DbAccessor.AddCommandParameter(cmd, "long2", properties.Long2);
+            DbAccessor.AddCommandParameter(cmd, "decimal1", properties.Decimal1);
+            DbAccessor.AddCommandParameter(cmd, "decimal2", properties.Decimal2);
+            DbAccessor.AddCommandParameter(cmd, "boolean1", DbAccessor.GetDbBooleanValue(properties.Boolean1));
+            DbAccessor.AddCommandParameter(cmd, "boolean2", DbAccessor.GetDbBooleanValue(properties.Boolean2));
+            DbAccessor.AddCommandParameter(cmd, "timeZoneId", properties.TimeZoneId);
 
-                return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-            }
+            return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
 
         public async Task<TriggerPropertyBundle> LoadExtendedTriggerProperties(
@@ -173,19 +169,15 @@ namespace Quartz.Impl.AdoJobStore
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
         {
-            using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(SelectSimplePropsTrigger, TablePrefix)))
-            {
-                DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
-                DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-                DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+            using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(SelectSimplePropsTrigger, TablePrefix));
+            DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
+            DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+            DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
-                using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
-                    {
-                        return ReadTriggerPropertyBundle(rs);
-                    }
-                }
+            using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                return ReadTriggerPropertyBundle(rs);
             }
 
             throw new InvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, TablePrefix));
@@ -220,26 +212,24 @@ namespace Quartz.Impl.AdoJobStore
         {
             SimplePropertiesTriggerProperties properties = GetTriggerProperties(trigger);
 
-            using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(UpdateSimplePropsTrigger, TablePrefix)))
-            {
-                DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
-                DbAccessor.AddCommandParameter(cmd, "string1", properties.String1);
-                DbAccessor.AddCommandParameter(cmd, "string2", properties.String2);
-                DbAccessor.AddCommandParameter(cmd, "string3", properties.String3);
-                DbAccessor.AddCommandParameter(cmd, "int1", properties.Int1);
-                DbAccessor.AddCommandParameter(cmd, "int2", properties.Int2);
-                DbAccessor.AddCommandParameter(cmd, "long1", properties.Long1);
-                DbAccessor.AddCommandParameter(cmd, "long2", properties.Long2);
-                DbAccessor.AddCommandParameter(cmd, "decimal1", properties.Decimal1);
-                DbAccessor.AddCommandParameter(cmd, "decimal2", properties.Decimal2);
-                DbAccessor.AddCommandParameter(cmd, "boolean1", DbAccessor.GetDbBooleanValue(properties.Boolean1));
-                DbAccessor.AddCommandParameter(cmd, "boolean2", DbAccessor.GetDbBooleanValue(properties.Boolean2));
-                DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-                DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
-                DbAccessor.AddCommandParameter(cmd, "timeZoneId", properties.TimeZoneId);
+            using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(UpdateSimplePropsTrigger, TablePrefix));
+            DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
+            DbAccessor.AddCommandParameter(cmd, "string1", properties.String1);
+            DbAccessor.AddCommandParameter(cmd, "string2", properties.String2);
+            DbAccessor.AddCommandParameter(cmd, "string3", properties.String3);
+            DbAccessor.AddCommandParameter(cmd, "int1", properties.Int1);
+            DbAccessor.AddCommandParameter(cmd, "int2", properties.Int2);
+            DbAccessor.AddCommandParameter(cmd, "long1", properties.Long1);
+            DbAccessor.AddCommandParameter(cmd, "long2", properties.Long2);
+            DbAccessor.AddCommandParameter(cmd, "decimal1", properties.Decimal1);
+            DbAccessor.AddCommandParameter(cmd, "decimal2", properties.Decimal2);
+            DbAccessor.AddCommandParameter(cmd, "boolean1", DbAccessor.GetDbBooleanValue(properties.Boolean1));
+            DbAccessor.AddCommandParameter(cmd, "boolean2", DbAccessor.GetDbBooleanValue(properties.Boolean2));
+            DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
+            DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
+            DbAccessor.AddCommandParameter(cmd, "timeZoneId", properties.TimeZoneId);
 
-                return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-            }
+            return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 }

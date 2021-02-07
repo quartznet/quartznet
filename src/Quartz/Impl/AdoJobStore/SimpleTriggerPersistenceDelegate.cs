@@ -66,14 +66,12 @@ namespace Quartz.Impl.AdoJobStore
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
         {
-            using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlDeleteSimpleTrigger, TablePrefix)))
-            {
-                DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
-                DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-                DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+            using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlDeleteSimpleTrigger, TablePrefix));
+            DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
+            DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+            DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
-                return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-            }
+            return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
 
         public async Task<int> InsertExtendedTriggerProperties(
@@ -85,17 +83,15 @@ namespace Quartz.Impl.AdoJobStore
         {
             ISimpleTrigger simpleTrigger = (ISimpleTrigger) trigger;
 
-            using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlInsertSimpleTrigger, TablePrefix)))
-            {
-                DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
-                DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-                DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
-                DbAccessor.AddCommandParameter(cmd, "triggerRepeatCount", simpleTrigger.RepeatCount);
-                DbAccessor.AddCommandParameter(cmd, "triggerRepeatInterval", DbAccessor.GetDbTimeSpanValue(simpleTrigger.RepeatInterval));
-                DbAccessor.AddCommandParameter(cmd, "triggerTimesTriggered", simpleTrigger.TimesTriggered);
+            using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlInsertSimpleTrigger, TablePrefix));
+            DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
+            DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
+            DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
+            DbAccessor.AddCommandParameter(cmd, "triggerRepeatCount", simpleTrigger.RepeatCount);
+            DbAccessor.AddCommandParameter(cmd, "triggerRepeatInterval", DbAccessor.GetDbTimeSpanValue(simpleTrigger.RepeatInterval));
+            DbAccessor.AddCommandParameter(cmd, "triggerTimesTriggered", simpleTrigger.TimesTriggered);
 
-                return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-            }
+            return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
 
         public async Task<TriggerPropertyBundle> LoadExtendedTriggerProperties(
@@ -103,21 +99,18 @@ namespace Quartz.Impl.AdoJobStore
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
         {
-            using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, TablePrefix)))
-            {
-                DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
-                DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-                DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+            using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, TablePrefix));
+            DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
+            DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+            DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
-                using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
-                    {
-                        return ReadTriggerPropertyBundle(rs);
-                    }
-                }
-                throw new InvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, TablePrefix));
+            using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                return ReadTriggerPropertyBundle(rs);
             }
+
+            throw new InvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, TablePrefix));
         }
 
         public TriggerPropertyBundle ReadTriggerPropertyBundle(DbDataReader rs)
@@ -145,17 +138,15 @@ namespace Quartz.Impl.AdoJobStore
         {
             ISimpleTrigger simpleTrigger = (ISimpleTrigger) trigger;
 
-            using (var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlUpdateSimpleTrigger, TablePrefix)))
-            {
-                DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
-                DbAccessor.AddCommandParameter(cmd, "triggerRepeatCount", simpleTrigger.RepeatCount);
-                DbAccessor.AddCommandParameter(cmd, "triggerRepeatInterval", DbAccessor.GetDbTimeSpanValue(simpleTrigger.RepeatInterval));
-                DbAccessor.AddCommandParameter(cmd, "triggerTimesTriggered", simpleTrigger.TimesTriggered);
-                DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-                DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
+            using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlUpdateSimpleTrigger, TablePrefix));
+            DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
+            DbAccessor.AddCommandParameter(cmd, "triggerRepeatCount", simpleTrigger.RepeatCount);
+            DbAccessor.AddCommandParameter(cmd, "triggerRepeatInterval", DbAccessor.GetDbTimeSpanValue(simpleTrigger.RepeatInterval));
+            DbAccessor.AddCommandParameter(cmd, "triggerTimesTriggered", simpleTrigger.TimesTriggered);
+            DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
+            DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
 
-                return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-            }
+            return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 }
