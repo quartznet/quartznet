@@ -108,19 +108,22 @@ namespace Quartz.Tests.Unit
         [Test]
         public async Task TestNoConcurrentExecOnSameJobWithBatching()
         {
-            DateTime startTime = DateTime.Now.AddMilliseconds(300).ToUniversalTime(); // make the triggers fire at the same time.
+            var startTime = DateTimeOffset.UtcNow.AddMilliseconds(300); // make the triggers fire at the same time.
 
-            IJobDetail job1 = JobBuilder.Create<TestJob>().WithIdentity("job1").Build();
-            ITrigger trigger1 = TriggerBuilder.Create().WithSimpleSchedule().StartAt(startTime).Build();
+            var job1 = JobBuilder.Create<TestJob>().WithIdentity("job1").Build();
+            var trigger1 = TriggerBuilder.Create().WithSimpleSchedule().StartAt(startTime).Build();
 
-            ITrigger trigger2 = TriggerBuilder.Create().WithSimpleSchedule().StartAt(startTime).ForJob(job1).Build();
+            var trigger2 = TriggerBuilder.Create().WithSimpleSchedule().StartAt(startTime).ForJob(job1).Build();
 
-            NameValueCollection props = new NameValueCollection();
-            props["quartz.scheduler.idleWaitTime"] = "1500";
-            props["quartz.scheduler.batchTriggerAcquisitionMaxCount"] = "2";
-            props["quartz.threadPool.threadCount"] = "2";
-            props["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
-            IScheduler scheduler = await new StdSchedulerFactory(props).GetScheduler();
+            var props = new NameValueCollection
+            {
+                ["quartz.scheduler.idleWaitTime"] = "1500",
+                ["quartz.scheduler.batchTriggerAcquisitionMaxCount"] = "2",
+                ["quartz.threadPool.threadCount"] = "2", 
+                ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
+            };
+            
+            var scheduler = await new StdSchedulerFactory(props).GetScheduler();
             scheduler.ListenerManager.AddJobListener(new TestJobListener(2));
             await scheduler.ScheduleJob(job1, trigger1);
             await scheduler.ScheduleJob(trigger2);
@@ -130,7 +133,7 @@ namespace Quartz.Tests.Unit
             await scheduler.Shutdown(true);
 
             Assert.AreEqual(2, jobExecDates.Count);
-            Assert.Greater((jobExecDates[1] - jobExecDates[0]).TotalMilliseconds, jobBlockTime.TotalMilliseconds - 1);
+            Assert.That((jobExecDates[1] - jobExecDates[0]).TotalMilliseconds, Is.GreaterThanOrEqualTo(jobBlockTime.TotalMilliseconds).Within(5));
         }
     }
 }
