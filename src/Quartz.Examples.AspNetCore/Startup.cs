@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
@@ -12,6 +13,7 @@ using OpenTelemetry.Trace;
 
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Matchers;
+using Quartz.Plugin.Interrupt;
 
 using Serilog;
 
@@ -131,6 +133,23 @@ namespace Quartz.Examples.AspNetCore
                     .WithCronSchedule("0/3 * * * * ?")
                     .WithDescription("my awesome cron trigger")
                 );
+                
+                // auto-interrupt long-running job
+                q.UseJobAutoInterrupt(options =>
+                {
+                    // this is the default
+                    options.DefaultMaxRunTime = TimeSpan.FromMinutes(5);
+                });
+                q.ScheduleJob<SlowJob>(
+                    triggerConfigurator => triggerConfigurator
+                        .WithIdentity("slowJobTrigger")
+                        .StartNow()
+                        .WithSimpleSchedule(x => x.WithIntervalInSeconds(5).RepeatForever()),
+                    jobConfigurator => jobConfigurator
+                        .WithIdentity("slowJob")
+                        .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable, true)
+                        // allow only five seconds for this job, overriding default configuration
+                        .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime, TimeSpan.FromSeconds(5).TotalMilliseconds.ToString(CultureInfo.InvariantCulture)));
 
                 const string calendarName = "myHolidayCalendar";
                 q.AddCalendar<HolidayCalendar>(

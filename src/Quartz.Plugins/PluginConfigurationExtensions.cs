@@ -1,5 +1,7 @@
 using System;
+using System.Globalization;
 
+using Quartz.Plugin.Interrupt;
 using Quartz.Plugin.Xml;
 using Quartz.Util;
 
@@ -16,6 +18,37 @@ namespace Quartz
             return configurer;
         }
 
+        /// <summary>
+        /// Configures <see cref="JobInterruptMonitorPlugin "/> into use.
+        /// </summary>
+        public static T UseJobAutoInterrupt<T>(
+            this T configurer,
+            Action<JobAutoInterruptOptions>? configure = null) where T : IPropertyConfigurationRoot
+        {
+            configurer.SetProperty("quartz.plugin.jobAutoInterrupt.type", typeof(JobInterruptMonitorPlugin).AssemblyQualifiedNameWithoutVersion());
+            configure?.Invoke(new JobAutoInterruptOptions(configurer));
+            return configurer;
+        }
+        
+    }
+
+    public class JobAutoInterruptOptions : PropertiesSetter
+    {
+        public JobAutoInterruptOptions(IPropertySetter parent) : base(parent, "quartz.plugin.jobAutoInterrupt")
+        {
+        }
+
+        /// <summary>
+        /// The amount of time the job is allowed to run before job interruption is signaled.
+        /// Defaults to 5 minutes.
+        /// </summary>
+        /// <remarks>
+        /// Per-job value can be configured via JobDataMap via key <see cref="JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime"/>.
+        /// </remarks>
+        public TimeSpan DefaultMaxRunTime
+        {
+            set => SetProperty("defaultMaxRunTime", value.TotalMilliseconds.ToString(CultureInfo.InvariantCulture));
+        }
     }
 
     public class XmlSchedulingOptions : PropertiesSetter
