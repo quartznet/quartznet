@@ -214,13 +214,26 @@ The XML schema definition for the file can be found [here](https://github.com/qu
 
 ### Sample configuration of Shutdown Hook Plugin
 
-The shutdown-hook plugin catches the event of the JVM terminating, and calls shutdown on the scheduler.
+The shutdown-hook plugin catches the event of the CLR terminating, and calls shutdown on the scheduler.
 
 **Sample configuration of ShutdownHookPlugin**
 ```
 quartz.plugin.shutdownhook.type = Quartz.Plugins.Management.ShutdownHookPlugin, Quartz.Plugins
 quartz.plugin.shutdownhook.cleanShutdown = true
 ```
+
+### Sample configuration of Job Interrupt Monitor Plugin
+
+This plugin catches the event of job running for a long time (more than the configured max time) and tells the scheduler to "try" interrupting it if enabled.
+Plugin defaults to signaling interrupt after 5 minutes, but the default van be configured to something different, value is in milliseconds in configuration.
+
+**Sample configuration of JobInterruptMonitorPlugin**
+```
+quartz.plugin.jobAutoInterrupt.type = Quartz.Plugin.Interrupt.JobInterruptMonitorPlugin, Quartz.Plugins
+quartz.plugin.jobAutoInterrupt.defaultMaxRunTime = 3000000
+```
+
+
 
 ## Remoting Server and Client
 

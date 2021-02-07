@@ -19,6 +19,7 @@ Quartz.OpenTelemetry.Instrumentation.
 
   * Separate build configuration for .NET Framework 4.7.2
   * OpenTelemetry integration upgraded to target OpenTelemetry 1.0.0-rc1.1
+  * Ported JobInterruptMonitorPlugin from Java version which allows automatic interrupt calls for registered jobs (#1110)
   
 * FIXES
 
