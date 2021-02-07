@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -116,22 +117,27 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
                     {
-                        var cronExpr = rs.GetString(AdoConstants.ColumnCronExpression)!;
-                        var timeZoneId = rs.GetString(AdoConstants.ColumnTimeZoneId);
-
-                        CronScheduleBuilder cb = CronScheduleBuilder.CronSchedule(cronExpr);
-  
-                        if (timeZoneId != null)
-                        {
-                            cb.InTimeZone(TimeZoneUtil.FindTimeZoneById(timeZoneId));
-                        }
-
-                        return new TriggerPropertyBundle(cb);
+                        return ReadTriggerPropertyBundle(rs);
                     }
                 }
 
                 throw new InvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectCronTriggers, TablePrefix));
             }
+        }
+
+        public TriggerPropertyBundle ReadTriggerPropertyBundle(DbDataReader rs)
+        {
+            var cronExpr = rs.GetString(AdoConstants.ColumnCronExpression)!;
+            var timeZoneId = rs.GetString(AdoConstants.ColumnTimeZoneId);
+
+            CronScheduleBuilder cb = CronScheduleBuilder.CronSchedule(cronExpr);
+
+            if (timeZoneId != null)
+            {
+                cb.InTimeZone(TimeZoneUtil.FindTimeZoneById(timeZoneId));
+            }
+
+            return new TriggerPropertyBundle(cb);
         }
 
         public async Task<int> UpdateExtendedTriggerProperties(

@@ -188,7 +188,7 @@ namespace Quartz.Impl.AdoJobStore
               FROM
                 {TablePrefixSubst}{TableTriggers} t
               JOIN
-                {TablePrefixSubst}{TableJobDetails} jd ON (jd.{ColumnJobGroup} = t.{ColumnJobGroup} AND jd.{ColumnJobName} = t.{ColumnJobName}) 
+                {TablePrefixSubst}{TableJobDetails} jd ON (jd.{ColumnSchedulerName} = t.{ColumnSchedulerName} AND  jd.{ColumnJobGroup} = t.{ColumnJobGroup} AND jd.{ColumnJobName} = t.{ColumnJobName}) 
               WHERE
                 t.{ColumnSchedulerName} = @schedulerName AND {ColumnTriggerState} = @state AND {ColumnNextFireTime} <= @noLaterThan AND ({ColumnMifireInstruction} = -1 OR ({ColumnMifireInstruction} <> -1 AND {ColumnNextFireTime} >= @noEarlierThan))
               ORDER BY 
@@ -228,7 +228,32 @@ namespace Quartz.Impl.AdoJobStore
             $"SELECT * FROM {TablePrefixSubst}{TableSimpleTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup";
 
         public static readonly string SqlSelectTrigger =
-            $"SELECT {ColumnJobName},{ColumnJobGroup},{ColumnDescription},{ColumnNextFireTime},{ColumnPreviousFireTime},{ColumnTriggerType},{ColumnStartTime},{ColumnEndTime},{ColumnCalendarName},{ColumnMifireInstruction},{ColumnPriority},{ColumnJobDataMap} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup";
+            $@"SELECT 
+                {ColumnJobName},
+                {ColumnJobGroup},
+                {ColumnDescription},
+                {ColumnNextFireTime},
+                {ColumnPreviousFireTime},
+                {ColumnTriggerType},
+                {ColumnStartTime},
+                {ColumnEndTime},
+                {ColumnCalendarName},
+                {ColumnMifireInstruction},
+                {ColumnPriority},
+                {ColumnJobDataMap},
+                {ColumnCronExpression},
+                {ColumnTimeZoneId},
+                {ColumnRepeatCount},
+                {ColumnRepeatInterval},
+                {ColumnTimesTriggered} 
+            FROM 
+                {TablePrefixSubst}{TableTriggers} t
+            LEFT JOIN
+                {TablePrefixSubst}{TableSimpleTriggers} st ON (st.{ColumnSchedulerName} = t.{ColumnSchedulerName} AND st.{ColumnTriggerGroup} = t.{ColumnTriggerGroup} AND st.{ColumnTriggerName} = t.{ColumnTriggerName})
+            LEFT JOIN
+                {TablePrefixSubst}{TableCronTriggers} ct ON (ct.{ColumnSchedulerName} = t.{ColumnSchedulerName} AND ct.{ColumnTriggerGroup} = t.{ColumnTriggerGroup} AND ct.{ColumnTriggerName} = t.{ColumnTriggerName})
+            WHERE
+                t.{ColumnSchedulerName} = @schedulerName AND t.{ColumnTriggerName} = @triggerName AND t.{ColumnTriggerGroup} = @triggerGroup";
 
         public static readonly string SqlSelectTriggerData =
             $"SELECT {ColumnJobDataMap} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup";

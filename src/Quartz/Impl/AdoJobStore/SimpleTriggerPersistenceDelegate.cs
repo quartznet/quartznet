@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -112,22 +113,27 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
                     {
-                        int repeatCount = rs.GetInt32(AdoConstants.ColumnRepeatCount);
-                        TimeSpan repeatInterval = DbAccessor.GetTimeSpanFromDbValue(rs[AdoConstants.ColumnRepeatInterval]) ?? TimeSpan.Zero;
-                        int timesTriggered = rs.GetInt32(AdoConstants.ColumnTimesTriggered);
-
-                        SimpleScheduleBuilder sb = SimpleScheduleBuilder.Create()
-                            .WithRepeatCount(repeatCount)
-                            .WithInterval(repeatInterval);
-
-                        string[] statePropertyNames = {"timesTriggered"};
-                        object[] statePropertyValues = {timesTriggered};
-
-                        return new TriggerPropertyBundle(sb, statePropertyNames, statePropertyValues);
+                        return ReadTriggerPropertyBundle(rs);
                     }
                 }
                 throw new InvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, TablePrefix));
             }
+        }
+
+        public TriggerPropertyBundle ReadTriggerPropertyBundle(DbDataReader rs)
+        {
+            int repeatCount = rs.GetInt32(AdoConstants.ColumnRepeatCount);
+            TimeSpan repeatInterval = DbAccessor.GetTimeSpanFromDbValue(rs[AdoConstants.ColumnRepeatInterval]) ?? TimeSpan.Zero;
+            int timesTriggered = rs.GetInt32(AdoConstants.ColumnTimesTriggered);
+
+            SimpleScheduleBuilder sb = SimpleScheduleBuilder.Create()
+                .WithRepeatCount(repeatCount)
+                .WithInterval(repeatInterval);
+
+            string[] statePropertyNames = {"timesTriggered"};
+            object[] statePropertyValues = {timesTriggered};
+
+            return new TriggerPropertyBundle(sb, statePropertyNames, statePropertyValues);
         }
 
         public async Task<int> UpdateExtendedTriggerProperties(

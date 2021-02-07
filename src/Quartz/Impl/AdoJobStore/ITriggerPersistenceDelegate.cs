@@ -19,6 +19,7 @@
 
 #endregion
 
+using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -83,5 +84,10 @@ namespace Quartz.Impl.AdoJobStore
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Read trigger state data from open data reader.
+        /// </summary>
+        TriggerPropertyBundle ReadTriggerPropertyBundle(DbDataReader rs);
     }
 }

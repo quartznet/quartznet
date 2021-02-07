@@ -651,6 +651,9 @@ namespace Quartz.Impl.AdoJobStore
             DateTimeOffset startTimeUtc;
             DateTimeOffset? endTimeUtc;
 
+            ITriggerPersistenceDelegate? tDel = null;
+            TriggerPropertyBundle? triggerProps = null;
+
             using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTrigger)))
             {
                 AddCommandParameter(cmd, "schedulerName", schedName);
@@ -678,6 +681,13 @@ namespace Quartz.Impl.AdoJobStore
                     previousFireTimeUtc = GetDateTimeFromDbValue(rs[ColumnPreviousFireTime]);
                     startTimeUtc = GetDateTimeFromDbValue(rs[ColumnStartTime]) ?? DateTimeOffset.MinValue;
                     endTimeUtc = GetDateTimeFromDbValue(rs[ColumnEndTime]);
+                    
+                    // check if we access fast path
+                    if (triggerType.Equals(TriggerTypeCron) || triggerType.Equals(TriggerTypeSimple))
+                    {
+                        tDel = FindTriggerPersistenceDelegate(triggerType);
+                        triggerProps = tDel!.ReadTriggerPropertyBundle(rs);
+                    }
                 }
             }
 
@@ -696,27 +706,30 @@ namespace Quartz.Impl.AdoJobStore
             }
             else
             {
-                var tDel = FindTriggerPersistenceDelegate(triggerType);
+                if (triggerProps is null)
+                {
+                    // fast path didn't succeed
+                    tDel ??= FindTriggerPersistenceDelegate(triggerType);
 
-                if (tDel == null)
-                {
-                    throw new JobPersistenceException("No TriggerPersistenceDelegate for trigger discriminator type: " + triggerType);
-                }
-
-                TriggerPropertyBundle triggerProps;
-                try
-                {
-                    triggerProps = await tDel.LoadExtendedTriggerProperties(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-                }
-                catch (InvalidOperationException)
-                {
-                    if (await IsTriggerStillPresent(conn, triggerKey, cancellationToken).ConfigureAwait(false))
+                    if (tDel == null)
                     {
-                        throw;
+                        throw new JobPersistenceException("No TriggerPersistenceDelegate for trigger discriminator type: " + triggerType);
                     }
 
-                    // QTZ-386 Trigger has been deleted
-                    return null;
+                    try
+                    {
+                        triggerProps = await tDel.LoadExtendedTriggerProperties(conn, triggerKey, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        if (await IsTriggerStillPresent(conn, triggerKey, cancellationToken).ConfigureAwait(false))
+                        {
+                            throw;
+                        }
+
+                        // QTZ-386 Trigger has been deleted
+                        return null;
+                    }
                 }
 
                 TriggerBuilder tb = TriggerBuilder.Create()

@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -182,27 +183,32 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
                     {
-                        SimplePropertiesTriggerProperties properties = new SimplePropertiesTriggerProperties();
-
-                        properties.String1 = rs.GetString(ColumnStrProp1);
-                        properties.String2 = rs.GetString(ColumnStrProp2);
-                        properties.String3 = rs.GetString(ColumnStrProp3);
-                        properties.Int1 = rs.GetInt32(ColumnIntProp1);
-                        properties.Int2 = rs.GetInt32(ColumnIntProp2);
-                        properties.Long1 = rs.GetInt64(ColumnLongProp1);
-                        properties.Long2 = rs.GetInt64(ColumnLongProp2);
-                        properties.Decimal1 = rs.GetDecimal(ColumnDecProp1);
-                        properties.Decimal2 = rs.GetDecimal(ColumnDecProp2);
-                        properties.Boolean1 = DbAccessor.GetBooleanFromDbValue(rs[ColumnBoolProp1]);
-                        properties.Boolean2 = DbAccessor.GetBooleanFromDbValue(rs[ColumnBoolProp2]);
-                        properties.TimeZoneId = rs.GetString(ColumnTimeZoneId);
-
-                        return GetTriggerPropertyBundle(properties);
+                        return ReadTriggerPropertyBundle(rs);
                     }
                 }
             }
 
             throw new InvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, TablePrefix));
+        }
+
+        public TriggerPropertyBundle ReadTriggerPropertyBundle(DbDataReader rs)
+        {
+            SimplePropertiesTriggerProperties properties = new SimplePropertiesTriggerProperties();
+
+            properties.String1 = rs.GetString(ColumnStrProp1);
+            properties.String2 = rs.GetString(ColumnStrProp2);
+            properties.String3 = rs.GetString(ColumnStrProp3);
+            properties.Int1 = rs.GetInt32(ColumnIntProp1);
+            properties.Int2 = rs.GetInt32(ColumnIntProp2);
+            properties.Long1 = rs.GetInt64(ColumnLongProp1);
+            properties.Long2 = rs.GetInt64(ColumnLongProp2);
+            properties.Decimal1 = rs.GetDecimal(ColumnDecProp1);
+            properties.Decimal2 = rs.GetDecimal(ColumnDecProp2);
+            properties.Boolean1 = DbAccessor.GetBooleanFromDbValue(rs[ColumnBoolProp1]);
+            properties.Boolean2 = DbAccessor.GetBooleanFromDbValue(rs[ColumnBoolProp2]);
+            properties.TimeZoneId = rs.GetString(ColumnTimeZoneId);
+
+            return GetTriggerPropertyBundle(properties);
         }
 
         public async Task<int> UpdateExtendedTriggerProperties(
