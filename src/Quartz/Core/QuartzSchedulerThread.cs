@@ -28,6 +28,7 @@ using System.Threading.Tasks;
 
 using Quartz.Impl.AdoJobStore;
 using Quartz.Logging;
+using Quartz.Simpl;
 using Quartz.Spi;
 
 namespace Quartz.Core
@@ -218,7 +219,7 @@ namespace Quartz.Core
         /// </summary>
         public async Task Run()
         {
-            bool lastAcquireFailed = false;
+            int acquiresFailed = 0;
 
             while (!halted)
             {
@@ -238,11 +239,29 @@ namespace Quartz.Core
                             catch (ThreadInterruptedException)
                             {
                             }
+
+                            // reset failure counter when paused, so that we don't
+                            // wait again after unpausing
+                            acquiresFailed = 0;
                         }
 
                         if (halted)
                         {
                             break;
+                        }
+                    }
+                    
+                    // wait a bit, if reading from job store is consistently
+                    // failing (e.g. DB is down or restarting)..
+                    if (acquiresFailed > 1) 
+                    {
+                        try 
+                        {
+                            var delay = ComputeDelayForRepeatedErrors(qsRsrcs.JobStore, acquiresFailed);
+                            await Task.Delay(delay);
+                        }
+                        catch
+                        {
                         }
                     }
 
@@ -260,7 +279,7 @@ namespace Quartz.Core
                             var noLaterThan = now + idleWaitTime;
                             var maxCount = Math.Min(availThreadCount, qsRsrcs.MaxBatchSize);
                             triggers = new List<IOperableTrigger>(await qsRsrcs.JobStore.AcquireNextTriggers(noLaterThan, maxCount, qsRsrcs.BatchTimeWindow, CancellationToken.None).ConfigureAwait(false));
-                            lastAcquireFailed = false;
+                            acquiresFailed = 0;
                             if (Log.IsDebugEnabled())
                             {
                                 Log.DebugFormat("Batch acquisition of {0} triggers", triggers?.Count ?? 0);
@@ -268,23 +287,29 @@ namespace Quartz.Core
                         }
                         catch (JobPersistenceException jpe)
                         {
-                            if (!lastAcquireFailed)
+                            if (acquiresFailed == 0)
                             {
                                 var msg = "An error occurred while scanning for the next trigger to fire.";
                                 await qs.NotifySchedulerListenersError(msg, jpe, CancellationToken.None).ConfigureAwait(false);
                             }
-                            lastAcquireFailed = true;
-                            await HandleDbRetry(CancellationToken.None).ConfigureAwait(false);
+
+                            if (acquiresFailed < int.MaxValue)
+                            {
+                                acquiresFailed++;
+                            }
+
                             continue;
                         }
                         catch (Exception e)
                         {
-                            if (!lastAcquireFailed)
+                            if (acquiresFailed == 0)
                             {
                                 Log.ErrorException("quartzSchedulerThreadLoop: RuntimeException " + e.Message, e);
                             }
-                            lastAcquireFailed = true;
-                            await HandleDbRetry(CancellationToken.None).ConfigureAwait(false);
+                            if (acquiresFailed < int.MaxValue)
+                            {
+                                acquiresFailed++;
+                            }
                             continue;
                         }
 
@@ -466,15 +491,44 @@ namespace Quartz.Core
             } // while (!halted)
         }
 
-        protected virtual async Task HandleDbRetry(CancellationToken cancellationToken)
-        {
-            var jobStorSupport = qsRsrcs.JobStore as JobStoreSupport;
-            if (jobStorSupport != null)
-            {
-                await Task.Delay(jobStorSupport.DbRetryInterval, cancellationToken).ConfigureAwait(false);
-            }
-        }
+        private static readonly TimeSpan minDelay = TimeSpan.FromMilliseconds(20);
+        private static readonly TimeSpan maxDelay = TimeSpan.FromMinutes(10);
 
+        private static TimeSpan ComputeDelayForRepeatedErrors(IJobStore jobStore, int acquiresFailed) 
+        {
+            var delay = TimeSpan.FromMilliseconds(100);
+            try
+            {
+                // TODO v4, use interface
+                if (jobStore is JobStoreSupport jobStoreSupport)
+                {
+                    delay = jobStoreSupport.GetAcquireRetryDelay(acquiresFailed);
+                }
+                else if (jobStore is RAMJobStore ramJobStore)
+                {
+                    delay = ramJobStore.GetAcquireRetryDelay(acquiresFailed);
+                }
+            }
+            catch
+            {
+                // we're trying to be useful in case of error states, not cause
+                // additional errors..
+            }
+
+            // sanity check per getAcquireRetryDelay specification
+            if (delay < minDelay)
+            {
+                delay = minDelay;
+            }
+
+            if (delay > maxDelay)
+            {
+                delay = maxDelay;
+            }
+
+            return delay;
+        }
+        
         private async Task<bool> ReleaseIfScheduleChangedSignificantly(List<IOperableTrigger> triggers, DateTimeOffset triggerTime)
         {
             if (IsCandidateNewTimeEarlierWithinReason(triggerTime, true))

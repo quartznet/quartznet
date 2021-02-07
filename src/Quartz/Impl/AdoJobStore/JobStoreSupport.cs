@@ -313,6 +313,8 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <returns></returns>
         public bool DoubleCheckLockMisfireHandler { get; set; }
+        
+        public virtual TimeSpan GetAcquireRetryDelay(int failureCount) => DbRetryInterval;
 
         protected DbMetadata DbMetadata => ConnectionManager.GetDbMetadata(DataSource);
 

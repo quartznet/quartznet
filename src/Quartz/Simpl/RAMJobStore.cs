@@ -1905,6 +1905,8 @@ namespace Quartz.Simpl
 
         public bool Clustered => false;
 
+        public virtual TimeSpan GetAcquireRetryDelay(int failureCount) => TimeSpan.FromMilliseconds(20);
+        
         /// <summary>
         /// Sets the state of all triggers of job to specified state.
         /// </summary>

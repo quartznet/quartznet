@@ -642,5 +642,23 @@ namespace Quartz.Spi
         /// Tells the JobStore the pool size used to execute jobs.
         /// </summary>
         int ThreadPoolSize { set; }
+        
+        /* TODO V4 add to interface
+        
+        /// <summary>
+        /// Get the amount of time (in ms) to wait when accessing this job store repeatedly fails.
+        /// </summary>
+        /// <remarks>
+        /// Called by the executor thread(s) when calls to <see cref="AcquireNextTriggers"/> fail more than once in succession,
+        /// and the thread thus wants to wait a bit before trying again, to not consume 100% CPU,
+        /// write huge amounts of errors into logs, etc. in cases like the DB being offline/restarting.
+        ///
+        /// The delay returned by implementations should be between 20 and 600000 milliseconds.* @param failureCount 
+        /// </remarks>
+        /// <param name="failureCount">the number of successive failures seen so far</param>
+        /// <returns>the time (in milliseconds) to wait before trying again</returns>
+        TimeSpan GetAcquireRetryDelay(int failureCount);
+        
+        */
     }
 }
