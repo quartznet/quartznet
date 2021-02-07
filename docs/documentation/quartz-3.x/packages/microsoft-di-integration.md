@@ -144,6 +144,23 @@ public void ConfigureServices(IServiceCollection services)
         // convert time zones using converter that can handle Windows/Linux differences
         q.UseTimeZoneConverter();
         
+        // auto-interrupt long-running job
+        q.UseJobAutoInterrupt(options =>
+        {
+            // this is the default
+            options.DefaultMaxRunTime = TimeSpan.FromMinutes(5);
+        });
+        q.ScheduleJob<SlowJob>(
+            triggerConfigurator => triggerConfigurator
+                .WithIdentity("slowJobTrigger")
+                .StartNow()
+                .WithSimpleSchedule(x => x.WithIntervalInSeconds(5).RepeatForever()),
+            jobConfigurator => jobConfigurator
+                .WithIdentity("slowJob")
+                .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable, true)
+                // allow only five seconds for this job, overriding default configuration
+                .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime, TimeSpan.FromSeconds(5).TotalMilliseconds.ToString(CultureInfo.InvariantCulture)));
+
         // add some listeners
         q.AddSchedulerListener<SampleSchedulerListener>();
         q.AddJobListener<SampleJobListener>(GroupMatcher<JobKey>.GroupEquals(jobKey.Group));
