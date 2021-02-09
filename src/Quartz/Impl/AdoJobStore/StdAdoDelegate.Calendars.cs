@@ -123,13 +123,7 @@ namespace Quartz.Impl.AdoJobStore
             using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectNumCalendars));
             AddCommandParameter(cmd, "schedulerName", schedName);
 
-            int count = 0;
-            using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
-            {
-                count = Convert.ToInt32(rs.GetValue(0), CultureInfo.InvariantCulture);
-            }
-
+            int count = Convert.ToInt32(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
             return count;
         }
 

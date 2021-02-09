@@ -151,13 +151,8 @@ namespace Quartz.Impl.AdoJobStore
             AddCommandParameter(cmd, "schedulerName", schedName);
             AddCommandParameter(cmd, "nextFireTime", GetDbDateTimeValue(ts));
             AddCommandParameter(cmd, "state1", state1);
-            using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
-            {
-                return Convert.ToInt32(rs.GetValue(0), CultureInfo.InvariantCulture);
-            }
 
-            throw new Exception("No misfired trigger count returned.");
+            return Convert.ToInt32(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
         }
 
         /// <inheritdoc />
@@ -790,22 +785,18 @@ namespace Quartz.Impl.AdoJobStore
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
         {
-            using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerData)))
-            {
-                AddCommandParameter(cmd, "schedulerName", schedName);
-                AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-                AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+            using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerData));
+            AddCommandParameter(cmd, "schedulerName", schedName);
+            AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+            AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
-                using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+            using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                var map = await ReadMapFromReader(rs, 0).ConfigureAwait(false);
+                if (map != null)
                 {
-                    if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
-                    {
-                        var map = await ReadMapFromReader(rs, 0).ConfigureAwait(false);
-                        if (map != null)
-                        {
-                            return map as JobDataMap ?? new JobDataMap(map);
-                        }
-                    }
+                    return map as JobDataMap ?? new JobDataMap(map);
                 }
             }
 
@@ -819,26 +810,19 @@ namespace Quartz.Impl.AdoJobStore
             CancellationToken cancellationToken = default)
         {
             using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerState));
-            string state;
 
             AddCommandParameter(cmd, "schedulerName", schedName);
             AddCommandParameter(cmd, "triggerName", triggerKey.Name);
             AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
-            using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
-            {
-                state = rs.GetString(ColumnTriggerState)!;
-            }
-            else
-            {
-                state = StateDeleted;
-            }
 
-            return state;
+            var state = (string?) await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+
+            return state ?? StateDeleted;
         }
 
         /// <inheritdoc />
-        public virtual async Task<TriggerStatus?> SelectTriggerStatus(ConnectionAndTransactionHolder conn,
+        public virtual async Task<TriggerStatus?> SelectTriggerStatus(
+            ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
         {
@@ -872,14 +856,7 @@ namespace Quartz.Impl.AdoJobStore
             using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectNumTriggers));
             AddCommandParameter(cmd, "schedulerName", schedName);
 
-            int count = 0;
-
-            using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
-            {
-                count = Convert.ToInt32(rs.GetInt32(0));
-            }
-
+            var count = Convert.ToInt32(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
             return count;
         }
 
@@ -1014,8 +991,8 @@ namespace Quartz.Impl.AdoJobStore
             using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectPausedTriggerGroup));
             AddCommandParameter(cmd, "schedulerName", schedName);
             AddCommandParameter(cmd, "triggerGroup", groupName);
-            using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            return await rs.ReadAsync(cancellationToken).ConfigureAwait(false);
+
+            return await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) != null;
         }
 
         /// <inheritdoc />
@@ -1027,13 +1004,8 @@ namespace Quartz.Impl.AdoJobStore
             using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectNumTriggersInGroup));
             AddCommandParameter(cmd, "schedulerName", schedName);
             AddCommandParameter(cmd, "triggerGroup", groupName);
-            using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            if (!await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
-            {
-                return false;
-            }
 
-            return Convert.ToInt32(rs.GetInt32(0)) > 0;
+            return Convert.ToInt32(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false)) > 0;
         }
 
         /// <inheritdoc />
@@ -1409,12 +1381,7 @@ namespace Quartz.Impl.AdoJobStore
             AddCommandParameter(cmd, "jobName", jobKey.Name);
             AddCommandParameter(cmd, "jobGroup", jobKey.Group);
 
-            using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
-            {
-                return Convert.ToInt32(rs.GetValue(0), CultureInfo.InvariantCulture);
-            }
-            return 0;
+            return Convert.ToInt32(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
         }
 
         /// <inheritdoc />

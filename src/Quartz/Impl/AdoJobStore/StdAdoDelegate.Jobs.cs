@@ -254,13 +254,7 @@ namespace Quartz.Impl.AdoJobStore
             AddCommandParameter(cmd, "jobName", jobKey.Name);
             AddCommandParameter(cmd, "jobGroup", jobKey.Group);
 
-            using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
-            {
-                return Convert.ToInt32(rs.GetValue(0), CultureInfo.InvariantCulture);
-            }
-
-            return 0;
+            return Convert.ToInt32(await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false));
         }
 
         /// <summary>
