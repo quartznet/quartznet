@@ -220,6 +220,7 @@ namespace Quartz.Core
         public async Task Run()
         {
             int acquiresFailed = 0;
+            Context.CallerId.Value = Guid.NewGuid();
 
             while (!halted)
             {

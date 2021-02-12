@@ -3854,8 +3854,16 @@ namespace Quartz.Impl.AdoJobStore
             Guid? requestorId,
             CancellationToken cancellationToken)
         {
+            if (requestorId is null)
+            {
+                requestorId = Core.Context.CallerId.Value;
+                if (requestorId is null)
+                {
+                    requestorId = Guid.NewGuid();
+                }
+            }
+            
             bool transOwner = false;
-            var lockRequestorId = requestorId ?? Guid.NewGuid();
             ConnectionAndTransactionHolder? conn = null;
             try
             {
@@ -3868,7 +3876,7 @@ namespace Quartz.Impl.AdoJobStore
                         conn = GetNonManagedTXConnection();
                     }
 
-                    transOwner = await LockHandler.ObtainLock(lockRequestorId, conn, lockName, cancellationToken).ConfigureAwait(false);
+                    transOwner = await LockHandler.ObtainLock(requestorId.Value, conn, lockName, cancellationToken).ConfigureAwait(false);
                 }
 
                 if (conn == null)
@@ -3891,7 +3899,7 @@ namespace Quartz.Impl.AdoJobStore
                     if (!await RetryExecuteInNonManagedTXLock(
                         lockName,
                         async connection => await txValidator(connection, result).ConfigureAwait(false),
-                        lockRequestorId,
+                        requestorId,
                         cancellationToken).ConfigureAwait(false))
                     {
                         throw;
@@ -3920,7 +3928,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    await ReleaseLock(lockRequestorId, lockName!, transOwner, cancellationToken).ConfigureAwait(false);
+                    await ReleaseLock(requestorId.Value, lockName!, transOwner, cancellationToken).ConfigureAwait(false);
                 }
                 finally
                 {

@@ -148,8 +148,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             else if (Log.IsWarnEnabled())
             {
-                Log.WarnException($"Lock '{lockName}' attempt to return by: {requestorId} -- but not owner!",
-                    new Exception("stack-trace of wrongful returner"));
+                Log.Warn($"Lock '{lockName}' attempt to return by: {requestorId} -- but not owner!");
+                Log.Warn("stack-trace of wrongful returner: " + Environment.StackTrace);
             }
 
             return Task.CompletedTask;

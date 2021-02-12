@@ -1134,22 +1134,10 @@ namespace Quartz.Impl.AdoJobStore
             AddCommandParameter(ps, "firedTime", GetDbDateTimeValue(SystemTime.UtcNow()));
             AddCommandParameter(ps, "scheduledTime", GetDbDateTimeValue(trigger.GetNextFireTimeUtc()));
             AddCommandParameter(ps, "entryState", state);
-
-            if (job != null)
-            {
-                AddCommandParameter(ps, "jobName", trigger.JobKey.Name);
-                AddCommandParameter(ps, "jobGroup", trigger.JobKey.Group);
-                AddCommandParameter(ps, "isNonConcurrent", GetDbBooleanValue(job.ConcurrentExecutionDisallowed));
-                AddCommandParameter(ps, "requestsRecover", GetDbBooleanValue(job.RequestsRecovery));
-            }
-            else
-            {
-                AddCommandParameter(ps, "jobName", null);
-                AddCommandParameter(ps, "JobGroup", null);
-                AddCommandParameter(ps, "isNonConcurrent", GetDbBooleanValue(false));
-                AddCommandParameter(ps, "requestsRecover", GetDbBooleanValue(false));
-            }
-
+            AddCommandParameter(ps, "jobName", trigger.JobKey.Name);
+            AddCommandParameter(ps, "jobGroup", trigger.JobKey.Group);
+            AddCommandParameter(ps, "isNonConcurrent", GetDbBooleanValue(job.ConcurrentExecutionDisallowed));
+            AddCommandParameter(ps, "requestsRecover", GetDbBooleanValue(job.RequestsRecovery));
             AddCommandParameter(ps, "entryId", trigger.FireInstanceId);
 
             return ps.ExecuteNonQueryAsync(cancellationToken);

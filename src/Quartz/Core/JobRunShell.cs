@@ -128,6 +128,7 @@ namespace Quartz.Core
         /// <param name="cancellationToken">The cancellation instruction.</param>
         public virtual async Task Run(CancellationToken cancellationToken = default)
         {
+            Context.CallerId.Value = Guid.NewGuid();
             qs!.AddInternalSchedulerListener(this);
 
             try
