@@ -20,10 +20,10 @@
 #endregion
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Quartz.Collections;
 using Quartz.Logging;
 
 namespace Quartz.Impl.AdoJobStore
@@ -37,11 +37,10 @@ namespace Quartz.Impl.AdoJobStore
     /// <author>Marko Lahma (.NET)</author>
     public class SimpleSemaphore : ISemaphore
     {
-        private readonly object syncRoot = new object();
-        private readonly Dictionary<Guid, HashSet<string>> threadLocks = new Dictionary<Guid, HashSet<string>>();
+        private readonly ResourceLock triggerLock = new();
+        private readonly ResourceLock stateLock = new();
 
         private readonly ILog log;
-        private readonly HashSet<string> locks = new HashSet<string>();
 
         public SimpleSemaphore()
         {
@@ -53,61 +52,53 @@ namespace Quartz.Impl.AdoJobStore
         /// until it is available).
         /// </summary>
         /// <returns>True if the lock was obtained.</returns>
-        public virtual Task<bool> ObtainLock(
+        public virtual async Task<bool> ObtainLock(
             Guid requestorId,
             ConnectionAndTransactionHolder? conn,
             string lockName,
             CancellationToken cancellationToken = default)
         {
-            if (log.IsDebugEnabled())
+            var isDebugEnabled = log.IsDebugEnabled();
+
+            if (isDebugEnabled)
             {
                 log.Debug($"Lock '{lockName}' is desired by: {requestorId}");
             }
 
-            lock (syncRoot)
+            var gotLock = false;
+            var lockHandle = GetLock(lockName);
+            if (!lockHandle.IsLockOwner(requestorId))
             {
-                if (!IsLockOwner(requestorId, lockName))
+                if (isDebugEnabled)
                 {
-                    if (log.IsDebugEnabled())
-                    {
-                        log.Debug($"Lock '{lockName}' is being obtained: {requestorId}");
-                    }
-
-                    while (locks.Contains(lockName))
-                    {
-                        try
-                        {
-                            Monitor.Wait(syncRoot);
-                        }
-                        catch (ThreadInterruptedException)
-                        {
-                            if (log.IsDebugEnabled())
-                            {
-                                log.Debug($"Lock '{lockName}' was not obtained by: {requestorId}");
-                            }
-                        }
-                    }
-
-                    if (!threadLocks.TryGetValue(requestorId, out var requestorLocks))
-                    {
-                        requestorLocks = new HashSet<string>();
-                        threadLocks[requestorId] = requestorLocks;
-                    }
-                    requestorLocks.Add(lockName);
-                    locks.Add(lockName);
-
-                    if (log.IsDebugEnabled())
-                    {
-                        log.Debug($"Lock '{lockName}' given to: {requestorId}");
-                    }
-                }
-                else if (log.IsDebugEnabled())
-                {
-                    log.DebugException($"Lock '{lockName}' already owned by: {requestorId} -- but not owner!", new Exception("stack-trace of wrongful returner"));
+                    log.Debug($"Lock '{lockName}' is being obtained: {requestorId}");
                 }
 
-                return Task.FromResult(true);
+                try
+                {
+                    await lockHandle.Acquire(requestorId, cancellationToken).ConfigureAwait(false);
+                    gotLock = true;
+                }
+                catch (OperationCanceledException)
+                {
+                    if (isDebugEnabled)
+                    {
+                        log.Debug($"Lock '{lockName}' was not obtained by: {requestorId}");
+                    }
+                }
+
+                if (isDebugEnabled)
+                {
+                    log.Debug($"Lock '{lockName}' given to: {requestorId}");
+                }
             }
+            else if (isDebugEnabled)
+            {
+                log.Debug($"Lock '{lockName}' already owned by: {requestorId} -- but not owner!");
+                log.Debug("stack-trace of wrongful returner: " + Environment.StackTrace);
+            }
+
+            return gotLock;
         }
 
         /// <summary> Release the lock on the identified resource if it is held by the calling
@@ -118,42 +109,23 @@ namespace Quartz.Impl.AdoJobStore
             string lockName,
             CancellationToken cancellationToken = default)
         {
-            lock (syncRoot)
+            var lockHandle = GetLock(lockName);
+            if (lockHandle.IsLockOwner(requestorId))
             {
-                if (IsLockOwner(requestorId, lockName))
-                {
-                    if (threadLocks.TryGetValue(requestorId, out var requestorLocks))
-                    {
-                        requestorLocks.Remove(lockName);
-                        if (requestorLocks.Count == 0)
-                        {
-                            threadLocks.Remove(requestorId);
-                        }
-                    }
-                    locks.Remove(lockName);
+                lockHandle.Release();
 
-                    if (log.IsDebugEnabled())
-                    {
-                        log.Debug($"Lock '{lockName}' returned by: {requestorId}");
-                    }
-
-                    Monitor.PulseAll(syncRoot);
-                }
-                else if (log.IsWarnEnabled())
+                if (log.IsDebugEnabled())
                 {
-                    log.WarnException($"Lock '{lockName}' attempt to return by: {requestorId} -- but not owner!", new Exception("stack-trace of wrongful returner"));
+                    log.Debug($"Lock '{lockName}' returned by: {requestorId}");
                 }
             }
-            return Task.CompletedTask;
-        }
+            else if (log.IsWarnEnabled())
+            {
+                log.Warn($"Lock '{lockName}' attempt to return by: {requestorId} -- but not owner!");
+                log.Warn("stack-trace of wrongful returner: " + Environment.StackTrace);
+            }
 
-        /// <summary>
-        /// Determine whether the calling thread owns a lock on the identified
-        /// resource.
-        /// </summary>
-        private bool IsLockOwner(Guid requestorId, string lockName)
-        {
-            return threadLocks.TryGetValue(requestorId, out var requestorLocks) && requestorLocks.Contains(lockName);
+            return Task.CompletedTask;
         }
 
         /// <summary>
@@ -161,9 +133,49 @@ namespace Quartz.Impl.AdoJobStore
         /// its lock management operations.
         /// </summary>
         /// <value></value>
-        /// <seealso cref="IsLockOwner"/>
         /// <seealso cref="ObtainLock"/>
         /// <seealso cref="ReleaseLock"/>
         public bool RequiresConnection => false;
+
+        private ResourceLock GetLock(string lockName)
+        {
+            if (ReferenceEquals(lockName, JobStoreSupport.LockTriggerAccess))
+            {
+                return triggerLock;
+            }
+
+            if (ReferenceEquals(lockName, JobStoreSupport.LockStateAccess))
+            {
+                return stateLock;
+            }
+
+            ThrowHelper.ThrowNotSupportedException();
+            return null!;
+        }
+
+        private sealed class ResourceLock
+        {
+            private SemaphoreSlim semaphore = new(1, 1);
+            private Guid? owner;
+
+            public bool IsLockOwner(Guid requestorId)
+            {
+                var temp = owner;
+                return temp != null && temp.Value == requestorId;
+
+            }
+
+            public async Task Acquire(Guid requestorId, CancellationToken cancellationToken)
+            {
+                await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+                owner = requestorId;
+            }
+
+            public void Release()
+            {
+                owner = null;
+                semaphore.Release();
+            }
+        }
     }
 }

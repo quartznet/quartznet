@@ -21,6 +21,7 @@
 
 using System;
 using System.Collections;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Data;
@@ -64,7 +65,7 @@ namespace Quartz.Impl.AdoJobStore
         private readonly List<ITriggerPersistenceDelegate> triggerPersistenceDelegates = new List<ITriggerPersistenceDelegate>();
         private string schedNameLiteral = null!;
         private IObjectSerializer objectSerializer = null!;
-        private readonly Dictionary<string, string> cachedQueries = new Dictionary<string, string>();
+        private readonly ConcurrentDictionary<string, string> cachedQueries = new();
 
         protected IDbProvider DbProvider { get; private set; } = null!;
 
@@ -3126,12 +3127,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>The query, with proper table prefix substituted</returns>
         protected string ReplaceTablePrefix(string query)
         {
-            if (!cachedQueries.TryGetValue(query, out var result))
-            {
-                cachedQueries[query] = result = AdoJobStoreUtil.ReplaceTablePrefix(query, tablePrefix);
-            }
-
-            return result;
+            return cachedQueries.GetOrAdd(query, q => AdoJobStoreUtil.ReplaceTablePrefix(q, tablePrefix));
         }
 
         [Obsolete("Scheduler name is now added to queries as a parameter")]
