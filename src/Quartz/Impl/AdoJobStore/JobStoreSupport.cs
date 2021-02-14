@@ -47,8 +47,8 @@ namespace Quartz.Impl.AdoJobStore
     /// <author>Marko Lahma (.NET)</author>
     public abstract class JobStoreSupport : AdoConstants, IJobStore
     {
-        protected const string LockTriggerAccess = "TRIGGER_ACCESS";
-        protected const string LockStateAccess = "STATE_ACCESS";
+        protected internal const string LockTriggerAccess = "TRIGGER_ACCESS";
+        protected internal const string LockStateAccess = "STATE_ACCESS";
 
         private string tablePrefix = DefaultTablePrefix;
         private bool useProperties;
