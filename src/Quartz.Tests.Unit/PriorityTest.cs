@@ -22,6 +22,7 @@
 using System;
 using System.Collections.Specialized;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 using NUnit.Framework;
@@ -39,14 +40,14 @@ namespace Quartz.Tests.Unit
     [TestFixture]
     public class PriorityTest
     {
-        // TODO rev 991 from terracotta not ported
-
         private static StringBuilder result;
+        private static CountdownEvent countdownEvent;
 
         [SetUp]
         public void Setup()
         {
             result = new StringBuilder();
+            countdownEvent = new CountdownEvent(2);
         }
 
         [Test]
@@ -74,7 +75,7 @@ namespace Quartz.Tests.Unit
 
             await sched.Start();
 
-            await Task.Delay(2000);
+            countdownEvent.Wait();
 
             Assert.AreEqual("T1T2", result.ToString());
 
@@ -109,7 +110,7 @@ namespace Quartz.Tests.Unit
 
             await sched.Start();
 
-            await Task.Delay(2000);
+            countdownEvent.Wait();
 
             Assert.AreEqual("T2T1", result.ToString());
 
@@ -123,6 +124,7 @@ namespace Quartz.Tests.Unit
             public Task Execute(IJobExecutionContext context)
             {
                 result.Append(context.Trigger.Key.Name);
+                countdownEvent.Signal();
                 return Task.CompletedTask;
             }
         }
