@@ -53,7 +53,7 @@ namespace Quartz
             return this;
         }
 
-        public QuartzOptions AddJob<T>(Action<JobBuilder> configure) where T : IJob
+        public QuartzOptions AddJob<T>(Action<JobBuilder> configure) where T : IJob, new()
         {
             var builder = JobBuilder.Create<T>();
             configure(builder);
