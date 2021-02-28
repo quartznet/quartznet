@@ -74,7 +74,7 @@ namespace Quartz.Tests.Unit.Plugin.Interrupt
             await scheduler.Shutdown();
         }
 
-        private static async Task<IScheduler> CreateScheduler<T>() where T : IJob
+        private static async Task<IScheduler> CreateScheduler<T>() where T : IJob, new()
         {
             // create a simple scheduler
 
