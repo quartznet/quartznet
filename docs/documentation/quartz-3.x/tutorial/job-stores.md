@@ -103,7 +103,8 @@ Currently following database providers are supported:
 * `SqlServer` - SQL Server driver
     * For full framework this is by default System.Data.SqlClient (except in Quartz 3.1)
     * From Quartz 3.2 onwards for .NET Core this is by default Microsoft.Data.SqlClient
-* `MicrosoftDataSqlClient` - Available separately on on full framework (default for .NET Core)
+* `SystemDataSqlClient` - Available separately on .NET Core (default for full framework)
+* `MicrosoftDataSqlClient` - Available separately on full framework (default for .NET Core)
 * `OracleODP` - Oracle's Oracle Driver
 * `OracleODPManaged` - Oracle's managed driver for Oracle 11
 * `MySql` - MySQL Connector/.NET
