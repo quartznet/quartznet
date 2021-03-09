@@ -26,9 +26,12 @@ namespace Quartz
             await scheduler.Start(cancellationToken);
         }
 
-        public Task StopAsync(CancellationToken cancellationToken)
+        public async Task StopAsync(CancellationToken cancellationToken)
         {
-            return scheduler.Shutdown(options.Value.WaitForJobsToComplete, cancellationToken);
+            if (scheduler != null)
+            {
+                await scheduler.Shutdown(options.Value.WaitForJobsToComplete, cancellationToken);
+            }
         }
     }
 }
