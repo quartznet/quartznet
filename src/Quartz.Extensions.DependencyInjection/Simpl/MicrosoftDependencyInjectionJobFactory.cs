@@ -15,13 +15,16 @@ namespace Quartz.Simpl
     {
         private readonly IServiceProvider serviceProvider;
         private readonly IOptions<QuartzOptions> options;
+        private readonly JobActivatorCache activatorCache;
 
         public MicrosoftDependencyInjectionJobFactory(
             IServiceProvider serviceProvider,
-            IOptions<QuartzOptions> options)
+            IOptions<QuartzOptions> options,
+            JobActivatorCache activatorCache)
         {
             this.serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
-            this.options = options;
+            this.options = options ?? throw new ArgumentNullException(nameof(options));
+            this.activatorCache = activatorCache ?? throw new ArgumentNullException(nameof(activatorCache));
         }
 
         protected override IJob InstantiateJob(TriggerFiredBundle bundle, IScheduler scheduler)
@@ -33,22 +36,17 @@ namespace Quartz.Simpl
                 //	e.g. database contexts
                 var scope = serviceProvider.CreateScope();
 
-                var job = CreateJob(bundle, scheduler, scope.ServiceProvider);
+                var job = CreateJob(bundle, scope.ServiceProvider);
 
                 return new ScopedJob(scope, job);
             }
 
-            return CreateJob(bundle, scheduler, serviceProvider);
+            return CreateJob(bundle, serviceProvider);
         }
 
-        private IJob CreateJob(TriggerFiredBundle bundle, IScheduler scheduler, IServiceProvider serviceProvider)
+        private IJob CreateJob(TriggerFiredBundle bundle, IServiceProvider serviceProvider)
         {
-            if (options.Value.JobFactory.AllowDefaultConstructor)
-            {
-                return (IJob)(serviceProvider.GetService(bundle.JobDetail.JobType) ?? base.InstantiateJob(bundle, scheduler));
-            }
-
-            return (IJob) serviceProvider.GetRequiredService(bundle.JobDetail.JobType);
+            return activatorCache.CreateInstance(serviceProvider, bundle.JobDetail.JobType);
         }
 
         public override void ReturnJob(IJob job)
