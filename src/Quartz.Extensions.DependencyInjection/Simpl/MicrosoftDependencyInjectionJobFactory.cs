@@ -69,8 +69,8 @@ namespace Quartz.Simpl
 
             public void Dispose()
             {
-                scope.Dispose();
                 (innerJob as IDisposable)?.Dispose();
+                scope.Dispose();
             }
 
             public Task Execute(IJobExecutionContext context)
