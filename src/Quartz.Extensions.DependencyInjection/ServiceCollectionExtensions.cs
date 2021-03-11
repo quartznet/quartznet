@@ -193,8 +193,6 @@ namespace Quartz
                 quartzOptions.jobDetails.Add(jobDetail);
             });
 
-            options.Services.TryAddTransient(jobDetail.JobType);
-
             var triggerConfigurator = new TriggerConfigurator();
             triggerConfigurator.ForJob(jobDetail);
 
