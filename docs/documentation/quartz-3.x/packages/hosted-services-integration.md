@@ -58,13 +58,7 @@ public class Program
                     // we take this from appsettings.json, just show it's possible
                     // q.SchedulerName = "Quartz ASP.NET Core Sample Scheduler";
 
-                    // we could leave DI configuration intact and then jobs need to have public no-arg constructor
-                    // the MS DI is expected to produce transient job instances 
-                    q.UseMicrosoftDependencyInjectionJobFactory(options =>
-                    {
-                        // if we don't have the job in DI, allow fallback to configure via default constructor
-                        options.AllowDefaultConstructor = true;
-                    });
+                    q.UseMicrosoftDependencyInjectionJobFactory();
 
                     // or 
                     // q.UseMicrosoftDependencyInjectionScopedJobFactory();

@@ -64,12 +64,10 @@ namespace Quartz
 
             services.TryAddSingleton<JobActivatorCache>();
 
-            var allowDefaultConstructor = false;
             if (string.IsNullOrWhiteSpace(properties[StdSchedulerFactory.PropertySchedulerJobFactoryType]))
             {
-                // there's no explicit job factory defined, use MS version and allow default constructor
+                // there's no explicit job factory defined, use MS version
                 services.TryAddSingleton(typeof(IJobFactory), typeof(MicrosoftDependencyInjectionJobFactory));
-                allowDefaultConstructor = true;
             }
 
             services.Configure<QuartzOptions>(options =>
@@ -77,11 +75,6 @@ namespace Quartz
                 foreach (var key in schedulerBuilder.Properties.AllKeys)
                 {
                     options[key] = schedulerBuilder.Properties[key];
-                }
-
-                if (allowDefaultConstructor)
-                {
-                    options.JobFactory.AllowDefaultConstructor = true;
                 }
             });
 
