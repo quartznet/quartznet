@@ -62,6 +62,8 @@ namespace Quartz
                 services.TryAddSingleton(typeof(ITypeLoadHelper), typeof(SimpleTypeLoadHelper));
             }
 
+            services.TryAddSingleton<JobActivatorCache>();
+
             var allowDefaultConstructor = false;
             if (string.IsNullOrWhiteSpace(properties[StdSchedulerFactory.PropertySchedulerJobFactoryType]))
             {
