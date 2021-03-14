@@ -62,8 +62,6 @@ namespace Quartz
                 services.TryAddSingleton(typeof(ITypeLoadHelper), typeof(SimpleTypeLoadHelper));
             }
 
-            services.TryAddSingleton<JobActivatorCache>();
-
             if (string.IsNullOrWhiteSpace(properties[StdSchedulerFactory.PropertySchedulerJobFactoryType]))
             {
                 // there's no explicit job factory defined, use MS version

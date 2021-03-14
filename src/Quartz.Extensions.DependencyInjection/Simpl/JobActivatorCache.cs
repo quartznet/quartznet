@@ -5,7 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Quartz.Simpl
 {
-    public class JobActivatorCache
+    internal class JobActivatorCache
     {
         private readonly ConcurrentDictionary<Type, ObjectFactory> activatorCache = new ConcurrentDictionary<Type, ObjectFactory>();
         private readonly Func<Type, ObjectFactory> createFactory = type => ActivatorUtilities.CreateFactory(type, Type.EmptyTypes);

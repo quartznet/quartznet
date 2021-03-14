@@ -19,12 +19,11 @@ namespace Quartz.Simpl
 
         public MicrosoftDependencyInjectionJobFactory(
             IServiceProvider serviceProvider,
-            IOptions<QuartzOptions> options,
-            JobActivatorCache activatorCache)
+            IOptions<QuartzOptions> options)
         {
             this.serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
             this.options = options ?? throw new ArgumentNullException(nameof(options));
-            this.activatorCache = activatorCache ?? throw new ArgumentNullException(nameof(activatorCache));
+            this.activatorCache = new JobActivatorCache();
         }
 
         protected override IJob InstantiateJob(TriggerFiredBundle bundle, IScheduler scheduler)
