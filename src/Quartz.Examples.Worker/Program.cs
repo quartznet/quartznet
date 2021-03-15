@@ -37,9 +37,6 @@ namespace Quartz.Examples.Worker
                         // this is default configuration if you don't alter it
                         q.UseMicrosoftDependencyInjectionJobFactory(options =>
                         {
-                            // if we don't have the job in DI, allow fallback to configure via default constructor
-                            options.AllowDefaultConstructor = true;
-                    
                             // set to true if you want to inject scoped services like Entity Framework's DbContext
                             options.CreateScope = false;
                         });
