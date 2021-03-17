@@ -133,7 +133,6 @@ namespace Quartz
             {
                 x.jobDetails.Add(jobDetail);
             });
-            options.Services.TryAddTransient(jobDetail.JobType);
 
             return options;
         }
