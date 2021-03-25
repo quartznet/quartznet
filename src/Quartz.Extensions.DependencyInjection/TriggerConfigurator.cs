@@ -144,6 +144,12 @@ namespace Quartz
             return this;
         }
 
+        public ITriggerConfigurator UsingJobData(string key, char value)
+        {
+            triggerBuilder.UsingJobData(key, value);
+            return this;
+        }
+
         internal ITrigger Build() => triggerBuilder.Build();
     }
 }
