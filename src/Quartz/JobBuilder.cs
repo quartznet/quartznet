@@ -339,6 +339,17 @@ namespace Quartz
         }
 
         /// <summary>
+        /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
+        /// </summary>
+        ///<returns>the updated JobBuilder</returns>
+        /// <seealso cref="IJobDetail.JobDataMap" />
+        public JobBuilder UsingJobData(string key, Guid value)
+        {
+            jobDataMap.Put(key, value);
+            return this;
+        }
+
+        /// <summary>
         /// Add all the data from the given <see cref="JobDataMap" /> to the 
         /// <see cref="IJobDetail" />'s <see cref="JobDataMap" />.
         /// </summary>

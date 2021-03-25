@@ -252,5 +252,14 @@ namespace Quartz
         /// <returns>the updated TriggerBuilder</returns>
         /// <seealso cref="ITrigger.JobDataMap" />
         ITriggerConfigurator UsingJobData(string key, bool value);
+
+        /// <summary>
+        /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the updated TriggerBuilder</returns>
+        /// <seealso cref="ITrigger.JobDataMap" />
+        ITriggerConfigurator UsingJobData(string key, Guid value);
     }
 }

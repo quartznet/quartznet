@@ -462,6 +462,19 @@ namespace Quartz
             return this;
         }
 
+        /// <summary>
+        /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
+        /// </summary>
+        /// <remarks>
+        /// </remarks>
+        /// <returns>the updated TriggerBuilder</returns>
+        /// <seealso cref="ITrigger.JobDataMap" />
+        public TriggerBuilder UsingJobData(string key, Guid value)
+        {
+            jobDataMap.Put(key, value);
+            return this;
+        }
+
 
         /// <summary>
         /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
