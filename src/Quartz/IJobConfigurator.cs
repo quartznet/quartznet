@@ -1,3 +1,5 @@
+using System;
+
 namespace Quartz
 {
     public interface IJobConfigurator
@@ -117,6 +119,20 @@ namespace Quartz
         ///<returns>the updated JobBuilder</returns>
         /// <seealso cref="IJobDetail.JobDataMap" />
         JobBuilder UsingJobData(string key, bool value);
+
+        /// <summary>
+        /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
+        /// </summary>
+        ///<returns>the updated JobBuilder</returns>
+        /// <seealso cref="IJobDetail.JobDataMap" />
+        JobBuilder UsingJobData(string key, Guid value);
+
+        /// <summary>
+        /// Add the given key-value pair to the JobDetail's <see cref="JobDataMap" />.
+        /// </summary>
+        ///<returns>the updated JobBuilder</returns>
+        /// <seealso cref="IJobDetail.JobDataMap" />
+        JobBuilder UsingJobData(string key, char value);
 
         /// <summary>
         /// Add all the data from the given <see cref="JobDataMap" /> to the 
