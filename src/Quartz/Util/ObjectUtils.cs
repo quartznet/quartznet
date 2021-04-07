@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Globalization;
@@ -125,12 +126,9 @@ namespace Quartz.Util
             for (int i = 0; i < propertyNames.Length; i++)
             {
                 string name = propertyNames[i];
-                string propertyName = CultureInfo.InvariantCulture.TextInfo.ToUpper(name.Substring(0, 1)) +
-                                      name.Substring(1);
-
                 try
                 {
-                    SetPropertyValue(obj, propertyName, propertyValues[i]);
+                    SetPropertyValue(obj, name, propertyValues[i]);
                 }
                 catch (Exception nfe)
                 {
@@ -150,14 +148,12 @@ namespace Quartz.Util
             // remove the type
             props.Remove("type");
 
-            foreach (string? name in props.Keys)
+            foreach (string name in props.Keys)
             {
-                string propertyName = CultureInfo.InvariantCulture.TextInfo.ToUpper(name!.Substring(0, 1)) + name.Substring(1);
-
                 try
                 {
                     var value = props[name];
-                    SetPropertyValue(obj, propertyName, value);
+                    SetPropertyValue(obj, name, value);
                 }
                 catch (Exception nfe)
                 {
@@ -167,25 +163,35 @@ namespace Quartz.Util
             }
         }
 
+        private static readonly ConcurrentDictionary<(Type ObjectType, string PropertyName), PropertyInfo?> propertyResolutionCache = new ();
+        
         public static void SetPropertyValue(object target, string propertyName, object? value)
         {
-            Type t = target.GetType();
-
-            var pi = t.GetProperty(propertyName);
-
-            if (pi == null || !pi.CanWrite)
+            var pi = propertyResolutionCache.GetOrAdd((target.GetType(), propertyName), tuple =>
             {
-                // try to find from interfaces
-                foreach (var interfaceType in target.GetType().GetInterfaces())
+                string name = char.IsLower(tuple.PropertyName[0])
+                    ? char.ToUpper(tuple.PropertyName[0]) + tuple.PropertyName.Substring(1)
+                    : tuple.PropertyName;
+
+                Type t = tuple.ObjectType;
+                var propertyInfo = t.GetProperty(name);
+
+                if (propertyInfo == null || !propertyInfo.CanWrite)
                 {
-                    pi = interfaceType.GetProperty(propertyName);
-                    if (pi != null && pi.CanWrite)
+                    // try to find from interfaces
+                    foreach (var interfaceType in target.GetType().GetInterfaces())
                     {
-                        // found suitable
-                        break;
+                        propertyInfo = interfaceType.GetProperty(name);
+                        if (propertyInfo != null && propertyInfo.CanWrite)
+                        {
+                            // found suitable
+                            break;
+                        }
                     }
                 }
-            }
+
+                return propertyInfo;
+            });
 
             if (pi == null)
             {

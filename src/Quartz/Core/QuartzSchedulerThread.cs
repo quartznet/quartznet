@@ -220,6 +220,7 @@ namespace Quartz.Core
         public async Task Run()
         {
             int acquiresFailed = 0;
+            Context.CallerId.Value = Guid.NewGuid();
 
             while (!halted)
             {
@@ -258,7 +259,7 @@ namespace Quartz.Core
                         try 
                         {
                             var delay = ComputeDelayForRepeatedErrors(qsRsrcs.JobStore, acquiresFailed);
-                            await Task.Delay(delay);
+                            await Task.Delay(delay).ConfigureAwait(false);
                         }
                         catch
                         {

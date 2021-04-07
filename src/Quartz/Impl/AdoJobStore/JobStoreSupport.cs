@@ -1123,11 +1123,11 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public async Task<bool> RemoveJobs(
+        public Task<bool> RemoveJobs(
             IReadOnlyCollection<JobKey> jobKeys,
             CancellationToken cancellationToken = default)
         {
-            return await ExecuteInLock(
+            return ExecuteInLock(
                 LockTriggerAccess, async conn =>
                 {
                     bool allFound = true;
@@ -1139,14 +1139,14 @@ namespace Quartz.Impl.AdoJobStore
                     }
 
                     return allFound;
-                }, cancellationToken).ConfigureAwait(false);
+                }, cancellationToken);
         }
 
-        public async Task<bool> RemoveTriggers(
+        public Task<bool> RemoveTriggers(
             IReadOnlyCollection<TriggerKey> triggerKeys,
             CancellationToken cancellationToken = default)
         {
-            return await ExecuteInLock(
+            return ExecuteInLock(
                 LockTriggerAccess,
                 async conn =>
                 {
@@ -1159,15 +1159,15 @@ namespace Quartz.Impl.AdoJobStore
                     }
 
                     return allFound;
-                }, cancellationToken).ConfigureAwait(false);
+                }, cancellationToken);
         }
 
-        public async Task StoreJobsAndTriggers(
+        public Task StoreJobsAndTriggers(
             IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs,
             bool replace,
             CancellationToken cancellationToken = default)
         {
-            await ExecuteInLock(
+            return ExecuteInLock(
                 LockOnInsert || replace ? LockTriggerAccess : null, async conn =>
                 {
                     // TODO: make this more efficient with a true bulk operation...
@@ -1181,7 +1181,7 @@ namespace Quartz.Impl.AdoJobStore
                             await StoreTrigger(conn, (IOperableTrigger) trigger, job, replace, StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
                         }
                     }
-                }, cancellationToken).ConfigureAwait(false);
+                }, cancellationToken);
         }
 
         /// <summary>
@@ -1218,7 +1218,8 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="jobKey">The key identifying the job.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The desired <see cref="IJob" />, or null if there is no match.</returns>
-        public Task<IJobDetail?> RetrieveJob(JobKey jobKey,
+        public Task<IJobDetail?> RetrieveJob(
+            JobKey jobKey,
             CancellationToken cancellationToken = default)
         {
             // no locks necessary for read...
@@ -2109,18 +2110,18 @@ namespace Quartz.Impl.AdoJobStore
         /// pausing all of its current <see cref="ITrigger" />s.
         /// </summary>
         /// <seealso cref="ResumeJob(JobKey,CancellationToken)" />
-        public virtual async Task PauseJob(
+        public virtual Task PauseJob(
             JobKey jobKey,
             CancellationToken cancellationToken = default)
         {
-            await ExecuteInLock(LockTriggerAccess, async conn =>
+            return ExecuteInLock(LockTriggerAccess, async conn =>
             {
                 var triggers = await GetTriggersForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
                 foreach (IOperableTrigger trigger in triggers)
                 {
                     await PauseTrigger(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
                 }
-            }, cancellationToken).ConfigureAwait(false);
+            }, cancellationToken);
         }
 
         /// <summary>
@@ -2128,11 +2129,11 @@ namespace Quartz.Impl.AdoJobStore
         /// group - by pausing all of their <see cref="ITrigger" />s.
         /// </summary>
         /// <seealso cref="ResumeJobs" />
-        public virtual async Task<IReadOnlyCollection<string>> PauseJobs(
+        public virtual Task<IReadOnlyCollection<string>> PauseJobs(
             GroupMatcher<JobKey> matcher,
             CancellationToken cancellationToken = default)
         {
-            return await ExecuteInLock(LockTriggerAccess, async conn =>
+            return ExecuteInLock(LockTriggerAccess, async conn =>
             {
                 var groupNames = new HashSet<string>();
                 var jobNames = await GetJobNames(conn, matcher, cancellationToken).ConfigureAwait(false);
@@ -2147,8 +2148,8 @@ namespace Quartz.Impl.AdoJobStore
                     groupNames.Add(jobKey.Group);
                 }
 
-                return new List<string>(groupNames);
-            }, cancellationToken).ConfigureAwait(false);
+                return (IReadOnlyCollection<string>) groupNames;
+            }, cancellationToken);
         }
 
         /// <summary>
@@ -2259,18 +2260,18 @@ namespace Quartz.Impl.AdoJobStore
         /// instruction will be applied.
         /// </remarks>
         /// <seealso cref="PauseJob(JobKey,CancellationToken)" />
-        public virtual async Task ResumeJob(
+        public virtual Task ResumeJob(
             JobKey jobKey,
             CancellationToken cancellationToken = default)
         {
-            await ExecuteInLock(LockTriggerAccess, async conn =>
+            return ExecuteInLock(LockTriggerAccess, async conn =>
             {
                 var triggers = await GetTriggersForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
                 foreach (IOperableTrigger trigger in triggers)
                 {
                     await ResumeTrigger(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
                 }
-            }, cancellationToken).ConfigureAwait(false);
+            }, cancellationToken);
         }
 
         /// <summary>
@@ -2283,11 +2284,11 @@ namespace Quartz.Impl.AdoJobStore
         /// misfire instruction will be applied.
         /// </remarks>
         /// <seealso cref="PauseJobs" />
-        public virtual async Task<IReadOnlyCollection<string>> ResumeJobs(
+        public virtual Task<IReadOnlyCollection<string>> ResumeJobs(
             GroupMatcher<JobKey> matcher,
             CancellationToken cancellationToken = default)
         {
-            return await ExecuteInLock(LockTriggerAccess, async conn =>
+            return ExecuteInLock(LockTriggerAccess, async conn =>
             {
                 IReadOnlyCollection<JobKey> jobKeys = await GetJobNames(conn, matcher, cancellationToken).ConfigureAwait(false);
                 var groupNames = new HashSet<string>();
@@ -2301,8 +2302,8 @@ namespace Quartz.Impl.AdoJobStore
                     }
                     groupNames.Add(jobKey.Group);
                 }
-                return groupNames;
-            }, cancellationToken).ConfigureAwait(false);
+                return (IReadOnlyCollection<string>) groupNames;
+            }, cancellationToken);
         }
 
         /// <summary>
@@ -2550,7 +2551,7 @@ namespace Quartz.Impl.AdoJobStore
         /// by the calling scheduler.
         /// </summary>
         /// <seealso cref="ReleaseAcquiredTrigger(IOperableTrigger, CancellationToken)" />
-        public virtual async Task<IReadOnlyCollection<IOperableTrigger>> AcquireNextTriggers(
+        public virtual Task<IReadOnlyCollection<IOperableTrigger>> AcquireNextTriggers(
             DateTimeOffset noLaterThan,
             int maxCount,
             TimeSpan timeWindow,
@@ -2566,7 +2567,7 @@ namespace Quartz.Impl.AdoJobStore
                 lockName = null;
             }
 
-            return await ExecuteInNonManagedTXLock(
+            return ExecuteInNonManagedTXLock(
                 lockName,
                 conn => AcquireNextTrigger(conn, noLaterThan, maxCount, timeWindow, cancellationToken), async (conn, result) =>
                 {
@@ -2592,13 +2593,13 @@ namespace Quartz.Impl.AdoJobStore
                         throw new JobPersistenceException("error validating trigger acquisition", e);
                     }
                 },
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken);
         }
 
         // TODO: this really ought to return something like a FiredTriggerBundle,
         // so that the fireInstanceId doesn't have to be on the trigger...
 
-        protected virtual async Task<IReadOnlyList<IOperableTrigger>> AcquireNextTrigger(
+        protected virtual async Task<IReadOnlyCollection<IOperableTrigger>> AcquireNextTrigger(
             ConnectionAndTransactionHolder conn,
             DateTimeOffset noLaterThan,
             int maxCount,
@@ -2620,18 +2621,20 @@ namespace Quartz.Impl.AdoJobStore
                 currentLoopCount++;
                 try
                 {
-                    var keys = await Delegate.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, maxCount, cancellationToken).ConfigureAwait(false);
+                    var results = await Delegate.SelectTriggerToAcquire(conn, noLaterThan + timeWindow, MisfireTime, maxCount, cancellationToken).ConfigureAwait(false);
 
                     // No trigger is ready to fire yet.
-                    if (keys == null || keys.Count == 0)
+                    if (results.Count == 0)
                     {
                         return acquiredTriggers;
                     }
 
                     DateTimeOffset batchEnd = noLaterThan;
 
-                    foreach (TriggerKey triggerKey in keys)
+                    foreach (var result in results)
                     {
+                        var triggerKey = new TriggerKey(result.TriggerName, result.TriggerGroup);
+
                         // If our trigger is no longer available, try a new one.
                         var nextTrigger = await RetrieveTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
                         if (nextTrigger == null)
@@ -2641,11 +2644,10 @@ namespace Quartz.Impl.AdoJobStore
 
                         // If trigger's job is set as @DisallowConcurrentExecution, and it has already been added to result, then
                         // put it back into the timeTriggers set and continue to search for next trigger.
-                        JobKey jobKey = nextTrigger.JobKey;
-                        IJobDetail job;
+                        Type jobType;
                         try
                         {
-                            job = (await RetrieveJob(conn, jobKey, cancellationToken).ConfigureAwait(false))!;
+                            jobType = typeLoadHelper.LoadType(result.JobType)!;
                         }
                         catch (JobPersistenceException jpe)
                         {
@@ -2661,13 +2663,12 @@ namespace Quartz.Impl.AdoJobStore
                             continue;
                         }
 
-                        if (job.ConcurrentExecutionDisallowed)
+                        if (ObjectUtils.IsAttributePresent(jobType, typeof(DisallowConcurrentExecutionAttribute)))
                         {
-                            if (acquiredJobKeysForNoConcurrentExec.Contains(jobKey))
+                            if (!acquiredJobKeysForNoConcurrentExec.Add(nextTrigger.JobKey))
                             {
                                 continue; // next trigger
                             }
-                            acquiredJobKeysForNoConcurrentExec.Add(jobKey);
                         }
 
                         var nextFireTimeUtc = nextTrigger.GetNextFireTimeUtc();
@@ -2763,15 +2764,15 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public virtual async Task<IReadOnlyCollection<TriggerFiredResult>> TriggersFired(
+        public virtual Task<IReadOnlyCollection<TriggerFiredResult>> TriggersFired(
             IReadOnlyCollection<IOperableTrigger> triggers,
             CancellationToken cancellationToken = default)
         {
-            return await ExecuteInNonManagedTXLock(
+            return ExecuteInNonManagedTXLock(
                 LockTriggerAccess,
                 async conn =>
                 {
-                    List<TriggerFiredResult> results = new List<TriggerFiredResult>();
+                    List<TriggerFiredResult> results = new(triggers.Count);
 
                     foreach (IOperableTrigger trigger in triggers)
                     {
@@ -2791,16 +2792,19 @@ namespace Quartz.Impl.AdoJobStore
                             Log.ErrorFormat("Caught exception: " + ex.Message, ex);
                             result = new TriggerFiredResult(ex);
                         }
+
                         results.Add(result);
                     }
 
-                    return results;
+                    return (IReadOnlyCollection<TriggerFiredResult>) results;
                 },
                 async (conn, result) =>
                 {
                     try
                     {
-                        var acquired = await Delegate.SelectInstancesFiredTriggerRecords(conn, InstanceId, cancellationToken).ConfigureAwait(false);
+                        var acquired = await Delegate
+                            .SelectInstancesFiredTriggerRecords(conn, InstanceId, cancellationToken)
+                            .ConfigureAwait(false);
                         var executingTriggers = new HashSet<string>();
                         foreach (FiredTriggerRecord ft in acquired)
                         {
@@ -2809,13 +2813,16 @@ namespace Quartz.Impl.AdoJobStore
                                 executingTriggers.Add(ft.FireInstanceId!);
                             }
                         }
+
                         foreach (TriggerFiredResult tr in result)
                         {
-                            if (tr.TriggerFiredBundle != null && executingTriggers.Contains(tr.TriggerFiredBundle.Trigger.FireInstanceId))
+                            if (tr.TriggerFiredBundle != null &&
+                                executingTriggers.Contains(tr.TriggerFiredBundle.Trigger.FireInstanceId))
                             {
                                 return true;
                             }
                         }
+
                         return false;
                     }
                     catch (Exception e)
@@ -2823,7 +2830,7 @@ namespace Quartz.Impl.AdoJobStore
                         throw new JobPersistenceException("error validating trigger acquisition", e);
                     }
                 },
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken);
         }
 
         protected virtual async Task<TriggerFiredBundle?> TriggerFired(
@@ -3726,16 +3733,16 @@ namespace Quartz.Impl.AdoJobStore
             return ExecuteInLock(null, txCallback, cancellationToken);
         }
 
-        protected async Task ExecuteInLock(
+        protected Task ExecuteInLock(
             string? lockName,
             Func<ConnectionAndTransactionHolder, Task> txCallback,
             CancellationToken cancellationToken = default)
         {
-            await ExecuteInLock<object>(lockName, async conn =>
+            return ExecuteInLock<object>(lockName, async conn =>
             {
                 await txCallback(conn).ConfigureAwait(false);
                 return null!;
-            }, cancellationToken).ConfigureAwait(false);
+            }, cancellationToken);
         }
 
         /// <summary>
@@ -3757,16 +3764,16 @@ namespace Quartz.Impl.AdoJobStore
             Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
             CancellationToken cancellationToken = default);
 
-        protected virtual async Task RetryExecuteInNonManagedTXLock(
+        protected virtual Task RetryExecuteInNonManagedTXLock(
             string? lockName,
             Func<ConnectionAndTransactionHolder, Task> txCallback,
             CancellationToken cancellationToken = default)
         {
-            await RetryExecuteInNonManagedTXLock<object>(lockName, async holder =>
+            return RetryExecuteInNonManagedTXLock<object>(lockName, async holder =>
             {
                 await txCallback(holder).ConfigureAwait(false);
                 return null!;
-            }, requestorId: null, cancellationToken).ConfigureAwait(false);
+            }, requestorId: null, cancellationToken);
         }
 
         protected virtual async Task<T> RetryExecuteInNonManagedTXLock<T>(
@@ -3800,16 +3807,16 @@ namespace Quartz.Impl.AdoJobStore
             throw new InvalidOperationException("JobStore is shutdown - aborting retry");
         }
 
-        protected async Task ExecuteInNonManagedTXLock(
+        protected Task ExecuteInNonManagedTXLock(
             string lockName,
             Func<ConnectionAndTransactionHolder, Task> txCallback,
             CancellationToken cancellationToken)
         {
-            await ExecuteInNonManagedTXLock(lockName, async conn =>
+            return ExecuteInNonManagedTXLock(lockName, async conn =>
             {
                 await txCallback(conn).ConfigureAwait(false);
                 return true;
-            }, cancellationToken).ConfigureAwait(false);
+            }, cancellationToken);
         }
 
         protected Task<T> ExecuteInNonManagedTXLock<T>(
@@ -3847,8 +3854,16 @@ namespace Quartz.Impl.AdoJobStore
             Guid? requestorId,
             CancellationToken cancellationToken)
         {
+            if (requestorId is null)
+            {
+                requestorId = Core.Context.CallerId.Value;
+                if (requestorId is null)
+                {
+                    requestorId = Guid.NewGuid();
+                }
+            }
+            
             bool transOwner = false;
-            var lockRequestorId = requestorId ?? Guid.NewGuid();
             ConnectionAndTransactionHolder? conn = null;
             try
             {
@@ -3861,7 +3876,7 @@ namespace Quartz.Impl.AdoJobStore
                         conn = GetNonManagedTXConnection();
                     }
 
-                    transOwner = await LockHandler.ObtainLock(lockRequestorId, conn, lockName, cancellationToken).ConfigureAwait(false);
+                    transOwner = await LockHandler.ObtainLock(requestorId.Value, conn, lockName, cancellationToken).ConfigureAwait(false);
                 }
 
                 if (conn == null)
@@ -3884,7 +3899,7 @@ namespace Quartz.Impl.AdoJobStore
                     if (!await RetryExecuteInNonManagedTXLock(
                         lockName,
                         async connection => await txValidator(connection, result).ConfigureAwait(false),
-                        lockRequestorId,
+                        requestorId,
                         cancellationToken).ConfigureAwait(false))
                     {
                         throw;
@@ -3913,7 +3928,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    await ReleaseLock(lockRequestorId, lockName!, transOwner, cancellationToken).ConfigureAwait(false);
+                    await ReleaseLock(requestorId.Value, lockName!, transOwner, cancellationToken).ConfigureAwait(false);
                 }
                 finally
                 {

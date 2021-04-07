@@ -34,8 +34,6 @@ namespace Quartz.Impl.AdoJobStore
     /// in order to protect resources from being altered by multiple threads at the
     /// same time.
     /// </summary>
-    /// <author>James House</author>
-    /// <author>Marko Lahma (.NET)</author>
     public class StdRowLockSemaphore : DBSemaphore
     {
         public static readonly string SelectForLock =
@@ -102,50 +100,46 @@ namespace Quartz.Impl.AdoJobStore
                 count++;
                 try
                 {
-                    using (DbCommand cmd = AdoUtil.PrepareCommand(conn, expandedSql))
+                    using DbCommand cmd = AdoUtil.PrepareCommand(conn, expandedSql);
+                    AdoUtil.AddCommandParameter(cmd, "schedulerName", SchedName);
+                    AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
+
+                    bool found;
+                    using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
                     {
-                        AdoUtil.AddCommandParameter(cmd, "schedulerName", SchedName);
-                        AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
-
-                        bool found;
-                        using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+                        if (Log.IsDebugEnabled())
                         {
-                            if (Log.IsDebugEnabled())
-                            {
-                                Log.DebugFormat("Lock '{0}' is being obtained: {1}", lockName, requestorId);
-                            }
-
-                            found = await rs.ReadAsync(cancellationToken).ConfigureAwait(false);
+                            Log.DebugFormat("Lock '{0}' is being obtained: {1}", lockName, requestorId);
                         }
 
-                        if (!found)
+                        found = await rs.ReadAsync(cancellationToken).ConfigureAwait(false);
+                    }
+
+                    if (!found)
+                    {
+                        if (Log.IsDebugEnabled())
                         {
-                            if (Log.IsDebugEnabled())
+                            Log.DebugFormat("Inserting new lock row for lock: '{0}' being obtained by thread: {1}", lockName, requestorId);
+                        }
+
+                        using DbCommand cmd2 = AdoUtil.PrepareCommand(conn, expandedInsertSql);
+                        AdoUtil.AddCommandParameter(cmd2, "schedulerName", SchedName);
+                        AdoUtil.AddCommandParameter(cmd2, "lockName", lockName);
+                        int res = await cmd2.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+
+                        if (res != 1)
+                        {
+                            if (count < maxRetryLocal)
                             {
-                                Log.DebugFormat("Inserting new lock row for lock: '{0}' being obtained by thread: {1}", lockName, requestorId);
+                                // pause a bit to give another thread some time to commit the insert of the new lock row
+                                await Task.Delay(retryPeriodLocal, cancellationToken).ConfigureAwait(false);
+
+                                // try again ...
+                                continue;
                             }
-
-                            using (DbCommand cmd2 = AdoUtil.PrepareCommand(conn, expandedInsertSql))
-                            {
-                                AdoUtil.AddCommandParameter(cmd2, "schedulerName", SchedName);
-                                AdoUtil.AddCommandParameter(cmd2, "lockName", lockName);
-                                int res = await cmd2.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-
-                                if (res != 1)
-                                {
-                                    if (count < maxRetryLocal)
-                                    {
-                                        // pause a bit to give another thread some time to commit the insert of the new lock row
-                                        await Task.Delay(retryPeriodLocal, cancellationToken).ConfigureAwait(false);
-
-                                        // try again ...
-                                        continue;
-                                    }
-                                    throw new Exception(AdoJobStoreUtil.ReplaceTablePrefix(
-                                        "No row exists, and one could not be inserted in table " + TablePrefixSubst + TableLocks +
-                                        " for lock named: " + lockName, TablePrefix));
-                                }
-                            }
+                            throw new Exception(AdoJobStoreUtil.ReplaceTablePrefix(
+                                "No row exists, and one could not be inserted in table " + TablePrefixSubst + TableLocks +
+                                " for lock named: " + lockName, TablePrefix));
                         }
                     }
 

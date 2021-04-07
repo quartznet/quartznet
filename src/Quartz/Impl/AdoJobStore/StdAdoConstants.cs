@@ -1,25 +1,23 @@
 #region License
 
-/* 
+/*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
-
-using System;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -33,10 +31,6 @@ namespace Quartz.Impl.AdoJobStore
     public class StdAdoConstants : AdoConstants
     {
         public const string TablePrefixSubst = "{0}";
-
-        // table prefix substitution string
-        [Obsolete("Scheduler name injection has been replaced with sql parameter @schedulerName")]
-        public const string SchedulerNameSubst = "{1}";
 
         // DELETE
         public static readonly string SqlDeleteBlobTrigger =
@@ -59,9 +53,6 @@ namespace Quartz.Impl.AdoJobStore
 
         public static readonly string SqlDeleteJobDetail =
             $"DELETE FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup";
-
-        public static readonly string SqlDeleteNoRecoveryFiredTriggers =
-            $"DELETE FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnInstanceName} = @instanceName AND {ColumnRequestsRecovery} = @requestsRecovery";
 
         public static readonly string SqlDeletePausedTriggerGroup =
             $"DELETE FROM {TablePrefixSubst}{TablePausedTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} LIKE @triggerGroup";
@@ -120,16 +111,13 @@ namespace Quartz.Impl.AdoJobStore
         // SELECT
 
         public static readonly string SqlSelectBlobTrigger =
-            string.Format("SELECT {6} FROM {0}{1} WHERE {2} = {3} AND {4} = @triggerName AND {5} = @triggerGroup", TablePrefixSubst,
-                TableBlobTriggers, ColumnSchedulerName, "@schedulerName", ColumnTriggerName, ColumnTriggerGroup,
-                ColumnBlob);
+            $"SELECT {ColumnBlob} FROM {TablePrefixSubst}{TableBlobTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup";
 
         public static readonly string SqlSelectCalendar =
-            string.Format("SELECT {5} FROM {0}{1} WHERE {2} = {3} AND {4} = @calendarName", TablePrefixSubst, TableCalendars,
-                ColumnSchedulerName, "@schedulerName", ColumnCalendarName, ColumnCalendar);
+            $"SELECT {ColumnCalendar} FROM {TablePrefixSubst}{TableCalendars} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnCalendarName} = @calendarName";
 
         public static readonly string SqlSelectCalendarExistence =
-            $"SELECT {ColumnCalendarName} FROM {TablePrefixSubst}{TableCalendars} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnCalendarName} = @calendarName";
+            $"SELECT 1 FROM {TablePrefixSubst}{TableCalendars} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnCalendarName} = @calendarName";
 
         public static readonly string SqlSelectCalendars =
             $"SELECT {ColumnCalendarName} FROM {TablePrefixSubst}{TableCalendars} WHERE {ColumnSchedulerName} = @schedulerName";
@@ -142,9 +130,6 @@ namespace Quartz.Impl.AdoJobStore
 
         public static readonly string SqlSelectFiredTriggerGroup =
             $"SELECT * FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} = @triggerGroup";
-
-        public static readonly string SqlSelectFiredTriggers =
-            $"SELECT * FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName";
 
         public static readonly string SqlSelectFiredTriggerInstanceNames =
             $"SELECT DISTINCT {ColumnInstanceName} FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName";
@@ -162,25 +147,19 @@ namespace Quartz.Impl.AdoJobStore
             $"SELECT * FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnInstanceName} = @instanceName AND {ColumnRequestsRecovery} = @requestsRecovery";
 
         public static readonly string SqlSelectJobDetail =
-            string.Format(
-                "SELECT {6},{7},{8},{9},{10},{11},{12} FROM {0}{1} WHERE {2} = {3} AND {4} = @jobName AND {5} = @jobGroup",
-                TablePrefixSubst, TableJobDetails, ColumnSchedulerName, "@schedulerName", ColumnJobName, ColumnJobGroup,
-                ColumnJobName, ColumnJobGroup, ColumnDescription, ColumnJobClass, ColumnIsDurable, ColumnRequestsRecovery, ColumnJobDataMap);
+            $"SELECT {ColumnJobName},{ColumnJobGroup},{ColumnDescription},{ColumnJobClass},{ColumnIsDurable},{ColumnRequestsRecovery},{ColumnJobDataMap} FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup";
 
         public static readonly string SqlSelectJobExecutionCount =
             $"SELECT COUNT({ColumnTriggerName}) FROM {TablePrefixSubst}{TableFiredTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup";
 
         public static readonly string SqlSelectJobExistence =
-            $"SELECT {ColumnJobName} FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup";
+            $"SELECT 1 FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup";
 
         public static readonly string SqlSelectJobForTrigger =
             $"SELECT J.{ColumnJobName}, J.{ColumnJobGroup}, J.{ColumnIsDurable}, J.{ColumnJobClass}, J.{ColumnRequestsRecovery} FROM {TablePrefixSubst}{TableTriggers} T, {TablePrefixSubst}{TableJobDetails} J WHERE T.{ColumnSchedulerName} = @schedulerName AND T.{ColumnSchedulerName} = J.{ColumnSchedulerName} AND T.{ColumnTriggerName} = @triggerName AND T.{ColumnTriggerGroup} = @triggerGroup AND T.{ColumnJobName} = J.{ColumnJobName} AND T.{ColumnJobGroup} = J.{ColumnJobGroup}";
 
         public static readonly string SqlSelectJobGroups =
             $"SELECT DISTINCT({ColumnJobGroup}) FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName";
-
-        public static readonly string SqlSelectJobNonConcurrent =
-            $"SELECT {ColumnIsNonConcurrent} FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobName} = @jobName AND {ColumnJobGroup} = @jobGroup";
 
         public static readonly string SqlSelectJobsInGroupLike =
             $"SELECT {ColumnJobName}, {ColumnJobGroup} FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnJobGroup} LIKE @jobGroup";
@@ -204,10 +183,16 @@ namespace Quartz.Impl.AdoJobStore
             $"SELECT {ColumnTriggerName}, {ColumnTriggerGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnMifireInstruction} <> {MisfireInstruction.IgnoreMisfirePolicy} AND {ColumnNextFireTime} < @nextFireTime AND {ColumnTriggerState} = @state1 ORDER BY {ColumnNextFireTime} ASC, {ColumnPriority} DESC";
 
         public static readonly string SqlSelectNextTriggerToAcquire =
-            string.Format("SELECT {0}, {1}, {2}, {3} FROM {4}{5} WHERE {6} = {7} AND {8} = @state AND {9} <= @noLaterThan AND ({10} = -1 OR ({10} <> -1 AND {9} >= @noEarlierThan)) ORDER BY {9} ASC, {11} DESC",
-                ColumnTriggerName, ColumnTriggerGroup, ColumnNextFireTime, ColumnPriority,
-                TablePrefixSubst, TableTriggers, ColumnSchedulerName, "@schedulerName",
-                ColumnTriggerState, ColumnNextFireTime, ColumnMifireInstruction, ColumnPriority);
+            $@"SELECT
+                t.{ColumnTriggerName}, t.{ColumnTriggerGroup}, jd.{ColumnJobClass}
+              FROM
+                {TablePrefixSubst}{TableTriggers} t
+              JOIN
+                {TablePrefixSubst}{TableJobDetails} jd ON (jd.{ColumnSchedulerName} = t.{ColumnSchedulerName} AND  jd.{ColumnJobGroup} = t.{ColumnJobGroup} AND jd.{ColumnJobName} = t.{ColumnJobName}) 
+              WHERE
+                t.{ColumnSchedulerName} = @schedulerName AND {ColumnTriggerState} = @state AND {ColumnNextFireTime} <= @noLaterThan AND ({ColumnMifireInstruction} = -1 OR ({ColumnMifireInstruction} <> -1 AND {ColumnNextFireTime} >= @noEarlierThan))
+              ORDER BY 
+                {ColumnNextFireTime} ASC, {ColumnPriority} DESC";
 
         public static readonly string SqlSelectNumCalendars =
             $"SELECT COUNT({ColumnCalendarName})  FROM {TablePrefixSubst}{TableCalendars} WHERE {ColumnSchedulerName} = @schedulerName";
@@ -231,7 +216,7 @@ namespace Quartz.Impl.AdoJobStore
             $"SELECT {ColumnTriggerGroup} FROM {TablePrefixSubst}{TablePausedTriggers} WHERE {ColumnSchedulerName} = @schedulerName";
 
         public static readonly string SqlSelectReferencedCalendar =
-            $"SELECT {ColumnCalendarName} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnCalendarName} = @calendarName";
+            $"SELECT 1 FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnCalendarName} = @calendarName";
 
         public static readonly string SqlSelectSchedulerState =
             $"SELECT * FROM {TablePrefixSubst}{TableSchedulerState} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnInstanceName} = @instanceName";
@@ -243,15 +228,38 @@ namespace Quartz.Impl.AdoJobStore
             $"SELECT * FROM {TablePrefixSubst}{TableSimpleTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup";
 
         public static readonly string SqlSelectTrigger =
-            string.Format("SELECT {6},{7},{8},{9},{10},{11},{12},{13},{14},{15},{16},{17} FROM {0}{1} WHERE {2} = {3} AND {4} = @triggerName AND {5} = @triggerGroup",
-                TablePrefixSubst, TableTriggers, ColumnSchedulerName, "@schedulerName", ColumnTriggerName, ColumnTriggerGroup,
-                ColumnJobName, ColumnJobGroup, ColumnDescription, ColumnNextFireTime, ColumnPreviousFireTime, ColumnTriggerType, ColumnStartTime, ColumnEndTime, ColumnCalendarName, ColumnMifireInstruction, ColumnPriority, ColumnJobDataMap);
+            $@"SELECT 
+                {ColumnJobName},
+                {ColumnJobGroup},
+                {ColumnDescription},
+                {ColumnNextFireTime},
+                {ColumnPreviousFireTime},
+                {ColumnTriggerType},
+                {ColumnStartTime},
+                {ColumnEndTime},
+                {ColumnCalendarName},
+                {ColumnMifireInstruction},
+                {ColumnPriority},
+                {ColumnJobDataMap},
+                {ColumnCronExpression},
+                {ColumnTimeZoneId},
+                {ColumnRepeatCount},
+                {ColumnRepeatInterval},
+                {ColumnTimesTriggered} 
+            FROM 
+                {TablePrefixSubst}{TableTriggers} t
+            LEFT JOIN
+                {TablePrefixSubst}{TableSimpleTriggers} st ON (st.{ColumnSchedulerName} = t.{ColumnSchedulerName} AND st.{ColumnTriggerGroup} = t.{ColumnTriggerGroup} AND st.{ColumnTriggerName} = t.{ColumnTriggerName})
+            LEFT JOIN
+                {TablePrefixSubst}{TableCronTriggers} ct ON (ct.{ColumnSchedulerName} = t.{ColumnSchedulerName} AND ct.{ColumnTriggerGroup} = t.{ColumnTriggerGroup} AND ct.{ColumnTriggerName} = t.{ColumnTriggerName})
+            WHERE
+                t.{ColumnSchedulerName} = @schedulerName AND t.{ColumnTriggerName} = @triggerName AND t.{ColumnTriggerGroup} = @triggerGroup";
 
         public static readonly string SqlSelectTriggerData =
             $"SELECT {ColumnJobDataMap} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup";
 
         public static readonly string SqlSelectTriggerExistence =
-            $"SELECT {ColumnTriggerName} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup";
+            $"SELECT 1 FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup";
 
         public static readonly string SqlSelectTriggerForFireTime =
             $"SELECT {ColumnTriggerName}, {ColumnTriggerGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerState} = @state AND {ColumnNextFireTime} = @nextFireTime";
@@ -260,8 +268,7 @@ namespace Quartz.Impl.AdoJobStore
             $"SELECT DISTINCT({ColumnTriggerGroup}) FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName";
 
         public static readonly string SqlSelectTriggerGroupsFiltered =
-            string.Format("SELECT DISTINCT({0}) FROM {1}{2} WHERE {3} = {4} AND {0} LIKE @triggerGroup",
-                ColumnTriggerGroup, TablePrefixSubst, TableTriggers, ColumnSchedulerName, "@schedulerName");
+            $"SELECT DISTINCT({ColumnTriggerGroup}) FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} LIKE @triggerGroup";
 
         public static readonly string SqlSelectTriggerState =
             $"SELECT {ColumnTriggerState} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup";
@@ -284,7 +291,7 @@ namespace Quartz.Impl.AdoJobStore
         public static readonly string SqlSelectTriggersInState =
             $"SELECT {ColumnTriggerName}, {ColumnTriggerGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerState} = @state";
 
-        // UPDATE 
+        // UPDATE
 
         public static readonly string SqlUpdateBlobTrigger =
             $"UPDATE {TablePrefixSubst}{TableBlobTriggers} SET {ColumnBlob} = @blob WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup";
@@ -318,10 +325,7 @@ namespace Quartz.Impl.AdoJobStore
                         {ColumnTriggerState} = @triggerState, {ColumnTriggerType} = @triggerType, {ColumnStartTime} = @triggerStartTime, {ColumnEndTime} = @triggerEndTime, {ColumnCalendarName} = @triggerCalendarName, {ColumnMifireInstruction} = @triggerMisfireInstruction, {ColumnPriority} = @triggerPriority, {ColumnJobDataMap} = @triggerJobJobDataMap
                         WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup";
 
-        public static readonly string SqlUpdateFiredTrigger = string.Format(
-            "UPDATE {0}{1} SET {2} = @instanceName, {3} = @firedTime, {12} = @scheduledTime, {4} = @entryState, {5} = @jobName, {6} = @jobGroup, {7} = @isNonConcurrent, {8} = @requestsRecover WHERE {9} = {10} AND {11} = @entryId",
-            TablePrefixSubst, TableFiredTriggers, ColumnInstanceName, ColumnFiredTime, ColumnEntryState,
-            ColumnJobName, ColumnJobGroup, ColumnIsNonConcurrent, ColumnRequestsRecovery, ColumnSchedulerName, "@schedulerName", ColumnEntryId, ColumnScheduledTime);
+        public static readonly string SqlUpdateFiredTrigger = $"UPDATE {TablePrefixSubst}{TableFiredTriggers} SET {ColumnInstanceName} = @instanceName, {ColumnFiredTime} = @firedTime, {ColumnScheduledTime} = @scheduledTime, {ColumnEntryState} = @entryState, {ColumnJobName} = @jobName, {ColumnJobGroup} = @jobGroup, {ColumnIsNonConcurrent} = @isNonConcurrent, {ColumnRequestsRecovery} = @requestsRecover WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnEntryId} = @entryId";
 
         public static readonly string SqlUpdateTriggerGroupStateFromState =
             $"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnTriggerState} = @newState WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerGroup} LIKE @triggerGroup AND {ColumnTriggerState} = @oldState";

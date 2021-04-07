@@ -128,17 +128,15 @@ namespace Quartz.Impl.AdoJobStore
             string sql,
             CancellationToken cancellationToken)
         {
-            using (DbCommand cmd = AdoUtil.PrepareCommand(conn, sql))
-            {
-                AdoUtil.AddCommandParameter(cmd, "schedulerName", SchedName);
-                AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
+            using DbCommand cmd = AdoUtil.PrepareCommand(conn, sql);
+            AdoUtil.AddCommandParameter(cmd, "schedulerName", SchedName);
+            AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
 
-                if (Log.IsDebugEnabled())
-                {
-                    Log.DebugFormat("Lock '{0}' is being obtained: {1}", lockName, requestorId);
-                }
-                return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) >= 1;
+            if (Log.IsDebugEnabled())
+            {
+                Log.DebugFormat("Lock '{0}' is being obtained: {1}", lockName, requestorId);
             }
+            return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) >= 1;
         }
 
         private async Task LockViaInsert(
@@ -158,16 +156,14 @@ namespace Quartz.Impl.AdoJobStore
                 Log.DebugFormat("Inserting new lock row for lock: '{0}' being obtained: {1}", lockName, requestorId);
             }
 
-            using (var cmd = AdoUtil.PrepareCommand(conn, sql))
-            {
-                AdoUtil.AddCommandParameter(cmd, "schedulerName", SchedName);
-                AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
+            using var cmd = AdoUtil.PrepareCommand(conn, sql);
+            AdoUtil.AddCommandParameter(cmd, "schedulerName", SchedName);
+            AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
 
-                if (await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) != 1)
-                {
-                    throw new InvalidOperationException(
-                        AdoJobStoreUtil.ReplaceTablePrefix("No row exists, and one could not be inserted in table " + TablePrefixSubst + TableLocks + " for lock named: " + lockName, TablePrefix));
-                }
+            if (await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) != 1)
+            {
+                throw new InvalidOperationException(
+                    AdoJobStoreUtil.ReplaceTablePrefix("No row exists, and one could not be inserted in table " + TablePrefixSubst + TableLocks + " for lock named: " + lockName, TablePrefix));
             }
         }
     }
