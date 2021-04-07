@@ -3,12 +3,17 @@
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
 
-## Release 3.3, XXX XX 2021
+## Release 3.3, Apr 7 2021
 
 This release addresses problems with using Quartz with .NET Full Framework lower than 4.7.2. ValueTask loading
 could fail due the dependencies brought with activity source support. Now activity sources are only supported when
 using .NET Framework >= 4.7.2 and netstandard >= 2.0. This also raises requirement the same way for package
 Quartz.OpenTelemetry.Instrumentation.
+
+This release also improves trigger acquisition performance when using persistent job store, mostly by reducing network round-trips.
+The semaphore implementations were also re-written to gain more performance.
+
+Also some bug fixes included, thanks to all contributors!
 
 * BREAKING CHANGES
 
@@ -20,11 +25,19 @@ Quartz.OpenTelemetry.Instrumentation.
   * Separate build configuration for .NET Framework 4.7.2
   * OpenTelemetry integration upgraded to target OpenTelemetry 1.0.0-rc1.1
   * Ported JobInterruptMonitorPlugin from Java version which allows automatic interrupt calls for registered jobs (#1110)
+  * Rewrite semaphore implementations (#1115)
+  * UsingJobData now has Guid and char overloads (#1141)
+  * Add a regular AddJob Type (#1090)
   
 * FIXES
 
   * Jobs not firing after upgrade to 3.2.x (from 3.0.7) on Microsoft Server 2008 R2 (#1083)
   * Jobs are not fired (#1072)
+  * MicrosoftDependencyInjectionJobFactory does not inject job properties for scoped jobs (#1106)
+  * XSD schema no longer requires defining durable element if you just want to define recover (#1128)
+  * Stack trace logging fixed in case of reporting invalid lock acquire (#1133)
+  * Disposable job is disposed twice when using UseMicrosoftDependencyInjectionScopedJobFactory (#1120)
+  * QuartzHostedService.StopAsync throws NullReferenceException if StartAsync hasn't been run (#1123)
 
 
 ## Release 3.2.4, Jan 19 2021
