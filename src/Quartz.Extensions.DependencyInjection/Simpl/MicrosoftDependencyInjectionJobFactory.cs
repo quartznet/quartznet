@@ -43,6 +43,13 @@ namespace Quartz.Simpl
             return CreateJob(bundle, serviceProvider);
         }
 
+        public override void SetObjectProperties(object obj, JobDataMap data)
+        {
+            // we need to check if job is actually a scoped job wrapper
+            var target = obj is ScopedJob scopedJob ? scopedJob.InnerJob : obj;
+            base.SetObjectProperties(target, data);
+        }
+
         private IJob CreateJob(TriggerFiredBundle bundle, IServiceProvider serviceProvider)
         {
             return activatorCache.CreateInstance(serviceProvider, bundle.JobDetail.JobType);
@@ -55,24 +62,25 @@ namespace Quartz.Simpl
 
         private sealed class ScopedJob : IJob, IDisposable
         {
-            private readonly IJob innerJob;
             private readonly IServiceScope scope;
 
             public ScopedJob(IServiceScope scope, IJob innerJob)
             {
                 this.scope = scope;
-                this.innerJob = innerJob;
+                InnerJob = innerJob;
             }
+            
+            internal IJob InnerJob { get; }
 
             public void Dispose()
             {
-                (innerJob as IDisposable)?.Dispose();
+                (InnerJob as IDisposable)?.Dispose();
                 scope.Dispose();
             }
 
             public Task Execute(IJobExecutionContext context)
             {
-                return innerJob.Execute(context);
+                return InnerJob.Execute(context);
             }
         }
     }
