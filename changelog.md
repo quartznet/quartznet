@@ -3,6 +3,15 @@
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
 
+## Release 3.3.1, Apr 8 2021
+
+This release fixes assembly signing problem introduced in 3.3.
+
+* FIXES
+
+  * Remove PublicSign property from csproj ()
+
+
 ## Release 3.3, Apr 7 2021
 
 This release addresses problems with using Quartz with .NET Full Framework lower than 4.7.2. ValueTask loading

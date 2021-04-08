@@ -43,7 +43,6 @@
   <PropertyGroup Condition="$(MSBuildProjectName.Contains('Example')) == false">
     <AssemblyOriginatorKeyFile>../../quartz.net.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>
-    <PublicSign>true</PublicSign>    
   </PropertyGroup>
 
   <PropertyGroup Condition=" '$(APPVEYOR)' == 'true' OR '$(GITHUB_ACTIONS)' == 'true' ">
