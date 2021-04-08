@@ -9,7 +9,7 @@ This release fixes assembly signing problem introduced in 3.3.
 
 * FIXES
 
-  * Remove PublicSign property from csproj ()
+  * Remove PublicSign property from csproj (#1155)
 
 
 ## Release 3.3, Apr 7 2021
