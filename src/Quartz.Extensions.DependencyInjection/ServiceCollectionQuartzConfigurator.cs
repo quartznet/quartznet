@@ -61,7 +61,7 @@ namespace Quartz
             UseJobFactory<MicrosoftDependencyInjectionJobFactory>(configure);
         }
 
-        [Obsolete("Jobs are always created with some")]
+        [Obsolete("Jobs are always created with scope, use UseMicrosoftDependencyInjectionJobFactory")]
         public void UseMicrosoftDependencyInjectionScopedJobFactory(Action<JobFactoryOptions>? configure = null)
         {
             UseJobFactory<MicrosoftDependencyInjectionJobFactory>(configure);
