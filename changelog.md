@@ -5,7 +5,8 @@
 ## Release 3.3.2, Apr 9 2021
 
 This release returns the possibility to resolve jobs from Microsoft DI container. Now container is checked first and if not found then
-ActivatorUtilities is used to construct the type with constructor injection support.
+ActivatorUtilities is used to construct the type with constructor injection support. Now both AllowDefaultConstructor and CreateScope have
+been obsoleted as behavior is now either via DI construction or ActivatorUtilities and scope is always created to prevent resource leaks / double disposal.
 
 * FIXES
 
