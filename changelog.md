@@ -2,6 +2,15 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+## Release 3.3.2, Apr 9 2021
+
+This release returns the possibility to resolve jobs from Microsoft DI container. Now container is checked first and if not found then
+ActivatorUtilities is used to construct the type with constructor injection support.
+
+* FIXES
+
+  * Try resolving jobs from service provider before resorting to ActivatorUtilities (#1159)
+
 
 ## Release 3.3.1, Apr 8 2021
 
