@@ -15,7 +15,7 @@ namespace Quartz.Simpl
     {
         private readonly IServiceProvider serviceProvider;
         private readonly IOptions<QuartzOptions> options;
-        private readonly JobActivatorCache activatorCache;
+        private readonly JobActivatorCache activatorCache = new();
 
         public MicrosoftDependencyInjectionJobFactory(
             IServiceProvider serviceProvider,
@@ -23,7 +23,6 @@ namespace Quartz.Simpl
         {
             this.serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
             this.options = options ?? throw new ArgumentNullException(nameof(options));
-            this.activatorCache = new JobActivatorCache();
         }
 
         protected override IJob InstantiateJob(TriggerFiredBundle bundle, IScheduler scheduler)
@@ -52,6 +51,14 @@ namespace Quartz.Simpl
 
         private IJob CreateJob(TriggerFiredBundle bundle, IServiceProvider serviceProvider)
         {
+            var job = (IJob?) serviceProvider.GetService(bundle.JobDetail.JobType);
+
+            if (job is not null)
+            {
+                // use the registered one
+                return job;
+            }
+            
             return activatorCache.CreateInstance(serviceProvider, bundle.JobDetail.JobType);
         }
 
