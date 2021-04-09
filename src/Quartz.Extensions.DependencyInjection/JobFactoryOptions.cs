@@ -14,6 +14,7 @@ namespace Quartz
         /// Whether to use scopes when building job instances, enables injection of scoped services like
         /// Entity Framework's DbContext.
         /// </summary>
+        [Obsolete("The value is ignored as all jobs are created with scope now.")]
         public bool CreateScope { get; set; }
     }
 }
