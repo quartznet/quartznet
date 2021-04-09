@@ -61,15 +61,10 @@ namespace Quartz
             UseJobFactory<MicrosoftDependencyInjectionJobFactory>(configure);
         }
 
+        [Obsolete("Jobs are always created with scope, use UseMicrosoftDependencyInjectionJobFactory")]
         public void UseMicrosoftDependencyInjectionScopedJobFactory(Action<JobFactoryOptions>? configure = null)
         {
-            void ScopeConfiguration(JobFactoryOptions options)
-            {
-                options.CreateScope = true;
-                configure?.Invoke(options);
-            }
-
-            UseJobFactory<MicrosoftDependencyInjectionJobFactory>(ScopeConfiguration);
+            UseJobFactory<MicrosoftDependencyInjectionJobFactory>(configure);
         }
 
         public void UseJobFactory<T>(Action<JobFactoryOptions>? configure = null) where T : IJobFactory

@@ -15,7 +15,7 @@ namespace Quartz.Simpl
     {
         private readonly IServiceProvider serviceProvider;
         private readonly IOptions<QuartzOptions> options;
-        private readonly JobActivatorCache activatorCache;
+        private readonly JobActivatorCache activatorCache = new();
 
         public MicrosoftDependencyInjectionJobFactory(
             IServiceProvider serviceProvider,
@@ -23,24 +23,16 @@ namespace Quartz.Simpl
         {
             this.serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
             this.options = options ?? throw new ArgumentNullException(nameof(options));
-            this.activatorCache = new JobActivatorCache();
         }
 
         protected override IJob InstantiateJob(TriggerFiredBundle bundle, IScheduler scheduler)
         {
-            if (options.Value.JobFactory.CreateScope)
-            {
-                //  Generate a scope for the job, this allows the job to be registered
-                //	using .AddScoped<T>() which means we can use scoped dependencies 
-                //	e.g. database contexts
-                var scope = serviceProvider.CreateScope();
-
-                var job = CreateJob(bundle, scope.ServiceProvider);
-
-                return new ScopedJob(scope, job);
-            }
-
-            return CreateJob(bundle, serviceProvider);
+            //  Generate a scope for the job, this allows the job to be registered
+            //	using .AddScoped<T>() which means we can use scoped dependencies 
+            //	e.g. database contexts
+            var scope = serviceProvider.CreateScope();
+            var (job, fromContainer) = CreateJob(bundle, scope.ServiceProvider);
+            return new ScopedJob(scope, job, canDispose: !fromContainer);
         }
 
         public override void SetObjectProperties(object obj, JobDataMap data)
@@ -50,9 +42,17 @@ namespace Quartz.Simpl
             base.SetObjectProperties(target, data);
         }
 
-        private IJob CreateJob(TriggerFiredBundle bundle, IServiceProvider serviceProvider)
+        private (IJob Job, bool FromContainer) CreateJob(TriggerFiredBundle bundle, IServiceProvider serviceProvider)
         {
-            return activatorCache.CreateInstance(serviceProvider, bundle.JobDetail.JobType);
+            var job = (IJob?) serviceProvider.GetService(bundle.JobDetail.JobType);
+
+            if (job is not null)
+            {
+                // use the registered one
+                return (job, true);
+            }
+            
+            return (activatorCache.CreateInstance(serviceProvider, bundle.JobDetail.JobType), false);
         }
 
         public override void ReturnJob(IJob job)
@@ -63,10 +63,12 @@ namespace Quartz.Simpl
         private sealed class ScopedJob : IJob, IDisposable
         {
             private readonly IServiceScope scope;
+            private readonly bool canDispose;
 
-            public ScopedJob(IServiceScope scope, IJob innerJob)
+            public ScopedJob(IServiceScope scope, IJob innerJob, bool canDispose)
             {
                 this.scope = scope;
+                this.canDispose = canDispose;
                 InnerJob = innerJob;
             }
             
@@ -74,7 +76,10 @@ namespace Quartz.Simpl
 
             public void Dispose()
             {
-                (InnerJob as IDisposable)?.Dispose();
+                if (canDispose)
+                {
+                    (InnerJob as IDisposable)?.Dispose();
+                }
                 scope.Dispose();
             }
 

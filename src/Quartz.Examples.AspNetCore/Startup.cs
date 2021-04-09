@@ -76,11 +76,7 @@ namespace Quartz.Examples.AspNetCore
                 // q.SchedulerName = "Quartz ASP.NET Core Sample Scheduler";
 
                 // this is default configuration if you don't alter it
-                q.UseMicrosoftDependencyInjectionJobFactory(options =>
-                {
-                    // set to true if you want to inject scoped services like Entity Framework's DbContext
-                    options.CreateScope = false;
-                });
+                q.UseMicrosoftDependencyInjectionJobFactory();
 
                 // these are the defaults
                 q.UseSimpleTypeLoader();
