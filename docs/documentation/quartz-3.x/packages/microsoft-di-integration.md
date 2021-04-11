@@ -71,7 +71,7 @@ public void ConfigureServices(IServiceCollection services)
         // we take this from appsettings.json, just show it's possible
         // q.SchedulerName = "Quartz ASP.NET Core Sample Scheduler";
         
-        // this WONT'T work with scoped services like EF Core's DbContext
+        // as of 3.3.2 this also injects scoped services (like EF DbContext) without problems
         q.UseMicrosoftDependencyInjectionJobFactory();
 
         // or for scoped service support like EF Core DbContext
