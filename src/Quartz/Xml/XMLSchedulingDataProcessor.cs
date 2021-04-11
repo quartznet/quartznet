@@ -126,7 +126,7 @@ namespace Quartz.Xml
         /// Gets the log.
         /// </summary>
         /// <value>The log.</value>
-        private ILog Log { get; }
+        internal ILog Log { get; }
 
         protected virtual IReadOnlyList<IJobDetail> LoadedJobs => loadedJobs.AsReadOnly();
 
@@ -830,7 +830,7 @@ namespace Quartz.Xml
 
                             if (!dupeT.JobKey.Equals(trigger.JobKey))
                             {
-                                Log.WarnFormat("Possibly duplicately named ({0}) triggers in jobs xml file! ", trigger.Key);
+                                ReportDuplicateTrigger(trigger);
                             }
 
                             await DoRescheduleJob(sched, trigger, dupeT, cancellationToken).ConfigureAwait(false);
@@ -896,7 +896,7 @@ namespace Quartz.Xml
 
                     if (!dupeT.JobKey.Equals(trigger.JobKey))
                     {
-                        Log.WarnFormat("Possibly duplicately named ({0}) triggers in jobs xml file! ", trigger.Key);
+                        ReportDuplicateTrigger(trigger);
                     }
 
                     await DoRescheduleJob(sched, trigger, dupeT, cancellationToken).ConfigureAwait(false);
@@ -928,6 +928,11 @@ namespace Quartz.Xml
                     }
                 }
             }
+        }
+
+        protected virtual void ReportDuplicateTrigger(IMutableTrigger trigger)
+        {
+            Log.WarnFormat("Possibly duplicately named ({0}) triggers in jobs xml file! ", trigger.Key);
         }
 
         private Task DoRescheduleJob(
