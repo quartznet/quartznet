@@ -251,6 +251,8 @@ namespace Quartz.Tests.Unit
 
             await scheduler.Shutdown(true);
 
+            await Task.Delay(500);
+
             Assert.True(Process.GetCurrentProcess().Threads.Count <= activeThreads);
         }
 
