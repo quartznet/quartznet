@@ -7,7 +7,7 @@
 
 # Quartz.NET - Enterprise Job Scheduler
 
-Please visit [http://www.quartz-scheduler.net/](http://www.quartz-scheduler.net/) for up to date news and documentation.
+Please visit [https://www.quartz-scheduler.net/](https://www.quartz-scheduler.net/) for up to date news and documentation.
 
 ## Compatibility
 
