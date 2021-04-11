@@ -126,7 +126,7 @@ namespace Quartz.Xml
         /// Gets the log.
         /// </summary>
         /// <value>The log.</value>
-        internal ILog Log { get; }
+        private ILog Log { get; }
 
         protected virtual IReadOnlyList<IJobDetail> LoadedJobs => loadedJobs.AsReadOnly();
 
@@ -930,9 +930,9 @@ namespace Quartz.Xml
             }
         }
 
-        protected virtual void ReportDuplicateTrigger(IMutableTrigger trigger)
+        private void ReportDuplicateTrigger(IMutableTrigger trigger)
         {
-            Log.WarnFormat("Possibly duplicately named ({0}) triggers in jobs xml file! ", trigger.Key);
+            Log.WarnFormat("Possibly duplicately named ({0}) trigger in configuration, this can be caused by not having a fixed job key for targeted jobs", trigger.Key);
         }
 
         private Task DoRescheduleJob(

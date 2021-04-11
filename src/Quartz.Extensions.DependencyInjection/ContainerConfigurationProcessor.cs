@@ -2,7 +2,6 @@ using System.Collections.Generic;
 
 using Microsoft.Extensions.Options;
 
-using Quartz.Logging;
 using Quartz.Spi;
 using Quartz.Xml;
 
@@ -29,10 +28,5 @@ namespace Quartz
 
         protected override IReadOnlyList<IJobDetail> LoadedJobs => options.Value.JobDetails;
         protected override IReadOnlyList<ITrigger> LoadedTriggers => options.Value.Triggers;
-
-        protected override void ReportDuplicateTrigger(IMutableTrigger trigger)
-        {
-            Log.WarnFormat("Possibly duplicately named ({0}) trigger in jobs configuration. You can ignore this be setting " + nameof(QuartzOptions.Scheduling.IgnoreDuplicates) + " to true.", trigger.Key);
-        }
     }
 }
