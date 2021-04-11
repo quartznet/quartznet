@@ -292,7 +292,7 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
-        [Category("fragile")] // TODO seems that we have some trouble on Linux with this
+        [Platform(Exclude="Linux")]  // TODO seems that we have some trouble on Linux with this
         public async Task ReschedulingTriggerShouldKeepOriginalNextFireTime()
         {
             NameValueCollection properties = new NameValueCollection();
