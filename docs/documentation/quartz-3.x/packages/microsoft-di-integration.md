@@ -36,7 +36,17 @@ You can also configure properties using standard .NET Core `appsettings.json` in
 
 ## DI aware job factories
 
-Quartz comes with two built-in alternatives for job factory which can be configured via either calling `UseMicrosoftDependencyInjectionJobFactory` or `UseMicrosoftDependencyInjectionScopedJobFactory`. The former doesn't utilize scopes and is a bit more lightweight but the latter is required if you want to consume scoped services like Entity Framework's DbContext.
+Quartz comes with two built-in alternatives for job factory which can be configured via either calling `UseMicrosoftDependencyInjectionJobFactory` or `UseMicrosoftDependencyInjectionScopedJobFactory` (deprecated).
+
+::: tip
+As of Quartz.NET 3.3.2 all jobs produced by the default job factory are scoped jobs, you should no longer use `UseMicrosoftDependencyInjectionScopedJobFactory`.
+:::
+ 
+### Job instance construction
+
+By default Quartz will try to resolve job's type from container and if there's no explicit registration Quartz will use `ActivatorUtilities` to construct job and inject it's dependencies
+via constructor. Job should have only one public constructor.
+
 
 **Example Startup.ConfigureServices configuration**
 
