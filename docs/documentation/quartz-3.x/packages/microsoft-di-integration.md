@@ -45,6 +45,14 @@ public void ConfigureServices(IServiceCollection services)
 {
     // base configuration from appsettings.json
     services.Configure<QuartzOptions>(Configuration.GetSection("Quartz"));
+
+    // if you are using persistent job store, you might want to alter some options
+    services.Configure<QuartzOptions>(options =>
+    {
+        options.Scheduling.IgnoreDuplicates = true; // default: false
+        options.Scheduling.OverWriteExistingData = true; // default: true
+    });
+
     services.AddQuartz(q =>
     {
         // handy when part of cluster or you want to otherwise identify multiple schedulers

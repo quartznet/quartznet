@@ -48,7 +48,14 @@ public class Program
             {
                 // base configuration from appsettings.json
                 services.Configure<QuartzOptions>(Configuration.GetSection("Quartz"));
-
+                
+                // if you are using persistent job store, you might want to alter some options
+                services.Configure<QuartzOptions>(options =>
+                {
+                    options.Scheduling.IgnoreDuplicates = true; // default: false
+                    options.Scheduling.OverWriteExistingData = true; // default: true
+                });
+    
                 // base configuration for DI
                 services.AddQuartz(q =>
                 {

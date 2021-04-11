@@ -65,8 +65,16 @@ namespace Quartz.Examples.AspNetCore
 
             services.AddRazorPages();
 
-            // base configuration for DI
+            // base configuration for DI, read from appSettings.json
             services.Configure<QuartzOptions>(Configuration.GetSection("Quartz"));
+            
+            // if you are using persistent job store, you might want to alter some options
+            services.Configure<QuartzOptions>(options =>
+            {
+                options.Scheduling.IgnoreDuplicates = true; // default: false
+                options.Scheduling.OverWriteExistingData = true; // default: true
+            });
+
             services.AddQuartz(q =>
             {
                 // handy when part of cluster or you want to otherwise identify multiple schedulers

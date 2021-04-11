@@ -24,7 +24,14 @@ namespace Quartz.Examples.Worker
                 .ConfigureServices((hostContext, services) =>
                 {
                     services.AddHostedService<Worker>();
-                    
+
+                    // if you are using persistent job store, you might want to alter some options
+                    services.Configure<QuartzOptions>(options =>
+                    {
+                        options.Scheduling.IgnoreDuplicates = true; // default: false
+                        options.Scheduling.OverWriteExistingData = true; // default: true
+                    });
+
                     // base configuration for DI
                     services.AddQuartz(q =>
                     {
