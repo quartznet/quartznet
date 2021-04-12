@@ -46,54 +46,10 @@ public class Program
             .UseSerilog()
             .ConfigureServices((hostContext, services) =>
             {
-                // base configuration from appsettings.json
-                services.Configure<QuartzOptions>(Configuration.GetSection("Quartz"));
-                
-                // if you are using persistent job store, you might want to alter some options
-                services.Configure<QuartzOptions>(options =>
-                {
-                    options.Scheduling.IgnoreDuplicates = true; // default: false
-                    options.Scheduling.OverWriteExistingData = true; // default: true
-                });
-    
-                // base configuration for DI
+                // see Quartz.Extensions.DependencyInjection documentation about how to configure different configuration aspects
                 services.AddQuartz(q =>
                 {
-                    // handy when part of cluster or you want to otherwise identify multiple schedulers
-                    q.SchedulerId = "Scheduler-Core";
-                    
-                    // we take this from appsettings.json, just show it's possible
-                    // q.SchedulerName = "Quartz ASP.NET Core Sample Scheduler";
-
-                    q.UseMicrosoftDependencyInjectionJobFactory();
-
-                    // or 
-                    // q.UseMicrosoftDependencyInjectionScopedJobFactory();
-                    
-                    // these are the defaults
-                    q.UseSimpleTypeLoader();
-                    q.UseInMemoryStore();
-                    q.UseDefaultThreadPool(tp =>
-                    {
-                        tp.MaxConcurrency = 10;
-                    });
-                    
-                    // configure jobs with code
-                    var jobKey = new JobKey("awesome job", "awesome group");
-                    q.AddJob<ExampleJob>(j => j
-                        .StoreDurably()
-                        .WithIdentity(jobKey)
-                        .WithDescription("my awesome job")
-                    );
-
-                    q.AddTrigger(t => t
-                        .WithIdentity("Simple Trigger")    
-                        .ForJob(jobKey)
-                        .StartNow()
-                        .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).RepeatForever())
-                        .WithDescription("my awesome simple trigger")
-                    );
-
+                    // your configuration here
                 });
 
                 // Quartz.Extensions.Hosting hosting

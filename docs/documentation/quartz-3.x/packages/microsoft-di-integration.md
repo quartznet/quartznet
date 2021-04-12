@@ -17,6 +17,10 @@ You can add Quartz configuration by invoking an extension method `AddQuartz` on 
 The configuration building wraps various [configuration properties](../configuration/reference) with strongly-typed API.
 You can also configure properties using standard .NET Core `appsettings.json` inside configuration section `Quartz`.
 
+::: tip
+[Quartz.Extensions.Hosting](hosted-services-integration.md) allows you to have a background service for your application that handles starting and stopping the scheduler.
+:::
+
 **Example appsettings.json**
 
 ```json
@@ -47,6 +51,18 @@ As of Quartz.NET 3.3.2 all jobs produced by the default job factory are scoped j
 By default Quartz will try to resolve job's type from container and if there's no explicit registration Quartz will use `ActivatorUtilities` to construct job and inject it's dependencies
 via constructor. Job should have only one public constructor.
 
+### Persistent job stores
+
+The scheduling configuration will be checked against database and updated accordingly every time your application starts and schedule is being evaluated. 
+
+::: warning
+When using persistent job store, make sure you define job and trigger names for your scheduling so that existence checks work correctly against
+the data you already have in your database.
+
+Using API to configure triggers and jobs without explicit job identity configuration will cause jobs and triggers to have different generated name each time configuration is being evaluated.
+
+With persistent job stores it's best practice to always declare at least job and trigger name. Omitting the group for them will produce same default group value for every invocation. 
+:::
 
 **Example Startup.ConfigureServices configuration**
 
@@ -217,5 +233,12 @@ public void ConfigureServices(IServiceCollection services)
 					.WithCronSchedule(dep.Value.CronSchedule));
 			}
 		});	
+		
+    // Quartz.Extensions.Hosting allows you to fire background service that handles scheduler lifecycle
+    services.AddQuartzHostedService(options =>
+    {
+        // when shutting down we want jobs to complete gracefully
+        options.WaitForJobsToComplete = true;
+    });
 }
 ```
