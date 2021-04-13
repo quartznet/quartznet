@@ -83,6 +83,9 @@ namespace Quartz.Examples.Worker
                     {
                         // when shutting down we want jobs to complete gracefully
                         options.WaitForJobsToComplete = true;
+
+                        // when we need to init another IHostedServices first
+                        options.StartDelay = TimeSpan.FromSeconds(10);
                     });
                 });
     }
