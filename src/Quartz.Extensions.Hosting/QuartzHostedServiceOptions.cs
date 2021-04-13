@@ -1,3 +1,5 @@
+using System;
+
 namespace Quartz
 {
     public class QuartzHostedServiceOptions
@@ -7,5 +9,10 @@ namespace Quartz
         /// to return until all currently executing jobs have completed.
         /// </summary>
         public bool WaitForJobsToComplete { get; set; }
+
+        /// <summary>
+        /// if not <see langword="null" /> the scheduler will start after specified delay.
+        /// </summary>
+        public TimeSpan? StartDelay { get; set; }
     }
 }
