@@ -23,7 +23,15 @@ namespace Quartz
         public async Task StartAsync(CancellationToken cancellationToken)
         {
             scheduler = await schedulerFactory.GetScheduler(cancellationToken);
-            await scheduler.Start(cancellationToken);
+
+            if (options.Value.StartDelay.HasValue)
+            {
+                await scheduler.StartDelayed(options.Value.StartDelay.Value, cancellationToken);
+            }
+            else
+            {
+                await scheduler.Start(cancellationToken);
+            }
         }
 
         public async Task StopAsync(CancellationToken cancellationToken)
