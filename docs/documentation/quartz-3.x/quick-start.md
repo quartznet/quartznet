@@ -143,7 +143,7 @@ private class ConsoleLogProvider : ILogProvider
         throw new NotImplementedException();
     }
 
-    public IDisposable OpenMappedContext(string key, string value)
+    public IDisposable OpenMappedContext(string key, object value, bool destructure = false)
     {
         throw new NotImplementedException();
     }
@@ -280,7 +280,7 @@ namespace QuartzSampleApp
                 throw new NotImplementedException();
             }
 
-            public IDisposable OpenMappedContext(string key, string value)
+            public IDisposable OpenMappedContext(string key, object value, bool destructure = false)
             {
                 throw new NotImplementedException();
             }

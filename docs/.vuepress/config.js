@@ -26,7 +26,7 @@ module.exports = {
       '@vuepress/blog',
       {
         directories: [
-          { 
+          {
             // Unique ID of current classification
             id: 'post',
             // Target directory
@@ -70,7 +70,7 @@ module.exports = {
         collapsable: false,
         children: [
           ['/documentation/quartz-3.x/quick-start', 'Quartz 3 Quick Start'],
-          { 
+          {
             title: 'Tutorial',
             path: '/documentation/quartz-3.x/tutorial/',
             children: [
@@ -122,16 +122,16 @@ module.exports = {
             ]
           }
         ]
-      },        
+      },
       {
         title: 'Old Releases',
         children: [
-          { 
+          {
             title: 'Quartz 2.x',
             path: '/documentation/quartz-2.x/',
             children: [
               ['/documentation/quartz-2.x/quick-start', 'Quick Start'],
-              { 
+              {
                 title: 'Tutorial',
                 path: '/documentation/quartz-2.x/tutorial/',
                 children: [
@@ -155,11 +155,11 @@ module.exports = {
               ['http://quartznet.sourceforge.net/apidoc/2.0/html', 'API Documentation']
             ]
           },
-          { 
+          {
             title: 'Quartz 1.x',
             path: '/documentation/quartz-1.x/',
             children: [
-              { 
+              {
                 title: 'Tutorial',
                 path: '/documentation/quartz-1.x/tutorial/',
                 children: [
@@ -179,7 +179,7 @@ module.exports = {
               },
               ['http://quartznet.sourceforge.net/apidoc/1.0/html', 'API Documentation']
             ]
-          },   
+          },
         ]
       },
       {
@@ -187,7 +187,7 @@ module.exports = {
         path: '/license',
         collapsable: false,
       },
-     
+
     ],
     searchPlaceholder: 'Search...',
     lastUpdated: 'Last Updated',
@@ -195,7 +195,7 @@ module.exports = {
 
     docsRepo: 'quartznet/quartznet',
     docsDir: 'docs',
-    docsBranch: 'master',
+    docsBranch: 'main',
     editLinks: true,
     editLinkText: 'Help us by improving this page!'
   }
