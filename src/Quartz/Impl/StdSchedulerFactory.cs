@@ -762,7 +762,7 @@ Please add configuration to your application config file to correctly initialize
                 ISchedulerPlugin plugin;
                 try
                 {
-                    plugin = ObjectUtils.InstantiateType<ISchedulerPlugin>(LoadType(plugInType));
+                    plugin = InstantiateType<ISchedulerPlugin>(LoadType(plugInType));
                 }
                 catch (Exception e)
                 {
@@ -799,7 +799,7 @@ Please add configuration to your application config file to correctly initialize
                 IJobListener listener;
                 try
                 {
-                    listener = ObjectUtils.InstantiateType<IJobListener>(loadHelper.LoadType(listenerType));
+                    listener = InstantiateType<IJobListener>(loadHelper.LoadType(listenerType));
                 }
                 catch (Exception e)
                 {
@@ -841,7 +841,7 @@ Please add configuration to your application config file to correctly initialize
                 ITriggerListener listener;
                 try
                 {
-                    listener = ObjectUtils.InstantiateType<ITriggerListener>(loadHelper.LoadType(listenerType));
+                    listener = InstantiateType<ITriggerListener>(loadHelper.LoadType(listenerType));
                 }
                 catch (Exception e)
                 {
