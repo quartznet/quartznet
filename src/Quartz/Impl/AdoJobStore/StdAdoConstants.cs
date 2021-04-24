@@ -69,14 +69,14 @@ namespace Quartz.Impl.AdoJobStore
         public static readonly string SqlDeleteTrigger =
             $"DELETE FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup";
 
-        public static readonly string SqlDeleteAllSimpleTriggers = $"DELETE FROM {TablePrefixSubst}SIMPLE_TRIGGERS WHERE {ColumnSchedulerName} = @schedulerName";
+        public static readonly string SqlDeleteAllSimpleTriggers = $"DELETE FROM {TablePrefixSubst}{TableSimpleTriggers} WHERE {ColumnSchedulerName} = @schedulerName";
         public static readonly string SqlDeleteAllSimpropTriggers = $"DELETE FROM {TablePrefixSubst}SIMPROP_TRIGGERS WHERE {ColumnSchedulerName} = @schedulerName";
-        public static readonly string SqlDeleteAllCronTriggers = $"DELETE FROM {TablePrefixSubst}CRON_TRIGGERS WHERE {ColumnSchedulerName} = @schedulerName";
-        public static readonly string SqlDeleteAllBlobTriggers = $"DELETE FROM {TablePrefixSubst}BLOB_TRIGGERS WHERE {ColumnSchedulerName} = @schedulerName";
-        public static readonly string SqlDeleteAllTriggers = $"DELETE FROM {TablePrefixSubst}TRIGGERS WHERE {ColumnSchedulerName} = @schedulerName";
-        public static readonly string SqlDeleteAllJobDetails = $"DELETE FROM {TablePrefixSubst}JOB_DETAILS WHERE {ColumnSchedulerName} = @schedulerName";
-        public static readonly string SqlDeleteAllCalendars = $"DELETE FROM {TablePrefixSubst}CALENDARS WHERE {ColumnSchedulerName} = @schedulerName";
-        public static readonly string SqlDeleteAllPausedTriggerGrps = $"DELETE FROM {TablePrefixSubst}PAUSED_TRIGGER_GRPS WHERE {ColumnSchedulerName} = @schedulerName";
+        public static readonly string SqlDeleteAllCronTriggers = $"DELETE FROM {TablePrefixSubst}{TableCronTriggers} WHERE {ColumnSchedulerName} = @schedulerName";
+        public static readonly string SqlDeleteAllBlobTriggers = $"DELETE FROM {TablePrefixSubst}{TableBlobTriggers} WHERE {ColumnSchedulerName} = @schedulerName";
+        public static readonly string SqlDeleteAllTriggers = $"DELETE FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName";
+        public static readonly string SqlDeleteAllJobDetails = $"DELETE FROM {TablePrefixSubst}{TableJobDetails} WHERE {ColumnSchedulerName} = @schedulerName";
+        public static readonly string SqlDeleteAllCalendars = $"DELETE FROM {TablePrefixSubst}{TableCalendars} WHERE {ColumnSchedulerName} = @schedulerName";
+        public static readonly string SqlDeleteAllPausedTriggerGrps = $"DELETE FROM {TablePrefixSubst}{TablePausedTriggers} WHERE {ColumnSchedulerName} = @schedulerName";
 
         // INSERT
 
