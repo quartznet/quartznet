@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -775,7 +775,6 @@ namespace Quartz.Impl.Triggers
         /// <returns></returns>
         public bool WillFireOn(DateTimeOffset test, bool dayOnly)
         {
-            test = new DateTime(test.Year, test.Month, test.Day, test.Hour, test.Minute, test.Second);
             if (dayOnly)
             {
                 test = new DateTime(test.Year, test.Month, test.Day, 0, 0, 0);

@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -56,6 +56,31 @@ namespace Quartz.Tests.Unit
             trigger.TimeZone = tz;
             trigger.CronExpressionString = "0 0 12 * * ?";
             Assert.AreEqual(tz, trigger.TimeZone, "TimeZone was changed");
+        }
+
+        [Test]
+        [Category("windowstimezoneid")]
+        public void TestCronTriggerTimeZoneWillFire()
+        {
+            string tzId = "GMT Standard Time";
+            TimeZoneInfo tz = TZConvert.GetTimeZoneInfo(tzId);
+            TimeSpan tzOffset = tz.BaseUtcOffset;
+            DateTimeOffset startDate = new DateTimeOffset(new DateTime(2021, 1, 1, 0, 0, 0, DateTimeKind.Utc), tzOffset);
+            DateTimeOffset expectedFire = startDate.AddHours(5).AddMinutes(50);
+
+            CronTriggerImpl trigger = new CronTriggerImpl();
+            trigger.Name = "Quartz-Custom";
+            trigger.Group = SchedulerConstants.DefaultGroup;
+            trigger.TimeZone = tz;
+            trigger.CronExpressionString = "0 50 5,11,17,23 ? * *";
+            trigger.StartTimeUtc = startDate;
+
+            Assert.AreEqual(expectedFire, trigger.GetFireTimeAfter(startDate), $"Expected to fire at {expectedFire}");
+            Assert.IsTrue(trigger.WillFireOn(expectedFire), $"Expected to fire at {expectedFire}");
+            Assert.IsTrue(trigger.WillFireOn(expectedFire.AddHours(6)), $"Expected to fire at {expectedFire}");
+            Assert.IsTrue(trigger.WillFireOn(expectedFire.AddHours(12)), $"Expected to fire at {expectedFire}");
+            Assert.IsTrue(trigger.WillFireOn(expectedFire.AddHours(18)), $"Expected to fire at {expectedFire}");
+            Assert.IsTrue(trigger.WillFireOn(expectedFire.AddHours(24)), $"Expected to fire at {expectedFire}");
         }
 
         [Test]
