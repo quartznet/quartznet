@@ -30,14 +30,16 @@ namespace Quartz.Simpl
             //  Generate a scope for the job, this allows the job to be registered
             //	using .AddScoped<T>() which means we can use scoped dependencies 
             //	e.g. database contexts
-            var scope = ConfigureScope(bundle, scheduler);
+            var scope = serviceProvider.CreateScope();
+            ConfigureScope(scope, bundle, scheduler);
             var (job, fromContainer) = CreateJob(bundle, scope.ServiceProvider);
             return new ScopedJob(scope, job, canDispose: !fromContainer);
         }
 
-        protected virtual IServiceScope ConfigureScope(TriggerFiredBundle bundle, IScheduler scheduler)
+        protected virtual void ConfigureScope(IServiceScope scope, TriggerFiredBundle bundle, IScheduler scheduler)
         {
-            return serviceProvider.CreateScope();
+            // Configuration point for Services that are Scoped and need
+            // the ambiente context of a Job
         }
 
         public override void SetObjectProperties(object obj, JobDataMap data)
