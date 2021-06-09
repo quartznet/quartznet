@@ -1,4 +1,4 @@
-[Quartz.Jobs](https://www.nuget.org/packages/Quartz.Jobs) provides some useful ready-mady jobs for your convenience.
+[Quartz.Jobs](https://www.nuget.org/packages/Quartz.Jobs) provides some useful ready-made jobs for your convenience.
 
 ## Installation
 
