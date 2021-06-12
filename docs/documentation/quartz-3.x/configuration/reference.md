@@ -118,7 +118,7 @@ This may be useful (for performance’s sake) in situations where the scheduler 
 |Property Name                                                | Required |    Type |  Default Value                  |
 |-------------------------------------------------------------|----------|---------|---------------------------------|
 | quartz.threadPool.type                                      | no       | string  | Quartz.Simpl.DefaultThreadPool  |
-| quartz.threadPool.maxConcurency                             | no       | int     | 10                              |
+| quartz.threadPool.maxConcurrency                             | no       | int     | 10                              |
 
 
 ### `quartz.threadPool.type`
