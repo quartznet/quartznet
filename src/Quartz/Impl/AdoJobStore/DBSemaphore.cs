@@ -117,14 +117,16 @@ namespace Quartz.Impl.AdoJobStore
                     Log.DebugFormat("Lock '{0}' given to: {1}", lockName, requestorId);
                 }
 
-                locks.TryAdd(key, null);
+                return locks.TryAdd(key, null);
             }
-            else if (isDebugEnabled)
+            else
             {
-                Log.DebugFormat("Lock '{0}' Is already owned by: {1}", lockName, requestorId);
+                if (isDebugEnabled)
+                {
+                    Log.DebugFormat("Lock '{0}' Is already owned by: {1}", lockName, requestorId);
+                }
+                return false;
             }
-
-            return true;
         }
 
         /// <summary>
