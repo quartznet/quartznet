@@ -67,7 +67,7 @@ Other delegates can be found in the `Quartz.Impl.AdoJobStore` namespace, or in i
 ::: tip
 Quartz.NET will issue warning if you are using the default StdAdoDelegate as it has poor performance
 when you have a lot of triggers to select from. Specific delegates have special SQL to limit result
-set length (SQLServerDelegate uses `TOP n`, PostgreSQLDelegate `LIMIT n`, OracleDelegate `ROWCOUNT() <= n` etc.).
+set length (SqlServerDelegate uses `TOP n`, PostgreSQLDelegate `LIMIT n`, OracleDelegate `ROWCOUNT() <= n` etc.).
 :::
 
 Once you've selected your delegate, set its class name as the delegate for AdoJobStore to use.
