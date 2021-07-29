@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /* 
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -72,6 +72,11 @@ namespace Quartz
         private bool shouldRecover;
 
         private JobDataMap jobDataMap = new JobDataMap();
+
+        /// <summary>
+        /// The key that identifies the job uniquely.
+        /// </summary>
+        internal JobKey? Key => key;
 
         protected JobBuilder()
         {
