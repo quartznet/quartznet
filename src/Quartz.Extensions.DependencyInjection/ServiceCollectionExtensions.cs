@@ -127,7 +127,7 @@ namespace Quartz
                 c.WithIdentity(jobKey);
             }
 
-            var jobDetail = ConfigureAndBuildJobDetail(jobType, c, configure);
+            var jobDetail = ConfigureAndBuildJobDetail(jobType, c, configure, hasCustomKey: out _);
 
             options.Services.Configure<QuartzOptions>(x =>
             {
@@ -176,7 +176,7 @@ namespace Quartz
             }
 
             var jobConfigurator = new JobConfigurator();
-            var jobDetail = ConfigureAndBuildJobDetail(typeof(T),jobConfigurator, job);
+            var jobDetail = ConfigureAndBuildJobDetail(typeof(T), jobConfigurator, job, out var jobHasCustomKey);
 
             options.Services.Configure<QuartzOptions>(quartzOptions =>
             {
@@ -188,6 +188,16 @@ namespace Quartz
 
             trigger.Invoke(triggerConfigurator);
             var t = triggerConfigurator.Build();
+
+            // The job configurator is optional and omitted in most examples
+            // If no job key was specified, have the job key match the trigger key
+            if (!jobHasCustomKey)
+            {
+                ((JobDetailImpl)jobDetail).Key = new JobKey(t.Key.Name, t.Key.Group);
+
+                // Keep ITrigger.JobKey in sync with IJobDetail.Key
+                ((IMutableTrigger)t).JobKey = jobDetail.Key;
+            }
 
             if (t.JobKey is null || !t.JobKey.Equals(jobDetail.Key))
             {
@@ -207,10 +217,12 @@ namespace Quartz
         private static IJobDetail ConfigureAndBuildJobDetail(
             Type type,
             JobConfigurator builder,
-            Action<IJobConfigurator>? configure)
+            Action<IJobConfigurator>? configure,
+            out bool hasCustomKey)
         {
             builder.OfType(type);
             configure?.Invoke(builder);
+            hasCustomKey = builder.Key is not null;
             var jobDetail = builder.Build();
             return jobDetail;
         }
