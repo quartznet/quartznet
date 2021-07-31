@@ -109,7 +109,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         public async Task TestSQLiteMicrosoft(string serializerType)
         {
 	        var dbFilename = $"test-{serializerType}.db";
-	        
+
 	        if (File.Exists(dbFilename))
             {
                 File.Delete(dbFilename);
@@ -210,8 +210,8 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                         c.CheckinInterval = TimeSpan.FromMilliseconds(1000);
                     });
                 }
-                    
-                store.UseGenericDatabase(dbProvider, db => 
+
+                store.UseGenericDatabase(dbProvider, db =>
                     db.ConnectionString = dbConnectionStrings[connectionStringId]
                 );
 
@@ -309,12 +309,8 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
             properties["quartz.scheduler.instanceName"] = "TestScheduler";
             properties["quartz.scheduler.instanceId"] = "instance_one";
-            properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
-            properties["quartz.threadPool.threadCount"] = "10";
             properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
-            properties["quartz.jobStore.misfireThreshold"] = "60000";
             properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
-            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz";
             properties["quartz.jobStore.useProperties"] = "false";
             properties["quartz.jobStore.dataSource"] = "default";
             properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
@@ -440,16 +436,12 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
         private static async Task<IScheduler> CreateScheduler(NameValueCollection properties)
         {
-            properties = properties ?? new NameValueCollection();
+            properties ??= new NameValueCollection();
 
             properties["quartz.scheduler.instanceName"] = "TestScheduler";
             properties["quartz.scheduler.instanceId"] = "instance_one";
-            properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
             properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
-            properties["quartz.threadPool.threadCount"] = "10";
-            properties["quartz.jobStore.misfireThreshold"] = "60000";
             properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
-            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz";
             properties["quartz.jobStore.useProperties"] = "false";
             properties["quartz.jobStore.dataSource"] = "default";
             properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
@@ -473,12 +465,9 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
             properties["quartz.scheduler.instanceName"] = "TestScheduler";
             properties["quartz.scheduler.instanceId"] = "instance_one";
-            properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
-            properties["quartz.threadPool.threadCount"] = "10";
             properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
             properties["quartz.jobStore.misfireThreshold"] = "60000";
             properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
-            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz";
             properties["quartz.jobStore.useProperties"] = "false";
             properties["quartz.jobStore.dataSource"] = "default";
             properties["quartz.jobStore.tablePrefix"] = "QRTZ_";

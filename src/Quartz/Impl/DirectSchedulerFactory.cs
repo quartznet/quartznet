@@ -55,7 +55,8 @@ namespace Quartz.Impl
 	/// </para>
     /// <code>
 	/// // create the thread pool
-    /// SimpleThreadPool threadPool = new SimpleThreadPool(maxThreads, ThreadPriority.Normal);
+    /// var threadPool = new DefaultThreadPool();
+    /// threadPool.MaxConcurrency = maxConcurrency;
 	/// threadPool.Initialize();
 	/// // create the job store
 	/// JobStore jobStore = new RAMJobStore();
@@ -217,20 +218,20 @@ namespace Quartz.Impl
 	    /// <param name="idleWaitTime">The idle wait time. You can specify TimeSpan.Zero for
 	    ///     the default value, which is currently 30000 ms.</param>
 	    public virtual void CreateScheduler(
-		    string schedulerName, 
+		    string schedulerName,
 		    string schedulerInstanceId,
 		    IThreadPool threadPool,
 		    IJobStore jobStore,
-		    IDictionary<string, ISchedulerPlugin>? schedulerPluginMap, 
+		    IDictionary<string, ISchedulerPlugin>? schedulerPluginMap,
 		    TimeSpan idleWaitTime)
 		{
 			CreateScheduler(
                 schedulerName,
                 schedulerInstanceId,
                 threadPool,
-                jobStore, 
+                jobStore,
                 schedulerPluginMap,
-                idleWaitTime, 
+                idleWaitTime,
                 DefaultBatchMaxSize,
                 DefaultBatchTimeWindow);
 		}
@@ -260,8 +261,8 @@ namespace Quartz.Impl
 	    {
 	        CreateScheduler(
 		        schedulerName,
-		        schedulerInstanceId, 
-		        threadPool, 
+		        schedulerInstanceId,
+		        threadPool,
 		        jobStore,
 		        schedulerPluginMap,
 		        idleWaitTime,

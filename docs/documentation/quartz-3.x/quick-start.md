@@ -43,14 +43,57 @@ You can find these dlls from extracted archive from path **bin\your-target-frame
 
 ## Configuration
 
-This is the big bit! Quartz.NET is a very configurable library. There are three ways (which are not mutually exclusive) to supply Quartz.NET configuration information:
+This is the big bit! Quartz.NET is a very configurable library. There are two main ways (which are not mutually exclusive) to supply Quartz.NET configuration information:
 
-* Programmatically via providing `NameValueCollection` parameter to scheduler factory
-* Via standard `YourApplication.exe.config` configuration file using quartz-element (full .NET framework only)
-* `appsettings.json` (.NET Core)
+### Fluent Scheduler Builder API
+
+You can configure scheduler using C# fluent API, or via providing `NameValueCollection` parameter to scheduler factory
+which contains configuration keys and values.
+
+```csharp
+// you can have base properties
+var properties = new NameValueCollection();
+
+// and override values via builder
+IScheduler sched = await SchedulerBuilder.Create(properties)
+    // default max concurrency is 10
+    .UseDefaultThreadPool(x => x.MaxConcurrency = 5)
+    // this is the default 
+    // .WithMisfireThreshold(TimeSpan.FromSeconds(60))
+    .UsePersistentStore(x =>
+    {
+        // force job data map values to be considered as strings
+        // prevents nasty surprises if object is accidentally serialized and then 
+        // serialization format breaks, defaults to false
+        x.UseProperties = true;
+        x.UseClustering();
+        // there are other SQL providers supported too 
+        x.UseSqlServer("my connection string");
+        // this requires Quartz.Serialization.Json NuGet package
+        x.UseJsonSerializer();
+    })
+    // job initialization plugin handles our xml reading, without it defaults are used
+    // requires Quartz.Plugins NuGet package
+    .UseXmlSchedulingConfiguration(x =>
+    {
+        x.Files = new[] { "~/quartz_jobs.xml" };
+        // this is the default
+        x.FailOnFileNotFound = true;
+        // this is not the default
+        x.FailOnSchedulingError = true;
+    })
+    .BuildScheduler();
+
+await scheduler.Start();
+```
+
+### Configuration files
+
+Following files are searched for known configuration properties:
+
+* `YourApplication.exe.config` configuration file using quartz-element (full .NET framework only)
+* `appsettings.json` (.NET Core/NET5 onwards)
 * `quartz.config` file in your application's root directory (works both with .NET Core and full .NET Framework)
-
-You can find samples of all these alternatives in the Quartz.NET zip file.
 
 Full documentation of available properties is available in the [Quartz Configuration Reference](configuration/reference).
 
@@ -65,9 +108,10 @@ Remember to set the **Copy to Output Directory** on Visual Studio's file propert
 The scheduler created by this configuration has the following characteristics:
 
 * `quartz.scheduler.instanceName` - This scheduler's name will be "MyScheduler".
-* `quartz.threadPool.maxConcurrency` - Maximum of 3 jobs can be run simultaneously.
+* `quartz.threadPool.maxConcurrency` - Maximum of 3 jobs can be run simultaneously (default is 10).
 * `quartz.jobStore.type` - All of Quartz's data, such as details of jobs and triggers, is held in memory (rather than in a database). 
-Even if you have a database and want to use it with Quartz, I suggest you get Quartz working with the RamJobStore before you open up a whole new dimension by working with a database.
+
+* Even if you have a database and want to use it with Quartz, I suggest you get Quartz working with the RamJobStore before you open up a whole new dimension by working with a database.
 
 ::: tip
 Actually you don't need to define these properties if you don't want to, Quartz.NET comes with sane defaults

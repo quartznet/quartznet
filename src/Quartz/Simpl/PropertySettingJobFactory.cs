@@ -1,24 +1,23 @@
 #region License
-/* 
+/*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 #endregion
 
 using System;
-using System.Globalization;
 using System.Reflection;
 
 using Quartz.Logging;
@@ -27,14 +26,14 @@ using Quartz.Util;
 
 namespace Quartz.Simpl
 {
-	/// <summary> 
+	/// <summary>
 	/// A JobFactory that instantiates the Job instance (using the default no-arg
 	/// constructor, or more specifically: <see cref="ObjectUtils.InstantiateType{T}" />), and
 	/// then attempts to set all values from the <see cref="IJobExecutionContext" /> and
-	/// the <see cref="IJobExecutionContext" />'s merged <see cref="JobDataMap" /> onto 
+	/// the <see cref="IJobExecutionContext" />'s merged <see cref="JobDataMap" /> onto
 	/// properties of the job.
 	/// </summary>
-    /// <remarks>   
+    /// <remarks>
     /// Set the WarnIfPropertyNotFound property to true if you'd like noisy logging in
     /// the case of values in the <see cref="JobDataMap" /> not mapping to properties on your job
     /// class. This may be useful for troubleshooting typos of property names, etc.
@@ -55,16 +54,16 @@ namespace Quartz.Simpl
 	{
 	    private static readonly ILog log = LogProvider.GetLogger(typeof(PropertySettingJobFactory));
 
-	    /// <summary> 
+	    /// <summary>
 	    /// Whether the JobInstantiation should fail and throw and exception if
-	    /// a key (name) and value (type) found in the JobDataMap does not 
+	    /// a key (name) and value (type) found in the JobDataMap does not
 	    /// correspond to a property setter on the Job class.
 	    /// </summary>
 	    public virtual bool ThrowIfPropertyNotFound { get; set; }
 
-	    /// <summary> 
+	    /// <summary>
 	    /// Get or set whether a warning should be logged if
-	    /// a key (name) and value (type) found in the JobDataMap does not 
+	    /// a key (name) and value (type) found in the JobDataMap does not
 	    /// correspond to a property setter on the Job class.
 	    /// </summary>
 	    public virtual bool WarnIfPropertyNotFound { get; set; }
@@ -144,7 +143,7 @@ namespace Quartz.Simpl
 	    /// <param name="value">Value to set.</param>
 	    protected virtual void SetObjectProperty(object job, string name, object? value)
 	    {
-		    string propName = name; 
+		    string propName = name;
 		    if (!char.IsUpper(name[0]))
 		    {
 			    var c = char.ToUpper(name[0]);

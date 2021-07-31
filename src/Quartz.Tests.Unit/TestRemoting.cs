@@ -26,7 +26,7 @@ namespace Quartz.Tests.Unit
                 ["quartz.scheduler.instanceName"] = "remote scheduler",
                 ["quartz.jobStore.type"] = "Quartz.Simpl.RAMJobStore, Quartz",
                 ["quartz.jobStore.misfireThreshold"] = "60000",
-                ["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz",
+                ["quartz.threadPool.type"] = "Quartz.Simpl.DefaultThreadPool, Quartz",
                 ["quartz.threadPool.threadCount"] = "5",
             });
 
@@ -80,11 +80,11 @@ namespace Quartz.Tests.Unit
         /// fires that is associated with the <see cref="IJob" />.
         /// </summary>
         /// <remarks>
-        /// The implementation may wish to set a  result object on the 
+        /// The implementation may wish to set a  result object on the
         /// JobExecutionContext before this method exits.  The result itself
-        /// is meaningless to Quartz, but may be informative to 
-        /// <see cref="IJobListener" />s or 
-        /// <see cref="ITriggerListener" />s that are watching the job's 
+        /// is meaningless to Quartz, but may be informative to
+        /// <see cref="IJobListener" />s or
+        /// <see cref="ITriggerListener" />s that are watching the job's
         /// execution.
         /// </remarks>
         /// <param name="context">The execution context.</param>

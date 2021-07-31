@@ -54,12 +54,37 @@ namespace Quartz
         /// <summary>
         /// UNSTABLE API. Creates a new scheduler configuration to build desired setup.
         /// </summary>
-        public static SchedulerBuilder Create(string id, string name)
+        public static SchedulerBuilder Create(string? id, string? name)
         {
             var builder = Create();
-            builder.SchedulerId = id;
-            builder.SchedulerName = name;
+            if (!string.IsNullOrWhiteSpace(id))
+            {
+                builder.SchedulerId = id;
+            }
+
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                builder.SchedulerName = name;
+            }
             return builder;
+        }
+
+        /// <summary>
+        /// Sets the instance id of the scheduler (must be unique within a cluster).
+        /// </summary>
+        public SchedulerBuilder WithId(string id)
+        {
+            SchedulerId = id;
+            return this;
+        }
+
+        /// <summary>
+        /// Sets the instance name of the scheduler (must be unique within this server instance).
+        /// </summary>
+        public SchedulerBuilder WithName(string name)
+        {
+            SchedulerName = name;
+            return this;
         }
 
         /// <summary>
@@ -71,7 +96,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Sets the instance id of the scheduler (must be unique within this server instance).
+        /// Sets the instance name of the scheduler (must be unique within this server instance).
         /// </summary>
         public string SchedulerName
         {
@@ -81,30 +106,39 @@ namespace Quartz
         /// <summary>
         /// Use memory store, which does not survive process restarts/crashes.
         /// </summary>
-        public void UseInMemoryStore(Action<InMemoryStoreOptions>? options = null)
+        public SchedulerBuilder UseInMemoryStore(Action<InMemoryStoreOptions>? options = null)
         {
             SetProperty(StdSchedulerFactory.PropertyJobStoreType, typeof(RAMJobStore).AssemblyQualifiedNameWithoutVersion());
             options?.Invoke(new InMemoryStoreOptions(this));
+            return this;
         }
 
-        public void UsePersistentStore(Action<PersistentStoreOptions> options)
+        public SchedulerBuilder UsePersistentStore(Action<PersistentStoreOptions> options)
+        {
+            return UsePersistentStore<JobStoreTX>(options);
+        }
+
+        public SchedulerBuilder UsePersistentStore<T>(Action<PersistentStoreOptions> options) where T : IJobStore
         {
             if (options == null)
             {
                 throw new ArgumentNullException(nameof(options));
             }
 
-            options?.Invoke(new PersistentStoreOptions(this));
+            options(new PersistentStoreOptions(this, typeof(T)));
+            return this;
         }
 
-        public virtual void UseJobFactory<T>() where T : IJobFactory
+        public virtual SchedulerBuilder UseJobFactory<T>() where T : IJobFactory
         {
             SetProperty(StdSchedulerFactory.PropertySchedulerJobFactoryType, typeof(T).AssemblyQualifiedNameWithoutVersion());
+            return this;
         }
 
-        public virtual void UseTypeLoader<T>() where T : ITypeLoadHelper
+        public virtual SchedulerBuilder UseTypeLoader<T>() where T : ITypeLoadHelper
         {
             SetProperty(StdSchedulerFactory.PropertySchedulerTypeLoadHelperType, typeof(T).AssemblyQualifiedNameWithoutVersion());
+            return this;
         }
 
         /// <summary>
@@ -114,7 +148,7 @@ namespace Quartz
         {
             return new StdSchedulerFactory(Properties);
         }
-        
+
         /// <summary>
         /// Finalizes the configuration and builds the actual scheduler.
         /// </summary>
@@ -127,34 +161,84 @@ namespace Quartz
         /// <summary>
         /// Uses the default thread pool, which uses the default task scheduler.
         /// </summary>
-        public void UseThreadPool<T>(Action<ThreadPoolOptions>? configure = null) where T : IThreadPool
+        public SchedulerBuilder UseThreadPool<T>(Action<ThreadPoolOptions>? configure = null) where T : IThreadPool
         {
             SetProperty("quartz.threadPool.type", typeof(T).AssemblyQualifiedNameWithoutVersion());
             configure?.Invoke(new ThreadPoolOptions(this));
-        } 
+            return this;
+        }
 
         /// <summary>
         /// Uses the zero size thread pool, which is used only for database administration nodes.
         /// </summary>
-        public void UseZeroSizeThreadPool(Action<ThreadPoolOptions>? configure = null)
+        public SchedulerBuilder UseZeroSizeThreadPool(Action<ThreadPoolOptions>? configure = null)
         {
             UseThreadPool<ZeroSizeThreadPool>(configure);
+            return this;
         }
 
         /// <summary>
         /// Uses the default thread pool, which uses the default task scheduler.
         /// </summary>
-        public void UseDefaultThreadPool(Action<ThreadPoolOptions>? configure = null)
+        public SchedulerBuilder UseDefaultThreadPool(Action<ThreadPoolOptions>? configure = null)
         {
-            UseThreadPool<DefaultThreadPool>(configure);
+            return UseDefaultThreadPool(TaskSchedulingThreadPool.DefaultMaxConcurrency, configure);
+        }
+
+        /// <summary>
+        /// Uses the default thread pool, which uses the default task scheduler.
+        /// </summary>
+        public SchedulerBuilder UseDefaultThreadPool(int maxConcurrency, Action<ThreadPoolOptions>? configure = null)
+        {
+            UseThreadPool<DefaultThreadPool>(options =>
+            {
+                options.MaxConcurrency = maxConcurrency;
+                configure?.Invoke(options);
+            });
+            return this;
         }
 
         /// <summary>
         /// Uses a dedicated thread pool, which uses own threads instead of task scheduler shared pool.
         /// </summary>
-        public void UseDedicatedThreadPool(Action<ThreadPoolOptions>? configure = null)
+        public SchedulerBuilder UseDedicatedThreadPool(Action<ThreadPoolOptions>? configure = null)
         {
             UseThreadPool<DedicatedThreadPool>(configure);
+            return this;
+        }
+
+        /// <summary>
+        /// Makes this scheduler a proxy that calls another scheduler instance via remote invocation
+        /// using the default mechanism (for full .NET Framework it's remoting, otherwise unsupported).
+        /// </summary>
+        /// <param name="address">Connection address</param>
+        public SchedulerBuilder ProxyToRemoteScheduler(string address)
+        {
+            return ProxyToRemoteScheduler<RemotingSchedulerProxyFactory>(address);
+        }
+
+        /// <summary>
+        /// Makes this scheduler a proxy that calls another scheduler instance via remote invocation
+        /// using the typeof T proxy generator.
+        /// </summary>
+        /// <param name="address">Connection address</param>
+        public SchedulerBuilder ProxyToRemoteScheduler<T>(string address) where T : IRemotableSchedulerProxyFactory
+        {
+            SetProperty(StdSchedulerFactory.PropertySchedulerProxy, "true");
+            SetProperty(StdSchedulerFactory.PropertySchedulerProxyType, typeof(T).AssemblyQualifiedNameWithoutVersion());
+            SetProperty("quartz.scheduler.proxy.address", address);
+            return this;
+        }
+
+        /// <summary>
+        /// The time span by which a trigger must have missed its
+        /// next-fire-time, in order for it to be considered "misfired" and thus
+        /// have its misfire instruction applied.
+        /// </summary>
+        public SchedulerBuilder WithMisfireThreshold(TimeSpan threshold)
+        {
+            MisfireThreshold = threshold;
+            return this;
         }
 
         /// <summary>
@@ -165,6 +249,12 @@ namespace Quartz
         public TimeSpan MisfireThreshold
         {
             set => SetProperty("quartz.jobStore.misfireThreshold", ((int) value.TotalMilliseconds).ToString());
+        }
+
+        public SchedulerBuilder WithMaxBatchSize(int batchSize)
+        {
+            MaxBatchSize = batchSize;
+            return this;
         }
 
         public int MaxBatchSize
@@ -196,9 +286,9 @@ namespace Quartz
 
         public class PersistentStoreOptions : StoreOptions
         {
-            internal PersistentStoreOptions(PropertiesHolder parent) : base(parent)
+            internal PersistentStoreOptions(PropertiesHolder parent, Type jobStoreType) : base(parent)
             {
-                SetProperty(StdSchedulerFactory.PropertyJobStoreType, typeof(JobStoreTX).AssemblyQualifiedNameWithoutVersion());
+                SetProperty(StdSchedulerFactory.PropertyJobStoreType, jobStoreType.AssemblyQualifiedNameWithoutVersion());
             }
 
             /// <summary>
@@ -208,8 +298,8 @@ namespace Quartz
             {
                 set => SetProperty("quartz.jobStore.useProperties", value.ToString().ToLowerInvariant());
             }
-            
-            
+
+
             /// <summary>
             /// Gets or sets the database retry interval.
             /// </summary>
@@ -358,7 +448,7 @@ namespace Quartz
         {
             options.UseSqlServer(c => c.ConnectionString = connectionString);
         }
-        
+
         public static void UseSqlServer(
             this SchedulerBuilder.PersistentStoreOptions options,
             Action<SchedulerBuilder.AdoProviderOptions> configurer)
@@ -370,7 +460,7 @@ namespace Quartz
             var adoProviderOptions = new SchedulerBuilder.AdoProviderOptions(options);
             configurer.Invoke(adoProviderOptions);
         }
-        
+
         public static void UsePostgres(
             this SchedulerBuilder.PersistentStoreOptions options,
             string connectionString)
@@ -434,7 +524,7 @@ namespace Quartz
         {
             options.UseOracle(c => c.ConnectionString = connectionString);
         }
-        
+
         public static void UseOracle(
             this SchedulerBuilder.PersistentStoreOptions options,
             Action<SchedulerBuilder.AdoProviderOptions> configurer)
@@ -453,7 +543,7 @@ namespace Quartz
         {
             options.UseSQLite(c => c.ConnectionString = connectionString);
         }
-        
+
         public static void UseSQLite(
             this SchedulerBuilder.PersistentStoreOptions options,
             Action<SchedulerBuilder.AdoProviderOptions> configurer)

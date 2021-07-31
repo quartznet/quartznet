@@ -91,6 +91,15 @@ namespace Quartz
             schedulerBuilder.UseThreadPool<T>(configure);
         }
 
+        public void UseDefaultThreadPool(int maxConcurrency, Action<SchedulerBuilder.ThreadPoolOptions>? configure = null)
+        {
+            schedulerBuilder.UseDefaultThreadPool(options =>
+            {
+                options.MaxConcurrency = maxConcurrency;
+                configure?.Invoke(options);
+            });
+        }
+
         public void UseDefaultThreadPool(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null)
         {
             schedulerBuilder.UseDefaultThreadPool(configure);
@@ -99,6 +108,15 @@ namespace Quartz
         public void UseZeroSizeThreadPool(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null)
         {
             schedulerBuilder.UseZeroSizeThreadPool(configure);
+        }
+
+        public void UseDedicatedThreadPool(int maxConcurrency, Action<SchedulerBuilder.ThreadPoolOptions>? configure = null)
+        {
+            schedulerBuilder.UseDedicatedThreadPool(options =>
+            {
+                options.MaxConcurrency = maxConcurrency;
+                configure?.Invoke(options);
+            });
         }
 
         public void UseDedicatedThreadPool(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null)

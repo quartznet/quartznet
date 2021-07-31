@@ -20,7 +20,6 @@
 #endregion
 
 using System;
-using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -186,7 +185,7 @@ namespace Quartz.Core
                     DateTimeOffset endTime;
 
 #if DIAGNOSTICS_SOURCE
-                    Activity? activity = null;
+                    System.Diagnostics.Activity? activity = null;
 #endif
 
                     // Execute the job

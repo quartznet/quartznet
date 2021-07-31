@@ -18,7 +18,7 @@ namespace Quartz.Tests.Integration.Impl
             properties["quartz.scheduler.instanceName"] = "RemoteClient";
 
             // set thread pool info
-            properties["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
+            properties["quartz.threadPool.type"] = "Quartz.Simpl.DefaultThreadPool, Quartz";
             properties["quartz.threadPool.threadCount"] = "5";
             properties["quartz.threadPool.threadPriority"] = "Normal";
 

@@ -113,9 +113,8 @@ namespace Quartz.Tests.Unit.Impl
         {
             var properties = new NameValueCollection
             {
-                ["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz",
-                ["quartz.threadPool.threadCount"] = "3",
-                ["quartz.threadPool.threadPriority"] = "Normal"
+                ["quartz.threadPool.type"] = "Quartz.Simpl.DefaultThreadPool, Quartz",
+                ["quartz.threadPool.threadCount"] = "3"
             };
 
             ISchedulerFactory schedulerFactory = new StdSchedulerFactory(properties);
