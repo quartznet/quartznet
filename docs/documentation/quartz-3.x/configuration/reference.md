@@ -307,7 +307,7 @@ RAMJobStore can be tuned with the following properties:
 
 ### `quartz.jobStore.misfireThreshold`
 
-The the number of milliseconds the scheduler will 'tolerate' a trigger to pass its next-fire-time by, before being considered "misfired". The default value (if you don’t make an entry of this property in your configuration) is 60000 (60 seconds).
+The number of milliseconds the scheduler will 'tolerate' a trigger to pass its next-fire-time by, before being considered "misfired". The default value (if you don’t make an entry of this property in your configuration) is 60000 (60 seconds).
 
 ## JobStoreTX (ADO.NET)
 
@@ -370,7 +370,7 @@ This is can be handy, as you avoid the type versioning issues that can arise fro
 
 ### `quartz.jobStore.misfireThreshold`
 
-The the number of milliseconds the scheduler will 'tolerate' a trigger to pass its next-fire-time by, before being considered "misfired".
+The number of milliseconds the scheduler will 'tolerate' a trigger to pass its next-fire-time by, before being considered "misfired".
 The default value (if you don’t make an entry of this property in your configuration) is 60000 (60 seconds).
 
 ### `quartz.jobStore.clustered`
