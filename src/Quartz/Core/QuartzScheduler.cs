@@ -288,7 +288,7 @@ namespace Quartz.Core
 
             SchedulerSignaler = new SchedulerSignalerImpl(this, schedThread);
 
-            log.InfoFormat("Quartz Scheduler v.{0} created.", Version);
+            log.InfoFormat("Quartz Scheduler created");
         }
 
         public void Initialize()
@@ -1572,10 +1572,10 @@ namespace Quartz.Core
 
             if (listeners.Count == 0 && !internalTriggerListeners.GetEnumerator().MoveNext())
             {
-                // default case that we don't have any 
+                // default case that we don't have any
                 return null;
             }
-            
+
             return listeners.Concat(internalTriggerListeners.Values);
         }
 
@@ -1784,8 +1784,8 @@ namespace Quartz.Core
         }
 
         // optimized version to reduce state machine creations
-        private Task NotifyJobListeners(           
-            Func<IJobListener, Task> notifyAction, 
+        private Task NotifyJobListeners(
+            Func<IJobListener, Task> notifyAction,
             IJobExecutionContext jec,
             JobExecutionException? je)
         {
@@ -1808,7 +1808,7 @@ namespace Quartz.Core
                     throw se;
                 }
             }
-            
+
             return singleListener != null || listeners is null ? Task.CompletedTask : NotifyAwaited();
 
             async Task NotifyAwaited()
@@ -2155,7 +2155,7 @@ namespace Quartz.Core
         }
 
         protected virtual async Task NotifySchedulerListeners(
-            Func<ISchedulerListener, Task> notifier, 
+            Func<ISchedulerListener, Task> notifier,
             string action)
         {
             // notify all scheduler listeners

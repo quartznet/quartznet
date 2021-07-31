@@ -157,9 +157,9 @@ Now we should get a lot more information when we start the application.
 ```
 [12.51.10] [Info] Quartz.NET properties loaded from configuration file 'C:\QuartzSampleApp\quartz.config'
 [12.51.10] [Info] Initialized Scheduler Signaller of type: Quartz.Core.SchedulerSignalerImpl
-[12.51.10] [Info] Quartz Scheduler v.0.0.0.0 created.
+[12.51.10] [Info] Quartz Scheduler created
 [12.51.10] [Info] RAMJobStore initialized.
-[12.51.10] [Info] Scheduler meta-data: Quartz Scheduler (v0.0.0.0) 'MyScheduler' with instanceId 'NON_CLUSTERED'
+[12.51.10] [Info] Scheduler meta-data: Quartz Scheduler (v3.0.0.0) 'MyScheduler' with instanceId 'NON_CLUSTERED'
   Scheduler class: 'Quartz.Core.QuartzScheduler' - running locally.
   NOT STARTED.
   Currently in standby mode.
@@ -168,7 +168,7 @@ Now we should get a lot more information when we start the application.
   Using job-store 'Quartz.Simpl.RAMJobStore' - which does not support persistence. and is not clustered.
 
 [12.51.10] [Info] Quartz scheduler 'MyScheduler' initialized
-[12.51.10] [Info] Quartz scheduler version: 0.0.0.0
+[12.51.10] [Info] Quartz scheduler version: 3.0.0.0
 [12.51.10] [Info] Scheduler MyScheduler_$_NON_CLUSTERED started.
 ```
 
