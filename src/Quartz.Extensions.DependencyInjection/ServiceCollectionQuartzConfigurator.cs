@@ -46,6 +46,26 @@ namespace Quartz
             set => schedulerBuilder.SchedulerName = value;
         }
 
+        public bool InterruptJobsOnShutdown
+        {
+            set => schedulerBuilder.InterruptJobsOnShutdown = value;
+        }
+
+        public bool InterruptJobsOnShutdownWithWait
+        {
+            set => schedulerBuilder.InterruptJobsOnShutdownWithWait = value;
+        }
+
+        public int MaxBatchSize
+        {
+            set => schedulerBuilder.MaxBatchSize = value;
+        }
+
+        public TimeSpan BatchTriggerAcquisitionFireAheadTimeWindow
+        {
+            set => schedulerBuilder.BatchTriggerAcquisitionFireAheadTimeWindow = value;
+        }
+
         public void UseInMemoryStore(Action<SchedulerBuilder.InMemoryStoreOptions>? configure = null)
         {
             schedulerBuilder.UseInMemoryStore(configure);

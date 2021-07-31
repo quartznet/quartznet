@@ -237,6 +237,7 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
+        [Ignore("not suitable way to monitor tasks")]
         public async Task TestShutdownWithSleepReturnsAfterAllThreadsAreStopped()
         {
             int activeThreads = Process.GetCurrentProcess().Threads.Count;
