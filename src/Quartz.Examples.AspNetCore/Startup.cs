@@ -80,6 +80,15 @@ namespace Quartz.Examples.AspNetCore
                 // handy when part of cluster or you want to otherwise identify multiple schedulers
                 q.SchedulerId = "Scheduler-Core";
 
+                // you can control whether job interruption happens for running jobs when scheduler is shutting down
+                q.InterruptJobsOnShutdown = true;
+
+                // when QuartzHostedServiceOptions.WaitForJobsToComplete = true or scheduler.Shutdown(waitForJobsToComplete: true)
+                q.InterruptJobsOnShutdownWithWait = true;
+
+                // we can change from the default of 1
+                q.MaxBatchSize = 5;
+
                 // we take this from appsettings.json, just show it's possible
                 // q.SchedulerName = "Quartz ASP.NET Core Sample Scheduler";
 

@@ -230,11 +230,7 @@ namespace Quartz
             return this;
         }
 
-        /// <summary>
-        /// The time span by which a trigger must have missed its
-        /// next-fire-time, in order for it to be considered "misfired" and thus
-        /// have its misfire instruction applied.
-        /// </summary>
+        /// <inheritdoc cref="MisfireThreshold"/>
         public SchedulerBuilder WithMisfireThreshold(TimeSpan threshold)
         {
             MisfireThreshold = threshold;
@@ -251,15 +247,75 @@ namespace Quartz
             set => SetProperty("quartz.jobStore.misfireThreshold", ((int) value.TotalMilliseconds).ToString());
         }
 
+        /// <inheritdoc cref="MaxBatchSize"/>
         public SchedulerBuilder WithMaxBatchSize(int batchSize)
         {
             MaxBatchSize = batchSize;
             return this;
         }
 
+        /// <summary>
+        /// The maximum number of triggers that a scheduler node is allowed to acquire (for firing) at once.
+        /// Default value is 1.
+        /// The larger the number, the more efficient firing is (in situations where there are very many triggers needing to be fired all at once) - but at the cost of possible imbalanced load between cluster nodes.
+        /// </summary>
         public int MaxBatchSize
         {
             set => SetProperty(StdSchedulerFactory.PropertySchedulerMaxBatchSize, value.ToString());
+        }
+
+        /// <inheritdoc cref="BatchTriggerAcquisitionFireAheadTimeWindow"/>
+        public SchedulerBuilder WithBatchTriggerAcquisitionFireAheadTimeWindow(TimeSpan timeWindow)
+        {
+            BatchTriggerAcquisitionFireAheadTimeWindow = timeWindow;
+            return this;
+        }
+
+        /// <summary>
+        /// The amount of time that a trigger is allowed to be acquired and fired ahead of its scheduled fire time.
+        /// Defaults to TimeSpan.Zero.
+        /// The larger the number, the more likely batch acquisition of triggers to fire will be able to select and fire more than 1 trigger at a time -at the cost of trigger schedule not being honored precisely (triggers may fire this amount early).
+        /// This may be useful (for performance’s sake) in situations where the scheduler has very large numbers of triggers that need to be fired at or near the same time.
+        /// </summary>
+        public TimeSpan BatchTriggerAcquisitionFireAheadTimeWindow
+        {
+            set => SetProperty(StdSchedulerFactory.PropertySchedulerBatchTimeWindow, ((int) value.TotalMilliseconds).ToString());
+        }
+
+        /// <inheritdoc cref="InterruptJobsOnShutdown"/>
+        public SchedulerBuilder WithInterruptJobsOnShutdown(bool interrupt)
+        {
+            InterruptJobsOnShutdown = interrupt;
+            return this;
+        }
+
+        /// <summary>
+        /// Whether to interrupt (cancel) job execution on shutdown.
+        /// </summary>
+        /// <remarks>
+        /// Job needs to observe <see cref="IJobExecutionContext.CancellationToken"/>.
+        /// </remarks>
+        public bool InterruptJobsOnShutdown
+        {
+            set => SetProperty(StdSchedulerFactory.PropertySchedulerInterruptJobsOnShutdown, value.ToString());
+        }
+
+        /// <inheritdoc cref="InterruptJobsOnShutdownWithWait"/>
+        public SchedulerBuilder WithInterruptJobsOnShutdownWithWait(bool interruptWithWait)
+        {
+            InterruptJobsOnShutdownWithWait = interruptWithWait;
+            return this;
+        }
+
+        /// <summary>
+        /// Whether to interrupt (cancel) job execution on shutdown when wait for jobs to completed has is specified.
+        /// </summary>
+        /// <remarks>
+        /// Job needs to observe <see cref="IJobExecutionContext.CancellationToken"/>.
+        /// </remarks>
+        public bool InterruptJobsOnShutdownWithWait
+        {
+            set => SetProperty(StdSchedulerFactory.PropertySchedulerInterruptJobsOnShutdownWithWait, value.ToString());
         }
 
         public class ThreadPoolOptions : PropertiesHolder
@@ -298,7 +354,6 @@ namespace Quartz
             {
                 set => SetProperty("quartz.jobStore.useProperties", value.ToString().ToLowerInvariant());
             }
-
 
             /// <summary>
             /// Gets or sets the database retry interval.
