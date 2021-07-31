@@ -69,7 +69,7 @@ namespace Quartz.Tests.Unit
             config["quartz.scheduler.instanceName"] = "SchedulerTest_Scheduler";
             config["quartz.scheduler.instanceId"] = "AUTO";
             config["quartz.threadPool.threadCount"] = "2";
-            config["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz";
+            config["quartz.threadPool.type"] = "Quartz.Simpl.DefaultThreadPool, Quartz";
             config["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
             IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();
 

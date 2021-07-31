@@ -29,7 +29,7 @@ namespace Quartz.Simpl
         private SemaphoreSlim concurrencySemaphore = null!;
 
         private int maxConcurrency;
-        protected const int DefaultMaxConcurrency = 10;
+        protected internal const int DefaultMaxConcurrency = 10;
 
         private TaskScheduler scheduler = null!;
         private bool isInitialized;

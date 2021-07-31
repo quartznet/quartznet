@@ -19,13 +19,13 @@ namespace Quartz.Tests.Integration.Utils
                 return null;
             }
 
-            using (MemoryStream ms = new MemoryStream())
-            {
-                BinaryFormatter bf = new BinaryFormatter();
-                bf.Serialize(ms, obj);
-                ms.Seek(0, SeekOrigin.Begin);
-                return (T) bf.Deserialize(ms);
-            }
+            using MemoryStream ms = new MemoryStream();
+            var bf = new BinaryFormatter();
+#pragma warning disable 618
+            bf.Serialize(ms, obj);
+            ms.Seek(0, SeekOrigin.Begin);
+            return (T) bf.Deserialize(ms);
+#pragma warning restore 618
         }
     }
 }

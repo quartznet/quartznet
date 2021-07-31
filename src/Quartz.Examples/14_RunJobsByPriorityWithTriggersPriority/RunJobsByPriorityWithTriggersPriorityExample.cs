@@ -20,10 +20,7 @@
 #endregion
 
 using System;
-using System.Collections.Specialized;
 using System.Threading.Tasks;
-
-using Quartz.Impl;
 
 namespace Quartz.Examples.Example14
 {
@@ -38,17 +35,12 @@ namespace Quartz.Examples.Example14
             Console.WriteLine("------- Initializing ----------------------");
 
             // First we must get a reference to a scheduler
-            NameValueCollection properties = new NameValueCollection
-            {
-                ["quartz.scheduler.instanceName"] = "PriorityExampleScheduler",
+            var sched = await SchedulerBuilder.Create()
+                .WithName("PriorityExampleScheduler")
                 // Set thread count to 1 to force Triggers scheduled for the same time to
                 // to be ordered by priority.
-                ["quartz.threadPool.threadCount"] = "1",
-                ["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz",
-                ["quartz.jobStore.type"] = "Quartz.Simpl.RAMJobStore, Quartz"
-            };
-            ISchedulerFactory sf = new StdSchedulerFactory(properties);
-            IScheduler sched = await sf.GetScheduler();
+                .UseDefaultThreadPool(1)
+                .BuildScheduler();
 
             Console.WriteLine("------- Initialization Complete -----------");
 

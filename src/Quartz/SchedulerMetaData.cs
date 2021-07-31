@@ -146,7 +146,7 @@ namespace Quartz
 		/// <para>
 		/// The format of the string looks something like this:
 		/// <pre>
-		/// Quartz Scheduler 'SchedulerName' with instanceId 'SchedulerInstanceId' Scheduler class: 'Quartz.Impl.StdScheduler' - running locally. Running since: '11:33am on Jul 19, 2002' Not currently paused. Number of Triggers fired: '123' Using thread pool 'Quartz.Simpl.SimpleThreadPool' - with '8' threads Using job-store 'Quartz.Impl.JobStore' - which supports persistence.
+		/// Quartz Scheduler 'SchedulerName' with instanceId 'SchedulerInstanceId' Scheduler class: 'Quartz.Impl.StdScheduler' - running locally. Running since: '11:33am on Jul 19, 2002' Not currently paused. Number of Triggers fired: '123' Using thread pool 'Quartz.Simpl.DefaultThreadPool' - with '8' threads Using job-store 'Quartz.Impl.JobStore' - which supports persistence.
 		/// </pre>
 		/// </para>
 		/// </remarks>

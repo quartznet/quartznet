@@ -20,10 +20,7 @@
 #endregion
 
 using System;
-using System.Collections.Specialized;
 using System.Threading.Tasks;
-
-using Quartz.Impl;
 
 namespace Quartz.Examples.Example13
 {
@@ -71,30 +68,23 @@ namespace Quartz.Examples.Example13
     {
         public virtual async Task Run(bool inClearJobs, bool inScheduleJobs)
         {
-            NameValueCollection properties = new NameValueCollection
-            {
-                ["quartz.scheduler.instanceName"] = "TestScheduler",
-                ["quartz.scheduler.instanceId"] = "instance_one",
-                ["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz",
-                ["quartz.threadPool.threadCount"] = "5",
-                ["quartz.jobStore.misfireThreshold"] = "60000",
-                ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
-                ["quartz.jobStore.useProperties"] = "false",
-                ["quartz.jobStore.dataSource"] = "default",
-                ["quartz.jobStore.tablePrefix"] = "QRTZ_",
-                ["quartz.jobStore.clustered"] = "true",
-                ["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SqlServerDelegate, Quartz",
-                ["quartz.dataSource.default.connectionString"] = TestConstants.SqlServerConnectionString,
-                ["quartz.dataSource.default.provider"] = TestConstants.DefaultSqlServerProvider,
-                ["quartz.serializer.type"] = "json"
-            };
+            // First we must get a reference to a scheduler
+            IScheduler sched = await SchedulerBuilder.Create()
+                .WithId("instance_one")
+                .WithName("TestScheduler")
+                .UseDefaultThreadPool(x => x.MaxConcurrency = 5)
+                .WithMisfireThreshold(TimeSpan.FromSeconds(60))
+                .UsePersistentStore(x =>
+                {
+                    x.UseProperties = true;
+                    x.UseClustering();
+                    x.UseSqlServer(TestConstants.SqlServerConnectionString);
+                    x.UseJsonSerializer();
+                })
+                .BuildScheduler();
 
             // if running SQLite we need this
             // properties["quartz.jobStore.lockHandler.type"] = "Quartz.Impl.AdoJobStore.UpdateLockRowSemaphore, Quartz";
-
-            // First we must get a reference to a scheduler
-            ISchedulerFactory sf = new StdSchedulerFactory(properties);
-            IScheduler sched = await sf.GetScheduler();
 
             if (inClearJobs)
             {

@@ -1,8 +1,6 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Data.Common;
-using System.Globalization;
 using System.IO;
 using System.Runtime.Serialization;
 using System.Threading;
@@ -269,7 +267,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 return null;
             }
-            
+
             bool skipStringPropertySerialization = data.ContainsKey(FileScanListenerName) || data.ContainsKey(DirectoryScanListenerName);
             if (CanUseProperties && !skipStringPropertySerialization)
             {

@@ -22,10 +22,8 @@
 
 #if REMOTING
 using System;
-using System.Collections.Specialized;
 using System.Threading.Tasks;
 
-using Quartz.Impl;
 using Quartz.Impl.Matchers;
 
 namespace Quartz.Examples.Example12
@@ -44,18 +42,12 @@ namespace Quartz.Examples.Example12
     {
         public virtual async Task Run()
         {
-            NameValueCollection properties = new NameValueCollection
-            {
-                ["quartz.scheduler.instanceName"] = "RemoteClient",
-                ["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz",
-                ["quartz.threadPool.threadCount"] = "5",
-                ["quartz.scheduler.proxy"] = "true",
-                ["quartz.scheduler.proxy.address"] = "tcp://127.0.0.1:555/QuartzScheduler"
-            };
-
             // First we must get a reference to a scheduler
-            ISchedulerFactory sf = new StdSchedulerFactory(properties);
-            IScheduler sched = await sf.GetScheduler();
+            IScheduler sched = await SchedulerBuilder.Create()
+                .WithName("RemoteClient")
+                .UseDefaultThreadPool(x => x.MaxConcurrency = 5)
+                .ProxyToRemoteScheduler("tcp://127.0.0.1:555/QuartzScheduler")
+                .BuildScheduler();
 
             // define the job and ask it to run
 

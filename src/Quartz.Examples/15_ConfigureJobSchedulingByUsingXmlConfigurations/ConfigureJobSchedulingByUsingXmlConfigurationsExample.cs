@@ -20,10 +20,8 @@
 #endregion
 
 using System;
-using System.Collections.Specialized;
 using System.Threading.Tasks;
 
-using Quartz.Impl;
 using Quartz.Impl.Calendar;
 
 namespace Quartz.Examples.Example15
@@ -40,25 +38,19 @@ namespace Quartz.Examples.Example15
             Console.WriteLine("------- Initializing ----------------------");
 
             // First we must get a reference to a scheduler
-            var properties = new NameValueCollection
-            {
-                ["quartz.scheduler.instanceName"] = "XmlConfiguredInstance",
-                ["quartz.threadPool.type"] = "Quartz.Simpl.SimpleThreadPool, Quartz",
-                ["quartz.threadPool.threadCount"] = "5",
-                ["quartz.plugin.xml.type"] = "Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin, Quartz.Plugins",
-                ["quartz.plugin.xml.fileNames"] = "~/quartz_jobs.xml",
-                // this is the default
-                ["quartz.plugin.xml.FailOnFileNotFound"] = "true",
-                // this is not the default
-                ["quartz.plugin.xml.failOnSchedulingError"] = "true"
-            };
-
-            // set thread pool info
-
-            // job initialization plugin handles our xml reading, without it defaults are used
-
-            ISchedulerFactory sf = new StdSchedulerFactory(properties);
-            IScheduler sched = await sf.GetScheduler();
+            var sched = await SchedulerBuilder.Create()
+                .WithName("XmlConfiguredInstance")
+                .UseDefaultThreadPool(maxConcurrency: 5)
+                // job initialization plugin handles our xml reading, without it defaults are used
+                .UseXmlSchedulingConfiguration(x =>
+                {
+                    x.Files = new[] { "~/quartz_jobs.xml" };
+                    // this is the default
+                    x.FailOnFileNotFound = true;
+                    // this is not the default
+                    x.FailOnSchedulingError = true;
+                })
+                .BuildScheduler();
 
             // we need to add calendars manually, lets create a silly sample calendar
             var dailyCalendar = new DailyCalendar("00:01", "23:59");

@@ -250,7 +250,7 @@ namespace Quartz.Tests.Unit
             // test failed before because of improper trimming
             string expr = " 30 *   * * * ?  ";
             CronExpression calendar = new CronExpression(expr);
-            Assert.IsFalse(calendar.IsSatisfiedBy(DateTime.Now.AddMinutes(2)), "Time was included");
+            Assert.IsFalse(calendar.IsSatisfiedBy(DateTime.UtcNow.Date.AddMinutes(2)), "Time was included");
         }
 
         private static void TestCorrectWeekFireDays(CronExpression cronExpression, IList<int> correctFireDays)
