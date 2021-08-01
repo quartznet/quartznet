@@ -2,6 +2,30 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+## Release 3.3.3, Aug 1 2021
+
+This is a maintenance release mostly fixing some smaller bugs and improving DI API story.
+
+* FIXES
+
+    * Lock 'TRIGGER_ACCESS' attempt to return by: de9325af-3e1c-4ae9-a99b-24be994b75f4 -- but not owner! (#1236)
+    * ScheduleJob shorthand: Job name should match trigger name by default (#1211)
+    * CronTriggerImpl.WillFireOn returns wrong result when TimeZone is specified (#1187)
+    * Race condition in DI scheduler listener initialization (#1117)
+    * JobRunShell handle Job CancellationToken (#1183)
+    * Restore System.Data.SqlClient support on .NET Core (#1181)
+
+* IMPROVEMENTS
+ 
+    * Replace static loggers with instance-based (#1264)
+    * Expose more configuration options via programmatic APIs (#1263)
+    * Add ConfigureScope extension point to MicrosoftDependencyInjectionJobFactory (#1189)
+    * Update StdAdoConstants.cs (#1186)
+    * Use custom InstantiateType for all instantiations in StdSchedulerFactory (#1185)
+    * Add support for the ISchedulerFactory.StartDelayed in the QuartzHostedService (#1166)
+    * Remove SimpleThreadPool from examples? (#1230)
+
+
 ## Release 3.3.2, Apr 9 2021
 
 This release returns the possibility to resolve jobs from Microsoft DI container. Now container is checked first and if not found then

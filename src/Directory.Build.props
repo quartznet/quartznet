@@ -28,7 +28,7 @@
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
 
-    <VersionPrefix>3.3.2</VersionPrefix>
+    <VersionPrefix>3.3.3</VersionPrefix>
     <VersionSuffix Condition="'$(VersionSuffix)'!='' AND '$(BuildNumber)' != ''">$(VersionSuffix)-$(BuildNumber)</VersionSuffix>
 
     <CLSCompliant>True</CLSCompliant>
@@ -39,7 +39,7 @@
     <LangVersion>latest</LangVersion>
 
   </PropertyGroup>
-  
+
   <PropertyGroup Condition="$(MSBuildProjectName.Contains('Example')) == false">
     <AssemblyOriginatorKeyFile>../../quartz.net.snk</AssemblyOriginatorKeyFile>
     <SignAssembly>true</SignAssembly>
@@ -65,6 +65,6 @@
 
   <ItemGroup>
     <None Include="..\quartz-logo-small.png" Pack="true" Visible="false" PackagePath=""/>
-  </ItemGroup>  
+  </ItemGroup>
 
 </Project>
