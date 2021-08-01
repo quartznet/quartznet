@@ -38,7 +38,7 @@ namespace Quartz.Util
     public class DBConnectionManager : IDbConnectionManager
     {
         private static readonly DBConnectionManager instance = new DBConnectionManager();
-	    private static readonly ILog log = LogProvider.GetLogger(typeof (DBConnectionManager));
+	    private readonly ILog log;
 
         private readonly object syncRoot = new object();
         private readonly Dictionary<string, IDbProvider> providers = new Dictionary<string, IDbProvider>();
@@ -54,8 +54,9 @@ namespace Quartz.Util
 		/// Private constructor
 		/// </summary>
 		private DBConnectionManager()
-		{
-		}
+        {
+            log = LogProvider.GetLogger(typeof(DBConnectionManager));
+        }
 
         /// <summary>
         /// Adds the connection provider.
@@ -63,13 +64,13 @@ namespace Quartz.Util
         /// <param name="dataSourceName">Name of the data source.</param>
         /// <param name="provider">The provider.</param>
         public virtual void AddConnectionProvider(string dataSourceName, IDbProvider provider)
-		{
+        {
             log.Info($"Registering datasource '{dataSourceName}' with db provider: '{provider}'");
 
             lock (syncRoot)
             {
-			providers[dataSourceName] = provider;
-		}
+                providers[dataSourceName] = provider;
+            }
         }
 
 		/// <summary>

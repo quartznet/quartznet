@@ -37,10 +37,11 @@ namespace Quartz.Plugin.Management
     /// <author>Marko Lahma (.NET)</author>
     public class ShutdownHookPlugin : ISchedulerPlugin
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof(ShutdownHookPlugin));
+        private readonly ILog log;
 
         public ShutdownHookPlugin()
         {
+            log = LogProvider.GetLogger(typeof(ShutdownHookPlugin));
             CleanShutdown = true;
         }
 

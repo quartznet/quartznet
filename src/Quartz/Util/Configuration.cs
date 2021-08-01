@@ -8,8 +8,6 @@ namespace Quartz.Util
 {
     internal static class Configuration
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof(Configuration));
-        
         internal static NameValueCollection? GetSection(string sectionName)
         {
             try
@@ -18,6 +16,7 @@ namespace Quartz.Util
             }
             catch (Exception e)
             {
+                var log = LogProvider.GetLogger(typeof(Configuration));
                 log.Warn("could not read configuration using ConfigurationManager.GetSection: " + e.Message);
                 return null;
             }

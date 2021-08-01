@@ -32,12 +32,13 @@ namespace Quartz.Impl.AdoJobStore
     /// <author>Marko Lahma</author>
     public class AdoUtil
     {
-        private static readonly ILog log = LogProvider.GetLogger("Quartz.SQL");
+        private readonly ILog log;
         private readonly IDbProvider dbProvider;
 
         public AdoUtil(IDbProvider dbProvider)
         {
             this.dbProvider = dbProvider;
+            log = LogProvider.GetLogger("Quartz.SQL");
         }
 
         public void AddCommandParameter(IDbCommand cmd, string paramName, object? paramValue)

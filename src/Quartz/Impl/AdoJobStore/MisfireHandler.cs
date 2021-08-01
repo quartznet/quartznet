@@ -9,7 +9,7 @@ namespace Quartz.Impl.AdoJobStore
 {
     internal class MisfireHandler
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof (MisfireHandler));
+        private readonly ILog log;
         // keep constant lock requestor id for handler's lifetime
         private readonly Guid requestorId = Guid.NewGuid();
 
@@ -23,6 +23,7 @@ namespace Quartz.Impl.AdoJobStore
         internal MisfireHandler(JobStoreSupport jobStoreSupport)
         {
             this.jobStoreSupport = jobStoreSupport;
+            log = LogProvider.GetLogger(typeof(MisfireHandler));
 
             string threadName = $"QuartzScheduler_{jobStoreSupport.InstanceName}-{jobStoreSupport.InstanceId}_MisfireHandler";
             taskScheduler = new QueuedTaskScheduler(threadCount: 1, threadName: threadName, useForegroundThreads: !jobStoreSupport.MakeThreadsDaemons);

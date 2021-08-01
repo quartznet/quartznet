@@ -135,15 +135,13 @@ namespace Quartz.Impl
 
         private PropertiesParser cfg = null!;
 
-        private static readonly ILog log = LogProvider.GetLogger(typeof(StdSchedulerFactory));
+        private ILog log = null!;
 
         private string SchedulerName
         {
             // ReSharper disable once ArrangeAccessorOwnerBody
             get { return cfg.GetStringProperty(PropertySchedulerInstanceName, "QuartzScheduler")!; }
         }
-
-        private ILog Log => log;
 
         /// <summary>
         /// Returns a handle to the default Scheduler, creating it if it does not
@@ -208,7 +206,8 @@ namespace Quartz.Impl
                 throw initException;
             }
 
-            var props = InitializeProperties(Log, throwOnProblem: true);
+            log ??= LogProvider.GetLogger(typeof(StdSchedulerFactory));
+            var props = InitializeProperties(log, throwOnProblem: true);
             Initialize(OverrideWithSysProps(props ?? new NameValueCollection()));
         }
 
@@ -318,7 +317,7 @@ Please add configuration to your application config file to correctly initialize
             // now check against allowed
             foreach (var configurationKey in cfg.UnderlyingProperties.AllKeys)
             {
-                if (configurationKey is null 
+                if (configurationKey is null
                     || !configurationKey.StartsWith(ConfigurationKeyPrefix)
                     || configurationKey.StartsWith(ConfigurationKeyPrefixServer))
                 {
@@ -354,6 +353,8 @@ Please add configuration to your application config file to correctly initialize
             {
                 throw initException;
             }
+
+            log ??= LogProvider.GetLogger(typeof(StdSchedulerFactory));
 
             ISchedulerExporter? exporter = null;
             IJobStore js;
@@ -734,7 +735,7 @@ Please add configuration to your application config file to correctly initialize
                         }
 
                         jobStoreSupport.LockHandler = lockHandler;
-                        Log.Info("Using custom data access locking (synchronization): " + lockHandlerType);
+                        log.Info("Using custom data access locking (synchronization): " + lockHandlerType);
                     }
                     catch (Exception e)
                     {
@@ -926,7 +927,7 @@ Please add configuration to your application config file to correctly initialize
                     }
                     catch (Exception e)
                     {
-                        Log.ErrorException("Couldn't generate instance Id!", e);
+                        log.ErrorException("Couldn't generate instance Id!", e);
                         throw new InvalidOperationException("Cannot run without an instance id.");
                     }
                 }
@@ -1009,9 +1010,9 @@ Please add configuration to your application config file to correctly initialize
                 jrsf.Initialize(sched);
                 qs.Initialize();
 
-                Log.Info("Quartz scheduler '{0}' initialized".FormatInvariant(sched.SchedulerName));
+                log.Info("Quartz scheduler '{0}' initialized".FormatInvariant(sched.SchedulerName));
 
-                Log.Info("Quartz scheduler version: {0}".FormatInvariant(qs.Version));
+                log.Info("Quartz scheduler version: {0}".FormatInvariant(qs.Version));
 
                 // prevents the repository from being garbage collected
                 qs.AddNoGCObject(schedRep);
@@ -1057,7 +1058,7 @@ Please add configuration to your application config file to correctly initialize
             }
             catch (Exception e)
             {
-                Log.ErrorException("Got another exception while shutting down after instantiation exception", e);
+                log.ErrorException("Got another exception while shutting down after instantiation exception", e);
             }
         }
 
