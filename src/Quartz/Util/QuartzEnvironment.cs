@@ -12,8 +12,6 @@ namespace Quartz.Util
     /// </summary>
     public static class QuartzEnvironment
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof(QuartzEnvironment));
-
         /// <summary>
         /// Return whether we are currently running under Mono runtime.
         /// </summary>
@@ -30,6 +28,7 @@ namespace Quartz.Util
             }
             catch (SecurityException)
             {
+                var log = LogProvider.GetLogger(typeof(QuartzEnvironment));
                 log.WarnFormat("Unable to read environment variable '{0}' due to security exception, probably running under medium trust", key);
             }
             return null;
@@ -51,6 +50,7 @@ namespace Quartz.Util
             }
             catch (SecurityException)
             {
+                var log = LogProvider.GetLogger(typeof(QuartzEnvironment));
                 log.WarnFormat("Unable to read environment variables due to security exception, probably running under medium trust");
             }
             return retValue;

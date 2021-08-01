@@ -9,7 +9,7 @@ namespace Quartz.Impl.AdoJobStore
 {
     internal class ClusterManager
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof(ClusterManager));
+        private readonly ILog log;
 
         // keep constant lock requestor id for manager's lifetime
         private readonly Guid requestorId = Guid.NewGuid();
@@ -26,6 +26,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             this.jobStoreSupport = jobStoreSupport;
             cancellationTokenSource = new CancellationTokenSource();
+            log = LogProvider.GetLogger(typeof(ClusterManager));
         }
 
         public async Task Initialize()

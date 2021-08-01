@@ -38,7 +38,7 @@ namespace Quartz.Job
     /// <author>Marko Lahma (.NET)</author>
     public class SendMailJob : IJob
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof(SendMailJob));
+        private readonly ILog log;
 
         /// <summary> The host name of the smtp server. REQUIRED.</summary>
         public const string PropertySmtpHost = "smtp_host";
@@ -72,6 +72,11 @@ namespace Quartz.Job
 
         /// <summary> The message subject and body content type. Optional.</summary>
         public const string PropertyEncoding = "encoding";
+
+        public SendMailJob()
+        {
+            log = LogProvider.GetLogger(typeof(SendMailJob));
+        }
 
         /// <summary>
         /// Executes the job.

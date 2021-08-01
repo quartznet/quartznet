@@ -1,19 +1,19 @@
 #region License
-/* 
+/*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 #endregion
 
@@ -25,8 +25,8 @@ using Quartz.Util;
 
 namespace Quartz.Simpl
 {
-	/// <summary> 
-	/// The default JobFactory used by Quartz - simply calls 
+	/// <summary>
+	/// The default JobFactory used by Quartz - simply calls
 	/// <see cref="ObjectUtils.InstantiateType{T}" /> on the job class.
 	/// </summary>
 	/// <seealso cref="IJobFactory" />
@@ -35,9 +35,14 @@ namespace Quartz.Simpl
 	/// <author>Marko Lahma (.NET)</author>
 	public class SimpleJobFactory : IJobFactory
 	{
-		private static readonly ILog log = LogProvider.GetLogger(typeof (SimpleJobFactory));
+		private readonly ILog log;
 
-	    /// <summary>
+        public SimpleJobFactory()
+        {
+            log = LogProvider.GetLogger(typeof(SimpleJobFactory));
+        }
+
+        /// <summary>
 	    /// Called by the scheduler at the time of the trigger firing, in order to
 	    /// produce a <see cref="IJob" /> instance on which to call Execute.
 	    /// </summary>
@@ -76,7 +81,7 @@ namespace Quartz.Simpl
 		}
 
 	    /// <summary>
-	    /// Allows the job factory to destroy/cleanup the job if needed. 
+	    /// Allows the job factory to destroy/cleanup the job if needed.
 	    /// No-op when using SimpleJobFactory.
 	    /// </summary>
 	    public virtual void ReturnJob(IJob job)

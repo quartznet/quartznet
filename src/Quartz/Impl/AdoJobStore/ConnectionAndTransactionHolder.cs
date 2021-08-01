@@ -33,8 +33,6 @@ namespace Quartz.Impl.AdoJobStore
     /// <author>Marko Lahma</author>
     public class ConnectionAndTransactionHolder : IDisposable
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof(ConnectionAndTransactionHolder));
-
         private DateTimeOffset? sigChangeForTxCompletion;
 
         private readonly DbConnection connection;
@@ -91,6 +89,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
+                var log = LogProvider.GetLogger(typeof(ConnectionAndTransactionHolder));
+
                 log.ErrorException(
                     "Unexpected exception closing Connection." +
                     "  This is often due to a Connection being returned after or during shutdown.", e);
@@ -148,6 +148,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (Exception e)
                 {
+                    var log = LogProvider.GetLogger(typeof(ConnectionAndTransactionHolder));
                     if (transientError)
                     {
                         // original error was transient, ones we have in Azure, don't complain too much about it
