@@ -53,7 +53,7 @@ deploy:
   name: production
   symbol_server: https://www.nuget.org
   api_key:
-    secure: ZNvfUugU3rYb9t+UWbqt/hspUNLQfjWCvxTFQDpxkEEjLuLNk6amLDfGZZuiZxn4
+    secure: /G5gqcrZZucgZR/PLJEV/OyVAGI+wEyNreTyPvgrDzuaO+6P6CAnHE9ma/JgostM
   on:
     branch: main
     appveyor_repo_tag: true    
