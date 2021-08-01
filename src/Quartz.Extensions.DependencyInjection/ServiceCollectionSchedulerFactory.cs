@@ -21,6 +21,7 @@ namespace Quartz
         private readonly IOptions<QuartzOptions> options;
         private readonly ContainerConfigurationProcessor processor;
         private bool initialized;
+        private readonly SemaphoreSlim initializationLock = new SemaphoreSlim(1, 1);
 
         public ServiceCollectionSchedulerFactory(
             IServiceProvider serviceProvider,
@@ -44,6 +45,24 @@ namespace Quartz
                 return scheduler;
             }
 
+            await initializationLock.WaitAsync(cancellationToken);
+            try
+            {
+                if (!initialized)
+                {
+                    await InitializeScheduler(scheduler, cancellationToken);
+                    initialized = true;
+                }
+            }
+            finally
+            {
+                initializationLock.Release();
+            }
+            return scheduler;
+        }
+
+        private async Task InitializeScheduler(IScheduler scheduler, CancellationToken cancellationToken)
+        {
             foreach (var listener in serviceProvider.GetServices<ISchedulerListener>())
             {
                 scheduler.ListenerManager.AddSchedulerListener(listener);
@@ -70,8 +89,6 @@ namespace Quartz
             }
 
             await processor.ScheduleJobs(scheduler, cancellationToken);
-            initialized = true;
-            return scheduler;
         }
 
         protected override T InstantiateType<T>(Type? implementationType)
