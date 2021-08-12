@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /* 
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -111,7 +111,7 @@ namespace Quartz
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns></returns>
         Task<bool> IsJobGroupPaused(
-            string groupName, 
+            string groupName,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -122,7 +122,7 @@ namespace Quartz
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns></returns>
         Task<bool> IsTriggerGroupPaused(
-            string groupName, 
+            string groupName,
             CancellationToken cancellationToken = default);
 
         /// <summary> 
@@ -184,6 +184,29 @@ namespace Quartz
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Return a list of <see cref="IJobExecutionContext" /> objects that
+        /// represent all currently executing Jobs in this Scheduler instance.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// This method is not cluster aware.  That is, it will only return Jobs
+        /// currently executing in this Scheduler instance, not across the entire
+        /// cluster.
+        /// </para>
+        /// <para>
+        /// Note that the list returned is an 'instantaneous' snap-shot, and that as
+        /// soon as it's returned, the true list of executing jobs may be different.
+        /// Also please read the doc associated with <see cref="IJobExecutionContext" />-
+        /// especially if you're using remoting.
+        /// </para>
+        /// </remarks>
+        /// <seealso cref="IJobExecutionContext" />
+        Task<IReadOnlyCollection<IJobExecutionContext>> GetCurrentlyExecutingJobs(
+            long? take,
+            long? skip,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Set the <see cref="JobFactory" /> that will be responsible for producing 
         /// instances of <see cref="IJob" /> classes.
         /// </summary>
@@ -212,14 +235,29 @@ namespace Quartz
         Task<IReadOnlyCollection<string>> GetJobGroupNames(CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Get the names of all known <see cref="IJobDetail" /> groups.
+        /// </summary>
+        Task<IReadOnlyCollection<string>> GetJobGroupNames(long? take, long? skip, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Get the names of all known <see cref="ITrigger" /> groups.
         /// </summary>
         Task<IReadOnlyCollection<string>> GetTriggerGroupNames(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get the names of all known <see cref="ITrigger" /> groups.
+        /// </summary>
+        Task<IReadOnlyCollection<string>> GetTriggerGroupNames(long? take, long? skip, CancellationToken cancellationToken = default);
 
         /// <summary> 
         /// Get the names of all <see cref="ITrigger" /> groups that are paused.
         /// </summary>
         Task<IReadOnlyCollection<string>> GetPausedTriggerGroups(CancellationToken cancellationToken = default);
+
+        /// <summary> 
+        /// Get the names of all <see cref="ITrigger" /> groups that are paused.
+        /// </summary>
+        Task<IReadOnlyCollection<string>> GetPausedTriggerGroups(long? take, long? skip, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Starts the <see cref="IScheduler" />'s threads that fire <see cref="ITrigger" />s.
@@ -325,7 +363,7 @@ namespace Quartz
         /// <see cref="IJob" /> identified by the <see cref="ITrigger" />'s settings.
         /// </summary>
         Task<DateTimeOffset> ScheduleJob(
-            ITrigger trigger, 
+            ITrigger trigger,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -337,10 +375,10 @@ namespace Quartz
         /// parameter is not set to true then an exception will be thrown.</para>
         /// </remarks>
         Task ScheduleJobs(
-            IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, 
+            IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs,
             bool replace,
             CancellationToken cancellationToken = default);
-        
+
         /// <summary>
         /// Schedule the given job with the related set of triggers.
         /// </summary>
@@ -350,11 +388,11 @@ namespace Quartz
         /// parameter is not set to true then an exception will be thrown.
         /// </remarks>
         Task ScheduleJob(
-            IJobDetail jobDetail, 
-            IReadOnlyCollection<ITrigger> triggersForJob, 
+            IJobDetail jobDetail,
+            IReadOnlyCollection<ITrigger> triggersForJob,
             bool replace,
             CancellationToken cancellationToken = default);
-    
+
         /// <summary>
         /// Remove the indicated <see cref="ITrigger" /> from the scheduler.
         /// <para>If the related job does not have any other triggers, and the job is
@@ -398,7 +436,7 @@ namespace Quartz
         /// the first fire time of the newly scheduled trigger.
         /// </returns>
         Task<DateTimeOffset?> RescheduleJob(
-            TriggerKey triggerKey, 
+            TriggerKey triggerKey,
             ITrigger newTrigger,
             CancellationToken cancellationToken = default);
 
@@ -430,8 +468,8 @@ namespace Quartz
         /// once there are no remaining associated triggers).
         /// </remarks>
         Task AddJob(
-            IJobDetail jobDetail, 
-            bool replace, 
+            IJobDetail jobDetail,
+            bool replace,
             bool storeNonDurableWhileAwaitingScheduling,
             CancellationToken cancellationToken = default);
 
@@ -468,7 +506,7 @@ namespace Quartz
         /// (Execute it now).
         /// </summary>
         Task TriggerJob(
-            JobKey jobKey, 
+            JobKey jobKey,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -483,7 +521,7 @@ namespace Quartz
         /// </param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         Task TriggerJob(
-            JobKey jobKey, 
+            JobKey jobKey,
             JobDataMap data,
             CancellationToken cancellationToken = default);
 
@@ -548,7 +586,7 @@ namespace Quartz
         /// </remarks>
         /// <seealso cref="ResumeTriggers" />
         Task PauseTriggers(
-            GroupMatcher<TriggerKey> matcher, 
+            GroupMatcher<TriggerKey> matcher,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -630,6 +668,15 @@ namespace Quartz
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Get the keys of all the <see cref="IJobDetail" />s in the matching groups.
+        /// </summary>
+        Task<IReadOnlyCollection<JobKey>> GetJobKeys(
+            GroupMatcher<JobKey> matcher,
+            long? take,
+            long? skip,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Get all <see cref="ITrigger" /> s that are associated with the
         /// identified <see cref="IJobDetail" />.
         /// </summary>
@@ -639,7 +686,22 @@ namespace Quartz
         /// trigger afterward (e.g. see <see cref="RescheduleJob(TriggerKey, ITrigger, CancellationToken)" />).
         /// </remarks>
         Task<IReadOnlyCollection<ITrigger>> GetTriggersOfJob(
-            JobKey jobKey, 
+            JobKey jobKey,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get all <see cref="ITrigger" /> s that are associated with the
+        /// identified <see cref="IJobDetail" />.
+        /// </summary>
+        /// <remarks>
+        /// The returned Trigger objects will be snap-shots of the actual stored
+        /// triggers.  If you wish to modify a trigger, you must re-store the
+        /// trigger afterward (e.g. see <see cref="RescheduleJob(TriggerKey, ITrigger, CancellationToken)" />).
+        /// </remarks>
+        Task<IReadOnlyCollection<ITrigger>> GetTriggersOfJob(
+            JobKey jobKey,
+            long? take,
+            long? skip,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -648,6 +710,16 @@ namespace Quartz
         /// </summary>
         Task<IReadOnlyCollection<TriggerKey>> GetTriggerKeys(
             GroupMatcher<TriggerKey> matcher,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Get the names of all the <see cref="ITrigger" />s in the given
+        /// groups.
+        /// </summary>
+        Task<IReadOnlyCollection<TriggerKey>> GetTriggerKeys(
+            GroupMatcher<TriggerKey> matcher,
+            long? take,
+            long? skip,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -695,8 +767,8 @@ namespace Quartz
         /// based on the new trigger.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         Task AddCalendar(
-            string calName, 
-            ICalendar calendar, 
+            string calName,
+            ICalendar calendar,
             bool replace,
             bool updateTriggers,
             CancellationToken cancellationToken = default);
@@ -740,7 +812,7 @@ namespace Quartz
         /// <para>
         /// If you wish to interrupt a specific instance of a job (when more than
         /// one is executing) you can do so by calling 
-        /// <see cref="GetCurrentlyExecutingJobs" /> to obtain a handle 
+        /// <see cref="GetCurrentlyExecutingJobs(CancellationToken)" /> to obtain a handle 
         /// to the job instance, and then invoke <see cref="Interrupt(JobKey, CancellationToken)" /> on it
         /// yourself.
         /// </para>
@@ -753,7 +825,7 @@ namespace Quartz
         /// <returns> 
         /// true is at least one instance of the identified job was found and interrupted.
         /// </returns>
-        /// <seealso cref="GetCurrentlyExecutingJobs" />
+        /// <seealso cref="GetCurrentlyExecutingJobs(CancellationToken)" />
         Task<bool> Interrupt(JobKey jobKey, CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -765,7 +837,7 @@ namespace Quartz
         /// instances of the identified InterruptableJob currently executing in this 
         /// Scheduler instance, not across the entire cluster.
         /// </remarks>
-        /// <seealso cref="GetCurrentlyExecutingJobs" />
+        /// <seealso cref="GetCurrentlyExecutingJobs(CancellationToken)" />
         /// <seealso cref="IJobExecutionContext.FireInstanceId" />
         /// <seealso cref="Interrupt(JobKey, CancellationToken)" />
         /// <param name="fireInstanceId">
