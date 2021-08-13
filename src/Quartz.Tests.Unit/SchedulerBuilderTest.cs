@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 
 using NUnit.Framework;
 
@@ -113,12 +113,27 @@ namespace Quartz.Tests.Unit
             Assert.That(config.Properties["quartz.jobStore.dataSource"], Is.EqualTo("default"));
             
         }
+
         [Test]
         public void TestSQLiteJsobStore()
         {
             var config = SchedulerBuilder.Create();
             config.UsePersistentStore(options =>
                 options.UseSQLite("Server=localhost;Database=quartznet;")
+            );
+            Assert.That(config.Properties["quartz.dataSource.default.connectionString"], Is.EqualTo("Server=localhost;Database=quartznet;"));
+
+            Assert.That(config.Properties["quartz.jobStore.type"], Is.EqualTo(typeof(JobStoreTX).AssemblyQualifiedNameWithoutVersion()));
+            Assert.That(config.Properties["quartz.jobStore.driverDelegateType"], Is.EqualTo(typeof(SQLiteDelegate).AssemblyQualifiedNameWithoutVersion()));
+            Assert.That(config.Properties["quartz.jobStore.dataSource"], Is.EqualTo("default"));
+        }
+
+        [Test]
+        public void TestMicrosoftSQLiteJsobStore()
+        {
+            var config = SchedulerBuilder.Create();
+            config.UsePersistentStore(options =>
+                options.UseMicrosoftSQLite("Server=localhost;Database=quartznet;")
             );
             Assert.That(config.Properties["quartz.dataSource.default.connectionString"], Is.EqualTo("Server=localhost;Database=quartznet;"));
 
