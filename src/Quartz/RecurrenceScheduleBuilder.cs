@@ -11,8 +11,6 @@ namespace Quartz
     {
         private Recurrence? Recurrence;
         private int misfireInstruction = MisfireInstruction.SmartPolicy;
-        private DateTime startDateTime = DateTime.Now;
-        private DateTime? endDateTime = DateTime.MaxValue;
         private int? maxCount = null;
         protected RecurrenceScheduleBuilder(Recurrence recurrence)
         {
@@ -22,10 +20,7 @@ namespace Quartz
         {
             var trigger = new RecurrenceTriggerImpl();
             Recurrence!.MaximumOccurrences = maxCount ?? 0;
-            Recurrence.StartDateTime = startDateTime;
-            if(maxCount != null)
-                trigger.EndTimeUtc = endDateTime;
-
+            
             trigger.Recurrence = Recurrence;
             trigger.MisfireInstruction = misfireInstruction;
             return trigger;
@@ -41,7 +36,7 @@ namespace Quartz
         /// </summary>
         /// <param name="rule">The RecurrenceRule to based the RecurrenceSchedule on.</param>
         /// <returns>The new RecurrenceScheduleBuilder</returns>
-        public RecurrenceScheduleBuilder WithRecurrenceRuleString(string rule)
+        public static RecurrenceScheduleBuilder WithRecurrenceRuleString(string rule)
         {
             return RecurrenceSchedule(new Recurrence(rule));
         }
@@ -51,7 +46,7 @@ namespace Quartz
         /// </summary>
         /// <param name="recurrence">The Recurrence to based the RecurrenceSchedule on.</param>
         /// <returns>the new RecurrenceScheduleBuilder</returns>
-        public RecurrenceScheduleBuilder WithRecurrence(Recurrence recurrence)
+        public static RecurrenceScheduleBuilder WithRecurrence(Recurrence recurrence)
         {
             return RecurrenceSchedule(recurrence);
         }
@@ -61,7 +56,7 @@ namespace Quartz
         /// </summary>
         /// <param name="interval">The amount of hours between every occurence.</param>
         /// <returns>the new RecurrenceScheduleBuilder</returns>
-        public RecurrenceScheduleBuilder Hourly(int interval)
+        public static RecurrenceScheduleBuilder Hourly(int interval)
         {
             var recur = new Recurrence();
             recur.Frequency = RecurFrequency.Hourly;
@@ -74,7 +69,7 @@ namespace Quartz
         /// </summary>
         /// <param name="interval">The amount of days between every occurence.</param>
         /// <returns>the new RecurrenceScheduleBuilder</returns>
-        public RecurrenceScheduleBuilder Daily(int interval)
+        public static RecurrenceScheduleBuilder Daily(int interval)
         {
             var recur = new Recurrence();
             recur.RecurDaily(interval);
@@ -87,7 +82,7 @@ namespace Quartz
         /// <param name="daysOfWeek">The days of the Week the Recurrence should occur on.</param>
         /// <param name="interval">The amount of Week between every occurence.</param>
         /// <returns>the new RecurrenceScheduleBuilder</returns>
-        public RecurrenceScheduleBuilder WeeklyAtDays(DayOfWeek[] daysOfWeek, int interval)
+        public static RecurrenceScheduleBuilder WeeklyAtDays(DayOfWeek[] daysOfWeek, int interval)
         {
             if (!daysOfWeek.Any())
                 throw new ArgumentException("daysOfWeek cannot be empty", nameof(daysOfWeek));
@@ -130,7 +125,7 @@ namespace Quartz
         /// <param name="daysOfMonth">The days of the Month the Recurrence should occur on.</param>
         /// <param name="interval">The amount of Months between every occurence.</param>
         /// <returns>the new RecurrenceScheduleBuilder</returns>
-        public RecurrenceScheduleBuilder MonthlyAtDays(int[] daysOfMonth, int interval)
+        public static RecurrenceScheduleBuilder MonthlyAtDays(int[] daysOfMonth, int interval)
         {
             var recur = new Recurrence();
             recur.Frequency = RecurFrequency.Monthly;
@@ -144,38 +139,12 @@ namespace Quartz
         /// <param name="daysOfYear">The days of the Year the Recurrence should occur on.</param>
         /// <param name="interval">The amount of Years between every occurence.</param>
         /// <returns>the new RecurrenceScheduleBuilder</returns>
-        public RecurrenceScheduleBuilder YearlyAtDays(int[] daysOfYear, int interval)
+        public static RecurrenceScheduleBuilder YearlyAtDays(int[] daysOfYear, int interval)
         {
             var recur = new Recurrence();
             recur.Frequency = RecurFrequency.Yearly;
             recur.ByYearDay.AddRange(daysOfYear);
             return RecurrenceSchedule(recur);
-        }
-        
-        /// <summary>
-        /// Sets the start time of the recurrence, normally set to DateTime.Now
-        /// </summary>
-        /// <param name="startDate">The start time.</param>
-        /// <returns>The RecurrenceScheduleBuilder with the start time set accordingly</returns>
-        public RecurrenceScheduleBuilder WithStartDate(DateTime startDate)
-        {
-            startDateTime = startDate;
-            return this;
-        }
-        
-        /// <summary>
-        /// Sets the end time of the recurrence, normally set to DateTime.MaxValue
-        /// </summary>
-        /// <remarks>
-        /// If the number of maximum occurrences is set, this property is ignored
-        /// and the end time will be calculated based on the maximum number of occurrences.
-        /// </remarks>
-        /// <param name="endDate">The end time.</param>
-        /// <returns>The RecurrenceScheduleBuilder with the start time set accordingly</returns>
-        public RecurrenceScheduleBuilder WithEndDate(DateTime endDate)
-        {
-            endDateTime = endDate;
-            return this;
         }
         
         /// <summary>
@@ -221,6 +190,5 @@ namespace Quartz
             misfireInstruction = MisfireInstruction.RecurrenceTrigger.FireOnceNow;
             return this;
         }
-        
     }
 }

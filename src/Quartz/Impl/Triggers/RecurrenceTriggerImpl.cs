@@ -1,13 +1,11 @@
 ﻿using System;
 using System.Linq;
-
 using EWSoftware.PDI;
-using Quartz.Logging;
+
 namespace Quartz.Impl.Triggers
 {
     public class RecurrenceTriggerImpl : AbstractTrigger, IRecurrenceTrigger
     {
-        private static readonly ILog logger = LogProvider.GetLogger(typeof(CronTriggerImpl));
         public override bool HasMillisecondPrecision { get; }
         private static int YearToGiveUpSchedulingAt = 2299;
 
@@ -19,7 +17,6 @@ namespace Quartz.Impl.Triggers
         /// </remarks>
         public RecurrenceTriggerImpl()
         {
-            StartTimeUtc = SystemTime.UtcNow();
         }
         /// <summary>
         /// Create a <see cref="RecurrenceTriggerImpl"/> with the given name and default group.
@@ -30,7 +27,6 @@ namespace Quartz.Impl.Triggers
         /// <param name="name">The name of the <see cref="ITrigger"/></param>
         public RecurrenceTriggerImpl(string name) : base(name, null)
         {
-            StartTimeUtc = SystemTime.UtcNow();
         }
         /// <summary>
         /// Create a <see cref="RecurrenceTriggerImpl"/> with the given name and group.
@@ -42,7 +38,6 @@ namespace Quartz.Impl.Triggers
         /// <param name="group">The name of the group of the <see cref="ITrigger"/></param>
         public RecurrenceTriggerImpl(string name, string group) : base(name, group)
         {
-            StartTimeUtc = SystemTime.UtcNow();
         }
         /// <summary>
         /// Create a <see cref="RecurrenceTriggerImpl"/> with the given name, group and RecurrenceRule
@@ -63,7 +58,6 @@ namespace Quartz.Impl.Triggers
         /// <param name="recurrence">The Recurrence describing the firing pattern of the <see cref="ITrigger"/></param>
         public RecurrenceTriggerImpl(string name, string group, Recurrence recurrence) : base(name, group)
         {
-            StartTimeUtc = SystemTime.UtcNow();
             Recurrence = recurrence;
         }
         /// <summary>
@@ -93,7 +87,6 @@ namespace Quartz.Impl.Triggers
         /// <param name="recurrence">A Recurrence describing the firing pattern of <see cref="ITrigger"/></param>
         public RecurrenceTriggerImpl(string name, string group, string jobName, string jobGroup, Recurrence recurrence) : base(name, group, jobName, jobGroup)
         {
-            StartTimeUtc = SystemTime.UtcNow();
             Recurrence = recurrence;
         }
         /// <summary>
@@ -157,9 +150,8 @@ namespace Quartz.Impl.Triggers
         public RecurrenceTriggerImpl(string name, string group, string jobName, string jobGroup, DateTimeOffset startTimeUtc, DateTimeOffset? endTimeUtc, Recurrence recurrence) 
             : base(name, group, jobName, jobGroup)
         {
-            StartTimeUtc = SystemTime.UtcNow();
+            recurrence.StartDateTime = startTimeUtc.DateTime;
             Recurrence = recurrence;
-            StartTimeUtc = (startTimeUtc == DateTimeOffset.MinValue) ? SystemTime.UtcNow() : startTimeUtc;
             if (endTimeUtc.HasValue)
             {
                 EndTimeUtc = endTimeUtc;
@@ -179,7 +171,7 @@ namespace Quartz.Impl.Triggers
         /// The Recurrence describing the firing of the <see cref="ITrigger"/>
         /// </summary>
         public Recurrence? Recurrence { get; set; }
-
+    
         /// <summary>
         /// Sets or gets the StartTime of the <see cref="Recurrence"/>
         /// </summary>
@@ -196,14 +188,19 @@ namespace Quartz.Impl.Triggers
             get => Recurrence!.RecurUntil;
             set
             {
-                if (value < StartTimeUtc)
-                    Recurrence!.RecurUntil = value!.Value.DateTime;
-                else
-                    throw new ArgumentException("EndTime cannot be smaller than StartTime", nameof(EndTimeUtc));
+                if (value.HasValue && value < StartTimeUtc)
+                {
+                    throw new ArgumentException("End time cannot be before start time");
+                }
+
+                if (value.HasValue)
+                {
+                    Recurrence!.RecurUntil = value.Value.DateTime;
+                }
             }
         }
-        private DateTimeOffset? nextFireTimeUtc { get; set; }
-        private DateTimeOffset? previousFireTimeUtc { get; set; }
+        private DateTimeOffset? NextFireTimeUtc { get; set; }
+        private DateTimeOffset? PreviousFireTimeUtc { get; set; }
         
         /// <summary>
         /// Set nextFireTime to the provided DateTime
@@ -211,7 +208,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="nextFireTime">The provided FireTime</param>
         public override void SetNextFireTimeUtc(DateTimeOffset? nextFireTime)
         {
-            nextFireTimeUtc = nextFireTime;
+            NextFireTimeUtc = nextFireTime;
         }
         
         /// <summary>
@@ -220,7 +217,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="previousFireTime">The provided FireTime</param>
         public override void SetPreviousFireTimeUtc(DateTimeOffset? previousFireTime)
         {
-            this.previousFireTimeUtc = previousFireTime;
+            this.PreviousFireTimeUtc = previousFireTime;
         }
         /// <summary>
         /// Gets previousFireTime
@@ -228,7 +225,7 @@ namespace Quartz.Impl.Triggers
         /// <returns></returns>
         public override DateTimeOffset? GetPreviousFireTimeUtc()
         {
-            return previousFireTimeUtc;
+            return PreviousFireTimeUtc;
         }
         /// <summary>
         /// Gets nextFireTime
@@ -236,7 +233,7 @@ namespace Quartz.Impl.Triggers
         /// <returns></returns>
         public override DateTimeOffset? GetNextFireTimeUtc()
         {
-            return nextFireTimeUtc;
+            return NextFireTimeUtc;
         }
         
         /// <summary>
@@ -248,7 +245,8 @@ namespace Quartz.Impl.Triggers
         {
             try
             {
-                return Recurrence!.AllInstances().OrderBy(x => x).First(occurrence => occurrence > afterTime);
+                var instances = Recurrence!.AllInstances();
+                return instances.OrderBy(x => x).First(occurrence => occurrence > afterTime);
             }
             catch(InvalidOperationException)
             {
@@ -292,13 +290,13 @@ namespace Quartz.Impl.Triggers
         /// <seealso cref="JobExecutionException" />
         public override void Triggered(ICalendar? cal)
         {
-            previousFireTimeUtc = nextFireTimeUtc;
-            nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+            PreviousFireTimeUtc = NextFireTimeUtc;
+            NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
             
             // Make sure that NextFireTime is not included in the calendar
-            while (nextFireTimeUtc.HasValue && cal != null && cal.IsTimeIncluded(nextFireTimeUtc.Value))
+            while (NextFireTimeUtc.HasValue && cal != null && cal.IsTimeIncluded(NextFireTimeUtc.Value))
             {
-                nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+                NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
             }
         }
         
@@ -314,10 +312,10 @@ namespace Quartz.Impl.Triggers
             // Make sure that NextFireTime is not included in the calendar
             while (nextFireTime.HasValue && cal != null && cal.IsTimeIncluded(nextFireTime.Value))
             {
-                nextFireTime = GetFireTimeAfter(this.nextFireTimeUtc);
+                nextFireTime = GetFireTimeAfter(this.NextFireTimeUtc);
             }
 
-            return nextFireTimeUtc;
+            return nextFireTime;
         }
         
         /// <summary>
@@ -358,7 +356,7 @@ namespace Quartz.Impl.Triggers
                     break;
                 case Quartz.MisfireInstruction.RecurrenceTrigger.DoNothing:
                     SetNextFireTimeUtc(SystemTime.UtcNow());
-                    SetNextFireTimeUtc(ComputeFirstFireTimeUtc(cal));
+                    UpdateWithNewCalendar(cal!, TimeSpan.Zero);
                     break;
             }
         }
@@ -370,24 +368,24 @@ namespace Quartz.Impl.Triggers
         /// <param name="misfireThreshold">The misfire threshold.</param>
         public override void UpdateWithNewCalendar(ICalendar cal, TimeSpan misfireThreshold)
         {
-            nextFireTimeUtc = GetFireTimeAfter(previousFireTimeUtc);
+            NextFireTimeUtc = GetFireTimeAfter(PreviousFireTimeUtc);
 
-            if (!nextFireTimeUtc.HasValue || cal == null)
+            if (!NextFireTimeUtc.HasValue || cal == null)
                 return;
 
-            while (nextFireTimeUtc.HasValue && !cal.IsTimeIncluded(nextFireTimeUtc.Value))
+            while (NextFireTimeUtc.HasValue && !cal.IsTimeIncluded(NextFireTimeUtc.Value))
             {
-                nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+                NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
 
-                if (!nextFireTimeUtc.HasValue || nextFireTimeUtc.Value.Year > YearToGiveUpSchedulingAt)
+                if (!NextFireTimeUtc.HasValue || NextFireTimeUtc.Value.Year > YearToGiveUpSchedulingAt)
                     return;
 
-                if (nextFireTimeUtc.HasValue && nextFireTimeUtc.Value < DateTime.Now)
+                if (NextFireTimeUtc.HasValue && NextFireTimeUtc.Value < DateTime.Now)
                 {
-                    TimeSpan diff = DateTime.Now - nextFireTimeUtc.Value;
+                    TimeSpan diff = DateTime.Now - NextFireTimeUtc.Value;
                     if (diff >= misfireThreshold)
                     {
-                        nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+                        NextFireTimeUtc = GetFireTimeAfter(NextFireTimeUtc);
                     }
                 }
             }
