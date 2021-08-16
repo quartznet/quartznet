@@ -24,7 +24,7 @@ namespace Quartz.Tests.Unit
                 .Build();
             var instance = ((RecurrenceTriggerImpl) trigger).ComputeFirstFireTimeUtc(null);
             var expectedTime = new DateTimeOffset(2021, 8, 16, 12, 0, 0, new TimeSpan(0, +2, 0, 0));
-            Assert.AreEqual(expectedTime, instance.Value);
+            Assert.AreEqual(expectedTime.DateTime, instance.Value!.DateTime);
             expectedTime = new DateTimeOffset(2021, 8, 18, 12, 0, 0, new TimeSpan(0, +2, 0, 0));
             Assert.AreEqual(expectedTime, trigger.GetFireTimeAfter(instance));
             Assert.AreEqual(new DateTime(2021, 8, 30, 12, 0, 0), ((RecurrenceTriggerImpl)trigger).Recurrence!.RecurUntil);
