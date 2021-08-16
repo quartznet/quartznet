@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -592,6 +592,9 @@ namespace Quartz
             configurer.Invoke(adoProviderOptions);
         }
 
+        /// <summary>
+        /// Configures the scheduler to use System.Data.Sqlite data source provider.
+        /// </summary>        
         public static void UseSQLite(
             this SchedulerBuilder.PersistentStoreOptions options,
             string connectionString)
@@ -599,13 +602,44 @@ namespace Quartz
             options.UseSQLite(c => c.ConnectionString = connectionString);
         }
 
+        /// <summary>
+        /// Configures the scheduler to use System.Data.Sqlite data source provider.
+        /// </summary>
         public static void UseSQLite(
             this SchedulerBuilder.PersistentStoreOptions options,
             Action<SchedulerBuilder.AdoProviderOptions> configurer)
         {
+            options.UseSQLite("SQLite", configurer);
+        }
+
+        /// <summary>
+        /// Configures the scheduler to use Microsoft.Data.Sqlite data source provider.
+        /// </summary>        
+        public static void UseMicrosoftSQLite(
+            this SchedulerBuilder.PersistentStoreOptions options,
+            string connectionString)
+        {
+            options.UseMicrosoftSQLite(c => c.ConnectionString = connectionString);
+        }
+
+        /// <summary>
+        /// Configures the scheduler to use System.Data.Sqlite data source provider.
+        /// </summary>
+        public static void UseMicrosoftSQLite(
+            this SchedulerBuilder.PersistentStoreOptions options,
+            Action<SchedulerBuilder.AdoProviderOptions> configurer)
+        {
+            options.UseSQLite("SQLite-Microsoft", configurer);
+        }
+
+        private static void UseSQLite(
+            this SchedulerBuilder.PersistentStoreOptions options,
+            string provider,
+            Action<SchedulerBuilder.AdoProviderOptions> configurer)
+        {
             options.SetProperty("quartz.jobStore.driverDelegateType", typeof(SQLiteDelegate).AssemblyQualifiedNameWithoutVersion());
             options.SetProperty("quartz.jobStore.dataSource", SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName);
-            options.SetProperty($"quartz.dataSource.{SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}.provider", "SQLite");
+            options.SetProperty($"quartz.dataSource.{SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}.provider", provider);
 
             var adoProviderOptions = new SchedulerBuilder.AdoProviderOptions(options);
             configurer.Invoke(adoProviderOptions);
