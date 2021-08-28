@@ -19,10 +19,15 @@
 
 #endregion
 
+using System;
+using System.Threading.Tasks;
+
 using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Job;
+using Quartz.Simpl;
+using Quartz.Util;
 
 #if REMOTING
 using Quartz.Tests.Unit.Utils;
@@ -78,5 +83,25 @@ namespace Quartz.Tests.Unit
             Assert.That(detail.Name, Is.EqualTo("name"));
             Assert.That(detail.Group, Is.EqualTo("group"));
         }
+        
+        [Test]
+        public void GenericJobTypeShouldBeLoadable()
+        {
+            var type = typeof(GenericJob<IJobSubType>);
+            var typeString = type.AssemblyQualifiedNameWithoutVersion();
+            var loadedType = new SimpleTypeLoadHelper().LoadType(typeString);
+
+            Assert.That(typeString, Is.Not.Contains(", Version="));
+            
+            Assert.That(loadedType, Is.Not.Null);
+            Assert.That(loadedType, Is.EqualTo(type));
+        }
+
+        public class GenericJob<T> : IJob
+        {
+            public Task Execute(IJobExecutionContext context) => Task.CompletedTask;
+        }
+        
+        public interface IJobSubType { }
     }
 }
