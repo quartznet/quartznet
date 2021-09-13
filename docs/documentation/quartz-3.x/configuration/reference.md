@@ -194,7 +194,7 @@ The logging trigger history plugin catches trigger events (it is also a trigger 
 
 **Sample configuration of Logging Trigger History Plugin**
 ```
-quartz.plugin.triggHistory.type = Quartz.Plugins.History.LoggingTriggerHistoryPlugin, Quartz.Plugins
+quartz.plugin.triggHistory.type = Quartz.Plugin.History.LoggingTriggerHistoryPlugin, Quartz.Plugins
 quartz.plugin.triggHistory.triggerFiredMessage = Trigger {1}.{0} fired job {6}.{5} at: {4:HH:mm:ss MM/dd/yyyy}
 quartz.plugin.triggHistory.triggerCompleteMessage = Trigger {1}.{0} completed firing job {6}.{5} at {4:HH:mm:ss MM/dd/yyyy} with resulting trigger instruction code: {9}
 ```
@@ -218,7 +218,7 @@ The shutdown-hook plugin catches the event of the CLR terminating, and calls shu
 
 **Sample configuration of ShutdownHookPlugin**
 ```
-quartz.plugin.shutdownhook.type = Quartz.Plugins.Management.ShutdownHookPlugin, Quartz.Plugins
+quartz.plugin.shutdownhook.type = Quartz.Plugin.Management.ShutdownHookPlugin, Quartz.Plugins
 quartz.plugin.shutdownhook.cleanShutdown = true
 ```
 
