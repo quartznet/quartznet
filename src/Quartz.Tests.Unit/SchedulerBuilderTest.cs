@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Data.Common;
 
 using NUnit.Framework;
 
 using Quartz.Impl.AdoJobStore;
+using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Plugin.TimeZoneConverter;
 using Quartz.Plugin.Xml;
 using Quartz.Simpl;
@@ -41,6 +43,7 @@ namespace Quartz.Tests.Unit
                 {
                     db.ConnectionString = "Server=localhost;Database=quartznet;";
                     db.TablePrefix = "QRTZ2019_";
+                    db.UseConnectionProvider<CustomConnectionProvider>();
                 });
             });
             Assert.That(config.Properties["quartz.dataSource.default.connectionString"], Is.EqualTo("Server=localhost;Database=quartznet;"));
@@ -52,6 +55,33 @@ namespace Quartz.Tests.Unit
             Assert.That(config.Properties["quartz.jobStore.clusterCheckinInterval"], Is.EqualTo("10000"));
             Assert.That(config.Properties["quartz.jobStore.clusterCheckinMisfireThreshold"], Is.EqualTo("15000"));
             Assert.That(config.Properties["quartz.jobStore.dbRetryInterval"], Is.EqualTo("20000"));
+
+            Assert.That(config.Properties["quartz.dataSource.default.connectionProvider.type"], Is.EqualTo("Quartz.Tests.Unit.SchedulerBuilderTest+CustomConnectionProvider, Quartz.Tests.Unit"));
+        }
+
+        public class CustomConnectionProvider : IDbProvider
+        {
+            public void Initialize()
+            {
+                throw new NotImplementedException();
+            }
+
+            public DbCommand CreateCommand()
+            {
+                throw new NotImplementedException();
+            }
+
+            public DbConnection CreateConnection()
+            {
+                throw new NotImplementedException();
+            }
+
+            public string ConnectionString { get; set; }
+            public DbMetadata Metadata { get; }
+            public void Shutdown()
+            {
+                throw new NotImplementedException();
+            }
         }
 
         [Test]
@@ -100,7 +130,7 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
-        public void TestOracleJsobStore()
+        public void TestOracleJobStore()
         {
             var config = SchedulerBuilder.Create();
             config.UsePersistentStore(s =>
@@ -111,11 +141,11 @@ namespace Quartz.Tests.Unit
             Assert.That(config.Properties["quartz.jobStore.type"], Is.EqualTo(typeof(JobStoreTX).AssemblyQualifiedNameWithoutVersion()));
             Assert.That(config.Properties["quartz.jobStore.driverDelegateType"], Is.EqualTo(typeof(OracleDelegate).AssemblyQualifiedNameWithoutVersion()));
             Assert.That(config.Properties["quartz.jobStore.dataSource"], Is.EqualTo("default"));
-            
+
         }
 
         [Test]
-        public void TestSQLiteJsobStore()
+        public void TestSQLiteJobStore()
         {
             var config = SchedulerBuilder.Create();
             config.UsePersistentStore(options =>
@@ -129,7 +159,7 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
-        public void TestMicrosoftSQLiteJsobStore()
+        public void TestMicrosoftSQLiteJobStore()
         {
             var config = SchedulerBuilder.Create();
             config.UsePersistentStore(options =>

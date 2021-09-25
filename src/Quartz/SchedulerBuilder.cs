@@ -25,6 +25,7 @@ using System.Threading.Tasks;
 
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
+using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
@@ -492,6 +493,14 @@ namespace Quartz
             {
                 options.SetProperty("quartz.jobStore.driverDelegateType", typeof(T).AssemblyQualifiedNameWithoutVersion());
             }
+
+            /// <summary>
+            /// Use given connection provider.
+            /// </summary>
+            public void UseConnectionProvider<T>() where T : IDbProvider
+            {
+                options.SetProperty($"quartz.dataSource.{DefaultDataSourceName}.connectionProvider.type", typeof(T).AssemblyQualifiedNameWithoutVersion());
+            }
         }
     }
 
@@ -594,7 +603,7 @@ namespace Quartz
 
         /// <summary>
         /// Configures the scheduler to use System.Data.Sqlite data source provider.
-        /// </summary>        
+        /// </summary>
         public static void UseSQLite(
             this SchedulerBuilder.PersistentStoreOptions options,
             string connectionString)
@@ -614,7 +623,7 @@ namespace Quartz
 
         /// <summary>
         /// Configures the scheduler to use Microsoft.Data.Sqlite data source provider.
-        /// </summary>        
+        /// </summary>
         public static void UseMicrosoftSQLite(
             this SchedulerBuilder.PersistentStoreOptions options,
             string connectionString)

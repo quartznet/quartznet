@@ -446,11 +446,12 @@ Each DataSource you define (typically one or two) must be given a name, and the 
 
 Quartz-created DataSources are defined with the following properties:
 
-|Property Name                              | Required| Type            | Default Value|
-|-------------------------------------------|---------|-----------------|--------------|
-|quartz.dataSource.NAME.provider            | yes     | string          |              |
-|quartz.dataSource.NAME.connectionString    |         | string          |              |
-|quartz.dataSource.NAME.connectionStringName|         | string          |              |
+|Property Name                                 | Required| Type            | Default Value|
+|----------------------------------------------|---------|-----------------|--------------|
+|quartz.dataSource.NAME.provider               | yes     | string          |              |
+|quartz.dataSource.NAME.connectionString       |         | string          |              |
+|quartz.dataSource.NAME.connectionStringName   |         | string          |              |
+|quartz.dataSource.NAME.connectionProvider.type|         | string          |              |
 
 ### `quartz.dataSource.NAME.provider`
 
@@ -472,6 +473,10 @@ ADO.NET connection string to use. You can skip this if you are using connectionS
 ### `quartz.dataSource.NAME.connectionStringName`
 
 Connection string name to use. Defined either in app.config or appsettings.json.
+
+### `quartz.dataSource.NAME.connectionProvider.type`
+
+Allows you to define a custom connection provider implementing IDbProvider interface.
 
 **Example of a Quartz-defined DataSource**
 ```
