@@ -6,11 +6,10 @@ using Microsoft.Extensions.Options;
 
 namespace Quartz
 {
-    internal class QuartzHostedService : IHostedService
+    internal class QuartzHostedService : BackgroundService
     {
         private readonly ISchedulerFactory schedulerFactory;
         private readonly IOptions<QuartzHostedServiceOptions> options;
-        private IScheduler scheduler = null!;
 
         public QuartzHostedService(
             ISchedulerFactory schedulerFactory,
@@ -20,25 +19,30 @@ namespace Quartz
             this.options = options;
         }
 
-        public async Task StartAsync(CancellationToken cancellationToken)
+        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            scheduler = await schedulerFactory.GetScheduler(cancellationToken);
+            var scheduler = await schedulerFactory.GetScheduler(stoppingToken);
 
             if (options.Value.StartDelay.HasValue)
             {
-                await scheduler.StartDelayed(options.Value.StartDelay.Value, cancellationToken);
+                await scheduler.StartDelayed(options.Value.StartDelay.Value, stoppingToken);
             }
             else
             {
-                await scheduler.Start(cancellationToken);
+                await scheduler.Start(stoppingToken);
             }
+
+            await WhenStopping(stoppingToken);
+
+            await scheduler.Shutdown(options.Value.WaitForJobsToComplete, CancellationToken.None);
         }
 
-        public async Task StopAsync(CancellationToken cancellationToken)
+        async Task WhenStopping(CancellationToken stoppingToken)
         {
-            if (scheduler != null)
+            var tcs = new TaskCompletionSource<object?>();
+            using (stoppingToken.Register(() => tcs.SetResult(null)))
             {
-                await scheduler.Shutdown(options.Value.WaitForJobsToComplete, cancellationToken);
+                await tcs.Task;
             }
         }
     }
