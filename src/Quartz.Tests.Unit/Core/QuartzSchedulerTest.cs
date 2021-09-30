@@ -105,7 +105,7 @@ namespace Quartz.Tests.Unit.Core
             IScheduler sched = await sf.GetScheduler();
             await sched.StartDelayed(TimeSpan.FromMilliseconds(100));
             Assert.IsFalse(sched.IsStarted);
-            await Task.Delay(200);
+            await Task.Delay(500);
             Assert.IsTrue(sched.IsStarted);
         }
 
