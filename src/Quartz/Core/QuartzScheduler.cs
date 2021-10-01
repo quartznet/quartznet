@@ -394,7 +394,7 @@ namespace Quartz.Core
                 throw new SchedulerException(
                     "The Scheduler cannot be restarted after Shutdown() has been called.");
             }
-            return Task.Run(async () =>
+            Task.Run(async () =>
             {
                 await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
 
@@ -407,6 +407,8 @@ namespace Quartz.Core
                     log.ErrorException("Unable to start scheduler after startup delay.", se);
                 }
             }, cancellationToken);
+
+            return Task.CompletedTask;
         }
 
         /// <summary>

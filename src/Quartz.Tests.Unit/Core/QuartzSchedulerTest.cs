@@ -103,9 +103,9 @@ namespace Quartz.Tests.Unit.Core
             var sf = new StdSchedulerFactory(properties);
 
             IScheduler sched = await sf.GetScheduler();
-            var task = sched.StartDelayed(TimeSpan.FromSeconds(2));
+            await sched.StartDelayed(TimeSpan.FromMilliseconds(100));
             Assert.IsFalse(sched.IsStarted);
-            await task;
+            await Task.Delay(1000);
             Assert.IsTrue(sched.IsStarted);
         }
 
