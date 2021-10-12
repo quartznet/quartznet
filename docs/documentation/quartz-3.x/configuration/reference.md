@@ -365,12 +365,12 @@ You can have multiple sets of Quartz’s tables within the same database if they
 
 **Including schema name in tablePrefix**
 
-For backing databases that support schemas (such as Microsoft SQL Server), you may use the tablePrefix to include the schema name.  i.e. for a schema named `foo` the prefix could set as:
+For backing databases that support schemas (such as Microsoft SQL Server), you may use the tablePrefix to include the schema name.  i.e. for a schema named `foo` the prefix could be set as:
 ```
 [foo].QRTZ_
 ```
 
-**Note:** Any Create scripts that were run with an explicit schema (such as `dbo`), will need to be modified to reflect this configuration.
+**Note:** Any database table create scripts that were run with an explicit schema (such as `dbo`), will need to be modified to reflect this configuration.
 
 ### `quartz.jobStore.useProperties`
 
