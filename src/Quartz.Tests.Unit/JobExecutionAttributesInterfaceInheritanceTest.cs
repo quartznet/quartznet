@@ -10,22 +10,26 @@ using System.Threading.Tasks;
 namespace Quartz.Tests.Unit
 {
     /// <summary>
-    /// Integration test for using DisallowConcurrentExecution attribute in Interfaces.
+    /// Integration test for inheritance DisallowConcurrentExecutionAttribute
+    /// and PersistJobDataAfterExecutionAttribute from interfaces
     /// </summary>
+    /// <seealso cref="DisallowConcurrentExecutionAttribute"/>
+    /// <seealso cref="PersistJobDataAfterExecutionAttribute"/>
     /// <author>Oleg Kurbatov</author>
     /// <author>Aleksei Kuznetsov</author>
     [TestFixture]
-    public class DisallowConcurrentJobExecutionOnInterfacesTest
+    public class JobExecutionAttributesInterfaceInheritanceTest
     {
         private static readonly TimeSpan jobBlockTime = TimeSpan.FromMilliseconds(300);
         private static readonly List<DateTime> jobExecDates = new List<DateTime>();
         private static readonly AutoResetEvent barrier = new AutoResetEvent(false);
         
+        [PersistJobDataAfterExecution]
         [DisallowConcurrentExecution]
         public interface ITestJob : IJob
         {
         }
-
+        
         public class TestJob : ITestJob
         {
             public async Task Execute(IJobExecutionContext context)
@@ -76,15 +80,19 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
+        public void TestWhetherAttributesAreInheritedFromInterfaces()
+        {
+            IJobDetail job = JobBuilder.Create<TestJob>().Build();
+            Assert.IsTrue(job.PersistJobDataAfterExecution);
+            Assert.IsTrue(job.ConcurrentExecutionDisallowed);
+        }
+        
+        [Test]
         public async Task TestNoConcurrentExecOnSameJob()
         {
             var startTime = DateTime.Now.AddMilliseconds(100).ToUniversalTime(); // make the triggers fire at the same time.
 
-            IJobDetail job = JobBuilder.Create<TestJob>()
-                .IncludeInheritedAttributes()
-                .Build();
-
-            Assert.IsTrue(job.ConcurrentExecutionDisallowed);
+            IJobDetail job = JobBuilder.Create<TestJob>().Build();
 
             ITrigger trigger1 = TriggerBuilder.Create().WithSimpleSchedule().StartAt(startTime).Build();
             ITrigger trigger2 = TriggerBuilder.Create().WithSimpleSchedule().StartAt(startTime).ForJob(job).Build();
@@ -115,11 +123,7 @@ namespace Quartz.Tests.Unit
         {
             var startTime = DateTimeOffset.UtcNow.AddMilliseconds(300); // make the triggers fire at the same time.
 
-            var job = JobBuilder.Create<TestJob>()
-                .IncludeInheritedAttributes()
-                .Build();
-
-            Assert.IsTrue(job.ConcurrentExecutionDisallowed);
+            var job = JobBuilder.Create<TestJob>().Build();
 
             var trigger1 = TriggerBuilder.Create().WithSimpleSchedule().StartAt(startTime).Build();
             var trigger2 = TriggerBuilder.Create().WithSimpleSchedule().StartAt(startTime).ForJob(job).Build();

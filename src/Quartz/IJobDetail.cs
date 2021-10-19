@@ -83,12 +83,6 @@ namespace Quartz
         bool Durable { get; }
 
         /// <summary>
-        /// Set whether or not <see cref="IJobDetail"/> should do recursive searching of attributes
-        /// in implemented interfaces
-        /// </summary>
-        bool IncludeInheritedAttributes { get; }
-
-        /// <summary>
         /// Whether the associated Job class carries the <see cref="PersistJobDataAfterExecutionAttribute" />.
         /// </summary>
         /// <seealso cref="PersistJobDataAfterExecutionAttribute" />
