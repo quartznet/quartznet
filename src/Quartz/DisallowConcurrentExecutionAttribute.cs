@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  * 
@@ -33,7 +33,7 @@ namespace Quartz
     /// <seealso cref="PersistJobDataAfterExecutionAttribute" />
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
-    [AttributeUsage(AttributeTargets.Class)]
+    [AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface)]
     public class DisallowConcurrentExecutionAttribute : Attribute
     {
     }

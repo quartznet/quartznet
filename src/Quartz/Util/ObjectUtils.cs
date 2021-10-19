@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * Copyright 2009- Marko Lahma
@@ -248,6 +248,19 @@ namespace Quartz.Util
         public static bool IsAttributePresent(Type typeToExamine, Type attributeType)
         {
             return typeToExamine.GetTypeInfo().GetCustomAttributes(attributeType, true).Any();
+        }
+
+        public static bool IsAnyInterfaceAttributePresent(Type typeToExamine, Type attributeType)
+        {
+            if (IsAttributePresent(typeToExamine, attributeType))
+                return true;
+
+            foreach (var type in typeToExamine.GetInterfaces())
+            {
+                if (IsAnyInterfaceAttributePresent(type, attributeType))
+                    return true;
+            }
+            return false;
         }
     }
 }

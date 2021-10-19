@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /* 
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -81,6 +81,12 @@ namespace Quartz
         /// <see langword="true" /> if the Job should remain persisted after being orphaned.
         /// </returns>
         bool Durable { get; }
+
+        /// <summary>
+        /// Set whether or not <see cref="IJobDetail"/> should do recursive searching of attributes
+        /// in implemented interfaces
+        /// </summary>
+        bool IncludeInheritedAttributes { get; }
 
         /// <summary>
         /// Whether the associated Job class carries the <see cref="PersistJobDataAfterExecutionAttribute" />.

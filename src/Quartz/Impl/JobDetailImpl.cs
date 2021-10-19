@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -290,14 +290,21 @@ namespace Quartz.Impl
         public bool Durable { get; set; }
 
         /// <summary>
-        /// Whether the associated Job class carries the <see cref="PersistJobDataAfterExecution" /> attribute.
+        /// Determine will be attributes also searched in object interfaces
+        /// </summary>
+        public bool IncludeInheritedAttributes { get; set; }
+
+        /// <summary>
+        /// Whether the associated Job class carries the <see cref="PersistJobDataAfterExecutionAttribute" /> attribute.
         /// </summary>
         public virtual bool PersistJobDataAfterExecution => ObjectUtils.IsAttributePresent(jobType, typeof(PersistJobDataAfterExecutionAttribute));
 
         /// <summary>
         /// Whether the associated Job class carries the <see cref="DisallowConcurrentExecutionAttribute" /> attribute.
         /// </summary>
-        public virtual bool ConcurrentExecutionDisallowed => ObjectUtils.IsAttributePresent(jobType, typeof(DisallowConcurrentExecutionAttribute));
+        public virtual bool ConcurrentExecutionDisallowed => IncludeInheritedAttributes
+            ? ObjectUtils.IsAnyInterfaceAttributePresent(jobType, typeof(DisallowConcurrentExecutionAttribute))
+            : ObjectUtils.IsAttributePresent(jobType, typeof(DisallowConcurrentExecutionAttribute));
 
         /// <summary>
         /// Validates whether the properties of the <see cref="IJobDetail" /> are

@@ -70,6 +70,7 @@ namespace Quartz
         private Type jobType = null!;
         private bool durability;
         private bool shouldRecover;
+        private bool isInheritedAttributesIncluded;
 
         private JobDataMap jobDataMap = new JobDataMap();
 
@@ -146,7 +147,7 @@ namespace Quartz
             job.Key = key;
             job.Durable = durability;
             job.RequestsRecovery = shouldRecover;
-
+            job.IncludeInheritedAttributes = isInheritedAttributesIncluded;
 
             if (!jobDataMap.IsEmpty)
             {
@@ -386,6 +387,17 @@ namespace Quartz
         public JobBuilder SetJobData(JobDataMap? newJobDataMap)
         {
             jobDataMap = newJobDataMap ?? throw new ArgumentNullException(nameof(newJobDataMap));
+            return this;
+        }
+        
+        /// <summary>
+        /// Add possibility to search attributes in object interfaces by recursion
+        /// </summary>
+        /// <param name="isIncluded"></param>
+        /// <returns>the updated TriggerBuilder</returns>
+        public JobBuilder IncludeInheritedAttributes(bool isIncluded = true)
+        {
+            isInheritedAttributesIncluded = isIncluded;
             return this;
         }
     }
