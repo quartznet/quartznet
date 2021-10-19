@@ -147,7 +147,6 @@ namespace Quartz
             job.Durable = durability;
             job.RequestsRecovery = shouldRecover;
 
-
             if (!jobDataMap.IsEmpty)
             {
                 job.JobDataMap = jobDataMap;

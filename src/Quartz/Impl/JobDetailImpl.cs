@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Reflection;
 
@@ -27,6 +28,19 @@ using Quartz.Util;
 
 namespace Quartz.Impl
 {
+    /// <summary>
+    /// Model for saving attribute's information in cache
+    /// Used in key/value pair with <see cref="IJobDetail.JobType"/> as a value
+    /// and show presence of attributes of specified type
+    /// </summary>
+    /// <seealso cref="DisallowConcurrentExecutionAttribute"/>
+    /// <seealso cref="PersistJobDataAfterExecutionAttribute"/>
+    internal class JobTypeInformation
+    {
+        internal bool ConcurrentExecutionDisallowed { get; set; }
+        internal bool PersistJobDataAfterExecution { get; set; }
+    }
+
     /// <summary>
     /// Conveys the detail properties of a given job instance.
     /// </summary>
@@ -53,6 +67,8 @@ namespace Quartz.Impl
     [Serializable]
     public class JobDetailImpl : IJobDetail
     {
+        private static readonly ConcurrentDictionary<Type, JobTypeInformation> jobTypeCache = new ConcurrentDictionary<Type, JobTypeInformation>();
+
         private string name = null!;
         private string group = SchedulerConstants.DefaultGroup;
         private string? description;
@@ -290,14 +306,14 @@ namespace Quartz.Impl
         public bool Durable { get; set; }
 
         /// <summary>
-        /// Whether the associated Job class carries the <see cref="PersistJobDataAfterExecution" /> attribute.
+        /// Whether the associated Job class carries the <see cref="PersistJobDataAfterExecutionAttribute" /> attribute.
         /// </summary>
-        public virtual bool PersistJobDataAfterExecution => ObjectUtils.IsAttributePresent(jobType, typeof(PersistJobDataAfterExecutionAttribute));
+        public virtual bool PersistJobDataAfterExecution => jobTypeCache.GetOrAdd(this.jobType, GetJobTypeInformation).PersistJobDataAfterExecution;
 
         /// <summary>
         /// Whether the associated Job class carries the <see cref="DisallowConcurrentExecutionAttribute" /> attribute.
         /// </summary>
-        public virtual bool ConcurrentExecutionDisallowed => ObjectUtils.IsAttributePresent(jobType, typeof(DisallowConcurrentExecutionAttribute));
+        public virtual bool ConcurrentExecutionDisallowed => jobTypeCache.GetOrAdd(this.jobType, GetJobTypeInformation).ConcurrentExecutionDisallowed;
 
         /// <summary>
         /// Validates whether the properties of the <see cref="IJobDetail" /> are
@@ -423,6 +439,23 @@ namespace Quartz.Impl
                 .WithIdentity(Key);
 
             return b;
+        }
+
+        /// <summary>
+        /// Return information about JobType as an instance
+        /// </summary>
+        /// <param name="jobType">The type for which information will be searched</param>
+        /// <returns>
+        /// An <see cref="JobTypeInformation"/> object that describe specified type 
+        /// </returns>
+        /// <seealso cref="jobType"/>
+        private JobTypeInformation GetJobTypeInformation(Type jobType)
+        {
+            return new JobTypeInformation
+            {
+                PersistJobDataAfterExecution = ObjectUtils.IsAnyInterfaceAttributePresent(jobType, typeof(PersistJobDataAfterExecutionAttribute)),
+                ConcurrentExecutionDisallowed = ObjectUtils.IsAnyInterfaceAttributePresent(jobType, typeof(DisallowConcurrentExecutionAttribute))
+            };
         }
     }
 }
