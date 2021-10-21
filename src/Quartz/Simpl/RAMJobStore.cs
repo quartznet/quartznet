@@ -455,7 +455,7 @@ namespace Quartz.Simpl
                     RemoveTriggerInternal(newTrigger.Key, removeOrphanedJob: false);
                 }
 
-                if (RetrieveJobInternal(newTrigger.JobKey) == null)
+                if (!CheckExistsInternal(newTrigger.JobKey))
                 {
                     throw new JobPersistenceException("The job (" + newTrigger.JobKey +
                                                       ") referenced by the trigger does not exist.");
@@ -684,6 +684,19 @@ namespace Quartz.Simpl
             CancellationToken cancellationToken = default)
         {
             return Task.FromResult(jobsByKey.ContainsKey(jobKey));
+        }
+
+        /// <summary>
+        /// Determine whether a <see cref="IJob"/> with the given identifier already
+        /// exists within the scheduler.
+        /// </summary>
+        /// <param name="jobKey">the identifier to check for</param>
+        /// <returns>
+        /// <see langword="true"/> if a job exists with the given identifier; otherwise <see langword="false"/>.
+        /// </returns>
+        private bool CheckExistsInternal(JobKey jobKey)
+        {
+            return jobsByKey.ContainsKey(jobKey);
         }
 
         /// <summary>
