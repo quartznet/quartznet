@@ -1098,6 +1098,23 @@ namespace Quartz.Simpl
         }
 
         /// <summary>
+        /// Gets the trigger wrappers for job.
+        /// </summary>
+        /// <returns></returns>
+        /// <remarks>
+        /// This method should only be executed while holding the instance level lock.
+        /// </remarks>
+        private List<TriggerWrapper> GetTriggerWrappersForJobInternal(JobKey jobKey)
+        {
+            if (triggersByJob.TryGetValue(jobKey, out var jobList))
+            {
+                return jobList;
+            }
+
+            return new List<TriggerWrapper>();
+        }
+
+        /// <summary>
         /// Gets the trigger wrappers for calendar.
         /// </summary>
         /// <param name="calName">Name of the cal.</param>
@@ -1740,8 +1757,7 @@ namespace Quartz.Simpl
 
                     if (job.ConcurrentExecutionDisallowed)
                     {
-                        IEnumerable<TriggerWrapper> trigs = GetTriggerWrappersForJob(job.Key);
-                        foreach (TriggerWrapper ttw in trigs)
+                        foreach (TriggerWrapper ttw in GetTriggerWrappersForJobInternal(job.Key))
                         {
                             if (ttw.state == InternalTriggerState.Waiting)
                             {
@@ -1809,8 +1825,8 @@ namespace Quartz.Simpl
                     if (jd.ConcurrentExecutionDisallowed)
                     {
                         blockedJobs.Remove(jd.Key);
-                        IEnumerable<TriggerWrapper> trigs = GetTriggerWrappersForJob(jd.Key);
-                        foreach (TriggerWrapper ttw in trigs)
+
+                        foreach (TriggerWrapper ttw in GetTriggerWrappersForJobInternal(jd.Key))
                         {
                             if (ttw.state == InternalTriggerState.Blocked)
                             {
@@ -1915,13 +1931,16 @@ namespace Quartz.Simpl
         public bool Clustered => false;
 
         public virtual TimeSpan GetAcquireRetryDelay(int failureCount) => TimeSpan.FromMilliseconds(20);
-        
+
         /// <summary>
         /// Sets the state of all triggers of job to specified state.
         /// </summary>
+        /// <remarks>
+        /// This method should only be executed while holding the instance level lock.
+        /// </remarks>
         protected virtual void SetAllTriggersOfJobToState(JobKey jobKey, InternalTriggerState state)
         {
-            foreach (TriggerWrapper tw in GetTriggerWrappersForJob(jobKey))
+            foreach (TriggerWrapper tw in GetTriggerWrappersForJobInternal(jobKey))
             {
                 tw.state = state;
                 if (state != InternalTriggerState.Waiting)
