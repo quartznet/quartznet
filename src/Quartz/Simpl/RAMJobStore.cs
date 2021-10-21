@@ -547,7 +547,7 @@ namespace Quartz.Simpl
                     {
                         JobWrapper jw = jobsByKey[tw.JobKey];
                         var trigs = GetTriggersForJobInternal(tw.JobKey);
-                        if ((trigs == null || trigs.Count == 0) && !jw.JobDetail.Durable)
+                        if (trigs.Length == 0 && !jw.JobDetail.Durable)
                         {
                             if (RemoveJobInternal(jw.Key))
                             {
@@ -1051,25 +1051,25 @@ namespace Quartz.Simpl
             JobKey jobKey,
             CancellationToken cancellationToken = default)
         {
-            return Task.FromResult(GetTriggersForJobInternal(jobKey));
+            return Task.FromResult<IReadOnlyCollection<IOperableTrigger>>(GetTriggersForJobInternal(jobKey));
         }
 
-        private IReadOnlyCollection<IOperableTrigger> GetTriggersForJobInternal(JobKey jobKey)
+        private IOperableTrigger[] GetTriggersForJobInternal(JobKey jobKey)
         {
             lock (lockObject)
             {
                 if (triggersByJob.TryGetValue(jobKey, out var jobList))
                 {
-                    var trigList = new List<IOperableTrigger>(jobList.Count);
-                    foreach (var tw in jobList)
+                    var trigList = new IOperableTrigger[jobList.Count];
+                    for (var i = 0; i < jobList.Count; i++)
                     {
-                        trigList.Add((IOperableTrigger) tw.Trigger.Clone());
+                        trigList[i] = (IOperableTrigger) jobList[i].Trigger.Clone();
                     }
                     return trigList;
                 }
             }
 
-            return new List<IOperableTrigger>();
+            return Array.Empty<IOperableTrigger>();
         }
 
         /// <summary>
