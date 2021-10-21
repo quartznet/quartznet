@@ -898,14 +898,14 @@ namespace Quartz.Simpl
             GroupMatcher<JobKey> matcher,
             CancellationToken cancellationToken = default)
         {
-            return Task.FromResult(GetJobKeysInternal(matcher));
+            return Task.FromResult<IReadOnlyCollection<JobKey>>(GetJobKeysInternal(matcher));
         }
 
-        private IReadOnlyCollection<JobKey> GetJobKeysInternal(GroupMatcher<JobKey> matcher)
+        private HashSet<JobKey> GetJobKeysInternal(GroupMatcher<JobKey> matcher)
         {
             lock (lockObject)
             {
-                HashSet<JobKey>? outList = null;
+                HashSet<JobKey> outList = new HashSet<JobKey>();
                 StringOperator op = matcher.CompareWithOperator;
                 string compareToValue = matcher.CompareToValue;
 
@@ -914,8 +914,6 @@ namespace Quartz.Simpl
                     jobsByGroup.TryGetValue(compareToValue, out var grpMap);
                     if (grpMap != null)
                     {
-                        outList = new HashSet<JobKey>();
-
                         foreach (JobWrapper jw in grpMap.Values)
                         {
                             if (jw != null)
@@ -931,10 +929,6 @@ namespace Quartz.Simpl
                     {
                         if (op.Evaluate(entry.Key, compareToValue) && entry.Value != null)
                         {
-                            if (outList == null)
-                            {
-                                outList = new HashSet<JobKey>();
-                            }
                             foreach (JobWrapper jobWrapper in entry.Value.Values)
                             {
                                 if (jobWrapper != null)
@@ -945,7 +939,7 @@ namespace Quartz.Simpl
                         }
                     }
                 }
-                return outList ?? new HashSet<JobKey>();
+                return outList;
             }
         }
 
