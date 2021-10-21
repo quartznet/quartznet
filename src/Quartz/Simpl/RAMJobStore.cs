@@ -374,13 +374,15 @@ namespace Quartz.Simpl
                 // make sure there are no collisions...
                 if (!replace)
                 {
-                    foreach (IJobDetail job in triggersAndJobs.Keys)
+                    foreach (var triggersByJob in triggersAndJobs)
                     {
+                        var job = triggersByJob.Key;
+
                         if (jobsByKey.ContainsKey(job.Key))
                         {
                             throw new ObjectAlreadyExistsException(job);
                         }
-                        foreach (ITrigger trigger in triggersAndJobs[job])
+                        foreach (ITrigger trigger in triggersByJob.Value)
                         {
                             if (triggersByKey.ContainsKey(trigger.Key))
                             {
@@ -390,10 +392,10 @@ namespace Quartz.Simpl
                     }
                 }
                 // do bulk add...
-                foreach (IJobDetail job in triggersAndJobs.Keys)
+                foreach (var triggersByJob in triggersAndJobs)
                 {
-                    StoreJobInternal(job, true);
-                    foreach (ITrigger trigger in triggersAndJobs[job])
+                    StoreJobInternal(triggersByJob.Key, true);
+                    foreach (ITrigger trigger in triggersByJob.Value)
                     {
                         StoreTriggerInternal((IOperableTrigger) trigger, true);
                     }
