@@ -156,12 +156,19 @@ namespace Quartz.Util
                 return 0;
             }
 
-            if (ReferenceEquals(group, DefaultGroup))
+            if (o is null)
             {
-                return -1;
+                return 1;
             }
 
-            if (o is null || ReferenceEquals(o.group, DefaultGroup))
+            if (ReferenceEquals(group, DefaultGroup))
+            {
+                if (!ReferenceEquals(o.group, DefaultGroup))
+                {
+                    return -1;
+                }
+            }
+            else if (ReferenceEquals(o.group, DefaultGroup))
             {
                 return 1;
             }
