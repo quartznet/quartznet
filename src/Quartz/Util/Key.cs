@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -151,16 +151,17 @@ namespace Quartz.Util
 
         public int CompareTo(Key<T>? o)
         {
-            if (o is null)
+            if (ReferenceEquals(this, o))
             {
-                return 1;
+                return 0;
             }
-            
-            if (group.Equals(DefaultGroup) && !o.group.Equals(DefaultGroup))
+
+            if (ReferenceEquals(group, DefaultGroup))
             {
                 return -1;
             }
-            if (!group.Equals(DefaultGroup) && o.group.Equals(DefaultGroup))
+
+            if (o is null || ReferenceEquals(o.group, DefaultGroup))
             {
                 return 1;
             }
