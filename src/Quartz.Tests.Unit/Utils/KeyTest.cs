@@ -1,5 +1,6 @@
 ﻿using NUnit.Framework;
 using Quartz.Util;
+using System;
 using System.IO;
 using System.Runtime.Serialization.Formatters;
 using System.Runtime.Serialization.Formatters.Binary;
@@ -33,6 +34,59 @@ namespace Quartz.Tests.Unit.Utils
                 0x6f, 0x75, 0x70, 0x01, 0x01, 0x02, 0x00, 0x00, 0x00, 0x06, 0x03, 0x00, 0x00, 0x00, 0x01,
                 0x41, 0x06, 0x04, 0x00, 0x00, 0x00, 0x01, 0x42, 0x0b
             };
+
+        [Test]
+        public void Ctor_Name_IsNotNull()
+        {
+            const string name = "X";
+
+            var key = new Key<string>(name);
+
+            Assert.AreSame(name, key.Name);
+            Assert.AreSame(Key<string>.DefaultGroup, key.Group);
+        }
+
+        [Test]
+        public void Ctor_Name_NameIsNull()
+        {
+            const string name = null;
+
+            var actualException = Assert.Throws<ArgumentNullException>(() => new Key<string>(name));
+            Assert.AreEqual("name", actualException.ParamName);
+        }
+
+        [Test]
+        public void Ctor_NameAndGroup()
+        {
+            const string name = "Name";
+            const string group = "Group";
+
+            var key = new Key<string>(name, group);
+
+            Assert.AreSame(name, key.Name);
+            Assert.AreSame(group, key.Group);
+        }
+
+        [Test]
+        public void Ctor_NameAndGroup_NameIsNull()
+        {
+            const string name = null;
+            const string group = "Group";
+
+            var actualException = Assert.Throws<ArgumentNullException>(() => new Key<string>(name, group));
+            Assert.AreEqual("name", actualException.ParamName);
+        }
+
+        [Test]
+        public void Ctor_NameAndGroup_GroupIsNull()
+        {
+            const string name = "Name";
+            const string group = null;
+
+            var key = new Key<string>(name, group);
+            Assert.AreSame(name, key.Name);
+            Assert.AreSame(Key<string>.DefaultGroup, key.Group);
+        }
 
         [Test]
         public void DefaultGroupIsDefault()
