@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -20,6 +20,7 @@
 #endregion
 
 using System;
+using System.Globalization;
 
 namespace Quartz.Util
 {
@@ -155,23 +156,31 @@ namespace Quartz.Util
             {
                 return 1;
             }
-            
-            if (group.Equals(DefaultGroup) && !o.group.Equals(DefaultGroup))
+
+            if (!ReferenceEquals(group, o.group))
             {
-                return -1;
-            }
-            if (!group.Equals(DefaultGroup) && o.group.Equals(DefaultGroup))
-            {
-                return 1;
+                if (DefaultGroup.Equals(group) && !DefaultGroup.Equals(o.group))
+                {
+                    return -1;
+                }
+                if (!DefaultGroup.Equals(group) && DefaultGroup.Equals(o.group))
+                {
+                    return 1;
+                }
+
+                int r = CultureInfo.CurrentCulture.CompareInfo.Compare(group, o.group, CompareOptions.None);
+                if (r != 0)
+                {
+                    return r;
+                }
             }
 
-            int r = group.CompareTo(o.Group);
-            if (r != 0)
+            if (ReferenceEquals(name, o.name))
             {
-                return r;
+                return 0;
             }
 
-            return name.CompareTo(o.Name);
+            return CultureInfo.CurrentCulture.CompareInfo.Compare(name, o.name, CompareOptions.None);
         }
     }
 }
