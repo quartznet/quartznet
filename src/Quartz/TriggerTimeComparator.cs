@@ -15,13 +15,23 @@ namespace Quartz
     {
         public int Compare(ITrigger? trig1, ITrigger? trig2)
         {
-            if (trig1 == null && trig2 == null)
+            if (ReferenceEquals(trig1, trig2))
             {
                 return 0;
             }
-            
-            var t1 = trig1!.GetNextFireTimeUtc();
-            var t2 = trig2!.GetNextFireTimeUtc();
+
+            if (trig1 == null)
+            {
+                return 1;
+            }
+
+            if (trig2 == null)
+            {
+                return -1;
+            }
+
+            var t1 = trig1.GetNextFireTimeUtc();
+            var t2 = trig2.GetNextFireTimeUtc();
 
             if (t1 != null || t2 != null)
             {
@@ -29,20 +39,19 @@ namespace Quartz
                 {
                     return 1;
                 }
-
+                
                 if (t2 == null)
                 {
                     return -1;
                 }
 
-                if (t1 < t2)
+                // Use GetValueOrDefault() to avoid going through expensive Nullable<T>.Value.
+                // In .NET 6.0, the JIT has been improved but since we also support other and
+                // older CLRs...
+                var result = t1.GetValueOrDefault().CompareTo(t2.GetValueOrDefault());
+                if (result != 0)
                 {
-                    return -1;
-                }
-
-                if (t1 > t2)
-                {
-                    return 1;
+                    return result;
                 }
             }
 
