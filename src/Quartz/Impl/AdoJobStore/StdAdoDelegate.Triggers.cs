@@ -210,8 +210,7 @@ namespace Quartz.Impl.AdoJobStore
                         DateTimeOffset scheduledTime = GetDateTimeFromDbValue(rs[ColumnScheduledTime]) ?? DateTimeOffset.MinValue;
                         SimpleTriggerImpl rcvryTrig = new SimpleTriggerImpl("recover_" + instanceId + "_" + Convert.ToString(dumId++, CultureInfo.InvariantCulture),
                             SchedulerConstants.DefaultRecoveryGroup, scheduledTime);
-                        rcvryTrig.JobName = jobName;
-                        rcvryTrig.JobGroup = jobGroup;
+                        rcvryTrig.JobKey = new JobKey(jobName, jobGroup);
                         rcvryTrig.Priority = priority;
                         rcvryTrig.MisfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
 

@@ -223,7 +223,8 @@ namespace Quartz.Impl.Triggers
         /// will be set to the system's default time zone.
         /// </remarks>
         /// <param name="name">The name of the <see cref="ITrigger" /></param>
-        public CronTriggerImpl(string name) : this(name, null)
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
+        public CronTriggerImpl(string name) : this(name, SchedulerConstants.DefaultGroup)
         {
         }
 
@@ -236,7 +237,8 @@ namespace Quartz.Impl.Triggers
         /// </remarks>
         /// <param name="name">The name of the <see cref="ITrigger" /></param>
         /// <param name="group">The group of the <see cref="ITrigger" /></param>
-        public CronTriggerImpl(string name, string? group) : base(name, group)
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
+        public CronTriggerImpl(string name, string group) : base(name, group)
         {
             StartTimeUtc = SystemTime.UtcNow();
             TimeZone = TimeZoneInfo.Local;
@@ -253,6 +255,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="name">The name of the <see cref="ITrigger" /></param>
         /// <param name="group">The group of the <see cref="ITrigger" /></param>
         /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="ITrigger" /></param>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
         public CronTriggerImpl(string name, string group, string cronExpression) : base(name, group)
         {
             CronExpressionString = cronExpression;
@@ -272,6 +275,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="group">The group of the <see cref="ITrigger" /></param>
         /// <param name="jobName">name of the <see cref="IJobDetail" /> executed on firetime</param>
         /// <param name="jobGroup">Group of the <see cref="IJobDetail" /> executed on firetime</param>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="group"/>, <paramref name="jobName"/> or <paramref name="jobGroup"/> are <see langword="null"/>.</exception>
         public CronTriggerImpl(string name, string group, string jobName,
             string jobGroup) : base(name, group, jobName, jobGroup)
         {
@@ -293,6 +297,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="jobName">name of the <see cref="IJobDetail" /> executed on firetime</param>
         /// <param name="jobGroup">Group of the <see cref="IJobDetail" /> executed on firetime</param>
         /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="ITrigger" /></param>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="group"/>, <paramref name="jobName"/> or <paramref name="jobGroup"/> are <see langword="null"/>.</exception>
         public CronTriggerImpl(string name, string group, string jobName,
             string jobGroup, string cronExpression)
             : this(name, group, jobName, jobGroup, SystemTime.UtcNow(), null, cronExpression, TimeZoneInfo.Local)
@@ -313,6 +318,7 @@ namespace Quartz.Impl.Triggers
         /// Specifies for which time zone the cronExpression should be interpreted,
         /// i.e. the expression 0 0 10 * * ?, is resolved to 10:00 am in this time zone.
         /// </param>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="group"/>, <paramref name="jobName"/> or <paramref name="jobGroup"/> are <see langword="null"/>.</exception>
         public CronTriggerImpl(string name, string group, string jobName,
             string jobGroup, string cronExpression, TimeZoneInfo timeZone)
             : this(name, group, jobName, jobGroup, SystemTime.UtcNow(), null, cronExpression,
@@ -335,6 +341,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="startTimeUtc">A <see cref="DateTimeOffset" /> set to the earliest time for the  <see cref="ITrigger" /> to start firing.</param>
         /// <param name="endTime">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to quit repeat firing.</param>
         /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="ITrigger" /></param>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="group"/>, <paramref name="jobName"/> or <paramref name="jobGroup"/> are <see langword="null"/>.</exception>
         public CronTriggerImpl(string name, string group, string jobName,
             string jobGroup, DateTimeOffset startTimeUtc,
             DateTimeOffset? endTime,
@@ -372,6 +379,7 @@ namespace Quartz.Impl.Triggers
         /// Specifies for which time zone the cronExpression should be interpreted,
         /// i.e. the expression 0 0 10 * * ?, is resolved to 10:00 am in this time zone.
         /// </param>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="group"/>, <paramref name="jobName"/> or <paramref name="jobGroup"/> are <see langword="null"/>.</exception>
         public CronTriggerImpl(string name, string group, string jobName,
             string jobGroup, DateTimeOffset startTimeUtc,
             DateTimeOffset? endTime,

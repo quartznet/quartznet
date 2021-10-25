@@ -28,9 +28,8 @@ namespace Quartz.Tests.Unit.Impl.Triggers
 
             AbstractTrigger cloned = trigger.DeepClone();
 
-            Assert.That(cloned.Name, Is.EqualTo(trigger.Name));
-            Assert.That(cloned.Group, Is.EqualTo(trigger.Group));
             Assert.That(cloned.Key, Is.EqualTo(trigger.Key));
+            Assert.That(cloned.JobKey, Is.EqualTo(trigger.JobKey));
         }
 
         [Serializable]
