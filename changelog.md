@@ -2,6 +2,21 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+## Release 4.0.0, T.B.D
+
+* BREAKING CHANGES
+
+	* **JobKey** and **TriggerKey** now throw an **ArgumentNullException** when you specify **null** for _name_ or _group_ (#1359)
+	* The following properties have been removed from **AbstractTrigger** as they represent information that is already available 
+    through the **Key** and **JobKey** properties:
+		* Name
+		* GroupName
+		* JobName
+		* JobGroup
+		* FullName
+
+	* Triggers can no longer be constructed with a **null** group name (#1359)
+
 ## Release 3.3.3, Aug 1 2021
 
 This is a maintenance release mostly fixing some smaller bugs and improving DI API story.
