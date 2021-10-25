@@ -16,8 +16,7 @@ namespace Quartz.Benchmark
         private StdScheduler scheduler;
         private JobRunShell shell;
 
-        [GlobalSetup]
-        public void Setup()
+        public JobDispatchBenchmark()
         {
             scheduler = (StdScheduler) new StdSchedulerFactory().GetScheduler().GetAwaiter().GetResult();
             var job = JobBuilder.Create<NoOpJob>().Build();
