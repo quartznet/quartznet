@@ -59,6 +59,7 @@ namespace Quartz.Impl.Triggers
         /// Create a <see cref="SimpleTriggerImpl" /> that will occur immediately, and
         /// not repeat.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
         public SimpleTriggerImpl(string name) : this(name, SchedulerConstants.DefaultGroup)
         {
         }
@@ -67,6 +68,7 @@ namespace Quartz.Impl.Triggers
         /// Create a <see cref="SimpleTriggerImpl" /> that will occur immediately, and
         /// not repeat.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
         public SimpleTriggerImpl(string name, string group)
             : this(name, group, SystemTime.UtcNow(), null, 0, TimeSpan.Zero)
         {
@@ -76,8 +78,9 @@ namespace Quartz.Impl.Triggers
         /// Create a <see cref="SimpleTriggerImpl" /> that will occur immediately, and
         /// repeat at the given interval the given number of times.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
         public SimpleTriggerImpl(string name, int repeatCount, TimeSpan repeatInterval)
-            : this(name, null, repeatCount, repeatInterval)
+            : this(name, SchedulerConstants.DefaultGroup, repeatCount, repeatInterval)
         {
         }
 
@@ -85,7 +88,8 @@ namespace Quartz.Impl.Triggers
         /// Create a <see cref="SimpleTriggerImpl" /> that will occur immediately, and
         /// repeat at the given interval the given number of times.
         /// </summary>
-        public SimpleTriggerImpl(string name, string? group, int repeatCount, TimeSpan repeatInterval)
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
+        public SimpleTriggerImpl(string name, string group, int repeatCount, TimeSpan repeatInterval)
             : this(name, group, SystemTime.UtcNow(), null, repeatCount, repeatInterval)
         {
         }
@@ -94,8 +98,9 @@ namespace Quartz.Impl.Triggers
         /// Create a <see cref="SimpleTriggerImpl" /> that will occur at the given time,
         /// and not repeat.
         /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
         public SimpleTriggerImpl(string name, DateTimeOffset startTimeUtc)
-            : this(name, null, startTimeUtc)
+            : this(name, SchedulerConstants.DefaultGroup, startTimeUtc)
         {
         }
 
@@ -103,7 +108,8 @@ namespace Quartz.Impl.Triggers
         /// Create a <see cref="SimpleTriggerImpl" /> that will occur at the given time,
         /// and not repeat.
         /// </summary>
-        public SimpleTriggerImpl(string name, string? group, DateTimeOffset startTimeUtc)
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
+        public SimpleTriggerImpl(string name, string group, DateTimeOffset startTimeUtc)
             : this(name, group, startTimeUtc, null, 0, TimeSpan.Zero)
         {
         }
@@ -120,9 +126,10 @@ namespace Quartz.Impl.Triggers
         /// <param name="repeatCount">The number of times for the <see cref="ITrigger" /> to repeat
         /// firing, use <see cref="RepeatIndefinitely "/> for unlimited times.</param>
         /// <param name="repeatInterval">The time span to pause between the repeat firing.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
         public SimpleTriggerImpl(string name, DateTimeOffset startTimeUtc,
             DateTimeOffset? endTimeUtc, int repeatCount, TimeSpan repeatInterval)
-            : this(name, null, startTimeUtc, endTimeUtc, repeatCount, repeatInterval)
+            : this(name, SchedulerConstants.DefaultGroup, startTimeUtc, endTimeUtc, repeatCount, repeatInterval)
         {
         }
 
@@ -139,9 +146,10 @@ namespace Quartz.Impl.Triggers
         /// <param name="repeatCount">The number of times for the <see cref="ITrigger" /> to repeat
         /// firing, use <see cref="RepeatIndefinitely "/> for unlimited times.</param>
         /// <param name="repeatInterval">The time span to pause between the repeat firing.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
         public SimpleTriggerImpl(
 	        string name,
-	        string? group,
+	        string group,
 	        DateTimeOffset startTimeUtc,
             DateTimeOffset? endTimeUtc,
 	        int repeatCount,
@@ -170,6 +178,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="repeatCount">The number of times for the <see cref="ITrigger" /> to repeat
         /// firing, use RepeatIndefinitely for unlimited times.</param>
         /// <param name="repeatInterval">The time span to pause between the repeat firing.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="group"/>, <paramref name="jobName"/> or <paramref name="jobGroup"/> are <see langword="null"/>.</exception>
         public SimpleTriggerImpl(string name, string group, string jobName, string jobGroup, DateTimeOffset startTimeUtc,
                  DateTimeOffset? endTimeUtc,
                  int repeatCount, TimeSpan repeatInterval)

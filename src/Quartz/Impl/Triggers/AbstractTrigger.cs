@@ -55,164 +55,35 @@ namespace Quartz.Impl.Triggers
     [Serializable]
     public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTrigger>
 	{
-        private string name = null!;
-        private string group = SchedulerConstants.DefaultGroup;
-        private string jobName = null!;
-        private string jobGroup = SchedulerConstants.DefaultGroup;
-	    private JobDataMap jobDataMap = null!;
+        private TriggerKey? key;
+        private JobKey? jobKey;
+        private JobDataMap jobDataMap = null!;
 
 	    private int misfireInstruction = Quartz.MisfireInstruction.InstructionNotSet;
 
         private DateTimeOffset? endTimeUtc;
         private DateTimeOffset startTimeUtc;
 
-        [NonSerialized] // we have the key in string fields
-        private TriggerKey? key;
-
-		/// <summary>
-        /// Get or sets the name of this <see cref="ITrigger" />.
-		/// </summary>
-		/// <exception cref="ArgumentException">If name is null or empty.</exception>
-		public string Name
-		{
-			get => name;
-		    set
-			{
-				if (string.IsNullOrWhiteSpace(value))
-				{
-					throw new ArgumentException("Trigger name cannot be null or empty.");
-				}
-
-				name = value;
-                key = null;
-			}
-		}
-
-		/// <summary>
-		/// Get the group of this <see cref="ITrigger" />. If <see langword="null" />, Scheduler.DefaultGroup will be used.
-		/// </summary>
-		/// <exception cref="ArgumentException">
-		/// if group is an empty string.
-		/// </exception>
-		public string Group
-		{
-			get => group;
-		    set
-			{
-				if (value != null && value.Trim().Length == 0)
-				{
-					throw new ArgumentException("Group name cannot be an empty string.");
-				}
-
-				if (value == null)
-				{
-					value = SchedulerConstants.DefaultGroup;
-				}
-
-				group = value;
-			    key = null;
-			}
-		}
-
-		/// <summary>
-		/// Get or set the name of the associated <see cref="IJobDetail" />.
-		/// </summary>
-		/// <exception cref="ArgumentException">
-		/// if jobName is null or empty.
-		/// </exception>
-		public string JobName
-		{
-			get => jobName;
-		    set
-			{
-				if (string.IsNullOrWhiteSpace(value))
-				{
-					throw new ArgumentException("Job name cannot be null or empty.");
-				}
-
-				jobName = value;
-			}
-		}
-
-		/// <summary>
-		/// Gets or sets the name of the associated <see cref="IJobDetail" />'s
-		/// group. If set with <see langword="null" />, Scheduler.DefaultGroup will be used.
-		/// </summary>
-		/// <exception cref="ArgumentException"> ArgumentException
-		/// if group is an empty string.
-		/// </exception>
-		public string JobGroup
-		{
-			get => jobGroup;
-		    set
-			{
-				if (value != null && value.Trim().Length == 0)
-				{
-					throw new ArgumentException("Group name cannot be null or empty.");
-				}
-
-				if (value == null)
-				{
-					value = SchedulerConstants.DefaultGroup;
-				}
-
-				jobGroup = value;
-			}
-		}
-
-		/// <summary>
-		/// Returns the 'full name' of the <see cref="ITrigger" /> in the format
-		/// "group.name".
-		/// </summary>
-		public virtual string FullName => group + "." + name;
 
 	    /// <summary>
-		/// Gets the key.
+		/// Gets or sets the key of the trigger.
 		/// </summary>
-		/// <value>The key.</value>
-        public virtual TriggerKey Key
+		/// <value>The key of the trigger.</value>
+        public TriggerKey Key
 		{
-		    get
-			{
-				if(key == null)
-				{
-                    key = new TriggerKey(Name, Group);
-				}
-
-				return key;
-			}
-
-            set
-            {
-                Name = value.Name;
-                Group = value.Group;
-                key = value;
-            }
+		    get { return key!; }
+            set { key = value; }
 		}
 
-	    public JobKey JobKey
-	    {
-	        set
-	        {
-	            JobName = value.Name;
-	            JobGroup = value.Group;
-	        }
-	        get
-	        {
-                if (JobName == null)
-                {
-	                // rare condition when trigger is not fully initialized
-                    return null!;
-                }
-                return new JobKey(JobName, JobGroup);
-	        }
-	    }
-
-	    /// <summary>
-		/// Returns the 'full name' of the <see cref="IJob" /> that the <see cref="ITrigger" />
-		/// points to, in the format "group.name".
-		/// </summary>
-		public virtual string FullJobName => jobGroup + "." + jobName;
+        /// <summary>
+        /// Gets or sets the key of the job.
+        /// </summary>
+        /// <value>The key of the job.</value>
+        public JobKey JobKey
+        {
+            get { return jobKey!; }
+            set { jobKey = value; }
+        }
 
 	    public TriggerBuilder GetTriggerBuilder()
 	    {
@@ -387,29 +258,26 @@ namespace Quartz.Impl.Triggers
 			get;
 		}
 
-		/// <summary>
+        /// <summary>
         /// Create a <see cref="ITrigger" /> with no specified name, group, or <see cref="IJobDetail" />.
-		/// </summary>
-		/// <remarks>
-		/// Note that the <see cref="Name" />, <see cref="Group" /> and
-		/// the <see cref="JobName" /> and <see cref="JobGroup" /> properties
-		/// must be set before the <see cref="ITrigger" /> can be placed into a
-		/// <see cref="IScheduler" />.
+        /// </summary>
+        /// <remarks>
+        /// Note that <see cref="Key" /> and <see cref="JobKey" /> must be set before
+        /// the <see cref="ITrigger" /> can be placed into a <see cref="IScheduler" />.
         /// </remarks>
-		protected AbstractTrigger()
+        protected AbstractTrigger()
 		{
-			// do nothing...
 		}
 
         /// <summary>
         /// Create a <see cref="ITrigger" /> with the given name, and default group.
         /// </summary>
         /// <remarks>
-        /// Note that the <see cref="JobName" /> and <see cref="JobGroup" />
-        /// properties must be set before the <see cref="ITrigger" />
+        /// Note that <see cref="JobKey" /> must be set before the <see cref="ITrigger" />
         /// can be placed into a <see cref="IScheduler" />.
         /// </remarks>
         /// <param name="name">The name.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
         protected AbstractTrigger(string name) : this(name, SchedulerConstants.DefaultGroup)
         {
         }
@@ -418,16 +286,15 @@ namespace Quartz.Impl.Triggers
         /// Create a <see cref="ITrigger" /> with the given name, and group.
         /// </summary>
         /// <remarks>
-        /// Note that the <see cref="JobName" /> and <see cref="JobGroup" />
-        /// properties must be set before the <see cref="ITrigger" />
+        /// Note that <see cref="JobKey" /> must be set before the <see cref="ITrigger" />
         /// can be placed into a <see cref="IScheduler" />.
         /// </remarks>
         /// <param name="name">The name.</param>
-        /// <param name="group">if <see langword="null" />, Scheduler.DefaultGroup will be used.</param>
-        protected AbstractTrigger(string name, string? group)
+        /// <param name="group">The group.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
+        protected AbstractTrigger(string name, string group)
 		{
-			Name = name;
-			Group = group!;
+			key = new TriggerKey(name, group);
 		}
 
         /// <summary>
@@ -437,15 +304,11 @@ namespace Quartz.Impl.Triggers
         /// <param name="group">if <see langword="null" />, Scheduler.DefaultGroup will be used.</param>
         /// <param name="jobName">Name of the job.</param>
         /// <param name="jobGroup">The job group.</param>
-        /// <exception cref="ArgumentException"> ArgumentException
-        /// if name is null or empty, or the group is an empty string.
-        /// </exception>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="group"/>, <paramref name="jobName"/> or <paramref name="jobGroup"/> are <see langword="null"/>.</exception>
         protected AbstractTrigger(string name, string group, string jobName, string jobGroup)
 		{
-			Name = name;
-			Group = group;
-			JobName = jobName;
-			JobGroup = jobGroup;
+            key = new TriggerKey(name, group);
+            jobKey = new JobKey(jobName, jobGroup);
 		}
 
 		/// <summary>
@@ -611,24 +474,14 @@ namespace Quartz.Impl.Triggers
 		/// </summary>
 		public virtual void Validate()
 		{
-			if (name == null)
+			if (key == null)
 			{
-				throw new SchedulerException("Trigger's name cannot be null");
+				throw new SchedulerException("Trigger's key cannot be null");
 			}
 
-			if (group == null)
+			if (jobKey == null)
 			{
-				throw new SchedulerException("Trigger's group cannot be null");
-			}
-
-			if (jobName == null)
-			{
-				throw new SchedulerException("Trigger's related Job's name cannot be null");
-			}
-
-			if (jobGroup == null)
-			{
-				throw new SchedulerException("Trigger's related Job's group cannot be null");
+				throw new SchedulerException("Trigger's job key cannot be null");
 			}
 		}
 
@@ -656,7 +509,7 @@ namespace Quartz.Impl.Triggers
 				string.Format(
                     CultureInfo.InvariantCulture,
 					"Trigger '{0}':  triggerClass: '{1} calendar: '{2}' misfireInstruction: {3} nextFireTime: {4}",
-					FullName, GetType().FullName, CalendarName, MisfireInstruction, GetNextFireTimeUtc());
+					key?.ToString(), GetType().FullName, CalendarName, MisfireInstruction, GetNextFireTimeUtc());
 		}
 
 	    /// <summary>
@@ -668,20 +521,20 @@ namespace Quartz.Impl.Triggers
 	    /// <returns></returns>
         public virtual int CompareTo(ITrigger? other)
         {
-	        if ((other == null || other.Key == null) && Key == null)
-	        {
-	            return 0;
-	        }
-	        if (other == null || other.Key == null)
-	        {
-	            return -1;
-	        }
-	        if (Key == null)
-	        {
-	            return 1;
-	        }
+            if ((other == null || other.Key == null) && Key == null)
+            {
+                return 0;
+            }
+            if (other == null || other.Key == null)
+            {
+                return -1;
+            }
+            if (Key == null)
+            {
+                return 1;
+            }
 
-	        return Key.CompareTo(other.Key);
+            return Key.CompareTo(other.Key);
         }
 
         /// <summary>

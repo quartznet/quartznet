@@ -6,6 +6,12 @@ namespace Quartz
     internal static class ExceptionHelper
     {
         [DoesNotReturn]
+        public static void ThrowArgumentNullException(string paramName)
+        {
+            throw new ArgumentNullException(paramName);
+        }
+
+        [DoesNotReturn]
         public static void ThrowArgumentNullException(string? paramName, string? message)
         {
             throw new ArgumentNullException(paramName, message);
