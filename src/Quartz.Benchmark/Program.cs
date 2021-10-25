@@ -16,7 +16,6 @@ namespace Quartz.Benchmark
         private static void DispatchBenchmark()
         {
             var benchmark = new JobDispatchBenchmark();
-            benchmark.Setup();
             benchmark.Run().GetAwaiter().GetResult();
 
             RunDispatch(benchmark);
