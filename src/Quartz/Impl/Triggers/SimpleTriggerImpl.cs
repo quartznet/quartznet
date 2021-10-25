@@ -284,7 +284,7 @@ namespace Quartz.Impl.Triggers
                     return GetFireTimeBefore(EndTimeUtc);
                 }
 
-                DateTimeOffset lastTrigger = StartTimeUtc.AddMilliseconds(repeatCount * repeatInterval.TotalMilliseconds);
+                DateTimeOffset lastTrigger = StartTimeUtc.AddTicks(repeatCount * repeatInterval.Ticks);
 
                 if (!EndTimeUtc.HasValue || lastTrigger < EndTimeUtc.Value)
                 {
@@ -647,7 +647,7 @@ namespace Quartz.Impl.Triggers
 				return startMillis;
 			}
 
-			long numberOfTimesExecuted = (long) ((long) (afterMillis - startMillis).TotalMilliseconds / repeatInterval.TotalMilliseconds + 1);
+            long numberOfTimesExecuted = ((afterMillis - startMillis).Ticks / repeatInterval.Ticks) + 1;
 
 			if (numberOfTimesExecuted > repeatCount &&
 				repeatCount != RepeatIndefinitely)
@@ -655,7 +655,7 @@ namespace Quartz.Impl.Triggers
 				return null;
 			}
 
-			DateTimeOffset time = startMillis.AddMilliseconds(numberOfTimesExecuted * repeatInterval.TotalMilliseconds);
+			DateTimeOffset time = startMillis.AddTicks(numberOfTimesExecuted * repeatInterval.Ticks);
 
 			if (endMillis <= time)
 			{
@@ -679,7 +679,7 @@ namespace Quartz.Impl.Triggers
 			}
 
 			int numFires = ComputeNumTimesFiredBetween(StartTimeUtc, endUtc!.Value);
-			return StartTimeUtc.AddMilliseconds(numFires*repeatInterval.TotalMilliseconds);
+			return StartTimeUtc.AddTicks(numFires*repeatInterval.Ticks);
 		}
 
         /// <summary>
@@ -690,8 +690,8 @@ namespace Quartz.Impl.Triggers
         /// <returns></returns>
         public virtual int ComputeNumTimesFiredBetween(DateTimeOffset startTimeUtc, DateTimeOffset endTimeUtc)
 		{
-			long time = (long) (endTimeUtc - startTimeUtc).TotalMilliseconds;
-			return (int) (time/repeatInterval.TotalMilliseconds);
+			long time = (endTimeUtc - startTimeUtc).Ticks;
+			return (int) (time/repeatInterval.Ticks);
 		}
 
 		/// <summary>
@@ -711,7 +711,7 @@ namespace Quartz.Impl.Triggers
 		{
 			base.Validate();
 
-			if (repeatCount != 0 && repeatInterval.TotalMilliseconds < 1)
+			if (repeatCount != 0 && repeatInterval.Ticks < 1)
 			{
 				throw new SchedulerException("Repeat Interval cannot be zero.");
 			}
