@@ -14,8 +14,7 @@ namespace Quartz.Benchmark
         private SimpleSemaphore semaphore;
         private Guid requestorId;
 
-        [GlobalSetup]
-        public void Setup()
+        public SimpleSemaphoreBenchmark()
         {
             semaphore = new SimpleSemaphore();
             requestorId = Guid.NewGuid();
