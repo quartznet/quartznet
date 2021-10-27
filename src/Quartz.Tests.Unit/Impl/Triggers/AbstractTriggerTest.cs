@@ -296,18 +296,21 @@ namespace Quartz.Tests.Unit.Impl.Triggers
                 ms.Position = 0;
 
                 var deserializedTrigger = binaryFormatter.Deserialize(ms) as TestTrigger;
-                Assert.That(trigger.JobKey.Name, Is.EqualTo("JobName"));
-                Assert.That(trigger.JobKey.Group, Is.EqualTo("JobGroup"));
-                Assert.That(trigger.Key, Is.Not.Null);
-                Assert.That(trigger.Key.Name, Is.EqualTo("TriggerName"));
-                Assert.That(trigger.Key.Group, Is.EqualTo("TriggerGroup"));
-                Assert.That(trigger.StartTimeUtc, Is.EqualTo(new DateTimeOffset(1969, 5, 9, 7, 43, 21, TimeSpan.FromHours(1))));
-                Assert.That(trigger.EndTimeUtc, Is.EqualTo(new DateTimeOffset(1973, 8, 13, 16, 3, 45, TimeSpan.FromHours(2))));
-                Assert.That(trigger.MisfireInstruction, Is.EqualTo(MisfireInstruction.IgnoreMisfirePolicy));
-                Assert.That(trigger.JobDataMap, Is.Not.Null);
-                Assert.That(trigger.JobDataMap.Count, Is.EqualTo(2));
-                Assert.That(trigger.JobDataMap["X"], Is.EqualTo(7));
-                Assert.That(trigger.JobDataMap["Y"], Is.EqualTo(5));
+                Assert.That(deserializedTrigger, Is.Not.Null);
+                Assert.That(deserializedTrigger, Is.TypeOf<TestTrigger>());
+                Assert.That(deserializedTrigger.JobKey, Is.Not.Null);
+                Assert.That(deserializedTrigger.JobKey.Name, Is.EqualTo("JobName"));
+                Assert.That(deserializedTrigger.JobKey.Group, Is.EqualTo("JobGroup"));
+                Assert.That(deserializedTrigger.Key, Is.Not.Null);
+                Assert.That(deserializedTrigger.Key.Name, Is.EqualTo("TriggerName"));
+                Assert.That(deserializedTrigger.Key.Group, Is.EqualTo("TriggerGroup"));
+                Assert.That(deserializedTrigger.StartTimeUtc, Is.EqualTo(new DateTimeOffset(1969, 5, 9, 7, 43, 21, TimeSpan.FromHours(1))));
+                Assert.That(deserializedTrigger.EndTimeUtc, Is.EqualTo(new DateTimeOffset(1973, 8, 13, 16, 3, 45, TimeSpan.FromHours(2))));
+                Assert.That(deserializedTrigger.MisfireInstruction, Is.EqualTo(MisfireInstruction.IgnoreMisfirePolicy));
+                Assert.That(deserializedTrigger.JobDataMap, Is.Not.Null);
+                Assert.That(deserializedTrigger.JobDataMap.Count, Is.EqualTo(2));
+                Assert.That(deserializedTrigger.JobDataMap["X"], Is.EqualTo(7));
+                Assert.That(deserializedTrigger.JobDataMap["Y"], Is.EqualTo(5));
             }
         }
 
