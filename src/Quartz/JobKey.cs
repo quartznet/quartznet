@@ -58,10 +58,6 @@ namespace Quartz
     [System.Serializable]
     public sealed class JobKey : Key<JobKey>
     {
-        private JobKey()
-        {
-        }
-
         public JobKey(string name) : base(name)
         {
         }

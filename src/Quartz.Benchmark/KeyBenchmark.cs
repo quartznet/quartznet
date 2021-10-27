@@ -1,4 +1,4 @@
-﻿using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Attributes;
 using Quartz.Util;
 using System;
 
@@ -209,6 +209,129 @@ namespace Quartz.Benchmark
         public int CompareTo_NameNotEqualAndGroupNotEqual_GroupOfOtherIsDefault_New()
         {
             return _keyNameAGroupA.CompareTo(_keyNameBGroupDefault);
+        }
+
+        [Benchmark(OperationsPerInvoke = 100_000)]
+        public void Equals_NameEqualAndGroupEqual_New()
+        {
+            for (var i = 0; i < 100_000; i++)
+            {
+                _keyNameAGroupA.Equals(_keyNameAGroupANotSameReferenceForGroup);
+            }
+        }
+
+        [Benchmark(OperationsPerInvoke = 100_000)]
+        public void Equals_NameEqualAndGroupNotEqual_New()
+        {
+            for (var i = 0; i < 100_000; i++)
+            {
+                _keyNameAGroupA.Equals(_keyNameAGroupB);
+            }
+        }
+
+        [Benchmark(OperationsPerInvoke = 100_000)]
+        public bool Equals_NameNotEqualAndGroupEqual_New()
+        {
+            bool equals = false;
+
+            for (var i = 0; i < 100_000; i++)
+            {
+                equals = _keyNameAGroupA.Equals(_keyNameBGroupA);
+            }
+
+            return equals;
+        }
+
+        [Benchmark(OperationsPerInvoke = 100_000)]
+        public bool Equals_NameNotEqualAndGroupNotEqual_New()
+        {
+            bool equals = false;
+
+            for (var i = 0; i < 100_000; i++)
+            {
+                equals = _keyNameAGroupA.Equals(_keyNameBGroupDefault);
+            }
+
+            return equals;
+        }
+
+        [Benchmark(OperationsPerInvoke = 100_000)]
+        public bool Equals_ReferenceEquality_New()
+        {
+            bool equals = false;
+
+            for (var i = 0; i < 100_000; i++)
+            {
+                equals = _keyNameAGroupA.Equals(_keyNameAGroupA);
+            }
+
+            return equals;
+        }
+
+
+        [Benchmark(OperationsPerInvoke = 100_000)]
+        public bool Equals_NameEqualAndGroupEqual_Old()
+        {
+            bool equals = false;
+
+            for (var i = 0; i < 100_000; i++)
+            {
+                equals = _legacyKeyNameAGroupA.Equals(_legacyKeyNameAGroupANotSameReferenceForGroup);
+            }
+
+            return equals;
+        }
+
+        [Benchmark(OperationsPerInvoke = 100_000)]
+        public bool Equals_NameEqualAndGroupNotEqual_Old()
+        {
+            bool equals = false;
+
+            for (var i = 0; i < 100_000; i++)
+            {
+                equals = _legacyKeyNameAGroupA.Equals(_legacyKeyNameAGroupB);
+            }
+
+            return equals;
+        }
+
+        [Benchmark(OperationsPerInvoke = 100_000)]
+        public bool Equals_NameNotEqualAndGroupEqual_Old()
+        {
+            bool equals = false;
+
+            for (var i = 0; i < 100_000; i++)
+            {
+                _legacyKeyNameAGroupA.Equals(_legacyKeyNameBGroupA);
+            }
+
+            return equals;
+        }
+
+        [Benchmark(OperationsPerInvoke = 100_000)]
+        public bool Equals_NameNotEqualAndGroupNotEqual_Old()
+        {
+            bool equals = false;
+
+            for (var i = 0; i < 100_000; i++)
+            {
+                _legacyKeyNameAGroupA.Equals(_legacyKeyNameBGroupDefault);
+            }
+
+            return equals;
+        }
+
+        [Benchmark(OperationsPerInvoke = 100_000)]
+        public bool Equals_ReferenceEquality_Old()
+        {
+            bool equals = false;
+
+            for (var i = 0; i < 100_000; i++)
+            {
+                equals = _legacyKeyNameAGroupA.Equals(_legacyKeyNameAGroupA);
+            }
+
+            return equals;
         }
 
         /// <summary>

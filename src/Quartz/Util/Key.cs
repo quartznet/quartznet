@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -25,7 +25,7 @@ using System.Globalization;
 namespace Quartz.Util
 {
     /// <summary>
-    /// Object representing a job or trigger key.
+    /// Object representing an immutable job or trigger key.
     /// </summary>
     /// <author>  <a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
     /// <author>Marko Lahma (.NET)</author>
@@ -37,12 +37,8 @@ namespace Quartz.Util
         /// </summary>
         public const string DefaultGroup = "DEFAULT";
 
-        private string name = null!;
-        private string group = null!;
-
-        protected Key()
-        {
-        }
+        private readonly string name;
+        private readonly string group;
 
         /// <summary>
         /// Construct a new key with the given name and <see cref="DefaultGroup"/> as group.
@@ -73,38 +69,23 @@ namespace Quartz.Util
         /// <summary>
         /// Get the name portion of the key.
         /// </summary>
-        /// <returns> the name
+        /// <returns>
+        /// The name.
         /// </returns>
-        /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
-        public virtual string Name
+        public string Name
         {
             get { return name; }
-            set
-            {
-                if (value == null)
-                    ExceptionHelper.ThrowArgumentNullException(nameof(value));
-
-                name = value;
-            }
         }
 
-        /// <summary> <para>
+        /// <summary>
         /// Get the group portion of the key.
-        /// </para>
         /// </summary>
-        /// <returns> the group
-        /// </returns>
-        /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
-        public virtual string Group
+        /// <value>
+        /// The group.
+        /// </value>
+        public string Group
         {
             get { return group; }
-            set
-            {
-                if (value == null)
-                    ExceptionHelper.ThrowArgumentNullException(nameof(value));
-
-                group = value;
-            }
         }
 
         /// <summary> <para>
@@ -112,20 +93,20 @@ namespace Quartz.Util
         /// &lt;group&gt;.&lt;name&gt;.
         /// </para>
         /// </summary>
-        /// <returns> the string representation of the key
+        /// <returns>
+        /// The string representation of the key.
         /// </returns>
         public override string ToString()
         {
             return Group + '.' + Name;
         }
 
-
         public override int GetHashCode()
         {
             const int Prime = 31;
             int result = 1;
-            result = Prime*result + (@group == null ? 0 : group.GetHashCode());
-            result = Prime*result + (name == null ? 0 : name.GetHashCode());
+            result = Prime*result + group.GetHashCode();
+            result = Prime*result + name.GetHashCode();
             return result;
         }
 
@@ -135,38 +116,13 @@ namespace Quartz.Util
             {
                 return true;
             }
-            if (obj == null)
+            if (obj == null || GetType() != obj.GetType())
             {
                 return false;
             }
-            if (GetType() != obj.GetType())
-            {
-                return false;
-            }
-            Key<T> other = (Key<T>) obj;
-            if (group == null)
-            {
-                if (other.group != null)
-                {
-                    return false;
-                }
-            }
-            else if (!group.Equals(other.group))
-            {
-                return false;
-            }
-            if (name == null)
-            {
-                if (other.name != null)
-                {
-                    return false;
-                }
-            }
-            else if (!name.Equals(other.name))
-            {
-                return false;
-            }
-            return true;
+
+            Key<T> other = (Key<T>)obj;
+            return group.Equals(other.group) && name.Equals(other.name);
         }
 
         public int CompareTo(Key<T>? o)
