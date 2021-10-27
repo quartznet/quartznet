@@ -11,7 +11,7 @@ indent_style = space
 # Code files
 [*.cs]
 indent_size = 4
-charset = utf-8-bom
+charset = utf-8
 
 # XML project files
 [*.{csproj,vbproj,vcxproj,vcxproj.filters,proj,projitems,shproj}]
