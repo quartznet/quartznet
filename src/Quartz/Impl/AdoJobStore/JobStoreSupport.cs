@@ -3394,8 +3394,7 @@ namespace Quartz.Impl.AdoJobStore
                                             "recover_" + rec.SchedulerInstanceId + "_" + Convert.ToString(recoverIds++, CultureInfo.InvariantCulture),
                                             SchedulerConstants.DefaultRecoveryGroup, ftRec.FireTimestamp);
 
-                                    rcvryTrig.JobName = jKey!.Name;
-                                    rcvryTrig.JobGroup = jKey.Group;
+                                    rcvryTrig.JobKey = jKey!;
                                     rcvryTrig.MisfireInstruction = MisfireInstruction.SimpleTrigger.FireNow;
                                     rcvryTrig.Priority = ftRec.Priority;
                                     JobDataMap jd = await Delegate.SelectTriggerJobDataMap(conn, tKey, cancellationToken).ConfigureAwait(false);

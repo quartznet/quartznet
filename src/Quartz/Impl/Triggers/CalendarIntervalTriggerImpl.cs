@@ -90,8 +90,9 @@ namespace Quartz.Impl.Triggers
         /// <param name="name">Name for the trigger instance.</param>
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
         public CalendarIntervalTriggerImpl(string name, IntervalUnit intervalUnit, int repeatInterval)
-            : this(name, null, intervalUnit, repeatInterval)
+            : this(name, SchedulerConstants.DefaultGroup, intervalUnit, repeatInterval)
         {
         }
 
@@ -103,7 +104,8 @@ namespace Quartz.Impl.Triggers
         /// <param name="group">Group for the trigger instance.</param>
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
-        public CalendarIntervalTriggerImpl(string name, string? group, IntervalUnit intervalUnit,
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
+        public CalendarIntervalTriggerImpl(string name, string group, IntervalUnit intervalUnit,
             int repeatInterval)
             : this(name, group, SystemTime.UtcNow(), null, intervalUnit, repeatInterval)
         {
@@ -118,9 +120,10 @@ namespace Quartz.Impl.Triggers
         /// <param name="endTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to quit repeat firing.</param>
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
         public CalendarIntervalTriggerImpl(string name, DateTimeOffset startTimeUtc,
             DateTimeOffset? endTimeUtc, IntervalUnit intervalUnit, int repeatInterval)
-            : this(name, null, startTimeUtc, endTimeUtc, intervalUnit, repeatInterval)
+            : this(name, SchedulerConstants.DefaultGroup, startTimeUtc, endTimeUtc, intervalUnit, repeatInterval)
         {
         }
 
@@ -134,7 +137,8 @@ namespace Quartz.Impl.Triggers
         /// <param name="endTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to quit repeat firing.</param>
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
-        public CalendarIntervalTriggerImpl(string name, string? group, DateTimeOffset startTimeUtc,
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
+        public CalendarIntervalTriggerImpl(string name, string group, DateTimeOffset startTimeUtc,
             DateTimeOffset? endTimeUtc, IntervalUnit intervalUnit, int repeatInterval)
             : base(name, group)
         {
@@ -156,6 +160,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="endTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to quit repeat firing.</param>
         /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="group"/>, <paramref name="jobName"/> or <paramref name="jobGroup"/> are <see langword="null"/>.</exception>
         public CalendarIntervalTriggerImpl(string name, string group, string jobName,
             string jobGroup, DateTimeOffset startTimeUtc, DateTimeOffset? endTimeUtc,
             IntervalUnit intervalUnit, int repeatInterval)

@@ -45,9 +45,10 @@ namespace Quartz.Util
         }
 
         /// <summary>
-        /// Construct a new key with the given name and group.
+        /// Construct a new key with the given name and <see cref="DefaultGroup"/> as group.
         /// </summary>
         /// <param name="name">the name</param>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
         public Key(string name) : this(name, DefaultGroup)
         {
         }
@@ -57,10 +58,16 @@ namespace Quartz.Util
         /// </summary>
         /// <param name="name">the name</param>
         /// <param name="group">the group</param>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
         public Key(string name, string group)
         {
-            this.name = name ?? throw new ArgumentNullException(nameof(name), "Name cannot be null.");
-            this.group = group ?? DefaultGroup;
+            if (name == null)
+                ExceptionHelper.ThrowArgumentNullException(nameof(name));
+            if (group == null)
+                ExceptionHelper.ThrowArgumentNullException(nameof(group));
+
+            this.name = name;
+            this.group = group;
         }
 
         /// <summary>
@@ -68,30 +75,42 @@ namespace Quartz.Util
         /// </summary>
         /// <returns> the name
         /// </returns>
+        /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
         public virtual string Name
         {
-            get => name;
-            set => name = value;
+            get { return name; }
+            set
+            {
+                if (value == null)
+                    ExceptionHelper.ThrowArgumentNullException(nameof(value));
+
+                name = value;
+            }
         }
 
         /// <summary> <para>
         /// Get the group portion of the key.
         /// </para>
-        ///
         /// </summary>
         /// <returns> the group
         /// </returns>
+        /// <exception cref="ArgumentNullException"><paramref name="value"/> is <see langword="null"/>.</exception>
         public virtual string Group
         {
-            get => group;
-            set => group = value;
+            get { return group; }
+            set
+            {
+                if (value == null)
+                    ExceptionHelper.ThrowArgumentNullException(nameof(value));
+
+                group = value;
+            }
         }
 
         /// <summary> <para>
         /// Return the string representation of the key. The format will be:
         /// &lt;group&gt;.&lt;name&gt;.
         /// </para>
-        ///
         /// </summary>
         /// <returns> the string representation of the key
         /// </returns>
