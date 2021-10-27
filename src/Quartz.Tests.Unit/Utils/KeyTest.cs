@@ -83,9 +83,8 @@ namespace Quartz.Tests.Unit.Utils
             const string name = "Name";
             const string group = null;
 
-            var key = new Key<string>(name, group);
-            Assert.AreSame(name, key.Name);
-            Assert.AreSame(Key<string>.DefaultGroup, key.Group);
+            var actualException = Assert.Throws<ArgumentNullException>(() => new Key<string>(name, group));
+            Assert.AreEqual("group", actualException.ParamName);
         }
 
         [Test]

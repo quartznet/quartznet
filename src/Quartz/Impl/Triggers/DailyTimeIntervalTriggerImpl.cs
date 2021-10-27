@@ -125,9 +125,10 @@ namespace Quartz.Impl.Triggers
         /// <param name="intervalUnit">The repeat interval unit. The only intervals that are valid for this type of trigger are
         /// <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
         /// <param name="repeatInterval"></param>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
         public DailyTimeIntervalTriggerImpl(string name, TimeOfDay startTimeOfDayUtc, TimeOfDay endTimeOfDayUtc,
             IntervalUnit intervalUnit, int repeatInterval)
-            : this(name, null, startTimeOfDayUtc, endTimeOfDayUtc, intervalUnit, repeatInterval)
+            : this(name, SchedulerConstants.DefaultGroup, startTimeOfDayUtc, endTimeOfDayUtc, intervalUnit, repeatInterval)
         {
         }
 
@@ -142,7 +143,8 @@ namespace Quartz.Impl.Triggers
         /// <param name="intervalUnit">The repeat interval unit. The only intervals that are valid for this type of trigger are
         /// <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
         /// <param name="repeatInterval"></param>
-        public DailyTimeIntervalTriggerImpl(string name, string? group, TimeOfDay startTimeOfDayUtc,
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
+        public DailyTimeIntervalTriggerImpl(string name, string group, TimeOfDay startTimeOfDayUtc,
             TimeOfDay endTimeOfDayUtc, IntervalUnit intervalUnit, int repeatInterval)
             : this(name, group, SystemTime.UtcNow(), null, startTimeOfDayUtc, endTimeOfDayUtc, intervalUnit,
                 repeatInterval)
@@ -161,10 +163,11 @@ namespace Quartz.Impl.Triggers
         /// <param name="intervalUnit">The repeat interval unit. The only intervals that are valid for this type of trigger are
         /// <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
         public DailyTimeIntervalTriggerImpl(string name, DateTimeOffset startTimeUtc,
             DateTimeOffset? endTimeUtc, TimeOfDay startTimeOfDayUtc, TimeOfDay endTimeOfDayUtc,
             IntervalUnit intervalUnit, int repeatInterval)
-            : this(name, null, startTimeUtc, endTimeUtc, startTimeOfDayUtc, endTimeOfDayUtc, intervalUnit, repeatInterval)
+            : this(name, SchedulerConstants.DefaultGroup, startTimeUtc, endTimeUtc, startTimeOfDayUtc, endTimeOfDayUtc, intervalUnit, repeatInterval)
         {
         }
 
@@ -181,7 +184,8 @@ namespace Quartz.Impl.Triggers
         /// <param name="intervalUnit">The repeat interval unit. The only intervals that are valid for this type of trigger are
         /// <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
-        public DailyTimeIntervalTriggerImpl(string name, string? group, DateTimeOffset startTimeUtc,
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
+        public DailyTimeIntervalTriggerImpl(string name, string group, DateTimeOffset startTimeUtc,
             DateTimeOffset? endTimeUtc, TimeOfDay startTimeOfDayUtc, TimeOfDay endTimeOfDayUtc,
             IntervalUnit intervalUnit, int repeatInterval)
             : base(name, group)
@@ -210,6 +214,7 @@ namespace Quartz.Impl.Triggers
         /// <param name="intervalUnit">The repeat interval unit. The only intervals that are valid for this type of trigger are
         /// <see cref="IntervalUnit.Second"/>, <see cref="IntervalUnit.Minute"/>, and <see cref="IntervalUnit.Hour"/>.</param>
         /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="group"/>, <paramref name="jobName"/> or <paramref name="jobGroup"/> are <see langword="null"/>.</exception>
         public DailyTimeIntervalTriggerImpl(string name, string group, string jobName,
             string jobGroup, DateTimeOffset startTimeUtc, DateTimeOffset? endTimeUtc,
             TimeOfDay startTimeOfDayUtc, TimeOfDay endTimeOfDayUtc,

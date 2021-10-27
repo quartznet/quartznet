@@ -752,8 +752,7 @@ namespace Quartz.Tests.Unit
 
             var t = new CalendarIntervalTriggerImpl
             {
-                Name = "test",
-                Group = "testGroup",
+                Key = new TriggerKey("test","testGroup"),
                 CalendarName = "MyCalendar",
                 Description = "CronTriggerDesc",
                 JobDataMap = jobDataMap,
@@ -767,10 +766,8 @@ namespace Quartz.Tests.Unit
         protected override void VerifyMatch(CalendarIntervalTriggerImpl original, CalendarIntervalTriggerImpl deserialized)
         {
             Assert.IsNotNull(deserialized);
-            Assert.AreEqual(original.Name, deserialized.Name);
-            Assert.AreEqual(original.Group, deserialized.Group);
-            Assert.AreEqual(original.JobName, deserialized.JobName);
-            Assert.AreEqual(original.JobGroup, deserialized.JobGroup);
+            Assert.AreEqual(original.Key, deserialized.Key);
+            Assert.AreEqual(original.JobKey, deserialized.JobKey);
             Assert.That(deserialized.StartTimeUtc, Is.EqualTo(original.StartTimeUtc).Within(TimeSpan.FromSeconds(1)));
             Assert.AreEqual(original.EndTimeUtc, deserialized.EndTimeUtc);
             Assert.AreEqual(original.CalendarName, deserialized.CalendarName);

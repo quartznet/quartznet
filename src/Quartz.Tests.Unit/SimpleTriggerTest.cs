@@ -78,10 +78,8 @@ namespace Quartz.Tests.Unit
         protected override void VerifyMatch(SimpleTriggerImpl original, SimpleTriggerImpl deserialized)
         {
             Assert.IsNotNull(deserialized);
-            Assert.AreEqual(original.Name, deserialized.Name);
-            Assert.AreEqual(original.Group, deserialized.Group);
-            Assert.AreEqual(original.JobName, deserialized.JobName);
-            Assert.AreEqual(original.JobGroup, deserialized.JobGroup);
+            Assert.AreEqual(original.Key, deserialized.Key);
+            Assert.AreEqual(original.JobKey, deserialized.JobKey);
             Assert.AreEqual(original.StartTimeUtc, deserialized.StartTimeUtc);
             Assert.AreEqual(original.EndTimeUtc, deserialized.EndTimeUtc);
             Assert.AreEqual(original.RepeatCount, deserialized.RepeatCount);
