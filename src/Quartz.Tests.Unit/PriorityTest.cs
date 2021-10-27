@@ -63,10 +63,10 @@ namespace Quartz.Tests.Unit
             DateTime n = DateTime.UtcNow;
             DateTime cal = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond, DateTimeKind.Utc);
 
-            IMutableTrigger trig1 = new SimpleTriggerImpl("T1", null, cal);
-            IMutableTrigger trig2 = new SimpleTriggerImpl("T2", null, cal);
+            IMutableTrigger trig1 = new SimpleTriggerImpl("T1", cal);
+            IMutableTrigger trig2 = new SimpleTriggerImpl("T2", cal);
 
-            JobDetailImpl jobDetail = new JobDetailImpl("JD", null, typeof (TestJob));
+            JobDetailImpl jobDetail = new JobDetailImpl("JD", typeof (TestJob));
 
             await sched.ScheduleJob(jobDetail, trig1);
 
@@ -95,13 +95,13 @@ namespace Quartz.Tests.Unit
             DateTime n = DateTime.UtcNow.AddSeconds(1);
             DateTime cal = new DateTime(n.Year, n.Month, n.Day, n.Hour, n.Minute, 1, n.Millisecond, DateTimeKind.Utc);
 
-            IOperableTrigger trig1 = new SimpleTriggerImpl("T1", null, cal);
+            IOperableTrigger trig1 = new SimpleTriggerImpl("T1", cal);
             trig1.Priority = 5;
 
-            IOperableTrigger trig2 = new SimpleTriggerImpl("T2", null, cal);
+            IOperableTrigger trig2 = new SimpleTriggerImpl("T2", cal);
             trig2.Priority = 10;
 
-            JobDetailImpl jobDetail = new JobDetailImpl("JD", null, typeof (TestJob));
+            JobDetailImpl jobDetail = new JobDetailImpl("JD", typeof (TestJob));
 
             await sched.ScheduleJob(jobDetail, trig1);
 

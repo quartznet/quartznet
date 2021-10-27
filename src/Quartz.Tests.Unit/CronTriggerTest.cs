@@ -51,8 +51,7 @@ namespace Quartz.Tests.Unit
             }
             TimeZoneInfo tz = TZConvert.GetTimeZoneInfo(tzStr);
             CronTriggerImpl trigger = new CronTriggerImpl();
-            trigger.Name = "Quartz-579";
-            trigger.Group = SchedulerConstants.DefaultGroup;
+            trigger.Key = new TriggerKey("Quartz-579", SchedulerConstants.DefaultGroup);
             trigger.TimeZone = tz;
             trigger.CronExpressionString = "0 0 12 * * ?";
             Assert.AreEqual(tz, trigger.TimeZone, "TimeZone was changed");
@@ -69,8 +68,7 @@ namespace Quartz.Tests.Unit
             DateTimeOffset expectedFire = startDate.AddHours(5).AddMinutes(50);
 
             CronTriggerImpl trigger = new CronTriggerImpl();
-            trigger.Name = "Quartz-Custom";
-            trigger.Group = SchedulerConstants.DefaultGroup;
+            trigger.Key = new TriggerKey("Quartz-Custom", SchedulerConstants.DefaultGroup);
             trigger.TimeZone = tz;
             trigger.CronExpressionString = "0 50 5,11,17,23 ? * *";
             trigger.StartTimeUtc = startDate;
@@ -87,8 +85,7 @@ namespace Quartz.Tests.Unit
         public void BasicCronTriggerTest()
         {
             CronTriggerImpl trigger = new CronTriggerImpl();
-            trigger.Name = "Quartz-Sample";
-            trigger.Group = SchedulerConstants.DefaultGroup;
+            trigger.Key = new TriggerKey("Quartz-Sample", SchedulerConstants.DefaultGroup);
             trigger.CronExpressionString = "0 0 12 1 1 ? 2099";
             trigger.StartTimeUtc = new DateTimeOffset(2099, 1, 1, 12, 0, 1, TimeSpan.Zero);
             trigger.EndTimeUtc = new DateTimeOffset(2099, 1, 1, 12, 0, 1, TimeSpan.Zero);
@@ -109,8 +106,7 @@ namespace Quartz.Tests.Unit
         public void TestClone()
         {
             CronTriggerImpl trigger = new CronTriggerImpl();
-            trigger.Name = "test";
-            trigger.Group = "testGroup";
+            trigger.Key = new TriggerKey("test", "testGroup");
             trigger.CronExpressionString = "0 0 12 * * ?";
             ICronTrigger trigger2 = (ICronTrigger) trigger.Clone();
 
@@ -125,8 +121,7 @@ namespace Quartz.Tests.Unit
         public void TestQuartz558()
         {
             CronTriggerImpl trigger = new CronTriggerImpl();
-            trigger.Name = "test";
-            trigger.Group = "testGroup";
+            trigger.Key = new TriggerKey("test", "testGroup");
             ICronTrigger trigger2 = (ICronTrigger) trigger.Clone();
 
             Assert.AreEqual(trigger, trigger2, "Cloning failed");

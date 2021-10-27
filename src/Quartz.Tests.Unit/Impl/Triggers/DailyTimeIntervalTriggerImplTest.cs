@@ -100,8 +100,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers
         {
             var trigger = new DailyTimeIntervalTriggerImpl
             {
-                Name = "test",
-                Group = "test",
+                Key = new TriggerKey("test", "test"),
                 JobKey = JobKey.Create("test"),
                 RepeatIntervalUnit = IntervalUnit.Hour,
                 RepeatInterval = 25
@@ -704,10 +703,8 @@ namespace Quartz.Tests.Unit.Impl.Triggers
         {
             var trigger = new DailyTimeIntervalTriggerImpl
             {
-                Name = "name",
-                Group = "group",
-                JobName = "jobname",
-                JobGroup = "jobgroup",
+                Key = new TriggerKey("name", "group"),
+                JobKey = new JobKey("jobname", "jobgroup"),
                 RepeatIntervalUnit = IntervalUnit.Hour
             };
             trigger.Validate();
@@ -794,10 +791,14 @@ namespace Quartz.Tests.Unit.Impl.Triggers
                 new TimeOfDay(8, 0, 0), new TimeOfDay(17, 0, 0),
                 IntervalUnit.Hour, 1);
 
-            Assert.AreEqual("triggerName", trigger.Name);
-            Assert.AreEqual("triggerGroup", trigger.Group);
-            Assert.AreEqual("jobName", trigger.JobName);
-            Assert.AreEqual("jobGroup", trigger.JobGroup);
+            Assert.IsNotNull(trigger.Key);
+            Assert.AreEqual("triggerName", trigger.Key.Name);
+            Assert.AreEqual("triggerGroup", trigger.Key.Group);
+            Assert.AreSame(trigger.Key, trigger.Key);
+            Assert.IsNotNull(trigger.JobKey);
+            Assert.AreEqual("jobName", trigger.JobKey.Name);
+            Assert.AreEqual("jobGroup", trigger.JobKey.Group);
+            Assert.AreSame(trigger.JobKey, trigger.JobKey);
             Assert.AreEqual(dateOf(8, 0, 0, 1, 1, 2012), trigger.StartTimeUtc);
             Assert.AreEqual(null, trigger.EndTimeUtc);
             Assert.AreEqual(new TimeOfDay(8, 0, 0), trigger.StartTimeOfDay);
@@ -811,10 +812,10 @@ namespace Quartz.Tests.Unit.Impl.Triggers
                 new TimeOfDay(8, 0, 0), new TimeOfDay(17, 0, 0),
                 IntervalUnit.Hour, 1);
 
-            Assert.AreEqual("triggerName", trigger.Name);
-            Assert.AreEqual("triggerGroup", trigger.Group);
-            Assert.AreEqual(null, trigger.JobName);
-            Assert.AreEqual("DEFAULT", trigger.JobGroup);
+            Assert.IsNotNull(trigger.Key);
+            Assert.AreEqual("triggerName", trigger.Key.Name);
+            Assert.AreEqual("triggerGroup", trigger.Key.Group);
+            Assert.IsNull(trigger.JobKey);
             Assert.AreEqual(dateOf(8, 0, 0, 1, 1, 2012), trigger.StartTimeUtc);
             Assert.AreEqual(null, trigger.EndTimeUtc);
             Assert.AreEqual(new TimeOfDay(8, 0, 0), trigger.StartTimeOfDay);

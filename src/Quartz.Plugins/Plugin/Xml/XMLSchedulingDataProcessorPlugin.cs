@@ -178,8 +178,7 @@ namespace Quartz.Plugin.Xml
 
                             // TODO: convert to use builder
                             var trig = new SimpleTriggerImpl();
-                            trig.Name = jobTriggerName;
-                            trig.Group = JobInitializationPluginName;
+                            trig.Key = tKey;
                             trig.StartTimeUtc = SystemTime.UtcNow();
                             trig.EndTimeUtc = null;
                             trig.RepeatCount = SimpleTriggerImpl.RepeatIndefinitely;
