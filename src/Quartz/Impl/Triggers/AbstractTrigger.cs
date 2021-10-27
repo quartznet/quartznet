@@ -19,6 +19,7 @@
 
 using System;
 using System.Globalization;
+using System.Runtime.Serialization;
 
 using Quartz.Spi;
 
@@ -55,7 +56,17 @@ namespace Quartz.Impl.Triggers
     [Serializable]
     public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTrigger>
 	{
+#pragma warning disable IDE0052
+        // We use these field to (de)serialize the Key and JobKey for backward compatibility
+        private string name = null!;
+        private string group = SchedulerConstants.DefaultGroup;
+        private string jobName = null!;
+        private string jobGroup = SchedulerConstants.DefaultGroup;
+#pragma warning restore IDE0052
+
+        [NonSerialized] // we serialize this via the 'name' and 'group' fields
         private TriggerKey? key;
+        [NonSerialized] // we serialize this via the 'jobName' and 'jobGroup' fields
         private JobKey? jobKey;
         private JobDataMap jobDataMap = null!;
 
@@ -70,10 +81,25 @@ namespace Quartz.Impl.Triggers
 		/// </summary>
 		/// <value>The key of the trigger.</value>
         public TriggerKey Key
-		{
-		    get { return key!; }
-            set { key = value; }
-		}
+        {
+            get { return key!; }
+            set
+            {
+                // Update fields to ensure we remain backward compatibile for serialization
+                if (value == null)
+                {
+                    name = null!;
+                    group = null!;
+                }
+                else
+                {
+                    name = value.Name;
+                    group = value.Group;
+                }
+
+                key = value;
+            }
+        }
 
         /// <summary>
         /// Gets or sets the key of the job.
@@ -82,7 +108,22 @@ namespace Quartz.Impl.Triggers
         public JobKey JobKey
         {
             get { return jobKey!; }
-            set { jobKey = value; }
+            set
+            {
+                // Update fields to ensure we remain backward compatibile for serialization
+                if (value == null)
+                {
+                    jobName = null!;
+                    jobGroup = null!;
+                }
+                else
+                {
+                    jobName = value.Name;
+                    jobGroup = value.Group;
+                }
+
+                jobKey = value; 
+            }
         }
 
 	    public TriggerBuilder GetTriggerBuilder()
@@ -294,7 +335,7 @@ namespace Quartz.Impl.Triggers
         /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
         protected AbstractTrigger(string name, string group)
 		{
-			key = new TriggerKey(name, group);
+			Key = new TriggerKey(name, group);
 		}
 
         /// <summary>
@@ -307,8 +348,8 @@ namespace Quartz.Impl.Triggers
         /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="group"/>, <paramref name="jobName"/> or <paramref name="jobGroup"/> are <see langword="null"/>.</exception>
         protected AbstractTrigger(string name, string group, string jobName, string jobGroup)
 		{
-            key = new TriggerKey(name, group);
-            jobKey = new JobKey(jobName, jobGroup);
+            Key = new TriggerKey(name, group);
+            JobKey = new JobKey(jobName, jobGroup);
 		}
 
 		/// <summary>
@@ -607,5 +648,26 @@ namespace Quartz.Impl.Triggers
 			}
 			return copy;
 		}
-	}
+
+        /// <summary>
+        /// Called immediately after deserialization.
+        /// </summary>
+        /// <param name="context">The source of the deserialization.</param>
+        /// <remarks>
+        /// We use this to reconstruct the <see cref="Key"/> and <see cref="JobKey"/>.
+        /// </remarks>
+        [OnDeserialized]
+        private void OnDeserialized(StreamingContext context)
+        {
+            if (name != null && group != null)
+            {
+                key = new TriggerKey(name, group);
+            }
+
+            if (jobName != null && jobGroup != null)
+            {
+                jobKey = new JobKey(jobName, jobGroup);
+            }
+        }
+    }
 }
