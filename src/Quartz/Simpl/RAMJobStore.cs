@@ -57,7 +57,7 @@ namespace Quartz.Simpl
         private readonly Dictionary<string, Dictionary<TriggerKey, TriggerWrapper>> triggersByGroup = new Dictionary<string, Dictionary<TriggerKey, TriggerWrapper>>();
         private readonly SortedSet<TriggerWrapper> timeTriggers = new SortedSet<TriggerWrapper>(new TriggerWrapperComparator());
         private readonly Dictionary<string, ICalendar> calendarsByName = new Dictionary<string, ICalendar>();
-        private readonly Dictionary<JobKey, List<TriggerWrapper>> triggersByJob = new Dictionary<JobKey, List<TriggerWrapper>>(1000);
+        private readonly Dictionary<JobKey, List<TriggerWrapper>> triggersByJob = new Dictionary<JobKey, List<TriggerWrapper>>();
         private readonly HashSet<string> pausedTriggerGroups = new HashSet<string>();
         private readonly HashSet<string> pausedJobGroups = new HashSet<string>();
         private readonly HashSet<JobKey> blockedJobs = new HashSet<JobKey>();
