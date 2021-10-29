@@ -10,21 +10,52 @@ namespace Quartz.Core
     /// <summary>
     /// ExecutingJobsManager - Job Listener Class.
     /// </summary>
-    internal class ExecutingJobsManager : IJobListener
+    internal sealed class ExecutingJobsManager : IJobListener
     {
-        public virtual string Name => GetType()!.FullName!;
-
-        public virtual int NumJobsCurrentlyExecuting => executingJobs.Count;
-
-        public virtual int NumJobsFired => numJobsFired;
-
-        public virtual IReadOnlyCollection<IJobExecutionContext> ExecutingJobs => new List<IJobExecutionContext>(executingJobs.Values);
-
-        private readonly ConcurrentDictionary<string, IJobExecutionContext> executingJobs = new ConcurrentDictionary<string, IJobExecutionContext>();
-
+        private ConcurrentDictionary<string, IJobExecutionContext> executingJobs = new ConcurrentDictionary<string, IJobExecutionContext>();
         private int numJobsFired;
 
-        public virtual Task JobToBeExecuted(
+        /// <summary>
+        /// Initializes a new <see cref="ExecutingJobsManager"/> instance.
+        /// </summary>
+        public ExecutingJobsManager()
+        {
+            Name = GetType().ToString();
+        }
+
+        /// <summary>
+        /// Get the name of the <see cref="IJobListener" />.
+        /// </summary>
+        /// <value>
+        /// The name of the <see cref="IJobListener" />.
+        /// </value>
+        public string Name { get; }
+
+        /// <summary>
+        /// Gets the number of jobs that are currently executing.
+        /// </summary>
+        /// <value>
+        /// The number of jobs that are currently executing.
+        /// </value>
+        public int NumJobsCurrentlyExecuting => executingJobs.Count;
+
+        /// <summary>
+        /// Gets the number of jobs executed.
+        /// </summary>
+        /// <value>
+        /// The number of jobs executed.
+        /// </value>
+        public int NumJobsFired => numJobsFired;
+
+        /// <summary>
+        /// Gets the jobs that are currently executing.
+        /// </summary>
+        /// <value>
+        /// The jobs that are currently executing.
+        /// </value>
+        public IReadOnlyCollection<IJobExecutionContext> ExecutingJobs => new List<IJobExecutionContext>(executingJobs.Values);
+
+        public Task JobToBeExecuted(
             IJobExecutionContext context,
             CancellationToken cancellationToken = default)
         {
@@ -33,7 +64,7 @@ namespace Quartz.Core
             return Task.CompletedTask;
         }
 
-        public virtual Task JobWasExecuted(IJobExecutionContext context,
+        public Task JobWasExecuted(IJobExecutionContext context,
             JobExecutionException? jobException,
             CancellationToken cancellationToken = default)
         {
@@ -41,7 +72,7 @@ namespace Quartz.Core
             return Task.CompletedTask;
         }
 
-        public virtual Task JobExecutionVetoed(
+        public Task JobExecutionVetoed(
             IJobExecutionContext context,
             CancellationToken cancellationToken = default)
         {
