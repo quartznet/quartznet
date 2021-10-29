@@ -33,14 +33,6 @@ namespace Quartz.Benchmark
         public void Run()
         {
             Run(OperationsPerRun);
-
-            var scheduler = CreateAndConfigureScheduler("A", "1", 15);
-            scheduler.Start();
-
-            Job.Wait();
-
-            scheduler.Shutdown(true).GetAwaiter().GetResult();
-            Job.Reset();
         }
 
         /// <summary>
