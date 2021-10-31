@@ -1,4 +1,4 @@
-﻿using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Attributes;
 using Quartz.Impl;
 using Quartz.Simpl;
 using Quartz.Spi;
@@ -30,20 +30,26 @@ namespace Quartz.Benchmark
         private static readonly IJobFactory _jobFactory = new SimpleJobFactory();
 
         [Benchmark(OperationsPerInvoke = OperationsPerRun)]
-        public void Run()
+        public void Run_15()
         {
-            Run(OperationsPerRun);
+            Run(OperationsPerRun, 15);
+        }
+
+        [Benchmark(OperationsPerInvoke = OperationsPerRun)]
+        public void Run_50()
+        {
+            Run(OperationsPerRun, 50);
         }
 
         /// <summary>
         /// Convenience method run this benchmark without BDN.
         /// </summary>
         /// <param name="operationsPerRun">The number of times the job should be executed.</param>
-        public void Run(int operationsPerRun)
+        public void Run(int operationsPerRun, int threadCount)
         {
             Job.Initialize(operationsPerRun);
 
-            var scheduler = CreateAndConfigureScheduler("A", "1", 15);
+            var scheduler = CreateAndConfigureScheduler("A", "1", threadCount);
             scheduler.Start();
 
             Job.Wait();
@@ -74,15 +80,15 @@ namespace Quartz.Benchmark
 
             for (var i = 0; i < threadCount; i++)
             {
-                var trigger = Create(TimeSpan.FromMilliseconds(0.1d));
-                var job = Create(typeof(SchedulerBenchmark).Name, typeof(Job));
+                var trigger = CreateTrigger(TimeSpan.FromMilliseconds(0.1d));
+                var job = CreateJobDetail(typeof(SchedulerBenchmark).Name, typeof(Job));
                 scheduler.ScheduleJob(job, trigger).GetAwaiter().GetResult();
             }
 
             return scheduler;
         }
 
-        private static ITrigger Create(TimeSpan repeatInterval)
+        private static ITrigger CreateTrigger(TimeSpan repeatInterval)
         {
             return TriggerBuilder.Create()
                                  .WithSimpleSchedule(
@@ -92,7 +98,7 @@ namespace Quartz.Benchmark
                                  .Build();
         }
 
-        private static IJobDetail Create(string group, Type jobType)
+        private static IJobDetail CreateJobDetail(string group, Type jobType)
         {
             return JobBuilder.Create(jobType).WithIdentity(Guid.NewGuid().ToString(), group).Build();
         }

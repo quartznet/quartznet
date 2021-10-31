@@ -1581,10 +1581,9 @@ namespace Quartz.Core
             return listeners.Concat(internalTriggerListeners.Values);
         }
 
-        private (IJobListener?, IEnumerable<IJobListener>?) BuildJobListenerList()
+        private static (IJobListener?, IEnumerable<IJobListener>?) BuildJobListenerList(IListenerManager listenerManager, ICollection<IJobListener> internalListeners)
         {
-            var listeners = ListenerManager.GetJobListeners();
-            var internalListeners = internalJobListeners.Values;
+            var listeners = listenerManager.GetJobListeners();
 
             if (listeners.Count == 0 && internalListeners.Count == 1)
             {
@@ -1602,9 +1601,9 @@ namespace Quartz.Core
             return ListenerManager.GetSchedulerListeners().Concat(InternalSchedulerListeners);
         }
 
-        private bool MatchJobListener(IJobListener listener, JobKey key)
+        private static bool MatchJobListener(IListenerManager listenerManager, IJobListener listener, JobKey key)
         {
-            var matchers = ListenerManager.GetJobListenerMatchers(listener.Name);
+            var matchers = listenerManager.GetJobListenerMatchers(listener.Name);
             if (matchers == null)
             {
                 return true;
@@ -1756,7 +1755,10 @@ namespace Quartz.Core
             IJobExecutionContext jec,
             CancellationToken cancellationToken = default)
         {
-            return NotifyJobListeners(jl => jl.JobToBeExecuted(jec, cancellationToken), jec, null);
+            return NotifyJobListeners((jl, jec, je, cancellationToken) => jl.JobToBeExecuted(jec, cancellationToken),
+                                      jec,
+                                      null,
+                                      cancellationToken);
         }
 
         /// <summary>
@@ -1768,7 +1770,10 @@ namespace Quartz.Core
             IJobExecutionContext jec,
             CancellationToken cancellationToken = default)
         {
-            return NotifyJobListeners(jl => jl.JobExecutionVetoed(jec, cancellationToken), jec, null);
+            return NotifyJobListeners((jl, jec, je, cancellationToken) => jl.JobExecutionVetoed(jec, cancellationToken),
+                                      jec,
+                                      null,
+                                      cancellationToken);
         }
 
         /// <summary>
@@ -1782,26 +1787,29 @@ namespace Quartz.Core
             JobExecutionException? je,
             CancellationToken cancellationToken = default)
         {
-            return NotifyJobListeners(jl => jl.JobWasExecuted(jec, je, cancellationToken), jec, je);
+            return NotifyJobListeners((jl, jec, je, cancellationToken) => jl.JobWasExecuted(jec, je, cancellationToken),
+                                      jec,
+                                      je,
+                                      cancellationToken);
         }
 
         // optimized version to reduce state machine creations
-        private Task NotifyJobListeners(
-            Func<IJobListener, Task> notifyAction,
-            IJobExecutionContext jec,
-            JobExecutionException? je)
+        private Task NotifyJobListeners(Func<IJobListener, IJobExecutionContext, JobExecutionException?, CancellationToken, Task> notifyAction,
+                                        IJobExecutionContext jec,
+                                        JobExecutionException? je,
+                                        CancellationToken cancellationToken)
         {
-            var (singleListener, listeners) = BuildJobListenerList();
+            var (singleListener, listeners) = BuildJobListenerList(ListenerManager, internalJobListeners.Values);
             if (singleListener != null)
             {
-                if (!MatchJobListener(singleListener, jec.JobDetail.Key))
+                if (!MatchJobListener(ListenerManager, singleListener, jec.JobDetail.Key))
                 {
                     return Task.CompletedTask;
                 }
 
                 try
                 {
-                    var task = notifyAction(singleListener);
+                    var task = notifyAction(singleListener, jec, je, cancellationToken);
                     return task.IsCompletedSuccessfully() ? Task.CompletedTask : NotifySingle(task, singleListener);
                 }
                 catch (Exception e)
@@ -1811,18 +1819,25 @@ namespace Quartz.Core
                 }
             }
 
-            return singleListener != null || listeners is null ? Task.CompletedTask : NotifyAwaited();
+            return singleListener != null || listeners is null
+                    ? Task.CompletedTask
+                    : NotifyAwaited(ListenerManager, listeners, notifyAction, jec, je, cancellationToken);
 
-            async Task NotifyAwaited()
+            static async Task NotifyAwaited(IListenerManager listenerManager,
+                                            IEnumerable<IJobListener> listeners,
+                                            Func<IJobListener, IJobExecutionContext, JobExecutionException?, CancellationToken, Task> notifyAction,
+                                            IJobExecutionContext jec,
+                                            JobExecutionException? je,
+                                            CancellationToken cancellationToken)
             {
                 foreach (var jl in listeners)
                 {
-                    if (!MatchJobListener(jl, jec.JobDetail.Key))
+                    if (!MatchJobListener(listenerManager, jl, jec.JobDetail.Key))
                     {
                         continue;
                     }
 
-                    await NotifySingle(notifyAction(jl), jl).ConfigureAwait(false);
+                    await NotifySingle(notifyAction(jl, jec, je, cancellationToken), jl).ConfigureAwait(false);
                 }
             }
 
