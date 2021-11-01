@@ -40,10 +40,6 @@ namespace Quartz
     [System.Serializable]
     public sealed class TriggerKey : Key<TriggerKey>
     {
-        private TriggerKey()
-        {
-        }
-
         public TriggerKey(string name) : base(name)
         {
         }

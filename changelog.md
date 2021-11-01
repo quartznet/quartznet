@@ -16,6 +16,8 @@
 		* FullName
 
 	* Triggers can no longer be constructed with a **null** group name (#1359)
+	
+	* **JobKey**, **TriggerKey** and **Key\<T>** are now immutable. **Key\<T>** therefore no longer has a default protected ctor.
 
 ## Release 3.3.3, Aug 1 2021
 
