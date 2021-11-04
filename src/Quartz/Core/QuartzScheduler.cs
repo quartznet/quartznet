@@ -1572,6 +1572,11 @@ namespace Quartz.Core
         {
             var listeners = ListenerManager.GetTriggerListeners();
 
+            // We use the enumerator trick for performance reasons; it allocates 64 bytes (on .NET 5.0),
+            // but is considerable faster than IsEmpty or checking if Count is zero, and allows for
+            // better parallelism. It doesn't provide snapshot semantics, and can there provide incorrect
+            // results. See https://github.com/dotnet/runtime/issues/25503 for more information.
+
             if (listeners.Count == 0 && !internalTriggerListeners.GetEnumerator().MoveNext())
             {
                 // default case that we don't have any
@@ -1618,9 +1623,9 @@ namespace Quartz.Core
             return false;
         }
 
-        private bool MatchTriggerListener(ITriggerListener listener, TriggerKey key)
+        private static bool MatchTriggerListener(IListenerManager listenerManager, ITriggerListener listener, TriggerKey key)
         {
-            var matchers = ListenerManager.GetTriggerListenerMatchers(listener.Name);
+            var matchers = listenerManager.GetTriggerListenerMatchers(listener.Name);
             if (matchers == null)
             {
                 return true;
@@ -1633,20 +1638,27 @@ namespace Quartz.Core
         /// </summary>
         /// <param name="jec">The job execution context.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        /// <returns></returns>
+        /// <returns>
+        /// <see langword="true"/> to vetoe the execution of the triggers; otherwise, <see langword="false"/>.
+        /// </returns>
         public virtual Task<bool> NotifyTriggerListenersFired(
             IJobExecutionContext jec,
             CancellationToken cancellationToken = default)
         {
             var listeners = BuildTriggerListenerList();
-            return listeners is null ? Task.FromResult(false) : NotifyAwaited();
+            return listeners is null
+                ? Task.FromResult(false)
+                : NotifyAwaited(ListenerManager, listeners, jec, cancellationToken);
 
-            async Task<bool> NotifyAwaited()
+            static async Task<bool> NotifyAwaited(IListenerManager listenerManager,
+                                                  IEnumerable<ITriggerListener> listeners,
+                                                  IJobExecutionContext jec,
+                                                  CancellationToken cancellationToken)
             {
                 var vetoedExecution = false;
                 foreach (ITriggerListener tl in listeners)
                 {
-                    if (!MatchTriggerListener(tl, jec.Trigger.Key))
+                    if (!MatchTriggerListener(listenerManager, tl, jec.Trigger.Key))
                     {
                         continue;
                     }
@@ -1681,13 +1693,18 @@ namespace Quartz.Core
             CancellationToken cancellationToken = default)
         {
             var listeners = BuildTriggerListenerList();
-            return listeners is null ? Task.CompletedTask : NotifyAwaited();
+            return listeners is null
+                ? Task.CompletedTask
+                : NotifyAwaited(ListenerManager, listeners, trigger, cancellationToken);
 
-            async Task NotifyAwaited()
+            static async Task NotifyAwaited(IListenerManager listenerManager,
+                                            IEnumerable<ITriggerListener> listeners,
+                                            ITrigger trigger,
+                                            CancellationToken cancellationToken)
             {
                 foreach (ITriggerListener tl in listeners)
                 {
-                    if (!MatchTriggerListener(tl, trigger.Key))
+                    if (!MatchTriggerListener(listenerManager, tl, trigger.Key))
                     {
                         continue;
                     }
@@ -1722,13 +1739,17 @@ namespace Quartz.Core
                 return Task.CompletedTask;
             }
 
-            return NotifyAwaited();
+            return NotifyAwaited(ListenerManager, listeners, jec, instCode, cancellationToken);
 
-            async Task NotifyAwaited()
+            static async Task NotifyAwaited(IListenerManager listenerManager,
+                                            IEnumerable<ITriggerListener> listeners,
+                                            IJobExecutionContext jec,
+                                            SchedulerInstruction instCode,
+                                            CancellationToken cancellationToken)
             {
                 foreach (var tl in listeners)
                 {
-                    if (!MatchTriggerListener(tl, jec.Trigger.Key))
+                    if (!MatchTriggerListener(listenerManager, tl, jec.Trigger.Key))
                     {
                         continue;
                     }
@@ -1819,9 +1840,8 @@ namespace Quartz.Core
                 }
             }
 
-            return singleListener != null || listeners is null
-                    ? Task.CompletedTask
-                    : NotifyAwaited(ListenerManager, listeners, notifyAction, jec, je, cancellationToken);
+            return listeners is null ? Task.CompletedTask
+                                     : NotifyAwaited(ListenerManager, listeners, notifyAction, jec, je, cancellationToken);
 
             static async Task NotifyAwaited(IListenerManager listenerManager,
                                             IEnumerable<IJobListener> listeners,
