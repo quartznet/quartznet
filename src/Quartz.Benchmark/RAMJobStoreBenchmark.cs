@@ -1,4 +1,4 @@
-﻿using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Attributes;
 using Quartz.Impl.Matchers;
 using Quartz.Job;
 using Quartz.Simpl;
@@ -48,7 +48,7 @@ namespace Quartz.Benchmark
                 {
                     start.WaitOne();
 
-                    for (var i = 0; i < 10_000; i++)
+                    for (var j = 0; j < 10_000; j++)
                     {
                         _ramJobStore.StoreTrigger(_trigger1, true);
                     }
