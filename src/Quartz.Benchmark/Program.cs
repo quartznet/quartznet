@@ -1,4 +1,4 @@
-﻿using System.Runtime.CompilerServices;
+using System.Runtime.CompilerServices;
 
 using BenchmarkDotNet.Running;
 
@@ -8,7 +8,7 @@ namespace Quartz.Benchmark
     {
         private static void Main(string[] args)
         {
-            BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run();
+            BenchmarkSwitcher.FromAssembly(typeof(Program).Assembly).Run(args);
 
             //DispatchBenchmark();
         }
