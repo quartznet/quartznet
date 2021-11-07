@@ -160,7 +160,6 @@ namespace Quartz.Benchmark
             _ramJobStore10.StoreJob(_noOpJob, false).GetAwaiter().GetResult();
         }
 
-        /*
         [Benchmark]
         public void StoreTrigger_ReplaceExisting_SingleThreaded()
         {
@@ -275,7 +274,6 @@ namespace Quartz.Benchmark
                 }
             }
         }
-        */
 
         [Benchmark(OperationsPerInvoke = 300_000)]
         public void AcquireNextTriggers_MaxCountIsOneAndAtLeastOneMatchingTimerTriggerAvailable()
