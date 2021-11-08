@@ -1324,8 +1324,6 @@ namespace Quartz.Simpl
                     return;
                 }
 
-                IOperableTrigger trig = tw.Trigger;
-
                 // if the trigger is not paused resuming it does not make sense...
                 if (tw.state != InternalTriggerState.Paused &&
                     tw.state != InternalTriggerState.PausedAndBlocked)
@@ -1333,7 +1331,7 @@ namespace Quartz.Simpl
                     return;
                 }
 
-                if (blockedJobs.Contains(trig.JobKey))
+                if (blockedJobs.Contains(tw.Trigger.JobKey))
                 {
                     tw.state = InternalTriggerState.Blocked;
                 }
@@ -1532,9 +1530,18 @@ namespace Quartz.Simpl
         /// Applies the misfire.
         /// </summary>
         /// <param name="tw">The trigger wrapper.</param>
-        /// <returns></returns>
+        /// <returns>
+        /// <see langword="true"/> if the next fire time of the trigger was updated from either
+        /// one value to another, or from a given value to <see langword="null"/>; otherwise,
+        /// <see langword="false"/>.
+        /// </returns>
         protected virtual bool ApplyMisfire(TriggerWrapper tw)
         {
+            if (tw.Trigger.MisfireInstruction == MisfireInstruction.IgnoreMisfirePolicy)
+            {
+                return false;
+            }
+
             DateTimeOffset misfireTime = SystemTime.UtcNow();
             if (MisfireThreshold > TimeSpan.Zero)
             {
@@ -1542,8 +1549,7 @@ namespace Quartz.Simpl
             }
 
             DateTimeOffset? tnft = tw.Trigger.GetNextFireTimeUtc();
-            if (!tnft.HasValue || tnft.Value > misfireTime
-                || tw.Trigger.MisfireInstruction == MisfireInstruction.IgnoreMisfirePolicy)
+            if (!tnft.HasValue || tnft.GetValueOrDefault() > misfireTime)
             {
                 return false;
             }
@@ -1554,20 +1560,23 @@ namespace Quartz.Simpl
                 calendarsByName.TryGetValue(tw.Trigger.CalendarName, out cal);
             }
 
-            signaler.NotifyTriggerListenersMisfired((IOperableTrigger) tw.Trigger.Clone()).ConfigureAwait(false).GetAwaiter().GetResult();
+            signaler.NotifyTriggerListenersMisfired(tw.Trigger.Clone()).ConfigureAwait(false).GetAwaiter().GetResult();
             tw.Trigger.UpdateAfterMisfire(cal);
 
-            if (!tw.Trigger.GetNextFireTimeUtc().HasValue)
+            var updatedTnft = tw.Trigger.GetNextFireTimeUtc();
+            if (!updatedTnft.HasValue)
             {
                 tw.state = InternalTriggerState.Complete;
                 signaler.NotifySchedulerListenersFinalized(tw.Trigger).ConfigureAwait(false).GetAwaiter().GetResult();
-                ;
+
+                // We do not remove the trigger that we applied the misfire for (since its next fire time has been
+                // updated). Instead we remove a trigger with the same trigger key, but with no next fire time set.
                 lock (lockObject)
                 {
                     timeTriggers.Remove(tw);
                 }
             }
-            else if (tnft.Equals(tw.Trigger.GetNextFireTimeUtc()))
+            else if (tnft.GetValueOrDefault() == updatedTnft.GetValueOrDefault())
             {
                 return false;
             }
@@ -1607,11 +1616,17 @@ namespace Quartz.Simpl
                     {
                         break;
                     }
+
+                    // It would've been more efficient to only remove the trigger if we're really acquiring it, but
+                    // we need to remove it before we apply the misfire. It not, after having updated the trigger,
+                    // we'd attempt to remove the trigger with the new next fire time which would no longer match
+                    // the trigger in the 'timeTriggers' set.
                     if (!timeTriggers.Remove(tw))
                     {
                         break;
                     }
 
+                    // When the trigger is not scheduled to fire, continue with the next trigger.
                     if (tw.Trigger.GetNextFireTimeUtc() == null)
                     {
                         continue;
@@ -1619,6 +1634,9 @@ namespace Quartz.Simpl
 
                     if (ApplyMisfire(tw))
                     {
+                        // If - after applying the misfire policy - the trigger is still scheduled to fire, we'll
+                        // add it back to the set of triggers. We cannot use the "cached" next fire time here as
+                        // it has been updated in ApplyMisfire(TriggerWrapper tw).
                         if (tw.Trigger.GetNextFireTimeUtc() != null)
                         {
                             timeTriggers.Add(tw);
@@ -1626,16 +1644,21 @@ namespace Quartz.Simpl
                         continue;
                     }
 
+                    // The first trigger that is scheduled to fire after the window for the current batch completes
+                    // the current batch.
                     if (tw.Trigger.GetNextFireTimeUtc() > batchEnd)
                     {
+                        // Since we removed the trigger from 'timeTriggers' earlier, we now need to add it back.
                         timeTriggers.Add(tw);
                         break;
                     }
 
-                    // If trigger's job is set as @DisallowConcurrentExecution, and it has already been added to result, then
-                    // put it back into the timeTriggers set and continue to search for next trigger.
                     JobKey jobKey = tw.Trigger.JobKey;
                     IJobDetail job = jobsByKey[jobKey].JobDetail;
+
+                    // If trigger's job disallows concurrent execution and the job was already added to the result,
+                    // then we'll add the trigger to the list of excluded triggers (which we'll add back to the set
+                    // of time triggers after we've completed the current batch) and skip the trigger.
                     if (job.ConcurrentExecutionDisallowed)
                     {
                         if (!acquiredJobKeysForNoConcurrentExec.Add(jobKey))
