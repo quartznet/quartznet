@@ -6,16 +6,17 @@
 
 * BREAKING CHANGES
 
-	* **JobKey** and **TriggerKey** now throw an **ArgumentNullException** when you specify **null** for _name_ or _group_ (#1359)
-	* The following properties have been removed from **AbstractTrigger** as they represent information that is already available 
-    through the **Key** and **JobKey** properties:
-		* Name
-		* GroupName
-		* JobName
-		* JobGroup
-		* FullName
+    * **JobKey** and **TriggerKey** now throw an **ArgumentNullException** when you specify **null** for _name_ or _group_ (#1359)
+    * The following properties have been removed from **AbstractTrigger** as they represent information that is already available through the **Key** and **JobKey** properties:
+      * Name
+      * GroupName
+      * JobName
+      * JobGroup
+      * FullName
 
-	* Triggers can no longer be constructed with a **null** group name (#1359)
+    * Triggers can no longer be constructed with a **null** group name (#1359)
+
+    * The *endUtc* argument of **SimpleTriggerImpl** is no longer nullable.
 
 ## Release 3.3.3, Aug 1 2021
 
