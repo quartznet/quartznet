@@ -1621,8 +1621,11 @@ namespace Quartz.Simpl
                     // the trigger in the 'timeTriggers' set.
                     timeTriggers.Remove(tw);
 
+                    // Use a local for the next fire time to reduce number of interface calls.
+                    var tnft = tw.Trigger.GetNextFireTimeUtc();
+
                     // When the trigger is not scheduled to fire, continue with the next trigger.
-                    if (tw.Trigger.GetNextFireTimeUtc() == null)
+                    if (!tnft.HasValue)
                     {
                         continue;
                     }
@@ -1641,14 +1644,14 @@ namespace Quartz.Simpl
 
                     // The first trigger that is scheduled to fire after the window for the current batch completes
                     // the current batch.
-                    if (tw.Trigger.GetNextFireTimeUtc() > batchEnd)
+                    if (tnft.GetValueOrDefault() > batchEnd)
                     {
                         // Since we removed the trigger from 'timeTriggers' earlier, we now need to add it back.
                         timeTriggers.Add(tw);
                         break;
                     }
 
-                    JobKey jobKey = tw.Trigger.JobKey;
+                    JobKey jobKey = tw.JobKey;
                     IJobDetail job = jobsByKey[jobKey].JobDetail;
 
                     // If trigger's job disallows concurrent execution and the job was already added to the result,
@@ -1670,7 +1673,7 @@ namespace Quartz.Simpl
                     if (result.Count == 0)
                     {
                         var now = SystemTime.UtcNow();
-                        var nextFireTime = tw.Trigger.GetNextFireTimeUtc().GetValueOrDefault(DateTimeOffset.MinValue);
+                        var nextFireTime = tnft.GetValueOrDefault();
                         var max = now > nextFireTime ? now : nextFireTime;
 
                         batchEnd = max + timeWindow;
