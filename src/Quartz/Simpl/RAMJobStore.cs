@@ -104,7 +104,7 @@ namespace Quartz.Simpl
         protected virtual string GetFiredTriggerRecordId()
         {
             long value = Interlocked.Increment(ref ftrCtr);
-            return Convert.ToString(value, CultureInfo.InvariantCulture);
+            return value.ToString(CultureInfo.InvariantCulture);
         }
 
         /// <summary>
