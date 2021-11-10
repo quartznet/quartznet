@@ -1670,20 +1670,23 @@ namespace Quartz.Simpl
                     tw.Trigger.FireInstanceId = GetFiredTriggerRecordId();
                     IOperableTrigger trig = (IOperableTrigger) tw.Trigger.Clone();
 
-                    if (result.Count == 0)
+                    result.Add(trig);
+
+                    if (result.Count == maxCount)
+                    {
+                        break;
+                    }
+
+                    // Use the next fire time of the first acquired trigger to update the maximum next fire
+                    // time that we accept for this batch. We only perform this update if we want to acquire
+                    // more than one trigger.
+                    if (result.Count == 1)
                     {
                         var now = SystemTime.UtcNow();
                         var nextFireTime = tnft.GetValueOrDefault();
                         var max = now > nextFireTime ? now : nextFireTime;
 
                         batchEnd = max + timeWindow;
-                    }
-
-                    result.Add(trig);
-
-                    if (result.Count == maxCount)
-                    {
-                        break;
                     }
                 }
 
@@ -1695,6 +1698,7 @@ namespace Quartz.Simpl
                         timeTriggers.Add(excludedTrigger);
                     }
                 }
+
                 return Task.FromResult<IReadOnlyCollection<IOperableTrigger>>(result);
             }
         }
