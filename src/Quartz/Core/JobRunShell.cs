@@ -386,7 +386,7 @@ namespace Quartz.Core
         }
 
         private static async Task<bool> NotifyJobListenersComplete(QuartzScheduler qs,
-                                                                   IJobExecutionContext ctx,
+                                                                   JobExecutionContextImpl ctx,
                                                                    JobExecutionException? jobExEx,
                                                                    CancellationToken cancellationToken = default)
         {
@@ -406,7 +406,7 @@ namespace Quartz.Core
         }
 
         private static Task<bool> NotifyTriggerListenersComplete(QuartzScheduler qs,
-                                                                 IJobExecutionContext ctx,
+                                                                 JobExecutionContextImpl ctx,
                                                                  SchedulerInstruction instCode,
                                                                  CancellationToken cancellationToken = default)
         {
@@ -427,7 +427,7 @@ namespace Quartz.Core
             return NotifyAwaited(qs, ctx, instCode, cancellationToken);
 
             static async Task<bool> NotifyAwaited(QuartzScheduler qs,
-                                                  IJobExecutionContext ctx,
+                                                  JobExecutionContextImpl ctx,
                                                   SchedulerInstruction instCode,
                                                   CancellationToken cancellationToken)
             {
@@ -439,7 +439,7 @@ namespace Quartz.Core
 
             static async Task<bool> DoNotify(Task t,
                                              QuartzScheduler qs,
-                                             IJobExecutionContext ctx,
+                                             JobExecutionContextImpl ctx,
                                              CancellationToken cancellationToken)
             {
                 try
@@ -455,7 +455,7 @@ namespace Quartz.Core
 
             static async Task<bool> NotifyError(SchedulerException se,
                                                 QuartzScheduler qs,
-                                                IJobExecutionContext ctx,
+                                                JobExecutionContextImpl ctx,
                                                 CancellationToken cancellationToken)
             {
                 string msg = $"Unable to notify TriggerListener(s) of Job that was executed: (error will be ignored). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
