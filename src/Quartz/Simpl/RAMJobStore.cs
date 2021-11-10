@@ -989,7 +989,7 @@ namespace Quartz.Simpl
         {
             lock (lockObject)
             {
-                HashSet<TriggerKey>? outList = null;
+                HashSet<TriggerKey> outList = new HashSet<TriggerKey>();
                 StringOperator op = matcher.CompareWithOperator;
                 string compareToValue = matcher.CompareToValue;
 
@@ -998,8 +998,6 @@ namespace Quartz.Simpl
                     triggersByGroup.TryGetValue(compareToValue, out var grpMap);
                     if (grpMap != null)
                     {
-                        outList = new HashSet<TriggerKey>();
-
                         foreach (TriggerWrapper tw in grpMap.Values)
                         {
                             if (tw != null)
@@ -1015,10 +1013,6 @@ namespace Quartz.Simpl
                     {
                         if (op.Evaluate(entry.Key, compareToValue) && entry.Value != null)
                         {
-                            if (outList == null)
-                            {
-                                outList = new HashSet<TriggerKey>();
-                            }
                             foreach (TriggerWrapper triggerWrapper in entry.Value.Values)
                             {
                                 if (triggerWrapper != null)
@@ -1029,7 +1023,7 @@ namespace Quartz.Simpl
                         }
                     }
                 }
-                return outList ?? new HashSet<TriggerKey>();
+                return outList;
             }
         }
 
