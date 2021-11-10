@@ -1619,10 +1619,7 @@ namespace Quartz.Simpl
                     // we need to remove it before we apply the misfire. It not, after having updated the trigger,
                     // we'd attempt to remove the trigger with the new next fire time which would no longer match
                     // the trigger in the 'timeTriggers' set.
-                    if (!timeTriggers.Remove(tw))
-                    {
-                        break;
-                    }
+                    timeTriggers.Remove(tw);
 
                     // When the trigger is not scheduled to fire, continue with the next trigger.
                     if (tw.Trigger.GetNextFireTimeUtc() == null)
