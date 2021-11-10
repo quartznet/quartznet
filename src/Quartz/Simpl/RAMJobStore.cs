@@ -1543,7 +1543,7 @@ namespace Quartz.Simpl
             DateTimeOffset misfireTime = SystemTime.UtcNow();
             if (MisfireThreshold > TimeSpan.Zero)
             {
-                misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold.TotalMilliseconds);
+                misfireTime = misfireTime.AddTicks(-1 * MisfireThreshold.Ticks);
             }
 
             DateTimeOffset? tnft = tw.Trigger.GetNextFireTimeUtc();
