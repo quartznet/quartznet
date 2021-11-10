@@ -73,10 +73,14 @@ namespace Quartz.Simpl
         }
 
         /// <summary>
-        /// The time span by which a trigger must have missed its
-        /// next-fire-time, in order for it to be considered "misfired" and thus
-        /// have its misfire instruction applied.
+        /// Gets or sets the time by which a trigger must have missed its next-fire-time, in order for it to
+        /// be considered "misfired" and thus have its misfire instruction applied.
         /// </summary>
+        /// <value>
+        /// The time by which a trigger must have missed its next-fire-time, in order for it to be considered
+        /// "misfired" and thus have its misfire instruction applied. The default is <c>5</c> seconds.
+        /// </value>
+        /// <exception cref="ArgumentException"><paramref name="value"/> represents less than one millisecond.</exception>
         [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
         public virtual TimeSpan MisfireThreshold
         {
