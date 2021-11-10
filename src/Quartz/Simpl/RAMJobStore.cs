@@ -1782,8 +1782,12 @@ namespace Quartz.Simpl
 
                     if (job.ConcurrentExecutionDisallowed)
                     {
-                        foreach (TriggerWrapper ttw in GetTriggerWrappersForJobInternal(job.Key))
+                        var triggerWrappersForJob = GetTriggerWrappersForJobInternal(job.Key);
+
+                        for (var i = 0; i < triggerWrappersForJob.Count; i++)
                         {
+                            var ttw = triggerWrappersForJob[i];
+
                             if (ttw.state == InternalTriggerState.Waiting)
                             {
                                 ttw.state = InternalTriggerState.Blocked;
@@ -1792,6 +1796,7 @@ namespace Quartz.Simpl
                             {
                                 ttw.state = InternalTriggerState.PausedAndBlocked;
                             }
+
                             timeTriggers.Remove(ttw);
                         }
                         blockedJobs.Add(job.Key);
@@ -1851,8 +1856,12 @@ namespace Quartz.Simpl
                     {
                         blockedJobs.Remove(jd.Key);
 
-                        foreach (TriggerWrapper ttw in GetTriggerWrappersForJobInternal(jd.Key))
+                        var triggerWrappersForJob = GetTriggerWrappersForJobInternal(jd.Key);
+
+                        for (var i = 0; i < triggerWrappersForJob.Count; i++)
                         {
+                            var ttw = triggerWrappersForJob[i];
+
                             if (ttw.state == InternalTriggerState.Blocked)
                             {
                                 ttw.state = InternalTriggerState.Waiting;
@@ -1965,8 +1974,12 @@ namespace Quartz.Simpl
         /// </remarks>
         protected virtual void SetAllTriggersOfJobToState(JobKey jobKey, InternalTriggerState state)
         {
-            foreach (TriggerWrapper tw in GetTriggerWrappersForJobInternal(jobKey))
+            var triggerWrappersForJob = GetTriggerWrappersForJobInternal(jobKey);
+
+            for (var i = 0; i < triggerWrappersForJob.Count; i++)
             {
+                var tw = triggerWrappersForJob[i];
+
                 tw.state = state;
                 if (state != InternalTriggerState.Waiting)
                 {
