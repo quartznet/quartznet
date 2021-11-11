@@ -46,6 +46,7 @@ namespace Quartz.Core
     {
         private readonly QuartzScheduler qs;
         private readonly QuartzSchedulerResources qsRsrcs;
+        private readonly int idleWaitVariableness;
         private readonly object sigLock = new object();
 
         private bool signaled;
@@ -55,12 +56,6 @@ namespace Quartz.Core
 
         private readonly QuartzRandom random = new QuartzRandom();
 
-        // When the scheduler finds there is no current trigger to fire, how long
-        // it should wait until checking again...
-        private static readonly TimeSpan DefaultIdleWaitTime = TimeSpan.FromSeconds(30);
-
-        private TimeSpan idleWaitTime = DefaultIdleWaitTime;
-        private int idleWaitVariableness = 7 * 1000;
         private CancellationTokenSource cancellationTokenSource = null!;
         private Task task = null!;
 
@@ -71,45 +66,52 @@ namespace Quartz.Core
         internal ILog Log { get; }
 
         /// <summary>
-        /// Sets the idle wait time.
-        /// </summary>
-        /// <value>The idle wait time.</value>
-        [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
-        internal virtual TimeSpan IdleWaitTime
-        {
-            set
-            {
-                idleWaitTime = value;
-                idleWaitVariableness = (int) (value.TotalMilliseconds * 0.2);
-            }
-        }
-
-        /// <summary>
         /// Gets the randomized idle wait time.
         /// </summary>
         /// <value>The randomized idle wait time.</value>
         private TimeSpan GetRandomizedIdleWaitTime()
         {
-            return idleWaitTime - TimeSpan.FromMilliseconds(random.Next(idleWaitVariableness));
+            return qsRsrcs.IdleWaitTime - TimeSpan.FromMilliseconds(random.Next(idleWaitVariableness));
         }
 
         /// <summary>
         /// Gets a value indicating whether this <see cref="QuartzSchedulerThread"/> is paused.
         /// </summary>
         /// <value><c>true</c> if paused; otherwise, <c>false</c>.</value>
-        internal virtual bool Paused => paused;
+        internal bool Paused => paused;
+
+        /// <summary>
+        /// Gets a value indicating whether this <see cref="QuartzSchedulerThread"/> is stopped.
+        /// </summary>
+        /// <value>
+        /// <see langword="true"/> if stopped; otherwise, <see langword="false"/>.
+        /// </value>
+        internal bool Halted => halted;
+
+        /// <summary>
+        /// Gets the maximum number of milliseconds to subtract from <see cref="QuartzSchedulerResources.IdleWaitTime"/>
+        /// to randomize how long the scheduler should wait before checking again when there is no current trigger to
+        /// fire.
+        /// </summary>
+        /// <value>
+        /// The maximum number of milliseconds to subtract from <see cref="QuartzSchedulerResources.IdleWaitTime"/> to
+        /// randomize how long the scheduler should wait before checking again when there is no current trigger to fire.
+        /// </value>
+        internal int IdleWaitVariableness => idleWaitVariableness;
 
         /// <summary>
         /// Construct a new <see cref="QuartzSchedulerThread" /> for the given
         /// <see cref="QuartzScheduler" /> as a non-daemon <see cref="Thread" />
         /// with normal priority.
         /// </summary>
+        /// <param name="qs">The scheduler.</param>
+        /// <param name="qsRsrcs">The resources.</param>
         internal QuartzSchedulerThread(QuartzScheduler qs, QuartzSchedulerResources qsRsrcs)
         {
             Log = LogProvider.GetLogger(GetType());
-            //ThreadGroup generatedAux = qs.SchedulerThreadGroup;
             this.qs = qs;
             this.qsRsrcs = qsRsrcs;
+            idleWaitVariableness = (int) (qsRsrcs.IdleWaitTime.TotalMilliseconds * 0.2);
 
             // start the underlying thread, but put this object into the 'paused'
             // state
@@ -139,7 +141,7 @@ namespace Quartz.Core
         }
 
         /// <summary>
-        /// Signals the main processing loop to pause at the next possible point.
+        /// Signals the main processing loop to stop at the next possible point.
         /// </summary>
         internal virtual async Task Halt(bool wait)
         {
@@ -277,7 +279,7 @@ namespace Quartz.Core
                         ClearSignaledSchedulingChange();
                         try
                         {
-                            var noLaterThan = now + idleWaitTime;
+                            var noLaterThan = now + qsRsrcs.IdleWaitTime;
                             var maxCount = Math.Min(availThreadCount, qsRsrcs.MaxBatchSize);
                             triggers = new List<IOperableTrigger>(await qsRsrcs.JobStore.AcquireNextTriggers(noLaterThan, maxCount, qsRsrcs.BatchTimeWindow, CancellationToken.None).ConfigureAwait(false));
                             acquiresFailed = 0;

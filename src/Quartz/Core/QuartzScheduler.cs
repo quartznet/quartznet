@@ -65,9 +65,9 @@ namespace Quartz.Core
         private readonly ILog log;
         private static readonly Version version;
 
-        private readonly QuartzSchedulerResources resources = null!;
+        internal readonly QuartzSchedulerResources resources = null!;
 
-        private readonly QuartzSchedulerThread schedThread = null!;
+        internal readonly QuartzSchedulerThread schedThread = null!;
 
         private readonly ConcurrentDictionary<string, IJobListener> internalJobListeners = new ConcurrentDictionary<string, IJobListener>();
         private readonly ConcurrentDictionary<string, ITriggerListener> internalTriggerListeners = new ConcurrentDictionary<string, ITriggerListener>();
@@ -264,7 +264,7 @@ namespace Quartz.Core
         /// properties.
         /// </summary>
         /// <seealso cref="QuartzSchedulerResources" />
-        public QuartzScheduler(QuartzSchedulerResources resources, TimeSpan idleWaitTime) : this()
+        public QuartzScheduler(QuartzSchedulerResources resources) : this()
         {
             this.resources = resources;
 
@@ -275,11 +275,6 @@ namespace Quartz.Core
 
             schedThread = new QuartzSchedulerThread(this, resources);
             schedThread.Start();
-
-            if (idleWaitTime > TimeSpan.Zero)
-            {
-                schedThread.IdleWaitTime = idleWaitTime;
-            }
 
             jobMgr = new ExecutingJobsManager();
             AddInternalJobListener(jobMgr);
