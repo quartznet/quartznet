@@ -42,7 +42,6 @@ namespace Quartz.Tests.Unit.Impl
         private SchedulerRepository _schedulerRepository;
         private DefaultThreadPool _threadPool;
         private RAMJobStore _jobStore;
-        private string _schedulerName;
 
         public DirectSchedulerFactoryTest()
         {
@@ -50,19 +49,17 @@ namespace Quartz.Tests.Unit.Impl
             _schedulerRepository = SchedulerRepository.Instance;
             _threadPool = new DefaultThreadPool();
             _jobStore = new RAMJobStore();
-            _schedulerName = _random.Next().ToString();
 
             _directSchedulerFactory = DirectSchedulerFactory.Instance;
         }
 
-        [SetUp]
+        [TearDown]
         public void TearDown()
         {
-            _schedulerRepository.Remove(DirectSchedulerFactory.DefaultSchedulerName);
-
-            if (_schedulerName != null)
+            var schedulers = _schedulerRepository.LookupAll().GetAwaiter().GetResult();
+            foreach (var scheduler in schedulers)
             {
-                _schedulerRepository.Remove(_schedulerName);
+                scheduler.Shutdown().GetAwaiter().GetResult();
             }
         }
 
@@ -77,8 +74,8 @@ namespace Quartz.Tests.Unit.Impl
 
             var stdScheduler = (StdScheduler) scheduler;
 
-            Assert.AreEqual(DirectSchedulerFactory.DefaultSchedulerName, stdScheduler.SchedulerName);
-            Assert.AreEqual(DirectSchedulerFactory.DefaultInstanceId, stdScheduler.SchedulerInstanceId);
+            Assert.AreSame(DirectSchedulerFactory.DefaultSchedulerName, stdScheduler.SchedulerName);
+            Assert.AreSame(DirectSchedulerFactory.DefaultInstanceId, stdScheduler.SchedulerInstanceId);
             Assert.AreSame(_threadPool, stdScheduler.sched.resources.ThreadPool);
             Assert.AreSame(_jobStore, stdScheduler.sched.resources.JobStore);
             Assert.AreEqual(TimeSpan.FromSeconds(30), stdScheduler.sched.resources.IdleWaitTime);
@@ -89,18 +86,19 @@ namespace Quartz.Tests.Unit.Impl
         [Test]
         public void CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStore()
         {
+            var schedulerName = _random.Next().ToString();
             var schedulerInstanceId = _random.Next().ToString();
 
-            _directSchedulerFactory.CreateScheduler(_schedulerName, schedulerInstanceId, _threadPool, _jobStore);
+            _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore);
 
-            var scheduler = _schedulerRepository.Lookup(_schedulerName).GetAwaiter().GetResult();
+            var scheduler = _schedulerRepository.Lookup(schedulerName).GetAwaiter().GetResult();
             Assert.IsNotNull(scheduler);
             Assert.AreEqual(typeof(StdScheduler), scheduler.GetType());
 
             var stdScheduler = (StdScheduler) scheduler;
 
-            Assert.AreEqual(_schedulerName, stdScheduler.SchedulerName);
-            Assert.AreEqual(schedulerInstanceId, stdScheduler.SchedulerInstanceId);
+            Assert.AreSame(schedulerName, stdScheduler.SchedulerName);
+            Assert.AreSame(schedulerInstanceId, stdScheduler.SchedulerInstanceId);
             Assert.AreEqual(0, stdScheduler.sched.resources.SchedulerPlugins.Count);
             Assert.AreSame(_threadPool, stdScheduler.sched.resources.ThreadPool);
             Assert.AreSame(_jobStore, stdScheduler.sched.resources.JobStore);
@@ -112,11 +110,12 @@ namespace Quartz.Tests.Unit.Impl
         [Test]
         public void CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStoreAndIdleWaitTime_IdleWaitTimeNotValid([ValueSource(nameof(InvalidIdleWaitTimes))] TimeSpan idleWaitTime)
         {
+            var schedulerName = _random.Next().ToString();
             var schedulerInstanceId = _random.Next().ToString();
 
             try
             {
-                _directSchedulerFactory.CreateScheduler(_schedulerName, schedulerInstanceId, _threadPool, _jobStore, idleWaitTime);
+                _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, idleWaitTime);
                 Assert.Fail();
             }
             catch (ArgumentOutOfRangeException ex)
@@ -129,17 +128,18 @@ namespace Quartz.Tests.Unit.Impl
         public void CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStoreAndSchedulerPluginMapAndIdleWaitTime([ValueSource(nameof(ValidIdleWaitTimes))] TimeSpan idleWaitTime,
                                                                                                                                     [ValueSource(nameof(ValidSchedulerPluginMaps))] IDictionary<string, ISchedulerPlugin> schedulerPluginMap)
         {
+            var schedulerName = _random.Next().ToString();
             var schedulerInstanceId = _random.Next().ToString();
 
-            _directSchedulerFactory.CreateScheduler(_schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime);
+            _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime);
 
-            var scheduler = _schedulerRepository.Lookup(_schedulerName).GetAwaiter().GetResult();
+            var scheduler = _schedulerRepository.Lookup(schedulerName).GetAwaiter().GetResult();
             Assert.IsNotNull(scheduler);
             Assert.AreEqual(typeof(StdScheduler), scheduler.GetType());
 
             var stdScheduler = (StdScheduler) scheduler;
 
-            Assert.AreEqual(_schedulerName, stdScheduler.SchedulerName);
+            Assert.AreSame(schedulerName, stdScheduler.SchedulerName);
             Assert.AreEqual(schedulerInstanceId, stdScheduler.SchedulerInstanceId);
             Assert.AreSame(_threadPool, stdScheduler.sched.resources.ThreadPool);
             Assert.AreSame(_jobStore, stdScheduler.sched.resources.JobStore);
@@ -164,12 +164,13 @@ namespace Quartz.Tests.Unit.Impl
         [Test]
         public void CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStoreAndSchedulerPluginMapAndIdleWaitTime_IdleWaitTimeNotValid([ValueSource(nameof(InvalidIdleWaitTimes))] TimeSpan idleWaitTime)
         {
+            var schedulerName = _random.Next().ToString();
             var schedulerInstanceId = _random.Next().ToString();
             IDictionary<string, ISchedulerPlugin> schedulerPluginMap = null;
 
             try
             {
-                _directSchedulerFactory.CreateScheduler(_schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime);
+                _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime);
                 Assert.Fail();
             }
             catch (ArgumentOutOfRangeException ex)
@@ -184,18 +185,19 @@ namespace Quartz.Tests.Unit.Impl
                                                                                                                                                                      [ValueSource(nameof(ValidMaxBatchSizes))] int maxBatchSize,
                                                                                                                                                                      [ValueSource(nameof(ValidBatchTimeWindows))] TimeSpan batchTimeWindow)
         {
+            var schedulerName = _random.Next().ToString();
             var schedulerInstanceId = _random.Next().ToString();
 
-            _directSchedulerFactory.CreateScheduler(_schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow);
+            _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow);
 
-            var scheduler = _schedulerRepository.Lookup(_schedulerName).GetAwaiter().GetResult();
+            var scheduler = _schedulerRepository.Lookup(schedulerName).GetAwaiter().GetResult();
             Assert.IsNotNull(scheduler);
             Assert.AreEqual(typeof(StdScheduler), scheduler.GetType());
 
             var stdScheduler = (StdScheduler) scheduler;
 
-            Assert.AreEqual(_schedulerName, stdScheduler.SchedulerName);
-            Assert.AreEqual(schedulerInstanceId, stdScheduler.SchedulerInstanceId);
+            Assert.AreSame(schedulerName, stdScheduler.SchedulerName);
+            Assert.AreSame(schedulerInstanceId, stdScheduler.SchedulerInstanceId);
             Assert.AreSame(_threadPool, stdScheduler.sched.resources.ThreadPool);
             Assert.AreSame(_jobStore, stdScheduler.sched.resources.JobStore);
             Assert.AreEqual(idleWaitTime, stdScheduler.sched.resources.IdleWaitTime);
@@ -219,6 +221,7 @@ namespace Quartz.Tests.Unit.Impl
         [Test]
         public void CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStoreAndSchedulerPluginMapAndIdleWaitTimeAndMaxBatchSizeAndBatchTimeWindow_IdleWaitTimeNotValid([ValueSource(nameof(InvalidIdleWaitTimes))] TimeSpan idleWaitTime)
         {
+            var schedulerName = _random.Next().ToString();
             var schedulerInstanceId = _random.Next().ToString();
             var schedulerPluginMap = new Dictionary<string, ISchedulerPlugin>();
             var maxBatchSize = ValidMaxBatchSizes().First();
@@ -226,7 +229,7 @@ namespace Quartz.Tests.Unit.Impl
 
             try
             {
-                _directSchedulerFactory.CreateScheduler(_schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow);
+                _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow);
                 Assert.Fail();
             }
             catch (ArgumentOutOfRangeException ex)
@@ -242,18 +245,19 @@ namespace Quartz.Tests.Unit.Impl
                                                                                                                                                                                          [ValueSource(nameof(ValidBatchTimeWindows))] TimeSpan batchTimeWindow,
                                                                                                                                                                                          [ValueSource(nameof(SchedulerExporters))] ISchedulerExporter schedulerExporter)
         {
+            var schedulerName = _random.Next().ToString();
             var schedulerInstanceId = _random.Next().ToString();
 
-            _directSchedulerFactory.CreateScheduler(_schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow, schedulerExporter);
+            _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow, schedulerExporter);
 
-            var scheduler = _schedulerRepository.Lookup(_schedulerName).GetAwaiter().GetResult();
+            var scheduler = _schedulerRepository.Lookup(schedulerName).GetAwaiter().GetResult();
             Assert.IsNotNull(scheduler);
             Assert.AreEqual(typeof(StdScheduler), scheduler.GetType());
 
             var stdScheduler = (StdScheduler) scheduler;
 
-            Assert.AreEqual(_schedulerName, stdScheduler.SchedulerName);
-            Assert.AreEqual(schedulerInstanceId, stdScheduler.SchedulerInstanceId);
+            Assert.AreSame(schedulerName, stdScheduler.SchedulerName);
+            Assert.AreSame(schedulerInstanceId, stdScheduler.SchedulerInstanceId);
             Assert.AreSame(_threadPool, stdScheduler.sched.resources.ThreadPool);
             Assert.AreSame(_jobStore, stdScheduler.sched.resources.JobStore);
             Assert.AreEqual(idleWaitTime, stdScheduler.sched.resources.IdleWaitTime);
@@ -278,6 +282,7 @@ namespace Quartz.Tests.Unit.Impl
         [Test]
         public void CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStoreAndSchedulerPluginMapAndIdleWaitTimeAndMaxBatchSizeAndBatchTimeWindowAndSchedulerExporter_IdleWaitTimeNotValid([ValueSource(nameof(InvalidIdleWaitTimes))] TimeSpan idleWaitTime)
         {
+            var schedulerName = _random.Next().ToString();
             var schedulerInstanceId = _random.Next().ToString();
             var schedulerPluginMap = new Dictionary<string, ISchedulerPlugin>();
             var maxBatchSize = ValidMaxBatchSizes().First();
@@ -286,7 +291,7 @@ namespace Quartz.Tests.Unit.Impl
 
             try
             {
-                _directSchedulerFactory.CreateScheduler(_schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow, schedulerExporter);
+                _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow, schedulerExporter);
                 Assert.Fail();
             }
             catch (ArgumentOutOfRangeException ex)
@@ -298,6 +303,7 @@ namespace Quartz.Tests.Unit.Impl
         [Test]
         public void CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStoreAndSchedulerPluginMapAndIdleWaitTimeAndMaxBatchSizeAndBatchTimeWindowAndSchedulerExporter_MaxBatchSizeNotValid([ValueSource(nameof(InvalidMaxBatchSizes))] int maxBatchSize)
         {
+            var schedulerName = _random.Next().ToString();
             var schedulerInstanceId = _random.Next().ToString();
             var schedulerPluginMap = new Dictionary<string, ISchedulerPlugin>();
             var idleWaitTime = ValidIdleWaitTimes().First();
@@ -306,7 +312,7 @@ namespace Quartz.Tests.Unit.Impl
 
             try
             {
-                _directSchedulerFactory.CreateScheduler(_schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow, schedulerExporter);
+                _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow, schedulerExporter);
                 Assert.Fail();
             }
             catch (ArgumentOutOfRangeException ex)
@@ -318,6 +324,7 @@ namespace Quartz.Tests.Unit.Impl
         [Test]
         public void CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStoreAndSchedulerPluginMapAndIdleWaitTimeAndMaxBatchSizeAndBatchTimeWindowAndSchedulerExporter_BatchTimeWindowNotValid([ValueSource(nameof(InvalidBatchTimeWindows))] TimeSpan batchTimeWindow)
         {
+            var schedulerName = _random.Next().ToString();
             var schedulerInstanceId = _random.Next().ToString();
             var schedulerPluginMap = new Dictionary<string, ISchedulerPlugin>();
             var idleWaitTime = ValidIdleWaitTimes().First();
@@ -326,7 +333,7 @@ namespace Quartz.Tests.Unit.Impl
 
             try
             {
-                _directSchedulerFactory.CreateScheduler(_schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow, schedulerExporter);
+                _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow, schedulerExporter);
                 Assert.Fail();
             }
             catch (ArgumentOutOfRangeException ex)
