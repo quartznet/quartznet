@@ -73,10 +73,14 @@ namespace Quartz.Simpl
         }
 
         /// <summary>
-        /// The time span by which a trigger must have missed its
-        /// next-fire-time, in order for it to be considered "misfired" and thus
-        /// have its misfire instruction applied.
+        /// Gets or sets the time by which a trigger must have missed its next-fire-time, in order for it to
+        /// be considered "misfired" and thus have its misfire instruction applied.
         /// </summary>
+        /// <value>
+        /// The time by which a trigger must have missed its next-fire-time, in order for it to be considered
+        /// "misfired" and thus have its misfire instruction applied. The default is <c>5</c> seconds.
+        /// </value>
+        /// <exception cref="ArgumentException"><paramref name="value"/> represents less than one millisecond.</exception>
         [TimeSpanParseRule(TimeSpanParseRule.Milliseconds)]
         public virtual TimeSpan MisfireThreshold
         {
@@ -100,7 +104,7 @@ namespace Quartz.Simpl
         protected virtual string GetFiredTriggerRecordId()
         {
             long value = Interlocked.Increment(ref ftrCtr);
-            return Convert.ToString(value, CultureInfo.InvariantCulture);
+            return value.ToString(CultureInfo.InvariantCulture);
         }
 
         /// <summary>
@@ -985,7 +989,7 @@ namespace Quartz.Simpl
         {
             lock (lockObject)
             {
-                HashSet<TriggerKey>? outList = null;
+                HashSet<TriggerKey> outList = new HashSet<TriggerKey>();
                 StringOperator op = matcher.CompareWithOperator;
                 string compareToValue = matcher.CompareToValue;
 
@@ -994,8 +998,6 @@ namespace Quartz.Simpl
                     triggersByGroup.TryGetValue(compareToValue, out var grpMap);
                     if (grpMap != null)
                     {
-                        outList = new HashSet<TriggerKey>();
-
                         foreach (TriggerWrapper tw in grpMap.Values)
                         {
                             if (tw != null)
@@ -1011,10 +1013,6 @@ namespace Quartz.Simpl
                     {
                         if (op.Evaluate(entry.Key, compareToValue) && entry.Value != null)
                         {
-                            if (outList == null)
-                            {
-                                outList = new HashSet<TriggerKey>();
-                            }
                             foreach (TriggerWrapper triggerWrapper in entry.Value.Values)
                             {
                                 if (triggerWrapper != null)
@@ -1025,7 +1023,7 @@ namespace Quartz.Simpl
                         }
                     }
                 }
-                return outList ?? new HashSet<TriggerKey>();
+                return outList;
             }
         }
 
@@ -1545,7 +1543,7 @@ namespace Quartz.Simpl
             DateTimeOffset misfireTime = SystemTime.UtcNow();
             if (MisfireThreshold > TimeSpan.Zero)
             {
-                misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold.TotalMilliseconds);
+                misfireTime = misfireTime.AddTicks(-1 * MisfireThreshold.Ticks);
             }
 
             DateTimeOffset? tnft = tw.Trigger.GetNextFireTimeUtc();
@@ -1611,7 +1609,7 @@ namespace Quartz.Simpl
 
                 while (true)
                 {
-                    var tw = timeTriggers.FirstOrDefault();
+                    var tw = timeTriggers.Min;
                     if (tw == null)
                     {
                         break;
@@ -1621,13 +1619,13 @@ namespace Quartz.Simpl
                     // we need to remove it before we apply the misfire. It not, after having updated the trigger,
                     // we'd attempt to remove the trigger with the new next fire time which would no longer match
                     // the trigger in the 'timeTriggers' set.
-                    if (!timeTriggers.Remove(tw))
-                    {
-                        break;
-                    }
+                    timeTriggers.Remove(tw);
+
+                    // Use a local for the next fire time to reduce number of interface calls.
+                    var tnft = tw.Trigger.GetNextFireTimeUtc();
 
                     // When the trigger is not scheduled to fire, continue with the next trigger.
-                    if (tw.Trigger.GetNextFireTimeUtc() == null)
+                    if (!tnft.HasValue)
                     {
                         continue;
                     }
@@ -1646,14 +1644,14 @@ namespace Quartz.Simpl
 
                     // The first trigger that is scheduled to fire after the window for the current batch completes
                     // the current batch.
-                    if (tw.Trigger.GetNextFireTimeUtc() > batchEnd)
+                    if (tnft.GetValueOrDefault() > batchEnd)
                     {
                         // Since we removed the trigger from 'timeTriggers' earlier, we now need to add it back.
                         timeTriggers.Add(tw);
                         break;
                     }
 
-                    JobKey jobKey = tw.Trigger.JobKey;
+                    JobKey jobKey = tw.JobKey;
                     IJobDetail job = jobsByKey[jobKey].JobDetail;
 
                     // If trigger's job disallows concurrent execution and the job was already added to the result,
@@ -1672,20 +1670,23 @@ namespace Quartz.Simpl
                     tw.Trigger.FireInstanceId = GetFiredTriggerRecordId();
                     IOperableTrigger trig = (IOperableTrigger) tw.Trigger.Clone();
 
-                    if (result.Count == 0)
-                    {
-                        var now = SystemTime.UtcNow();
-                        var nextFireTime = tw.Trigger.GetNextFireTimeUtc().GetValueOrDefault(DateTimeOffset.MinValue);
-                        var max = now > nextFireTime ? now : nextFireTime;
-
-                        batchEnd = max + timeWindow;
-                    }
-
                     result.Add(trig);
 
                     if (result.Count == maxCount)
                     {
                         break;
+                    }
+
+                    // Use the next fire time of the first acquired trigger to update the maximum next fire
+                    // time that we accept for this batch. We only perform this update if we want to acquire
+                    // more than one trigger.
+                    if (result.Count == 1)
+                    {
+                        var now = SystemTime.UtcNow();
+                        var nextFireTime = tnft.GetValueOrDefault();
+                        var max = now > nextFireTime ? now : nextFireTime;
+
+                        batchEnd = max + timeWindow;
                     }
                 }
 
@@ -1697,6 +1698,7 @@ namespace Quartz.Simpl
                         timeTriggers.Add(excludedTrigger);
                     }
                 }
+
                 return Task.FromResult<IReadOnlyCollection<IOperableTrigger>>(result);
             }
         }
@@ -1780,8 +1782,12 @@ namespace Quartz.Simpl
 
                     if (job.ConcurrentExecutionDisallowed)
                     {
-                        foreach (TriggerWrapper ttw in GetTriggerWrappersForJobInternal(job.Key))
+                        var triggerWrappersForJob = GetTriggerWrappersForJobInternal(job.Key);
+
+                        for (var i = 0; i < triggerWrappersForJob.Count; i++)
                         {
+                            var ttw = triggerWrappersForJob[i];
+
                             if (ttw.state == InternalTriggerState.Waiting)
                             {
                                 ttw.state = InternalTriggerState.Blocked;
@@ -1790,6 +1796,7 @@ namespace Quartz.Simpl
                             {
                                 ttw.state = InternalTriggerState.PausedAndBlocked;
                             }
+
                             timeTriggers.Remove(ttw);
                         }
                         blockedJobs.Add(job.Key);
@@ -1849,8 +1856,12 @@ namespace Quartz.Simpl
                     {
                         blockedJobs.Remove(jd.Key);
 
-                        foreach (TriggerWrapper ttw in GetTriggerWrappersForJobInternal(jd.Key))
+                        var triggerWrappersForJob = GetTriggerWrappersForJobInternal(jd.Key);
+
+                        for (var i = 0; i < triggerWrappersForJob.Count; i++)
                         {
+                            var ttw = triggerWrappersForJob[i];
+
                             if (ttw.state == InternalTriggerState.Blocked)
                             {
                                 ttw.state = InternalTriggerState.Waiting;
@@ -1963,8 +1974,12 @@ namespace Quartz.Simpl
         /// </remarks>
         protected virtual void SetAllTriggersOfJobToState(JobKey jobKey, InternalTriggerState state)
         {
-            foreach (TriggerWrapper tw in GetTriggerWrappersForJobInternal(jobKey))
+            var triggerWrappersForJob = GetTriggerWrappersForJobInternal(jobKey);
+
+            for (var i = 0; i < triggerWrappersForJob.Count; i++)
             {
+                var tw = triggerWrappersForJob[i];
+
                 tw.state = state;
                 if (state != InternalTriggerState.Waiting)
                 {
