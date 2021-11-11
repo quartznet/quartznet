@@ -9,7 +9,7 @@ on:
     - docs.yml
 
   pull_request:
-    branches: [ main ]
+    branches: [ main, v4 ]
     paths-ignore:
     - 'docs/**'
     - 'readme.md'
