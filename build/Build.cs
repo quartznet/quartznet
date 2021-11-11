@@ -11,6 +11,7 @@ using Nuke.Common.CI.GitHubActions;
 using Nuke.Common.Git;
 using Nuke.Common.IO;
 using Nuke.Common.ProjectModel;
+using Nuke.Common.Tooling;
 using Nuke.Common.Tools.DotNet;
 using Nuke.Common.Utilities.Collections;
 
@@ -102,13 +103,16 @@ partial class Build : NukeBuild
                 framework = "net6.0";
             }
 
+            var testProjects = new[] { "Quartz.Tests.Unit", "Quartz.Tests.AspNetCore" };
             DotNetTest(s => s
                 .EnableNoRestore()
                 .EnableNoBuild()
-                .SetProjectFile(Solution.GetProject("Quartz.Tests.Unit"))
                 .SetConfiguration(Configuration)
                 .SetFramework(framework)
                 .SetLoggers(GitHubActions.Instance is not null ? new [] { "GitHubActions" }  : Array.Empty<string>())
+                .CombineWith(testProjects, (_, testProject) => _
+                    .SetProjectFile(Solution.GetProject(testProject))
+                )
             );
         });
 

@@ -1,0 +1,15 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>net472;netstandard2.0</TargetFrameworks>
+    <RootNamespace>Quartz</RootNamespace>
+    <Title>Quartz.NET System.Text.Json Serialization</Title>
+    <Description>Quartz.NET System.Text.Json Serialization Support; $(Description)</Description>
+    <GenerateDocumentationFile>True</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz\Quartz.csproj" />
+    <PackageReference Include="System.Text.Json" Version="5.0.0" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,100 @@
+﻿using System.Text.Json;
+using System.Text.Json.Serialization;
+
+using Quartz.Impl.Triggers;
+using Quartz.Spi;
+using Quartz.Triggers;
+using Quartz.Util;
+
+namespace Quartz.Converters;
+
+internal class TriggerConverter : JsonConverter<ITrigger>
+{
+    private static readonly Dictionary<string, ITriggerSerializer> converters = new()
+    {
+        { CalendarIntervalTriggerSerializer.TriggerTypeKey, new CalendarIntervalTriggerSerializer() },
+        { CronTriggerSerializer.TriggerTypeKey, new CronTriggerSerializer() },
+        { DailyTimeIntervalTriggerSerializer.TriggerTypeKey, new DailyTimeIntervalTriggerSerializer() },
+        { SimpleTriggerSerializer.TriggerTypeKey, new SimpleTriggerSerializer() },
+
+        // Support also type name
+        { typeof(CalendarIntervalTriggerImpl).AssemblyQualifiedNameWithoutVersion(), new CalendarIntervalTriggerSerializer() },
+        { typeof(CronTriggerImpl).AssemblyQualifiedNameWithoutVersion(), new CronTriggerSerializer() },
+        { typeof(DailyTimeIntervalTriggerImpl).AssemblyQualifiedNameWithoutVersion(), new DailyTimeIntervalTriggerSerializer() },
+        { typeof(SimpleTriggerImpl).AssemblyQualifiedNameWithoutVersion(), new SimpleTriggerSerializer() }
+    };
+
+    public override bool CanConvert(Type objectType) => typeof(ITrigger).IsAssignableFrom(objectType);
+
+    public override ITrigger Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        var rootElement = JsonDocument.ParseValue(ref reader).RootElement;
+        var type = rootElement.GetProperty("TriggerType").GetString();
+
+        var triggerSerializer = GetTriggerSerializer(type);
+        var scheduleBuilder = triggerSerializer.CreateScheduleBuilder(rootElement);
+
+        var key = rootElement.GetProperty("Key").GetTriggerKey();
+        var jobKey = rootElement.GetProperty("JobKey").GetJobKey();
+        var description = rootElement.GetProperty("Description").GetString();
+        var calendarName = rootElement.GetProperty("CalendarName").GetString();
+        var jobDataMap = rootElement.GetProperty("JobDataMap").GetJobDataMap();
+        var misfireInstruction = rootElement.GetProperty("MisfireInstruction").GetInt32();
+        var endTimeUtc = rootElement.GetProperty("EndTimeUtc").GetDateTimeOffsetOrNull();
+        var startTimeUtc = rootElement.GetProperty("StartTimeUtc").GetDateTimeOffset();
+        var priority = rootElement.GetProperty("Priority").GetInt32();
+
+        var builder = TriggerBuilder.Create()
+            .WithSchedule(scheduleBuilder)
+            .WithIdentity(key);
+
+        if (jobKey != null)
+        {
+            builder = builder.ForJob(jobKey);
+        }
+
+        var trigger = builder
+            .WithDescription(description)
+            .ModifiedByCalendar(calendarName)
+            .UsingJobData(jobDataMap)
+            .EndAt(endTimeUtc)
+            .StartAt(startTimeUtc)
+            .WithPriority(priority)
+            .Build();
+
+        ((IMutableTrigger)trigger).MisfireInstruction = misfireInstruction;
+        return trigger;
+    }
+
+    public override void Write(Utf8JsonWriter writer, ITrigger value, JsonSerializerOptions options)
+    {
+        writer.WriteStartObject();
+        var type = value.GetType().AssemblyQualifiedNameWithoutVersion();
+        var triggerSerializer = GetTriggerSerializer(type);
+
+        writer.WriteString("TriggerType", triggerSerializer.TriggerTypeForJson);
+
+        writer.WriteKey("Key", value.Key);
+        writer.WriteKey("JobKey", value.JobKey);
+        writer.WriteString("Description", value.Description);
+        writer.WriteString("CalendarName", value.CalendarName);
+        writer.WriteJobDataMap("JobDataMap", value.JobDataMap);
+        writer.WriteNumber("MisfireInstruction", value.MisfireInstruction);
+        writer.WriteString("StartTimeUtc", value.StartTimeUtc);
+        writer.WriteString("EndTimeUtc", value.EndTimeUtc);
+        writer.WriteNumber("Priority", value.Priority);
+
+        triggerSerializer.SerializeFields(writer, value);
+        writer.WriteEndObject();
+    }
+
+    private static ITriggerSerializer GetTriggerSerializer(string? typeName)
+    {
+        if (string.IsNullOrWhiteSpace(typeName) || !converters.TryGetValue(typeName!, out var converter))
+        {
+            throw new ArgumentException("Don't know how to handle " + typeName);
+        }
+
+        return converter;
+    }
+}
