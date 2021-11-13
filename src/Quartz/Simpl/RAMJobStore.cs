@@ -928,15 +928,11 @@ namespace Quartz.Simpl
 
                 if (Equals(op, StringOperator.Equality))
                 {
-                    jobsByGroup.TryGetValue(compareToValue, out var grpMap);
-                    if (grpMap != null)
+                    if (jobsByGroup.TryGetValue(compareToValue, out var grpMap))
                     {
                         foreach (JobWrapper jw in grpMap.Values)
                         {
-                            if (jw != null)
-                            {
-                                outList.Add(jw.JobDetail.Key);
-                            }
+                            outList.Add(jw.JobDetail.Key);
                         }
                     }
                 }
@@ -944,14 +940,11 @@ namespace Quartz.Simpl
                 {
                     foreach (KeyValuePair<string, Dictionary<JobKey, JobWrapper>> entry in jobsByGroup)
                     {
-                        if (op.Evaluate(entry.Key, compareToValue) && entry.Value != null)
+                        if (op.Evaluate(entry.Key, compareToValue))
                         {
                             foreach (JobWrapper jobWrapper in entry.Value.Values)
                             {
-                                if (jobWrapper != null)
-                                {
-                                    outList.Add(jobWrapper.JobDetail.Key);
-                                }
+                                outList.Add(jobWrapper.JobDetail.Key);
                             }
                         }
                     }
@@ -995,15 +988,11 @@ namespace Quartz.Simpl
 
                 if (Equals(op, StringOperator.Equality))
                 {
-                    triggersByGroup.TryGetValue(compareToValue, out var grpMap);
-                    if (grpMap != null)
+                    if (triggersByGroup.TryGetValue(compareToValue, out var grpMap))
                     {
                         foreach (TriggerWrapper tw in grpMap.Values)
                         {
-                            if (tw != null)
-                            {
-                                outList.Add(tw.Trigger.Key);
-                            }
+                            outList.Add(tw.Trigger.Key);
                         }
                     }
                 }
@@ -1011,14 +1000,11 @@ namespace Quartz.Simpl
                 {
                     foreach (KeyValuePair<string, Dictionary<TriggerKey, TriggerWrapper>> entry in triggersByGroup)
                     {
-                        if (op.Evaluate(entry.Key, compareToValue) && entry.Value != null)
+                        if (op.Evaluate(entry.Key, compareToValue))
                         {
                             foreach (TriggerWrapper triggerWrapper in entry.Value.Values)
                             {
-                                if (triggerWrapper != null)
-                                {
-                                    outList.Add(triggerWrapper.Trigger.Key);
-                                }
+                                outList.Add(triggerWrapper.Trigger.Key);
                             }
                         }
                     }
@@ -1148,7 +1134,7 @@ namespace Quartz.Simpl
             lock (lockObject)
             {
                 // does the trigger exist?
-                if (!triggersByKey.TryGetValue(triggerKey, out var tw) || tw.Trigger == null)
+                if (!triggersByKey.TryGetValue(triggerKey, out var tw))
                 {
                     return;
                 }
@@ -1317,7 +1303,7 @@ namespace Quartz.Simpl
             lock (lockObject)
             {
                 // does the trigger exist?
-                if (!triggersByKey.TryGetValue(triggerKey, out var tw) || tw.Trigger == null)
+                if (!triggersByKey.TryGetValue(triggerKey, out var tw))
                 {
                     return;
                 }
@@ -1595,14 +1581,13 @@ namespace Quartz.Simpl
         {
             lock (lockObject)
             {
-                var result = new List<IOperableTrigger>();
-
                 // return empty list if store has no triggers.
                 if (timeTriggers.Count == 0)
                 {
-                    return Task.FromResult<IReadOnlyCollection<IOperableTrigger>>(result);
+                    return Task.FromResult<IReadOnlyCollection<IOperableTrigger>>(Array.Empty<IOperableTrigger>());
                 }
 
+                var result = new List<IOperableTrigger>();
                 var acquiredJobKeysForNoConcurrentExec = new HashSet<JobKey>();
                 var excludedTriggers = new HashSet<TriggerWrapper>();
                 DateTimeOffset batchEnd = noLaterThan;
@@ -1739,10 +1724,11 @@ namespace Quartz.Simpl
                 foreach (IOperableTrigger trigger in triggers)
                 {
                     // was the trigger deleted since being acquired?
-                    if (!triggersByKey.TryGetValue(trigger.Key, out var tw) || tw.Trigger == null)
+                    if (!triggersByKey.TryGetValue(trigger.Key, out var tw))
                     {
                         continue;
                     }
+
                     // was the trigger completed, paused, blocked, etc. since being acquired?
                     if (tw.state != InternalTriggerState.Acquired)
                     {
@@ -1803,10 +1789,7 @@ namespace Quartz.Simpl
                     }
                     else if (tw.Trigger.GetNextFireTimeUtc() != null)
                     {
-                        lock (lockObject)
-                        {
-                            timeTriggers.Add(tw);
-                        }
+                        timeTriggers.Add(tw);
                     }
 
                     results.Add(new TriggerFiredResult(bndle));
@@ -1830,8 +1813,6 @@ namespace Quartz.Simpl
         {
             lock (lockObject)
             {
-                triggersByKey.TryGetValue(trigger.Key, out var tw);
-
                 // It's possible that the job is null if:
                 //   1- it was deleted during execution
                 //   2- RAMJobStore is being used only for volatile jobs / triggers
@@ -1883,7 +1864,7 @@ namespace Quartz.Simpl
                 }
 
                 // check for trigger deleted during execution...
-                if (tw != null)
+                if (triggersByKey.TryGetValue(trigger.Key, out var tw))
                 {
                     if (triggerInstCode == SchedulerInstruction.DeleteTrigger)
                     {
