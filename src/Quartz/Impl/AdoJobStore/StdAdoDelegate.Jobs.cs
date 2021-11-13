@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
@@ -137,25 +137,25 @@ namespace Quartz.Impl.AdoJobStore
             AddCommandParameter(cmd, "jobName", jobKey.Name);
             AddCommandParameter(cmd, "jobGroup", jobKey.Group);
             using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            JobDetailImpl? job = null;
+            IJobDetail? job = null;
 
             if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                job = new JobDetailImpl();
-
-                job.Name = rs.GetString(ColumnJobName)!;
-                job.Group = rs.GetString(ColumnJobGroup)!;
-                job.Description = rs.GetString(ColumnDescription);
-                job.JobType = loadHelper.LoadType(rs.GetString(ColumnJobClass)!)!;
-                job.Durable = GetBooleanFromDbValue(rs[ColumnIsDurable]);
-                job.RequestsRecovery = GetBooleanFromDbValue(rs[ColumnRequestsRecovery]);
+                var jobBuilder = JobBuilder.Create()
+                    .WithIdentity(new JobKey(rs.GetString(ColumnJobName)!, rs.GetString(ColumnJobGroup)!))
+                    .WithDescription(rs.GetString(ColumnDescription))
+                    .OfType(loadHelper.LoadType(rs.GetString(ColumnJobClass)!)!)
+                    .RequestRecovery(GetBooleanFromDbValue(rs[ColumnRequestsRecovery]))
+                    .StoreDurably(GetBooleanFromDbValue(rs[ColumnIsDurable]));
 
                 var map = await ReadMapFromReader(rs, 6).ConfigureAwait(false);
 
                 if (map != null)
                 {
-                    job.JobDataMap = new JobDataMap(map);
+                    jobBuilder.SetJobData(new JobDataMap(map));
                 }
+
+                job = jobBuilder.Build();
             }
 
             return job;
@@ -219,18 +219,17 @@ namespace Quartz.Impl.AdoJobStore
             using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
             if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                JobDetailImpl job = new JobDetailImpl();
-                job.Name = rs.GetString(ColumnJobName)!;
-                job.Group = rs.GetString(ColumnJobGroup)!;
-                job.Durable = GetBooleanFromDbValue(rs[ColumnIsDurable]);
+                var jobBuilder = JobBuilder.Create()
+                    .WithIdentity(new JobKey(rs.GetString(ColumnJobName)!, rs.GetString(ColumnJobGroup)!))
+                    .RequestRecovery(GetBooleanFromDbValue(rs[ColumnRequestsRecovery]))
+                    .StoreDurably(GetBooleanFromDbValue(rs[ColumnIsDurable]));
+
                 if (loadJobType)
                 {
-                    job.JobType = loadHelper.LoadType(rs.GetString(ColumnJobClass)!)!;
+                    jobBuilder.OfType(loadHelper.LoadType(rs.GetString(ColumnJobClass)!)!);
                 }
 
-                job.RequestsRecovery = GetBooleanFromDbValue(rs[ColumnRequestsRecovery]);
-
-                return job;
+                return jobBuilder.Build();
             }
 
             if (logger.IsDebugEnabled())
