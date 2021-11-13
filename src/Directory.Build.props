@@ -2,8 +2,6 @@
 
   <PropertyGroup>
 
-    <OutputPath>..\..\build\$(Configuration)\$(MSBuildProjectName)</OutputPath>
-
     <Title>Quartz.NET</Title>
     <Product>Quartz.NET</Product>
     <Description>Quartz Scheduling Framework for .NET</Description>
@@ -29,7 +27,6 @@
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
 
     <VersionPrefix>3.3.3</VersionPrefix>
-    <VersionSuffix Condition="'$(VersionSuffix)'!='' AND '$(BuildNumber)' != ''">$(VersionSuffix)-$(BuildNumber)</VersionSuffix>
 
     <CLSCompliant>True</CLSCompliant>
     <ComVisible>False</ComVisible>

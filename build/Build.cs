@@ -1,0 +1,165 @@
+using System;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using Nuke.Common;
+using Nuke.Common.CI;
+using Nuke.Common.Execution;
+using Nuke.Common.Git;
+using Nuke.Common.IO;
+using Nuke.Common.ProjectModel;
+using Nuke.Common.Tools.DotNet;
+using Nuke.Common.Utilities.Collections;
+
+using static Nuke.Common.IO.FileSystemTasks;
+using static Nuke.Common.Tools.DotNet.DotNetTasks;
+
+[CheckBuildProjectConfigurations]
+[ShutdownDotNetAfterServerBuild]
+partial class Build : NukeBuild
+{
+    /// Support plugins are available for:
+    ///   - JetBrains ReSharper        https://nuke.build/resharper
+    ///   - JetBrains Rider            https://nuke.build/rider
+    ///   - Microsoft VisualStudio     https://nuke.build/visualstudio
+    ///   - Microsoft VSCode           https://nuke.build/vscode
+
+    public static int Main () => Execute<Build>(x => x.Compile);
+
+    [Parameter("Configuration to build - Default is 'Debug' (local) or 'Release' (server)")]
+    readonly Configuration Configuration = IsLocalBuild ? Configuration.Debug : Configuration.Release;
+
+    [Solution] readonly Solution Solution;
+    [GitRepository] readonly GitRepository GitRepository;
+
+    AbsolutePath SourceDirectory => RootDirectory / "src";
+    AbsolutePath ArtifactsDirectory => RootDirectory / "artifacts";
+
+
+    string TagVersion => GitRepository.Tags.SingleOrDefault(x => x.StartsWith("v"))?[1..];
+
+    string VersionSuffix =>
+        string.IsNullOrWhiteSpace(TagVersion)
+            ? "preview-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmm")
+            : "";
+
+    Target Clean => _ => _
+        .Before(Restore)
+        .Executes(() =>
+        {
+            SourceDirectory.GlobDirectories("**/bin", "**/obj").ForEach(DeleteDirectory);
+            EnsureCleanDirectory(ArtifactsDirectory);
+        });
+
+    Target Restore => _ => _
+        .Executes(() =>
+        {
+            DotNetRestore(s => s
+                .SetProjectFile(Solution));
+        });
+
+    Target Compile => _ => _
+        .DependsOn(Restore)
+        .Executes(() =>
+        {
+            DotNetBuild(s => s
+                .SetProjectFile(Solution)
+                .SetConfiguration(Configuration)
+                .EnableNoRestore());
+        });
+
+    Target Test => _ => _
+        .After(Compile)
+        .Executes(() =>
+        {
+            DotNetTest(s => s
+                .EnableNoRestore()
+                .EnableNoBuild()
+                .SetProjectFile(Solution.GetProject("Quartz.Tests.Unit"))
+                .SetConfiguration(Configuration)
+                .EnableNoRestore());
+        });
+
+    Target Pack => _ => _
+        .Executes(() =>
+        {
+            EnsureCleanDirectory(ArtifactsDirectory);
+
+            DotNetPack(s => s
+                .SetAssemblyVersion(TagVersion)
+                .SetFileVersion(TagVersion)
+                .SetInformationalVersion(TagVersion)
+                .SetVersionSuffix(VersionSuffix)
+                .SetConfiguration(Configuration)
+                .SetOutputDirectory(ArtifactsDirectory)
+            );
+
+            var zipContents = Array.Empty<AbsolutePath>()
+                    .Concat(SourceDirectory.GlobFiles("**/*.*"))
+                    .Concat(RootDirectory.GlobFiles("database/**/*"))
+                    .Concat(RootDirectory.GlobFiles("changelog.md"))
+                    .Concat(RootDirectory.GlobFiles("license.txt"))
+                    .Concat(RootDirectory.GlobFiles("README.md"))
+                    .Concat(RootDirectory.GlobFiles("*.sln"))
+                    .Concat(RootDirectory.GlobFiles("build.*"))
+                    .Concat(RootDirectory.GlobFiles("quartz.net.snk"))
+                    .Concat(RootDirectory.GlobFiles("build.*"))
+                    .Where(x => !x.Contains(""))
+                    .Where(x => !x.Contains("Quartz.Web"))
+                    .Where(x => !x.Contains("Quartz.Benchmark"))
+                    .Where(x => !x.Contains("Quartz.Test"))
+                    .Where(x => !x.Contains("/obj/"))
+                    .Where(x => !x.ToString().EndsWith(".suo"))
+                    .Where(x => !x.ToString().EndsWith(".user"))
+                ;
+
+            var zipTempDirectory = RootDirectory / "temp" / "package";
+            EnsureCleanDirectory(zipTempDirectory);
+
+            CopyDirectoryRecursively(
+                source: SourceDirectory,
+                target: zipTempDirectory / "src",
+                excludeDirectory: dir => dir.Name is "Quartz.Web" or "obj",
+                excludeFile: file => file.Name.EndsWith(".suo") || file.Name.EndsWith(".user"));
+
+            CopyDirectoryRecursively(source: RootDirectory / "database", target: zipTempDirectory / "database");
+
+            CopyFileToDirectory("README.md", zipTempDirectory);
+            CopyFileToDirectory("Quartz.sln", zipTempDirectory);
+            CopyFileToDirectory("quartz.net.snk", zipTempDirectory);
+            CopyFileToDirectory("license.txt", zipTempDirectory);
+            CopyFileToDirectory("changelog.md", zipTempDirectory);
+            CopyFileToDirectory("build.cmd", zipTempDirectory);
+            CopyFileToDirectory("build.sh", zipTempDirectory);
+            CopyFileToDirectory("build.ps1", zipTempDirectory);
+
+            /*
+
+            var trimSize = RootDirectory.ToString().Length + 1;
+
+            foreach (var file in zipContents)
+            {
+                var subDirectory = file.ToString().Substring(trimSize);
+                CopyFile(file, zipTempDirectory / subDirectory);
+            }
+*/
+            ZipFile.CreateFromDirectory(zipTempDirectory, ArtifactsDirectory / $"Quartz.NET-{VersionSuffix}.zip");
+        });
+
+    Target ApiDoc => _ => _
+        .Executes(() =>
+        {
+            var headerContent = File.ReadAllText("doc/header.template");
+            var footerContent = File.ReadAllText("doc/footer.template");
+
+            var docsDirectory = RootDirectory / "build" / "apidoc";
+
+            foreach (var file in docsDirectory.GlobFiles("**/*.htm", "**/*.html"))
+            {
+                var contents = File.ReadAllText(file);
+                contents = contents.Replace("@HEADER@", headerContent);
+                contents = contents.Replace("@FOOTER@", footerContent);
+                File.WriteAllText(file, contents);
+            }
+        });
+}

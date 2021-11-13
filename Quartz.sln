@@ -63,12 +63,16 @@ ProjectSection(SolutionItems) = preProject
 	.github\workflows\docs.yml = .github\workflows\docs.yml
 EndProjectSection
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "_build", "build\_build.csproj", "{1252A3D8-2CF1-4AF6-A80C-A9889634543B}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{1252A3D8-2CF1-4AF6-A80C-A9889634543B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1252A3D8-2CF1-4AF6-A80C-A9889634543B}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0545C4AC-45BE-47C3-81B7-1592579B9C31}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{0545C4AC-45BE-47C3-81B7-1592579B9C31}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0545C4AC-45BE-47C3-81B7-1592579B9C31}.Release|Any CPU.ActiveCfg = Release|Any CPU
