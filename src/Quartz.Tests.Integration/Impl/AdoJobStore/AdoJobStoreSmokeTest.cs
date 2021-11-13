@@ -485,15 +485,22 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             {
                 await sched.Clear();
 
-                JobDetailImpl lonelyJob = new JobDetailImpl("lonelyJob", "lonelyGroup", typeof(SimpleRecoveryJob));
-                lonelyJob.Durable = true;
-                lonelyJob.RequestsRecovery = true;
+                var lonelyJob = JobBuilder.Create()
+                                          .OfType<SimpleRecoveryJob>()
+                                          .WithIdentity(new JobKey("lonelyJob", "lonelyGroup"))
+                                          .StoreDurably(true)
+                                          .RequestRecovery(true)
+                                          .Build();
+
                 await sched.AddJob(lonelyJob, false);
                 await sched.AddJob(lonelyJob, true);
 
                 string schedId = sched.SchedulerInstanceId;
 
-                JobDetailImpl job = new JobDetailImpl("job_to_use", schedId, typeof(SimpleRecoveryJob));
+                var job = JobBuilder.Create()
+                                    .OfType<SimpleRecoveryJob>()
+                                    .WithIdentity(new JobKey("job_to_use", schedId))
+                                    .Build();
 
                 for (int i = 0; i < 100000; ++i)
                 {
