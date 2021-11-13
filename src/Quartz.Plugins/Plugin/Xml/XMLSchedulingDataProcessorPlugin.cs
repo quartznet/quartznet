@@ -184,11 +184,9 @@ namespace Quartz.Plugin.Xml
                             trig.RepeatCount = SimpleTriggerImpl.RepeatIndefinitely;
                             trig.RepeatInterval = ScanInterval;
 
-                            // TODO: convert to use builder
-                            JobDetailImpl job = new JobDetailImpl(
-                                jobTriggerName,
-                                JobInitializationPluginName,
-                                typeof (FileScanJob));
+                            var job = JobBuilder.Create<FileScanJob>()
+                                                .WithIdentity(new JobKey(jobTriggerName, JobInitializationPluginName))
+                                                .Build();
 
                             job.JobDataMap.Put(FileScanJob.FileName, jobFile.FilePath);
                             job.JobDataMap.Put(FileScanJob.FileScanListenerName, JobInitializationPluginName + '_' + Name);

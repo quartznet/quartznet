@@ -64,7 +64,9 @@ namespace Quartz.Tests.Unit.Core
             DateTime runTime = DateTime.Now.AddMinutes(10);
 
             // define the job and tie it to our HelloJob class
-            JobDetailImpl job = new JobDetailImpl("job1", "group1", typeof(NoOpJob));
+            var job = JobBuilder.Create<NoOpJob>()
+                                .WithIdentity(new JobKey("job1", "group1"))
+                                .Build();
 
             // Trigger the job to run on the next round minute
             IOperableTrigger trigger = new SimpleTriggerImpl("trigger1", "group1", runTime);
@@ -122,7 +124,9 @@ namespace Quartz.Tests.Unit.Core
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
             IScheduler scheduler = await sf.GetScheduler();
             DateTime startTimeUtc = DateTime.UtcNow.AddSeconds(2);
-            JobDetailImpl jobDetail = new JobDetailImpl(JobName, JobGroup, typeof(NoOpJob));
+            var jobDetail = JobBuilder.Create<NoOpJob>()
+                                      .WithIdentity(new JobKey(JobName, JobGroup))
+                                      .Build();
             SimpleTriggerImpl jobTrigger = new SimpleTriggerImpl(TriggerName, TriggerGroup, JobName, JobGroup, startTimeUtc, null, 1, TimeSpan.FromMilliseconds(1000));
 
             ISchedulerListener listener = A.Fake<ISchedulerListener>();

@@ -32,8 +32,13 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
             await sched.Start();
             string jobName = "ExceptionPolicyUnscheduleFiringTrigger";
             string jobGroup = "ExceptionPolicyUnscheduleFiringTriggerGroup";
-            JobDetailImpl myDesc = new JobDetailImpl(jobName, jobGroup, typeof(ExceptionJob));
-            myDesc.Durable = true;
+
+            var myDesc = JobBuilder.Create()
+                                   .OfType<ExceptionJob>()
+                                   .WithIdentity(new JobKey(jobName, jobGroup))
+                                   .StoreDurably(true)
+                                   .Build();
+
             await sched.AddJob(myDesc, false);
             string trigGroup = "ExceptionPolicyFiringTriggerGroup";
             IOperableTrigger trigger = new CronTriggerImpl("trigName", trigGroup, "0/2 * * * * ?");
@@ -113,8 +118,11 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
         {
             await sched.Start();
             JobKey jobKey = new JobKey("ExceptionPolicyNoRestartJob", "ExceptionPolicyNoRestartGroup");
-            JobDetailImpl exceptionJob = new JobDetailImpl(jobKey.Name, jobKey.Group, typeof(ExceptionJob));
-            exceptionJob.Durable = true;
+            var exceptionJob = JobBuilder.Create()
+                                         .OfType<ExceptionJob>()
+                                         .WithIdentity(jobKey)
+                                         .StoreDurably(true)
+                                         .Build();
             await sched.AddJob(exceptionJob, false);
 
             ExceptionJob.ThrowsException = true;

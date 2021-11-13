@@ -53,7 +53,10 @@ namespace Quartz.Tests.Unit
         /// <returns>Minimal TriggerFiredBundle</returns>
         public static TriggerFiredBundle CreateMinimalFiredBundleWithTypedJobDetail(Type jobType, IOperableTrigger trigger)
         {
-            JobDetailImpl jd = new JobDetailImpl("jobName", "jobGroup", jobType);
+            var jd = JobBuilder.Create()
+                               .OfType(jobType)
+                               .WithIdentity(new JobKey("jobName", "jobGroup"))
+                               .Build();
             TriggerFiredBundle bundle = new TriggerFiredBundle(jd, trigger, null, false, DateTimeOffset.UtcNow, null, null, null);
             return bundle;
         }
@@ -70,7 +73,9 @@ namespace Quartz.Tests.Unit
 
 		private static TriggerFiredBundle NewMinimalTriggerFiredBundle(bool isRecovering)
 		{
-			IJobDetail jd = new JobDetailImpl("jobName", "jobGroup", typeof(NoOpJob));
+            IJobDetail jd = JobBuilder.Create<NoOpJob>()
+                                      .WithIdentity(new JobKey("jobName", "jobGroup"))
+                                      .Build();
 			IOperableTrigger trigger = new SimpleTriggerImpl("triggerName", "triggerGroup");
 			TriggerFiredBundle retValue = new TriggerFiredBundle(jd, trigger, null, isRecovering, DateTimeOffset.UtcNow, null, null, null);
 

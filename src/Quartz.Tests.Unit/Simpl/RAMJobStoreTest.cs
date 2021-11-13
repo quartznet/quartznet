@@ -45,7 +45,7 @@ namespace Quartz.Tests.Unit.Simpl
     public class RAMJobStoreTest
     {
         private IJobStore fJobStore;
-        private JobDetailImpl fJobDetail;
+        private IJobDetail fJobDetail;
         private SampleSignaler fSignaler;
 
         [SetUp]
@@ -56,8 +56,12 @@ namespace Quartz.Tests.Unit.Simpl
             fJobStore.Initialize(null, fSignaler);
             fJobStore.SchedulerStarted();
 
-            fJobDetail = new JobDetailImpl("job1", "jobGroup1", typeof(NoOpJob));
-            fJobDetail.Durable = true;
+            fJobDetail = JobBuilder.Create()
+                                   .OfType<NoOpJob>()
+                                   .WithIdentity(new JobKey("job1", "jobGroup1"))
+                                   .StoreDurably(true)
+                                   .Build();
+
             fJobStore.StoreJob(fJobDetail, false);
         }
 
@@ -65,9 +69,9 @@ namespace Quartz.Tests.Unit.Simpl
         public async Task TestAcquireNextTrigger()
         {
             DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
-            IOperableTrigger trigger1 = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, d.AddSeconds(200), d.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
-            IOperableTrigger trigger2 = new SimpleTriggerImpl("trigger2", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, d.AddSeconds(50), d.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
-            IOperableTrigger trigger3 = new SimpleTriggerImpl("trigger1", "triggerGroup2", fJobDetail.Name, fJobDetail.Group, d.AddSeconds(100), d.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
+            IOperableTrigger trigger1 = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group, d.AddSeconds(200), d.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
+            IOperableTrigger trigger2 = new SimpleTriggerImpl("trigger2", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group, d.AddSeconds(50), d.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
+            IOperableTrigger trigger3 = new SimpleTriggerImpl("trigger1", "triggerGroup2", fJobDetail.Key.Name, fJobDetail.Key.Group, d.AddSeconds(100), d.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
 
             trigger1.ComputeFirstFireTimeUtc(null);
             trigger2.ComputeFirstFireTimeUtc(null);
@@ -94,12 +98,12 @@ namespace Quartz.Tests.Unit.Simpl
         {
             DateTimeOffset d = DateTimeOffset.UtcNow.Subtract(TimeSpan.FromSeconds(1));
 
-            IOperableTrigger early = new SimpleTriggerImpl("early", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, d, d.AddMilliseconds(5), 2, TimeSpan.FromSeconds(2));
-            IOperableTrigger trigger1 = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, d.AddMilliseconds(200000), d.AddMilliseconds(200005), 2, TimeSpan.FromSeconds(2));
-            IOperableTrigger trigger2 = new SimpleTriggerImpl("trigger2", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, d.AddMilliseconds(210000), d.AddMilliseconds(210005), 2, TimeSpan.FromSeconds(2));
-            IOperableTrigger trigger3 = new SimpleTriggerImpl("trigger3", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, d.AddMilliseconds(220000), d.AddMilliseconds(220005), 2, TimeSpan.FromSeconds(2));
-            IOperableTrigger trigger4 = new SimpleTriggerImpl("trigger4", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, d.AddMilliseconds(230000), d.AddMilliseconds(230005), 2, TimeSpan.FromSeconds(2));
-            IOperableTrigger trigger10 = new SimpleTriggerImpl("trigger10", "triggerGroup2", fJobDetail.Name, fJobDetail.Group, d.AddMilliseconds(500000), d.AddMilliseconds(700000), 2, TimeSpan.FromSeconds(2));
+            IOperableTrigger early = new SimpleTriggerImpl("early", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group, d, d.AddMilliseconds(5), 2, TimeSpan.FromSeconds(2));
+            IOperableTrigger trigger1 = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group, d.AddMilliseconds(200000), d.AddMilliseconds(200005), 2, TimeSpan.FromSeconds(2));
+            IOperableTrigger trigger2 = new SimpleTriggerImpl("trigger2", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group, d.AddMilliseconds(210000), d.AddMilliseconds(210005), 2, TimeSpan.FromSeconds(2));
+            IOperableTrigger trigger3 = new SimpleTriggerImpl("trigger3", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group, d.AddMilliseconds(220000), d.AddMilliseconds(220005), 2, TimeSpan.FromSeconds(2));
+            IOperableTrigger trigger4 = new SimpleTriggerImpl("trigger4", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group, d.AddMilliseconds(230000), d.AddMilliseconds(230005), 2, TimeSpan.FromSeconds(2));
+            IOperableTrigger trigger10 = new SimpleTriggerImpl("trigger10", "triggerGroup2", fJobDetail.Key.Name, fJobDetail.Key.Group, d.AddMilliseconds(500000), d.AddMilliseconds(700000), 2, TimeSpan.FromSeconds(2));
 
             early.ComputeFirstFireTimeUtc(null);
             early.MisfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
@@ -181,7 +185,7 @@ namespace Quartz.Tests.Unit.Simpl
         [Test]
         public async Task TestTriggerStates()
         {
-            IOperableTrigger trigger = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, DateTimeOffset.Now.AddSeconds(100), DateTimeOffset.Now.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
+            IOperableTrigger trigger = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group, DateTimeOffset.Now.AddSeconds(100), DateTimeOffset.Now.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
             trigger.ComputeFirstFireTimeUtc(null);
             Assert.AreEqual(TriggerState.None, await fJobStore.GetTriggerState(trigger.Key));
             await fJobStore.StoreTrigger(trigger, false);
@@ -206,7 +210,7 @@ namespace Quartz.Tests.Unit.Simpl
         {
             // QRTZNET-29
 
-            IOperableTrigger trigger = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, DateTimeOffset.Now.AddSeconds(100), DateTimeOffset.Now.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
+            IOperableTrigger trigger = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Key.Name, fJobDetail.Key.Group, DateTimeOffset.Now.AddSeconds(100), DateTimeOffset.Now.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
             trigger.ComputeFirstFireTimeUtc(null);
             ICalendar cal = new MonthlyCalendar();
             fJobStore.StoreTrigger(trigger, false);
@@ -220,7 +224,9 @@ namespace Quartz.Tests.Unit.Simpl
         {
             string jobName = "StoreTriggerReplacesTrigger";
             string jobGroup = "StoreTriggerReplacesTriggerGroup";
-            JobDetailImpl detail = new JobDetailImpl(jobName, jobGroup, typeof(NoOpJob));
+            var detail = JobBuilder.Create<NoOpJob>()
+                                   .WithIdentity(new JobKey(jobName, jobGroup))
+                                   .Build();
             await fJobStore.StoreJob(detail, false);
 
             string trName = "StoreTriggerReplacesTrigger";
@@ -256,13 +262,18 @@ namespace Quartz.Tests.Unit.Simpl
             string jobName1 = "PauseJobGroupPausesNewJob";
             string jobName2 = "PauseJobGroupPausesNewJob2";
             string jobGroup = "PauseJobGroupPausesNewJobGroup";
-            JobDetailImpl detail = new JobDetailImpl(jobName1, jobGroup, typeof(NoOpJob));
-            detail.Durable = true;
+
+            var detail = JobBuilder.Create<NoOpJob>()
+                                   .WithIdentity(new JobKey(jobName1, jobGroup))
+                                   .StoreDurably(true)
+                                   .Build();
             await fJobStore.StoreJob(detail, false);
             await fJobStore.PauseJobs(GroupMatcher<JobKey>.GroupEquals(jobGroup));
 
-            detail = new JobDetailImpl(jobName2, jobGroup, typeof(NoOpJob));
-            detail.Durable = true;
+            detail = JobBuilder.Create<NoOpJob>()
+                               .WithIdentity(new JobKey(jobName2, jobGroup))
+                               .StoreDurably(true)
+                               .Build();
             await fJobStore.StoreJob(detail, false);
 
             string trName = "PauseJobGroupPausesNewJobTrigger";
