@@ -461,9 +461,7 @@ namespace Quartz.Core
                         // while (!halted)
                     }
 
-                    DateTimeOffset utcNow = SystemTime.UtcNow();
-                    DateTimeOffset waitTime = utcNow.Add(GetRandomizedIdleWaitTime());
-                    TimeSpan timeUntilContinue = waitTime - utcNow;
+                    TimeSpan timeUntilContinue = GetRandomizedIdleWaitTime();
                     lock (sigLock)
                     {
                         if (!halted)
