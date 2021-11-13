@@ -224,7 +224,9 @@ namespace Quartz.Tests.Unit.Simpl
         {
             string jobName = "StoreTriggerReplacesTrigger";
             string jobGroup = "StoreTriggerReplacesTriggerGroup";
-            JobDetailImpl detail = new JobDetailImpl(jobName, jobGroup, typeof(NoOpJob));
+            var detail = JobBuilder.Create<NoOpJob>()
+                                   .WithIdentity(new JobKey(jobName, jobGroup))
+                                   .Build();
             await fJobStore.StoreJob(detail, false);
 
             string trName = "StoreTriggerReplacesTrigger";

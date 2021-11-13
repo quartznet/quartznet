@@ -48,7 +48,9 @@ namespace Quartz.Tests.Integration.Impl
                     IOperableTrigger calendarsTrigger = new SimpleTriggerImpl("calendarsTrigger", "test", 20, TimeSpan.FromMilliseconds(5));
                     calendarsTrigger.CalendarName = "annualCalendar";
 
-                    JobDetailImpl jd = new JobDetailImpl("testJob", "test", typeof (NoOpJob));
+                    var jd = JobBuilder.Create<NoOpJob>()
+                                       .WithIdentity(new JobKey("testJob", "test"))
+                                       .Build();
                     await scheduler.ScheduleJob(jd, calendarsTrigger);
 
                     // QRTZNET-93
@@ -262,7 +264,9 @@ namespace Quartz.Tests.Integration.Impl
 
                     // bulk operations
                     var info = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>();
-                    IJobDetail detail = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
+                    IJobDetail detail = JobBuilder.Create<SimpleRecoveryJob>()
+                                                  .WithIdentity(new JobKey("job_" + count, schedId))
+                                                  .Build();
                     ITrigger simple = new SimpleTriggerImpl("trig_" + count, schedId, 20, TimeSpan.FromMilliseconds(4500));
                     var triggers = new List<ITrigger>();
                     triggers.Add(simple);

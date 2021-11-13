@@ -266,8 +266,11 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             IScheduler sched = await sf.GetScheduler();
             await sched.Clear();
 
-            JobDetailImpl jobWithData = new JobDetailImpl("datajob", "jobgroup", typeof(NoOpJob));
-            jobWithData.JobDataMap["testkey"] = "testvalue";
+            var jobWithData = JobBuilder.Create<NoOpJob>()
+                                        .WithIdentity(new JobKey("datajob", "jobgroup"))
+                                        .UsingJobData("testkey", "testvalue")
+                                        .Build();
+
             IOperableTrigger triggerWithData = new SimpleTriggerImpl("datatrigger", "triggergroup", 20, TimeSpan.FromSeconds(5));
             triggerWithData.JobDataMap.Add("testkey", "testvalue");
             triggerWithData.EndTimeUtc = DateTime.UtcNow.AddYears(10);
@@ -342,7 +345,9 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     for (int i = 0; i < 100000; ++i)
                     {
                         ITrigger trigger = new SimpleTriggerImpl("calendarsTrigger", "test", SimpleTriggerImpl.RepeatIndefinitely, TimeSpan.FromSeconds(1));
-                        JobDetailImpl jd = new JobDetailImpl("testJob", "test", typeof(NoOpJob));
+                        var jd = JobBuilder.Create<NoOpJob>()
+                                           .WithIdentity(new JobKey("testJob", "test"))
+                                           .Build();
                         await sched.ScheduleJob(jd, trigger);
                     }
                 }
