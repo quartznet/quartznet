@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text.RegularExpressions;
 
 using Nuke.Common;
@@ -88,12 +89,19 @@ namespace System {
         .After(Compile)
         .Executes(() =>
         {
+            var framework = "";
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                framework = "net6.0";
+            }
+
             DotNetTest(s => s
                 .EnableNoRestore()
                 .EnableNoBuild()
                 .SetProjectFile(Solution.GetProject("Quartz.Tests.Unit"))
                 .SetConfiguration(Configuration)
-                .EnableNoRestore());
+                .SetFramework(framework)
+            );
         });
 
     Target Pack => _ => _
