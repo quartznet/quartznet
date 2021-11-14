@@ -150,6 +150,11 @@ namespace System {
                 excludeDirectory: dir => dir.Name is "Quartz.Web" or "obj" or "bin",
                 excludeFile: file => file.Name.EndsWith(".suo") || file.Name.EndsWith(".user"));
 
+            CopyDirectoryRecursively(
+                source: RootDirectory / "build",
+                target: zipTempDirectory / "build",
+                excludeDirectory: dir => dir.Name is "obj" or "bin");
+
             CopyDirectoryRecursively(source: RootDirectory / "database", target: zipTempDirectory / "database");
 
             CopyFileToDirectory("README.md", zipTempDirectory);
