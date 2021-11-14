@@ -23,10 +23,10 @@ nuget:
   disable_publish_on_pr: true
 
 build_script:
-- cmd: build.cmd Pack
+- cmd: build.cmd Compile+Pack
 
 test_script:
-  - build.cmd Test
+  - build.cmd Compile+Test
 
 artifacts:
 - path: artifacts/*.*nupkg
