@@ -157,6 +157,14 @@ namespace System {
 
             CopyDirectoryRecursively(source: RootDirectory / "database", target: zipTempDirectory / "database");
 
+            var binaries = Solution.GetProjects("*")
+                .Where(x => x.GetProperty("IsPackable") != "false" || x.Name.Contains("Example") || x.Name == "Quartz.Server");
+
+            foreach (var project in binaries)
+            {
+                CopyDirectoryRecursively(source: SourceDirectory / project.Name / "bin" / Configuration, target: zipTempDirectory / "bin" / Configuration / project.Name);
+            }
+
             CopyFileToDirectory("README.md", zipTempDirectory);
             CopyFileToDirectory("Quartz.sln", zipTempDirectory);
             CopyFileToDirectory("quartz.net.snk", zipTempDirectory);
