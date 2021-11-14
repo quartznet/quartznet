@@ -14,7 +14,7 @@ namespace Quartz.Util
         private static readonly Regex cleanup = new Regex(", (Version|Culture|PublicKeyToken)=[0-9.\\w]+", RegexOptions.Compiled);
         
         public static string AssemblyQualifiedNameWithoutVersion(this Type type)
-            => assemblyQualifiedNameCache.GetOrAdd(type, x => GetTypeString(x) + ", " + x.GetType().Assembly.GetName().Name);
+            => assemblyQualifiedNameCache.GetOrAdd(type, x => GetTypeString(x) + ", " + x.Assembly.GetName().Name);
 
         public static string? GetTypeString(Type type)
             => type.IsGenericType
