@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -17,8 +17,8 @@ namespace Quartz.Tests.Unit
         [Test]
         public void EnsureNoAsyncVoidMethods()
         {
-            AssertNoAsyncVoidMethods(GetType().GetTypeInfo().Assembly);
-            AssertNoAsyncVoidMethods(typeof (IJob).GetTypeInfo().Assembly);
+            AssertNoAsyncVoidMethods(GetType().Assembly);
+            AssertNoAsyncVoidMethods(typeof (IJob).Assembly);
             // AssertNoAsyncVoidMethods(typeof (TriggersController).Assembly);
         }
 

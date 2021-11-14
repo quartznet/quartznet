@@ -45,7 +45,7 @@ namespace Quartz.Tests.Unit.Core
         [Test]
         public void TestVersionInfo()
         {
-            var versionInfo = typeof(QuartzScheduler).GetTypeInfo().Assembly.GetName().Version;
+            var versionInfo = typeof(QuartzScheduler).Assembly.GetName().Version;
             Assert.AreEqual(versionInfo.Major.ToString(CultureInfo.InvariantCulture), QuartzScheduler.VersionMajor);
             Assert.AreEqual(versionInfo.Minor.ToString(CultureInfo.InvariantCulture), QuartzScheduler.VersionMinor);
             Assert.AreEqual(versionInfo.Build.ToString(CultureInfo.InvariantCulture), QuartzScheduler.VersionIteration);
