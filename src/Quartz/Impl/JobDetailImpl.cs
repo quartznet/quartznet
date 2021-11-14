@@ -255,7 +255,7 @@ namespace Quartz.Impl
                     throw new ArgumentException("Job class cannot be null.");
                 }
 
-                if (!typeof(IJob).GetTypeInfo().IsAssignableFrom(value.GetTypeInfo()))
+                if (!typeof(IJob).IsAssignableFrom(value))
                 {
                     throw new ArgumentException("Job class must implement the Job interface.");
                 }
