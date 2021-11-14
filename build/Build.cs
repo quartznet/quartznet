@@ -2,6 +2,8 @@ using System;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
+using System.Text.RegularExpressions;
+
 using Nuke.Common;
 using Nuke.Common.CI;
 using Nuke.Common.Execution;
@@ -149,7 +151,15 @@ namespace System {
             CopyFileToDirectory("build.sh", zipTempDirectory);
             CopyFileToDirectory("build.ps1", zipTempDirectory);
 
-            ZipFile.CreateFromDirectory(zipTempDirectory, ArtifactsDirectory / $"Quartz.NET-{VersionSuffix}.zip");
+            var props = File.ReadAllText(SourceDirectory / "Directory.Build.props");
+            var baseVersion = Regex.Match(props, "<VersionPrefix>(.+)</VersionPrefix>").Groups[1].Captures[0].Value;
+
+            if (!string.IsNullOrWhiteSpace(VersionSuffix))
+            {
+                baseVersion += "-";
+            }
+
+            ZipFile.CreateFromDirectory(zipTempDirectory, ArtifactsDirectory / $"Quartz.NET-{baseVersion}{VersionSuffix}.zip");
         });
 
     Target ApiDoc => _ => _

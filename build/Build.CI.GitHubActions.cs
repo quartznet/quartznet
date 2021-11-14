@@ -26,7 +26,7 @@ using Nuke.Common.CI.GitHubActions;
 ]
 [GitHubActionsAttribute(
     "publish",
-    GitHubActionsImage.UbuntuLatest,
+    GitHubActionsImage.WindowsLatest,
     OnPushBranches = new [] { "main", "nuke-build" },
     OnPushIncludePaths = new[] { "**/*" },
     OnPushExcludePaths = new[] { "docs/**/*", "package.json", "readme.md" },
