@@ -6,7 +6,7 @@ using Nuke.Common.CI.GitHubActions;
     GitHubActionsImage.UbuntuLatest,
     GitHubActionsImage.MacOsLatest,
     OnPullRequestBranches = new [] { "main", "v4" },
-    OnPullRequestExcludePaths = new[] { "docs/**/*", "package.json", "readme.md" },
+    //OnPullRequestExcludePaths = new[] { "docs/**/*", "package.json", "readme.md" },
     PublishArtifacts = false,
     InvokedTargets = new[] { nameof(Compile), nameof(Test), nameof(Pack) },
     CacheKeyFiles = new[] { "global.json", "src/**/*.csproj", "src/**/package.json" }),
