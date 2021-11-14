@@ -81,6 +81,7 @@ partial class Build : NukeBuild
         });
 
     Target Pack => _ => _
+        .Produces(ArtifactsDirectory / "*.*")
         .Executes(() =>
         {
             EnsureCleanDirectory(ArtifactsDirectory);
@@ -119,7 +120,7 @@ partial class Build : NukeBuild
             CopyDirectoryRecursively(
                 source: SourceDirectory,
                 target: zipTempDirectory / "src",
-                excludeDirectory: dir => dir.Name is "Quartz.Web" or "obj",
+                excludeDirectory: dir => dir.Name is "Quartz.Web" or "obj" or "bin",
                 excludeFile: file => file.Name.EndsWith(".suo") || file.Name.EndsWith(".user"));
 
             CopyDirectoryRecursively(source: RootDirectory / "database", target: zipTempDirectory / "database");
@@ -133,16 +134,6 @@ partial class Build : NukeBuild
             CopyFileToDirectory("build.sh", zipTempDirectory);
             CopyFileToDirectory("build.ps1", zipTempDirectory);
 
-            /*
-
-            var trimSize = RootDirectory.ToString().Length + 1;
-
-            foreach (var file in zipContents)
-            {
-                var subDirectory = file.ToString().Substring(trimSize);
-                CopyFile(file, zipTempDirectory / subDirectory);
-            }
-*/
             ZipFile.CreateFromDirectory(zipTempDirectory, ArtifactsDirectory / $"Quartz.NET-{VersionSuffix}.zip");
         });
 

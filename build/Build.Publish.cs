@@ -10,11 +10,17 @@ using static Nuke.Common.Tools.DotNet.DotNetTasks;
 
 public partial class Build
 {
-    [Parameter] string NuGetSource => "https://api.nuget.org/v3/index.json";
+    string NuGetSource => "https://api.nuget.org/v3/index.json";
     [Parameter] [Secret] string NuGetApiKey;
 
+    string MyGetGetSource => "https://www.myget.org/F/quartznet/api/v2/package";
+    [Parameter] [Secret] string MyGetApiKey;
+
+    string ApiKeyToUse => !string.IsNullOrWhiteSpace(TagVersion) ? NuGetApiKey : MyGetApiKey;
+    string SourceToUse => !string.IsNullOrWhiteSpace(TagVersion) ? NuGetSource : MyGetGetSource;
+
     Target Publish => _ => _
-        .OnlyWhenDynamic(() => GitRepository.IsOnMainBranch() && !string.IsNullOrWhiteSpace(TagVersion))
+        .OnlyWhenDynamic(() => GitRepository.IsOnMainBranch())
         .DependsOn(Pack)
         .Requires(() => NuGetApiKey)
         .Executes(() =>
@@ -30,8 +36,8 @@ public partial class Build
         });
 
     Configure<DotNetNuGetPushSettings> PushSettingsBase => _ => _
-        .SetSource(NuGetSource)
-        .SetApiKey(NuGetApiKey)
+        .SetSource(SourceToUse)
+        .SetApiKey(ApiKeyToUse)
         .SetSkipDuplicate(true);
 
     Configure<DotNetNuGetPushSettings> PushSettings => _ => _;

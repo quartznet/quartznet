@@ -18,6 +18,15 @@ using Nuke.Common.CI.GitHubActions;
     GitHubActionsImage.MacOsLatest,
     OnPushBranches = new [] { "main" },
     OnPushExcludePaths = new[] { "docs/**/*", "package.json", "readme.md" },
+    PublishArtifacts = false,
+    InvokedTargets = new[] { nameof(Compile), nameof(Test), nameof(Pack) },
+    CacheKeyFiles = new[] { "global.json", "src/**/*.csproj", "src/**/package.json" })
+]
+[GitHubActionsAttribute(
+    "publish",
+    GitHubActionsImage.UbuntuLatest,
+    OnPushBranches = new [] { "main" },
+    OnPushExcludePaths = new[] { "docs/**/*", "package.json", "readme.md" },
     PublishArtifacts = true,
     InvokedTargets = new[] { nameof(Compile), nameof(Test), nameof(Pack), nameof(Publish) },
     CacheKeyFiles = new[] { "global.json", "src/**/*.csproj", "src/**/package.json" })

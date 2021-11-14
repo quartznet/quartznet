@@ -42,6 +42,10 @@
             "VSCode"
           ]
         },
+        "MyGetGetApiKey": {
+          "type": "string",
+          "default": "Secrets must be entered via 'nuke :secret [profile]'"
+        },
         "NoLogo": {
           "type": "boolean",
           "description": "Disables displaying the NUKE logo"
@@ -49,9 +53,6 @@
         "NuGetApiKey": {
           "type": "string",
           "default": "Secrets must be entered via 'nuke :secret [profile]'"
-        },
-        "NuGetSource": {
-          "type": "string"
         },
         "Partition": {
           "type": "string",

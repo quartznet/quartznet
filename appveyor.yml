@@ -18,13 +18,6 @@ skip_commits:
     - package.json
     - docs.yml
 
-services:
-- mysql
-- postgresql
-
-init:
-  - net start MSSQL$SQL2019
- 
 nuget:
   project_feed: true
   disable_publish_on_pr: true
@@ -41,19 +34,20 @@ artifacts:
 - path: artifacts/*.zip
   name: Zip
 
-deploy:
-- provider: NuGet
-  server: https://www.myget.org/F/quartznet/api/v2/package
-  api_key:
-    secure: vXa9bqFD68eDW9epKh/lUK/h1OdIL92RiKAbc+JfVarllY962DWqMNSKOdvCopy/
-  skip_symbols: true
-  on:
-    branch: main
-- provider: NuGet
-  name: production
-  symbol_server: https://www.nuget.org
-  api_key:
-    secure: /G5gqcrZZucgZR/PLJEV/OyVAGI+wEyNreTyPvgrDzuaO+6P6CAnHE9ma/JgostM
-  on:
-    branch: main
-    appveyor_repo_tag: true    
+#deploy:
+#- provider: NuGet
+#  server: https://www.myget.org/F/quartznet/api/v2/package
+#  api_key:
+#    secure: vXa9bqFD68eDW9epKh/lUK/h1OdIL92RiKAbc+JfVarllY962DWqMNSKOdvCopy/
+#  skip_symbols: true
+#  on:
+#    branch: main
+#- provider: NuGet
+#  name: production
+#  symbol_server: https://www.nuget.org
+#  api_key:
+#    secure: /G5gqcrZZucgZR/PLJEV/OyVAGI+wEyNreTyPvgrDzuaO+6P6CAnHE9ma/JgostM
+#  on:
+#    branch: main
+#    appveyor_repo_tag: true    
+#
