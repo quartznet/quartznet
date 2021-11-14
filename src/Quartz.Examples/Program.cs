@@ -41,7 +41,7 @@ namespace Quartz.Examples
                 var logRepository = log4net.LogManager.GetRepository(Assembly.GetEntryAssembly());
                 log4net.Config.XmlConfigurator.Configure(logRepository, new System.IO.FileInfo("log4net.config"));
 
-                Assembly asm = typeof(Program).GetTypeInfo().Assembly;
+                Assembly asm = typeof(Program).Assembly;
                 Type[] types = asm.GetTypes();
 
                 IDictionary<int, Type> typeMap = new Dictionary<int, Type>();

@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * Copyright 2009- Marko Lahma
@@ -69,7 +69,7 @@ namespace Quartz.Util
                 {
                     return Type.GetType(newValue.ToString()!, true);
                 }
-                if (newValue.GetType().GetTypeInfo().IsEnum)
+                if (newValue.GetType().IsEnum)
                 {
                     // If we couldn't convert the type, but it's an enum type, try convert it as an int
                     return ConvertValueIfNecessary(requiredType, Convert.ChangeType(newValue, Convert.GetTypeCode(newValue), null));
@@ -90,7 +90,7 @@ namespace Quartz.Util
                 throw new NotSupportedException($"{newValue} is no a supported value for a target of type {requiredType}");
             }
 
-            if (requiredType.GetTypeInfo().IsValueType)
+            if (requiredType.IsValueType)
             {
                 return Activator.CreateInstance(requiredType);
             }
@@ -247,7 +247,7 @@ namespace Quartz.Util
 
         public static bool IsAttributePresent(Type typeToExamine, Type attributeType)
         {
-            return typeToExamine.GetTypeInfo().GetCustomAttributes(attributeType, true).Any();
+            return typeToExamine.GetCustomAttributes(attributeType, true).Any();
         }
 
         public static bool IsAnyInterfaceAttributePresent(Type typeToExamine, Type attributeType)

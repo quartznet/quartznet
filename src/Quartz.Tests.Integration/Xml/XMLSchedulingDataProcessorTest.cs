@@ -308,7 +308,7 @@ namespace Quartz.Tests.Integration.Xml
         private static Stream ReadJobXmlFromEmbeddedResource(string resourceName)
         {
             string fullName = "Quartz.Tests.Integration.Xml.TestData." + resourceName;
-            Stream stream = typeof(XMLSchedulingDataProcessorTest).GetTypeInfo().Assembly.GetManifestResourceStream(fullName);
+            Stream stream = typeof(XMLSchedulingDataProcessorTest).Assembly.GetManifestResourceStream(fullName);
             Assert.That(stream, Is.Not.Null, "resource " + resourceName + " not found");
             return new StreamReader(stream).BaseStream;
         }
