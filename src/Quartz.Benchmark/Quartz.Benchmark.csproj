@@ -1,17 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
-    <PropertyGroup>
-        <OutputType>Exe</OutputType>
-        <TargetFramework>net6.0</TargetFramework>
-        <Nullable>disable</Nullable>
-    </PropertyGroup>
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
 
-    <ItemGroup>
-      <PackageReference Include="BenchmarkDotNet" Version="0.12.1" />
-    </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="BenchmarkDotNet" Version="0.12.1"/>
+  </ItemGroup>
 
-    <ItemGroup>
-      <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj" />
-    </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj"/>
+  </ItemGroup>
 
 </Project>
