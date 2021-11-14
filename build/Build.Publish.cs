@@ -20,7 +20,7 @@ public partial class Build
     string SourceToUse => !string.IsNullOrWhiteSpace(TagVersion) ? NuGetSource : MyGetGetSource;
 
     Target Publish => _ => _
-        .OnlyWhenDynamic(() => GitRepository.IsOnMainBranch())
+        .OnlyWhenDynamic(() => GitRepository.IsOnMainBranch() || GitRepository.Branch == "nuke-build")
         .DependsOn(Pack)
         .Requires(() => NuGetApiKey)
         .Executes(() =>
