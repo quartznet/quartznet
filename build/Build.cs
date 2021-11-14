@@ -95,6 +95,7 @@ namespace System {
         });
 
     Target Pack => _ => _
+        .After(Compile, Test)
         .Produces(ArtifactsDirectory / "*.*")
         .Executes(() =>
         {
