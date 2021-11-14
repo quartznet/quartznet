@@ -79,7 +79,7 @@ namespace Quartz.Tests.Unit
         [Test]
         public void WriteJobDataFile()
         {
-            Assembly asm = GetType().GetTypeInfo().Assembly;
+            Assembly asm = GetType().Assembly;
             Version info = asm.GetName().Version;
 
             string version = info.ToString();

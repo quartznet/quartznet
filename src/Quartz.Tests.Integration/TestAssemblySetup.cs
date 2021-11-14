@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Reflection;
 
@@ -14,7 +14,7 @@ namespace Quartz.Tests.Integration
         {
             // set default directory to make sure file loading works
             // (https://youtrack.jetbrains.com/issue/RSRP-451142) 
-            string codeBase = GetType().GetTypeInfo().Assembly.Location;
+            string codeBase = GetType().Assembly.Location;
             string pathToUse = codeBase;
             if (!codeBase.StartsWith("/"))
             {

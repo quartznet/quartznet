@@ -169,7 +169,7 @@ namespace Quartz.Simpl
 
 			    paramType = prop.PropertyType;
 
-			    if (o == null && (paramType.GetTypeInfo().IsPrimitive || paramType.GetTypeInfo().IsEnum))
+			    if (o == null && (paramType.IsPrimitive || paramType.IsEnum))
 			    {
 				    // cannot set null to these
 				    HandleError($"Cannot set null to property on Job class {job.GetType()} for property '{name}'");

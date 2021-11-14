@@ -658,7 +658,7 @@ namespace Quartz.Util
         /// <returns></returns>
         public static PropertiesParser ReadFromEmbeddedAssemblyResource(string resourceName)
          {
-	         var stream = typeof(IScheduler).GetTypeInfo().Assembly.GetManifestResourceStream(resourceName);
+	         var stream = typeof(IScheduler).Assembly.GetManifestResourceStream(resourceName);
 	         return ReadFromStream(stream ?? throw new ArgumentException("cannot find resource " + resourceName));
          }
 

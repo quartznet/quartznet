@@ -25,7 +25,7 @@ namespace Quartz.Converters
 
         public override bool CanConvert(Type objectType)
         {
-            return typeof(StringKeyDirtyFlagMap).GetTypeInfo().IsAssignableFrom(objectType.GetTypeInfo());
+            return typeof(StringKeyDirtyFlagMap).IsAssignableFrom(objectType);
         }
     }
 }
