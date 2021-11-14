@@ -21,6 +21,7 @@ on:
     branches:
       - main
     paths:
+      - '**/*'
       - '!docs/**/*'
       - '!package.json'
       - '!readme.md'

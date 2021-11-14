@@ -20,7 +20,9 @@ on:
   push:
     branches:
       - main
+      - nuke-build
     paths:
+      - '**/*'
       - '!docs/**/*'
       - '!package.json'
       - '!readme.md'

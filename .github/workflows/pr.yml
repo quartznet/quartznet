@@ -21,6 +21,11 @@ on:
     branches:
       - main
       - v4
+    paths:
+      - '**/*'
+      - '!docs/**/*'
+      - '!package.json'
+      - '!readme.md'
 
 jobs:
   windows-latest:
