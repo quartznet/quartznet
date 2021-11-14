@@ -46,6 +46,8 @@ partial class Build : NukeBuild
             ? "preview-" + DateTime.UtcNow.ToString("yyyyMMdd-HHmm")
             : "";
 
+    static bool IsRunningOnWindows => RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+
     Target Clean => _ => _
         .Before(Restore)
         .Executes(() =>
@@ -90,7 +92,7 @@ namespace System {
         .Executes(() =>
         {
             var framework = "";
-            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            if (!IsRunningOnWindows)
             {
                 framework = "net6.0";
             }
