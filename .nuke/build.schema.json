@@ -42,7 +42,7 @@
             "VSCode"
           ]
         },
-        "MyGetGetApiKey": {
+        "MyGetApiKey": {
           "type": "string",
           "default": "Secrets must be entered via 'nuke :secret [profile]'"
         },
