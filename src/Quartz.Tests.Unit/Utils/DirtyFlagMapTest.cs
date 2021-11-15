@@ -527,7 +527,7 @@ namespace Quartz.Tests.Unit.Utils
                 // An item with the same key has already been added. Key: a
             }
 
-            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsFalse(dirtyFlagMap.Dirty);
             Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
             Assert.IsNull(dirtyFlagMap["a"]);
             */
@@ -535,6 +535,274 @@ namespace Quartz.Tests.Unit.Utils
 
         [Test]
         public void Add_KeyValuePair_KeyIsFound_ValueEqualsCurrentValue()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Put("a", "x");
+            dirtyFlagMap.ClearDirtyFlag();
+
+            Assert.IsTrue(dirtyFlagMap.Remove(new KeyValuePair<string, string>("a", "x")));
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsFalse(dirtyFlagMap.ContainsKey("a"));
+
+            dirtyFlagMap.Clear();
+            dirtyFlagMap.Put("a", null);
+            dirtyFlagMap.ClearDirtyFlag();
+
+            Assert.IsTrue(dirtyFlagMap.Remove(new KeyValuePair<string, string>("a", null)));
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsFalse(dirtyFlagMap.ContainsKey("a"));
+        }
+
+        [Test]
+        public void IDictionary_Add_KeyAndValue_KeyIsNull()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            const object key = null;
+
+            try
+            {
+                ((IDictionary) dirtyFlagMap).Add(key, "x");
+                Assert.Fail();
+            }
+            catch (ArgumentNullException ex)
+            {
+                Assert.AreEqual("key", ex.ParamName);
+            }
+
+            // #1417: this should return false
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+        }
+
+        [Test]
+        public void IDictionary_Add_KeyAndValue_KeyCannotBeAssignedToTKey()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            object key = true;
+
+            // #1417: this should throw ArgumentException, see commented code below
+
+            try
+            {
+                ((IDictionary) dirtyFlagMap).Add(key, 5);
+                Assert.Fail();
+            }
+            catch (InvalidCastException)
+            {
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+
+            /*
+            try
+            {
+                ((IDictionary) dirtyFlagMap).Add(key, 5);
+                Assert.Fail();
+            }
+            catch (ArgumentException ex)
+            {
+                // The value "5" is not of type "System.String" and cannot be used in this generic collection
+                Assert.AreEqual("key", ex.ParamName);
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            */
+        }
+
+
+        [Test]
+        public void IDictionary_Add_KeyAndValue_KeyIsNotFound_ValueIsNotNull_ValueCannotBeAssignedToTValue()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            object key = "x";
+
+            // #1417: this should throw ArgumentException, see commented code below
+
+            try
+            {
+                ((IDictionary) dirtyFlagMap).Add(key, 5);
+                Assert.Fail();
+            }
+            catch (InvalidCastException)
+            {
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+
+            /*
+
+            try
+            {
+                ((IDictionary) dirtyFlagMap).Add(key, 5);
+                Assert.Fail();
+            }
+            catch (ArgumentException ex)
+            {
+                // The value "5" is not of type "System.String" and cannot be used in this generic collection
+                Assert.AreEqual("value", ex.ParamName);
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            */
+        }
+
+        [Test]
+        public void IDictionary_Add_KeyAndValue_KeyIsNotFound_ValueIsNotNull_ValueCanBeAssignedToTValue()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            object key = "a";
+
+            ((IDictionary) dirtyFlagMap).Add(key, "x");
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual("x", dirtyFlagMap["a"]);
+        }
+
+        [Test]
+        public void IDictionary_Add_KeyAndValue_KeyIsNotFound_ValueIsNull_TValueIsNonNullableStruct()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, int>();
+            object key = "a";
+
+            // #1417: this should throw ArgumentNullException, see commented code below
+
+            try
+            {
+                ((IDictionary) dirtyFlagMap).Add(key, null);
+                Assert.Fail();
+            }
+            catch (NullReferenceException)
+            {
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+
+            /*
+            try
+            {
+                ((IDictionary) dirtyFlagMap).Add(key, null);
+                Assert.Fail();
+            }
+            catch (ArgumentNullException ex)
+            {
+                Assert.AreEqual("value", ex.ParamName);
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsFalse(dirtyFlagMap.ContainsKey("a"));
+            */
+        }
+
+        [Test]
+        public void IDictionary_Add_KeyAndValue_KeyIsNotFound_ValueIsNull_TValueIsNullableStruct()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, int?>();
+            object key = "a";
+
+            ((IDictionary) dirtyFlagMap).Add(key, null);
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.IsNull(dirtyFlagMap["a"]);
+        }
+
+        [Test]
+        public void IDictionary_Add_KeyAndValue_KeyIsNotFound_ValueIsNull_TValueIsReferenceType()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            object key = "a";
+
+            ((IDictionary) dirtyFlagMap).Add(key, null);
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.IsNull(dirtyFlagMap["a"]);
+        }
+
+        [Test]
+        public void IDictionary_Add_KeyAndValue_KeyIsFound_ValueDoesNotEqualCurrentValue()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Add("a", "x");
+            dirtyFlagMap.ClearDirtyFlag();
+
+            // #1417: We should throw ArgumentException, see commented code below
+
+            ((IDictionary) dirtyFlagMap).Add("a", "y");
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual("y", dirtyFlagMap["a"]);
+
+            dirtyFlagMap.ClearDirtyFlag();
+
+            ((IDictionary) dirtyFlagMap).Add("a", null);
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.IsNull(dirtyFlagMap["a"]);
+
+            dirtyFlagMap.ClearDirtyFlag();
+
+            ((IDictionary) dirtyFlagMap).Add("a", "z");
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual("z", dirtyFlagMap["a"]);
+
+            /*
+            try
+            {
+                ((IDictionary) dirtyFlagMap).Add("a", "y");
+                Assert.Fail();
+            }
+            catch (ArgumentException)
+            {
+                // An item with the same key has already been added. Key: a
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual("x", dirtyFlagMap["a"]);
+
+            dirtyFlagMap.ClearDirtyFlag();
+
+            try
+            {
+                ((IDictionary) dirtyFlagMap).Add("a", null);
+                Assert.Fail();
+            }
+            catch (ArgumentException)
+            {
+                // An item with the same key has already been added. Key: a
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual("x", dirtyFlagMap["a"]);
+
+            dirtyFlagMap.Clear();
+            dirtyFlagMap.Add("a", null);
+            dirtyFlagMap.ClearDirtyFlag();
+
+            try
+            {
+                ((IDictionary) dirtyFlagMap).Add("a", "z");
+                Assert.Fail();
+            }
+            catch (ArgumentException)
+            {
+                // An item with the same key has already been added. Key: a
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.IsNull(dirtyFlagMap["a"]);
+            */
+        }
+
+        [Test]
+        public void IDictionary_Add_KeyAndValue_KeyIsFound_ValueEqualsCurrentValue()
         {
             var dirtyFlagMap = new DirtyFlagMap<string, string>();
             dirtyFlagMap.Put("a", "x");
