@@ -21,6 +21,7 @@ using NUnit.Framework;
 
 using Quartz.Util;
 using System;
+using System.Collections.Generic;
 
 namespace Quartz.Tests.Unit.Utils
 {
@@ -323,6 +324,98 @@ namespace Quartz.Tests.Unit.Utils
             Assert.IsTrue(dirtyFlagMap.ContainsKey("b"));
             Assert.IsNull(dirtyFlagMap["b"]);
 
+        }
+
+        [Test]
+        public void Remove_KeyValuePair_KeyIsNull()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            var kvp = new KeyValuePair<string, string>(null, "x");
+
+            try
+            {
+                dirtyFlagMap.Remove(kvp);
+                Assert.Fail();
+            }
+            catch (ArgumentNullException ex)
+            {
+                Assert.AreEqual("key", ex.ParamName);
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+        }
+
+        [Test]
+        public void Remove_KeyValuePair_KeyIsNotFound()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            var kvp = new KeyValuePair<string, string>("a", "x");
+
+            Assert.IsFalse(dirtyFlagMap.Remove(kvp));
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+        }
+
+        [Test]
+        public void Remove_KeyValuePair_KeyIsFound_ValueDoesNotEqualCurrentValue()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Put("a", "x");
+            dirtyFlagMap.ClearDirtyFlag();
+
+            // #1417: We should not remove entry if values are not equal, see commented code below
+
+            Assert.IsTrue(dirtyFlagMap.Remove(new KeyValuePair<string, string>("a", null)));
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsFalse(dirtyFlagMap.ContainsKey("a"));
+
+            dirtyFlagMap.Clear();
+            dirtyFlagMap.Put("a", null);
+            dirtyFlagMap.ClearDirtyFlag();
+
+            Assert.IsTrue(dirtyFlagMap.Remove(new KeyValuePair<string, string>("a", "y")));
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsFalse(dirtyFlagMap.ContainsKey("a"));
+
+            /*
+            Assert.IsFalse(dirtyFlagMap.Remove(new KeyValuePair<string, string>("a", null)));
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual("x", dirtyFlagMap["a"]);
+
+            dirtyFlagMap.ClearDirtyFlag();
+
+            Assert.IsFalse(dirtyFlagMap.Remove(new KeyValuePair<string, string>("a", "y")));
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual("x", dirtyFlagMap["a"]);
+
+            dirtyFlagMap.Clear();
+            dirtyFlagMap.Put("a", null);
+            dirtyFlagMap.ClearDirtyFlag();
+
+            Assert.IsTrue(dirtyFlagMap.Remove(new KeyValuePair<string, string>("a", "z")));
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsFalse(dirtyFlagMap.ContainsKey("a"));
+            */
+        }
+
+        [Test]
+        public void Remove_KeyValuePair_KeyIsFound_ValueEqualsCurrentValue()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Put("a", "x");
+            dirtyFlagMap.ClearDirtyFlag();
+
+            Assert.IsTrue(dirtyFlagMap.Remove(new KeyValuePair<string, string>("a", "x")));
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsFalse(dirtyFlagMap.ContainsKey("a"));
+
+            dirtyFlagMap.Put("a", null);
+            dirtyFlagMap.ClearDirtyFlag();
+
+            Assert.IsTrue(dirtyFlagMap.Remove(new KeyValuePair<string, string>("a", null)));
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsFalse(dirtyFlagMap.ContainsKey("a"));
         }
 
         [Test]
