@@ -1353,6 +1353,77 @@ namespace Quartz.Tests.Unit.Utils
         }
 
         [Test]
+        public void ContainsKey_KeyIsFound()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Put("a", "x");
+            dirtyFlagMap.ClearDirtyFlag();
+
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+        }
+
+        [Test]
+        public void ContainsKey_KeyIsNotFound()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Put("a", "x");
+            dirtyFlagMap.ClearDirtyFlag();
+
+            Assert.IsFalse(dirtyFlagMap.ContainsKey("x"));
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+        }
+
+        [Test]
+        public void ContainsKey_KeyIsNull()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            const string key = null;
+
+            try
+            {
+                dirtyFlagMap.ContainsKey(key);
+                Assert.Fail();
+            }
+            catch (ArgumentNullException ex)
+            {
+                Assert.AreEqual(nameof(key), ex.ParamName);
+            }
+        }
+
+        [Test]
+        public void ContainsValue_ValueIsFound()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Put("a", "x");
+            dirtyFlagMap.Put("b", null);
+            dirtyFlagMap.ClearDirtyFlag();
+
+            Assert.IsTrue(dirtyFlagMap.ContainsValue("x"));
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+
+            Assert.IsTrue(dirtyFlagMap.ContainsValue(null));
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+        }
+
+        [Test]
+        public void ContainsValue_ValueIsNotFound()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Put("a", "x");
+            dirtyFlagMap.ClearDirtyFlag();
+
+            Assert.IsFalse(dirtyFlagMap.ContainsValue("y"));
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+
+            Assert.IsFalse(dirtyFlagMap.ContainsValue("a"));
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+
+            Assert.IsFalse(dirtyFlagMap.ContainsValue(null));
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+        }
+
+        [Test]
         public void TestClear()
         {
             DirtyFlagMap<string, string> dirtyFlagMap = new DirtyFlagMap<string, string>();
