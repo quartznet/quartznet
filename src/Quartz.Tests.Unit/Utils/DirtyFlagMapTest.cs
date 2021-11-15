@@ -110,7 +110,7 @@ namespace Quartz.Tests.Unit.Utils
         }
 
         [Test]
-        public void Indexer_Get_KeyIsFound_ValidIsNotNull()
+        public void Indexer_Get_KeyIsFound_ValueIsNotNull()
         {
             var dirtyFlagMap = new DirtyFlagMap<string, string>();
             dirtyFlagMap.Put("a", "x");
@@ -124,7 +124,7 @@ namespace Quartz.Tests.Unit.Utils
         }
 
         [Test]
-        public void Indexer_Get_KeyIsFound_ValidIsNull()
+        public void Indexer_Get_KeyIsFound_ValueIsNull()
         {
             var dirtyFlagMap = new DirtyFlagMap<string, string>();
             dirtyFlagMap.Put("a", null);
@@ -819,6 +819,320 @@ namespace Quartz.Tests.Unit.Utils
             Assert.IsTrue(dirtyFlagMap.Dirty);
             Assert.IsFalse(dirtyFlagMap.ContainsKey("a"));
         }
+
+        [Test]
+        public void IDictionary_Indexer_Get_KeyCannotBeAssignedToTKey()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Add("a", "x");
+            dirtyFlagMap.ClearDirtyFlag();
+
+            // #1417: This should not throw, see commented code below
+
+            try
+            {
+                var actual = ((IDictionary) dirtyFlagMap)[5];
+                Assert.Fail("Should have thrown, but returned " + actual);
+            }
+            catch (InvalidCastException)
+            {
+            }
+
+            /*
+            var actual = ((IDictionary) dirtyFlagMap)[5];
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsNull(actual);
+            */
+        }
+
+        [Test]
+        public void IDictionary_Indexer_Get_KeyIsFound_ValueIsNotNull()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Put("a", "x");
+            dirtyFlagMap.ClearDirtyFlag();
+
+            var actual = ((IDictionary) dirtyFlagMap)["a"];
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsNotNull(actual);
+            Assert.AreEqual("x", actual);
+        }
+
+        [Test]
+        public void IDictionary_Indexer_Get_KeyIsFound_ValueIsNull()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Put("a", null);
+            dirtyFlagMap.ClearDirtyFlag();
+
+            var actual = ((IDictionary) dirtyFlagMap)["a"];
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsNull(actual);
+        }
+
+        [Test]
+        public void IDictionary_Indexer_Get_KeyIsNotFound_TValueIsNonNullableStruct()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, int>();
+
+            // #1417: This should throw a KeyNotFoundException, see commented code below
+
+            var actual = ((IDictionary) dirtyFlagMap)["a"];
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsNotNull(actual);
+            Assert.AreEqual(default(int), actual);
+
+            /*
+            try
+            {
+                var actual = ((IDictionary) dirtyFlagMap)["a"];
+                Assert.Fail("Should have thrown, but returned " + actual);
+            }
+            catch (KeyNotFoundException)
+            {
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            */
+        }
+
+        [Test]
+        public void IDictionary_Indexer_Get_KeyIsNotFound_TValueIsNullableStruct()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, int?>();
+
+            // #1417: This should throw a KeyNotFoundException, see commented code below
+
+            var actual = ((IDictionary) dirtyFlagMap)["a"];
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsNull(actual);
+
+            /*
+            try
+            {
+                var actual = ((IDictionary) dirtyFlagMap)["a"];
+                Assert.Fail("Should have thrown, but returned " + actual);
+            }
+            catch (KeyNotFoundException)
+            {
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            */
+        }
+
+        [Test]
+        public void IDictionary_Indexer_Get_KeyIsNotFound_TValueIsReferenceType()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+
+            // #1417: This should throw a KeyNotFoundException, see commented code below
+
+            var value = ((IDictionary) dirtyFlagMap)["a"];
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsNull(value);
+
+            /*
+            try
+            {
+                var actual = ((IDictionary) dirtyFlagMap)["a"];
+                Assert.Fail("Should have thrown, but returned " + actual);
+            }
+            catch (KeyNotFoundException)
+            {
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            */
+        }
+
+        [Test]
+        public void IDictionary_Indexer_Get_KeyIsNull()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            const string key = null;
+
+            try
+            {
+                var actual = ((IDictionary) dirtyFlagMap)[key];
+                Assert.Fail("Should have thrown, but returned " + actual);
+            }
+            catch (ArgumentNullException ex)
+            {
+                Assert.AreEqual(nameof(key), ex.ParamName);
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+        }
+
+        [Test]
+        public void IDictionary_Indexer_Set_KeyCannotBeAssignedToTKey()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            object key = true;
+
+            // #1417: This should throw an ArgumentException, see commented code below
+
+            try
+            {
+                ((IDictionary) dirtyFlagMap)[key] = "y";
+                Assert.Fail();
+            }
+            catch (InvalidCastException)
+            {
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+
+            /*
+            try
+            {
+                ((IDictionary) dirtyFlagMap)[key] = "y";
+                Assert.Fail();
+            }
+            catch (ArgumentException ex)
+            {
+                // The value "True" is not of type "System.String" and cannot be used in this generic collection
+                Assert.AreEqual(nameof(key), ex.ParamName);
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            */
+        }
+
+        [Test]
+        public void IDictionary_Indexer_Set_KeyIsFound_ValidDoesNotEqualCurrentValue()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Put("a", "x");
+            dirtyFlagMap.ClearDirtyFlag();
+
+            ((IDictionary) dirtyFlagMap)["a"] = "y";
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual("y", dirtyFlagMap["a"]);
+
+            dirtyFlagMap.ClearDirtyFlag();
+
+            ((IDictionary) dirtyFlagMap)["a"] = null;
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.IsNull(dirtyFlagMap["a"]);
+
+            dirtyFlagMap.ClearDirtyFlag();
+
+            ((IDictionary) dirtyFlagMap)["a"] = "b";
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual("b", dirtyFlagMap["a"]);
+        }
+
+        [Test]
+        public void IDictionary_Indexer_Set_KeyIsFound_ValidEqualsCurrentValue()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Put("a", "x");
+            dirtyFlagMap.Put("b", null);
+            dirtyFlagMap.ClearDirtyFlag();
+
+            ((IDictionary) dirtyFlagMap)["a"] = "y";
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual("y", dirtyFlagMap["a"]);
+
+            dirtyFlagMap.ClearDirtyFlag();
+
+            ((IDictionary) dirtyFlagMap)["b"] = null;
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("b"));
+            Assert.IsNull(dirtyFlagMap["b"]);
+        }
+
+        [Test]
+        public void IDictionary_Indexer_Set_KeyIsNotFound()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+
+            ((IDictionary) dirtyFlagMap)["a"] = "x";
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual("x", dirtyFlagMap["a"]);
+
+            dirtyFlagMap.ClearDirtyFlag();
+
+            ((IDictionary) dirtyFlagMap)["b"] = null;
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("b"));
+            Assert.IsNull(dirtyFlagMap["b"]);
+        }
+
+        [Test]
+        public void IDictionary_Indexer_Set_KeyIsNull()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            const string key = null;
+
+            try
+            {
+                ((IDictionary) dirtyFlagMap)[key] = "x";
+                Assert.Fail();
+            }
+            catch (ArgumentNullException ex)
+            {
+                Assert.AreEqual(nameof(key), ex.ParamName);
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+        }
+
+
+        [Test]
+        public void IDictionary_Indexer_Set_ValueCannotBeAssignedToTValue()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+
+            // #1417: This should throw an ArgumentException, see commented code below
+
+            try
+            {
+                ((IDictionary) dirtyFlagMap)["a"] = 5;
+                Assert.Fail();
+            }
+            catch (InvalidCastException)
+            {
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+
+            /*
+            try
+            {
+                ((IDictionary) dirtyFlagMap)["a"] = true;
+                Assert.Fail();
+            }
+            catch (ArgumentException ex)
+            {
+                // The value "True" is not of type "System.String" and cannot be used in this generic collection
+                Assert.AreEqual("value", ex.ParamName);
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            */
+        }
+
 
         [Test]
         public void IDictionary_Remove_KeyIsNull()
