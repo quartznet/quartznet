@@ -566,6 +566,14 @@ namespace Quartz.Tests.Unit.Utils
             Assert.IsTrue(dirtyFlagMap.Dirty);
             Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
             Assert.AreEqual("x", dirtyFlagMap["a"]);
+
+            dirtyFlagMap.ClearDirtyFlag();
+
+            dirtyFlagMap.Add("b", null);
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("b"));
+            Assert.IsNull(dirtyFlagMap["b"]);
         }
 
         [Test]
@@ -1571,10 +1579,230 @@ namespace Quartz.Tests.Unit.Utils
         }
 
         [Test]
-        public void TestPut()
+        public void Put_KeyAndValue_KeyIsFound_ValueDoesNotEqualCurrentValue_TValueIsNonNullableStruct()
         {
-            DirtyFlagMap<string, string> dirtyFlagMap = new DirtyFlagMap<string, string>();
-            dirtyFlagMap.Put("a", "Y");
+            var dirtyFlagMap = new DirtyFlagMap<string, int>();
+            dirtyFlagMap.Add("a", 5);
+            dirtyFlagMap.ClearDirtyFlag();
+
+            var original = dirtyFlagMap.Put("a", 4);
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsNotNull(original);
+            Assert.AreEqual(5, original);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual(4, dirtyFlagMap["a"]);
+
+            dirtyFlagMap.ClearDirtyFlag();
+
+            original = dirtyFlagMap.Put("a", 0);
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsNotNull(original);
+            Assert.AreEqual(4, original);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual(0, dirtyFlagMap["a"]);
+
+            dirtyFlagMap.ClearDirtyFlag();
+
+            original = dirtyFlagMap.Put("a", 7);
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsNotNull(original);
+            Assert.AreEqual(0, original);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual(7, dirtyFlagMap["a"]);
+        }
+
+        [Test]
+        public void Put_KeyAndValue_KeyIsFound_ValueDoesNotEqualCurrentValue_TValueIsNullableStruct()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, int?>();
+            dirtyFlagMap.Add("a", 5);
+            dirtyFlagMap.ClearDirtyFlag();
+
+            var original = dirtyFlagMap.Put("a", 4);
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsNotNull(original);
+            Assert.AreEqual(5, original);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual(4, dirtyFlagMap["a"]);
+
+            dirtyFlagMap.ClearDirtyFlag();
+
+            original = dirtyFlagMap.Put("a", null);
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsNotNull(original);
+            Assert.AreEqual(4, original);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.IsNull(dirtyFlagMap["a"]);
+
+            dirtyFlagMap.ClearDirtyFlag();
+
+            original = dirtyFlagMap.Put("a", 7);
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsNull(original);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual(7, dirtyFlagMap["a"]);
+        }
+
+        [Test]
+        public void Put_KeyAndValue_KeyIsFound_ValueDoesNotEqualCurrentValue_TValueIsReferenceType()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Add("a", "x");
+            dirtyFlagMap.ClearDirtyFlag();
+
+            var original = dirtyFlagMap.Put("a", "y");
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsNotNull(original);
+            Assert.AreEqual("x", original);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual("y", dirtyFlagMap["a"]);
+
+            dirtyFlagMap.ClearDirtyFlag();
+
+            original = dirtyFlagMap.Put("a", null);
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsNotNull(original);
+            Assert.AreEqual("y", original);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.IsNull(dirtyFlagMap["a"]);
+
+            dirtyFlagMap.ClearDirtyFlag();
+
+            original = dirtyFlagMap.Put("a", "z");
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsNull(original);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual("z", dirtyFlagMap["a"]);
+        }
+
+        [Test]
+        public void Put_KeyAndValue_KeyIsFound_ValueEqualsCurrentValue_TValueIsNonNullableStruct()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, int>();
+            dirtyFlagMap.Add("a", 5);
+            dirtyFlagMap.ClearDirtyFlag();
+
+            var original = dirtyFlagMap.Put("a", 5);
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsNotNull(original);
+            Assert.AreEqual(5, original);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual(5, dirtyFlagMap["a"]);
+
+            dirtyFlagMap.Clear();
+            dirtyFlagMap.Put("a", 0);
+            dirtyFlagMap.ClearDirtyFlag();
+
+            original = dirtyFlagMap.Put("a", 0);
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsNotNull(original);
+            Assert.AreEqual(0, original);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual(0, dirtyFlagMap["a"]);
+        }
+
+        [Test]
+        public void Put_KeyAndValue_KeyIsFound_ValueEqualsCurrentValue_TValueIsNullableStruct()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, int?>();
+            dirtyFlagMap.Add("a", 5);
+            dirtyFlagMap.ClearDirtyFlag();
+
+            var original = dirtyFlagMap.Put("a", 5);
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsNotNull(original);
+            Assert.AreEqual(5, original);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual(5, dirtyFlagMap["a"]);
+
+            dirtyFlagMap.Clear();
+            dirtyFlagMap.Put("a", null);
+            dirtyFlagMap.ClearDirtyFlag();
+
+            original = dirtyFlagMap.Put("a", null);
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsNull(original);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.IsNull(dirtyFlagMap["a"]);
+        }
+
+        [Test]
+        public void Put_KeyAndValue_KeyIsFound_ValueEqualsCurrentValue_TValueIsReferenceType()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Add("a", "x");
+            dirtyFlagMap.ClearDirtyFlag();
+
+            var original = dirtyFlagMap.Put("a", "x");
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsNotNull(original);
+            Assert.AreEqual("x", original);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual("x", dirtyFlagMap["a"]);
+
+            dirtyFlagMap.Clear();
+            dirtyFlagMap.Put("a", null);
+            dirtyFlagMap.ClearDirtyFlag();
+
+            original = dirtyFlagMap.Put("a", null);
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsNull(original);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.IsNull(dirtyFlagMap["a"]);
+        }
+
+        [Test]
+        public void Put_KeyAndValue_KeyIsNotFound()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+
+            dirtyFlagMap.Put("a", "x");
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual("x", dirtyFlagMap["a"]);
+
+            dirtyFlagMap.ClearDirtyFlag();
+
+            dirtyFlagMap.Put("b", null);
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("b"));
+            Assert.IsNull(dirtyFlagMap["b"]);
+        }
+
+        [Test]
+        public void Put_KeyAndValue_KeyIsNull()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            const string key = null;
+
+            try
+            {
+                dirtyFlagMap.Put(key, "x");
+                Assert.Fail();
+            }
+            catch (ArgumentNullException ex)
+            {
+                Assert.AreEqual(nameof(key), ex.ParamName);
+            }
+
+            // #1417: should return false
             Assert.IsTrue(dirtyFlagMap.Dirty);
         }
 
