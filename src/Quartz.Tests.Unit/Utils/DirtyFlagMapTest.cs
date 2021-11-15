@@ -110,25 +110,6 @@ namespace Quartz.Tests.Unit.Utils
         }
 
         [Test]
-        public void Indexer_Get_KeyIsNull()
-        {
-            var dirtyFlagMap = new DirtyFlagMap<string, string>();
-            const string key = null;
-
-            try
-            {
-                var actual = dirtyFlagMap[key];
-                Assert.Fail("Should have thrown, but returned " + actual);
-            }
-            catch (ArgumentNullException ex)
-            {
-                Assert.AreEqual(nameof(key), ex.ParamName);
-            }
-
-            Assert.IsFalse(dirtyFlagMap.Dirty);
-        }
-
-        [Test]
         public void Indexer_Get_KeyIsFound_ValidIsNotNull()
         {
             var dirtyFlagMap = new DirtyFlagMap<string, string>();
@@ -153,32 +134,6 @@ namespace Quartz.Tests.Unit.Utils
 
             Assert.IsFalse(dirtyFlagMap.Dirty);
             Assert.IsNull(actual);
-        }
-
-        [Test]
-        public void Indexer_Get_KeyIsNotFound_TValueIsReferenceType()
-        {
-            var dirtyFlagMap = new DirtyFlagMap<string, string>();
-
-            // #1417: This should throw a KeyNotFoundException, see commented code below
-
-            var value = dirtyFlagMap["a"];
-
-            Assert.IsFalse(dirtyFlagMap.Dirty);
-            Assert.IsNull(value);
-
-            /*
-            try
-            {
-                var actual = dirtyFlagMap["a"];
-                Assert.Fail("Should have thrown, but returned " + actual);
-            }
-            catch (KeyNotFoundException)
-            {
-            }
-
-            Assert.IsFalse(dirtyFlagMap.Dirty);
-            */
         }
 
         [Test]
@@ -235,15 +190,41 @@ namespace Quartz.Tests.Unit.Utils
         }
 
         [Test]
-        public void Indexer_Set_KeyIsNull()
+        public void Indexer_Get_KeyIsNotFound_TValueIsReferenceType()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+
+            // #1417: This should throw a KeyNotFoundException, see commented code below
+
+            var value = dirtyFlagMap["a"];
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsNull(value);
+
+            /*
+            try
+            {
+                var actual = dirtyFlagMap["a"];
+                Assert.Fail("Should have thrown, but returned " + actual);
+            }
+            catch (KeyNotFoundException)
+            {
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            */
+        }
+
+        [Test]
+        public void Indexer_Get_KeyIsNull()
         {
             var dirtyFlagMap = new DirtyFlagMap<string, string>();
             const string key = null;
 
             try
             {
-                dirtyFlagMap[key] = "x";
-                Assert.Fail();
+                var actual = dirtyFlagMap[key];
+                Assert.Fail("Should have thrown, but returned " + actual);
             }
             catch (ArgumentNullException ex)
             {
@@ -324,7 +305,25 @@ namespace Quartz.Tests.Unit.Utils
             Assert.IsTrue(dirtyFlagMap.Dirty);
             Assert.IsTrue(dirtyFlagMap.ContainsKey("b"));
             Assert.IsNull(dirtyFlagMap["b"]);
+        }
 
+        [Test]
+        public void Indexer_Set_KeyIsNull()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            const string key = null;
+
+            try
+            {
+                dirtyFlagMap[key] = "x";
+                Assert.Fail();
+            }
+            catch (ArgumentNullException ex)
+            {
+                Assert.AreEqual(nameof(key), ex.ParamName);
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
         }
 
         [Test]
