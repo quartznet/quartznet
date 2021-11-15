@@ -1245,29 +1245,13 @@ namespace Quartz.Tests.Unit.Utils
         }
 
         [Test]
-        public void Contains_Key_KeyIsNull()
+        public void Contains_Key_KeyCannotBeAssignedToTKey()
         {
             var dirtyFlagMap = new DirtyFlagMap<string, string>();
-            const object key = null;
+            dirtyFlagMap.Add("a", "x");
+            dirtyFlagMap.ClearDirtyFlag();
 
-            try
-            {
-                dirtyFlagMap.Contains(key);
-                Assert.Fail();
-            }
-            catch (ArgumentNullException ex)
-            {
-                Assert.AreEqual(nameof(key), ex.ParamName);
-            }
-        }
-
-        [Test]
-        public void Contains_Key_KeyIsNotFound()
-        {
-            var dirtyFlagMap = new DirtyFlagMap<string, string>();
-            object key = "a";
-
-            Assert.IsFalse(dirtyFlagMap.Contains(key));
+            Assert.IsFalse(((IDictionary) dirtyFlagMap).Contains((object) 5));
             Assert.IsFalse(dirtyFlagMap.Dirty);
         }
 
@@ -1283,14 +1267,30 @@ namespace Quartz.Tests.Unit.Utils
         }
 
         [Test]
-        public void Contains_Key_KeyCannotBeAssignedToTKey()
+        public void Contains_Key_KeyIsNotFound()
         {
             var dirtyFlagMap = new DirtyFlagMap<string, string>();
-            dirtyFlagMap.Add("a", "x");
-            dirtyFlagMap.ClearDirtyFlag();
+            object key = "a";
 
-            Assert.IsFalse(((IDictionary) dirtyFlagMap).Contains((object) 5));
+            Assert.IsFalse(dirtyFlagMap.Contains(key));
             Assert.IsFalse(dirtyFlagMap.Dirty);
+        }
+
+        [Test]
+        public void Contains_Key_KeyIsNull()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            const object key = null;
+
+            try
+            {
+                dirtyFlagMap.Contains(key);
+                Assert.Fail();
+            }
+            catch (ArgumentNullException ex)
+            {
+                Assert.AreEqual(nameof(key), ex.ParamName);
+            }
         }
 
         [Test]
