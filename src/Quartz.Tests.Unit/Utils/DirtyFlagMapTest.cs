@@ -21,6 +21,7 @@ using NUnit.Framework;
 
 using Quartz.Util;
 using System;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace Quartz.Tests.Unit.Utils
@@ -550,6 +551,55 @@ namespace Quartz.Tests.Unit.Utils
             Assert.IsTrue(dirtyFlagMap.Remove(new KeyValuePair<string, string>("a", null)));
             Assert.IsTrue(dirtyFlagMap.Dirty);
             Assert.IsFalse(dirtyFlagMap.ContainsKey("a"));
+        }
+
+        [Test]
+        public void Contains_KeyIsNull()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            const object key = null;
+
+            try
+            {
+                dirtyFlagMap.Contains(key);
+                Assert.Fail();
+            }
+            catch (ArgumentNullException ex)
+            {
+                Assert.AreEqual(nameof(key), ex.ParamName);
+            }
+        }
+
+        [Test]
+        public void Contains_KeyIsNotFound()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            object key = "a";
+
+            Assert.IsFalse(dirtyFlagMap.Contains(key));
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+        }
+
+        [Test]
+        public void Contains_KeyIsFound()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Put("a", "x");
+            dirtyFlagMap.ClearDirtyFlag();
+
+            Assert.IsTrue(dirtyFlagMap.Contains((object) "a"));
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+        }
+
+        [Test]
+        public void Contains_KeyCannotBeAssignedToTKey()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Add("a", "x");
+            dirtyFlagMap.ClearDirtyFlag();
+
+            Assert.IsFalse(((IDictionary) dirtyFlagMap).Contains((object) 5));
+            Assert.IsFalse(dirtyFlagMap.Dirty);
         }
 
         [Test]
