@@ -822,6 +822,75 @@ namespace Quartz.Tests.Unit.Utils
         }
 
         [Test]
+        public void IDictionary_Remove_KeyIsNull()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            const object key = null;
+
+            try
+            {
+                ((IDictionary) dirtyFlagMap).Remove(key);
+                Assert.Fail();
+            }
+            catch (ArgumentNullException ex)
+            {
+                Assert.AreEqual("key", ex.ParamName);
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+        }
+
+        [Test]
+        public void IDictionary_Remove_KeyCannotBeAssignedToTKey()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            object key = false;
+
+            // #1417: this should not throw, see commented code below
+
+            try
+            {
+                ((IDictionary) dirtyFlagMap).Remove(key);
+                Assert.Fail();
+            }
+            catch (InvalidCastException)
+            {
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+
+            /*
+            ((IDictionary) dirtyFlagMap).Remove(key);
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            */
+        }
+
+        [Test]
+        public void IDictionary_Remove_KeyIsFound()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Add("a", "x");
+            dirtyFlagMap.ClearDirtyFlag();
+
+            ((IDictionary) dirtyFlagMap).Remove("a");
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsFalse(dirtyFlagMap.ContainsKey("a"));
+        }
+
+        [Test]
+        public void IDictionary_Remove_KeyIsNotFound()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            object key = "a";
+
+            ((IDictionary) dirtyFlagMap).Remove(key);
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+        }
+
+        [Test]
         public void Contains_KeyIsNull()
         {
             var dirtyFlagMap = new DirtyFlagMap<string, string>();
