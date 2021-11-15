@@ -327,31 +327,44 @@ namespace Quartz.Tests.Unit.Utils
         }
 
         [Test]
-        public void Remove_KeyValuePair_KeyIsNull()
+        public void Remove_Key_KeyIsFound()
         {
             var dirtyFlagMap = new DirtyFlagMap<string, string>();
-            var kvp = new KeyValuePair<string, string>(null, "x");
+            dirtyFlagMap.Add("a", "x");
+            dirtyFlagMap.ClearDirtyFlag();
+
+            Assert.IsTrue(dirtyFlagMap.Remove("a"));
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+        }
+
+        [Test]
+        public void Remove_Key_KeyIsNotFound()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Add("a", "x");
+            dirtyFlagMap.ClearDirtyFlag();
+
+            Assert.IsFalse(dirtyFlagMap.Remove("x"));
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+        }
+
+        [Test]
+        public void Remove_Key_KeyIsNull()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            const string key = null;
 
             try
             {
-                dirtyFlagMap.Remove(kvp);
+                dirtyFlagMap.Remove(key);
                 Assert.Fail();
             }
             catch (ArgumentNullException ex)
             {
-                Assert.AreEqual("key", ex.ParamName);
+                Assert.AreEqual(nameof(key), ex.ParamName);
             }
 
-            Assert.IsFalse(dirtyFlagMap.Dirty);
-        }
-
-        [Test]
-        public void Remove_KeyValuePair_KeyIsNotFound()
-        {
-            var dirtyFlagMap = new DirtyFlagMap<string, string>();
-            var kvp = new KeyValuePair<string, string>("a", "x");
-
-            Assert.IsFalse(dirtyFlagMap.Remove(kvp));
             Assert.IsFalse(dirtyFlagMap.Dirty);
         }
 
@@ -418,6 +431,34 @@ namespace Quartz.Tests.Unit.Utils
             Assert.IsFalse(dirtyFlagMap.ContainsKey("a"));
         }
 
+        [Test]
+        public void Remove_KeyValuePair_KeyIsNotFound()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            var kvp = new KeyValuePair<string, string>("a", "x");
+
+            Assert.IsFalse(dirtyFlagMap.Remove(kvp));
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+        }
+
+        [Test]
+        public void Remove_KeyValuePair_KeyIsNull()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            var kvp = new KeyValuePair<string, string>(null, "x");
+
+            try
+            {
+                dirtyFlagMap.Remove(kvp);
+                Assert.Fail();
+            }
+            catch (ArgumentNullException ex)
+            {
+                Assert.AreEqual("key", ex.ParamName);
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+        }
 
         [Test]
         public void Add_KeyValuePair_KeyIsNull()
