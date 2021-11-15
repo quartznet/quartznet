@@ -20,6 +20,7 @@
 using NUnit.Framework;
 
 using Quartz.Util;
+using System;
 
 namespace Quartz.Tests.Unit.Utils
 {
@@ -29,14 +30,307 @@ namespace Quartz.Tests.Unit.Utils
     /// </summary>
     /// <author>Marko Lahma (.NET)</author>
     [TestFixture]
-    public class DirtyFlagMapTest 
+    public class DirtyFlagMapTest
     {
         [Test]
-        public void TestClear() 
+        public void TryGetValue_KeyIsNull()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            const string key = null;
+
+            try
+            {
+                dirtyFlagMap.TryGetValue(key, out var value);
+                Assert.Fail();
+            }
+            catch (ArgumentNullException ex)
+            {
+                Assert.AreEqual(nameof(key), ex.ParamName);
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+        }
+
+        [Test]
+        public void TryGetValue_KeyIsFound_ValueIsNull()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Put("a", null);
+            dirtyFlagMap.ClearDirtyFlag();
+
+            Assert.IsTrue(dirtyFlagMap.TryGetValue("a", out var value));
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsNull(value);
+        }
+
+        [Test]
+        public void TryGetValue_KeyIsFound_ValueIsNotNull()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Put("a", "x");
+            dirtyFlagMap.ClearDirtyFlag();
+
+            Assert.IsTrue(dirtyFlagMap.TryGetValue("a", out var value));
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsNotNull(value);
+            Assert.AreEqual("x", value);
+        }
+
+        [Test]
+        public void TryGetValue_KeyIsNotFound_TValueIsReferenceType()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+
+            Assert.IsFalse(dirtyFlagMap.TryGetValue("a", out var value));
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsNull(value);
+        }
+
+        [Test]
+        public void TryGetValue_KeyIsNotFound_TValueIsNonNullableStruct()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, int>();
+
+            Assert.IsFalse(dirtyFlagMap.TryGetValue("a", out var value));
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsNotNull(value);
+            Assert.AreEqual(default(int), value);
+        }
+
+        [Test]
+        public void TryGetValue_KeyIsNotFound_TValueIsNullableStruct()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, int?>();
+
+            Assert.IsFalse(dirtyFlagMap.TryGetValue("a", out var value));
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsNull(value);
+        }
+
+        [Test]
+        public void Indexer_Get_KeyIsNull()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            const string key = null;
+
+            try
+            {
+                var actual = dirtyFlagMap[key];
+                Assert.Fail("Should have thrown, but returned " + actual);
+            }
+            catch (ArgumentNullException ex)
+            {
+                Assert.AreEqual(nameof(key), ex.ParamName);
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+        }
+
+        [Test]
+        public void Indexer_Get_KeyIsFound_ValidIsNotNull()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Put("a", "x");
+            dirtyFlagMap.ClearDirtyFlag();
+
+            var actual = dirtyFlagMap["a"];
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsNotNull(actual);
+            Assert.AreEqual("x", actual);
+        }
+
+        [Test]
+        public void Indexer_Get_KeyIsFound_ValidIsNull()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Put("a", null);
+            dirtyFlagMap.ClearDirtyFlag();
+
+            var actual = dirtyFlagMap["a"];
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsNull(actual);
+        }
+
+        [Test]
+        public void Indexer_Get_KeyIsNotFound_TValueIsReferenceType()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+
+            // #1417: This should throw a KeyNotFoundException, see commented code below
+
+            var value = dirtyFlagMap["a"];
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsNull(value);
+
+            /*
+            try
+            {
+                var actual = dirtyFlagMap["a"];
+                Assert.Fail("Should have thrown, but returned " + actual);
+            }
+            catch (KeyNotFoundException)
+            {
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            */
+        }
+
+        [Test]
+        public void Indexer_Get_KeyIsNotFound_TValueIsNonNullableStruct()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, int>();
+
+            // #1417: This should throw a KeyNotFoundException, see commented code below
+
+            var actual = dirtyFlagMap["a"];
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsNotNull(actual);
+            Assert.AreEqual(default(int), actual);
+
+            /*
+            try
+            {
+                var actual = dirtyFlagMap["a"];
+                Assert.Fail("Should have thrown, but returned " + actual);
+            }
+            catch (KeyNotFoundException)
+            {
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            */
+        }
+
+        [Test]
+        public void Indexer_Get_KeyIsNotFound_TValueIsNullableStruct()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, int?>();
+
+            // #1417: This should throw a KeyNotFoundException, see commented code below
+
+            var actual = dirtyFlagMap["a"];
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsNull(actual);
+
+            /*
+            try
+            {
+                var actual = dirtyFlagMap["a"];
+                Assert.Fail("Should have thrown, but returned " + actual);
+            }
+            catch (KeyNotFoundException)
+            {
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            */
+        }
+
+        [Test]
+        public void Indexer_Set_KeyIsNull()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            const string key = null;
+
+            try
+            {
+                dirtyFlagMap[key] = "x";
+                Assert.Fail();
+            }
+            catch (ArgumentNullException ex)
+            {
+                Assert.AreEqual(nameof(key), ex.ParamName);
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+        }
+
+        [Test]
+        public void Indexer_Set_KeyIsFound_ValidDoesNotEqualCurrentValue()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Put("a", "x");
+            dirtyFlagMap.ClearDirtyFlag();
+
+            dirtyFlagMap["a"] = "y";
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual("y", dirtyFlagMap["a"]);
+
+            dirtyFlagMap.ClearDirtyFlag();
+
+            dirtyFlagMap["a"] = null;
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.IsNull(dirtyFlagMap["a"]);
+
+            dirtyFlagMap.ClearDirtyFlag();
+
+            dirtyFlagMap["a"] = "b";
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual("b", dirtyFlagMap["a"]);
+        }
+
+        [Test]
+        public void Indexer_Set_KeyIsFound_ValidEqualsCurrentValue()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Put("a", "x");
+            dirtyFlagMap.Put("b", null);
+            dirtyFlagMap.ClearDirtyFlag();
+
+            dirtyFlagMap["a"] = "y";
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual("y", dirtyFlagMap["a"]);
+
+            dirtyFlagMap.ClearDirtyFlag();
+
+            dirtyFlagMap["b"] = null;
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("b"));
+            Assert.IsNull(dirtyFlagMap["b"]);
+        }
+
+        [Test]
+        public void Indexer_Set_KeyIsNotFound()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+
+            dirtyFlagMap["a"] = "x";
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual("x", dirtyFlagMap["a"]);
+
+            dirtyFlagMap.ClearDirtyFlag();
+
+            dirtyFlagMap["b"] = null;
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("b"));
+            Assert.IsNull(dirtyFlagMap["b"]);
+
+        }
+
+        [Test]
+        public void TestClear()
         {
             DirtyFlagMap<string, string> dirtyFlagMap = new DirtyFlagMap<string, string>();
             Assert.IsFalse(dirtyFlagMap.Dirty);
-        
+
             dirtyFlagMap.Clear();
             Assert.IsFalse(dirtyFlagMap.Dirty);
             dirtyFlagMap.Put("X", "Y");
@@ -44,22 +338,22 @@ namespace Quartz.Tests.Unit.Utils
             dirtyFlagMap.Clear();
             Assert.IsTrue(dirtyFlagMap.Dirty);
         }
-    
+
         [Test]
-        public void TestPut() 
+        public void TestPut()
         {
             DirtyFlagMap<string, string> dirtyFlagMap = new DirtyFlagMap<string, string>();
             dirtyFlagMap.Put("a", "Y");
             Assert.IsTrue(dirtyFlagMap.Dirty);
         }
-    
+
         [Test]
-        public void TestRemove() 
+        public void TestRemove()
         {
             DirtyFlagMap<string, string> dirtyFlagMap = new DirtyFlagMap<string, string>();
             dirtyFlagMap.Put("a", "Y");
             dirtyFlagMap.ClearDirtyFlag();
-        
+
             dirtyFlagMap.Remove("b");
             Assert.IsFalse(dirtyFlagMap.Dirty);
 
@@ -83,33 +377,33 @@ namespace Quartz.Tests.Unit.Utils
         //    Assert.IsTrue(dirtyFlagMap.Dirty);
         //}
 
-//		public void TestEntrySetRetainAll() 
-//		{
-//			DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
-//			ISet entrySet = dirtyFlagMap.EntrySet();
-//			entrySet.retainAll(Collections.EMPTY_LIST);
-//			Assert.IsFalse(dirtyFlagMap.Dirty);
-//			dirtyFlagMap.Put("a", "Y");
-//			dirtyFlagMap.ClearDirtyFlag();
-//			entrySet.retainAll(Collections.singletonList(entrySet.iterator().next()));
-//			Assert.IsFalse(dirtyFlagMap.Dirty);
-//			entrySet.retainAll(Collections.EMPTY_LIST);
-//			Assert.IsTrue(dirtyFlagMap.Dirty);
-//		}
-    
-//		public void TestEntrySetRemoveAll() 
-//		{
-//			DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
-//			ISet entrySet = dirtyFlagMap.EntrySet();
-//			entrySet.removeAll(Collections.EMPTY_LIST);
-//			Assert.IsFalse(dirtyFlagMap.Dirty);
-//			dirtyFlagMap.Put("a", "Y");
-//			dirtyFlagMap.ClearDirtyFlag();
-//			entrySet.removeAll(Collections.EMPTY_LIST);
-//			Assert.IsFalse(dirtyFlagMap.Dirty);
-//			entrySet.removeAll(Collections.singletonList(entrySet.iterator().next()));
-//			Assert.IsTrue(dirtyFlagMap.Dirty);
-//		}
+        //		public void TestEntrySetRetainAll() 
+        //		{
+        //			DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
+        //			ISet entrySet = dirtyFlagMap.EntrySet();
+        //			entrySet.retainAll(Collections.EMPTY_LIST);
+        //			Assert.IsFalse(dirtyFlagMap.Dirty);
+        //			dirtyFlagMap.Put("a", "Y");
+        //			dirtyFlagMap.ClearDirtyFlag();
+        //			entrySet.retainAll(Collections.singletonList(entrySet.iterator().next()));
+        //			Assert.IsFalse(dirtyFlagMap.Dirty);
+        //			entrySet.retainAll(Collections.EMPTY_LIST);
+        //			Assert.IsTrue(dirtyFlagMap.Dirty);
+        //		}
+
+        //		public void TestEntrySetRemoveAll() 
+        //		{
+        //			DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
+        //			ISet entrySet = dirtyFlagMap.EntrySet();
+        //			entrySet.removeAll(Collections.EMPTY_LIST);
+        //			Assert.IsFalse(dirtyFlagMap.Dirty);
+        //			dirtyFlagMap.Put("a", "Y");
+        //			dirtyFlagMap.ClearDirtyFlag();
+        //			entrySet.removeAll(Collections.EMPTY_LIST);
+        //			Assert.IsFalse(dirtyFlagMap.Dirty);
+        //			entrySet.removeAll(Collections.singletonList(entrySet.iterator().next()));
+        //			Assert.IsTrue(dirtyFlagMap.Dirty);
+        //		}
 
         //[Test]
         //[Ignore]
