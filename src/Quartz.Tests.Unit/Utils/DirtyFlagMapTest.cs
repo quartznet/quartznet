@@ -461,6 +461,133 @@ namespace Quartz.Tests.Unit.Utils
         }
 
         [Test]
+        public void Add_KeyAndValue_KeyIsFound_ValueDoesNotEqualCurrentValue()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Put("a", "x");
+            dirtyFlagMap.ClearDirtyFlag();
+
+            try
+            {
+                dirtyFlagMap.Add("a", "y");
+                Assert.Fail();
+            }
+            catch (ArgumentException)
+            {
+                // An item with the same key has already been added. Key: a
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual("x", dirtyFlagMap["a"]);
+
+            dirtyFlagMap.Put("b", null);
+            dirtyFlagMap.ClearDirtyFlag();
+
+            try
+            {
+                dirtyFlagMap.Add("b", "x");
+                Assert.Fail();
+            }
+            catch (ArgumentException)
+            {
+                // An item with the same key has already been added. Key: b
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("b"));
+            Assert.IsNull(dirtyFlagMap["b"]);
+
+            dirtyFlagMap.Put("c", "z");
+            dirtyFlagMap.ClearDirtyFlag();
+
+            try
+            {
+                dirtyFlagMap.Add("c", null);
+                Assert.Fail();
+            }
+            catch (ArgumentException)
+            {
+                // An item with the same key has already been added. Key: c
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("c"));
+            Assert.AreEqual("z", dirtyFlagMap["c"]);
+        }
+
+        [Test]
+        public void Add_KeyAndValue_KeyIsFound_ValueEqualsCurrentValue()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Put("a", "x");
+            dirtyFlagMap.ClearDirtyFlag();
+
+            try
+            {
+                dirtyFlagMap.Add("a", "x");
+                Assert.Fail();
+            }
+            catch (ArgumentException)
+            {
+                // An item with the same key has already been added. Key: a
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual("x", dirtyFlagMap["a"]);
+
+            dirtyFlagMap.Clear();
+            dirtyFlagMap.Put("a", null);
+            dirtyFlagMap.ClearDirtyFlag();
+
+            try
+            {
+                dirtyFlagMap.Add("a", null);
+                Assert.Fail();
+            }
+            catch (ArgumentException)
+            {
+                // An item with the same key has already been added. Key: a
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.IsNull(dirtyFlagMap["a"]);
+        }
+
+        [Test]
+        public void Add_KeyAndValue_KeyIsNotFound()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+
+            dirtyFlagMap.Add("a", "x");
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual("x", dirtyFlagMap["a"]);
+        }
+
+        [Test]
+        public void Add_KeyAndValue_KeyIsNull()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            const string key = null;
+
+            try
+            {
+                dirtyFlagMap.Add(key, "x");
+                Assert.Fail();
+            }
+            catch (ArgumentNullException ex)
+            {
+                Assert.AreEqual(nameof(key), ex.ParamName);
+            }
+
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+        }
+
+        [Test]
         public void Add_KeyValuePair_KeyIsNull()
         {
             var dirtyFlagMap = new DirtyFlagMap<string, string>();
@@ -487,12 +614,15 @@ namespace Quartz.Tests.Unit.Utils
             var kvp = new KeyValuePair<string, string>("a", "x");
 
             dirtyFlagMap.Add(kvp);
+
+            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual("x", dirtyFlagMap["a"]);
         }
 
         [Test]
         public void Add_KeyValuePair_KeyIsFound_ValueDoesNotEqualCurrentValue()
         {
-            /*
             var dirtyFlagMap = new DirtyFlagMap<string, string>();
             dirtyFlagMap.Put("a", "x");
             dirtyFlagMap.ClearDirtyFlag();
@@ -520,7 +650,6 @@ namespace Quartz.Tests.Unit.Utils
             Assert.IsTrue(dirtyFlagMap.Dirty);
             Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
             Assert.AreEqual("z", dirtyFlagMap["a"]);
-            */
 
             /*
             try
@@ -580,17 +709,21 @@ namespace Quartz.Tests.Unit.Utils
             dirtyFlagMap.Put("a", "x");
             dirtyFlagMap.ClearDirtyFlag();
 
-            Assert.IsTrue(dirtyFlagMap.Remove(new KeyValuePair<string, string>("a", "x")));
+            dirtyFlagMap.Add(new KeyValuePair<string, string>("a", "x"));
+
             Assert.IsTrue(dirtyFlagMap.Dirty);
-            Assert.IsFalse(dirtyFlagMap.ContainsKey("a"));
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.AreEqual("x", dirtyFlagMap["a"]);
 
             dirtyFlagMap.Clear();
             dirtyFlagMap.Put("a", null);
             dirtyFlagMap.ClearDirtyFlag();
 
-            Assert.IsTrue(dirtyFlagMap.Remove(new KeyValuePair<string, string>("a", null)));
+            dirtyFlagMap.Add(new KeyValuePair<string, string>("a", null));
+
             Assert.IsTrue(dirtyFlagMap.Dirty);
-            Assert.IsFalse(dirtyFlagMap.ContainsKey("a"));
+            Assert.IsTrue(dirtyFlagMap.ContainsKey("a"));
+            Assert.IsNull(dirtyFlagMap["a"]);
         }
 
         [Test]
