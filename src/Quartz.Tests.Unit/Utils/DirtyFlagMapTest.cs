@@ -891,7 +891,7 @@ namespace Quartz.Tests.Unit.Utils
         }
 
         [Test]
-        public void Contains_KeyIsNull()
+        public void Contains_Key_KeyIsNull()
         {
             var dirtyFlagMap = new DirtyFlagMap<string, string>();
             const object key = null;
@@ -908,7 +908,7 @@ namespace Quartz.Tests.Unit.Utils
         }
 
         [Test]
-        public void Contains_KeyIsNotFound()
+        public void Contains_Key_KeyIsNotFound()
         {
             var dirtyFlagMap = new DirtyFlagMap<string, string>();
             object key = "a";
@@ -918,7 +918,7 @@ namespace Quartz.Tests.Unit.Utils
         }
 
         [Test]
-        public void Contains_KeyIsFound()
+        public void Contains_Key_KeyIsFound()
         {
             var dirtyFlagMap = new DirtyFlagMap<string, string>();
             dirtyFlagMap.Put("a", "x");
@@ -929,13 +929,72 @@ namespace Quartz.Tests.Unit.Utils
         }
 
         [Test]
-        public void Contains_KeyCannotBeAssignedToTKey()
+        public void Contains_Key_KeyCannotBeAssignedToTKey()
         {
             var dirtyFlagMap = new DirtyFlagMap<string, string>();
             dirtyFlagMap.Add("a", "x");
             dirtyFlagMap.ClearDirtyFlag();
 
             Assert.IsFalse(((IDictionary) dirtyFlagMap).Contains((object) 5));
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+        }
+
+        [Test]
+        public void Contains_KeyValuePair_KeyIsNull()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            var kvp = new KeyValuePair<string, string>(null, "x");
+
+            try
+            {
+                ((IDictionary<string, string>) dirtyFlagMap).Contains(kvp);
+                Assert.Fail();
+            }
+            catch (ArgumentNullException ex)
+            {
+                Assert.AreEqual("key", ex.ParamName);
+            }
+        }
+
+        [Test]
+        public void Contains_KeyValuePair_KeyIsNotFound()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+
+            Assert.IsFalse(dirtyFlagMap.Contains(new KeyValuePair<string, string>("a", "x")));
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+        }
+
+        [Test]
+        public void Contains_KeyValuePair_KeyIsFound_ValueDoesNotEqualCurrentValue()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Add("a", "x");
+            dirtyFlagMap.ClearDirtyFlag();
+
+            // #1417: this should return false
+            Assert.IsTrue(dirtyFlagMap.Contains(new KeyValuePair<string, string>("a", "y")));
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+
+            // #1417: this should return false
+            Assert.IsTrue(dirtyFlagMap.Contains(new KeyValuePair<string, string>("a", null)));
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+        }
+
+        [Test]
+        public void Contains_KeyValuePair_KeyIsFound_ValueEqualsCurrentValue()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            dirtyFlagMap.Add("a", "x");
+            dirtyFlagMap.ClearDirtyFlag();
+
+            Assert.IsTrue(dirtyFlagMap.Contains(new KeyValuePair<string, string>("a", "x")));
+            Assert.IsFalse(dirtyFlagMap.Dirty);
+
+            dirtyFlagMap.Add("b", null);
+            dirtyFlagMap.ClearDirtyFlag();
+
+            Assert.IsTrue(dirtyFlagMap.Contains(new KeyValuePair<string, string>("b", null)));
             Assert.IsFalse(dirtyFlagMap.Dirty);
         }
 
