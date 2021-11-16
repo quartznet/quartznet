@@ -17,12 +17,13 @@
  */
 #endregion
 
-using NUnit.Framework;
-
-using Quartz.Util;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+
+using NUnit.Framework;
+
+using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Utils
 {
