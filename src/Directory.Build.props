@@ -2,8 +2,6 @@
 
   <PropertyGroup>
 
-    <OutputPath>..\..\build\$(Configuration)\$(MSBuildProjectName)</OutputPath>
-
     <Title>Quartz.NET</Title>
     <Product>Quartz.NET</Product>
     <Description>Quartz Scheduling Framework for .NET</Description>
@@ -29,7 +27,6 @@
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
 
     <VersionPrefix>3.3.3</VersionPrefix>
-    <VersionSuffix Condition="'$(VersionSuffix)'!='' AND '$(BuildNumber)' != ''">$(VersionSuffix)-$(BuildNumber)</VersionSuffix>
 
     <CLSCompliant>True</CLSCompliant>
     <ComVisible>False</ComVisible>
@@ -50,7 +47,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.0.0" PrivateAssets="All"/>
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All"/>
   </ItemGroup>
 
   <PropertyGroup Condition=" '$(TargetFramework)' == 'net461' OR '$(TargetFramework)' == 'net472' ">

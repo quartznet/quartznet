@@ -9,17 +9,19 @@
 #
 #     - To trigger manual generation invoke:
 #
-#         nuke --generate-configuration GitHubActions_build --host GitHubActions
+#         nuke --generate-configuration GitHubActions_pr --host GitHubActions
 #
 # </auto-generated>
 # ------------------------------------------------------------------------------
 
-name: build
+name: pr
 
 on:
-  push:
+  pull_request:
     branches:
       - main
+      - v4
+      - 3.x
     paths:
       - '**/*'
       - '!docs/**/*'
@@ -39,15 +41,8 @@ jobs:
             .nuke/temp
             ~/.nuget/packages
           key: ${{ runner.os }}-${{ hashFiles('global.json', 'src/**/*.csproj', 'src/**/package.json') }}
-      - name: Run './build.cmd Compile Test Pack Publish'
-        run: ./build.cmd Compile Test Pack Publish
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-          MYGET_API_KEY: ${{ secrets.MYGET_API_KEY }}
-      - uses: actions/upload-artifact@v1
-        with:
-          name: artifacts
-          path: artifacts
+      - name: Run './build.cmd Compile Test Pack'
+        run: ./build.cmd Compile Test Pack
   ubuntu-latest:
     name: ubuntu-latest
     runs-on: ubuntu-latest
@@ -60,15 +55,8 @@ jobs:
             .nuke/temp
             ~/.nuget/packages
           key: ${{ runner.os }}-${{ hashFiles('global.json', 'src/**/*.csproj', 'src/**/package.json') }}
-      - name: Run './build.cmd Compile Test Pack Publish'
-        run: ./build.cmd Compile Test Pack Publish
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-          MYGET_API_KEY: ${{ secrets.MYGET_API_KEY }}
-      - uses: actions/upload-artifact@v1
-        with:
-          name: artifacts
-          path: artifacts
+      - name: Run './build.cmd Compile Test Pack'
+        run: ./build.cmd Compile Test Pack
   macOS-latest:
     name: macOS-latest
     runs-on: macOS-latest
@@ -81,12 +69,5 @@ jobs:
             .nuke/temp
             ~/.nuget/packages
           key: ${{ runner.os }}-${{ hashFiles('global.json', 'src/**/*.csproj', 'src/**/package.json') }}
-      - name: Run './build.cmd Compile Test Pack Publish'
-        run: ./build.cmd Compile Test Pack Publish
-        env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-          MYGET_API_KEY: ${{ secrets.MYGET_API_KEY }}
-      - uses: actions/upload-artifact@v1
-        with:
-          name: artifacts
-          path: artifacts
+      - name: Run './build.cmd Compile Test Pack'
+        run: ./build.cmd Compile Test Pack
