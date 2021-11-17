@@ -39,6 +39,9 @@ Quartz.OpenTelemetry.Instrumentation has been marked obsolete as there's officia
   * .NET Framework minimum version is 4.6.2 (previously 4.6.1) (#1549)
 
 
+    * The `Equals(StringOperator? other)` method of **StringOperator** is now also virtual to allow it to be
+      overridden in pair with `Equals(object? obj)` and `GetHashCode()`.
+
 ## Release 3.3.3, Aug 1 2021
 
 This is a maintenance release mostly fixing some smaller bugs and improving DI API story.
