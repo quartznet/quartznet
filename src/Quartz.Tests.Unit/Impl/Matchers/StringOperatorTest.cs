@@ -69,7 +69,6 @@ namespace Quartz.Tests.Unit.Impl.Matchers
 
             Assert.IsFalse(op.Evaluate(null, null));
             Assert.IsFalse(op.Evaluate(null, "Quartz"));
-            Assert.IsFalse(op.Evaluate("Quartz", null));
             Assert.IsTrue(op.Evaluate("Quartz", "Quartz"));
             Assert.IsTrue(op.Evaluate("aa", new string('a', 2)));
             Assert.IsFalse(op.Evaluate(null, string.Empty));
@@ -79,6 +78,22 @@ namespace Quartz.Tests.Unit.Impl.Matchers
             Assert.IsTrue(op.Evaluate("Quartz", "ua"));
             Assert.IsTrue(op.Evaluate("Quartz", "Qu"));
             Assert.IsFalse(op.Evaluate("Quartz", "QU"));
+        }
+
+        [Test]
+        public void Contains_Evaluate_ValueIsNotNullAndCompareToIsNull()
+        {
+            var op = StringOperator.Contains;
+
+            try
+            {
+                op.Evaluate("Quartz", null);
+                Assert.Fail();
+            }
+            catch (ArgumentNullException ex)
+            {
+                Assert.AreEqual("value", ex.ParamName);
+            }
         }
 
         [Test]
@@ -140,7 +155,6 @@ namespace Quartz.Tests.Unit.Impl.Matchers
 
             Assert.IsFalse(op.Evaluate(null, null));
             Assert.IsFalse(op.Evaluate(null, "Quartz"));
-            Assert.IsFalse(op.Evaluate("Quartz", null));
             Assert.IsTrue(op.Evaluate("Quartz", "Quartz"));
             Assert.IsTrue(op.Evaluate("aa", new string('a', 2)));
             Assert.IsFalse(op.Evaluate(null, string.Empty));
@@ -150,6 +164,22 @@ namespace Quartz.Tests.Unit.Impl.Matchers
             Assert.IsFalse(op.Evaluate("Quartz", "ua"));
             Assert.IsFalse(op.Evaluate("Quartz", "Qu"));
             Assert.IsFalse(op.Evaluate("Quartz", "QU"));
+        }
+
+        [Test]
+        public void EndsWith_Evaluate_ValueIsNotNullAndCompareToIsNull()
+        {
+            var op = StringOperator.EndsWith;
+
+            try
+            {
+                op.Evaluate("Quartz", null);
+                Assert.Fail();
+            }
+            catch (ArgumentNullException ex)
+            {
+                Assert.AreEqual("value", ex.ParamName);
+            }
         }
 
         [Test]
@@ -236,7 +266,6 @@ namespace Quartz.Tests.Unit.Impl.Matchers
 
             Assert.IsFalse(op.Evaluate(null, null));
             Assert.IsFalse(op.Evaluate(null, "Quartz"));
-            Assert.IsFalse(op.Evaluate("Quartz", null));
             Assert.IsTrue(op.Evaluate("Quartz", "Quartz"));
             Assert.IsTrue(op.Evaluate("aa", new string('a', 2)));
             Assert.IsFalse(op.Evaluate(null, string.Empty));
@@ -246,6 +275,22 @@ namespace Quartz.Tests.Unit.Impl.Matchers
             Assert.IsFalse(op.Evaluate("Quartz", "ua"));
             Assert.IsTrue(op.Evaluate("Quartz", "Qu"));
             Assert.IsFalse(op.Evaluate("Quartz", "QU"));
+        }
+
+        [Test]
+        public void StartsWith_Evaluate_ValueIsNotNullAndCompareToIsNull()
+        {
+            var op = StringOperator.StartsWith;
+
+            try
+            {
+                op.Evaluate("Quartz", null);
+                Assert.Fail();
+            }
+            catch (ArgumentNullException ex)
+            {
+                Assert.AreEqual("value", ex.ParamName);
+            }
         }
 
         [Test]

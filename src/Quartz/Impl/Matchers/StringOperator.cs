@@ -51,12 +51,7 @@ namespace Quartz.Impl.Matchers
         {
             public override bool Evaluate(string value, string compareTo)
             {
-                if (value == null || compareTo == null)
-                {
-                    return false;
-                }
-
-                return value.StartsWith(compareTo);
+                return value != null && value.StartsWith(compareTo);
             }
         }
 
@@ -65,12 +60,7 @@ namespace Quartz.Impl.Matchers
         {
             public override bool Evaluate(string value, string compareTo)
             {
-                if (value == null || compareTo == null)
-                {
-                    return false;
-                }
-
-                return value.EndsWith(compareTo);
+                return value != null && value.EndsWith(compareTo);
             }
         }
 
@@ -79,12 +69,7 @@ namespace Quartz.Impl.Matchers
         {
             public override bool Evaluate(string value, string compareTo)
             {
-                if (value == null || compareTo == null)
-                {
-                    return false;
-                }
-
-                return value.Contains(compareTo);
+                return value != null && value.Contains(compareTo);
             }
         }
 
