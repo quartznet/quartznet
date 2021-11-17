@@ -926,7 +926,7 @@ namespace Quartz.Simpl
                 StringOperator op = matcher.CompareWithOperator;
                 string compareToValue = matcher.CompareToValue;
 
-                if (Equals(op, StringOperator.Equality))
+                if (StringOperator.Equality.Equals(op))
                 {
                     if (jobsByGroup.TryGetValue(compareToValue, out var grpMap))
                     {
@@ -986,7 +986,7 @@ namespace Quartz.Simpl
                 StringOperator op = matcher.CompareWithOperator;
                 string compareToValue = matcher.CompareToValue;
 
-                if (Equals(op, StringOperator.Equality))
+                if (StringOperator.Equality.Equals(op))
                 {
                     if (triggersByGroup.TryGetValue(compareToValue, out var grpMap))
                     {
@@ -1178,7 +1178,7 @@ namespace Quartz.Simpl
                 var pausedGroups = new HashSet<string>();
 
                 StringOperator op = matcher.CompareWithOperator;
-                if (Equals(op, StringOperator.Equality))
+                if (StringOperator.Equality.Equals(op))
                 {
                     if (pausedTriggerGroups.Add(matcher.CompareToValue))
                     {
@@ -1247,7 +1247,7 @@ namespace Quartz.Simpl
             {
                 List<string> pausedGroups = new List<string>();
                 StringOperator op = matcher.CompareWithOperator;
-                if (Equals(op, StringOperator.Equality))
+                if (StringOperator.Equality.Equals(op))
                 {
                     if (pausedJobGroups.Add(matcher.CompareToValue))
                     {
@@ -1372,7 +1372,7 @@ namespace Quartz.Simpl
                 StringOperator op = matcher.CompareWithOperator;
                 var pausedGroups = new List<string>();
                 var matcherGroup = matcher.CompareToValue;
-                if (op.Equals(StringOperator.Equality))
+                if (StringOperator.Equality.Equals(op))
                 {
                     if (pausedTriggerGroups.Contains(matcherGroup))
                     {
