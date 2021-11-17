@@ -1,5 +1,7 @@
-@echo off
-cls
+:; set -eo pipefail
+:; SCRIPT_DIR=$(cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)
+:; ${SCRIPT_DIR}/build.sh "$@"
+:; exit $?
 
-"tools\NuGet\NuGet.exe" "Install" "FAKE" "-Version" "4.64.4" "-OutputDirectory" "packages" "-ExcludeVersion"
-"packages\FAKE\tools\Fake.exe" build.fsx %*
+@ECHO OFF
+powershell -ExecutionPolicy ByPass -NoProfile -File "%~dp0build.ps1" %*
