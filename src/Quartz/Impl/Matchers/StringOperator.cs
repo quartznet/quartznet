@@ -38,39 +38,43 @@ namespace Quartz.Impl.Matchers
         public abstract bool Evaluate(string value, string compareTo);
 
         [Serializable]
-        private class EqualityOperator : StringOperator
+        private sealed class EqualityOperator : StringOperator
         {
-            public override bool Evaluate(string value, string compareTo) {
+            public override bool Evaluate(string value, string compareTo)
+            {
                 return value.Equals(compareTo);
             }
         }
 
         [Serializable]
-        private class StartsWithOperator : StringOperator
+        private sealed class StartsWithOperator : StringOperator
         {
-            public override bool Evaluate(string value, string compareTo) {
+            public override bool Evaluate(string value, string compareTo)
+            {
                 return value.StartsWith(compareTo);
             }
         }
 
         [Serializable]
-        private class EndsWithOperator : StringOperator
+        private sealed class EndsWithOperator : StringOperator
         {
-             public override bool Evaluate(string value, string compareTo) {
+            public override bool Evaluate(string value, string compareTo)
+            {
                 return value.EndsWith(compareTo);
             }
         }
 
         [Serializable]
-        private class ContainsOperator : StringOperator
+        private sealed class ContainsOperator : StringOperator
         {
-            public override bool Evaluate(string value, string compareTo) {
+            public override bool Evaluate(string value, string compareTo)
+            {
                 return value.Contains(compareTo);
             }
         }
 
         [Serializable]
-        private class AnythingOperator : StringOperator
+        private sealed class AnythingOperator : StringOperator
         {
             public override bool Evaluate(string value, string compareTo)
             {
@@ -78,12 +82,30 @@ namespace Quartz.Impl.Matchers
             }
         }
 
+        /// <summary>
+        /// Returns a value indicating whether this instance and a specified <see cref="object"/> are considered
+        /// equal.
+        /// </summary>
+        /// <param name="obj">An <see cref="object"/> to compare with this instance.</param>
+        /// <returns>
+        /// <see langword="true"/> if the <see cref="Type"/> of the current <see cref="StringOperator"/> equals
+        /// that of the specified <see cref="object"/>; otherwise, <see langword="true"/>.
+        /// </returns>
         public override bool Equals(object? obj)
         {
             return Equals(obj as StringOperator);
         }
 
-        public bool Equals(StringOperator? other)
+        /// <summary>
+        /// Returns a value indicating whether this instance and a specified <see cref="StringOperator"/>
+        /// instance are considered equal.
+        /// </summary>
+        /// <param name="other">An <see cref="StringOperator"/> to compare with this instance.</param>
+        /// <returns>
+        /// <see langword="true"/> if the <see cref="Type"/> of the current <see cref="StringOperator"/> equals
+        /// that of the specified <see cref="StringOperator"/> instance; otherwise, <see langword="true"/>.
+        /// </returns>
+        public virtual bool Equals(StringOperator? other)
         {
             if (other == null)
             {
@@ -94,6 +116,13 @@ namespace Quartz.Impl.Matchers
             return GetType() == other.GetType();
         }
 
+        /// <summary>
+        /// Returns the hash code for the <see cref="StringOperator"/>.
+        /// </summary>
+        /// <returns>
+        /// The hash code of the <see cref="Type"/> of the current <see cref="StringOperator"/>
+        /// instance.
+        /// </returns>
         public override int GetHashCode()
         {
             return GetType().GetHashCode();

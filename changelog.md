@@ -18,6 +18,9 @@
 
     * The *endUtc* argument of **SimpleTriggerImpl** is no longer nullable.
 
+    * The `Equals(StringOperator? other)` method of **StringOperator** is now also virtual to allow it to be
+      overridden in pair with `Equals(object? obj)` and `GetHashCode()`.
+
 ## Release 3.3.3, Aug 1 2021
 
 This is a maintenance release mostly fixing some smaller bugs and improving DI API story.
