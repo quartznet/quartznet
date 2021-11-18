@@ -287,13 +287,6 @@ namespace Quartz.Tests.Unit.Impl.Matchers
         [Test]
         public void Equality_CanBeSerializedAndDeserialized()
         {
-            var formatter = new BinaryFormatter();
-
-            using (var fs = File.OpenWrite(@"C:\development\quartznet\src\Quartz.Tests.Unit\Serialized\StringOperator_Equality_New.ser"))
-            {
-                formatter.Serialize(fs, StringOperator.Equality);
-            }
-
             var op = SerializeAndDeserialize(StringOperator.Equality);
             Equality_Evaluate(op);
         }
