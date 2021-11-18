@@ -3,7 +3,6 @@ using System.Collections.Generic;
 
 using Quartz.Collections;
 using Quartz.Impl.Matchers;
-using Quartz.Util;
 
 namespace Quartz.Core
 {
@@ -61,8 +60,7 @@ namespace Quartz.Core
 
             lock (globalJobListeners)
             {
-                var matchers = globalJobListenersMatchers.TryGetAndReturn(listenerName);
-                if (matchers == null)
+                if (!globalJobListenersMatchers.TryGetValue(listenerName, out var matchers))
                 {
                     return false;
                 }
@@ -80,8 +78,7 @@ namespace Quartz.Core
 
             lock (globalJobListeners)
             {
-                var matchers = globalJobListenersMatchers.TryGetAndReturn(listenerName);
-                if (matchers == null)
+                if (!globalJobListenersMatchers.TryGetValue(listenerName, out var matchers))
                 {
                     return false;
                 }
@@ -93,8 +90,12 @@ namespace Quartz.Core
         {
             lock (globalJobListeners)
             {
-                var matchers = globalJobListenersMatchers.TryGetAndReturn(listenerName);
-                return matchers?.AsReadOnly();
+                if (!globalJobListenersMatchers.TryGetValue(listenerName, out var matchers))
+                {
+                    return null;
+                }
+
+                return matchers.AsReadOnly();
             }
         }
 
@@ -107,11 +108,11 @@ namespace Quartz.Core
 
             lock (globalJobListeners)
             {
-                var oldMatchers = globalJobListenersMatchers.TryGetAndReturn(listenerName);
-                if (oldMatchers == null)
+                if (!globalJobListenersMatchers.TryGetValue(listenerName, out _))
                 {
                     return false;
                 }
+
                 globalJobListenersMatchers[listenerName] = new List<IMatcher<JobKey>>(matchers);
                 return true;
             }
@@ -202,11 +203,11 @@ namespace Quartz.Core
 
             lock (globalTriggerListeners)
             {
-                var matchers = globalTriggerListenersMatchers.TryGetAndReturn(listenerName);
-                if (matchers == null)
+                if (!globalTriggerListenersMatchers.TryGetValue(listenerName, out var matchers))
                 {
                     return false;
                 }
+
                 matchers.Add(matcher);
                 return true;
             }
@@ -221,11 +222,11 @@ namespace Quartz.Core
 
             lock (globalTriggerListeners)
             {
-                var matchers = globalTriggerListenersMatchers.TryGetAndReturn(listenerName);
-                if (matchers == null)
+                if (!globalTriggerListenersMatchers.TryGetValue(listenerName, out var matchers))
                 {
                     return false;
                 }
+
                 return matchers.Remove(matcher);
             }
         }
@@ -234,7 +235,7 @@ namespace Quartz.Core
         {
             lock (globalTriggerListeners)
             {
-                var matchers = globalTriggerListenersMatchers.TryGetAndReturn(listenerName);
+                globalTriggerListenersMatchers.TryGetValue(listenerName, out var matchers);
                 return matchers;
             }
         }
@@ -248,11 +249,11 @@ namespace Quartz.Core
 
             lock (globalTriggerListeners)
             {
-                var oldMatchers = globalTriggerListenersMatchers.TryGetAndReturn(listenerName);
-                if (oldMatchers == null)
+                if (!globalTriggerListenersMatchers.TryGetValue(listenerName, out _))
                 {
                     return false;
                 }
+
                 globalTriggerListenersMatchers[listenerName] = new List<IMatcher<TriggerKey>>(matchers);
                 return true;
             }
