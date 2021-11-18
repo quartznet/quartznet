@@ -1533,7 +1533,8 @@ namespace Quartz.Core
         /// </summary>
         public ITriggerListener? GetInternalTriggerListener(string name)
         {
-            return internalTriggerListeners.TryGetAndReturn(name);
+            internalTriggerListeners.TryGetValue(name, out var triggerListener);
+            return triggerListener;
         }
 
         public virtual Task NotifyJobStoreJobVetoed(
