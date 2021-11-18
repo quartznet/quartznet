@@ -88,8 +88,9 @@ namespace Quartz.Impl.Matchers
         /// </summary>
         /// <param name="obj">An <see cref="object"/> to compare with this instance.</param>
         /// <returns>
-        /// <see langword="true"/> if the <see cref="Type"/> of the current <see cref="StringOperator"/> equals
-        /// that of the specified <see cref="object"/>; otherwise, <see langword="true"/>.
+        /// <see langword="true"/> if the current <see cref="StringOperator"/> and <paramref name="obj"/>
+        /// are the same instance, or the <see cref="Type"/> of the current <see cref="StringOperator"/>
+        /// equals that of <paramref name="obj"/>; otherwise, <see langword="true"/>.
         /// </returns>
         public override bool Equals(object? obj)
         {
@@ -102,18 +103,22 @@ namespace Quartz.Impl.Matchers
         /// </summary>
         /// <param name="other">An <see cref="StringOperator"/> to compare with this instance.</param>
         /// <returns>
-        /// <see langword="true"/> if the <see cref="Type"/> of the current <see cref="StringOperator"/> equals
-        /// that of the specified <see cref="StringOperator"/> instance; otherwise, <see langword="true"/>.
+        /// <see langword="true"/> if the current <see cref="StringOperator"/> and <paramref name="other"/>
+        /// are the same instance, or the <see cref="Type"/> of the current <see cref="StringOperator"/> equals
+        /// that of <paramref name="other"/>; otherwise, <see langword="true"/>.
         /// </returns>
         public virtual bool Equals(StringOperator? other)
         {
-            if (other == null)
+#if !NET5_0_OR_GREATER
+            // This optimalization should not be applied on .NET 5.0 (and higher) as GetType() and/or Type
+            // comparison has speeded up significantly
+            if (ReferenceEquals(this, other))
             {
-                return false;
+                return true;
             }
+#endif
 
-            // just check by type, equality based on behavior
-            return GetType() == other.GetType();
+            return other != null && GetType() == other.GetType();
         }
 
         /// <summary>

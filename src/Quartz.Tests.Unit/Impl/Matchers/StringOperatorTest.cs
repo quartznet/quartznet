@@ -2,6 +2,7 @@ using NUnit.Framework;
 using Quartz.Impl.Matchers;
 using System;
 using System.IO;
+using System.Runtime.Serialization.Formatters;
 using System.Runtime.Serialization.Formatters.Binary;
 
 namespace Quartz.Tests.Unit.Impl.Matchers
@@ -9,6 +10,22 @@ namespace Quartz.Tests.Unit.Impl.Matchers
     [TestFixture]
     public class StringOperatorTest
     {
+        [Test]
+        public void Anything_CanBeDeserialized()
+        {
+            var op = Deserialize<StringOperator>("StringOperator_Anything");
+
+            Assert.IsNotNull(op);
+            Anything_Evaluate(op);
+        }
+
+        [Test]
+        public void Anything_CanBeSerializedAndDeserialized()
+        {
+            var op = SerializeAndDeserialize(StringOperator.Anything);
+            Anything_Evaluate(op);
+        }
+
         [Test]
         public void Anything_ShouldBeSingleton()
         {
@@ -18,8 +35,11 @@ namespace Quartz.Tests.Unit.Impl.Matchers
         [Test]
         public void Anything_Evaluate()
         {
-            var op = StringOperator.Anything;
+            Anything_Evaluate(StringOperator.Anything);
+        }
 
+        private static void Anything_Evaluate(StringOperator op)
+        {
             Assert.IsTrue(op.Evaluate(null, null));
             Assert.IsTrue(op.Evaluate(null, "Quartz"));
             Assert.IsTrue(op.Evaluate("Quartz", null));
@@ -57,6 +77,22 @@ namespace Quartz.Tests.Unit.Impl.Matchers
         }
 
         [Test]
+        public void Contains_CanBeDeserialized()
+        {
+            var op = Deserialize<StringOperator>("StringOperator_Contains");
+
+            Assert.IsNotNull(op);
+            Contains_Evaluate(op);
+        }
+
+        [Test]
+        public void Contains_CanBeSerializedAndDeserialized()
+        {
+            var op = SerializeAndDeserialize(StringOperator.Contains);
+            Contains_Evaluate(op);
+        }
+
+        [Test]
         public void Contains_ShouldBeSingleton()
         {
             Assert.AreSame(StringOperator.Contains, StringOperator.Contains);
@@ -65,8 +101,11 @@ namespace Quartz.Tests.Unit.Impl.Matchers
         [Test]
         public void Contains_Evaluate()
         {
-            var op = StringOperator.Contains;
+            Contains_Evaluate(StringOperator.Contains);
+        }
 
+        private static void Contains_Evaluate(StringOperator op)
+        {
             Assert.IsFalse(op.Evaluate(null, null));
             Assert.IsFalse(op.Evaluate(null, "Quartz"));
             Assert.IsTrue(op.Evaluate("Quartz", "Quartz"));
@@ -143,6 +182,22 @@ namespace Quartz.Tests.Unit.Impl.Matchers
         }
 
         [Test]
+        public void EndsWith_CanBeDeserialized()
+        {
+            var op = Deserialize<StringOperator>("StringOperator_EndsWith");
+
+            Assert.IsNotNull(op);
+            EndsWith_Evaluate(op);
+        }
+
+        [Test]
+        public void EndsWith_CanBeSerializedAndDeserialized()
+        {
+            var op = SerializeAndDeserialize(StringOperator.EndsWith);
+            EndsWith_Evaluate(op);
+        }
+
+        [Test]
         public void EndsWith_ShouldBeSingleton()
         {
             Assert.AreSame(StringOperator.EndsWith, StringOperator.EndsWith);
@@ -153,6 +208,21 @@ namespace Quartz.Tests.Unit.Impl.Matchers
         {
             var op = StringOperator.EndsWith;
 
+            Assert.IsFalse(op.Evaluate(null, null));
+            Assert.IsFalse(op.Evaluate(null, "Quartz"));
+            Assert.IsTrue(op.Evaluate("Quartz", "Quartz"));
+            Assert.IsTrue(op.Evaluate("aa", new string('a', 2)));
+            Assert.IsFalse(op.Evaluate(null, string.Empty));
+            Assert.IsFalse(op.Evaluate("Quartz", "QuartZ"));
+            Assert.IsTrue(op.Evaluate("Quartz", "tz"));
+            Assert.IsFalse(op.Evaluate("Quartz", "tZ"));
+            Assert.IsFalse(op.Evaluate("Quartz", "ua"));
+            Assert.IsFalse(op.Evaluate("Quartz", "Qu"));
+            Assert.IsFalse(op.Evaluate("Quartz", "QU"));
+        }
+
+        private static void EndsWith_Evaluate(StringOperator op)
+        {
             Assert.IsFalse(op.Evaluate(null, null));
             Assert.IsFalse(op.Evaluate(null, "Quartz"));
             Assert.IsTrue(op.Evaluate("Quartz", "Quartz"));
@@ -206,6 +276,29 @@ namespace Quartz.Tests.Unit.Impl.Matchers
         }
 
         [Test]
+        public void Equality_CanBeDeserialized()
+        {
+            var op = Deserialize<StringOperator>("StringOperator_Equality");
+            
+            Assert.IsNotNull(op);
+            Equality_Evaluate(op);
+        }
+
+        [Test]
+        public void Equality_CanBeSerializedAndDeserialized()
+        {
+            var formatter = new BinaryFormatter();
+
+            using (var fs = File.OpenWrite(@"C:\development\quartznet\src\Quartz.Tests.Unit\Serialized\StringOperator_Equality_New.ser"))
+            {
+                formatter.Serialize(fs, StringOperator.Equality);
+            }
+
+            var op = SerializeAndDeserialize(StringOperator.Equality);
+            Equality_Evaluate(op);
+        }
+
+        [Test]
         public void Equality_ShouldBeSingleton()
         {
             Assert.AreSame(StringOperator.Equality, StringOperator.Equality);
@@ -214,8 +307,11 @@ namespace Quartz.Tests.Unit.Impl.Matchers
         [Test]
         public void Equality_Evaluate()
         {
-            var op = StringOperator.Equality;
+            Equality_Evaluate(StringOperator.Equality);
+        }
 
+        private static void Equality_Evaluate(StringOperator op)
+        {
             Assert.IsTrue(op.Evaluate(null, null));
             Assert.IsFalse(op.Evaluate(null, "Quartz"));
             Assert.IsFalse(op.Evaluate("Quartz", null));
@@ -254,6 +350,22 @@ namespace Quartz.Tests.Unit.Impl.Matchers
         }
 
         [Test]
+        public void StartsWith_CanBeDeserialized()
+        {
+            var op = Deserialize<StringOperator>("StringOperator_StartsWith");
+
+            Assert.IsNotNull(op);
+            StartsWith_Evaluate(op);
+        }
+
+        [Test]
+        public void StartsWith_CanBeSerializedAndDeserialized()
+        {
+            var op = SerializeAndDeserialize(StringOperator.StartsWith);
+            StartsWith_Evaluate(op);
+        }
+
+        [Test]
         public void StartsWith_ShouldBeSingleton()
         {
             Assert.AreSame(StringOperator.StartsWith, StringOperator.StartsWith);
@@ -264,6 +376,21 @@ namespace Quartz.Tests.Unit.Impl.Matchers
         {
             var op = StringOperator.StartsWith;
 
+            Assert.IsFalse(op.Evaluate(null, null));
+            Assert.IsFalse(op.Evaluate(null, "Quartz"));
+            Assert.IsTrue(op.Evaluate("Quartz", "Quartz"));
+            Assert.IsTrue(op.Evaluate("aa", new string('a', 2)));
+            Assert.IsFalse(op.Evaluate(null, string.Empty));
+            Assert.IsFalse(op.Evaluate("Quartz", "QuartZ"));
+            Assert.IsFalse(op.Evaluate("Quartz", "tz"));
+            Assert.IsFalse(op.Evaluate("Quartz", "tZ"));
+            Assert.IsFalse(op.Evaluate("Quartz", "ua"));
+            Assert.IsTrue(op.Evaluate("Quartz", "Qu"));
+            Assert.IsFalse(op.Evaluate("Quartz", "QU"));
+        }
+
+        private static void StartsWith_Evaluate(StringOperator op)
+        {
             Assert.IsFalse(op.Evaluate(null, null));
             Assert.IsFalse(op.Evaluate(null, "Quartz"));
             Assert.IsTrue(op.Evaluate("Quartz", "Quartz"));
@@ -325,9 +452,9 @@ namespace Quartz.Tests.Unit.Impl.Matchers
             }
         }
 
-        private StringOperator SerializeAndDeserialize(StringOperator stringOperator)
+        private static T SerializeAndDeserialize<T>(T stringOperator)
         {
-            BinaryFormatter formatter = new BinaryFormatter();
+            var formatter = new BinaryFormatter();
 
             using (var ms = new MemoryStream())
             {
@@ -335,7 +462,17 @@ namespace Quartz.Tests.Unit.Impl.Matchers
 
                 ms.Position = 0;
 
-                return (StringOperator) formatter.Deserialize(ms);
+                return (T) formatter.Deserialize(ms);
+            }
+        }
+
+        private static T Deserialize<T>(string name)
+        {
+            using (var fs = File.OpenRead(Path.Combine("Serialized", name + ".ser")))
+            {
+                BinaryFormatter binaryFormatter = new BinaryFormatter();
+                binaryFormatter.AssemblyFormat = FormatterAssemblyStyle.Simple;
+                return (T) binaryFormatter.Deserialize(fs);
             }
         }
     }
