@@ -42,7 +42,7 @@ namespace Quartz.Impl.Matchers
         {
             public override bool Evaluate(string value, string compareTo)
             {
-                return value.Equals(compareTo);
+                return string.Equals(value, compareTo);
             }
         }
 
@@ -51,7 +51,7 @@ namespace Quartz.Impl.Matchers
         {
             public override bool Evaluate(string value, string compareTo)
             {
-                return value.StartsWith(compareTo);
+                return value != null && value.StartsWith(compareTo);
             }
         }
 
@@ -60,7 +60,7 @@ namespace Quartz.Impl.Matchers
         {
             public override bool Evaluate(string value, string compareTo)
             {
-                return value.EndsWith(compareTo);
+                return value != null && value.EndsWith(compareTo);
             }
         }
 
@@ -69,7 +69,7 @@ namespace Quartz.Impl.Matchers
         {
             public override bool Evaluate(string value, string compareTo)
             {
-                return value.Contains(compareTo);
+                return value != null && value.Contains(compareTo);
             }
         }
 
@@ -127,5 +127,5 @@ namespace Quartz.Impl.Matchers
         {
             return GetType().GetHashCode();
         }
-    }
+   }
 }
