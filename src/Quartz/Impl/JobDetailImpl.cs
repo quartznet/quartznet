@@ -357,20 +357,11 @@ namespace Quartz.Impl
         /// </returns>
         public virtual IJobDetail Clone()
         {
-            JobDetailImpl copy;
-            try
+            var copy = (JobDetailImpl) MemberwiseClone();
+            if (jobDataMap != null)
             {
-                copy = (JobDetailImpl) MemberwiseClone();
-                if (jobDataMap != null)
-                {
-                    copy.jobDataMap = (JobDataMap) jobDataMap.Clone();
-                }
+                copy.jobDataMap = (JobDataMap) jobDataMap.Clone();
             }
-            catch (Exception)
-            {
-                throw new Exception("Not Cloneable.");
-            }
-
             return copy;
         }
 

@@ -629,23 +629,16 @@ namespace Quartz.Impl.Triggers
         /// </returns>
 		public virtual ITrigger Clone()
 		{
-            AbstractTrigger copy;
-			try
-			{
-                copy = (AbstractTrigger)MemberwiseClone();
+            AbstractTrigger copy = (AbstractTrigger) MemberwiseClone();
 
-				// Shallow copy the jobDataMap.  Note that this means that if a user
-				// modifies a value object in this map from the cloned Trigger
-				// they will also be modifying this Trigger.
-				if (jobDataMap != null)
-				{
-					copy.jobDataMap = (JobDataMap)jobDataMap.Clone();
-				}
-			}
-			catch (Exception ex)
+			// Shallow copy the jobDataMap.  Note that this means that if a user
+			// modifies a value object in this map from the cloned Trigger
+			// they will also be modifying this Trigger.
+			if (jobDataMap != null)
 			{
-				throw new Exception("Not Cloneable.", ex);
+				copy.jobDataMap = (JobDataMap)jobDataMap.Clone();
 			}
+
 			return copy;
 		}
 

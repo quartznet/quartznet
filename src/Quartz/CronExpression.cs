@@ -2209,17 +2209,8 @@ namespace Quartz
         /// </returns>
         public object Clone()
         {
-            CronExpression copy;
-            try
-            {
-                copy = new CronExpression(CronExpressionString);
-                copy.TimeZone = TimeZone;
-            }
-            catch (FormatException e)
-            {
-                // never happens since the source is valid...
-                throw new Exception("Not Cloneable.", e);
-            }
+            var copy = new CronExpression(CronExpressionString);
+            copy.TimeZone = TimeZone;
             return copy;
         }
 
