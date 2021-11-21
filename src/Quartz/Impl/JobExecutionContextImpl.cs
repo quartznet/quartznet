@@ -73,19 +73,19 @@ namespace Quartz.Impl
     {
         private readonly ITrigger trigger;
         private readonly IJobDetail jobDetail;
-        private readonly JobDataMap jobDataMap;
+        private JobDataMap? jobDataMap;
         [NonSerialized]
         private readonly IScheduler scheduler;
         [NonSerialized]
-        private readonly CancellationToken cancellationToken;
+        private CancellationToken cancellationToken;
 
         private int numRefires;
         private TimeSpan? jobRunTime;
 
         [NonSerialized]
-        private readonly Dictionary<object, object> data = new Dictionary<object, object>();
+        private Dictionary<object, object>? data;
         [NonSerialized]
-        private readonly CancellationTokenSource cancellationTokenSource;
+        private CancellationTokenSource? cancellationTokenSource;
         [NonSerialized]
         private readonly IJob jobInstance;
 
@@ -104,12 +104,6 @@ namespace Quartz.Impl
             ScheduledFireTimeUtc = firedBundle.ScheduledFireTimeUtc;
             PreviousFireTimeUtc = firedBundle.PrevFireTimeUtc;
             NextFireTimeUtc = firedBundle.NextFireTimeUtc;
-
-            jobDataMap = new JobDataMap(jobDetail.JobDataMap.Count + trigger.JobDataMap.Count);
-            jobDataMap.PutAll(jobDetail.JobDataMap);
-            jobDataMap.PutAll(trigger.JobDataMap);
-            cancellationTokenSource = new CancellationTokenSource();
-            cancellationToken = cancellationTokenSource.Token;
         }
 
         /// <summary>
@@ -145,6 +139,8 @@ namespace Quartz.Impl
             {
                 if (Recovering)
                 {
+                    var jobDataMap = MergedJobDataMap;
+
                     return new TriggerKey(jobDataMap.GetString(SchedulerConstants.FailedJobOriginalTriggerName)!,
                         jobDataMap.GetString(SchedulerConstants.FailedJobOriginalTriggerGroup)!);
                 }
@@ -180,7 +176,20 @@ namespace Quartz.Impl
         /// illegal state.
         /// </para>
         /// </remarks>
-        public virtual JobDataMap MergedJobDataMap => jobDataMap;
+        public virtual JobDataMap MergedJobDataMap
+        {
+            get
+            {
+                if (jobDataMap == null)
+                {
+                    jobDataMap = new JobDataMap(jobDetail.JobDataMap.Count + trigger.JobDataMap.Count);
+                    jobDataMap.PutAll(jobDetail.JobDataMap);
+                    jobDataMap.PutAll(trigger.JobDataMap);
+                }
+
+                return jobDataMap;
+            }
+        }
 
         /// <summary>
         /// Get the <see cref="JobDetail" /> associated with the <see cref="IJob" />.
@@ -308,6 +317,11 @@ namespace Quartz.Impl
         /// </param>
         public virtual void Put(object key, object objectValue)
         {
+            if (data == null)
+            {
+                data = new Dictionary<object, object>();
+            }
+
             data[key] = objectValue;
         }
 
@@ -318,13 +332,16 @@ namespace Quartz.Impl
         /// </param>
         public virtual object? Get(object key)
         {
-            data.TryGetValue(key, out var retValue);
-            return retValue;
+            if (data != null && data.TryGetValue(key, out var retValue))
+            {
+                return retValue;
+            }
+            return null;
         }
 
         public virtual void Cancel()
         {
-            cancellationTokenSource.Cancel();
+            cancellationTokenSource?.Cancel();
         }
 
         /// <summary>
@@ -334,7 +351,15 @@ namespace Quartz.Impl
 
         public CancellationToken CancellationToken
         {
-            get { return cancellationToken; }
+            get
+            {
+                if (cancellationTokenSource == null)
+                {
+                    cancellationTokenSource = new CancellationTokenSource();
+                    cancellationToken = cancellationTokenSource.Token;
+                }
+                return cancellationToken;
+            }
         }
 
         public void Dispose()
