@@ -158,17 +158,8 @@ namespace Quartz.Util
         /// </returns>
         public virtual DirtyFlagMap<TKey, TValue> Clone()
         {
-            DirtyFlagMap<TKey, TValue> copy;
-            try
-            {
-                copy = (DirtyFlagMap<TKey, TValue>) MemberwiseClone();
-                copy.map = new Dictionary<TKey, TValue>(map);
-            }
-            catch (Exception)
-            {
-                throw new Exception("Not Cloneable.");
-            }
-
+            var copy = (DirtyFlagMap<TKey, TValue>) MemberwiseClone();
+            copy.map = new Dictionary<TKey, TValue>(map);
             return copy;
         }
 
