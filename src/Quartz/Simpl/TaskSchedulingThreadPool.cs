@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -20,10 +19,15 @@ namespace Quartz.Simpl
         // only to the thread pool functions themselves (such as scheduling tasks).
         private readonly CancellationTokenSource shutdownCancellation = new CancellationTokenSource();
 
-        // A list of running tasks (needed to optionally wait for executing tasks at shutdown)
-        private readonly List<Task> runningTasks = new List<Task>();
+        /// <summary>
+        /// Allows us to wait until no running tasks remain.
+        /// </summary>
+        private CountdownEvent runningTasksCountdown = null!;
 
-        private readonly object taskListLock = new object();
+        /// <summary>
+        /// Cached delegate to mark a given task as complete.
+        /// </summary>
+        private Action<Task> completeTask = null!;
 
         // The semaphore used to limit concurrency and integers representing maximim concurrent tasks
         private SemaphoreSlim concurrencySemaphore = null!;
@@ -127,9 +131,20 @@ namespace Quartz.Simpl
 
             // Initialize the concurrency semaphore with the proper initial count
             concurrencySemaphore = new SemaphoreSlim(MaxConcurrency);
+
+            // We start with an initial count of one to make sure it doesn't start in "signaled" state
+            runningTasksCountdown = new CountdownEvent(1);
+
+            // Reduce allocations by caching the delegate to mark a task as complete
+            completeTask = (task) => RemoveTaskFromRunningList(task);
+
+            // Thread pool is ready to go
             isInitialized = true;
 
-            log.Debug($"TaskSchedulingThreadPool configured with max concurrency of {MaxConcurrency} and TaskScheduler {Scheduler.GetType().Name}.");
+            if (log.IsDebugEnabled())
+            {
+                log.Debug($"TaskSchedulingThreadPool configured with max concurrency of {MaxConcurrency} and TaskScheduler {Scheduler.GetType().Name}.");
+            }
         }
 
         /// <summary>
@@ -185,13 +200,12 @@ namespace Quartz.Simpl
                 return false;
             }
 
+            // Wrap the runnable in a Task to start it asynchronously
             var task = new Task<Task>(runnable);
 
-            // Unrap the task so that we can work with the underlying task
-            var unwrappedTask = task.Unwrap();
-            lock (taskListLock)
+            lock (runningTasksCountdown)
             {
-                // Now that the taskListLock is held, shutdown can't proceed,
+                // Now that the lock is held, shutdown can't proceed,
                 // so double-check that no shutdown has started since the initial check.
                 if (shutdownCancellation.IsCancellationRequested)
                 {
@@ -199,11 +213,12 @@ namespace Quartz.Simpl
                     return false;
                 }
 
-                // Record the underlying task as running
-                runningTasks.Add(unwrappedTask);
+                // Record an extra running task
+                runningTasksCountdown.AddCount();
             }
+
             // Register a callback to remove the task from the running list once it has completed
-            unwrappedTask.ContinueWith(RemoveTaskFromRunningList);
+            task.ContinueWith(completeTask);
 
             // Start the task using the task scheduler
             task.Start(Scheduler);
@@ -212,23 +227,20 @@ namespace Quartz.Simpl
         }
 
         /// <summary>
-        /// Removes a task from the 'running' list (if it exists there) and releases
-        /// the concurrency semaphore so that more tasks may begin running
+        /// Decrements the number of running tasks and releases the concurrency semaphore so that more
+        /// tasks may begin running.
         /// </summary>
         /// <param name="completedTask">The task which has completed</param>
         private void RemoveTaskFromRunningList(Task completedTask)
         {
             concurrencySemaphore.Release();
-            lock (taskListLock)
-            {
-                runningTasks.Remove(completedTask);
-            }
+            runningTasksCountdown.Signal();
         }
 
         /// <summary>
-        /// Stops processing new tasks and optionally waits for currently running tasks to finish
+        /// Stops processing new tasks and optionally waits for currently running tasks to finish.
         /// </summary>
-        /// <param name="waitForJobsToComplete">True to wait for currently executing tasks to finish; false otherwise</param>
+        /// <param name="waitForJobsToComplete"><see langword="true"/> to wait for currently executing tasks to finish; otherwise, <see langword="false"/>.</param>
         public void Shutdown(bool waitForJobsToComplete = true)
         {
             log.Debug("Shutting down threadpool...");
@@ -236,20 +248,26 @@ namespace Quartz.Simpl
             // Cancel using our shutdown token
             shutdownCancellation.Cancel();
 
-            // If waitForJobsToComplete is true, wait for runningTasks
+            // If waitForJobsToComplete is true, wait for running tasks to complete
             if (waitForJobsToComplete)
             {
-                Task[] tasksArray;
-                lock (taskListLock)
+                lock (runningTasksCountdown)
                 {
                     // Cancellation has been signaled, so no new tasks will begin once
                     // shutdown has acquired this lock
-                    tasksArray = runningTasks.ToArray();
+                    log.DebugFormat($"Waiting for {runningTasksCountdown.CurrentCount.ToString()} threads to complete.");
                 }
-                log.DebugFormat($"Waiting for {tasksArray.Length} threads to complete.");
-                Task.WaitAll(tasksArray);
+
+                // Signal the initial count that we used to make sure the CountDownEvent didn't start
+                // in "signaled" state
+                runningTasksCountdown.Signal();
+
+                // Wait for pending tasks to complete
+                runningTasksCountdown.Wait();
+
                 log.Debug("No executing jobs remaining, all threads stopped.");
             }
+
             log.Debug("Shutdown of threadpool complete.");
         }
     }
