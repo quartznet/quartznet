@@ -76,8 +76,6 @@ namespace Quartz.Impl
         private JobDataMap? jobDataMap;
         [NonSerialized]
         private readonly IScheduler scheduler;
-        [NonSerialized]
-        private CancellationToken cancellationToken;
 
         private int numRefires;
         private TimeSpan? jobRunTime;
@@ -352,24 +350,7 @@ namespace Quartz.Impl
         /// </summary>
         public string FireInstanceId => ((IOperableTrigger) trigger).FireInstanceId;
 
-        public CancellationToken CancellationToken
-        {
-            get
-            {
-                if (cancellationToken == null)
-                {
-                    lock (lazyInitLock)
-                    {
-                        if (cancellationToken == null)
-                        {
-                            cancellationToken = CancellationTokenSource.Token;
-                        }
-                    }
-                }
-
-                return cancellationToken;
-            }
-        }
+        public CancellationToken CancellationToken => CancellationTokenSource.Token;
 
         /// <summary>
         /// Lazily initializes the <see cref="CancellationTokenSource"/>.
