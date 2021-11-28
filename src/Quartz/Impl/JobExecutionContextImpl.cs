@@ -88,6 +88,8 @@ namespace Quartz.Impl
         private CancellationTokenSource? cancellationTokenSource;
         [NonSerialized]
         private readonly IJob jobInstance;
+        [NonSerialized]
+        private readonly object lazyInitLock = new object();
 
         /// <summary>
         /// Create a JobExecutionContext with the given context data.
@@ -182,9 +184,15 @@ namespace Quartz.Impl
             {
                 if (jobDataMap == null)
                 {
-                    jobDataMap = new JobDataMap(jobDetail.JobDataMap.Count + trigger.JobDataMap.Count);
-                    jobDataMap.PutAll(jobDetail.JobDataMap);
-                    jobDataMap.PutAll(trigger.JobDataMap);
+                    lock (lazyInitLock)
+                    {
+                        if (jobDataMap == null)
+                        {
+                            jobDataMap = new JobDataMap(jobDetail.JobDataMap.Count + trigger.JobDataMap.Count);
+                            jobDataMap.PutAll(jobDetail.JobDataMap);
+                            jobDataMap.PutAll(trigger.JobDataMap);
+                        }
+                    }
                 }
 
                 return jobDataMap;
@@ -317,12 +325,7 @@ namespace Quartz.Impl
         /// </param>
         public virtual void Put(object key, object objectValue)
         {
-            if (data == null)
-            {
-                data = new Dictionary<object, object>();
-            }
-
-            data[key] = objectValue;
+            Data[key] = objectValue;
         }
 
         /// <summary>
@@ -332,7 +335,7 @@ namespace Quartz.Impl
         /// </param>
         public virtual object? Get(object key)
         {
-            if (data != null && data.TryGetValue(key, out var retValue))
+            if (Data.TryGetValue(key, out var retValue))
             {
                 return retValue;
             }
@@ -341,7 +344,7 @@ namespace Quartz.Impl
 
         public virtual void Cancel()
         {
-            cancellationTokenSource?.Cancel();
+            CancellationTokenSource.Cancel();
         }
 
         /// <summary>
@@ -353,12 +356,62 @@ namespace Quartz.Impl
         {
             get
             {
+                if (cancellationToken == null)
+                {
+                    lock (lazyInitLock)
+                    {
+                        if (cancellationToken == null)
+                        {
+                            cancellationToken = CancellationTokenSource.Token;
+                        }
+                    }
+                }
+
+                return cancellationToken;
+            }
+        }
+
+        /// <summary>
+        /// Lazily initializes the <see cref="CancellationTokenSource"/>.
+        /// </summary>
+        private CancellationTokenSource CancellationTokenSource
+        {
+            get
+            {
                 if (cancellationTokenSource == null)
                 {
-                    cancellationTokenSource = new CancellationTokenSource();
-                    cancellationToken = cancellationTokenSource.Token;
+                    lock (lazyInitLock)
+                    {
+                        if (cancellationTokenSource == null)
+                        {
+                            cancellationTokenSource = new CancellationTokenSource();
+                        }
+                    }
                 }
-                return cancellationToken;
+
+                return cancellationTokenSource;
+            }
+        }
+
+        /// <summary>
+        /// Lazily initializes a <see cref="Dictionary{TKey,TValue}"/> for holding the context's data.
+        /// </summary>
+        private Dictionary<object, object> Data
+        {
+            get
+            {
+                if (data == null)
+                {
+                    lock (lazyInitLock)
+                    {
+                        if (data == null)
+                        {
+                            data = new Dictionary<object, object>();
+                        }
+                    }
+                }
+
+                return data;
             }
         }
 
