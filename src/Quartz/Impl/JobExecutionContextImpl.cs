@@ -73,21 +73,21 @@ namespace Quartz.Impl
     {
         private readonly ITrigger trigger;
         private readonly IJobDetail jobDetail;
-        private readonly JobDataMap jobDataMap;
+        private JobDataMap? jobDataMap;
         [NonSerialized]
         private readonly IScheduler scheduler;
-        [NonSerialized]
-        private readonly CancellationToken cancellationToken;
 
         private int numRefires;
         private TimeSpan? jobRunTime;
 
         [NonSerialized]
-        private readonly Dictionary<object, object> data = new Dictionary<object, object>();
+        private Dictionary<object, object>? data;
         [NonSerialized]
-        private readonly CancellationTokenSource cancellationTokenSource;
+        private CancellationTokenSource? cancellationTokenSource;
         [NonSerialized]
         private readonly IJob jobInstance;
+        [NonSerialized]
+        private readonly object lazyInitLock = new object();
 
         /// <summary>
         /// Create a JobExecutionContext with the given context data.
@@ -104,12 +104,6 @@ namespace Quartz.Impl
             ScheduledFireTimeUtc = firedBundle.ScheduledFireTimeUtc;
             PreviousFireTimeUtc = firedBundle.PrevFireTimeUtc;
             NextFireTimeUtc = firedBundle.NextFireTimeUtc;
-
-            jobDataMap = new JobDataMap(jobDetail.JobDataMap.Count + trigger.JobDataMap.Count);
-            jobDataMap.PutAll(jobDetail.JobDataMap);
-            jobDataMap.PutAll(trigger.JobDataMap);
-            cancellationTokenSource = new CancellationTokenSource();
-            cancellationToken = cancellationTokenSource.Token;
         }
 
         /// <summary>
@@ -145,6 +139,8 @@ namespace Quartz.Impl
             {
                 if (Recovering)
                 {
+                    var jobDataMap = MergedJobDataMap;
+
                     return new TriggerKey(jobDataMap.GetString(SchedulerConstants.FailedJobOriginalTriggerName)!,
                         jobDataMap.GetString(SchedulerConstants.FailedJobOriginalTriggerGroup)!);
                 }
@@ -180,7 +176,26 @@ namespace Quartz.Impl
         /// illegal state.
         /// </para>
         /// </remarks>
-        public virtual JobDataMap MergedJobDataMap => jobDataMap;
+        public virtual JobDataMap MergedJobDataMap
+        {
+            get
+            {
+                if (jobDataMap == null)
+                {
+                    lock (lazyInitLock)
+                    {
+                        if (jobDataMap == null)
+                        {
+                            jobDataMap = new JobDataMap(jobDetail.JobDataMap.Count + trigger.JobDataMap.Count);
+                            jobDataMap.PutAll(jobDetail.JobDataMap);
+                            jobDataMap.PutAll(trigger.JobDataMap);
+                        }
+                    }
+                }
+
+                return jobDataMap;
+            }
+        }
 
         /// <summary>
         /// Get the <see cref="JobDetail" /> associated with the <see cref="IJob" />.
@@ -308,7 +323,7 @@ namespace Quartz.Impl
         /// </param>
         public virtual void Put(object key, object objectValue)
         {
-            data[key] = objectValue;
+            Data[key] = objectValue;
         }
 
         /// <summary>
@@ -318,13 +333,16 @@ namespace Quartz.Impl
         /// </param>
         public virtual object? Get(object key)
         {
-            data.TryGetValue(key, out var retValue);
-            return retValue;
+            if (Data.TryGetValue(key, out var retValue))
+            {
+                return retValue;
+            }
+            return null;
         }
 
         public virtual void Cancel()
         {
-            cancellationTokenSource.Cancel();
+            CancellationTokenSource.Cancel();
         }
 
         /// <summary>
@@ -332,9 +350,50 @@ namespace Quartz.Impl
         /// </summary>
         public string FireInstanceId => ((IOperableTrigger) trigger).FireInstanceId;
 
-        public CancellationToken CancellationToken
+        public CancellationToken CancellationToken => CancellationTokenSource.Token;
+
+        /// <summary>
+        /// Lazily initializes the <see cref="CancellationTokenSource"/>.
+        /// </summary>
+        private CancellationTokenSource CancellationTokenSource
         {
-            get { return cancellationToken; }
+            get
+            {
+                if (cancellationTokenSource == null)
+                {
+                    lock (lazyInitLock)
+                    {
+                        if (cancellationTokenSource == null)
+                        {
+                            cancellationTokenSource = new CancellationTokenSource();
+                        }
+                    }
+                }
+
+                return cancellationTokenSource;
+            }
+        }
+
+        /// <summary>
+        /// Lazily initializes a <see cref="Dictionary{TKey,TValue}"/> for holding the context's data.
+        /// </summary>
+        private Dictionary<object, object> Data
+        {
+            get
+            {
+                if (data == null)
+                {
+                    lock (lazyInitLock)
+                    {
+                        if (data == null)
+                        {
+                            data = new Dictionary<object, object>();
+                        }
+                    }
+                }
+
+                return data;
+            }
         }
 
         public void Dispose()

@@ -21,6 +21,8 @@
     * The `Equals(StringOperator? other)` method of **StringOperator** is now also virtual to allow it to be
       overridden in pair with `Equals(object? obj)` and `GetHashCode()`.
 
+    * The **Quartz.Util.DictionaryExtensions** type was removed.
+    
     * The 'Get(TKey key)' method of **DirtyFlagMap<TKey,TValue>** has been removed. You can instead use the
       this[TKey key] indexer or ´TryGetValue(TKey key, out TValue value)` to obtain the value for a given key.
 
