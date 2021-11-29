@@ -64,7 +64,7 @@ namespace Quartz.Job
                 DirectoriesToScan = GetDirectoriesToScan(schedCtxt, mergedJobDataMap)
                     .Distinct().ToList(),
                 CurrentFileList = mergedJobDataMap.ContainsKey(DirectoryScanJob.CurrentFileList) ?
-                    (List<FileInfo>)mergedJobDataMap.Get(DirectoryScanJob.CurrentFileList)
+                    (List<FileInfo>)mergedJobDataMap[DirectoryScanJob.CurrentFileList]
                     : new List<FileInfo>(),
                 SearchPattern = mergedJobDataMap.ContainsKey(DirectoryScanJob.SearchPattern) ?
                     mergedJobDataMap.GetString(DirectoryScanJob.SearchPattern)! : "*",
@@ -107,10 +107,11 @@ namespace Quartz.Job
 
             if (explicitDirProviderName != null)
             {
-                schedCtxt.TryGetValue(explicitDirProviderName, out var temp);
-                IDirectoryProvider explicitProvider = (IDirectoryProvider)temp;
-                directoryProvider = explicitProvider ?? throw new JobExecutionException("IDirectoryProvider named '" +
-                                                    explicitDirProviderName + "' not found in SchedulerContext");
+                if (!schedCtxt.TryGetValue(explicitDirProviderName, out var temp))
+                {
+                    throw new JobExecutionException($"IDirectoryProvider named '{explicitDirProviderName}' not found in SchedulerContext");
+                }
+                directoryProvider = (IDirectoryProvider) temp;
             }
 
             return directoryProvider.GetDirectoriesToScan(mergedJobDataMap).ToList();
@@ -127,16 +128,13 @@ namespace Quartz.Job
                                                 DirectoryScanJob.DirectoryScanListenerName + "' not found in merged JobDataMap");
             }
 
-            schedCtxt.TryGetValue(listenerName, out var temp);
-            IDirectoryScanListener listener = (IDirectoryScanListener)temp;
-
-            if (listener == null)
+            if (!schedCtxt.TryGetValue(listenerName, out var listener))
             {
-                throw new JobExecutionException("IDirectoryScanListener named '" +
-                                                listenerName + "' not found in SchedulerContext");
+                throw new JobExecutionException($"IDirectoryScanListener named '{listenerName}' not found in SchedulerContext");
+
             }
 
-            return listener;
+            return (IDirectoryScanListener) listener;
         }
     }
 }

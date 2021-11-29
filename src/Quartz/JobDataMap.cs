@@ -231,7 +231,7 @@ namespace Quartz
         /// </summary>
         public virtual int GetIntValueFromString(string key)
         {
-            object obj = Get(key);
+            object obj = this[key];
             return int.Parse((string) obj, CultureInfo.InvariantCulture);
         }
 
@@ -240,7 +240,7 @@ namespace Quartz
         /// </summary>
         public virtual int GetIntValue(string key)
         {
-            object obj = Get(key);
+            object obj = this[key];
 
             if (obj is string)
             {
@@ -255,7 +255,7 @@ namespace Quartz
         /// </summary>
         public virtual bool GetBooleanValueFromString(string key)
         {
-            object obj = Get(key);
+            object obj = this[key];
 
             return CultureInfo.InvariantCulture.TextInfo.ToUpper((string) obj).Equals("TRUE");
         }
@@ -266,7 +266,7 @@ namespace Quartz
         /// </summary>
         public virtual bool GetBooleanValue(string key)
         {
-            object obj = Get(key);
+            object obj = this[key];
 
             if (obj is string)
             {
@@ -281,7 +281,7 @@ namespace Quartz
         /// </summary>
         public virtual char GetCharFromString(string key)
         {
-            object obj = Get(key);
+            object obj = this[key];
 
             return ((string) obj)[0];
         }
@@ -291,7 +291,7 @@ namespace Quartz
         /// </summary>
         public virtual double GetDoubleValueFromString(string key)
         {
-            object obj = Get(key);
+            object obj = this[key];
             return double.Parse((string) obj, CultureInfo.InvariantCulture);
         }
 
@@ -300,7 +300,7 @@ namespace Quartz
         /// </summary>
         public virtual double GetDoubleValue(string key)
         {
-            object obj = Get(key);
+            object obj = this[key];
 
             if (obj is string)
             {
@@ -315,7 +315,7 @@ namespace Quartz
         /// </summary>
         public virtual float GetFloatValueFromString(string key)
         {
-            object obj = Get(key);
+            object obj = this[key];
             return float.Parse((string) obj, CultureInfo.InvariantCulture);
         }
 
@@ -324,7 +324,7 @@ namespace Quartz
         /// </summary>
         public virtual float GetFloatValue(string key)
         {
-            object obj = Get(key);
+            object obj = this[key];
 
             if (obj is string)
             {
@@ -339,7 +339,7 @@ namespace Quartz
         /// </summary>
         public virtual long GetLongValueFromString(string key)
         {
-            object obj = Get(key);
+            object obj = this[key];
             return long.Parse((string) obj, CultureInfo.InvariantCulture);
         }
 
@@ -348,7 +348,7 @@ namespace Quartz
         /// </summary>
         public virtual DateTime GetDateTimeValueFromString(string key)
         {
-            object obj = Get(key);
+            object obj = this[key];
             return DateTime.Parse((string) obj, CultureInfo.InvariantCulture);
         }
 
@@ -357,7 +357,7 @@ namespace Quartz
         /// </summary>
         public virtual DateTimeOffset GetDateTimeOffsetValueFromString(string key)
         {
-            object obj = Get(key);
+            object obj = this[key];
             return DateTimeOffset.Parse((string) obj, CultureInfo.InvariantCulture);
         }
 
@@ -366,7 +366,7 @@ namespace Quartz
         /// </summary>
         public virtual TimeSpan GetTimeSpanValueFromString(string key)
         {
-            object obj = Get(key);
+            object obj = this[key];
             return TimeSpan.Parse((string) obj, CultureInfo.InvariantCulture);
         }
 
@@ -375,7 +375,7 @@ namespace Quartz
         /// </summary>
         public virtual long GetLongValue(string key)
         {
-            object obj = Get(key);
+            object obj = this[key];
 
             if (obj is string)
             {
@@ -392,7 +392,7 @@ namespace Quartz
         /// <returns></returns>
         public virtual DateTime GetDateTimeValue(string key)
         {
-            object obj = Get(key);
+            object obj = this[key];
 
             if (obj is string)
             {
@@ -409,7 +409,7 @@ namespace Quartz
         /// <returns></returns>
         public virtual DateTimeOffset GetDateTimeOffsetValue(string key)
         {
-            object obj = Get(key);
+            object obj = this[key];
 
             if (obj is string)
             {
@@ -424,7 +424,7 @@ namespace Quartz
         /// </summary>
         public virtual TimeSpan GetTimeSpanValue(string key)
         {
-            object obj = Get(key);
+            object obj = this[key];
 
             if (obj is string)
             {
@@ -439,7 +439,7 @@ namespace Quartz
         /// </summary>
         public virtual Guid GetGuidValueFromString(string key)
         {
-            object obj = Get(key);
+            object obj = this[key];
             return Guid.Parse((string)obj);
         }
 
@@ -448,7 +448,7 @@ namespace Quartz
         /// </summary>
         public virtual Guid GetGuidValue(string key)
         {
-            object obj = Get(key);
+            object obj = this[key];
 
             if (obj is string)
             {
@@ -463,11 +463,11 @@ namespace Quartz
         /// </summary>
         public virtual Guid? GetNullableGuidValue(string key)
         {
-            object obj = Get(key);
+            object obj = this[key];
 
-            if (obj is string)
+            if (obj is string s)
             {
-                return (obj == null || ((string)obj).Length == 0) ? (Guid?)null : GetGuidValueFromString(key);
+                return s.Length == 0 ? (Guid?)null : GetGuidValueFromString(key);
             }
 
             return GetNullableGuid(key);

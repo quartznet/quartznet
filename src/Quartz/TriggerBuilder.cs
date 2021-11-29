@@ -488,7 +488,6 @@ namespace Quartz
             return this;
         }
 
-
         /// <summary>
         /// Add the given key-value pair to the Trigger's <see cref="JobDataMap" />.
         /// </summary>
@@ -498,11 +497,12 @@ namespace Quartz
         /// <seealso cref="ITrigger.JobDataMap" />
         public TriggerBuilder UsingJobData(JobDataMap newJobDataMap)
         {
-            // add data from new map to existing map (overrides old values)
+            // add data from new map to existing map hereby overriding old values
             foreach (string k in newJobDataMap.Keys)
             {
-                jobDataMap.Put(k, newJobDataMap.Get(k));
+                jobDataMap.Put(k, newJobDataMap[k]);
             }
+
             return this;
         }
 
