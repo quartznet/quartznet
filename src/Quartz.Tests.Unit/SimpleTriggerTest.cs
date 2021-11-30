@@ -139,8 +139,8 @@ namespace Quartz.Tests.Unit
             simpleTrigger.JobDataMap.Put("K2", "V2");
             clone = simpleTrigger.Clone();
             Assert.AreEqual(2, clone.JobDataMap.Count);
-            Assert.AreEqual("V1", clone.JobDataMap.Get("K1"));
-            Assert.AreEqual("V2", clone.JobDataMap.Get("K2"));
+            Assert.AreEqual("V1", clone.JobDataMap["K1"]);
+            Assert.AreEqual("V2", clone.JobDataMap["K2"]);
 
             // Make sure sub-object collections have really been cloned by ensuring
             // their modification does not change the source Trigger
@@ -148,8 +148,8 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(1, clone.JobDataMap.Count);
 
             Assert.AreEqual(2, simpleTrigger.JobDataMap.Count);
-            Assert.AreEqual("V1", simpleTrigger.JobDataMap.Get("K1"));
-            Assert.AreEqual("V2", simpleTrigger.JobDataMap.Get("K2"));
+            Assert.AreEqual("V1", simpleTrigger.JobDataMap["K1"]);
+            Assert.AreEqual("V2", simpleTrigger.JobDataMap["K2"]);
         }
 
         // QRTZNET-73

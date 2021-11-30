@@ -167,18 +167,18 @@ namespace Quartz.Util
 
         #region IDictionary Members
 
-        public bool TryGetValue(TKey key, out TValue value)
-        {
-            return map.TryGetValue(key, out value!);
-        }
-
         /// <summary>
-        /// Gets the value behind the specified key.
+        /// Gets the value associated with the specified key.
         /// </summary>
-        /// <param name="key">The key.</param>
-        public virtual TValue Get(TKey key)
+        /// <param name="key">Gets the value associated with the specified key.</param>
+        /// <param name="value">When this method returns, contains the value associated with the specified key, if the key is found; otherwise, the default value for the type of the <paramref name="value"/> parameter. This parameter is passed uninitialized.</param>
+        /// <returns>
+        /// <see langword="true"/> if the <see cref="DirtyFlagMap{TKey, TValue}"/>contains an element with the specified key;
+        /// otherwise, <see langword="false"/>.
+        /// </returns>
+        public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
         {
-            return this[key]!;
+            return map.TryGetValue(key, out value);
         }
 
         /// <summary>

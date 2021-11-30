@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -41,8 +41,8 @@ namespace Quartz.Tests.Integration
             {
                 try
                 {
-                    List<DateTime> jobExecTimestamps = (List<DateTime>) context.Scheduler.Context.Get(DateStamps);
-                    Barrier barrier = (Barrier) context.Scheduler.Context.Get(Barrier);
+                    List<DateTime> jobExecTimestamps = (List<DateTime>) context.Scheduler.Context[DateStamps];
+                    Barrier barrier = (Barrier) context.Scheduler.Context[Barrier];
 
                     jobExecTimestamps.Add(DateTime.UtcNow);
 
