@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
@@ -77,7 +77,7 @@ namespace Quartz.Plugin.Interrupt
                 // Schedule Monitor only if the job wants AutoInterruptable functionality
                 if (context.JobDetail.JobDataMap.GetBoolean(JobDataMapKeyAutoInterruptable))
                 {
-                    JobInterruptMonitorPlugin monitorPlugin = (JobInterruptMonitorPlugin) context.Scheduler.Context.Get(JobInterruptMonitorKey);
+                    var monitorPlugin = (JobInterruptMonitorPlugin) context.Scheduler.Context[JobInterruptMonitorKey];
                     // Get the MaxRuntime from Job Data if NOT available use MaxRunTime from Plugin Configuration
                     var jobDataDelay = DefaultMaxRunTime;
 
