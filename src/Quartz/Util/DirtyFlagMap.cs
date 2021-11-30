@@ -523,9 +523,9 @@ namespace Quartz.Util
         /// <returns></returns>
         public virtual object? Put(TKey key, TValue val)
         {
-            dirty = true;
             map.TryGetValue(key, out var tempObject);
             map[key] = val;
+            dirty = true;
             return tempObject;
         }
 
