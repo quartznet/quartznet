@@ -612,8 +612,7 @@ namespace Quartz.Tests.Unit.Utils
                 Assert.AreEqual("key", ex.ParamName);
             }
 
-            // #1417: this should return false
-            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsFalse(dirtyFlagMap.Dirty);
         }
 
         [Test]
@@ -751,8 +750,7 @@ namespace Quartz.Tests.Unit.Utils
                 Assert.AreEqual("key", ex.ParamName);
             }
 
-            // #1417: this should return false
-            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsFalse(dirtyFlagMap.Dirty);
         }
 
         [Test]
@@ -1803,8 +1801,7 @@ namespace Quartz.Tests.Unit.Utils
                 Assert.AreEqual(nameof(key), ex.ParamName);
             }
 
-            // #1417: should return false
-            Assert.IsTrue(dirtyFlagMap.Dirty);
+            Assert.IsFalse(dirtyFlagMap.Dirty);
         }
 
         [Test]
