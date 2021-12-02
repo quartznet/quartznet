@@ -2,6 +2,19 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+## Release 3.4.0, _____TODO_MARKO_LAHMA_RELEASE_DATE_____
+
+This release has Quartz jobs start executing only after application startup completes successfully, unless QuartzHostedServiceOptions are used to specify otherwise.
+By default, this prevents jobs from running while the application is still starting, and it alleviates the need to use arbitrary start delays to achieve the effect manually.
+
+* IMPROVEMENTS
+
+  * Jobs now start executing after application startup completes successfully (#1432)
+
+* NEW FEATURES
+
+  * QuartzHostedServiceOptions can let jobs be started as part of application startup, as before this version  (#1432)
+
 ## Release 3.3.3, Aug 1 2021
 
 This is a maintenance release mostly fixing some smaller bugs and improving DI API story.
