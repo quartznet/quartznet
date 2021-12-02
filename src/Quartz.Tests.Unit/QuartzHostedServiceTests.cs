@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
@@ -294,7 +293,7 @@ namespace Quartz.Tests.Unit
 
             public Task Start(CancellationToken cancellationToken = default)
             {
-                IsStarted = true;
+                this.IsStarted = true;
                 return Task.CompletedTask;
             }
 
@@ -305,7 +304,7 @@ namespace Quartz.Tests.Unit
                     await Task.Delay(delay, cancellationToken).ContinueWith(_ => { }, TaskContinuationOptions.OnlyOnCanceled);
 
                     if (!cancellationToken.IsCancellationRequested)
-                        await Start(cancellationToken);
+                        await this.Start(cancellationToken);
                 }, CancellationToken.None);
                 return Task.CompletedTask;
             }
@@ -388,7 +387,9 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(shouldSchedulerBeStartedImmediately, schedulerFactory.LastCreatedScheduler.IsStarted);
 
             appliationLifetime.SetStarted();
-            await Task.Delay(20); // Give the hosted service some time to respond to the ApplicationStarted token
+
+            if (quartzHostedService.startupTask is not null)
+                await quartzHostedService.startupTask.ContinueWith(_ => { }); // Wait for the hosted service to respond to the ApplicationStarted token
 
             Assert.AreEqual(!withStartDelay, schedulerFactory.LastCreatedScheduler.IsStarted);
 
@@ -396,8 +397,8 @@ namespace Quartz.Tests.Unit
 
             await quartzHostedService.StopAsync(CancellationToken.None);
 
-            Assert.True(schedulerFactory.LastCreatedScheduler.IsShutdown);
             Assert.False(schedulerFactory.LastCreatedScheduler.IsStarted);
+            Assert.True(schedulerFactory.LastCreatedScheduler.IsShutdown);
         }
 
         [Test]
@@ -457,7 +458,8 @@ namespace Quartz.Tests.Unit
             appliationLifetime.StopApplication();
             await quartzHostedService.StopAsync(CancellationToken.None);
 
-            await Task.Delay(20); // Give the hosted service some time to respond to the ApplicationStarted token
+            if (quartzHostedService.startupTask is not null)
+                await quartzHostedService.startupTask.ContinueWith(_ => { }); // Wait for the hosted service to respond to the ApplicationStarted token
 
             // Confirm that not only have we stopped, but that we have not started AFTER being stopped
             if (shouldSchedulerBeStarted) Assert.True(schedulerFactory.LastCreatedScheduler.IsShutdown);

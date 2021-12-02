@@ -1,3 +1,4 @@
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
@@ -10,7 +11,8 @@ namespace Quartz
         private readonly IApplicationLifetime applicationLifetime;
         private readonly ISchedulerFactory schedulerFactory;
         private readonly IOptions<QuartzHostedServiceOptions> options;
-        private IScheduler scheduler = null!;
+        private IScheduler? scheduler;
+        internal Task? startupTask;
         private bool schedulerWasStarted;
 
         public QuartzHostedService(
@@ -32,18 +34,19 @@ namespace Quartz
             {
                 // Follow the pattern from BackgroundService.StartAsync: https://github.com/dotnet/runtime/blob/main/src/libraries/Microsoft.Extensions.Hosting.Abstractions/src/BackgroundService.cs
 
-                var deferredSchedulerStartTask = AwaitStartupCompletionAndStartSchedulerAsync(cancellationToken);
+                startupTask = AwaitStartupCompletionAndStartSchedulerAsync(cancellationToken);
 
                 // If the task completed synchronously, await it in order to bubble potential cancellation/failure to the caller
                 // Otherwise, return, allowing application startup to complete
-                if (deferredSchedulerStartTask.IsCompleted)
+                if (startupTask.IsCompleted)
                 {
-                    await deferredSchedulerStartTask.ConfigureAwait(false);
+                    await startupTask.ConfigureAwait(false);
                 }
             }
             else // Legacy mode: start jobs inline
             {
-                await StartSchedulerAsync(cancellationToken).ConfigureAwait(false);
+                startupTask = StartSchedulerAsync(cancellationToken);
+                await startupTask.ConfigureAwait(false);
             }
         }
 
@@ -66,6 +69,11 @@ namespace Quartz
         /// </summary>
         private async Task StartSchedulerAsync(CancellationToken cancellationToken)
         {
+            if (scheduler is null)
+            {
+                throw new InvalidOperationException("The scheduler should have been initialized first.");
+            }
+
             schedulerWasStarted = true;
 
             // Avoid potential race conditions between ourselves and StopAsync, in case it has already made its attempt to stop the scheduler
@@ -86,9 +94,23 @@ namespace Quartz
 
         public async Task StopAsync(CancellationToken cancellationToken)
         {
-            if (schedulerWasStarted)
+            // Stopped without having been started
+            if (scheduler is null || startupTask is null)
             {
-                await scheduler.Shutdown(options.Value.WaitForJobsToComplete, cancellationToken).ConfigureAwait(false);
+                return;
+            }
+
+            try
+            {
+                // Wait until any ongoing startup logic has finished or the graceful shutdown period is over
+                await Task.WhenAny(startupTask, Task.Delay(Timeout.Infinite, cancellationToken)).ConfigureAwait(false);
+            }
+            finally
+            {
+                if (schedulerWasStarted && !cancellationToken.IsCancellationRequested)
+                {
+                    await scheduler.Shutdown(options.Value.WaitForJobsToComplete, cancellationToken).ConfigureAwait(false);
+                }
             }
         }
     }
