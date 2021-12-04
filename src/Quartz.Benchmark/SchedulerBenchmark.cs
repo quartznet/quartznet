@@ -1,80 +1,217 @@
-using BenchmarkDotNet.Attributes;
-using Quartz.Impl;
-using Quartz.Simpl;
-using Quartz.Spi;
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
+using BenchmarkDotNet.Attributes;
+
+using Quartz.Impl;
+using Quartz.Simpl;
+using Quartz.Spi;
+
 namespace Quartz.Benchmark
 {
-    /// <summary>
-    /// This is a benchmark for the following scenario:
-    /// <list type="bullet">
-    /// <item>
-    /// <description>Create a single scheduler with a RAMJobStore, a maximum batch size of 15 and a default threadpool with a maximum concurrency of 15.</description>
-    /// <description>Create 15 jos that execute the same job type.</description>
-    /// <description>Each job has a corresponding trigger with an interval of 0.1 milliseconds.</description>
-    /// <description>Each job has a corresponding trigger with an interval of 0.1 milliseconds.</description>
-    /// <description>Upon each excution, a job increments a counter that is shared by all job instancces.</description>
-    /// <description>When that counter reaches 200,000 a wait handle is set..</description>
-    /// </item>
-    /// </list>
-    /// A given iteration of the benchmark is considerd done when the wait handle is set, and the scheduler
-    /// has shut down.
-    /// </summary>
     [MemoryDiagnoser]
     public class SchedulerBenchmark
     {
-        private const int OperationsPerRun = 500_000;
         private static readonly IJobFactory _jobFactory = new SimpleJobFactory();
 
-        [Benchmark(OperationsPerInvoke = OperationsPerRun)]
-        public void DisableConcurrent_15Thread_15Triggers()
+        private IScheduler? _scheduler;
+
+        [Benchmark(OperationsPerInvoke = 450_000)]
+        public void DisableConcurrent_15Threads_15Jobs_1TriggerPerJob()
         {
-            RunDisableConcurrent(OperationsPerRun, 15, 15);
+            RunDisableConcurrent(operationsPerRun: 450_000,
+                                 threadCount: 15,
+                                 jobCount: 15,
+                                 triggersPerJob: 1,
+                                 maxBatchSize: 16,
+                                 idleWaitTime: TimeSpan.FromTicks(1L), // avoid using Zero since this is ignored on some versions of Quartz.NET
+                                 repeatInterval: TimeSpan.FromTicks(1L),
+                                 repeatCount: 29_999,
+                                 misfireInstruction: MisfireInstruction.IgnoreMisfirePolicy);
         }
 
-        [Benchmark(OperationsPerInvoke = OperationsPerRun)]
-        public void DisableConcurrent_15Thread_30Triggers()
+        [Benchmark(OperationsPerInvoke = 150_000)]
+        public void DisableConcurrent_15Threads_15Jobs_5TriggersPerJob()
         {
-            RunDisableConcurrent(OperationsPerRun, 15, 30);
+            RunDisableConcurrent(operationsPerRun: 150_000,
+                                 threadCount: 50,
+                                 jobCount: 15,
+                                 triggersPerJob: 5,
+                                 maxBatchSize: 16,
+                                 idleWaitTime: TimeSpan.FromTicks(1L), // avoid using Zero since this is ignored on some versions of Quartz.NET
+                                 repeatInterval: TimeSpan.FromTicks(1000L),
+                                 repeatCount: 1_999,
+                                 misfireInstruction: MisfireInstruction.IgnoreMisfirePolicy);
         }
 
-        [Benchmark(OperationsPerInvoke = OperationsPerRun)]
-        public void DisableConcurrent_50Threads_15Triggers()
+        [Benchmark(OperationsPerInvoke = 450_000)]
+        public void DisableConcurrent_15Threads_30Jobs_1TriggerPerJob()
         {
-            RunDisableConcurrent(OperationsPerRun, 50, 15);
+            RunDisableConcurrent(operationsPerRun: 450_000,
+                                 threadCount: 15,
+                                 jobCount: 30,
+                                 triggersPerJob: 1,
+                                 maxBatchSize: 16,
+                                 idleWaitTime: TimeSpan.FromTicks(1L), // avoid using Zero since this is ignored on some versions of Quartz.NET
+                                 repeatInterval: TimeSpan.FromTicks(1000L),
+                                 repeatCount: 14_999,
+                                 misfireInstruction: MisfireInstruction.IgnoreMisfirePolicy);
         }
 
-        [Benchmark(OperationsPerInvoke = OperationsPerRun)]
-        public void DisableConcurrent_50Threads_30Triggers()
+        [Benchmark(OperationsPerInvoke = 225_000)]
+        public void DisableConcurrent_2Threads_15Jobs_2TriggerPerJob()
         {
-            RunDisableConcurrent(OperationsPerRun, 50, 30);
+            RunDisableConcurrent(operationsPerRun: 225_000,
+                                 threadCount: 2,
+                                 jobCount: 15,
+                                 triggersPerJob: 2,
+                                 maxBatchSize: 16,
+                                 idleWaitTime: TimeSpan.FromTicks(1L), // avoid using Zero since this is ignored on some versions of Quartz.NET
+                                 repeatInterval: TimeSpan.FromTicks(1000L),
+                                 repeatCount: 7_499,
+                                 misfireInstruction: MisfireInstruction.IgnoreMisfirePolicy);
         }
 
-        [Benchmark(OperationsPerInvoke = OperationsPerRun)]
-        public void Concurrent_15Thread_15Triggers()
+        [Benchmark(OperationsPerInvoke = 450_000)]
+        public void DisableConcurrent_50Threads_30Jobs_3TriggersPerJob()
         {
-            RunConcurrent(OperationsPerRun, 15, 15);
+            RunDisableConcurrent(operationsPerRun: 450_000,
+                                 threadCount: 30,
+                                 jobCount: 30,
+                                 triggersPerJob: 3,
+                                 maxBatchSize: 16,
+                                 idleWaitTime: TimeSpan.FromTicks(1L), // avoid using Zero since this is ignored on some versions of Quartz.NET
+                                 repeatInterval: TimeSpan.FromTicks(1000L),
+                                 repeatCount: 4_999,
+                                 misfireInstruction: MisfireInstruction.IgnoreMisfirePolicy);
         }
 
-        [Benchmark(OperationsPerInvoke = OperationsPerRun)]
-        public void Concurrent_15Thread_30Triggers()
+        [Benchmark(OperationsPerInvoke = 450_000)]
+        public void Concurrent_15Threads_15Jobs_1TriggerPerJob()
         {
-            RunConcurrent(OperationsPerRun, 15, 30);
+            RunConcurrent(operationsPerRun: 450_000,
+                          threadCount: 15,
+                          jobCount: 15,
+                          triggersPerJob: 1,
+                          maxBatchSize: 16,
+                          idleWaitTime: TimeSpan.FromTicks(1L), // avoid using Zero since this is ignored on some versions of Quartz.NET
+                          repeatInterval: TimeSpan.FromTicks(1L),
+                          repeatCount: 29_999,
+                          misfireInstruction: MisfireInstruction.IgnoreMisfirePolicy);
         }
 
-        [Benchmark(OperationsPerInvoke = OperationsPerRun)]
-        public void Concurrent_50Threads_15Triggers()
+        [Benchmark(OperationsPerInvoke = 450_000)]
+        public void Concurrent_15Thread_30Jobs_1TriggerPerJob()
         {
-            RunConcurrent(OperationsPerRun, 50, 15);
+            RunConcurrent(operationsPerRun: 450_000,
+                          threadCount: 15,
+                          jobCount: 30,
+                          triggersPerJob: 1,
+                          maxBatchSize: 16,
+                          idleWaitTime: TimeSpan.FromTicks(1L), // avoid using Zero since this is ignored on some versions of Quartz.NET
+                          repeatInterval: TimeSpan.FromTicks(1000L),
+                          repeatCount: 14_999,
+                          misfireInstruction: MisfireInstruction.IgnoreMisfirePolicy);
         }
 
-        [Benchmark(OperationsPerInvoke = OperationsPerRun)]
-        public void Concurrent_50Threads_30Triggers()
+        [Benchmark(OperationsPerInvoke = 450_000)]
+        public void Concurrent_50Threads_15Jobs_2TriggersPerJob()
         {
-            RunConcurrent(OperationsPerRun, 50, 30);
+            RunConcurrent(operationsPerRun: 450_000,
+                          threadCount: 50,
+                          jobCount: 15,
+                          triggersPerJob: 2,
+                          maxBatchSize: 16,
+                          idleWaitTime: TimeSpan.FromTicks(1L), // avoid using Zero since this is ignored on some versions of Quartz.NET
+                          repeatInterval: TimeSpan.FromTicks(1000L),
+                          repeatCount: 14_999,
+                          misfireInstruction: MisfireInstruction.IgnoreMisfirePolicy);
+        }
+
+        [Benchmark(OperationsPerInvoke = 450_000)]
+        public void Concurrent_50Threads_30Jobs_1TriggerPerJob()
+        {
+            RunConcurrent(operationsPerRun: 450_000,
+                          threadCount: 50,
+                          jobCount: 30,
+                          triggersPerJob: 1,
+                          maxBatchSize: 16,
+                          idleWaitTime: TimeSpan.FromTicks(1L), // avoid using Zero since this is ignored on some versions of Quartz.NET
+                          repeatInterval: TimeSpan.FromTicks(1L),
+                          repeatCount: 14_999,
+                          misfireInstruction: MisfireInstruction.IgnoreMisfirePolicy);
+        }
+
+        [IterationSetup(Target = nameof(Concurrent_30Threads_15Jobs_1TriggerPerJob_RepeatCountZero))]
+        public void IterationSetup_Concurrent_30Threads_15Jobs_1TriggerPerJob_RepeatCountZero()
+        {
+            _scheduler = CreateAndConfigureScheduler<ConcurrentJob>(name: "A",
+                                                                    instanceId: "1",
+                                                                    threadCount: 30,
+                                                                    jobCount: 15,
+                                                                    triggersPerJob: 1,
+                                                                    maxBatchSize: 16,
+                                                                    idleWaitTime: TimeSpan.FromMinutes(1),
+                                                                    repeatInterval: TimeSpan.FromMilliseconds(1),
+                                                                    repeatCount: 0,
+                                                                    misfireInstruction: MisfireInstruction.SimpleTrigger.FireNow);
+        }
+
+        /// <summary>
+        /// Primary goal of this benchmark is to measure allocations.
+        /// With this benchmark we should:
+        /// 1. Acquire 15 triggers.
+        /// 2. Acquire 0 triggers.
+        /// 3. Wait for 'idleWaitTime', which should be interrupted by either signal change or shutdown of the scheduler.
+        /// </summary>
+        [Benchmark(OperationsPerInvoke = 15)]
+        public void Concurrent_30Threads_15Jobs_1TriggerPerJob_RepeatCountZero()
+        {
+            ConcurrentJob.Initialize(15);
+
+            _scheduler!.Start();
+
+            ConcurrentJob.Wait();
+
+            _scheduler.Shutdown(false).GetAwaiter().GetResult();
+            ConcurrentJob.Reset();
+        }
+
+        [IterationSetup(Target = nameof(Concurrent_30Threads_15Jobs_2TriggerPerJob_RepeatCountZero))]
+        public void IterationSetup_Concurrent_30Threads_15Jobs_2TriggerPerJob_RepeatCountZero()
+        {
+            _scheduler = CreateAndConfigureScheduler<ConcurrentJob>(name: "A",
+                                                                    instanceId: "1",
+                                                                    threadCount: 30,
+                                                                    jobCount: 15,
+                                                                    triggersPerJob: 2,
+                                                                    maxBatchSize: 16,
+                                                                    idleWaitTime: TimeSpan.FromSeconds(1),
+                                                                    repeatInterval: TimeSpan.Zero, // we're not repeating a trigger
+                                                                    repeatCount: 0, // we only want a given trigger to fire once
+                                                                    misfireInstruction: MisfireInstruction.SimpleTrigger.FireNow);
+        }
+
+        /// <summary>
+        /// Primary goal of this benchmark is to measure allocations.
+        /// With this benchmark we should:
+        /// 1. Acquire 15 triggers.
+        /// 2. Acquire 15 triggers.
+        /// 3. Wait for 'idleWaitTime', which should be interrupted by either signal change or shutdown of the scheduler.
+        /// </summary>
+        [Benchmark(OperationsPerInvoke = 30)]
+        public void Concurrent_30Threads_15Jobs_2TriggerPerJob_RepeatCountZero()
+        {
+            ConcurrentJob.Initialize(30);
+
+            _scheduler!.Start();
+
+            ConcurrentJob.Wait();
+
+            _scheduler.Shutdown(false).GetAwaiter().GetResult();
+            ConcurrentJob.Reset();
         }
 
         /// <summary>
@@ -83,20 +220,40 @@ namespace Quartz.Benchmark
         /// <param name="operationsPerRun">The number of times the job should be executed.</param>
         /// <param name="threadCount">The maximum number of threads to use to execute the job.</param>
         /// <param name="triggerCount">The number of triggers to create.</param>
-        public void RunDisableConcurrent(int operationsPerRun, int threadCount, int triggerCount)
+        public static void RunDisableConcurrent(int operationsPerRun,
+                                                int threadCount,
+                                                int jobCount,
+                                                int triggersPerJob,
+                                                int maxBatchSize,
+                                                TimeSpan idleWaitTime,
+                                                TimeSpan repeatInterval,
+                                                int repeatCount,
+                                                int misfireInstruction)
         {
             DisableConcurrentJob.Initialize(operationsPerRun);
 
-            var scheduler = CreateAndConfigureScheduler<DisableConcurrentJob>("A", "1", threadCount, triggerCount);
-            scheduler.Start();
+            var scheduler = CreateAndConfigureScheduler<DisableConcurrentJob>("A",
+                                                                              "1",
+                                                                              threadCount,
+                                                                              jobCount,
+                                                                              triggersPerJob,
+                                                                              maxBatchSize,
+                                                                              idleWaitTime,
+                                                                              repeatInterval,
+                                                                              repeatCount,
+                                                                              misfireInstruction);
 
-            //Stopwatch sw = Stopwatch.StartNew();
+            scheduler.Start();
 
             DisableConcurrentJob.Wait();
 
-            //Console.WriteLine(sw.ElapsedMilliseconds);
-
             scheduler.Shutdown(true).GetAwaiter().GetResult();
+
+            if (DisableConcurrentJob.RunCount != operationsPerRun)
+            {
+                throw new Exception($"Expected job to be executed {operationsPerRun} times, but was {DisableConcurrentJob.RunCount}.");
+            }
+
             DisableConcurrentJob.Reset();
         }
 
@@ -105,21 +262,97 @@ namespace Quartz.Benchmark
         /// </summary>
         /// <param name="operationsPerRun">The number of times the job should be executed.</param>
         /// <param name="threadCount">The maximum number of threads to use to execute the job.</param>
-        /// <param name="triggerCount">The number of triggers to create.</param>
-        public void RunConcurrent(int operationsPerRun, int threadCount, int triggerCount)
+        /// <param name="jobCount">The number of numbers to create.</param>
+        /// <param name="triggersPerJob">The number of triggers to create for each job.</param>
+        public static void RunConcurrent(int operationsPerRun,
+                                         int threadCount,
+                                         int jobCount,
+                                         int triggersPerJob,
+                                         int maxBatchSize,
+                                         TimeSpan idleWaitTime,
+                                         TimeSpan repeatInterval,
+                                         int repeatCount,
+                                         int misfireInstruction)
         {
             ConcurrentJob.Initialize(operationsPerRun);
 
-            var scheduler = CreateAndConfigureScheduler<ConcurrentJob>("A", "1", threadCount, triggerCount);
+            var scheduler = CreateAndConfigureScheduler<ConcurrentJob>("A",
+                                                                       "1",
+                                                                       threadCount,
+                                                                       jobCount,
+                                                                       triggersPerJob,
+                                                                       maxBatchSize,
+                                                                       idleWaitTime,
+                                                                       repeatInterval,
+                                                                       repeatCount,
+                                                                       misfireInstruction);
             scheduler.Start();
 
             ConcurrentJob.Wait();
 
             scheduler.Shutdown(true).GetAwaiter().GetResult();
+
+            if (ConcurrentJob.RunCount != operationsPerRun)
+            {
+                throw new Exception($"Expected job to be executed {operationsPerRun} times, but was {ConcurrentJob.RunCount}.");
+            }
+
             ConcurrentJob.Reset();
         }
 
-        private static IScheduler CreateAndConfigureScheduler<T>(string name, string instanceId, int threadCount, int triggerCount) where T:IJob
+        /// <summary>
+        /// Convenience method run this benchmark without BDN.
+        /// </summary>
+        /// <param name="operationsPerRun">The number of times the job should be executed.</param>
+        /// <param name="threadCount">The maximum number of threads to use to execute the job.</param>
+        /// <param name="triggerCount">The number of triggers to create.</param>
+        public static void RunDelayedConcurrent(int operationsPerRun,
+                                                int threadCount,
+                                                int jobCount,
+                                                int triggersPerJob,
+                                                int maxBatchSize,
+                                                TimeSpan idleWaitTime,
+                                                TimeSpan repeatInterval,
+                                                int repeatCount,
+                                                int misfireInstruction)
+        {
+            DelayedConcurrentJob.Initialize(operationsPerRun);
+
+            var scheduler = CreateAndConfigureScheduler<DelayedConcurrentJob>("A",
+                                                                              "1",
+                                                                              threadCount,
+                                                                              jobCount,
+                                                                              triggersPerJob,
+                                                                              maxBatchSize,
+                                                                              idleWaitTime,
+                                                                              repeatInterval,
+                                                                              repeatCount,
+                                                                              misfireInstruction);
+
+            scheduler.Start();
+
+            DelayedConcurrentJob.Wait();
+
+            scheduler.Shutdown(true).GetAwaiter().GetResult();
+
+            if (DelayedConcurrentJob.RunCount != operationsPerRun)
+            {
+                throw new Exception($"Expected job to be executed {operationsPerRun} times, but was {DelayedConcurrentJob.RunCount}.");
+            }
+
+            DelayedConcurrentJob.Reset();
+        }
+
+        private static IScheduler CreateAndConfigureScheduler<T>(string name,
+                                                                 string instanceId,
+                                                                 int threadCount,
+                                                                 int jobCount,
+                                                                 int triggersPerJob,
+                                                                 int maxBatchSize,
+                                                                 TimeSpan idleWaitTime,
+                                                                 TimeSpan repeatInterval,
+                                                                 int repeatCount,
+                                                                 int misfireInstruction) where T : IJob
         {
             RAMJobStore store = new RAMJobStore();
 
@@ -130,8 +363,8 @@ namespace Quartz.Benchmark
                                                             threadPool,
                                                             store,
                                                             null,
-                                                            TimeSpan.FromSeconds(30),
-                                                            threadCount,
+                                                            idleWaitTime,
+                                                            maxBatchSize,
                                                             TimeSpan.Zero,
                                                             null);
 
@@ -139,23 +372,34 @@ namespace Quartz.Benchmark
             var scheduler = DirectSchedulerFactory.Instance.GetScheduler(name).ConfigureAwait(false).GetAwaiter().GetResult();
             scheduler!.JobFactory = _jobFactory;
 
-            for (var i = 0; i < triggerCount; i++)
+            var triggersByJob = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>();
+
+            for (var i = 0; i < jobCount; i++)
             {
-                var trigger = CreateTrigger(TimeSpan.FromTicks(1000L));
                 var job = CreateJobDetail(typeof(SchedulerBenchmark).Name, typeof(T));
-                scheduler.ScheduleJob(job, trigger).GetAwaiter().GetResult();
+
+                var triggers = new ITrigger[triggersPerJob];
+                for (var j = 0; j < triggersPerJob; j++)
+                {
+                    triggers[j] = CreateTrigger(job, repeatInterval, repeatCount, misfireInstruction);
+                }
+
+                triggersByJob.Add(job, triggers);
             }
+
+            scheduler.ScheduleJobs(triggersByJob, false).GetAwaiter().GetResult();
 
             return scheduler;
         }
 
-        private static ITrigger CreateTrigger(TimeSpan repeatInterval)
+        private static ITrigger CreateTrigger(IJobDetail job, TimeSpan repeatInterval, int repeatCount, int misfireInstruction)
         {
             return TriggerBuilder.Create()
+                                 .ForJob(job)
                                  .WithSimpleSchedule(
-                                     sb => sb.RepeatForever()
+                                     sb => sb.WithRepeatCount(repeatCount)
                                              .WithInterval(repeatInterval)
-                                             .WithMisfireHandlingInstructionFireNow())
+                                             .WithMisfireHandlingInstruction(misfireInstruction))
                                  .Build();
         }
 
@@ -168,12 +412,14 @@ namespace Quartz.Benchmark
         public class DisableConcurrentJob : IJob
         {
             private static readonly ManualResetEvent Done = new ManualResetEvent(false);
-            private static int RunCount = 0;
+            private static int _runCount = 0;
             private static int _operationsPerRun;
+
+            public static int RunCount => _runCount;
 
             public Task Execute(IJobExecutionContext context)
             {
-                if (Interlocked.Increment(ref RunCount) == _operationsPerRun)
+                if (Interlocked.Increment(ref _runCount) == _operationsPerRun)
                 {
                     Done.Set();
                 }
@@ -192,25 +438,27 @@ namespace Quartz.Benchmark
 
             public static void Dump()
             {
-                Console.WriteLine("[DisableConcurrentJob] Run count: " + RunCount);
+                Console.WriteLine("[DisableConcurrentJob] Run count: " + _runCount);
             }
 
             public static void Reset()
             {
                 Done.Reset();
-                RunCount = 0;
+                _runCount = 0;
             }
         }
 
         public class ConcurrentJob : IJob
         {
             private static readonly ManualResetEvent Done = new ManualResetEvent(false);
-            private static int RunCount = 0;
+            private static int _runCount = 0;
             private static int _operationsPerRun;
+
+            public static int RunCount => _runCount;
 
             public Task Execute(IJobExecutionContext context)
             {
-                if (Interlocked.Increment(ref RunCount) == _operationsPerRun)
+                if (Interlocked.Increment(ref _runCount) == _operationsPerRun)
                 {
                     Done.Set();
                 }
@@ -229,13 +477,59 @@ namespace Quartz.Benchmark
 
             public static void Dump()
             {
-                Console.WriteLine("[ConcurrentJob] Run count: " + RunCount);
+                Console.WriteLine("[ConcurrentJob] Run count: " + _runCount);
             }
 
             public static void Reset()
             {
                 Done.Reset();
-                RunCount = 0;
+                _runCount = 0;
+            }
+        }
+
+        public class DelayedConcurrentJob : IJob
+        {
+            private static readonly ManualResetEvent Done = new ManualResetEvent(false);
+            private static int _runCount = 0;
+            private static int _operationsPerRun;
+            private static TimeSpan _delay = TimeSpan.FromMilliseconds(500);
+
+            public static int RunCount => _runCount;
+
+            public Task Execute(IJobExecutionContext context)
+            {
+                var runs = Interlocked.Increment(ref _runCount);
+
+                if (runs < _operationsPerRun)
+                {
+                    Task.Delay(_delay).GetAwaiter().GetResult();
+                }
+                else if (runs == _operationsPerRun)
+                {
+                    Done.Set();
+                }
+                return Task.CompletedTask;
+            }
+
+            public static void Initialize(int operationsPerRun)
+            {
+                _operationsPerRun = operationsPerRun;
+            }
+
+            public static void Wait()
+            {
+                Done.WaitOne();
+            }
+
+            public static void Dump()
+            {
+                Console.WriteLine("[DelayedConcurrentJob] Run count: " + _runCount);
+            }
+
+            public static void Reset()
+            {
+                Done.Reset();
+                _runCount = 0;
             }
         }
     }
