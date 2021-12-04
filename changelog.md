@@ -13,10 +13,16 @@
       * JobName
       * JobGroup
       * FullName
-
     * Triggers can no longer be constructed with a **null** group name (#1359)
-
     * The *endUtc* argument of **SimpleTriggerImpl** is no longer nullable.
+    * If a value is explicitly specified for "IdleWaitTime", we will no longer silently ignore the value (and use 
+      a default value of 30 seconds instead) if it's less than or equal to **zero**.
+    * If you use **StdSchedulerFactory** to create a scheduler, we will no longer reject an **IdleWaitTime** that
+      is greater than **zero** but less than **1000 milliseconds**.
+    * An negative value for **IdleWaitTime** or **BatchTimeWindow** will no longer be accepted.
+    * For **MaxBatchSize**, a value less than or equal to **zero** will be rejected.
+    * The ctor for **QuartzScheduler** no longer takes an **idleWaitTime** argument. This value
+      is now obtained from a newly introduced **IdleWaitTime** property on **QuartzSchedulerResources**.
 
     * The `Equals(StringOperator? other)` method of **StringOperator** is now also virtual to allow it to be
       overridden in pair with `Equals(object? obj)` and `GetHashCode()`.

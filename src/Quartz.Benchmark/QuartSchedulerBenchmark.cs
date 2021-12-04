@@ -395,11 +395,12 @@ namespace Quartz.Benchmark
                 InstanceId = instanceId,
                 ThreadPool = new DefaultThreadPool { MaxConcurrency = threadCount },
                 JobStore = new RAMJobStore(),
+                IdleWaitTime = TimeSpan.FromSeconds(30),
                 MaxBatchSize = threadCount,
                 BatchTimeWindow = TimeSpan.Zero
             };
 
-            return new QuartzScheduler(res, TimeSpan.Zero);
+            return new QuartzScheduler(res);
         }
 
         private JobExecutionContextImpl CreateJobExecutionContext(IScheduler scheduler, IOperableTrigger trigger)
