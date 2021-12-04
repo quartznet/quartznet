@@ -33,17 +33,25 @@ namespace Quartz.Core
 	/// <author>Marko Lahma (.NET)</author>
 	public class QuartzSchedulerResources
 	{
+        internal static readonly TimeSpan DefaultIdleWaitTime = TimeSpan.FromSeconds(30);
+        internal const int DefaultMaxBatchSize = 1;
+        internal static readonly TimeSpan DefaultBatchTimeWindow = TimeSpan.Zero;
+
         private string name = null!;
         private string instanceId = null!;
         private string threadName = null!;
         private IThreadPool threadPool = null!;
         private IJobStore jobStore =  null!;
         private IJobRunShellFactory jobRunShellFactory = null!;
+        private int _maxBatchSize;
+        private TimeSpan _idleWaitTime;
+        private TimeSpan _batchTimeWindow;
 
-	    public QuartzSchedulerResources()
+        public QuartzSchedulerResources()
 	    {
-	        MaxBatchSize = 1;
-	        BatchTimeWindow = TimeSpan.Zero;
+            _maxBatchSize = DefaultMaxBatchSize;
+            _idleWaitTime = DefaultIdleWaitTime;
+            _batchTimeWindow = DefaultBatchTimeWindow;
 	    }
 
 	    /// <summary>
@@ -203,16 +211,75 @@ namespace Quartz.Core
 	    /// Gets or sets the scheduler exporter.
 	    /// </summary>
 	    /// <value>The scheduler exporter.</value>
-	    public ISchedulerExporter? SchedulerExporter { get; set; }
+	    public ISchedulerExporter? SchedulerExporter{ get; set; }
 
-	    /// <summary>
-	    /// Gets or sets the batch time window.
-	    /// </summary>
-	    public TimeSpan BatchTimeWindow { get; set; }
+        /// <summary>
+        /// Gets or sets a value that determines how long the scheduler should wait before checking again
+        /// when there is no current trigger to fire.
+        /// </summary>
+        /// <value>
+        /// A value that determines how long the scheduler should wait before checking again when there
+        /// is no current trigger to fire. The default value is <c>30</c> seconds.
+        /// </value>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="value"/> is less than <see cref="TimeSpan.Zero"/>.</exception>
+        public TimeSpan IdleWaitTime
+        {
+            get { return _idleWaitTime; }
+            set
+            {
+                if (value < TimeSpan.Zero)
+                {
+                    ExceptionHelper.ThrowArgumentOutOfRangeException($"Cannot be less than {nameof(TimeSpan)}.{nameof(TimeSpan.Zero)}.", nameof(value));
+                }
 
-	    public int MaxBatchSize { get; set; }
+                _idleWaitTime = value;
+            }
+        }
 
-	    public bool InterruptJobsOnShutdown { get; set; }
+        /// <summary>
+        /// Gets or sets the time window for which it is allowed to "pre-acquire" triggers to fire.
+        /// </summary>
+        /// <value>
+        /// The time window for which it is allowed to "pre-acquire" triggers to fire. The default value is
+        /// <see cref="TimeSpan.Zero"/>.
+        /// </value>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="value"/> is less than <see cref="TimeSpan.Zero"/>.</exception>
+        public TimeSpan BatchTimeWindow {
+            get { return _batchTimeWindow; }
+            set
+            {
+                if (value < TimeSpan.Zero)
+                {
+                    ExceptionHelper.ThrowArgumentOutOfRangeException($"Cannot be less than {nameof(TimeSpan)}.{nameof(TimeSpan.Zero)}.", nameof(value));
+                }
+
+                _batchTimeWindow = value;
+            }
+        }
+
+        /// <summary>
+        /// Gets or sets the maximum number of triggers to acquire in an iteration of <see cref="QuartzSchedulerThread"/>.
+        /// </summary>
+        /// <value>
+        /// The maximum number of triggers to acquire in an iteration of <see cref="QuartzSchedulerThread"/>. The default
+        /// value is <c>1</c>.
+        /// </value>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="value"/> is less than <c>1</c>.</exception>
+	    public int MaxBatchSize
+        {
+            get { return _maxBatchSize; }
+            set
+            {
+                if (value < 1)
+                {
+                    ExceptionHelper.ThrowArgumentOutOfRangeException($"Cannot be less than 1.", nameof(value));
+                }
+
+                _maxBatchSize = value;
+            }
+        }
+
+        public bool InterruptJobsOnShutdown { get; set; }
 
 	    public bool InterruptJobsOnShutdownWithWait { get; set; }
 	}

@@ -22,5 +22,12 @@ namespace Quartz
         {
             throw new ArgumentException(message, paramName);
         }
+
+        [DoesNotReturn]
+        public static void ThrowArgumentOutOfRangeException(string message, string paramName)
+        {
+            throw new ArgumentOutOfRangeException(paramName, message);
+        }
+
     }
 }

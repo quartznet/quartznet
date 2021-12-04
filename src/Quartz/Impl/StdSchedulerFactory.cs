@@ -364,7 +364,7 @@ Please add configuration to your application config file to correctly initialize
             Type? instanceIdGeneratorType = null;
             NameValueCollection tProps;
             bool autoId = false;
-            TimeSpan idleWaitTime = TimeSpan.Zero;
+            TimeSpan idleWaitTime = cfg!.GetTimeSpanProperty(PropertySchedulerIdleWaitTime, QuartzSchedulerResources.DefaultIdleWaitTime);
             TimeSpan dbFailureRetry = TimeSpan.FromSeconds(15);
 
             SchedulerRepository schedRep = SchedulerRepository.Instance;
@@ -389,12 +389,6 @@ Please add configuration to your application config file to correctly initialize
 
             Type? typeLoadHelperType = LoadType(cfg.GetStringProperty(PropertySchedulerTypeLoadHelperType));
 
-            idleWaitTime = cfg.GetTimeSpanProperty(PropertySchedulerIdleWaitTime, idleWaitTime);
-            if (idleWaitTime > TimeSpan.Zero && idleWaitTime < TimeSpan.FromMilliseconds(1000))
-            {
-                throw new SchedulerException("quartz.scheduler.idleWaitTime of less than 1000ms is not legal.");
-            }
-
             dbFailureRetry = cfg.GetTimeSpanProperty(PropertySchedulerDbFailureRetryInterval, dbFailureRetry);
             if (dbFailureRetry < TimeSpan.Zero)
             {
@@ -403,7 +397,7 @@ Please add configuration to your application config file to correctly initialize
 
             bool makeSchedulerThreadDaemon = cfg.GetBooleanProperty(PropertySchedulerMakeSchedulerThreadDaemon);
             long batchTimeWindow = cfg.GetLongProperty(PropertySchedulerBatchTimeWindow, 0L);
-            int maxBatchSize = cfg.GetIntProperty(PropertySchedulerMaxBatchSize, 1);
+            int maxBatchSize = cfg.GetIntProperty(PropertySchedulerMaxBatchSize, QuartzSchedulerResources.DefaultMaxBatchSize);
 
             bool interruptJobsOnShutdown = cfg.GetBooleanProperty(PropertySchedulerInterruptJobsOnShutdown, false);
             bool interruptJobsOnShutdownWithWait = cfg.GetBooleanProperty(PropertySchedulerInterruptJobsOnShutdownWithWait, false);
@@ -941,16 +935,17 @@ Please add configuration to your application config file to correctly initialize
                 QuartzSchedulerResources rsrcs = new QuartzSchedulerResources();
                 rsrcs.Name = schedName;
                 rsrcs.ThreadName = threadName;
-                rsrcs.InstanceId = schedInstId!;
+                rsrcs.InstanceId = schedInstId;
                 rsrcs.JobRunShellFactory = jrsf;
                 rsrcs.MakeSchedulerThreadDaemon = makeSchedulerThreadDaemon;
+                rsrcs.IdleWaitTime = idleWaitTime;
                 rsrcs.BatchTimeWindow = TimeSpan.FromMilliseconds(batchTimeWindow);
                 rsrcs.MaxBatchSize = maxBatchSize;
                 rsrcs.InterruptJobsOnShutdown = interruptJobsOnShutdown;
                 rsrcs.InterruptJobsOnShutdownWithWait = interruptJobsOnShutdownWithWait;
                 rsrcs.SchedulerExporter = exporter;
 
-                SchedulerDetailsSetter.SetDetails(tp, schedName, schedInstId!);
+                SchedulerDetailsSetter.SetDetails(tp, schedName, schedInstId);
 
                 rsrcs.ThreadPool = tp;
 
@@ -965,7 +960,7 @@ Please add configuration to your application config file to correctly initialize
                     rsrcs.AddSchedulerPlugin(plugin);
                 }
 
-                qs = new QuartzScheduler(rsrcs, idleWaitTime);
+                qs = new QuartzScheduler(rsrcs);
                 qsInited = true;
 
                 // Create Scheduler ref...
@@ -1002,7 +997,7 @@ Please add configuration to your application config file to correctly initialize
 
                 // fire up job store, and runshell factory
 
-                js.InstanceId = schedInstId!;
+                js.InstanceId = schedInstId;
                 js.InstanceName = schedName;
                 js.ThreadPoolSize = tp.PoolSize;
                 await js.Initialize(loadHelper, qs.SchedulerSignaler).ConfigureAwait(false);
