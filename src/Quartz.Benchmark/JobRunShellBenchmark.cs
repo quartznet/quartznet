@@ -51,11 +51,12 @@ namespace Quartz.Benchmark
                 InstanceId = instanceId,
                 ThreadPool = new DefaultThreadPool { MaxConcurrency = threadCount },
                 JobStore = new NoOpJobStore(),
+                IdleWaitTime = TimeSpan.FromSeconds(30),
                 MaxBatchSize = threadCount,
                 BatchTimeWindow = TimeSpan.Zero
             };
 
-            return new QuartzScheduler(res, TimeSpan.Zero);
+            return new QuartzScheduler(res);
         }
 
         private TriggerFiredBundle CreateTriggerFiredBundle()

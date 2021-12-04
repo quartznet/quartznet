@@ -130,7 +130,7 @@ namespace Quartz.Benchmark
                                                             threadPool,
                                                             store,
                                                             null,
-                                                            TimeSpan.Zero,
+                                                            TimeSpan.FromSeconds(30),
                                                             threadCount,
                                                             TimeSpan.Zero,
                                                             null);
