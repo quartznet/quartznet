@@ -103,7 +103,7 @@ namespace Quartz.Benchmark
                     BatchTimeWindow = TimeSpan.Zero
                 };
 
-            return new QuartzScheduler(res, TimeSpan.Zero);
+            return new QuartzScheduler(res);
         }
     }
 }
