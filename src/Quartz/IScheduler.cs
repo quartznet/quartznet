@@ -303,7 +303,7 @@ namespace Quartz
         /// </param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <seealso cref="Shutdown(CancellationToken)" /> 
-        Task Shutdown(bool waitForJobsToComplete, CancellationToken cancellationToken = default);
+        Task<string> Shutdown(bool waitForJobsToComplete, CancellationToken cancellationToken = default);
 
 
         /// <summary>
