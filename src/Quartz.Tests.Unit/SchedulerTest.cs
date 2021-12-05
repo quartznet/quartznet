@@ -13,6 +13,7 @@ using Quartz.Job;
 using Quartz.Spi;
 
 using System.IO;
+using System.Threading;
 
 namespace Quartz.Tests.Unit
 {
@@ -33,6 +34,23 @@ namespace Quartz.Tests.Unit
         {
             public Task Execute(IJobExecutionContext context)
             {
+                return Task.CompletedTask;
+            }
+        }
+
+        public class TestJobWithDelay : IJob
+        {
+            private static ManualResetEvent _executing = new ManualResetEvent(false);
+
+            public static TimeSpan Delay = TimeSpan.FromMilliseconds(100);
+            public static WaitHandle Executing => _executing;
+
+            public Task Execute(IJobExecutionContext context)
+            {
+                _executing.Set();
+                Thread.Sleep(Delay);
+                _executing.Reset();
+
                 return Task.CompletedTask;
             }
         }
@@ -237,24 +255,62 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
-        [Ignore("not suitable way to monitor tasks")]
-        public async Task TestShutdownWithSleepReturnsAfterAllThreadsAreStopped()
+        public async Task TestShutdownWithWaitShouldBlockUntilAllTasksHaveCompleted()
         {
-            int activeThreads = Process.GetCurrentProcess().Threads.Count;
-            int threadPoolSize = 5;
-            NameValueCollection properties = new NameValueCollection();
-            properties["quartz.threadPool.threadCount"] = threadPoolSize.ToString();
+            NameValueCollection properties = new NameValueCollection
+                {
+                    ["quartz.threadPool.threadCount"] = "2"
+                };
+            ISchedulerFactory factory = new StdSchedulerFactory(properties);
+            var scheduler = await factory.GetScheduler();
+            await scheduler.Start();
+
+            var job = JobBuilder.Create<TestJobWithDelay>().Build();
+            IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMilliseconds(1)).RepeatForever())
+                .ForJob(job)
+                .StartNow()
+                .Build();
+            await scheduler.ScheduleJob(job, trigger);
+
+            // Wait for job to start executing
+            TestJobWithDelay.Executing.WaitOne();
+
+            var stopwatch = Stopwatch.StartNew();
+
+            await scheduler.Shutdown(true);
+
+            Assert.That(stopwatch.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(TestJobWithDelay.Delay.TotalMilliseconds).Within(5));
+        }
+
+        [Test]
+        public async Task TestShutdownWithoutWaitShouldNotBlockUntilAllTasksHaveCompleted()
+        {
+            NameValueCollection properties = new NameValueCollection
+                {
+                    ["quartz.threadPool.threadCount"] = "2"
+                };
             ISchedulerFactory factory = new StdSchedulerFactory(properties);
             IScheduler scheduler = await factory.GetScheduler();
             await scheduler.Start();
 
-            await Task.Delay(500);
+            var job = JobBuilder.Create<TestJobWithDelay>().Build();
+            IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMilliseconds(1)).RepeatForever())
+                .ForJob(job)
+                .StartNow()
+                .Build();
+            await scheduler.ScheduleJob(job, trigger);
 
-            await scheduler.Shutdown(true);
+            // Wait for job to start executing
+            TestJobWithDelay.Executing.WaitOne();
 
-            await Task.Delay(500);
+            var stopwatch = Stopwatch.StartNew();
 
-            Assert.True(Process.GetCurrentProcess().Threads.Count <= activeThreads);
+            await scheduler.Shutdown(false);
+
+            // Shutdown should be fast since we're not waiting for tasks to complete
+            Assert.That(stopwatch.ElapsedMilliseconds, Is.LessThan(40));
         }
 
         [Test]
