@@ -320,7 +320,7 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
-        public async Task TestShutdownWithoutWaitShouldNotBlockUntilAllTasksHaveCompleted()
+        public void TestShutdownWithoutWaitShouldNotBlockUntilAllTasksHaveCompleted()
         {
             var schedulerName = Guid.NewGuid().ToString();
             var executing = new ManualResetEvent(false);
@@ -332,8 +332,8 @@ namespace Quartz.Tests.Unit
                     ["quartz.threadPool.threadCount"] = "2"
                 };
             ISchedulerFactory factory = new StdSchedulerFactory(properties);
-            IScheduler scheduler = await factory.GetScheduler();
-            await scheduler.Start();
+            IScheduler scheduler = factory.GetScheduler().GetAwaiter().GetResult();
+            scheduler.Start().GetAwaiter().GetResult();
 
             var job = JobBuilder.Create<TestJobWithDelay>()
                                 .UsingJobData(TestJobWithDelay.CreateJobDataMap(executing, completed))
@@ -343,14 +343,14 @@ namespace Quartz.Tests.Unit
                 .ForJob(job)
                 .StartNow()
                 .Build();
-            await scheduler.ScheduleJob(job, trigger);
+            scheduler.ScheduleJob(job, trigger).GetAwaiter().GetResult();
 
             // Wait for job to start executing
             executing.WaitOne();
 
             var stopwatch = Stopwatch.StartNew();
 
-            var result = await scheduler.Shutdown(false);
+            var result = scheduler.Shutdown(false).GetAwaiter().GetResult();
 
             stopwatch.Stop();
 
