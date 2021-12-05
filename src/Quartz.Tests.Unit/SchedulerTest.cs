@@ -355,7 +355,7 @@ namespace Quartz.Tests.Unit
             stopwatch.Stop();
 
             // Shutdown should be fast since we're not waiting for tasks to complete
-            Assert.That(stopwatch.ElapsedMilliseconds, Is.LessThan(TestJobWithDelay.Delay.TotalMilliseconds - 50), result);
+            Assert.That(stopwatch.ElapsedMilliseconds, Is.LessThan(TestJobWithDelay.Delay.TotalMilliseconds - 50), result + " => " + stopwatch.ElapsedMilliseconds);
             // The task should still be executing
             Assert.That(completed.WaitOne(0), Is.False, result);
 
