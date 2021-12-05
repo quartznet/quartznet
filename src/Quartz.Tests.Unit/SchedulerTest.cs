@@ -310,7 +310,7 @@ namespace Quartz.Tests.Unit
 
             await scheduler.Shutdown(true);
 
-            Assert.That(stopwatch.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(TestJobWithDelay.Delay.TotalMilliseconds).Within(5), sb.ToString());
+            Assert.That(stopwatch.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(TestJobWithDelay.Delay.TotalMilliseconds).Within(5));
             Assert.That(completed.WaitOne(0), Is.True);
         }
 
