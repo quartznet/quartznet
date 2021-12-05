@@ -311,8 +311,12 @@ namespace Quartz.Tests.Unit
 
             var result = await scheduler.Shutdown(true);
 
+            stopwatch.Stop();
+
             Assert.That(stopwatch.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(TestJobWithDelay.Delay.TotalMilliseconds).Within(5), result);
             Assert.That(completed.WaitOne(0), Is.True, result);
+
+            Assert.Fail("SUCCESS: " + stopwatch.ElapsedMilliseconds + " | " + result);
         }
 
         [Test]
@@ -348,12 +352,14 @@ namespace Quartz.Tests.Unit
 
             var result = await scheduler.Shutdown(false);
 
+            stopwatch.Stop();
+
             // Shutdown should be fast since we're not waiting for tasks to complete
             Assert.That(stopwatch.ElapsedMilliseconds, Is.LessThan(TestJobWithDelay.Delay.TotalMilliseconds - 50), result);
             // The task should still be executing
             Assert.That(completed.WaitOne(0), Is.False, result);
 
-            Assert.Fail(result);
+            Assert.Fail("SUCCESS: " + stopwatch.ElapsedMilliseconds + " | " + result);
         }
 
         [Test]
