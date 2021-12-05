@@ -294,6 +294,8 @@ namespace Quartz.Tests.Unit
             IScheduler scheduler = await factory.GetScheduler();
             await scheduler.Start();
 
+            var stopwatch = Stopwatch.StartNew();
+
             var job = JobBuilder.Create<TestJobWithDelay>().Build();
             IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
                 .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMilliseconds(1)).RepeatForever())
@@ -302,12 +304,19 @@ namespace Quartz.Tests.Unit
                 .Build();
             await scheduler.ScheduleJob(job, trigger);
 
+            Console.WriteLine("#1:" + stopwatch.ElapsedMilliseconds);
+
             // Wait for job to start executing
             TestJobWithDelay.Executing.WaitOne();
 
-            var stopwatch = Stopwatch.StartNew();
+            Console.WriteLine("#2:" + stopwatch.ElapsedMilliseconds);
+
+            stopwatch.Reset();
+            stopwatch.Start();
 
             await scheduler.Shutdown(false);
+
+            Console.WriteLine("#3:" + stopwatch.ElapsedMilliseconds);
 
             // Shutdown should be fast since we're not waiting for tasks to complete
             Assert.That(stopwatch.ElapsedMilliseconds, Is.LessThan(40));
