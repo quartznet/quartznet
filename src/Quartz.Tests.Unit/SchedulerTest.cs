@@ -42,14 +42,23 @@ namespace Quartz.Tests.Unit
         {
             private static ManualResetEvent _executing = new ManualResetEvent(false);
 
+            private static int _executeCount;
+            private static int _completeCount;
+
             public static TimeSpan Delay = TimeSpan.FromMilliseconds(100);
             public static WaitHandle Executing => _executing;
+            public static int ExecuteCount => _executeCount;
+            public static int CompleteCount => _completeCount;
 
             public Task Execute(IJobExecutionContext context)
             {
+                Interlocked.Increment(ref _executeCount);
+
                 _executing.Set();
                 Thread.Sleep(Delay);
                 _executing.Reset();
+
+                Interlocked.Increment(ref _completeCount);
 
                 return Task.CompletedTask;
             }
@@ -257,6 +266,11 @@ namespace Quartz.Tests.Unit
         [Test]
         public async Task TestShutdownWithWaitShouldBlockUntilAllTasksHaveCompleted()
         {
+            var sb = new System.Text.StringBuilder();
+
+            sb.AppendLine("#1 ExecuteCount = " + TestJobWithDelay.ExecuteCount);
+            sb.AppendLine("#2 CompleteCount = " + TestJobWithDelay.CompleteCount);
+
             NameValueCollection properties = new NameValueCollection
                 {
                     ["quartz.threadPool.threadCount"] = "2"
@@ -265,30 +279,38 @@ namespace Quartz.Tests.Unit
             var scheduler = await factory.GetScheduler();
             await scheduler.Start();
 
-            var sb = new System.Text.StringBuilder();
+            sb.AppendLine("#3 ExecuteCount = " + TestJobWithDelay.ExecuteCount);
+            sb.AppendLine("#4 CompleteCount = " + TestJobWithDelay.CompleteCount);
+
             var stopwatch = Stopwatch.StartNew();
 
             var job = JobBuilder.Create<TestJobWithDelay>().Build();
             IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
-                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMilliseconds(1)).RepeatForever())
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(1)).RepeatForever())
                 .ForJob(job)
                 .StartNow()
                 .Build();
             await scheduler.ScheduleJob(job, trigger);
 
-            sb.AppendLine("#1:" + stopwatch.ElapsedMilliseconds);
+            sb.AppendLine("#5 ExecuteCount = " + TestJobWithDelay.ExecuteCount);
+            sb.AppendLine("#6 CompleteCount = " + TestJobWithDelay.CompleteCount);
+            sb.AppendLine("#7:" + stopwatch.ElapsedMilliseconds);
 
             // Wait for job to start executing
             TestJobWithDelay.Executing.WaitOne();
 
-            sb.AppendLine("#2:" + stopwatch.ElapsedMilliseconds);
+            sb.AppendLine("#8 ExecuteCount = " + TestJobWithDelay.ExecuteCount);
+            sb.AppendLine("#9 CompleteCount = " + TestJobWithDelay.CompleteCount);
+            sb.AppendLine("#10:" + stopwatch.ElapsedMilliseconds);
 
             stopwatch.Reset();
             stopwatch.Start();
 
             await scheduler.Shutdown(true);
 
-            sb.AppendLine("#3:" + stopwatch.ElapsedMilliseconds);
+            sb.AppendLine("#11 ExecuteCount = " + TestJobWithDelay.ExecuteCount);
+            sb.AppendLine("#12 CompleteCount = " + TestJobWithDelay.CompleteCount);
+            sb.AppendLine("#13:" + stopwatch.ElapsedMilliseconds);
 
             Assert.That(stopwatch.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(TestJobWithDelay.Delay.TotalMilliseconds).Within(5), sb.ToString());
         }
