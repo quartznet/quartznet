@@ -43,7 +43,7 @@ namespace Quartz.Tests.Unit
             public const string ExecutingWaitHandleKey = "ExecutingWaitHandle";
             public const string CompletedWaitHandleKey = "CompletedWaitHandle";
 
-            public static TimeSpan Delay = TimeSpan.FromMilliseconds(100);
+            public static TimeSpan Delay = TimeSpan.FromMilliseconds(200);
 
             public static JobDataMap CreateJobDataMap(ManualResetEvent executing, ManualResetEvent completed)
             {
@@ -348,7 +348,7 @@ namespace Quartz.Tests.Unit
             await scheduler.Shutdown(false);
 
             // Shutdown should be fast since we're not waiting for tasks to complete
-            Assert.That(stopwatch.ElapsedMilliseconds, Is.LessThan(40));
+            Assert.That(stopwatch.ElapsedMilliseconds, Is.LessThan(TestJobWithDelay.Delay.TotalMilliseconds - 50));
             // The task should still be executing
             Assert.That(completed.WaitOne(0), Is.False);
         }
