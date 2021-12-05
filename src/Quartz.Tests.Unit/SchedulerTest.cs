@@ -265,6 +265,9 @@ namespace Quartz.Tests.Unit
             var scheduler = await factory.GetScheduler();
             await scheduler.Start();
 
+            var sb = new System.Text.StringBuilder();
+            var stopwatch = Stopwatch.StartNew();
+
             var job = JobBuilder.Create<TestJobWithDelay>().Build();
             IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
                 .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMilliseconds(1)).RepeatForever())
@@ -273,14 +276,21 @@ namespace Quartz.Tests.Unit
                 .Build();
             await scheduler.ScheduleJob(job, trigger);
 
+            sb.AppendLine("#1:" + stopwatch.ElapsedMilliseconds);
+
             // Wait for job to start executing
             TestJobWithDelay.Executing.WaitOne();
 
-            var stopwatch = Stopwatch.StartNew();
+            sb.AppendLine("#2:" + stopwatch.ElapsedMilliseconds);
+
+            stopwatch.Reset();
+            stopwatch.Start();
 
             await scheduler.Shutdown(true);
 
-            Assert.That(stopwatch.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(TestJobWithDelay.Delay.TotalMilliseconds).Within(5));
+            sb.AppendLine("#3:" + stopwatch.ElapsedMilliseconds);
+
+            Assert.That(stopwatch.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(TestJobWithDelay.Delay.TotalMilliseconds).Within(5), sb.ToString());
         }
 
         [Test]
@@ -294,8 +304,6 @@ namespace Quartz.Tests.Unit
             IScheduler scheduler = await factory.GetScheduler();
             await scheduler.Start();
 
-            var stopwatch = Stopwatch.StartNew();
-
             var job = JobBuilder.Create<TestJobWithDelay>().Build();
             IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
                 .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMilliseconds(1)).RepeatForever())
@@ -304,19 +312,12 @@ namespace Quartz.Tests.Unit
                 .Build();
             await scheduler.ScheduleJob(job, trigger);
 
-            Console.WriteLine("#1:" + stopwatch.ElapsedMilliseconds);
-
             // Wait for job to start executing
             TestJobWithDelay.Executing.WaitOne();
 
-            Console.WriteLine("#2:" + stopwatch.ElapsedMilliseconds);
-
-            stopwatch.Reset();
-            stopwatch.Start();
+            var stopwatch = Stopwatch.StartNew();
 
             await scheduler.Shutdown(false);
-
-            Console.WriteLine("#3:" + stopwatch.ElapsedMilliseconds);
 
             // Shutdown should be fast since we're not waiting for tasks to complete
             Assert.That(stopwatch.ElapsedMilliseconds, Is.LessThan(40));
