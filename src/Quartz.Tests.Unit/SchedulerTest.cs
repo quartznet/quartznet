@@ -316,7 +316,7 @@ namespace Quartz.Tests.Unit
             Assert.That(stopwatch.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(TestJobWithDelay.Delay.TotalMilliseconds).Within(5), result);
             Assert.That(completed.WaitOne(0), Is.True, result);
 
-            Assert.Fail("SUCCESS: " + stopwatch.ElapsedMilliseconds + " | " + result);
+            //Assert.Fail("SUCCESS: " + stopwatch.ElapsedMilliseconds + " | " + result);
         }
 
         [Test]
@@ -359,7 +359,7 @@ namespace Quartz.Tests.Unit
             // The task should still be executing
             Assert.That(completed.WaitOne(0), Is.False, result);
 
-            Assert.Fail("SUCCESS: " + stopwatch.ElapsedMilliseconds + " | " + result);
+            //Assert.Fail("SUCCESS: " + stopwatch.ElapsedMilliseconds + " | " + result);
         }
 
         [Test]
