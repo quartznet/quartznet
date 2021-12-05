@@ -290,7 +290,7 @@ namespace Quartz.Tests.Unit
                     ["quartz.threadPool.threadCount"] = "2"
                 };
             ISchedulerFactory factory = new StdSchedulerFactory(properties);
-            var scheduler = await factory.GetScheduler(schedulerName);
+            var scheduler = await factory.GetScheduler();
             await scheduler.Start();
 
             var job = JobBuilder.Create<TestJobWithDelay>()
@@ -327,7 +327,7 @@ namespace Quartz.Tests.Unit
                     ["quartz.threadPool.threadCount"] = "2"
                 };
             ISchedulerFactory factory = new StdSchedulerFactory(properties);
-            IScheduler scheduler = await factory.GetScheduler(schedulerName);
+            IScheduler scheduler = await factory.GetScheduler();
             await scheduler.Start();
 
             var job = JobBuilder.Create<TestJobWithDelay>()
