@@ -558,6 +558,8 @@ namespace Quartz.Core
 
             log.Info($"Scheduler {resources.GetUniqueIdentifier()} Shutdown complete.");
 
+            sb.AppendLine("Final " + resources.GetUniqueIdentifier());
+
             return sb.ToString();
         }
 

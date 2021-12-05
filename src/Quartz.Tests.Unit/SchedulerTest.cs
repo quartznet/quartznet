@@ -339,7 +339,7 @@ namespace Quartz.Tests.Unit
                                 .UsingJobData(TestJobWithDelay.CreateJobDataMap(executing, completed))
                                 .Build();
             IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
-                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMilliseconds(1)).RepeatForever())
+                .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(1)).RepeatForever())
                 .ForJob(job)
                 .StartNow()
                 .Build();
