@@ -40,25 +40,39 @@ namespace Quartz.Tests.Unit
 
         public class TestJobWithDelay : IJob
         {
-            private static ManualResetEvent _executing = new ManualResetEvent(false);
-
-            private static int _executeCount;
-            private static int _completeCount;
+            public const string ExecutingWaitHandleKey = "ExecutingWaitHandle";
+            public const string CompletedWaitHandleKey = "CompletedWaitHandle";
 
             public static TimeSpan Delay = TimeSpan.FromMilliseconds(100);
-            public static WaitHandle Executing => _executing;
-            public static int ExecuteCount => _executeCount;
-            public static int CompleteCount => _completeCount;
+
+            public static JobDataMap CreateJobDataMap(ManualResetEvent executing, ManualResetEvent completed)
+            {
+                return new JobDataMap
+                    {
+                        { TestJobWithDelay.ExecutingWaitHandleKey, executing },
+                        { TestJobWithDelay.CompletedWaitHandleKey, completed }
+                    };
+            }
 
             public Task Execute(IJobExecutionContext context)
             {
-                Interlocked.Increment(ref _executeCount);
+                if (!context.JobDetail.JobDataMap.TryGetValue(ExecutingWaitHandleKey, out var executing))
+                {
+                    throw new Exception($"Expected job data '{ExecutingWaitHandleKey}' not set.");
+                }
 
-                _executing.Set();
+                var signalExecuting = (ManualResetEvent) executing;
+                signalExecuting.Set();
+
                 Thread.Sleep(Delay);
-                _executing.Reset();
 
-                Interlocked.Increment(ref _completeCount);
+                if (!context.JobDetail.JobDataMap.TryGetValue(CompletedWaitHandleKey, out var completed))
+                {
+                    throw new Exception($"Expected job data '{CompletedWaitHandleKey}' not set.");
+                }
+
+                var signalCompleted = (ManualResetEvent) completed;
+                signalCompleted.Set();
 
                 return Task.CompletedTask;
             }
@@ -266,25 +280,22 @@ namespace Quartz.Tests.Unit
         [Test]
         public async Task TestShutdownWithWaitShouldBlockUntilAllTasksHaveCompleted()
         {
-            var sb = new System.Text.StringBuilder();
-
-            sb.AppendLine("#1 ExecuteCount = " + TestJobWithDelay.ExecuteCount);
-            sb.AppendLine("#2 CompleteCount = " + TestJobWithDelay.CompleteCount);
+            var schedulerName = Guid.NewGuid().ToString();
+            var executing = new ManualResetEvent(false);
+            var completed = new ManualResetEvent(false);
 
             NameValueCollection properties = new NameValueCollection
                 {
+                    ["quartz.scheduler.instanceName"] = schedulerName,
                     ["quartz.threadPool.threadCount"] = "2"
                 };
             ISchedulerFactory factory = new StdSchedulerFactory(properties);
-            var scheduler = await factory.GetScheduler();
+            var scheduler = await factory.GetScheduler(schedulerName);
             await scheduler.Start();
 
-            sb.AppendLine("#3 ExecuteCount = " + TestJobWithDelay.ExecuteCount);
-            sb.AppendLine("#4 CompleteCount = " + TestJobWithDelay.CompleteCount);
-
-            var stopwatch = Stopwatch.StartNew();
-
-            var job = JobBuilder.Create<TestJobWithDelay>().Build();
+            var job = JobBuilder.Create<TestJobWithDelay>()
+                                .UsingJobData(TestJobWithDelay.CreateJobDataMap(executing, completed))
+                                .Build();
             IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
                 .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMinutes(1)).RepeatForever())
                 .ForJob(job)
@@ -292,41 +303,36 @@ namespace Quartz.Tests.Unit
                 .Build();
             await scheduler.ScheduleJob(job, trigger);
 
-            sb.AppendLine("#5 ExecuteCount = " + TestJobWithDelay.ExecuteCount);
-            sb.AppendLine("#6 CompleteCount = " + TestJobWithDelay.CompleteCount);
-            sb.AppendLine("#7:" + stopwatch.ElapsedMilliseconds);
-
             // Wait for job to start executing
-            TestJobWithDelay.Executing.WaitOne();
+            executing.WaitOne();
 
-            sb.AppendLine("#8 ExecuteCount = " + TestJobWithDelay.ExecuteCount);
-            sb.AppendLine("#9 CompleteCount = " + TestJobWithDelay.CompleteCount);
-            sb.AppendLine("#10:" + stopwatch.ElapsedMilliseconds);
-
-            stopwatch.Reset();
-            stopwatch.Start();
+            var stopwatch = Stopwatch.StartNew();
 
             await scheduler.Shutdown(true);
 
-            sb.AppendLine("#11 ExecuteCount = " + TestJobWithDelay.ExecuteCount);
-            sb.AppendLine("#12 CompleteCount = " + TestJobWithDelay.CompleteCount);
-            sb.AppendLine("#13:" + stopwatch.ElapsedMilliseconds);
-
             Assert.That(stopwatch.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(TestJobWithDelay.Delay.TotalMilliseconds).Within(5), sb.ToString());
+            Assert.That(completed.WaitOne(0), Is.True);
         }
 
         [Test]
         public async Task TestShutdownWithoutWaitShouldNotBlockUntilAllTasksHaveCompleted()
         {
+            var schedulerName = Guid.NewGuid().ToString();
+            var executing = new ManualResetEvent(false);
+            var completed = new ManualResetEvent(false);
+
             NameValueCollection properties = new NameValueCollection
                 {
+                    ["quartz.scheduler.instanceName"] = schedulerName,
                     ["quartz.threadPool.threadCount"] = "2"
                 };
             ISchedulerFactory factory = new StdSchedulerFactory(properties);
-            IScheduler scheduler = await factory.GetScheduler();
+            IScheduler scheduler = await factory.GetScheduler(schedulerName);
             await scheduler.Start();
 
-            var job = JobBuilder.Create<TestJobWithDelay>().Build();
+            var job = JobBuilder.Create<TestJobWithDelay>()
+                                .UsingJobData(TestJobWithDelay.CreateJobDataMap(executing, completed))
+                                .Build();
             IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
                 .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromMilliseconds(1)).RepeatForever())
                 .ForJob(job)
@@ -335,7 +341,7 @@ namespace Quartz.Tests.Unit
             await scheduler.ScheduleJob(job, trigger);
 
             // Wait for job to start executing
-            TestJobWithDelay.Executing.WaitOne();
+            executing.WaitOne();
 
             var stopwatch = Stopwatch.StartNew();
 
@@ -343,6 +349,8 @@ namespace Quartz.Tests.Unit
 
             // Shutdown should be fast since we're not waiting for tasks to complete
             Assert.That(stopwatch.ElapsedMilliseconds, Is.LessThan(40));
+            // The task should still be executing
+            Assert.That(completed.WaitOne(0), Is.False);
         }
 
         [Test]
