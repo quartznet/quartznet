@@ -89,6 +89,7 @@ namespace Quartz.Tests.Unit
             }
         }
 
+        /*
         [SetUp]
         protected async Task SetUp()
         {
@@ -103,6 +104,7 @@ namespace Quartz.Tests.Unit
             var crontTriggers = input.Split('|').Select(x => x.Trim()).Select(cronExpression => TriggerBuilder.Create().WithCronSchedule(cronExpression).Build());
             await scheduler.ScheduleJob(job, new List<ITrigger>(crontTriggers), replace: false);
         }
+        */
 
         [Test]
         public async Task TestBasicStorageFunctions()
