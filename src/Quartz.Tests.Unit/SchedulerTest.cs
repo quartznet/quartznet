@@ -359,7 +359,7 @@ namespace Quartz.Tests.Unit
             // The task should still be executing
             Assert.That(completed.WaitOne(0), Is.False, result);
 
-            // F*K ASYNC
+            // F*K ASYNC 2
 
             //Assert.Fail("SUCCESS: " + stopwatch.ElapsedMilliseconds + " | " + result);
         }
