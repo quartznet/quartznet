@@ -14,6 +14,7 @@ using Quartz.Spi;
 
 using System.IO;
 using System.Threading;
+using Quartz.Simpl;
 
 namespace Quartz.Tests.Unit
 {
@@ -308,10 +309,10 @@ namespace Quartz.Tests.Unit
 
             var stopwatch = Stopwatch.StartNew();
 
-            await scheduler.Shutdown(true);
+            var result = await scheduler.Shutdown(true);
 
-            Assert.That(stopwatch.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(TestJobWithDelay.Delay.TotalMilliseconds).Within(5));
-            Assert.That(completed.WaitOne(0), Is.True);
+            Assert.That(stopwatch.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(TestJobWithDelay.Delay.TotalMilliseconds).Within(5), result);
+            Assert.That(completed.WaitOne(0), Is.True, result);
         }
 
         [Test]
@@ -345,12 +346,12 @@ namespace Quartz.Tests.Unit
 
             var stopwatch = Stopwatch.StartNew();
 
-            await scheduler.Shutdown(false);
+            var result = await scheduler.Shutdown(false);
 
             // Shutdown should be fast since we're not waiting for tasks to complete
-            Assert.That(stopwatch.ElapsedMilliseconds, Is.LessThan(TestJobWithDelay.Delay.TotalMilliseconds - 50));
+            Assert.That(stopwatch.ElapsedMilliseconds, Is.LessThan(TestJobWithDelay.Delay.TotalMilliseconds - 50), result);
             // The task should still be executing
-            Assert.That(completed.WaitOne(0), Is.False);
+            Assert.That(completed.WaitOne(0), Is.False, result);
         }
 
         [Test]

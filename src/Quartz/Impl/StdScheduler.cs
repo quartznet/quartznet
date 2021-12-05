@@ -235,7 +235,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
-        public virtual Task Shutdown(
+        public virtual Task<string> Shutdown(
             bool waitForJobsToComplete,
             CancellationToken cancellationToken = default)
         {

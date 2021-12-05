@@ -38,6 +38,7 @@ using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
+using System.Diagnostics;
 
 #if REMOTING
 using System.Runtime.Remoting;
@@ -465,14 +466,19 @@ namespace Quartz.Core
         /// to return until all currently executing jobs have completed.
         /// </param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        public virtual async Task Shutdown(
+        public virtual async Task<string> Shutdown(
             bool waitForJobsToComplete,
             CancellationToken cancellationToken = default)
         {
             if (shuttingDown || closed)
             {
-                return;
+                return "Already shutting down";
             }
+
+            Stopwatch sw = Stopwatch.StartNew();
+            StringBuilder sb = new StringBuilder();
+
+            sb.AppendLine("Before Standby = " + sw.ElapsedMilliseconds);
 
             shuttingDown = true;
 
@@ -480,9 +486,15 @@ namespace Quartz.Core
 
             await Standby(cancellationToken).ConfigureAwait(false);
 
+            sb.AppendLine("After Standby = " + sw.ElapsedMilliseconds);
+
             await schedThread.Halt(waitForJobsToComplete).ConfigureAwait(false);
 
+            sb.AppendLine("After halt of scheduler thread = " + sw.ElapsedMilliseconds);
+
             await NotifySchedulerListenersShuttingdown(cancellationToken).ConfigureAwait(false);
+
+            sb.AppendLine("After NotifySchedulerListenersShuttingdown = " + sw.ElapsedMilliseconds);
 
             if (resources.InterruptJobsOnShutdown && !waitForJobsToComplete
                 || resources.InterruptJobsOnShutdownWithWait && waitForJobsToComplete)
@@ -494,12 +506,18 @@ namespace Quartz.Core
                 }
             }
 
+            sb.AppendLine("After cancel jobs = " + sw.ElapsedMilliseconds);
+
             resources.ThreadPool.Shutdown(waitForJobsToComplete);
+
+            sb.AppendLine("After shutdown of threadpool = " + sw.ElapsedMilliseconds);
 
             // Scheduler thread may have be waiting for the fire time of an acquired
             // trigger and need time to release the trigger once halted, so make sure
             // the thread is dead before continuing to shutdown the job store.
             await schedThread.Shutdown().ConfigureAwait(false);
+
+            sb.AppendLine("After shutdown of scheduler thread = " + sw.ElapsedMilliseconds);
 
             closed = true;
 
@@ -518,17 +536,29 @@ namespace Quartz.Core
                 }
             }
 
+            sb.AppendLine("After unbind = " + sw.ElapsedMilliseconds);
+
             await ShutdownPlugins(cancellationToken).ConfigureAwait(false);
+
+            sb.AppendLine("After shutdown of plugins = " + sw.ElapsedMilliseconds);
 
             await resources.JobStore.Shutdown(cancellationToken).ConfigureAwait(false);
 
+            sb.AppendLine("After shutdown of jobstore = " + sw.ElapsedMilliseconds);
+
             await NotifySchedulerListenersShutdown(cancellationToken).ConfigureAwait(false);
 
+            sb.AppendLine("After NotifySchedulerListenersShutdown = " + sw.ElapsedMilliseconds);
+
             SchedulerRepository.Instance.Remove(resources.Name);
+
+            sb.AppendLine("After remove of scheduler instance = " + sw.ElapsedMilliseconds);
 
             holdToPreventGc.Clear();
 
             log.Info($"Scheduler {resources.GetUniqueIdentifier()} Shutdown complete.");
+
+            return sb.ToString();
         }
 
         /// <summary>
