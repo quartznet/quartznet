@@ -352,6 +352,8 @@ namespace Quartz.Tests.Unit
             Assert.That(stopwatch.ElapsedMilliseconds, Is.LessThan(TestJobWithDelay.Delay.TotalMilliseconds - 50), result);
             // The task should still be executing
             Assert.That(completed.WaitOne(0), Is.False, result);
+
+            Assert.Fail(result);
         }
 
         [Test]
