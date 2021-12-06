@@ -318,7 +318,7 @@ namespace Quartz.Tests.Unit
             Assert.That(stopwatch.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(TestJobWithDelay.Delay.TotalMilliseconds).Within(5), result);
             Assert.That(completed.WaitOne(0), Is.True, result);
 
-            /// FIRE CI AGAIN
+            /// FIRE CI AGAIN 1
             //Assert.Fail("SUCCESS: " + stopwatch.ElapsedMilliseconds + " | " + result);
         }
 
