@@ -100,6 +100,7 @@ namespace System {
             DotNetTest(s => s
                 .EnableNoRestore()
                 .EnableNoBuild()
+                .AddLoggers("console;verbosity=normal")
                 .SetProjectFile(Solution.GetProject("Quartz.Tests.Unit"))
                 .SetConfiguration(Configuration)
                 .SetFramework(framework)
