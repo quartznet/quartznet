@@ -319,7 +319,7 @@ namespace Quartz.Tests.Unit
             Assert.That(completed.WaitOne(0), Is.True, result);
 
             /// FIRE CI AGAIN
-            //Assert.Fail("SUCCESS: " + stopwatch.ElapsedMilliseconds + " | " + result);
+            Assert.Fail("SUCCESS: " + stopwatch.ElapsedMilliseconds + " | " + result);
         }
 
         [Test]
