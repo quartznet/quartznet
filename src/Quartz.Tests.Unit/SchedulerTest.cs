@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 using NUnit.Framework;
@@ -12,7 +14,6 @@ using Quartz.Impl.Matchers;
 using Quartz.Job;
 using Quartz.Spi;
 
-using System.IO;
 
 namespace Quartz.Tests.Unit
 {
@@ -33,6 +34,46 @@ namespace Quartz.Tests.Unit
         {
             public Task Execute(IJobExecutionContext context)
             {
+                return Task.CompletedTask;
+            }
+        }
+
+        public class TestJobWithDelay : IJob
+        {
+            public const string ExecutingWaitHandleKey = "ExecutingWaitHandle";
+            public const string CompletedWaitHandleKey = "CompletedWaitHandle";
+
+            public static TimeSpan Delay = TimeSpan.FromMilliseconds(200);
+
+            public static JobDataMap CreateJobDataMap(ManualResetEvent executing, ManualResetEvent completed)
+            {
+                return new JobDataMap
+                    {
+                        { TestJobWithDelay.ExecutingWaitHandleKey, executing },
+                        { TestJobWithDelay.CompletedWaitHandleKey, completed }
+                    };
+            }
+
+            public Task Execute(IJobExecutionContext context)
+            {
+                if (!context.JobDetail.JobDataMap.TryGetValue(ExecutingWaitHandleKey, out var executing))
+                {
+                    throw new Exception($"Expected job data '{ExecutingWaitHandleKey}' not set.");
+                }
+
+                var signalExecuting = (ManualResetEvent) executing;
+                signalExecuting.Set();
+
+                Thread.Sleep(Delay);
+
+                if (!context.JobDetail.JobDataMap.TryGetValue(CompletedWaitHandleKey, out var completed))
+                {
+                    throw new Exception($"Expected job data '{CompletedWaitHandleKey}' not set.");
+                }
+
+                var signalCompleted = (ManualResetEvent) completed;
+                signalCompleted.Set();
+
                 return Task.CompletedTask;
             }
         }
@@ -237,24 +278,83 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
-        [Ignore("not suitable way to monitor tasks")]
-        public async Task TestShutdownWithSleepReturnsAfterAllThreadsAreStopped()
+        public void TestShutdownWithWaitShouldBlockUntilAllTasksHaveCompleted()
         {
-            int activeThreads = Process.GetCurrentProcess().Threads.Count;
-            int threadPoolSize = 5;
-            NameValueCollection properties = new NameValueCollection();
-            properties["quartz.threadPool.threadCount"] = threadPoolSize.ToString();
-            ISchedulerFactory factory = new StdSchedulerFactory(properties);
-            IScheduler scheduler = await factory.GetScheduler();
-            await scheduler.Start();
+            var schedulerName = Guid.NewGuid().ToString();
+            var executing = new ManualResetEvent(false);
+            var completed = new ManualResetEvent(false);
+            var properties = new NameValueCollection
+                {
+                    ["quartz.scheduler.instanceName"] = schedulerName,
+                    ["quartz.threadPool.threadCount"] = "2"
+                };
 
-            await Task.Delay(500);
+            var factory = new StdSchedulerFactory(properties);
+            var scheduler = factory.GetScheduler().GetAwaiter().GetResult();
+            scheduler.Start().GetAwaiter().GetResult();
 
-            await scheduler.Shutdown(true);
+            var job = JobBuilder.Create<TestJobWithDelay>()
+                                .UsingJobData(TestJobWithDelay.CreateJobDataMap(executing, completed))
+                                .Build();
+            IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
+                .WithSimpleSchedule(x => x.WithRepeatCount(0))
+                .ForJob(job)
+                .StartNow()
+                .Build();
+            scheduler.ScheduleJob(job, trigger).GetAwaiter().GetResult();
 
-            await Task.Delay(500);
+            // Wait for job to start executing
+            executing.WaitOne();
 
-            Assert.True(Process.GetCurrentProcess().Threads.Count <= activeThreads);
+            var stopwatch = Stopwatch.StartNew();
+
+            scheduler.Shutdown(true).GetAwaiter().GetResult();
+
+            stopwatch.Stop();
+
+            Assert.That(stopwatch.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(TestJobWithDelay.Delay.TotalMilliseconds).Within(5));
+            Assert.That(completed.WaitOne(0), Is.True);
+        }
+
+        [Test]
+        public void TestShutdownWithoutWaitShouldNotBlockUntilAllTasksHaveCompleted()
+        {
+            var schedulerName = Guid.NewGuid().ToString();
+            var executing = new ManualResetEvent(false);
+            var completed = new ManualResetEvent(false);
+            var properties = new NameValueCollection
+                {
+                    ["quartz.scheduler.instanceName"] = schedulerName,
+                    ["quartz.threadPool.threadCount"] = "2"
+                };
+
+            var factory = new StdSchedulerFactory(properties);
+            var scheduler = factory.GetScheduler().GetAwaiter().GetResult();
+            scheduler.Start().GetAwaiter().GetResult();
+
+            var job = JobBuilder.Create<TestJobWithDelay>()
+                                .UsingJobData(TestJobWithDelay.CreateJobDataMap(executing, completed))
+                                .Build();
+            IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
+                .WithSimpleSchedule(x => x.WithRepeatCount(0))
+                .ForJob(job)
+                .StartNow()
+                .Build();
+            scheduler.ScheduleJob(job, trigger).GetAwaiter().GetResult();
+
+            // Wait for job to start executing
+            executing.WaitOne();
+
+            var stopwatch = Stopwatch.StartNew();
+
+            scheduler.Shutdown(false).GetAwaiter().GetResult();
+
+            stopwatch.Stop();
+
+            // Shutdown should be fast since we're not waiting for tasks to complete
+            Assert.That(stopwatch.ElapsedMilliseconds, Is.LessThan(TestJobWithDelay.Delay.TotalMilliseconds - 50));
+            // The task should still be executing
+            Assert.That(completed.WaitOne(0), Is.False);
         }
 
         [Test]
@@ -293,7 +393,6 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
-        [Platform(Exclude="Linux")]  // TODO seems that we have some trouble on Linux with this
         public async Task ReschedulingTriggerShouldKeepOriginalNextFireTime()
         {
             NameValueCollection properties = new NameValueCollection();
@@ -302,26 +401,32 @@ namespace Quartz.Tests.Unit
             IScheduler scheduler = await factory.GetScheduler();
             await scheduler.Start();
 
+            // Delay starting the trigger by a second as we do not want it to get triggered
+            var triggerStartTime = DateTimeOffset.UtcNow.AddSeconds(1);
+
             var job = JobBuilder.Create<NoOpJob>().Build();
             IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
                 .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
                 .ForJob(job)
-                .StartNow()
+                .StartAt(triggerStartTime)
                 .Build();
 
             await scheduler.ScheduleJob(job, trigger);
 
             trigger = (IOperableTrigger) await scheduler.GetTrigger(trigger.Key);
+            Assert.That(trigger.StartTimeUtc, Is.EqualTo(triggerStartTime));
+            Assert.That(trigger.GetNextFireTimeUtc(), Is.EqualTo(triggerStartTime));
             Assert.That(trigger.GetPreviousFireTimeUtc(), Is.EqualTo(null));
 
-            var previousFireTimeUtc = DateTimeOffset.UtcNow.AddDays(1);
+            var previousFireTimeUtc = triggerStartTime.AddDays(1);
             trigger.SetPreviousFireTimeUtc(previousFireTimeUtc);
             trigger.SetNextFireTimeUtc(trigger.GetFireTimeAfter(previousFireTimeUtc));
 
             await scheduler.RescheduleJob(trigger.Key, trigger);
 
             trigger = (IOperableTrigger) await scheduler.GetTrigger(trigger.Key);
-            Assert.That(trigger.GetNextFireTimeUtc().Value.UtcDateTime, Is.EqualTo(previousFireTimeUtc.AddHours(1).UtcDateTime).Within(TimeSpan.FromSeconds(5)));
+            Assert.That(trigger.GetNextFireTimeUtc(), Is.Not.Null);
+            Assert.That(trigger.GetNextFireTimeUtc(), Is.EqualTo(previousFireTimeUtc.AddHours(1)));
 
             await scheduler.Shutdown(true);
         }
