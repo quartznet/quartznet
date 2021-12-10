@@ -197,7 +197,7 @@ There are a couple attributes that can be added to your Job class that affect Qu
 `[DisallowConcurrentExecution]` is an attribute that can be added to the Job class that tells Quartz not to execute multiple instances
 of a given job definition (that refers to the given job class) concurrently.
 Notice the wording there, as it was chosen very carefully. In the example from the previous section, if "SalesReportJob" has this attribute,
-than only one instance of "SalesReportForJoe" can execute at a given time, but it can execute concurrently with an instance of "SalesReportForMike".
+then only one instance of "SalesReportForJoe" can execute at a given time, but it can execute concurrently with an instance of "SalesReportForMike".
 The constraint is based upon an instance definition (JobDetail), not on instances of the job class.
 However, it was decided (during the design of Quartz) to have the attribute carried on the class itself, because it does often make a difference to how the class is coded.
 
