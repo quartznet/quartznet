@@ -278,7 +278,7 @@ First, the obvious, but not-so-practical:
 * Buy a better (more powerful) machine to run your database on.
 * Buy a better RDBMS.
 
-Sencondly, use driver delegate implementation that is specific to your database, like `SQLServerDelegate`, for best performance.
+Secondly, use driver delegate implementation that is specific to your database, like `SQLServerDelegate`, for best performance.
 
 ::: tip
 You should also always prefer the latest version of the library. Quartz.NET 2.0 is much more efficient than 1.x series and 2.2.x line again has AdoJobStore related performance improvements over earlier 2.x releases.
