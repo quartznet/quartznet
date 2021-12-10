@@ -145,7 +145,7 @@ Or if you wish to rely on the JobFactory "injecting" the data map values onto yo
 public class DumbJob : IJob
 {
 	public string JobSays { private get; set; }
-	public float FloatValue { private get; set; }
+	public float MyFloatValue { private get; set; }
 
 	public async Task Execute(IJobExecutionContext context)
 	{
@@ -156,7 +156,7 @@ public class DumbJob : IJob
 		IList<DateTimeOffset> state = (IList<DateTimeOffset>)dataMap["myStateData"];
 		state.Add(DateTimeOffset.UtcNow);
 
-		await Console.Error.WriteLineAsync("Instance " + key + " of DumbJob says: " + JobSays + ", and val is: " + FloatValue);
+		await Console.Error.WriteLineAsync("Instance " + key + " of DumbJob says: " + JobSays + ", and val is: " + MyFloatValue);
 	}
 }
 ```
