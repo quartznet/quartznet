@@ -267,7 +267,9 @@ namespace Quartz.Simpl
         {
             lock (lockObject)
             {
-                if (jobsByKey.TryGetValue(newJob.Key, out var originalJob))
+                var jobKey = newJob.Key;
+
+                if (jobsByKey.TryGetValue(jobKey, out var originalJob))
                 {
                     if (!replaceExisting)
                     {
@@ -280,18 +282,18 @@ namespace Quartz.Simpl
                 else
                 {
                     // get job group
-                    if (!jobsByGroup.TryGetValue(newJob.Key.Group, out var grpMap))
+                    if (!jobsByGroup.TryGetValue(jobKey.Group, out var grpMap))
                     {
                         grpMap = new Dictionary<JobKey, JobWrapper>();
-                        jobsByGroup[newJob.Key.Group] = grpMap;
+                        jobsByGroup[jobKey.Group] = grpMap;
                     }
 
                     JobWrapper jw = new JobWrapper(newJob.Clone());
 
                     // add to jobs by group
-                    grpMap[newJob.Key] = jw;
+                    grpMap[jobKey] = jw;
                     // add to jobs by FQN map
-                    jobsByKey[newJob.Key] = jw;
+                    jobsByKey[jobKey] = jw;
                 }
             }
         }
@@ -456,12 +458,12 @@ namespace Quartz.Simpl
                     }
 
                     // don't delete orphaned job, this trigger has the job anyways
-                    RemoveTriggerInternal(newTrigger.Key, removeOrphanedJob: false);
+                    RemoveTriggerInternal(tw.TriggerKey, removeOrphanedJob: false);
                 }
 
-                if (!CheckExistsInternal(newTrigger.JobKey))
+                if (!CheckExistsInternal(tw.JobKey))
                 {
-                    throw new JobPersistenceException("The job (" + newTrigger.JobKey +
+                    throw new JobPersistenceException("The job (" + tw.JobKey +
                                                       ") referenced by the trigger does not exist.");
                 }
 
@@ -474,16 +476,16 @@ namespace Quartz.Simpl
                 jobList.Add(tw);
 
                 // add to triggers by group
-                if (!triggersByGroup.TryGetValue(newTrigger.Key.Group, out var grpMap))
+                if (!triggersByGroup.TryGetValue(tw.TriggerKey.Group, out var grpMap))
                 {
                     grpMap = new Dictionary<TriggerKey, TriggerWrapper>();
-                    triggersByGroup[newTrigger.Key.Group] = grpMap;
+                    triggersByGroup[tw.TriggerKey.Group] = grpMap;
                 }
-                grpMap[newTrigger.Key] = tw;
+                grpMap[tw.TriggerKey] = tw;
                 // add to triggers by FQN map
                 triggersByKey[tw.TriggerKey] = tw;
 
-                if (pausedTriggerGroups.Contains(newTrigger.Key.Group) || pausedJobGroups.Contains(newTrigger.JobKey.Group))
+                if (pausedTriggerGroups.Contains(tw.TriggerKey.Group) || pausedJobGroups.Contains(tw.TriggerKey.Group))
                 {
                     tw.state = InternalTriggerState.Paused;
                     if (blockedJobs.Contains(tw.JobKey))
@@ -585,7 +587,7 @@ namespace Quartz.Simpl
 
                 if (found)
                 {
-                    if (!tw!.Trigger.JobKey.Equals(newTrigger.JobKey))
+                    if (!tw!.JobKey.Equals(newTrigger.JobKey))
                     {
                         throw new JobPersistenceException("New trigger is not related to the same job as the old trigger.");
                     }
@@ -801,10 +803,9 @@ namespace Quartz.Simpl
                     IEnumerable<TriggerWrapper> trigs = GetTriggerWrappersForCalendar(name);
                     foreach (TriggerWrapper tw in trigs)
                     {
-                        IOperableTrigger trig = tw.Trigger;
                         bool removed = timeTriggers.Remove(tw);
 
-                        trig.UpdateWithNewCalendar(calendar, MisfireThreshold);
+                        tw.Trigger.UpdateWithNewCalendar(calendar, MisfireThreshold);
 
                         if (removed)
                         {
@@ -975,10 +976,10 @@ namespace Quartz.Simpl
             GroupMatcher<TriggerKey> matcher,
             CancellationToken cancellationToken = default)
         {
-            return Task.FromResult(GetTriggerKeysInternal(matcher));
+            return Task.FromResult<IReadOnlyCollection<TriggerKey>>(GetTriggerKeysInternal(matcher));
         }
 
-        private IReadOnlyCollection<TriggerKey> GetTriggerKeysInternal(GroupMatcher<TriggerKey> matcher)
+        private HashSet<TriggerKey> GetTriggerKeysInternal(GroupMatcher<TriggerKey> matcher)
         {
             lock (lockObject)
             {
@@ -992,7 +993,7 @@ namespace Quartz.Simpl
                     {
                         foreach (TriggerWrapper tw in grpMap.Values)
                         {
-                            outList.Add(tw.Trigger.Key);
+                            outList.Add(tw.TriggerKey);
                         }
                     }
                 }
@@ -1004,7 +1005,7 @@ namespace Quartz.Simpl
                         {
                             foreach (TriggerWrapper triggerWrapper in entry.Value.Values)
                             {
-                                outList.Add(triggerWrapper.Trigger.Key);
+                                outList.Add(triggerWrapper.TriggerKey);
                             }
                         }
                     }
@@ -1315,7 +1316,7 @@ namespace Quartz.Simpl
                     return;
                 }
 
-                if (blockedJobs.Contains(tw.Trigger.JobKey))
+                if (blockedJobs.Contains(tw.JobKey))
                 {
                     tw.state = InternalTriggerState.Blocked;
                 }
@@ -1345,10 +1346,10 @@ namespace Quartz.Simpl
             GroupMatcher<TriggerKey> matcher,
             CancellationToken cancellationToken = default)
         {
-            return Task.FromResult(ResumeTriggersInternal(matcher));
+            return Task.FromResult<IReadOnlyCollection<string>>(ResumeTriggersInternal(matcher));
         }
 
-        private IReadOnlyCollection<string> ResumeTriggersInternal(GroupMatcher<TriggerKey> matcher)
+        private HashSet<string> ResumeTriggersInternal(GroupMatcher<TriggerKey> matcher)
         {
             lock (lockObject)
             {
