@@ -485,7 +485,7 @@ namespace Quartz.Simpl
                 // add to triggers by FQN map
                 triggersByKey[tw.TriggerKey] = tw;
 
-                if (pausedTriggerGroups.Contains(tw.TriggerKey.Group) || pausedJobGroups.Contains(tw.TriggerKey.Group))
+                if (pausedTriggerGroups.Contains(tw.TriggerKey.Group) || pausedJobGroups.Contains(tw.JobKey.Group))
                 {
                     tw.state = InternalTriggerState.Paused;
                     if (blockedJobs.Contains(tw.JobKey))
