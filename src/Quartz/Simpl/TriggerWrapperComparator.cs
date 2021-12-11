@@ -41,7 +41,7 @@ namespace Quartz.Simpl
         /// <filterpriority>2</filterpriority>
         public override int GetHashCode()
         {
-            return ttc?.GetHashCode() ?? 0;
+            return ttc.GetHashCode();
         }
     }
 }
