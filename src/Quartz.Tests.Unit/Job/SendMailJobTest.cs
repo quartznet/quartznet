@@ -119,7 +119,7 @@ namespace Quartz.Tests.Unit.Job
         }
     }
 
-    internal class ExpectedMail
+    internal sealed class ExpectedMail
     {
         public readonly string recipient;
         public readonly string sender;
@@ -154,7 +154,7 @@ namespace Quartz.Tests.Unit.Job
         }
     }
 
-    internal class TestSendMailJob : SendMailJob
+    internal sealed class TestSendMailJob : SendMailJob
     {
         public MailMessage actualMailSent = new MailMessage();
         public string actualSmtpHost = "ad";

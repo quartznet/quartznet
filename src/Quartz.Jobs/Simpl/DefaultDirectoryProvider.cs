@@ -11,7 +11,7 @@ namespace Quartz.Simpl
     /// for the entries <see cref="DirectoryScanJob.DirectoryName"/> and <see cref="DirectoryScanJob.DirectoryNames"/>
     /// to supply the directory paths
     /// </summary>
-    internal class DefaultDirectoryProvider : IDirectoryProvider
+    internal sealed class DefaultDirectoryProvider : IDirectoryProvider
     {
         public IReadOnlyList<string> GetDirectoriesToScan(JobDataMap mergedJobDataMap)
         {

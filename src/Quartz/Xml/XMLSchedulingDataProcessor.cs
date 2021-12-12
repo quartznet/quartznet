@@ -1100,7 +1100,7 @@ namespace Quartz.Xml
         /// <summary>
         /// Helper class to map constant names to their values.
         /// </summary>
-        internal class Constants
+        internal sealed class Constants
         {
             private readonly Type[] types;
 

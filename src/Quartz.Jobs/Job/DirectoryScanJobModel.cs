@@ -11,7 +11,7 @@ namespace Quartz.Job
     /// <summary>
     /// Internal model to hold settings used by <see cref="DirectoryScanJob"/>
     /// </summary>
-    internal class DirectoryScanJobModel
+    internal sealed class DirectoryScanJobModel
     {
         /// <summary>
         /// We only want this type of object to be instantiated by inspecting the data 
