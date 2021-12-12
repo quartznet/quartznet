@@ -54,7 +54,7 @@ namespace Quartz.Impl
         /// </returns>
         public static JobTypeInformation GetOrCreate(Type jobType)
         {
-            return jobTypeCache.GetOrAdd(jobType, Create(jobType));
+            return jobTypeCache.GetOrAdd(jobType, jt => Create(jt));
         }
 
         private static JobTypeInformation Create(Type jobType)
