@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 
 namespace Quartz
 {
-    internal class QuartzHostedService : IHostedService
+    internal sealed class QuartzHostedService : IHostedService
     {
         private readonly IApplicationLifetime applicationLifetime;
         private readonly ISchedulerFactory schedulerFactory;

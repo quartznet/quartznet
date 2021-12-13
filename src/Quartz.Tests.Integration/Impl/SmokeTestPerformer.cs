@@ -468,7 +468,7 @@ namespace Quartz.Tests.Integration.Impl
     }
 
     [Serializable]
-    internal class CustomCalendar : BaseCalendar
+    internal sealed class CustomCalendar : BaseCalendar
     {
         public bool SomeCustomProperty { get; set; } = true;
 
@@ -488,7 +488,7 @@ namespace Quartz.Tests.Integration.Impl
         {
         }
 
-        protected CustomCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
+        private CustomCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
         {
             SomeCustomProperty = info?.GetBoolean("SomeCustomProperty") ?? true;
         }
@@ -500,7 +500,7 @@ namespace Quartz.Tests.Integration.Impl
         }
     }
 
-    internal class CustomCalendarSerializer : CalendarSerializer<CustomCalendar>
+    internal sealed class CustomCalendarSerializer : CalendarSerializer<CustomCalendar>
     {
         protected override CustomCalendar Create(JObject source)
         {

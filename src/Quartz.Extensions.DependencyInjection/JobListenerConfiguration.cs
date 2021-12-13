@@ -2,7 +2,7 @@ using System;
 
 namespace Quartz
 {
-    internal class JobListenerConfiguration
+    internal sealed class JobListenerConfiguration
     {
         public JobListenerConfiguration(Type listenerType, IMatcher<JobKey>[] matchers)
         {

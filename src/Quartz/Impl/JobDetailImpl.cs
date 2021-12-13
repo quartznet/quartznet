@@ -35,7 +35,7 @@ namespace Quartz.Impl
     /// </summary>
     /// <seealso cref="DisallowConcurrentExecutionAttribute"/>
     /// <seealso cref="PersistJobDataAfterExecutionAttribute"/>
-    internal class JobTypeInformation
+    internal sealed class JobTypeInformation
     {
         internal bool ConcurrentExecutionDisallowed { get; set; }
         internal bool PersistJobDataAfterExecution { get; set; }

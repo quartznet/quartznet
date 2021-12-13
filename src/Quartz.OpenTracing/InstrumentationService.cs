@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Hosting;
 using System;
 using System.Diagnostics;
 using System.Threading;
@@ -9,7 +9,7 @@ namespace Quartz.OpenTracing
     /// <summary>
     /// Starts and stops OpenTracing instrumentation component.
     /// </summary>
-    internal class InstrumentationService : IHostedService
+    internal sealed class InstrumentationService : IHostedService
     {
         private readonly QuartzDiagnostic quartzDiagnostic;
         private IDisposable? subscription;

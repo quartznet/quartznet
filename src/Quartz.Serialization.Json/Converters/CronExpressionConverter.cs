@@ -7,7 +7,7 @@ using Quartz.Util;
 
 namespace Quartz.Converters
 {
-    internal class CronExpressionConverter : JsonConverter
+    internal sealed class CronExpressionConverter : JsonConverter
     {
         public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
         {

@@ -15,7 +15,7 @@ namespace Quartz
     /// <summary>
     /// Wrapper to initialize registered jobs.
     /// </summary>
-    internal class ServiceCollectionSchedulerFactory : StdSchedulerFactory
+    internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
     {
         private readonly IServiceProvider serviceProvider;
         private readonly IOptions<QuartzOptions> options;

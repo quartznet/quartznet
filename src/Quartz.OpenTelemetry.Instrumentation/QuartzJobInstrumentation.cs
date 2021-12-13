@@ -8,7 +8,7 @@ using Quartz.OpenTelemetry.Instrumentation.Implementation;
 
 namespace Quartz.OpenTelemetry.Instrumentation
 {
-    internal class QuartzJobInstrumentation : IDisposable
+    internal sealed class QuartzJobInstrumentation : IDisposable
     {
         private readonly DiagnosticSourceSubscriber diagnosticSourceSubscriber;
 

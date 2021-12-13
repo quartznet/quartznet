@@ -6,7 +6,7 @@ using Quartz.Logging;
 
 namespace Quartz.Simpl
 {
-    internal class MicrosoftLoggingProvider : ILogProvider
+    internal sealed class MicrosoftLoggingProvider : ILogProvider
     {
         private readonly ILoggerFactory loggerFactory;
 

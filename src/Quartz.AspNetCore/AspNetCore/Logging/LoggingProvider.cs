@@ -4,7 +4,7 @@ using System;
 
 namespace Quartz.AspNetCore.Logging
 {
-    internal class LoggingProvider : ILogProvider
+    internal sealed class LoggingProvider : ILogProvider
     {
         private readonly ILoggerFactory loggerFactory;
 
