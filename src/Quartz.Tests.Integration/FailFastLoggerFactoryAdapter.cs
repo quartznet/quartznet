@@ -5,7 +5,7 @@ using Quartz.Logging;
 
 namespace Quartz.Tests.Integration
 {
-    internal class FailFastLoggerFactoryAdapter : ILogProvider
+    internal sealed class FailFastLoggerFactoryAdapter : ILogProvider
     {
         private static readonly IDisposable NoopDisposableInstance = new DisposableAction();
 

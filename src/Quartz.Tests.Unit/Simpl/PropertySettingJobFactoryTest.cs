@@ -224,7 +224,7 @@ namespace Quartz.Tests.Unit.Simpl
 			Assert.AreEqual((byte) 6, myObject.ByteValue);
 		}
 
-		internal class TestObject
+		internal sealed class TestObject
 		{
 		    public bool BooleanValue { get; set; }
 

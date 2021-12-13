@@ -178,7 +178,7 @@ namespace Quartz.Tests.Unit.Utils
         }
     }
 
-    internal class ExplicitImplementor : IThreadPool
+    internal sealed class ExplicitImplementor : IThreadPool
     {
         public bool RunInThread(Func<Task> runnable)
         {
