@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -7,7 +7,7 @@ using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore
 {
-    internal class ClusterManager
+    internal sealed class ClusterManager
     {
         private readonly ILog log;
 
