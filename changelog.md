@@ -172,6 +172,7 @@ There's also important fix for SQL Server where varying text parameter sizes cau
     * Remove dependency on Microsoft.Data.SqlClient (#912)
     * LogContext moved from Quartz namespace to Quartz.Logging namespace (#915)
     * For Full Framework, System.Data.SqlClient is again the default provider, Microsoft.Data can be used via provider MicrosoftDataSqlClient (#916)
+    * `QuartzSchedlingOptions` was renamed to `SchedulingOptions`
 
 * FIXES
 
