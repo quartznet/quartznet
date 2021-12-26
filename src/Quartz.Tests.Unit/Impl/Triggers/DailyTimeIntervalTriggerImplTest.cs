@@ -21,7 +21,9 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
+using System.Threading;
 
 using NUnit.Framework;
 
@@ -382,11 +384,11 @@ namespace Quartz.Tests.Unit.Impl.Triggers
             var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
             Assert.AreEqual(48, fireTimes.Count);
             Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 3, 1, 2011), fireTimes[0]);
-            Assert.AreEqual(DayOfWeek.Monday, fireTimes[0].DayOfWeek);
+            Assert.AreEqual(DayOfWeek.Monday, fireTimes[0].LocalDateTime.DayOfWeek);
             Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 4, 1, 2011), fireTimes[10]);
-            Assert.AreEqual(DayOfWeek.Tuesday, fireTimes[10].DayOfWeek);
+            Assert.AreEqual(DayOfWeek.Tuesday, fireTimes[10].LocalDateTime.DayOfWeek);
             Assert.AreEqual(DateBuilder.DateOf(15, 0, 0, 7, 1, 2011), fireTimes[47]);
-            Assert.AreEqual(DayOfWeek.Friday, fireTimes[47].DayOfWeek);
+            Assert.AreEqual(DayOfWeek.Friday, fireTimes[47].LocalDateTime.DayOfWeek);
         }
 
         [Test]
@@ -409,21 +411,23 @@ namespace Quartz.Tests.Unit.Impl.Triggers
             var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
             Assert.AreEqual(48, fireTimes.Count);
             Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011), fireTimes[0]);
-            Assert.AreEqual(DayOfWeek.Saturday, fireTimes[0].DayOfWeek);
+            Assert.AreEqual(DayOfWeek.Saturday, fireTimes[0].LocalDateTime.DayOfWeek);
             Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 2, 1, 2011), fireTimes[10]);
-            Assert.AreEqual(DayOfWeek.Sunday, fireTimes[10].DayOfWeek);
+            Assert.AreEqual(DayOfWeek.Sunday, fireTimes[10].LocalDateTime.DayOfWeek);
             Assert.AreEqual(DateBuilder.DateOf(15, 0, 0, 15, 1, 2011), fireTimes[47]);
-            Assert.AreEqual(DayOfWeek.Saturday, fireTimes[47].DayOfWeek);
+            Assert.AreEqual(DayOfWeek.Saturday, fireTimes[47].LocalDateTime.DayOfWeek);
         }
 
-        [Test]
-        public void TestMonOnly()
+        [TestCase(-14)]
+        [TestCase(0)]
+        [TestCase(10)]
+        public void TestMonOnly(int tzOffsetHours)
         {
             var daysOfWeek = new HashSet<DayOfWeek>
             {
                 DayOfWeek.Monday
             };
-            DateTimeOffset startTime = DateBuilder.DateOf(0, 0, 0, 1, 1, 2011); // SAT(7)
+            DateTimeOffset startTime = new DateTimeOffset(2011, 1, 1, 0, 0, 0, TimeSpan.FromHours(tzOffsetHours)); // SAT(7)
             TimeOfDay startTimeOfDay = new TimeOfDay(8, 0, 0);
             TimeOfDay endTimeOfDay = new TimeOfDay(17, 0, 0);
             var trigger = new DailyTimeIntervalTriggerImpl
@@ -439,11 +443,11 @@ namespace Quartz.Tests.Unit.Impl.Triggers
             var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
             Assert.AreEqual(48, fireTimes.Count);
             Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 3, 1, 2011), fireTimes[0]);
-            Assert.AreEqual(DayOfWeek.Monday, fireTimes[0].DayOfWeek);
+            Assert.AreEqual(DayOfWeek.Monday, fireTimes[0].LocalDateTime.DayOfWeek);
             Assert.AreEqual(DateBuilder.DateOf(8, 0, 0, 10, 1, 2011), fireTimes[10]);
-            Assert.AreEqual(DayOfWeek.Monday, fireTimes[10].DayOfWeek);
+            Assert.AreEqual(DayOfWeek.Monday, fireTimes[10].LocalDateTime.DayOfWeek);
             Assert.AreEqual(DateBuilder.DateOf(15, 0, 0, 31, 1, 2011), fireTimes[47]);
-            Assert.AreEqual(DayOfWeek.Monday, fireTimes[47].DayOfWeek);
+            Assert.AreEqual(DayOfWeek.Monday, fireTimes[47].LocalDateTime.DayOfWeek);
         }
 
         [Test]
