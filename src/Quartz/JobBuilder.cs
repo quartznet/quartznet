@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /* 
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -67,9 +67,11 @@ namespace Quartz
     {
         private JobKey? key;
         private string? description;
-        private Type jobType = null!;
+        private Type? jobType;
         private bool durability;
         private bool shouldRecover;
+        private bool? _concurrentExecutionDisallowed;
+        private bool? _persistJobDataAfterExecution;
 
         private JobDataMap jobDataMap = new JobDataMap();
 
@@ -135,24 +137,70 @@ namespace Quartz
         /// <returns>the defined JobDetail.</returns>
         public IJobDetail Build()
         {
-            JobDetailImpl job = new JobDetailImpl();
+            var concurrentExecutionDisallowed = _concurrentExecutionDisallowed;
+            var persistJobDataAfterExecution = _persistJobDataAfterExecution;
 
-            job.JobType = jobType;
-            job.Description = description;
-            if (key == null)
+            // When the user specified a job type, we can deduce the values for
+            // ConcurrentExecutionDisallowed and PersistJobDataAfterExecution if
+            // no explicit values were specified
+            if (jobType != null)
             {
-                key = new JobKey(Guid.NewGuid().ToString());
-            }
-            job.Key = key;
-            job.Durable = durability;
-            job.RequestsRecovery = shouldRecover;
+                if (!_concurrentExecutionDisallowed.HasValue)
+                {
+                    concurrentExecutionDisallowed = JobTypeInformation.GetOrCreate(jobType).ConcurrentExecutionDisallowed;
+                }
 
-            if (!jobDataMap.IsEmpty)
-            {
-                job.JobDataMap = jobDataMap;
+                if (!persistJobDataAfterExecution.HasValue)
+                {
+                    persistJobDataAfterExecution = JobTypeInformation.GetOrCreate(jobType).PersistJobDataAfterExecution;
+                }
             }
 
-            return job;
+            return new JobDetailImpl(Key ?? new JobKey(Guid.NewGuid().ToString()),
+                                     jobType,
+                                     description,
+                                     durability,
+                                     shouldRecover,
+                                     jobDataMap.IsEmpty ? null : jobDataMap,
+                                     concurrentExecutionDisallowed,
+                                     persistJobDataAfterExecution);
+        }
+
+
+        /// <summary>
+        /// Instructs the <see cref="IScheduler" /> whether or not concurrent execution of the job should be disallowed.
+        /// </summary>
+        /// <param name="concurrentExecutionDisallowed">Indicates whether or not concurrent execution of the job should be disallowed.</param>
+        /// <returns>
+        /// The updated <see cref="JobBuilder"/>.
+        /// </returns>
+        /// <remarks>
+        /// If not explicitly set, concurrent execution of a job is only disallowed it either the <see cref="IJobDetail.JobType"/> itself,
+        /// one of its ancestors or one of the interfaces that it implements, is annotated with <see cref="DisallowConcurrentExecutionAttribute"/>.
+        /// </remarks>
+        /// <seealso cref="DisallowConcurrentExecutionAttribute"/>
+        public JobBuilder DisallowConcurrentExecution(bool concurrentExecutionDisallowed = true)
+        {
+            _concurrentExecutionDisallowed = concurrentExecutionDisallowed;
+            return this;
+        }
+
+        /// <summary>
+        /// Instructs the <see cref="IScheduler" /> whether or not job data should be re-stored when execution of the job completes.
+        /// </summary>
+        /// <param name="persistJobDataAfterExecution">Indicates whether or not job data should be re-stored when execution of the job completes.</param>
+        /// <returns>
+        /// The updated <see cref="JobBuilder"/>.
+        /// </returns>
+        /// <remarks>
+        /// If not explicitly set, job data is only re-stored it either the <see cref="IJobDetail.JobType"/> itself, one of
+        /// its ancestors or one of the interfaces that it implements, is annotated with <see cref="PersistJobDataAfterExecutionAttribute"/>.
+        /// </remarks>
+        /// <seealso cref="PersistJobDataAfterExecutionAttribute"/>
+        public JobBuilder PersistJobDataAfterExecution(bool persistJobDataAfterExecution = true)
+        {
+            _persistJobDataAfterExecution = persistJobDataAfterExecution;
+            return this;
         }
 
         /// <summary>

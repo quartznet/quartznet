@@ -37,8 +37,36 @@ namespace Quartz.Impl
     /// <seealso cref="PersistJobDataAfterExecutionAttribute"/>
     internal sealed class JobTypeInformation
     {
-        internal bool ConcurrentExecutionDisallowed { get; set; }
-        internal bool PersistJobDataAfterExecution { get; set; }
+        private static readonly ConcurrentDictionary<Type, JobTypeInformation> jobTypeCache = new ConcurrentDictionary<Type, JobTypeInformation>();
+
+        public JobTypeInformation(bool concurrentExecutionDisallowed, bool persistJobDataAfterExecution)
+        {
+            ConcurrentExecutionDisallowed = concurrentExecutionDisallowed;
+            PersistJobDataAfterExecution = persistJobDataAfterExecution;
+        }
+
+        /// <summary>
+        /// Return information about JobType as an instance
+        /// </summary>
+        /// <param name="jobType">The type for which information will be searched</param>
+        /// <returns>
+        /// An <see cref="JobTypeInformation"/> object that describe specified type 
+        /// </returns>
+        public static JobTypeInformation GetOrCreate(Type jobType)
+        {
+            return jobTypeCache.GetOrAdd(jobType, jt => Create(jt));
+        }
+
+        private static JobTypeInformation Create(Type jobType)
+        {
+            var concurrentExecutionDisallowed = ObjectUtils.IsAnyInterfaceAttributePresent(jobType, typeof(DisallowConcurrentExecutionAttribute));
+            var persistJobDataAfterExecution = ObjectUtils.IsAnyInterfaceAttributePresent(jobType, typeof(PersistJobDataAfterExecutionAttribute));
+
+            return new JobTypeInformation(concurrentExecutionDisallowed, persistJobDataAfterExecution);
+        }
+
+        public bool ConcurrentExecutionDisallowed { get; }
+        public bool PersistJobDataAfterExecution { get; }
     }
 
     /// <summary>
@@ -67,13 +95,13 @@ namespace Quartz.Impl
     [Serializable]
     public class JobDetailImpl : IJobDetail
     {
-        private static readonly ConcurrentDictionary<Type, JobTypeInformation> jobTypeCache = new ConcurrentDictionary<Type, JobTypeInformation>();
-
         private string name = null!;
         private string group = SchedulerConstants.DefaultGroup;
         private string? description;
         private JobDataMap jobDataMap = null!;
         private Type jobType = null!;
+        private bool? disallowConcurrentExecution;
+        private bool? persistJobDataAfterExecution;
 
         [NonSerialized] // we have the key in string fields
         private JobKey key = null!;
@@ -141,6 +169,42 @@ namespace Quartz.Impl
         }
 
         /// <summary>
+        /// Create a <see cref="IJobDetail" /> with the given name, and group, and
+        /// the given settings of all the other properties.
+        /// </summary>
+        /// <param name="key">The key of the job.</param>
+        /// <param name="jobType">Type of the job.</param>
+        /// <param name="description">The description given to the <see cref="IJob" /> instance by its creator.</param>
+        /// <param name="isDurable">if set to <c>true</c>, job will be durable.</param>
+        /// <param name="requestsRecovery">if set to <c>true</c>, job will request recovery.</param>
+        /// <param name="jobDataMap">The data that is associated with the <see cref="IJob" />.</param>
+        /// <param name="disallowConcurrentExecution">Indicates whether or not concurrent exection of the job should be disallowed.</param>
+        /// <param name="persistJobDataAfterExecution">Indicates whether or not job data should re-stored when execution of the job completes.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
+        internal JobDetailImpl(JobKey key,
+                               Type? jobType,
+                               string? description,
+                               bool isDurable,
+                               bool requestsRecovery,
+                               JobDataMap? jobDataMap,
+                               bool? disallowConcurrentExecution,
+                               bool? persistJobDataAfterExecution)
+        {
+            Key = key;
+            JobType = jobType!;
+            Description = description;
+            Durable = isDurable;
+            RequestsRecovery = requestsRecovery;
+            this.disallowConcurrentExecution = disallowConcurrentExecution;
+            this.persistJobDataAfterExecution = persistJobDataAfterExecution;
+
+            if (jobDataMap != null)
+            {
+                this.jobDataMap = jobDataMap;
+            }
+        }
+
+        /// <summary>
         /// Get or sets the name of this <see cref="IJob" />.
         /// </summary>
         /// <exception cref="ArgumentException">
@@ -150,7 +214,7 @@ namespace Quartz.Impl
         {
             get => name;
 
-            set
+            private set
             {
                 if (string.IsNullOrWhiteSpace(value))
                 {
@@ -171,7 +235,7 @@ namespace Quartz.Impl
         public string Group
         {
             get => group;
-            set
+            private set
             {
                 if (value != null && value.Trim().Length == 0)
                 {
@@ -212,7 +276,7 @@ namespace Quartz.Impl
 
                 return key;
             }
-            set
+            internal set
             {
                 if (value is null)
                 {
@@ -236,7 +300,7 @@ namespace Quartz.Impl
         public string? Description
         {
             get => description;
-            set => description = value;
+            private set => description = value;
         }
 
         /// <summary>
@@ -248,7 +312,7 @@ namespace Quartz.Impl
         public virtual Type JobType
         {
             get => jobType;
-            set
+            private set
             {
                 if (value == null)
                 {
@@ -278,7 +342,7 @@ namespace Quartz.Impl
                 return jobDataMap;
             }
 
-            set => jobDataMap = value;
+            private set => jobDataMap = value;
         }
 
         /// <summary>
@@ -290,7 +354,7 @@ namespace Quartz.Impl
         /// </para>
         /// </summary>
         /// <seealso cref="IJobExecutionContext.Recovering" />
-        public bool RequestsRecovery { set; get; }
+        public bool RequestsRecovery { get; private set; }
 
         /// <summary>
         /// Whether or not the <see cref="IJob" /> should remain stored after it is
@@ -303,17 +367,48 @@ namespace Quartz.Impl
         /// <see langword="true" /> if the Job should remain persisted after
         /// being orphaned.
         /// </returns>
-        public bool Durable { get; set; }
+        public bool Durable { get; private set; }
 
         /// <summary>
-        /// Whether the associated Job class carries the <see cref="PersistJobDataAfterExecutionAttribute" /> attribute.
+        /// Gets a value indicating whether job data should be re-stored when execution of the job completes.
         /// </summary>
-        public virtual bool PersistJobDataAfterExecution => jobTypeCache.GetOrAdd(this.jobType, GetJobTypeInformation).PersistJobDataAfterExecution;
+        /// <value>
+        /// <see langword="true"/> if job data should be re-stored when execution of the job completes; otherwise,
+        /// <see langword="false"/>.
+        /// </value>
+        /// <seealso cref="PersistJobDataAfterExecutionAttribute"/>
+        public virtual bool PersistJobDataAfterExecution
+        {
+            get
+            {
+                if (!persistJobDataAfterExecution.HasValue)
+                {
+                    persistJobDataAfterExecution = JobTypeInformation.GetOrCreate(JobType).PersistJobDataAfterExecution;
+                }
+
+                return persistJobDataAfterExecution.GetValueOrDefault();
+            }
+        }
 
         /// <summary>
-        /// Whether the associated Job class carries the <see cref="DisallowConcurrentExecutionAttribute" /> attribute.
+        /// Gets a value indicating whether concurrent execution of the job should be disallowed.
         /// </summary>
-        public virtual bool ConcurrentExecutionDisallowed => jobTypeCache.GetOrAdd(this.jobType, GetJobTypeInformation).ConcurrentExecutionDisallowed;
+        /// <value>
+        /// <see langword="true"/> if concurrent execution is disallowed; otherwise, <see langword="false"/>.
+        /// </value>
+        /// <seealso cref="DisallowConcurrentExecutionAttribute"/>
+        public virtual bool ConcurrentExecutionDisallowed
+        {
+            get
+            {
+                if (!disallowConcurrentExecution.HasValue)
+                {
+                    disallowConcurrentExecution = JobTypeInformation.GetOrCreate(JobType).ConcurrentExecutionDisallowed;
+                }
+
+                return disallowConcurrentExecution.GetValueOrDefault();
+            }
+        }
 
         /// <summary>
         /// Validates whether the properties of the <see cref="IJobDetail" /> are
@@ -422,31 +517,16 @@ namespace Quartz.Impl
         public virtual JobBuilder GetJobBuilder()
         {
             JobBuilder b = JobBuilder.Create()
-                .OfType(JobType)
-                .RequestRecovery(RequestsRecovery)
-                .StoreDurably(Durable)
-                .UsingJobData(JobDataMap)
-                .WithDescription(description)
-                .WithIdentity(Key);
+                                     .OfType(JobType)
+                                     .RequestRecovery(RequestsRecovery)
+                                     .StoreDurably(Durable)
+                                     .UsingJobData(JobDataMap)
+                                     .DisallowConcurrentExecution(ConcurrentExecutionDisallowed)
+                                     .PersistJobDataAfterExecution(PersistJobDataAfterExecution)
+                                     .WithDescription(description)
+                                     .WithIdentity(Key);
 
             return b;
-        }
-
-        /// <summary>
-        /// Return information about JobType as an instance
-        /// </summary>
-        /// <param name="jobType">The type for which information will be searched</param>
-        /// <returns>
-        /// An <see cref="JobTypeInformation"/> object that describe specified type 
-        /// </returns>
-        /// <seealso cref="jobType"/>
-        private JobTypeInformation GetJobTypeInformation(Type jobType)
-        {
-            return new JobTypeInformation
-            {
-                PersistJobDataAfterExecution = ObjectUtils.IsAnyInterfaceAttributePresent(jobType, typeof(PersistJobDataAfterExecutionAttribute)),
-                ConcurrentExecutionDisallowed = ObjectUtils.IsAnyInterfaceAttributePresent(jobType, typeof(DisallowConcurrentExecutionAttribute))
-            };
         }
     }
 }
