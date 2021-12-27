@@ -9,11 +9,11 @@ By default, this prevents jobs from running while the application is still start
 
 * IMPROVEMENTS
 
-  * Jobs now start executing after application startup completes successfully (#1432)
+  * Jobs now start executing after application startup completes successfully ([#1432](https://github.com/quartznet/quartznet/issues/1432))
 
 * NEW FEATURES
 
-  * QuartzHostedServiceOptions can let jobs be started as part of application startup, as before this version  (#1432)
+  * QuartzHostedServiceOptions can let jobs be started as part of application startup, as before this version  ([#1432](https://github.com/quartznet/quartznet/issues/1432))
 
 ## Release 3.3.3, Aug 1 2021
 
@@ -21,22 +21,22 @@ This is a maintenance release mostly fixing some smaller bugs and improving DI A
 
 * FIXES
 
-    * Lock 'TRIGGER_ACCESS' attempt to return by: de9325af-3e1c-4ae9-a99b-24be994b75f4 -- but not owner! (#1236)
-    * ScheduleJob shorthand: Job name should match trigger name by default (#1211)
-    * CronTriggerImpl.WillFireOn returns wrong result when TimeZone is specified (#1187)
-    * Race condition in DI scheduler listener initialization (#1117)
-    * JobRunShell handle Job CancellationToken (#1183)
-    * Restore System.Data.SqlClient support on .NET Core (#1181)
+    * Lock 'TRIGGER_ACCESS' attempt to return by: de9325af-3e1c-4ae9-a99b-24be994b75f4 -- but not owner! ([#1236](https://github.com/quartznet/quartznet/issues/1236))
+    * ScheduleJob shorthand: Job name should match trigger name by default ([#1211](https://github.com/quartznet/quartznet/issues/1211))
+    * CronTriggerImpl.WillFireOn returns wrong result when TimeZone is specified ([#1187](https://github.com/quartznet/quartznet/issues/1187))
+    * Race condition in DI scheduler listener initialization ([#1117](https://github.com/quartznet/quartznet/issues/1117))
+    * JobRunShell handle Job CancellationToken ([#1183](https://github.com/quartznet/quartznet/issues/1183))
+    * Restore System.Data.SqlClient support on .NET Core ([#1181](https://github.com/quartznet/quartznet/issues/1181))
 
 * IMPROVEMENTS
  
-    * Replace static loggers with instance-based (#1264)
-    * Expose more configuration options via programmatic APIs (#1263)
-    * Add ConfigureScope extension point to MicrosoftDependencyInjectionJobFactory (#1189)
-    * Update StdAdoConstants.cs (#1186)
-    * Use custom InstantiateType for all instantiations in StdSchedulerFactory (#1185)
-    * Add support for the ISchedulerFactory.StartDelayed in the QuartzHostedService (#1166)
-    * Remove SimpleThreadPool from examples? (#1230)
+    * Replace static loggers with instance-based ([#1264](https://github.com/quartznet/quartznet/issues/1264))
+    * Expose more configuration options via programmatic APIs ([#1263](https://github.com/quartznet/quartznet/issues/1263))
+    * Add ConfigureScope extension point to MicrosoftDependencyInjectionJobFactory ([#1189](https://github.com/quartznet/quartznet/issues/1189))
+    * Update StdAdoConstants.cs ([#1186](https://github.com/quartznet/quartznet/issues/1186))
+    * Use custom InstantiateType for all instantiations in StdSchedulerFactory ([#1185](https://github.com/quartznet/quartznet/issues/1185))
+    * Add support for the ISchedulerFactory.StartDelayed in the QuartzHostedService ([#1166](https://github.com/quartznet/quartznet/issues/1166))
+    * Remove SimpleThreadPool from examples? ([#1230](https://github.com/quartznet/quartznet/issues/1230))
 
 
 ## Release 3.3.2, Apr 9 2021
@@ -49,8 +49,8 @@ Also a problem with host name resolution under WSL2 scenario was fixed.
 
 * FIXES
 
-  * Try resolving jobs from service provider before resorting to ActivatorUtilities (#1159)
-  * Can't get hostname on WSL2+docker host network (#1158)
+  * Try resolving jobs from service provider before resorting to ActivatorUtilities ([#1159](https://github.com/quartznet/quartznet/issues/1159))
+  * Can't get hostname on WSL2+docker host network ([#1158](https://github.com/quartznet/quartznet/issues/1158))
 
 
 ## Release 3.3.1, Apr 8 2021
@@ -59,7 +59,7 @@ This release fixes assembly signing problem introduced in 3.3.
 
 * FIXES
 
-  * Remove PublicSign property from csproj (#1155)
+  * Remove PublicSign property from csproj ([#1155](https://github.com/quartznet/quartznet/issues/1155))
 
 
 ## Release 3.3, Apr 7 2021
@@ -83,20 +83,20 @@ Also some bug fixes included, thanks to all contributors!
 
   * Separate build configuration for .NET Framework 4.7.2
   * OpenTelemetry integration upgraded to target OpenTelemetry 1.0.0-rc1.1
-  * Ported JobInterruptMonitorPlugin from Java version which allows automatic interrupt calls for registered jobs (#1110)
-  * Rewrite semaphore implementations (#1115)
-  * UsingJobData now has Guid and char overloads (#1141)
-  * Add a regular AddJob Type (#1090)
+  * Ported JobInterruptMonitorPlugin from Java version which allows automatic interrupt calls for registered jobs ([#1110](https://github.com/quartznet/quartznet/issues/1110))
+  * Rewrite semaphore implementations ([#1115](https://github.com/quartznet/quartznet/issues/1115))
+  * UsingJobData now has Guid and char overloads ([#1141](https://github.com/quartznet/quartznet/issues/1141))
+  * Add a regular AddJob Type ([#1090](https://github.com/quartznet/quartznet/issues/1090))
   
 * FIXES
 
-  * Jobs not firing after upgrade to 3.2.x (from 3.0.7) on Microsoft Server 2008 R2 (#1083)
-  * Jobs are not fired (#1072)
-  * MicrosoftDependencyInjectionJobFactory does not inject job properties for scoped jobs (#1106)
-  * XSD schema no longer requires defining durable element if you just want to define recover (#1128)
-  * Stack trace logging fixed in case of reporting invalid lock acquire (#1133)
-  * Disposable job is disposed twice when using UseMicrosoftDependencyInjectionScopedJobFactory (#1120)
-  * QuartzHostedService.StopAsync throws NullReferenceException if StartAsync hasn't been run (#1123)
+  * Jobs not firing after upgrade to 3.2.x (from 3.0.7) on Microsoft Server 2008 R2 ([#1083](https://github.com/quartznet/quartznet/issues/1083))
+  * Jobs are not fired ([#1072](https://github.com/quartznet/quartznet/issues/1072))
+  * MicrosoftDependencyInjectionJobFactory does not inject job properties for scoped jobs ([#1106](https://github.com/quartznet/quartznet/issues/1106))
+  * XSD schema no longer requires defining durable element if you just want to define recover ([#1128](https://github.com/quartznet/quartznet/issues/1128))
+  * Stack trace logging fixed in case of reporting invalid lock acquire ([#1133](https://github.com/quartznet/quartznet/issues/1133))
+  * Disposable job is disposed twice when using UseMicrosoftDependencyInjectionScopedJobFactory ([#1120](https://github.com/quartznet/quartznet/issues/1120))
+  * QuartzHostedService.StopAsync throws NullReferenceException if StartAsync hasn't been run ([#1123](https://github.com/quartznet/quartznet/issues/1123))
 
 
 ## Release 3.2.4, Jan 19 2021
@@ -107,10 +107,10 @@ the Quartz API's Interrupt method. Earlier Quartz incorrectly considered also ot
 
 * FIXES
 
-  * JobRunShell silently handles OperationCanceledException which is not correct in terms of job retry handling (#1064)
-  * Handled exceptions thrown while retrieving the misfired trigger (#1040)
-  * FileScanJob is faling after upgrading from 3.0.7 to 3.2.3 (#1027)
-  * JobBuilder.UsingJobData(string key, string value) should be JobBuilder.UsingJobData(string key, string? value) (#1025)
+  * JobRunShell silently handles OperationCanceledException which is not correct in terms of job retry handling ([#1064](https://github.com/quartznet/quartznet/issues/1064))
+  * Handled exceptions thrown while retrieving the misfired trigger ([#1040](https://github.com/quartznet/quartznet/issues/1040))
+  * FileScanJob is faling after upgrading from 3.0.7 to 3.2.3 ([#1027](https://github.com/quartznet/quartznet/issues/1027))
+  * JobBuilder.UsingJobData(string key, string value) should be JobBuilder.UsingJobData(string key, string? value) ([#1025](https://github.com/quartznet/quartznet/issues/1025))
 
 
 ## Release 3.2.3, Oct 31 2020
@@ -120,12 +120,12 @@ integration with OpenTracing.
 
 * NEW FEATURE
 
-  * Add Quartz.OpenTracing support (#1006)
+  * Add Quartz.OpenTracing support ([#1006](https://github.com/quartznet/quartznet/issues/1006))
 
 * FIXES
 
-  * Xamarin Android can't get scheduler (#1008)
-  * Autofac job factory registration fails (#1011)
+  * Xamarin Android can't get scheduler ([#1008](https://github.com/quartznet/quartznet/issues/1008))
+  * Autofac job factory registration fails ([#1011](https://github.com/quartznet/quartznet/issues/1011))
 
 
 ## Release 3.2.2, Oct 19 2020
@@ -134,7 +134,7 @@ This release addresses regression in scoped job resolution which was introduced 
 
 * FIXES
 
-  * Fix scoped job resolution (#998)
+  * Fix scoped job resolution ([#998](https://github.com/quartznet/quartznet/issues/998))
 
 ## Release 3.2.1, Oct 18 2020
 
@@ -149,14 +149,14 @@ now also works as expected.
 
 * FIXES
 
-  * Make QuartzOptions Triggers and JobDetails public (#981)
-  * Fix configuration system injection for dictionary/quartz.jobStore.misfireThreshold in DI (#983)
-  * XMLSchedulingDataProcessor can cause IOException due to file locking (#993)
+  * Make QuartzOptions Triggers and JobDetails public ([#981](https://github.com/quartznet/quartznet/issues/981))
+  * Fix configuration system injection for dictionary/quartz.jobStore.misfireThreshold in DI ([#983](https://github.com/quartznet/quartznet/issues/983))
+  * XMLSchedulingDataProcessor can cause IOException due to file locking ([#993](https://github.com/quartznet/quartznet/issues/993))
   
 * IMPROVEMENTS
   
-  * Unify MS dependency injection job factory logic and configuration (#995)
-  * Improve job dispatch performance to reduce latency before hitting Execute (RAMJobStore) (#996)
+  * Unify MS dependency injection job factory logic and configuration ([#995](https://github.com/quartznet/quartznet/issues/995))
+  * Improve job dispatch performance to reduce latency before hitting Execute (RAMJobStore) ([#996](https://github.com/quartznet/quartznet/issues/996))
 
 ## Release 3.2.0, Oct 1 2020
 
@@ -169,26 +169,26 @@ There's also important fix for SQL Server where varying text parameter sizes cau
 
 * BREAKING CHANGES
 
-    * Remove dependency on Microsoft.Data.SqlClient (#912)
-    * LogContext moved from Quartz namespace to Quartz.Logging namespace (#915)
-    * For Full Framework, System.Data.SqlClient is again the default provider, Microsoft.Data can be used via provider MicrosoftDataSqlClient (#916)
+    * Remove dependency on Microsoft.Data.SqlClient ([#912](https://github.com/quartznet/quartznet/issues/912))
+    * LogContext moved from Quartz namespace to Quartz.Logging namespace ([#915](https://github.com/quartznet/quartznet/issues/915))
+    * For Full Framework, System.Data.SqlClient is again the default provider, Microsoft.Data can be used via provider MicrosoftDataSqlClient ([#916](https://github.com/quartznet/quartznet/issues/916))
     * `QuartzSchedlingOptions` was renamed to `SchedulingOptions`
 
 * FIXES
 
-    * Revert change in 3.1: CronExpression/cron trigger throwing NotImplementedException when calculating final fire time (#905)
-    * Use 2.1 as the minimum version for the .NET Platform Extensions (#923)
-    * ServiceCollection.AddQuartz() should register default ITypeLoadHelper if none supplied (#924)
-    * SqlServer AdoJobStore SqlParameter without text size generates pressure on server (#939)
-    * DbProvider initialization logic should also read quartz.config (#951)
-    * LoggingJobHistoryPlugin and LoggingTriggerHistoryPlugin names are null with IoC configuration (#926)
-    * Improve options pattern to allow better custom configuration story (#955)
+    * Revert change in 3.1: CronExpression/cron trigger throwing NotImplementedException when calculating final fire time ([#905](https://github.com/quartznet/quartznet/issues/905))
+    * Use 2.1 as the minimum version for the .NET Platform Extensions ([#923](https://github.com/quartznet/quartznet/issues/923))
+    * ServiceCollection.AddQuartz() should register default ITypeLoadHelper if none supplied ([#924](https://github.com/quartznet/quartznet/issues/924))
+    * SqlServer AdoJobStore SqlParameter without text size generates pressure on server ([#939](https://github.com/quartznet/quartznet/issues/939))
+    * DbProvider initialization logic should also read quartz.config ([#951](https://github.com/quartznet/quartznet/issues/951))
+    * LoggingJobHistoryPlugin and LoggingTriggerHistoryPlugin names are null with IoC configuration ([#926](https://github.com/quartznet/quartznet/issues/926))
+    * Improve options pattern to allow better custom configuration story ([#955](https://github.com/quartznet/quartznet/issues/955))
 
 * NEW FEATURE 
  
-    * Introduce separate Quartz.Extensions.Hosting (#911)
-    * You can now schedule job and trigger in MS DI integration with single .ScheduleJob call (#943)
-    * Support adding calendars to MS DI via AddCalendar<T> (#945)
+    * Introduce separate Quartz.Extensions.Hosting ([#911](https://github.com/quartznet/quartznet/issues/911))
+    * You can now schedule job and trigger in MS DI integration with single .ScheduleJob call ([#943](https://github.com/quartznet/quartznet/issues/943))
+    * Support adding calendars to MS DI via AddCalendar<T> ([#945](https://github.com/quartznet/quartznet/issues/945))
 
 ## Release 3.1.0, Jul 24 2020
 
@@ -212,68 +212,68 @@ There is also a very important bug fix present for lock handling on retries. The
 * NEW FEATURE
 
     * Microsoft DI integration via package Quartz.Extensions.DependencyInjection (also allows bridging to Microsoft Logging)
-    * DI configuration now supports adding scheduler, job and trigger listeners (#877)
-    * DI configuration now processes appsettings.json section "Quartz" looking for key value pairs (#877)
-    * Add diagnostics source and OpenTelemetry support (#901)
-    * Use Microsoft.Data.SqlClient as SQL Server connection library (#839)
+    * DI configuration now supports adding scheduler, job and trigger listeners ([#877](https://github.com/quartznet/quartznet/issues/877))
+    * DI configuration now processes appsettings.json section "Quartz" looking for key value pairs ([#877](https://github.com/quartznet/quartznet/issues/877))
+    * Add diagnostics source and OpenTelemetry support ([#901](https://github.com/quartznet/quartznet/issues/901))
+    * Use Microsoft.Data.SqlClient as SQL Server connection library ([#839](https://github.com/quartznet/quartznet/issues/839))
     * ASP.NET Core / Hosting integration and health checks via revisited NuGet package Quartz.AspNetCore (thank you zlzforever for contributing the work)
-    * Introduced a config parameter `ClusterCheckinMisfireThreshold` (#692)
-    * Giving meaningful names to examples folders (#701)
+    * Introduced a config parameter `ClusterCheckinMisfireThreshold` ([#692](https://github.com/quartznet/quartznet/issues/692))
+    * Giving meaningful names to examples folders ([#701](https://github.com/quartznet/quartznet/issues/701))
     * Added search patterns/sub directory search to directory scanner job (#411, #708)
-    * Fluent interface for scheduler configuration (#791)
-    * Support every nth week in cron expression (#790)
-    * Enable SQLite job store provider for NetStandard (#802)
+    * Fluent interface for scheduler configuration ([#791](https://github.com/quartznet/quartznet/issues/791))
+    * Support every nth week in cron expression ([#790](https://github.com/quartznet/quartznet/issues/790))
+    * Enable SQLite job store provider for NetStandard ([#802](https://github.com/quartznet/quartznet/issues/802))
     * Add configurable params for StdRowLockSemaphore for Failure obtaining db row lock
-    * SchedName added to queries as sql parameter (#818)
+    * SchedName added to queries as sql parameter ([#818](https://github.com/quartznet/quartznet/issues/818))
     * Server, example and test projects upgraded to user .NET Core 3.1
     * Nullable reference type annotations have been enabled
     * Symbols are now provided as a separate NuGet symbol package (snupkg)
     * SQL Server indexes have been fine-tuned, redundancies were removed and you can follow the current scripts to update to latest version of them
-    * Upgrade MySqlConnector to 1.0 (namespace has changed) (#890)
-    * Support Microsoft.Extensions.Logging.Abstractions (#756)
-    * Support Microsoft.Data.SQLite with full framework (#893)
-    * Support custom calendar JSON serialization (#697)
-    * DI configuration now supports adding scheduler, job and trigger listeners (#877)
-    * DI configuration now processes appsettings.json section "Quartz" looking for key value pairs (#877)
-    * Use Microsoft.Data.SqlClient as SQL Server connection library (#839)    
+    * Upgrade MySqlConnector to 1.0 (namespace has changed) ([#890](https://github.com/quartznet/quartznet/issues/890))
+    * Support Microsoft.Extensions.Logging.Abstractions ([#756](https://github.com/quartznet/quartznet/issues/756))
+    * Support Microsoft.Data.SQLite with full framework ([#893](https://github.com/quartznet/quartznet/issues/893))
+    * Support custom calendar JSON serialization ([#697](https://github.com/quartznet/quartznet/issues/697))
+    * DI configuration now supports adding scheduler, job and trigger listeners ([#877](https://github.com/quartznet/quartznet/issues/877))
+    * DI configuration now processes appsettings.json section "Quartz" looking for key value pairs ([#877](https://github.com/quartznet/quartznet/issues/877))
+    * Use Microsoft.Data.SqlClient as SQL Server connection library ([#839](https://github.com/quartznet/quartznet/issues/839))    
     
 * FIXES
 
-    * Allow binary serialization for DirectoryScanJob data (#658)
-    * LibLog - Fixed NLog + Log4net callsite. Added support for NLog structured logging. Optimized Log4net-logger (#705)
-    * Upgrade LibLog to latest version (#749)
+    * Allow binary serialization for DirectoryScanJob data ([#658](https://github.com/quartznet/quartznet/issues/658))
+    * LibLog - Fixed NLog + Log4net callsite. Added support for NLog structured logging. Optimized Log4net-logger ([#705](https://github.com/quartznet/quartznet/issues/705))
+    * Upgrade LibLog to latest version ([#749](https://github.com/quartznet/quartznet/issues/749))
     * RAMJobStore performance improvements (#718, #719, #720)
     * General performance improvements (#725, #723, #727)
-    * GetTimeBefore() and GetFinalFireTime() should throw NotImplementedException instead of returning null (#731)
-    * Switch to official TimeZoneConverter NuGet package (#739)
-    * Remove invalid TimeSpanParseRule.Days (#782)
-    * Update tables_sqlServer.sql to follow current SQL syntax and structures (#787)
-    * Fix China Standard Time mapping in TimeZoneUtil.cs (#765)
+    * GetTimeBefore() and GetFinalFireTime() should throw NotImplementedException instead of returning null ([#731](https://github.com/quartznet/quartznet/issues/731))
+    * Switch to official TimeZoneConverter NuGet package ([#739](https://github.com/quartznet/quartznet/issues/739))
+    * Remove invalid TimeSpanParseRule.Days ([#782](https://github.com/quartznet/quartznet/issues/782))
+    * Update tables_sqlServer.sql to follow current SQL syntax and structures ([#787](https://github.com/quartznet/quartznet/issues/787))
+    * Fix China Standard Time mapping in TimeZoneUtil.cs ([#765](https://github.com/quartznet/quartznet/issues/765))
     * Release BLOCKED triggers in ReleaseAcquiredTrigger (#741 #800)
     * DailyTimeIntervalTrigger failed to set endingDailyAfterCount = 1
     * CronTrigger: cover all valid misfire policies, and provide a sensible default and logging when seeing an invalid one
-    * Remove internal dependencies from examples (#742)
-    * Properly assign MaxConcurrency in CreateVolatileScheduler (#726) 
-    * Fix potential scheduler deadlock caused by changed lock request id inside ExecuteInNonManagedTXLock (#794)
-    * Ensure NuGet.exe is part of produced zip to ensure build works (#881)
-    * JobDataMap with enum values persisted as JSON can now be set back to job members via PropertySettingJobFactory (#770)
-    * Ensure GetScheduleBuilder for triggers respects IgnoreMisfirePolicy (#750)  
-    * Remove cron expression validation from XML schema and rely on CronExpression itself (#729)
+    * Remove internal dependencies from examples ([#742](https://github.com/quartznet/quartznet/issues/742))
+    * Properly assign MaxConcurrency in CreateVolatileScheduler ([#726](https://github.com/quartznet/quartznet/issues/726)) 
+    * Fix potential scheduler deadlock caused by changed lock request id inside ExecuteInNonManagedTXLock ([#794](https://github.com/quartznet/quartznet/issues/794))
+    * Ensure NuGet.exe is part of produced zip to ensure build works ([#881](https://github.com/quartznet/quartznet/issues/881))
+    * JobDataMap with enum values persisted as JSON can now be set back to job members via PropertySettingJobFactory ([#770](https://github.com/quartznet/quartznet/issues/770))
+    * Ensure GetScheduleBuilder for triggers respects IgnoreMisfirePolicy ([#750](https://github.com/quartznet/quartznet/issues/750))  
+    * Remove cron expression validation from XML schema and rely on CronExpression itself ([#729](https://github.com/quartznet/quartznet/issues/729))
           
 
 ## Release 3.1.0 beta 3, Jul 21 2020
 
 * NEW FEATURES
 
-    * Upgrade MySqlConnector to 1.0 (namespace has changed) (#890)
-    * Support Microsoft.Extensions.Logging.Abstractions (#756)
-    * Support Microsoft.Data.SQLite with full framework (#893)
-    * Support custom calendar JSON serialization (#697)
+    * Upgrade MySqlConnector to 1.0 (namespace has changed) ([#890](https://github.com/quartznet/quartznet/issues/890))
+    * Support Microsoft.Extensions.Logging.Abstractions ([#756](https://github.com/quartznet/quartznet/issues/756))
+    * Support Microsoft.Data.SQLite with full framework ([#893](https://github.com/quartznet/quartznet/issues/893))
+    * Support custom calendar JSON serialization ([#697](https://github.com/quartznet/quartznet/issues/697))
 
 * FIXES
 
-    * Remove internal dependencies from examples (#742)
-    * Properly assign MaxConcurrency in CreateVolatileScheduler (#726) 
+    * Remove internal dependencies from examples ([#742](https://github.com/quartznet/quartznet/issues/742))
+    * Properly assign MaxConcurrency in CreateVolatileScheduler ([#726](https://github.com/quartznet/quartznet/issues/726)) 
 
 
 ## Release 3.1.0 beta 2, Jul 14 2020
@@ -282,17 +282,17 @@ On the road for 3.1 release, also note beta 1 remarks.
 
 * NEW FEATURES
 
-    * DI configuration now supports adding scheduler, job and trigger listeners (#877)
-    * DI configuration now processes appsettings.json section "Quartz" looking for key value pairs (#877)
-    * Use Microsoft.Data.SqlClient as SQL Server connection library (#839)
+    * DI configuration now supports adding scheduler, job and trigger listeners ([#877](https://github.com/quartznet/quartznet/issues/877))
+    * DI configuration now processes appsettings.json section "Quartz" looking for key value pairs ([#877](https://github.com/quartznet/quartznet/issues/877))
+    * Use Microsoft.Data.SqlClient as SQL Server connection library ([#839](https://github.com/quartznet/quartznet/issues/839))
     
 * FIXES
 
-    * Fix potential scheduler deadlock caused by changed lock request id inside ExecuteInNonManagedTXLock (#794)
-    * Ensure NuGet.exe is part of produced zip to ensure build works (#881)
-    * JobDataMap with enum values persisted as JSON can now be set back to job members via PropertySettingJobFactory (#770)
-    * Ensure GetScheduleBuilder for triggers respects IgnoreMisfirePolicy (#750)  
-    * Remove cron expression validation from XML schema and rely on CronExpression itself (#729)  
+    * Fix potential scheduler deadlock caused by changed lock request id inside ExecuteInNonManagedTXLock ([#794](https://github.com/quartznet/quartznet/issues/794))
+    * Ensure NuGet.exe is part of produced zip to ensure build works ([#881](https://github.com/quartznet/quartznet/issues/881))
+    * JobDataMap with enum values persisted as JSON can now be set back to job members via PropertySettingJobFactory ([#770](https://github.com/quartznet/quartznet/issues/770))
+    * Ensure GetScheduleBuilder for triggers respects IgnoreMisfirePolicy ([#750](https://github.com/quartznet/quartznet/issues/750))  
+    * Remove cron expression validation from XML schema and rely on CronExpression itself ([#729](https://github.com/quartznet/quartznet/issues/729))  
 
 ## Release 3.1.0 beta 1, Jul 8 2020
 
@@ -310,14 +310,14 @@ There are also some minor bug fixes present.
 
     * Microsoft DI integration via package Quartz.Extensions.DependencyInjection (also allows briding to Microsoft Logging)
     * ASP.NET Core / Hosting integration and health checks via revisited NuGet package Quartz.AspNetCore (thank you zlzforever for contributing the work)
-    * Introduced a config parameter `ClusterCheckinMisfireThreshold` (#692)
-    * Giving meaningful names to examples folders (#701)
+    * Introduced a config parameter `ClusterCheckinMisfireThreshold` ([#692](https://github.com/quartznet/quartznet/issues/692))
+    * Giving meaningful names to examples folders ([#701](https://github.com/quartznet/quartznet/issues/701))
     * Added search patterns/sub directory search to directoty scanner job (#411, #708)
-    * Fluent interface for scheduler configuration (#791)
-    * Support every nth week in cron expression (#790)
-    * Enable SQLite job store provider for NetStandard (#802)
+    * Fluent interface for scheduler configuration ([#791](https://github.com/quartznet/quartznet/issues/791))
+    * Support every nth week in cron expression ([#790](https://github.com/quartznet/quartznet/issues/790))
+    * Enable SQLite job store provider for NetStandard ([#802](https://github.com/quartznet/quartznet/issues/802))
     * Add configurable params for StdRowLockSemaphore for Failure obtaining db row lock
-    * SchedName added to queries as sql paramteter (#818)
+    * SchedName added to queries as sql paramteter ([#818](https://github.com/quartznet/quartznet/issues/818))
     * Server, example and test projects upgraded to user .NET Core 3.1
     * Nullable reference type annotations have been enabled
     * Symbols are now provided as a separate NuGet symbol package (snupkg)
@@ -325,16 +325,16 @@ There are also some minor bug fixes present.
 
 * FIXES
 
-    * Allow binary serialization for DirectoryScanJob data (#658)
-    * LibLog - Fixed NLog + Log4net callsite. Added support for NLog structured logging. Optimized Log4net-logger (#705)
-    * Upgrade LibLog to latest version (#749)
+    * Allow binary serialization for DirectoryScanJob data ([#658](https://github.com/quartznet/quartznet/issues/658))
+    * LibLog - Fixed NLog + Log4net callsite. Added support for NLog structured logging. Optimized Log4net-logger ([#705](https://github.com/quartznet/quartznet/issues/705))
+    * Upgrade LibLog to latest version ([#749](https://github.com/quartznet/quartznet/issues/749))
     * RAMJobStore performance improvements (#718, #719, #720)
     * General performance improvements (#725, #723, #727)
-    * GetTimeBefore() and GetFinalFireTime() should throw NotImplementedException instead of returning null (#731)
-    * Switch to official TimeZoneConverter NuGet package (#739)
-    * Remove invalid TimeSpanParseRule.Days (#782)
-    * Update tables_sqlServer.sql to follow current SQL syntax and structures (#787)
-    * Fix China Standard Time mapping in TimeZoneUtil.cs (#765)
+    * GetTimeBefore() and GetFinalFireTime() should throw NotImplementedException instead of returning null ([#731](https://github.com/quartznet/quartznet/issues/731))
+    * Switch to official TimeZoneConverter NuGet package ([#739](https://github.com/quartznet/quartznet/issues/739))
+    * Remove invalid TimeSpanParseRule.Days ([#782](https://github.com/quartznet/quartznet/issues/782))
+    * Update tables_sqlServer.sql to follow current SQL syntax and structures ([#787](https://github.com/quartznet/quartznet/issues/787))
+    * Fix China Standard Time mapping in TimeZoneUtil.cs ([#765](https://github.com/quartznet/quartznet/issues/765))
     * Release BLOCKED triggers in ReleaseAcquiredTrigger (#741 #800)
     * DailyTimeIntervalTrigger failed to set endingDailyAfterCount = 1
     * CronTrigger: cover all valid misfire policies, and provide a sensible default and logging when seeing an invalid one
@@ -351,16 +351,16 @@ There are also some bug fixes related to AdoJobStore.
 
 * NEW FEATURE
 
-    * Add .NET Core 2.1 version of example server (#682)
-    * New plugin Quartz.Plugins.TimeZoneConverter which allows usage of TimeZoneConverter library (#647)
+    * Add .NET Core 2.1 version of example server ([#682](https://github.com/quartznet/quartznet/issues/682))
+    * New plugin Quartz.Plugins.TimeZoneConverter which allows usage of TimeZoneConverter library ([#647](https://github.com/quartznet/quartznet/issues/647))
 
 * FIXES
 
-    * Added transient codes from EF into new JobStore (#681)
-    * Parametrized queries produced by ReplaceTablePrefix should be cached (#651)
-    * Use TypeNameHandling.Auto for JsonObjectSerializer (#621)
-    * Fix a race condition that could cause duplicate trigger firings (#690)
-    * ISchedulerListener.JobScheduled not called when scheduling multiple jobs (ScheduleJobs) (#678)
+    * Added transient codes from EF into new JobStore ([#681](https://github.com/quartznet/quartznet/issues/681))
+    * Parametrized queries produced by ReplaceTablePrefix should be cached ([#651](https://github.com/quartznet/quartznet/issues/651))
+    * Use TypeNameHandling.Auto for JsonObjectSerializer ([#621](https://github.com/quartznet/quartznet/issues/621))
+    * Fix a race condition that could cause duplicate trigger firings ([#690](https://github.com/quartznet/quartznet/issues/690))
+    * ISchedulerListener.JobScheduled not called when scheduling multiple jobs (ScheduleJobs) ([#678](https://github.com/quartznet/quartznet/issues/678))
 
 
 ## Release 3.0.6, Jul 6 2018
@@ -374,15 +374,15 @@ You should now be able to debug into Quartz.NET sources with added SourceLink su
 
 * NEW FEATURE
 
-    * Add SourceLink support (#642)
-    * Make JobInterrupted method virtual in class SchedulerListenerSupport (#631)
+    * Add SourceLink support ([#642](https://github.com/quartznet/quartznet/issues/642))
+    * Make JobInterrupted method virtual in class SchedulerListenerSupport ([#631](https://github.com/quartznet/quartznet/issues/631))
 
 * FIXES
 
-    * Trigger group can be left as paused when all triggers have been removed (#641)
-    * PlatformNotSupportedException on RaspberryPi (Windows IoT) (#630)
-    * JSON serialisation returning defaults for derived calendar settings (#634)
-    * .NET Core version not able to recover from DB connection drops (#637)
+    * Trigger group can be left as paused when all triggers have been removed ([#641](https://github.com/quartznet/quartznet/issues/641))
+    * PlatformNotSupportedException on RaspberryPi (Windows IoT) ([#630](https://github.com/quartznet/quartznet/issues/630))
+    * JSON serialisation returning defaults for derived calendar settings ([#634](https://github.com/quartznet/quartznet/issues/634))
+    * .NET Core version not able to recover from DB connection drops ([#637](https://github.com/quartznet/quartznet/issues/637))
 
 
 ## Release 3.0.5, May 27 2018
@@ -391,12 +391,12 @@ This release fixes couple bugs and adds support for .NET Core version of Oracle'
 
 * NEW FEATURE
 
-    * Support Oracle.ManagedDataAccess.Core (#609)
+    * Support Oracle.ManagedDataAccess.Core ([#609](https://github.com/quartznet/quartznet/issues/609))
 
 * FIXES
 
-    * trigger loop encountered using DailyTimeIntervalTrigger across DST start boundary (#610)
-    * Missing ConfigureAwait(false) in some parts of code (#618)
+    * trigger loop encountered using DailyTimeIntervalTrigger across DST start boundary ([#610](https://github.com/quartznet/quartznet/issues/610))
+    * Missing ConfigureAwait(false) in some parts of code ([#618](https://github.com/quartznet/quartznet/issues/618))
     
 
 ## Release 3.0.4, Mar 4 2018
@@ -406,19 +406,19 @@ its CancellationTokenSource with calls it makes. Everyone using 3.x is advised t
 
 * FIXES
 
-    * Memory leak caused by CancellationTokenSource sharing (#600)
-    * tables_oracle.sql should use NUMBER(19) instead of NUMBER(13) for long properties (#598)
+    * Memory leak caused by CancellationTokenSource sharing ([#600](https://github.com/quartznet/quartznet/issues/600))
+    * tables_oracle.sql should use NUMBER(19) instead of NUMBER(13) for long properties ([#598](https://github.com/quartznet/quartznet/issues/598))
 
 
 ## Release 3.0.3, Feb 24 2018
 
 * FIXES
 
-    * XML scheduling no longer requires write access to source XML file (#591)
-    * Improve listener error handling (#589)
-    * SQL command parameters are not defined in 'IsTriggerStillPresent' method (#579)
-    * Source distribution couldn't be built with build.cmd/.sh when no .git directory present (#596)
-    * Currently executing jobs cannot be retrieved via remoting (#580)
+    * XML scheduling no longer requires write access to source XML file ([#591](https://github.com/quartznet/quartznet/issues/591))
+    * Improve listener error handling ([#589](https://github.com/quartznet/quartznet/issues/589))
+    * SQL command parameters are not defined in 'IsTriggerStillPresent' method ([#579](https://github.com/quartznet/quartznet/issues/579))
+    * Source distribution couldn't be built with build.cmd/.sh when no .git directory present ([#596](https://github.com/quartznet/quartznet/issues/596))
+    * Currently executing jobs cannot be retrieved via remoting ([#580](https://github.com/quartznet/quartznet/issues/580))
     
     
 ## Release 3.0.2, Jan 25 2018
@@ -427,7 +427,7 @@ This is a minor fix release that fixes single issue that still prevented full us
 
 * FIXES
 
-    * Mark HashSet as serializable (#576)
+    * Mark HashSet as serializable ([#576](https://github.com/quartznet/quartznet/issues/576))
 
 
 ## Release 3.0.1, Jan 21 2018
@@ -438,9 +438,9 @@ through .NET Remoting infrastructure. Now zip packing is also back and includes 
 
 * FIXES
 
-    * Create zip package as part of release, including Quartz.Server (#572)
-    * A specific CronExpression fails with "Input string was not in a correct format." (#568)
-    * Cannot use remoting due to Task and CancellationToken signatures (#571)
+    * Create zip package as part of release, including Quartz.Server ([#572](https://github.com/quartznet/quartznet/issues/572))
+    * A specific CronExpression fails with "Input string was not in a correct format." ([#568](https://github.com/quartznet/quartznet/issues/568))
+    * Cannot use remoting due to Task and CancellationToken signatures ([#571](https://github.com/quartznet/quartznet/issues/571))
 
 
 ## Release 3.0, Dec 30 2017
@@ -449,7 +449,7 @@ See 3.x releases for full list.
 
 * NEW FEATURE
 
-    * Random number generation now uses RNGCryptoServiceProvider to silence some code analysis warnings (#551)
+    * Random number generation now uses RNGCryptoServiceProvider to silence some code analysis warnings ([#551](https://github.com/quartznet/quartznet/issues/551))
 
 ## Release 3.0 beta 1, Oct 8 2017
 
@@ -471,15 +471,15 @@ See 3.x releases for full list.
 
 * NEW FEATURE
 
-    * support for .NET Standard 2.0 preview (#486)
-    * support for MySQL on .NET Standard via provider 'MySql' (#493)
+    * support for .NET Standard 2.0 preview ([#486](https://github.com/quartznet/quartznet/issues/486))
+    * support for MySQL on .NET Standard via provider 'MySql' ([#493](https://github.com/quartznet/quartznet/issues/493))
     * change SQL database IMAGE types to VARBINARY - requires migration schema_26_to_30.sql
-    * add ISchedulerListener.JobInterrupted(JobKey jobKey, CancellationToken cancellationToken) (#467)
+    * add ISchedulerListener.JobInterrupted(JobKey jobKey, CancellationToken cancellationToken) ([#467](https://github.com/quartznet/quartznet/issues/467))
 
 * FIXES
 
-    * fix PosgreSQL db provider configuration for .NET Core (#449)
-    * CancellationToken is now supported in async methods (#444)
+    * fix PosgreSQL db provider configuration for .NET Core ([#449](https://github.com/quartznet/quartznet/issues/449))
+    * CancellationToken is now supported in async methods ([#444](https://github.com/quartznet/quartznet/issues/444))
     * fix regression with XML schema validation
 
 * BREAKING CHANGES
@@ -539,28 +539,28 @@ A slight performance boost can also be unlocked when using PostgreSQL by switchi
 
 * NEW FEATURE
 
-    * Add support for eager validation of job scheduling XML file on plugin start (#492)
-    * Add support for extra custom time zone resolver function in TimeZoneUtil (#290)
+    * Add support for eager validation of job scheduling XML file on plugin start ([#492](https://github.com/quartznet/quartznet/issues/492))
+    * Add support for extra custom time zone resolver function in TimeZoneUtil ([#290](https://github.com/quartznet/quartznet/issues/290))
 
 * FIXES
 
-    * CalendarIntervalTrigger's first fire time doesn't consider time zone (#505)
-    * QRTZ_FIRED_TRIGGERS.ENTRY_ID column length too small (#474)
-    * Decrease log level for message when host name is too long (#471)
-    * Quartz should not log transient faults related to azure db connection as errors (#470)
-    * RemotingSchedulerExporter can't create remoting channel on Mono (#464)
-    * Regression in 2.5, TriggerBuilder.UsingJobData(JobDataMap newJobDataMap) should ovewrite existing (#460)
-    * QuartzScheduler.Clear does not clear QRTZ_FIRED_TRIGGERS table (#437)
-    * No wait time between db connection failures with AcquireNextTriggers (#428)
-    * DailyTimeIntervalTriggerImpl prevents altering EndTimeOfDay to a later time of day (#382)
-    * Quartz.CronExpression.IsSatisfiedBy claims to ignore milliseconds but doesn't (#349)
-    * Add back PostgreSqlDelegate to support database LIMIT in trigger acquiring (#318)
-    * Bug in XSD schema: cannot set <misfire-instruction>IgnoreMisfirePolicy</misfire-instruction> (#280)
-    * Quartz.Xml.XMLSchedulingDataProcessor uses GetType() instead of typeof(Quartz.Xml.XMLSchedulingDataProcessor) (#277)
-    * With SQLite default isolation level should be set to serializable (#242)
-    * DailyTimeIntervalTrigger's time zone is not persisted into database (#136)
-    * XMLSchedulingDataProcessorPlugin incompatible with StdAdoDelegate when useProperties=true (#44)
-    * Trigger loop encountered using DailyTimeIntervalTrigger across DST start boundary (#332)
+    * CalendarIntervalTrigger's first fire time doesn't consider time zone ([#505](https://github.com/quartznet/quartznet/issues/505))
+    * QRTZ_FIRED_TRIGGERS.ENTRY_ID column length too small ([#474](https://github.com/quartznet/quartznet/issues/474))
+    * Decrease log level for message when host name is too long ([#471](https://github.com/quartznet/quartznet/issues/471))
+    * Quartz should not log transient faults related to azure db connection as errors ([#470](https://github.com/quartznet/quartznet/issues/470))
+    * RemotingSchedulerExporter can't create remoting channel on Mono ([#464](https://github.com/quartznet/quartznet/issues/464))
+    * Regression in 2.5, TriggerBuilder.UsingJobData(JobDataMap newJobDataMap) should ovewrite existing ([#460](https://github.com/quartznet/quartznet/issues/460))
+    * QuartzScheduler.Clear does not clear QRTZ_FIRED_TRIGGERS table ([#437](https://github.com/quartznet/quartznet/issues/437))
+    * No wait time between db connection failures with AcquireNextTriggers ([#428](https://github.com/quartznet/quartznet/issues/428))
+    * DailyTimeIntervalTriggerImpl prevents altering EndTimeOfDay to a later time of day ([#382](https://github.com/quartznet/quartznet/issues/382))
+    * Quartz.CronExpression.IsSatisfiedBy claims to ignore milliseconds but doesn't ([#349](https://github.com/quartznet/quartznet/issues/349))
+    * Add back PostgreSqlDelegate to support database LIMIT in trigger acquiring ([#318](https://github.com/quartznet/quartznet/issues/318))
+    * Bug in XSD schema: cannot set <misfire-instruction>IgnoreMisfirePolicy</misfire-instruction> ([#280](https://github.com/quartznet/quartznet/issues/280))
+    * Quartz.Xml.XMLSchedulingDataProcessor uses GetType() instead of typeof(Quartz.Xml.XMLSchedulingDataProcessor) ([#277](https://github.com/quartznet/quartznet/issues/277))
+    * With SQLite default isolation level should be set to serializable ([#242](https://github.com/quartznet/quartznet/issues/242))
+    * DailyTimeIntervalTrigger's time zone is not persisted into database ([#136](https://github.com/quartznet/quartznet/issues/136))
+    * XMLSchedulingDataProcessorPlugin incompatible with StdAdoDelegate when useProperties=true ([#44](https://github.com/quartznet/quartznet/issues/44))
+    * Trigger loop encountered using DailyTimeIntervalTrigger across DST start boundary ([#332](https://github.com/quartznet/quartznet/issues/332))
 
 
 ## Release 2.5, Feb 18, 2017
@@ -572,15 +572,15 @@ See https://github.com/quartznet/quartznet/pull/317 for details.
 
 * FIXES
 
-    * Jobs get stuck in the Blocked state after the DB connection is lost in NotifyJobListenersComplete (#282)
-    * Oracle rownum based queries can work wrong after Oracle SQL tuning task has ran (#413)
-    * Handle DST better (#317)
-    * RAMJobStore fails to resume when paused without triggers (#433)
-    * CronExpression doesn't properly check the range when an "/interval" is specified (#432)
-    * Fix JobDataMap dirty flag when constructing from existing map (#431)
-    * Store triggers by job in RAMJobStore for better performance (#430)
-    * Create WorkerThread in virtual method (#426)
-    * SqlSelectJobForTrigger is not using primary key join and causes index scan (#407)
+    * Jobs get stuck in the Blocked state after the DB connection is lost in NotifyJobListenersComplete ([#282](https://github.com/quartznet/quartznet/issues/282))
+    * Oracle rownum based queries can work wrong after Oracle SQL tuning task has ran ([#413](https://github.com/quartznet/quartznet/issues/413))
+    * Handle DST better ([#317](https://github.com/quartznet/quartznet/issues/317))
+    * RAMJobStore fails to resume when paused without triggers ([#433](https://github.com/quartznet/quartznet/issues/433))
+    * CronExpression doesn't properly check the range when an "/interval" is specified ([#432](https://github.com/quartznet/quartznet/issues/432))
+    * Fix JobDataMap dirty flag when constructing from existing map ([#431](https://github.com/quartznet/quartznet/issues/431))
+    * Store triggers by job in RAMJobStore for better performance ([#430](https://github.com/quartznet/quartznet/issues/430))
+    * Create WorkerThread in virtual method ([#426](https://github.com/quartznet/quartznet/issues/426))
+    * SqlSelectJobForTrigger is not using primary key join and causes index scan ([#407](https://github.com/quartznet/quartznet/issues/407))
 
 
 ## Release 2.4.1, Aug 24, 2016
