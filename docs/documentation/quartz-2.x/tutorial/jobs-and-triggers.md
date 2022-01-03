@@ -16,7 +16,7 @@ The key interfaces and classes of the Quartz API are:
 In this tutorial for readability's sake following terms are used interchangeably: IScheduler and Scheduler, IJob and Job, IJobDetail and JobDetail, ITrigger and Trigger.
 
 A **Scheduler**'s life-cycle is bounded by it's creation, via a **SchedulerFactory** and a call to its Shutdown() method. 
-Once created the IScheduler interface can be used add, remove, and list Jobs and Triggers, and perform other scheduling-related operations (such as pausing a trigger). 
+Once created the IScheduler interface can be used to add, remove, and list Jobs and Triggers, and perform other scheduling-related operations (such as pausing a trigger). 
 However, the Scheduler will not actually act on any triggers (execute jobs) until it has been started with the Start() method, as shown in [Lesson 1](using-quartz.md).
 
 Quartz provides "builder" classes that define a Domain Specific Language (or DSL, also sometimes referred to as a "fluent interface"). In the previous lesson you saw an example of it, which we present a portion of here again:
