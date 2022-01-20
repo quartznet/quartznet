@@ -1,42 +1,47 @@
 #if SUPPORTS_HEALTH_CHECKS
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
 using Quartz.Listener;
+using Quartz.Spi;
 
 namespace Quartz.AspNetCore.HealthChecks
 {
     internal class QuartzHealthCheck : SchedulerListenerSupport, IHealthCheck
     {
+        private readonly IJobStore? store;
         private bool running;
-        private int errorCount;
 
-        Task<HealthCheckResult> IHealthCheck.CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken)
+        public QuartzHealthCheck(IJobStore? store = null)
         {
-            HealthCheckResult result;
+            this.store = store;
+        }
+
+        async Task<HealthCheckResult> IHealthCheck.CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken)
+        {
             if (!running)
             {
-                result = HealthCheckResult.Unhealthy($"Quartz scheduler is not running");
+                return HealthCheckResult.Unhealthy("Quartz scheduler is not running");
             }
-            else if (errorCount > 0)
+            else if (store is not null)
             {
-                result = HealthCheckResult.Unhealthy($"Quartz scheduler has experienced {errorCount} errors");
-            }
-            else
-            {
-                result = HealthCheckResult.Healthy("Quartz scheduler is ready");
+                try
+                {
+                    // Ask for a job we know doesn't exist
+                    await store.CheckExists(new JobKey(Guid.NewGuid().ToString()), cancellationToken);
+                }
+                catch (SchedulerException)
+                {
+                    return HealthCheckResult.Unhealthy("Quartz scheduler cannot connect to the store");
+                }
             }
 
-            return Task.FromResult(result);
+            return HealthCheckResult.Healthy("Quartz scheduler is ready");
         }
-        
-        public override Task SchedulerError(string msg, SchedulerException cause, CancellationToken cancellationToken = default)
-        {
-            errorCount++;
-            return Task.CompletedTask;
-        }
+
 
         public override Task SchedulerStarted(CancellationToken cancellationToken = default)
         {

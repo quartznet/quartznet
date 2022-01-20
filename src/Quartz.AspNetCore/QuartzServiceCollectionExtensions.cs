@@ -15,12 +15,12 @@ namespace Quartz
             Action<QuartzHostedServiceOptions>? configure = null)
         {
 #if SUPPORTS_HEALTH_CHECKS
-            var check = new QuartzHealthCheck();
             services
                 .AddHealthChecks()
-                .AddCheck("quartz-scheduler", check);
+                .AddTypeActivatedCheck<QuartzHealthCheck>("quartz-scheduler");
 
-            services.AddSingleton<ISchedulerListener>(check);
+            services.AddSingleton<QuartzHealthCheck>();
+            services.AddSingleton<ISchedulerListener>(sp => sp.GetRequiredService<QuartzHealthCheck>());
 #endif
 
             return services.AddQuartzHostedService(configure);
