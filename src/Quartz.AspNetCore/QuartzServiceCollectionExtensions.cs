@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 #if SUPPORTS_HEALTH_CHECKS
 using Quartz.AspNetCore.HealthChecks;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 #endif
 
 namespace Quartz
@@ -18,9 +19,6 @@ namespace Quartz
             services
                 .AddHealthChecks()
                 .AddTypeActivatedCheck<QuartzHealthCheck>("quartz-scheduler");
-
-            services.AddSingleton<QuartzHealthCheck>();
-            services.AddSingleton<ISchedulerListener>(sp => sp.GetRequiredService<QuartzHealthCheck>());
 #endif
 
             return services.AddQuartzHostedService(configure);

@@ -10,49 +10,37 @@ using Quartz.Spi;
 
 namespace Quartz.AspNetCore.HealthChecks
 {
-    internal class QuartzHealthCheck : SchedulerListenerSupport, IHealthCheck
+    internal class QuartzHealthCheck : IHealthCheck
     {
-        private readonly IJobStore? store;
-        private bool running;
+        private readonly ISchedulerFactory schedulerFactory;
 
-        public QuartzHealthCheck(IJobStore? store = null)
+        public QuartzHealthCheck(ISchedulerFactory schedulerFactory)
         {
-            this.store = store;
+            this.schedulerFactory = schedulerFactory;
         }
 
         async Task<HealthCheckResult> IHealthCheck.CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken)
         {
-            if (!running)
+            var scheduler = await this.schedulerFactory.GetScheduler(cancellationToken);
+            if (!scheduler?.IsStarted ?? false)
             {
                 return HealthCheckResult.Unhealthy("Quartz scheduler is not running");
             }
-            else if (store is not null)
+
+            try
             {
-                try
+                // Ask for a job we know doesn't exist
+                if (scheduler is not null)
                 {
-                    // Ask for a job we know doesn't exist
-                    await store.CheckExists(new JobKey(Guid.NewGuid().ToString()), cancellationToken);
+                    await scheduler.CheckExists(new JobKey(Guid.NewGuid().ToString()), cancellationToken);
                 }
-                catch (SchedulerException)
-                {
-                    return HealthCheckResult.Unhealthy("Quartz scheduler cannot connect to the store");
-                }
+            }
+            catch (SchedulerException)
+            {
+                return HealthCheckResult.Unhealthy("Quartz scheduler cannot connect to the store");
             }
 
             return HealthCheckResult.Healthy("Quartz scheduler is ready");
-        }
-
-
-        public override Task SchedulerStarted(CancellationToken cancellationToken = default)
-        {
-            running = true;
-            return Task.CompletedTask;
-        }
-
-        public override Task SchedulerShutdown(CancellationToken cancellationToken = default)
-        {
-            running = false;
-            return Task.CompletedTask;
         }
     }
 }
