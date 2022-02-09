@@ -50,6 +50,6 @@ var job = JobBuilder.Create<SlowJob>()
     .WithIdentity("slowJob")
     .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable, true)
     // allow only five seconds for this job, overriding default configuration
-    .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime, TimeSpan.FromSeconds(5).TotalMilliseconds.ToString()));
+    .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime, TimeSpan.FromSeconds(5).TotalMilliseconds.ToString(CultureInfo.InvariantCulture))
     .Build();
 ```
