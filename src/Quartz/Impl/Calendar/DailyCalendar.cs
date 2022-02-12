@@ -551,7 +551,10 @@ namespace Quartz.Impl.Calendar
 
         public override ICalendar Clone()
         {
-            var clone = new DailyCalendar(CalendarBase, RangeStartingTime, RangeEndingTime);
+            var clone = new DailyCalendar(CalendarBase, RangeStartingTime, RangeEndingTime)
+            {
+                InvertTimeRange = InvertTimeRange
+            };
             CloneFields(clone);
             return clone;
         }
