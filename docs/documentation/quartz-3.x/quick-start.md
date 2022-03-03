@@ -55,7 +55,7 @@ which contains configuration keys and values.
 var properties = new NameValueCollection();
 
 // and override values via builder
-IScheduler sched = await SchedulerBuilder.Create(properties)
+IScheduler scheduler = await SchedulerBuilder.Create(properties)
     // default max concurrency is 10
     .UseDefaultThreadPool(x => x.MaxConcurrency = 5)
     // this is the default 
