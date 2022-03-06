@@ -386,33 +386,53 @@ namespace Quartz.Util
         public virtual ICollection<TKey> Keys => map.Keys;
 
         /// <summary>
-        /// When implemented by a class, gets a value indicating whether the <see cref="T:System.Collections.IDictionary"/>
-        /// is read-only.
+        /// Gets a value indicating whether the <see cref="DirtyFlagMap{TKey,TValue}"/> is read-only.
         /// </summary>
-        /// <value></value>
-        public virtual bool IsReadOnly => false;
+        /// <value>
+        /// <see langword="true"/> if the <see cref="DirtyFlagMap{TKey,TValue}"/> is read-only; otherwise, <see langword="false"/>.
+        /// In the default implementation of <see cref="DirtyFlagMap{TKey,TValue}"/>, this property always returns
+        /// <see langword="false"/>.
+        /// </value>
+        bool IDictionary.IsReadOnly => false;
 
         /// <summary>
-        /// When implemented by a class, gets a value indicating whether the <see cref="T:System.Collections.IDictionary"/>
-        /// has a fixed size.
+        /// Gets a value indicating whether the <see cref="DirtyFlagMap{TKey,TValue}"/> is read-only.
         /// </summary>
-        /// <value></value>
-        public virtual bool IsFixedSize => false;
+        /// <value>
+        /// <see langword="true"/> if the <see cref="DirtyFlagMap{TKey,TValue}"/> is read-only; otherwise, <see langword="false"/>.
+        /// In the default implementation of <see cref="DirtyFlagMap{TKey,TValue}"/>, this property always returns
+        /// <see langword="false"/>.
+        /// </value>
+        bool ICollection<KeyValuePair<TKey,TValue>>.IsReadOnly => false;
 
         /// <summary>
-        /// When implemented by a class, gets an object that
-        /// can be used to synchronize access to the <see cref="T:System.Collections.ICollection"/>.
+        /// Gets a value indicating whether the <see cref="DirtyFlagMap{TKey,TValue}"/> has a fixed size.
         /// </summary>
-        /// <value></value>
-        public virtual object SyncRoot { get; } = new object();
+        /// <value>
+        /// <see langword="true"/> if the <see cref="DirtyFlagMap{TKey,TValue}"/> has a fixed size;
+        /// otherwise, <see langword="false"/>. In the default implementation of <see cref="DirtyFlagMap{TKey,TValue}"/>,
+        /// this property always returns <see langword="false"/>.
+        /// </value>
+        bool IDictionary.IsFixedSize => false;
 
         /// <summary>
-        /// When implemented by a class, gets a value
-        /// indicating whether access to the <see cref="T:System.Collections.ICollection"/> is synchronized
+        /// Gets an object that can be used to synchronize access to the <see cref="DirtyFlagMap{TKey,TValue}"/>.
+        /// </summary>
+        /// <value>
+        /// An object that can be used to synchronize access to the <see cref="DirtyFlagMap{TKey,TValue}"/>.
+        /// </value>
+        object ICollection.SyncRoot { get; } = new object();
+
+        /// <summary>
+        /// Gets a value indicating whether access to the <see cref="DirtyFlagMap{TKey,TValue}"/> is synchronized
         /// (thread-safe).
         /// </summary>
-        /// <value></value>
-        public virtual bool IsSynchronized => false;
+        /// <value>
+        /// <see langword="true"/> if access to the <see cref="DirtyFlagMap{TKey,TValue}"/> is synchronized (thread safe);
+        /// otherwise, <see langword="false"/>. In the default implementation of <see cref="DirtyFlagMap{TKey,TValue}"/>,
+        /// this property always returns <see langword="false"/>.
+        /// </value>
+        bool ICollection.IsSynchronized => false;
 
         #endregion
 

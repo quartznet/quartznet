@@ -47,6 +47,12 @@ Quartz.OpenTelemetry.Instrumentation has been marked obsolete as there's officia
     * The 'Get(TKey key)' method of **DirtyFlagMap<TKey,TValue>** has been removed. You can instead use the
       this[TKey key] indexer or ´TryGetValue(TKey key, out TValue value)` to obtain the value for a given key.
 
+    * The following properties of **DirtyFlagMap<TKey,TValue>** are now explicit interface implementations:
+      * IsReadOnly
+      * IsFixedSize
+      * SyncRoot
+      * IsSynchronized
+
 ## Release 3.3.3, Aug 1 2021
 
 This is a maintenance release mostly fixing some smaller bugs and improving DI API story.
