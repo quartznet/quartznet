@@ -1818,6 +1818,59 @@ namespace Quartz.Tests.Unit.Utils
             Assert.IsTrue(dirtyFlagMap.Dirty);
         }
 
+        [Test]
+        public void ICollection_SyncRoot()
+        {
+            var dirtyFlagMap1 = new DirtyFlagMap<string, string>();
+            var collection1 = (ICollection) dirtyFlagMap1;
+
+            var syncRoot1 = collection1.SyncRoot;
+            Assert.IsNotNull(syncRoot1);
+            Assert.AreSame(syncRoot1, collection1.SyncRoot);
+            Assert.AreEqual(typeof(object), syncRoot1.GetType());
+
+            var dirtyFlagMap2 = new DirtyFlagMap<string, string>();
+            var collection2 = (ICollection) dirtyFlagMap2;
+
+            var syncRoot2 = collection2.SyncRoot;
+            Assert.IsNotNull(syncRoot2);
+            Assert.AreSame(syncRoot2, collection2.SyncRoot);
+            Assert.AreEqual(typeof(object), syncRoot2.GetType());
+            Assert.AreNotSame(syncRoot1, syncRoot2);
+        }
+
+        [Test]
+        public void ICollectionKeyValuePairOfTKeyAndTValue_IsReadOnly()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            var collection = (ICollection<KeyValuePair<string,string>>) dirtyFlagMap;
+            Assert.IsFalse(collection.IsReadOnly);
+        }
+
+        [Test]
+        public void IDictionary_IsReadOnly()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            var dictionary = (IDictionary) dirtyFlagMap;
+            Assert.IsFalse(dictionary.IsReadOnly);
+        }
+
+        [Test]
+        public void IDictionary_IsSynchronized()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            var dictionary = (IDictionary) dirtyFlagMap;
+            Assert.IsFalse(dictionary.IsSynchronized);
+        }
+
+        [Test]
+        public void IDictionary_IsFixedSize()
+        {
+            var dirtyFlagMap = new DirtyFlagMap<string, string>();
+            var dictionary = (IDictionary) dirtyFlagMap;
+            Assert.IsFalse(dictionary.IsFixedSize);
+        }
+
         //[Test]
         //[Ignore]
         //public void TestEntrySetRemove() 
