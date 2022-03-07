@@ -20,7 +20,9 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-
+using System.IO;
+using System.Runtime.Serialization.Formatters;
+using System.Runtime.Serialization.Formatters.Binary;
 using NUnit.Framework;
 
 using Quartz.Util;
@@ -35,6 +37,117 @@ namespace Quartz.Tests.Unit.Utils
     [TestFixture]
     public class DirtyFlagMapTest
     {
+        [Test]
+        public void EmptyAndDirty_V1_CanBeDeserialized()
+        {
+            var map = Deserialize<DirtyFlagMap<string,int>>("DirtyFlagMap_EmptyAndDirty_V1");
+
+            Assert.IsNotNull(map);
+            Assert.AreEqual(0, map.Count);
+            Assert.IsTrue(map.Dirty);
+        }
+
+        [Test]
+        public void EmptyAndNotDirty_V1_CanBeDeserialized()
+        {
+            var map = Deserialize<DirtyFlagMap<string, int>>("DirtyFlagMap_EmptyAndNotDirty_V1");
+
+            Assert.IsNotNull(map);
+            Assert.AreEqual(0, map.Count);
+            Assert.IsFalse(map.Dirty);
+        }
+
+        [Test]
+        public void NotEmptyAndDirty_V1_CanBeDeserialized()
+        {
+            var map = Deserialize<DirtyFlagMap<string, int>>("DirtyFlagMap_NotEmptyAndDirty_V1");
+
+            Assert.IsNotNull(map);
+            Assert.AreEqual(2, map.Count);
+            Assert.IsTrue(map.ContainsKey("A"));
+            Assert.AreEqual(2, map["A"]);
+            Assert.IsTrue(map.ContainsKey("B"));
+            Assert.AreEqual(7, map["B"]);
+            Assert.IsTrue(map.Dirty);
+        }
+
+        [Test]
+        public void NotEmptyAndNotDirty_V1_CanBeDeserialized()
+        {
+            var map = Deserialize<DirtyFlagMap<string, int>>("DirtyFlagMap_NotEmptyAndNotDirty_V1");
+
+            Assert.IsNotNull(map);
+            Assert.AreEqual(2, map.Count);
+            Assert.IsTrue(map.ContainsKey("C"));
+            Assert.AreEqual(3, map["C"]);
+            Assert.IsTrue(map.ContainsKey("F"));
+            Assert.AreEqual(1, map["F"]);
+            Assert.IsFalse(map.Dirty);
+        }
+
+        [Test]
+        public void EmptyAndDirty_CanBeSerializedAndDeserialized()
+        {
+            var map = new DirtyFlagMap<string, int>();
+            map.Add("C", 3);
+            map.Clear();
+
+            var deserialized = SerializeAndDeserialize(map);
+
+            Assert.IsNotNull(deserialized);
+            Assert.AreEqual(0, deserialized.Count);
+            Assert.IsTrue(deserialized.Dirty);
+        }
+
+        [Test]
+        public void EmptyAndNotDirty_CanBeSerializedAndDeserialized()
+        {
+            var map = new DirtyFlagMap<string, int>();
+
+            var deserialized = SerializeAndDeserialize(map);
+
+            Assert.IsNotNull(deserialized);
+            Assert.AreEqual(0, deserialized.Count);
+            Assert.IsFalse(deserialized.Dirty);
+        }
+
+        [Test]
+        public void NotEmptyAndDirty_CanBeSerializedAndDeserialized()
+        {
+            var map = new DirtyFlagMap<string, int>();
+            map.Add("A", 2);
+            map.Add("B", 7);
+
+            var deserialized = SerializeAndDeserialize(map);
+
+            Assert.IsNotNull(deserialized);
+            Assert.AreEqual(2, deserialized.Count);
+            Assert.IsTrue(map.ContainsKey("A"));
+            Assert.AreEqual(2, map["A"]);
+            Assert.IsTrue(map.ContainsKey("B"));
+            Assert.AreEqual(7, map["B"]);
+            Assert.IsTrue(map.Dirty);
+        }
+
+        [Test]
+        public void NotEmptyAndNotDirty_CanBeSerializedAndDeserialized()
+        {
+            var map = new DirtyFlagMap<string, int>();
+            map.Add("C", 3);
+            map.Add("F", 1);
+            map.ClearDirtyFlag();
+
+            var deserialized = SerializeAndDeserialize(map);
+
+            Assert.IsNotNull(map);
+            Assert.AreEqual(2, map.Count);
+            Assert.IsTrue(map.ContainsKey("C"));
+            Assert.AreEqual(3, map["C"]);
+            Assert.IsTrue(map.ContainsKey("F"));
+            Assert.AreEqual(1, map["F"]);
+            Assert.IsFalse(map.Dirty);
+        }
+
         [Test]
         public void TryGetValue_KeyIsNull()
         {
@@ -2016,6 +2129,30 @@ namespace Quartz.Tests.Unit.Utils
         //    values.Clear();
         //    Assert.IsTrue(dirtyFlagMap.Dirty);
         //    Assert.AreEqual(0, dirtyFlagMap.Count);
-        //}    
+        //}
+
+        private static T SerializeAndDeserialize<T>(T value)
+        {
+            var formatter = new BinaryFormatter();
+
+            using (var ms = new MemoryStream())
+            {
+                formatter.Serialize(ms, value);
+
+                ms.Position = 0;
+
+                return (T) formatter.Deserialize(ms);
+            }
+        }
+
+        private static T Deserialize<T>(string name)
+        {
+            using (var fs = File.OpenRead(Path.Combine("Serialized", name + ".ser")))
+            {
+                BinaryFormatter binaryFormatter = new BinaryFormatter();
+                binaryFormatter.AssemblyFormat = FormatterAssemblyStyle.Simple;
+                return (T) binaryFormatter.Deserialize(fs);
+            }
+        }
     }
 }
