@@ -51,12 +51,9 @@ namespace Quartz.Examples.AspNetCore
                     .AddZipkinExporter(o =>
                     {
                         o.Endpoint = new Uri("http://localhost:9411/api/v2/spans");
-                        o.ServiceName = "Quartz.Examples.AspNetCore";
                     })
                     .AddJaegerExporter(o =>
                     {
-                        o.ServiceName = "Quartz.Examples.AspNetCore";
-
                         // these are the defaults
                         o.AgentHost = "localhost";
                         o.AgentPort = 6831;

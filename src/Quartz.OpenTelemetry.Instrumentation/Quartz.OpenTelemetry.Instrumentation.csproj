@@ -3,7 +3,7 @@
     <TargetFrameworks>net472;netstandard2.0</TargetFrameworks>
     <RootNamespace>Quartz.OpenTelemetry.Instrumentation</RootNamespace>
     <Title>Quartz.NET OpenTelemetry integration</Title>
-    <Description>Quartz.NET OpenTelemetry integration; $(Description)</Description>
+    <Description>This package has been deprecated in favor of https://github.com/open-telemetry/opentelemetry-dotnet-contrib/tree/main/src/OpenTelemetry.Instrumentation.Quartz</Description>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <NoWarn>$(NoWarn);NU5104</NoWarn>
   </PropertyGroup>

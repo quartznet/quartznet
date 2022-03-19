@@ -7,13 +7,36 @@
 This release has Quartz jobs start executing only after application startup completes successfully, unless QuartzHostedServiceOptions are used to specify otherwise.
 By default, this prevents jobs from running while the application is still starting, and it alleviates the need to use arbitrary start delays to achieve the effect manually.
 
+* FIXES
+
+  * Fix for job type loading after version change (#1286)
+  * Fix StartDelayed delaying the start of other hosted services (#1314)
+  * Set NextFireTime of the replaced trigger relative to the old trigger's StartTime if the old trigger's PreviousFireTime is null (#1519)
+  * Include InvertTimeRange property in DailyCalendar.Clone (#1522)
+
+
 * IMPROVEMENTS
 
   * Jobs now start executing after application startup completes successfully (#1432)
+  * Support strongly-typed configuration of IDbProvider (#1312)
+  * Add MSSQL Script compatible with SQL 2014 and 2012 (#1337)
+  * Added usage of DisallowConcurrentExecutionAttribute for interfaces (#1345)
+  * Multiple performance improvements (#1351, #1355, #1354, #1353, #1356, #1358)
+  * Increase precision of SimpleTriggerImpl to ticks. (#1360)
+  * Switch from FAKE to NUKE (#1413)
+  * QuartzHostedService now has jobs start after application startup (#1449)
+
 
 * NEW FEATURES
 
   * QuartzHostedServiceOptions can let jobs be started as part of application startup, as before this version  (#1432)
+  * Add helper methods to setup Microsoft.Data.Sqlite (#1275)
+
+  
+* BREAKING CHANGES
+
+  * Quartz.OpenTelemetry.Instrumentation is now obsolete as there is contrib package on OT side: https://github.com/open-telemetry/opentelemetry-dotnet-contrib/tree/main/src/OpenTelemetry.Instrumentation.Quartz
+
 
 ## Release 3.3.3, Aug 1 2021
 
