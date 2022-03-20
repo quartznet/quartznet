@@ -1,13 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Specialized;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using Quartz.Impl;
-using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
 
@@ -34,20 +32,7 @@ namespace Quartz
             Action<IServiceCollectionQuartzConfigurator>? configure = null)
         {
             services.AddOptions();
-            services.TryAddSingleton<MicrosoftLoggingProvider?>(serviceProvider =>
-            {
-                var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
-
-                if (loggerFactory is null)
-                {
-                    throw new InvalidOperationException($"{nameof(ILoggerFactory)} service is required");
-                }
-
-                LogContext.SetCurrentLogProvider(loggerFactory);
-
-                return LogProvider.CurrentLogProvider as MicrosoftLoggingProvider;
-            });
-
+         
             var schedulerBuilder = SchedulerBuilder.Create(properties);
             if (configure != null)
             {

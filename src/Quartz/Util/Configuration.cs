@@ -2,6 +2,8 @@ using System;
 using System.Collections.Specialized;
 using System.Configuration;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Logging;
 
 namespace Quartz.Util
@@ -16,8 +18,8 @@ namespace Quartz.Util
             }
             catch (Exception e)
             {
-                var log = LogProvider.GetLogger(typeof(Configuration));
-                log.Warn("could not read configuration using ConfigurationManager.GetSection: " + e.Message);
+                var logger = LogProvider.CreateLogger(nameof(Configuration));
+                logger.LogWarning(e,"could not read configuration using ConfigurationManager.GetSection: {ExceptionMessage}",e.Message);
                 return null;
             }
         }

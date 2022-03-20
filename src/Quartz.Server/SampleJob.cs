@@ -3,6 +3,10 @@ using System.Threading.Tasks;
 
 using log4net;
 
+using Microsoft.Extensions.Logging;
+
+using Quartz.Logging;
+
 namespace Quartz.Server
 {
     /// <summary>
@@ -10,7 +14,7 @@ namespace Quartz.Server
     /// </summary>
     public class SampleJob : IJob
     {
-        private static readonly ILog logger = LogManager.GetLogger(typeof (SampleJob));
+        private static readonly ILogger<SampleJob> logger = LogProvider.CreateLogger<SampleJob>();
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
@@ -27,9 +31,9 @@ namespace Quartz.Server
         /// <param name="context">The execution context.</param>
         public async Task Execute(IJobExecutionContext context)
         {
-            logger.Info("SampleJob running...");
+            logger.LogInformation("SampleJob running...");
             await Task.Delay(TimeSpan.FromSeconds(5));
-            logger.Info("SampleJob run finished.");
+            logger.LogInformation("SampleJob run finished.");
         }
     }
 }

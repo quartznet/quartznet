@@ -22,6 +22,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Logging;
 
 namespace Quartz.Listener
@@ -51,7 +53,7 @@ namespace Quartz.Listener
     public class JobChainingJobListener : JobListenerSupport
     {
         private readonly Dictionary<JobKey, JobKey> chainLinks;
-        private readonly ILog log;
+        private readonly ILogger<JobChainingJobListener> logger;
 
         /// <summary>
         /// Construct an instance with the given name.
@@ -61,7 +63,7 @@ namespace Quartz.Listener
         {
             Name = name ?? throw new ArgumentException("Listener name cannot be null!");
             chainLinks = new Dictionary<JobKey, JobKey>();
-            log = LogProvider.GetLogger(typeof(JobChainingJobListener));
+            logger = LogProvider.CreateLogger<JobChainingJobListener>();
         }
 
         public override string Name { get; }
@@ -97,7 +99,7 @@ namespace Quartz.Listener
                 return;
             }
 
-            log.Info($"Job '{context.JobDetail.Key}' will now chain to Job '{sj}'");
+            logger.LogInformation("Job '{JobKey}' will now chain to Job '{Job}'", context.JobDetail.Key,sj);
 
             try
             {
@@ -105,7 +107,7 @@ namespace Quartz.Listener
             }
             catch (SchedulerException se)
             {
-                log.ErrorException($"Error encountered during chaining to Job '{sj}'", se);
+                logger.LogError(se,"Error encountered during chaining to Job '{Job}'", sj);
             }
         }
     }

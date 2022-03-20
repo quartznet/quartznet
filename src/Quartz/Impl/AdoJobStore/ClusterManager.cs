@@ -2,6 +2,8 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Logging;
 using Quartz.Util;
 
@@ -9,7 +11,7 @@ namespace Quartz.Impl.AdoJobStore
 {
     internal sealed class ClusterManager
     {
-        private readonly ILog log;
+        private readonly ILogger<ClusterManager> logger;
 
         // keep constant lock requestor id for manager's lifetime
         private readonly Guid requestorId = Guid.NewGuid();
@@ -26,7 +28,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             this.jobStoreSupport = jobStoreSupport;
             cancellationTokenSource = new CancellationTokenSource();
-            log = LogProvider.GetLogger(typeof(ClusterManager));
+            logger = LogProvider.CreateLogger<ClusterManager>();
         }
 
         public async Task Initialize()
@@ -59,13 +61,13 @@ namespace Quartz.Impl.AdoJobStore
                 res = await jobStoreSupport.DoCheckin(requestorId).ConfigureAwait(false);
 
                 numFails = 0;
-                log.Debug("Check-in complete.");
+                logger.LogDebug("Check-in complete.");
             }
             catch (Exception e)
             {
                 if (numFails % jobStoreSupport.RetryableActionErrorLogThreshold == 0)
                 {
-                    log.ErrorException("Error managing cluster: " + e.Message, e);
+                    logger.LogError(e,"Error managing cluster: {ExceptionMessage}",e.Message);
                 }
                 numFails++;
             }

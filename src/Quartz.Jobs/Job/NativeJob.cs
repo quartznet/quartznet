@@ -23,6 +23,8 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Logging;
 
 namespace Quartz.Job
@@ -92,15 +94,15 @@ namespace Quartz.Job
         /// Gets the log.
         /// </summary>
         /// <value>The log.</value>
-	    private ILog Log { get; }
+	    private ILogger<NativeJob> logger { get; }
 
 		/// <summary>
         /// Initializes a new instance of the <see cref="NativeJob"/> class.
         /// </summary>
 	    public NativeJob()
-	    {
-            Log = LogProvider.GetLogger(typeof(NativeJob));
-	    }
+        {
+            logger = LogProvider.CreateLogger<NativeJob>();
+        }
 
 		/// <summary>
 		/// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
@@ -188,7 +190,7 @@ namespace Quartz.Job
 
                 temp = temp.Trim();
 
-                Log.Info($"About to run {cmd[0]} {temp}...");
+                logger.LogInformation("About to run {Command} {Temp}...", cmd[0],temp);
 
 				Process proc = new Process();
 
@@ -273,17 +275,17 @@ namespace Quartz.Job
 				    {
 					    if (type == StreamTypeError)
 					    {
-						    enclosingInstance.Log.Warn($"{type}>{line}");
+						    enclosingInstance.logger.LogWarning("{Type}>{Line}",type,line);
 					    }
 					    else
 					    {
-						    enclosingInstance.Log.Info($"{type}>{line}");
+						    enclosingInstance.logger.LogInformation("{Type}>{Line}",type,line);
 					    }
 				    }
 			    }
 				catch (IOException ioe)
 				{
-                    enclosingInstance.Log.ErrorException($"Error consuming {type} stream of spawned process.", ioe);
+                    enclosingInstance.logger.LogError(ioe,"Error consuming {Type} stream of spawned process.", type);
 				}
 			}
 		}

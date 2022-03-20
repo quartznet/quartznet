@@ -1,7 +1,9 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Security;
+
+using Microsoft.Extensions.Logging;
 
 using Quartz.Logging;
 
@@ -28,8 +30,8 @@ namespace Quartz.Util
             }
             catch (SecurityException)
             {
-                var log = LogProvider.GetLogger(typeof(QuartzEnvironment));
-                log.WarnFormat("Unable to read environment variable '{0}' due to security exception, probably running under medium trust", key);
+                var log = LogProvider.CreateLogger(nameof(QuartzEnvironment));
+                log.LogWarning("Unable to read environment variable '{Key}' due to security exception, probably running under medium trust", key);
             }
             return null;
         }
@@ -50,8 +52,8 @@ namespace Quartz.Util
             }
             catch (SecurityException)
             {
-                var log = LogProvider.GetLogger(typeof(QuartzEnvironment));
-                log.WarnFormat("Unable to read environment variables due to security exception, probably running under medium trust");
+                var log = LogProvider.CreateLogger(nameof(QuartzEnvironment));
+                log.LogWarning("Unable to read environment variables due to security exception, probably running under medium trust");
             }
             return retValue;
         }

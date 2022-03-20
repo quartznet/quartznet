@@ -1,6 +1,8 @@
 using System;
 
-using log4net;
+using Microsoft.Extensions.Logging;
+
+using Quartz.Logging;
 
 namespace Quartz.Server
 {
@@ -9,7 +11,7 @@ namespace Quartz.Server
     /// </summary>
     public class QuartzServerFactory
     {
-        private static readonly ILog logger = LogManager.GetLogger(typeof (QuartzServerFactory));
+        private static readonly ILogger<QuartzServerFactory> logger = LogProvider.CreateLogger<QuartzServerFactory>();
 
         /// <summary>
         /// Creates a new instance of an Quartz.NET server core.
@@ -21,9 +23,9 @@ namespace Quartz.Server
 
             Type t = Type.GetType(typeName, true)!;
 
-            logger.Debug("Creating new instance of server type '" + typeName + "'");
+            logger.LogDebug("Creating new instance of server type '{Type}'" ,typeName);
             QuartzServer retValue = (QuartzServer) Activator.CreateInstance(t)!;
-            logger.Debug("Instance successfully created");
+            logger.LogDebug("Instance successfully created");
             return retValue;
         }
     }

@@ -23,6 +23,8 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Logging;
 using Quartz.Spi;
 
@@ -49,14 +51,14 @@ namespace Quartz.Simpl
         /// </summary>
         public ZeroSizeThreadPool()
         {
-            Log = LogProvider.GetLogger(GetType());
+            logger = LogProvider.CreateLogger<ZeroSizeThreadPool>();
         }
 
         /// <summary>
         /// Gets the log.
         /// </summary>
         /// <value>The log.</value>
-        private ILog Log { get; }
+        private ILogger logger { get; }
 
         /// <summary>
         /// Gets the size of the pool.
@@ -100,7 +102,7 @@ namespace Quartz.Simpl
         /// <param name="waitForJobsToComplete"></param>
         public virtual void Shutdown(bool waitForJobsToComplete)
         {
-            Log.Debug("shutdown complete");
+            logger.LogDebug("Shutdown complete");
         }
 
         /// <summary>

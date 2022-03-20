@@ -21,6 +21,8 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Logging;
 
 namespace Quartz.Job
@@ -69,14 +71,14 @@ namespace Quartz.Job
         /// Gets the log.
         /// </summary>
         /// <value>The log.</value>
-        private ILog Log { get; }
+        private ILogger<FileScanJob> logger { get; }
 
 		/// <summary>
         /// Initializes a new instance of the <see cref="FileScanJob"/> class.
         /// </summary>
 	    public FileScanJob()
 	    {
-	        Log = LogProvider.GetLogger(typeof (FileScanJob));
+	        logger = LogProvider.CreateLogger<FileScanJob>();
 	    }
 
 	    /// <summary>
@@ -144,19 +146,19 @@ namespace Quartz.Job
 
 			if (newDate == DateTime.MinValue)
 			{
-				Log.Warn($"File '{fileName}' does not exist.");
+				logger.LogWarning("File '{FileName}' does not exist.", fileName);
 				return;
 			}
 
             if (lastDate != DateTime.MinValue && newDate != lastDate && newDate < maxAgeDate)
 			{
 				// notify call back...
-				Log.Info($"File '{fileName}' updated, notifying listener.");
+				logger.LogInformation("File '{FileName}' updated, notifying listener.", fileName);
 				await listener.FileUpdated(fileName).ConfigureAwait(false);
 			}
 			else
 			{
-				Log.Debug($"File '{fileName}' unchanged.");
+				logger.LogDebug("File '{FileName}' unchanged.", fileName);
 			}
 
 			context.JobDetail.JobDataMap.Put(LastModifiedTime, newDate);

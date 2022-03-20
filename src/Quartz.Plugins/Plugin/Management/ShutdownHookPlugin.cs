@@ -23,6 +23,8 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Logging;
 using Quartz.Spi;
 
@@ -37,11 +39,11 @@ namespace Quartz.Plugin.Management
     /// <author>Marko Lahma (.NET)</author>
     public class ShutdownHookPlugin : ISchedulerPlugin
     {
-        private readonly ILog log;
+        private readonly ILogger<ShutdownHookPlugin> logger;
 
         public ShutdownHookPlugin()
         {
-            log = LogProvider.GetLogger(typeof(ShutdownHookPlugin));
+            logger = LogProvider.CreateLogger<ShutdownHookPlugin>();
             CleanShutdown = true;
         }
 
@@ -64,17 +66,17 @@ namespace Quartz.Plugin.Management
             IScheduler scheduler,
             CancellationToken cancellationToken = default)
         {
-            log.InfoFormat("Registering Quartz Shutdown hook '{0}.", pluginName);
+            logger.LogInformation("Registering Quartz Shutdown hook '{PluginName}'", pluginName);
             AppDomain.CurrentDomain.ProcessExit += (sender, ea) =>
             {
-                log.Info("Shutting down Quartz...");
+                logger.LogInformation("Shutting down Quartz...");
                 try
                 {
                     scheduler.Shutdown(CleanShutdown, cancellationToken);
                 }
                 catch (SchedulerException e)
                 {
-                    log.InfoException("Error shutting down Quartz: " + e.Message, e);
+                    logger.LogError(e,"Error shutting down Quartz: {ErrorMessage}",e.Message);
                 }
             };
             return Task.CompletedTask;

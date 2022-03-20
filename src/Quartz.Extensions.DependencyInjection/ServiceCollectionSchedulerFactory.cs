@@ -7,7 +7,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 using Quartz.Impl;
-using Quartz.Simpl;
 using Quartz.Util;
 
 namespace Quartz
@@ -35,9 +34,6 @@ namespace Quartz
 
         public override async Task<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
         {
-            // check if logging provider configured and let if configure
-            serviceProvider.GetService<MicrosoftLoggingProvider>();
-
             base.Initialize(options.Value);
             var scheduler = await base.GetScheduler(cancellationToken);
             if (initialized)

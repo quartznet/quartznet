@@ -26,7 +26,8 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-using Quartz.Impl;
+using Microsoft.Extensions.Logging;
+
 using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Logging;
@@ -66,14 +67,14 @@ namespace Quartz.Plugin.Xml
         /// </summary>
         public XMLSchedulingDataProcessorPlugin()
         {
-            Log = LogProvider.GetLogger(typeof (XMLSchedulingDataProcessorPlugin));
+            logger = LogProvider.CreateLogger<XMLSchedulingDataProcessorPlugin>();
         }
 
         /// <summary>
         /// Gets the log.
         /// </summary>
         /// <value>The log.</value>
-        private ILog Log { get; }
+        private ILogger<XMLSchedulingDataProcessorPlugin> logger { get; }
 
         public string Name { get; private set; } = null!;
 
@@ -134,7 +135,7 @@ namespace Quartz.Plugin.Xml
             TypeLoadHelper = new SimpleTypeLoadHelper();
             TypeLoadHelper.Initialize();
 
-            Log.Info("Registering Quartz Job Initialization Plug-in.");
+            logger.LogInformation("Registering Quartz Job Initialization Plug-in.");
 
             // Create JobFile objects
             var tokens = FileNames.Split(FileNameDelimiter).Select(x => x.TrimStart());
@@ -192,7 +193,7 @@ namespace Quartz.Plugin.Xml
                             job.JobDataMap.Put(FileScanJob.FileScanListenerName, JobInitializationPluginName + '_' + Name);
 
                             await Scheduler.ScheduleJob(job, trig, cancellationToken).ConfigureAwait(false);
-                            Log.DebugFormat("Scheduled file scan job for data file: {0}, at interval: {1}", jobFile.FileName, ScanInterval);
+                            logger.LogDebug("Scheduled file scan job for data file: {FileName}, at interval: {ScanInterval}", jobFile.FileName, ScanInterval);
                         }
 
                         await ProcessFile(jobFile, cancellationToken).ConfigureAwait(false);
@@ -205,7 +206,7 @@ namespace Quartz.Plugin.Xml
                 {
                     throw;
                 }
-                Log.ErrorException("Error starting background-task for watching jobs file.", se);
+                logger.LogError(se,"Error starting background-task for watching jobs file.");
             }
             finally
             {
@@ -279,7 +280,7 @@ namespace Quartz.Plugin.Xml
 
             try
             {
-                XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(TypeLoadHelper);
+                XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(LogProvider.CreateLogger<XMLSchedulingDataProcessor>(), TypeLoadHelper);
 
                 processor.AddJobGroupToNeverDelete(JobInitializationPluginName);
                 processor.AddTriggerGroupToNeverDelete(JobInitializationPluginName);
@@ -299,7 +300,7 @@ namespace Quartz.Plugin.Xml
                 }
                 else
                 {
-                    Log.ErrorException(message, e);
+                    logger.LogError(e,message);
                 }
             }
         }
@@ -370,7 +371,7 @@ namespace Quartz.Plugin.Xml
                         }
                         else
                         {
-                            plugin.Log.Warn($"File named '{FileName}' does not exist.");
+                            plugin.logger.LogWarning("File named '{FileName}' does not exist.",FileName);
                         }
                     }
                     else
@@ -388,7 +389,7 @@ namespace Quartz.Plugin.Xml
                     }
                     catch (IOException ioe)
                     {
-                        plugin.Log.WarnException("Error closing jobs file " + FileName, ioe);
+                        plugin.logger.LogWarning(ioe,"Error closing jobs file {FileName}",FileName);
                     }
                 }
 

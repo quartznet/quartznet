@@ -1,9 +1,10 @@
 using System;
 using System.Threading.Tasks;
 
-using log4net;
+using Microsoft.Extensions.Logging;
 
 using Quartz.Impl;
+using Quartz.Logging;
 
 using Topshelf;
 
@@ -14,7 +15,7 @@ namespace Quartz.Server
 	/// </summary>
 	public class QuartzServer : ServiceControl, IQuartzServer
 	{
-		private readonly ILog logger;
+		private readonly ILogger<QuartzServer> logger;
 		private ISchedulerFactory schedulerFactory = null!;
 		private IScheduler scheduler = null!;
 
@@ -22,9 +23,9 @@ namespace Quartz.Server
         /// Initializes a new instance of the <see cref="QuartzServer"/> class.
         /// </summary>
 	    public QuartzServer()
-	    {
-	        logger = LogManager.GetLogger(GetType());
-	    }
+        {
+            logger = LogProvider.CreateLogger<QuartzServer>();
+        }
 
         /// <summary>
         /// Initializes the instance of the <see cref="QuartzServer"/> class.
@@ -38,7 +39,7 @@ namespace Quartz.Server
             }
             catch (Exception e)
             {
-                logger.Error("Server initialization failed:" + e.Message, e);
+                logger.LogError(e,"Server initialization failed: {ErrorMessage}",e.Message);
                 throw;
             }
         }
@@ -79,11 +80,11 @@ namespace Quartz.Server
 	        }
 	        catch (Exception ex)
 	        {
-	            logger.Fatal($"Scheduler start failed: {ex.Message}", ex);
+	            logger.LogCritical(ex,"Scheduler start failed: {ErrorMessage}", ex.Message);
 	            throw;
 	        }
 
-			logger.Info("Scheduler started successfully");
+			logger.LogInformation("Scheduler started successfully");
 		}
 
 		/// <summary>
@@ -97,11 +98,11 @@ namespace Quartz.Server
             }
             catch (Exception ex)
             {
-                logger.Error($"Scheduler stop failed: {ex.Message}", ex);
+                logger.LogError(ex,"Scheduler stop failed: {ErrorMessage}", ex.Message);
                 throw;
             }
 
-			logger.Info("Scheduler shutdown complete");
+			logger.LogInformation("Scheduler shutdown complete");
 		}
 
         /// <summary>

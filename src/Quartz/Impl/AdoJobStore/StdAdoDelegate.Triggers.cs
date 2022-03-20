@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Data.Common;
@@ -6,9 +6,10 @@ using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
-using Quartz.Logging;
 using Quartz.Spi;
 using Quartz.Util;
 
@@ -1307,7 +1308,7 @@ namespace Quartz.Impl.AdoJobStore
 
         public virtual void AddTriggerPersistenceDelegate(ITriggerPersistenceDelegate del)
         {
-            logger.Debug("Adding TriggerPersistenceDelegate of type: " + del.GetType());
+            logger.LogDebug("Adding TriggerPersistenceDelegate of type: {Type}",del.GetType());
             del.Initialize(tablePrefix, schedName, this);
             triggerPersistenceDelegates.Add(del);
         }

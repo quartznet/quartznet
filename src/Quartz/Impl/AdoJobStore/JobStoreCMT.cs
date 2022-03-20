@@ -24,6 +24,8 @@ using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Logging;
 using Quartz.Spi;
 
@@ -67,7 +69,7 @@ namespace Quartz.Impl.AdoJobStore
 
             base.Initialize(loadHelper, signaler, cancellationToken);
 
-            Log.Info("JobStoreCMT initialized.");
+            Logger.LogInformation("JobStoreCMT initialized.");
             return Task.CompletedTask;
         }
 
@@ -86,7 +88,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception ex)
             {
-                Log.WarnException("Database connection shutdown unsuccessful.", ex);
+                Logger.LogWarning(ex,"Database connection shutdown unsuccessful.");
             }
         }
 

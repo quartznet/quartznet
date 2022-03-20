@@ -28,6 +28,8 @@ using System.Runtime.Remoting.Channels.Tcp;
 using System.Runtime.Serialization.Formatters;
 using System.Security;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Logging;
 using Quartz.Spi;
 
@@ -59,7 +61,7 @@ namespace Quartz.Simpl
 #endif // REMOTING
             ChannelName = DefaultChannelName;
             BindName = DefaultBindName;
-            Log = LogProvider.GetLogger(GetType());
+            Log = LogProvider.CreateLogger<RemotingSchedulerExporter>();
         }
 
         public virtual void Bind(IRemotableQuartzScheduler scheduler)
@@ -80,19 +82,19 @@ namespace Quartz.Simpl
             try
             {
                 RemotingServices.Marshal((MarshalByRefObject)scheduler, BindName);
-                Log.Info($"Successfully marshalled remotable scheduler under name '{BindName}'");
+                Log.LogInformation("Successfully marshalled remotable scheduler under name '{BindName}'",BindName);
             }
             catch (RemotingException ex)
             {
-                Log.ErrorException("RemotingException during Bind", ex);
+                Log.LogError(ex,"RemotingException during Bind");
             }
             catch (SecurityException ex)
             {
-                Log.ErrorException("SecurityException during Bind", ex);
+                Log.LogError(ex,"SecurityException during Bind");
             }
             catch (Exception ex)
             {
-                Log.ErrorException("Exception during Bind", ex);
+                Log.LogError(ex,"Exception during Bind");
             }
 #else // REMOTING
             // TODO (NetCore Port): Replace with HTTP communication
@@ -119,7 +121,8 @@ namespace Quartz.Simpl
                 string channelRegistrationKey = ChannelType + "_" + Port;
                 if (registeredChannels.ContainsKey(channelRegistrationKey))
                 {
-                    Log.Warn($"Channel '{ChannelType}' already registered for port {Port}, not registering again");
+                    Log.LogWarning("Channel '{ChannelType}' already registered for port {Port}, not registering again", 
+                        ChannelType,Port);
                     return;
                 }
                 IChannel chan;
@@ -138,14 +141,15 @@ namespace Quartz.Simpl
 
                 if (RejectRemoteRequests)
                 {
-                    Log.Info("Remoting is NOT accepting remote calls");
+                    Log.LogInformation("Remoting is NOT accepting remote calls");
                 }
                 else
                 {
-                    Log.Info("Remoting is allowing remote calls");
+                    Log.LogInformation("Remoting is allowing remote calls");
                 }
 
-                Log.Info($"Registering remoting channel of type '{chan.GetType()}' to port ({Port}) with name ({chan.ChannelName})");
+                Log.LogInformation("Registering remoting channel of type '{ChannelType}' to port ({Port}) with name ({ChannelName})", 
+                    chan.GetType(), Port, chan.ChannelName);
 
                 ChannelServices.RegisterChannel(chan, false);
 
@@ -153,11 +157,11 @@ namespace Quartz.Simpl
 #else // REMOTING
                 // TODO (NetCore Port): Replace with HTTP communication
 #endif // REMOTING
-                Log.Info("Remoting channel registered successfully");
+                Log.LogInformation("Remoting channel registered successfully");
             }
             else
             {
-                Log.Error("Cannot register remoting if port or channel type not specified");
+                Log.LogError("Cannot register remoting if port or channel type not specified");
             }
         }
 
@@ -210,26 +214,26 @@ namespace Quartz.Simpl
             {
 #if REMOTING
                 RemotingServices.Disconnect((MarshalByRefObject)scheduler);
-                Log.Info("Successfully disconnected remotable scheduler");
+                Log.LogInformation("Successfully disconnected remotable scheduler");
 #else // REMOTING
                 // TODO (NetCore Port): Replace with HTTP communication
 #endif // REMOTING
             }
             catch (ArgumentException ex)
             {
-                Log.ErrorException("ArgumentException during Unbind", ex);
+                Log.LogError(ex,"ArgumentException during Unbind");
             }
             catch (SecurityException ex)
             {
-                Log.ErrorException("SecurityException during Unbind", ex);
+                Log.LogError(ex,"SecurityException during Unbind");
             }
             catch (Exception ex)
             {
-                Log.ErrorException("Exception during Unbind", ex);
+                Log.LogError(ex,"Exception during Unbind");
             }
         }
 
-        internal ILog Log { get; }
+        internal ILogger<RemotingSchedulerExporter> Log { get; }
 
         /// <summary>
         /// Gets or sets the port used for remoting.

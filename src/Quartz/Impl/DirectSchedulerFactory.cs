@@ -22,6 +22,8 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Core;
 using Quartz.Logging;
 using Quartz.Simpl;
@@ -81,7 +83,7 @@ namespace Quartz.Impl
         /// Gets the log.
         /// </summary>
         /// <value>The log.</value>
-		private ILog Log { get; }
+		private ILogger<DirectSchedulerFactory> logger { get; }
 
 		/// <summary>
 		/// Gets the instance.
@@ -103,9 +105,9 @@ namespace Quartz.Impl
         /// Initializes a new instance of the <see cref="DirectSchedulerFactory"/> class.
         /// </summary>
 		protected DirectSchedulerFactory()
-		{
-		    Log = LogProvider.GetLogger(GetType());
-		}
+        {
+            logger = LogProvider.CreateLogger<DirectSchedulerFactory>();
+        }
 
 		/// <summary>
 		/// Creates an in memory job store (<see cref="RAMJobStore" />)
@@ -363,9 +365,9 @@ namespace Quartz.Impl
                 }
             }
 
-            Log.Info($"Quartz scheduler '{scheduler.SchedulerName}");
+            logger.LogInformation("Quartz scheduler {SchedulerName}",scheduler.SchedulerName);
 
-            Log.Info($"Quartz scheduler version: {qs.Version}");
+            logger.LogInformation("Quartz scheduler version: {Version}",qs.Version);
 
             SchedulerRepository schedRep = SchedulerRepository.Instance;
 
