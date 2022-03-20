@@ -19,6 +19,8 @@
 
 using System;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Logging;
 using Quartz.Util;
 
@@ -49,8 +51,8 @@ namespace Quartz.Impl
             }
             catch (MemberAccessException)
             {
-                var log = LogProvider.GetLogger(typeof(SchedulerDetailsSetter));
-                log.WarnFormat("Unable to set property {0} for {1}. Possibly older binary compilation.", propertyName, target);
+                var log = LogProvider.CreateLogger(nameof(SchedulerDetailsSetter));
+                log.LogWarning("Unable to set property {PropertyName} for {Target}. Possibly older binary compilation.", propertyName, target);
             }
         }
     }

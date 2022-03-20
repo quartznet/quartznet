@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using Quartz.Spi;
@@ -15,9 +16,10 @@ namespace Quartz
         private readonly IOptions<QuartzOptions> options;
 
         public ContainerConfigurationProcessor(
+            ILogger<XMLSchedulingDataProcessor> logger,
             ITypeLoadHelper typeLoadHelper,
             IOptions<QuartzOptions> options) 
-            : base(typeLoadHelper)
+            : base(logger, typeLoadHelper)
         {
             this.options = options;
         }

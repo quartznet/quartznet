@@ -21,6 +21,8 @@ using System;
 using System.Collections.Generic;
 using System.Data.Common;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Logging;
 
@@ -38,7 +40,7 @@ namespace Quartz.Util
     public class DBConnectionManager : IDbConnectionManager
     {
         private static readonly DBConnectionManager instance = new DBConnectionManager();
-	    private readonly ILog log;
+	    private readonly ILogger<DBConnectionManager> logger;
 
         private readonly object syncRoot = new object();
         private readonly Dictionary<string, IDbProvider> providers = new Dictionary<string, IDbProvider>();
@@ -55,7 +57,7 @@ namespace Quartz.Util
 		/// </summary>
 		private DBConnectionManager()
         {
-            log = LogProvider.GetLogger(typeof(DBConnectionManager));
+            logger = LogProvider.CreateLogger<DBConnectionManager>();
         }
 
         /// <summary>
@@ -65,7 +67,7 @@ namespace Quartz.Util
         /// <param name="provider">The provider.</param>
         public virtual void AddConnectionProvider(string dataSourceName, IDbProvider provider)
         {
-            log.Info($"Registering datasource '{dataSourceName}' with db provider: '{provider}'");
+            logger.LogInformation("Registering datasource '{DataSource}' with db provider: '{Provider}'",dataSourceName, provider);
 
             lock (syncRoot)
             {

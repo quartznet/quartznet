@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Specialized;
 using System.Configuration;
+using Microsoft.Extensions.Logging;
 
-using log4net;
+using Quartz.Logging;
 
 namespace Quartz.Server
 {
@@ -10,8 +11,8 @@ namespace Quartz.Server
 	/// Configuration for the Quartz server.
 	/// </summary>
 	public class Configuration
-	{
-		private static readonly ILog log = LogManager.GetLogger(typeof(Configuration));
+    {
+        private static readonly ILogger<Configuration> logger = LogProvider.CreateLogger<Configuration>();
 
 		private const string PrefixServerConfiguration = "quartz.server";
 		private const string KeyServiceName = PrefixServerConfiguration + ".serviceName";
@@ -37,7 +38,7 @@ namespace Quartz.Server
 			}
 			catch (Exception e)
 			{
-				log.Warn("could not read configuration using ConfigurationManager.GetSection: " + e.Message);
+				logger.LogWarning(e,"could not read configuration using ConfigurationManager.GetSection: {ErrorMessage}",e.Message);
 			}
 		}
 

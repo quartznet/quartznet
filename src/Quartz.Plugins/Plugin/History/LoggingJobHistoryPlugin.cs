@@ -24,9 +24,13 @@ using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Impl.Matchers;
 using Quartz.Logging;
 using Quartz.Spi;
+
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace Quartz.Plugin.History
 {
@@ -260,7 +264,7 @@ namespace Quartz.Plugin.History
         /// <summary>
         /// Logger instance to use. Defaults to common logging.
         /// </summary>
-        private ILog Log { get; set; } = LogProvider.GetLogger(typeof(LoggingJobHistoryPlugin));
+        private ILogger<LoggingJobHistoryPlugin> logger { get; set; } = LogProvider.CreateLogger<LoggingJobHistoryPlugin>();
 
         /// <summary>
         /// Get or sets the message that is logged when a Job successfully completes its
@@ -445,18 +449,18 @@ namespace Quartz.Plugin.History
             return Task.CompletedTask;
         }
 
-        protected virtual bool IsInfoEnabled => Log.IsInfoEnabled();
+        protected virtual bool IsInfoEnabled => logger.IsEnabled(LogLevel.Information);
 
         protected virtual void WriteInfo(string message)
         {
-            Log.Info(message);
+            logger.LogInformation(message);
         }
 
-        protected virtual bool IsWarnEnabled => Log.IsWarnEnabled();
+        protected virtual bool IsWarnEnabled => logger.IsEnabled(LogLevel.Warning);
 
         protected virtual void WriteWarning(string message, Exception ex)
         {
-            Log.WarnException(message, ex);
+            logger.LogWarning(ex,message);
         }
     }
 }

@@ -23,9 +23,13 @@ using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Impl.Matchers;
 using Quartz.Logging;
 using Quartz.Spi;
+
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace Quartz.Plugin.History
 {
@@ -213,7 +217,7 @@ namespace Quartz.Plugin.History
         /// <summary>
         /// Logger instance to use. Defaults to common logging.
         /// </summary>
-        private ILog Log { get; } = LogProvider.GetLogger(typeof(LoggingTriggerHistoryPlugin));
+        private ILogger<LoggingTriggerHistoryPlugin> logger { get; } = LogProvider.CreateLogger<LoggingTriggerHistoryPlugin>();
 
         /// <summary>
         /// Get or set the message that is printed upon the completion of a trigger's
@@ -430,11 +434,11 @@ namespace Quartz.Plugin.History
             return Task.FromResult(false);
         }
 
-        protected virtual bool IsInfoEnabled => Log.IsInfoEnabled();
+        protected virtual bool IsInfoEnabled => logger.IsEnabled(LogLevel.Information);
 
         protected virtual void WriteInfo(string message)
         {
-            Log.Info(message);
+            logger.LogInformation(message);
         }
     }
 }

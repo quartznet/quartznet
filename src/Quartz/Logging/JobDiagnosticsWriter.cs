@@ -7,7 +7,7 @@ namespace Quartz.Logging
 {
     internal sealed class JobDiagnosticsWriter
     {
-        private readonly DiagnosticListener diagnosticListener = LogContext.Cached.Default.Value;
+        private readonly DiagnosticListener diagnosticListener = LogProvider.Cached.Default.Value;
         private const string name = OperationName.Job.Execute;
 
         internal Activity? WriteStarted(IJobExecutionContext context, DateTimeOffset startTimeUtc)

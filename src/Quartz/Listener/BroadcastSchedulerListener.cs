@@ -24,7 +24,11 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Logging;
+
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace Quartz.Listener
 {
@@ -44,12 +48,12 @@ namespace Quartz.Listener
     public class BroadcastSchedulerListener : ISchedulerListener
     {
         private readonly List<ISchedulerListener> listeners;
-        private readonly ILog log;
+        private readonly ILogger<BroadcastSchedulerListener> logger;
 
         public BroadcastSchedulerListener()
         {
             listeners = new List<ISchedulerListener>();
-            log = LogProvider.GetLogger(GetType());
+            logger = LogProvider.CreateLogger<BroadcastSchedulerListener>();
         }
 
         /// <summary>
@@ -191,9 +195,9 @@ namespace Quartz.Listener
                 }
                 catch (Exception e)
                 {
-                    if (log.IsErrorEnabled())
+                    if (logger.IsEnabled(LogLevel.Error))
                     {
-                        log.ErrorException($"Listener method {methodName} raised an exception: {e.Message}", e);
+                        logger.LogError(e,"Listener method {MethodName} raised an exception: {ExceptionMessage}", methodName,e.Message);
                     }
                 }
             }

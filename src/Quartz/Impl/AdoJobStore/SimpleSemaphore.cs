@@ -23,8 +23,12 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Collections;
 using Quartz.Logging;
+
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -40,11 +44,11 @@ namespace Quartz.Impl.AdoJobStore
         private readonly ResourceLock triggerLock = new();
         private readonly ResourceLock stateLock = new();
 
-        private readonly ILog log;
+        private readonly ILogger<SimpleSemaphore> logger;
 
         public SimpleSemaphore()
         {
-            log = LogProvider.GetLogger(GetType());
+            logger = LogProvider.CreateLogger<SimpleSemaphore>();
         }
 
         /// <summary>
@@ -58,11 +62,11 @@ namespace Quartz.Impl.AdoJobStore
             string lockName,
             CancellationToken cancellationToken = default)
         {
-            var isDebugEnabled = log.IsDebugEnabled();
+            var isDebugEnabled = logger.IsEnabled(LogLevel.Debug);
 
             if (isDebugEnabled)
             {
-                log.Debug($"Lock '{lockName}' is desired by: {requestorId}");
+                logger.LogDebug("Lock '{LockName}' is desired by: {RequestorId}", lockName,requestorId);
             }
 
             var gotLock = false;
@@ -71,7 +75,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 if (isDebugEnabled)
                 {
-                    log.Debug($"Lock '{lockName}' is being obtained: {requestorId}");
+                    logger.LogDebug("Lock '{LockName}' is being obtained: {RequestorId}", lockName,requestorId);
                 }
 
                 try
@@ -83,19 +87,19 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     if (isDebugEnabled)
                     {
-                        log.Debug($"Lock '{lockName}' was not obtained by: {requestorId}");
+                        logger.LogDebug("Lock '{LockName}' was not obtained by: {RequestorId}", lockName,requestorId);
                     }
                 }
 
                 if (isDebugEnabled)
                 {
-                    log.Debug($"Lock '{lockName}' given to: {requestorId}");
+                    logger.LogDebug("Lock '{LockName}' given to: {RequestorId}", lockName,requestorId);
                 }
             }
             else if (isDebugEnabled)
             {
-                log.Debug($"Lock '{lockName}' already owned by: {requestorId} -- but not owner!");
-                log.Debug("stack-trace of wrongful returner: " + Environment.StackTrace);
+                logger.LogDebug("Lock '{LockName}' already owned by: {RequestorId} -- but not owner!",lockName, requestorId);
+                logger.LogDebug("stack-trace of wrongful returner: {StackTrace}", Environment.StackTrace);
             }
 
             return gotLock;
@@ -114,15 +118,15 @@ namespace Quartz.Impl.AdoJobStore
             {
                 lockHandle.Release();
 
-                if (log.IsDebugEnabled())
+                if (logger.IsEnabled(LogLevel.Debug))
                 {
-                    log.Debug($"Lock '{lockName}' returned by: {requestorId}");
+                    logger.LogDebug("Lock '{LockName}' returned by: {RequestorId}",lockName, requestorId);
                 }
             }
-            else if (log.IsWarnEnabled())
+            else if (logger.IsEnabled(LogLevel.Warning))
             {
-                log.Warn($"Lock '{lockName}' attempt to return by: {requestorId} -- but not owner!");
-                log.Warn("stack-trace of wrongful returner: " + Environment.StackTrace);
+                logger.LogWarning("Lock '{LockName}' attempt to return by: {RequestorId} -- but not owner!", lockName,requestorId);
+                logger.LogWarning("stack-trace of wrongful returner: {Stacktrace}",Environment.StackTrace);
             }
 
             return Task.CompletedTask;

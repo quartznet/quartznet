@@ -1,9 +1,12 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 using Quartz.Logging;
 using Quartz.Spi;
+
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace Quartz.Simpl
 {
@@ -12,7 +15,7 @@ namespace Quartz.Simpl
     /// </summary>
     public abstract class TaskSchedulingThreadPool : IThreadPool
     {
-        private readonly ILog log;
+        private readonly ILogger<TaskSchedulingThreadPool> logger;
 
         // The token source used to cancel thread pool execution at shutdown
         // Note that cancellation is not propagated to the user-scheduled tasks currently executing,
@@ -92,7 +95,7 @@ namespace Quartz.Simpl
         // ReSharper disable once UnusedMember.Global
         public string ThreadPriority
         {
-            set => log.Warn("Thread priority is no longer supported for thread pool, ignoring");
+            set => logger.LogWarning("Thread priority is no longer supported for thread pool, ignoring");
         }
 
         /// <summary>
@@ -110,7 +113,7 @@ namespace Quartz.Simpl
 
         public TaskSchedulingThreadPool(int maxConcurrency)
         {
-            log = LogProvider.GetLogger(typeof(TaskSchedulingThreadPool));
+            logger = LogProvider.CreateLogger<TaskSchedulingThreadPool>();
             MaxConcurrency = maxConcurrency;
         }
 
@@ -141,9 +144,10 @@ namespace Quartz.Simpl
             // Thread pool is ready to go
             isInitialized = true;
 
-            if (log.IsDebugEnabled())
+            if (logger.IsEnabled(LogLevel.Debug))
             {
-                log.Debug($"TaskSchedulingThreadPool configured with max concurrency of {MaxConcurrency} and TaskScheduler {Scheduler.GetType().Name}.");
+                logger.LogDebug("TaskSchedulingThreadPool configured with max concurrency of {MaxConcurrency} and TaskScheduler {SchedulerName}.", 
+                    MaxConcurrency, Scheduler.GetType().Name);
             }
         }
 
@@ -243,7 +247,7 @@ namespace Quartz.Simpl
         /// <param name="waitForJobsToComplete"><see langword="true"/> to wait for currently executing tasks to finish; otherwise, <see langword="false"/>.</param>
         public void Shutdown(bool waitForJobsToComplete = true)
         {
-            log.Debug("Shutting down threadpool...");
+            logger.LogDebug("Shutting down threadpool...");
 
             // Cancel using our shutdown token
             shutdownCancellation.Cancel();
@@ -255,7 +259,7 @@ namespace Quartz.Simpl
                 {
                     // Cancellation has been signaled, so no new tasks will begin once
                     // shutdown has acquired this lock
-                    log.DebugFormat($"Waiting for {runningTasksCountdown.CurrentCount.ToString()} threads to complete.");
+                    logger.LogDebug("Waiting for {ThreadCount} threads to complete.", runningTasksCountdown.CurrentCount.ToString());
                 }
 
                 // Signal the initial count that we used to make sure the CountDownEvent didn't start
@@ -265,10 +269,10 @@ namespace Quartz.Simpl
                 // Wait for pending tasks to complete
                 runningTasksCountdown.Wait();
 
-                log.Debug("No executing jobs remaining, all threads stopped.");
+                logger.LogDebug("No executing jobs remaining, all threads stopped.");
             }
 
-            log.Debug("Shutdown of threadpool complete.");
+            logger.LogDebug("Shutdown of threadpool complete.");
         }
     }
 }

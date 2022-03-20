@@ -60,7 +60,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// </summary>
         static DbProvider()
         {
-            var properties = StdSchedulerFactory.InitializeProperties(LogProvider.NoOpLogger.Instance, throwOnProblem: false);
+            var properties = StdSchedulerFactory.InitializeProperties(LogProvider.CreateLogger<StdSchedulerFactory>(), throwOnProblem: false);
             dbMetadataFactories = new List<DbMetadataFactory>
             {
                 new ConfigurationBasedDbMetadataFactory(properties ?? new NameValueCollection(), PropertyDbProvider),

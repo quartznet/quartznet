@@ -1,6 +1,7 @@
 using System;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 using Serilog;
 
@@ -37,6 +38,10 @@ namespace Quartz.Examples.Worker
                     {
                         // handy when part of cluster or you want to otherwise identify multiple schedulers
                         q.SchedulerId = "Scheduler-Core";
+
+                        var loggerFactory = new LoggerFactory()
+                            .AddSerilog(Log.Logger);
+                        q.SetLoggerFactory(loggerFactory);
                         
                         // we take this from appsettings.json, just show it's possible
                         // q.SchedulerName = "Quartz ASP.NET Core Sample Scheduler";

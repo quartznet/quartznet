@@ -23,11 +23,12 @@ using System;
 using System.Collections.Specialized;
 using System.Data;
 using System.IO;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
 using FakeItEasy;
+
+using Microsoft.Extensions.Logging;
 
 using NUnit.Framework;
 
@@ -50,15 +51,17 @@ namespace Quartz.Tests.Integration.Xml
     {
         private XMLSchedulingDataProcessor processor;
         private IScheduler mockScheduler;
-
+        private ILogger<XMLSchedulingDataProcessor> logger;
 
         [SetUp]
         public void SetUp()
         {
-            processor = new XMLSchedulingDataProcessor(new SimpleTypeLoadHelper());
+            logger = A.Fake<ILogger<XMLSchedulingDataProcessor>>();
+            processor = new XMLSchedulingDataProcessor(logger, new SimpleTypeLoadHelper());
             mockScheduler = A.Fake<IScheduler>();
             A.CallTo(() => mockScheduler.GetJobDetail(A<JobKey>._, A<CancellationToken>._)).Returns(Task.FromResult<IJobDetail>(null));
             A.CallTo(() => mockScheduler.GetTrigger(A<TriggerKey>._, A<CancellationToken>._)).Returns(Task.FromResult<ITrigger>(null));
+            
         }
 
         [Test]
@@ -172,7 +175,7 @@ namespace Quartz.Tests.Integration.Xml
                 ITrigger trigger = TriggerBuilder.Create().WithIdentity("job1").WithSchedule(SimpleScheduleBuilder.RepeatHourlyForever()).Build();
                 await scheduler.ScheduleJob(job, trigger);
 
-                XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(new SimpleTypeLoadHelper());
+                XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(logger, new SimpleTypeLoadHelper());
                 try
                 {
                     await processor.ProcessFileAndScheduleJobs(scheduler, false);
@@ -254,7 +257,7 @@ namespace Quartz.Tests.Integration.Xml
                 // Now load the xml data with directives: overwrite-existing-data=false, ignore-duplicates=true
                 ITypeLoadHelper loadHelper = new SimpleTypeLoadHelper();
                 loadHelper.Initialize();
-                XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(loadHelper);
+                XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(logger, loadHelper);
                 await processor.ProcessFileAndScheduleJobs(tempFileName, scheduler);
                 var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("DEFAULT"));
                 Assert.AreEqual(2, jobKeys.Count);
@@ -341,7 +344,7 @@ namespace Quartz.Tests.Integration.Xml
 
                 ModifyStoredJobType();
 
-                XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(new SimpleTypeLoadHelper());
+                XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(logger, new SimpleTypeLoadHelper());
 
                 // when
                 await processor.ProcessStreamAndScheduleJobs(ReadJobXmlFromEmbeddedResource("delete-no-job-class.xml"), scheduler);
@@ -407,7 +410,7 @@ namespace Quartz.Tests.Integration.Xml
 
                 ModifyStoredJobType();
 
-                XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(new SimpleTypeLoadHelper());
+                XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(logger, new SimpleTypeLoadHelper());
 
                 await processor.ProcessStreamAndScheduleJobs(ReadJobXmlFromEmbeddedResource("overwrite-no-jobclass.xml"), scheduler);
 
@@ -460,7 +463,7 @@ namespace Quartz.Tests.Integration.Xml
                 await scheduler.ScheduleJob(job, trigger);
 
                 // Now load the xml data with directives: overwrite-existing-data=false, ignore-duplicates=true
-                XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(new SimpleTypeLoadHelper());
+                XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(logger, new SimpleTypeLoadHelper());
                 await processor.ProcessStream(ReadJobXmlFromEmbeddedResource("directives_overwrite_no-ignoredups.xml"), "temp");
                 var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("DEFAULT"));
                 Assert.That(jobKeys.Count, Is.EqualTo(2));

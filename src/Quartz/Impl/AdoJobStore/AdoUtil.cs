@@ -20,9 +20,11 @@
 using System;
 using System.Data;
 using System.Data.Common;
-
+using Microsoft.Extensions.Logging;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Logging;
+
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -32,13 +34,13 @@ namespace Quartz.Impl.AdoJobStore
     /// <author>Marko Lahma</author>
     public class AdoUtil
     {
-        private readonly ILog log;
+        private readonly ILogger logger;
         private readonly IDbProvider dbProvider;
 
         public AdoUtil(IDbProvider dbProvider)
         {
+            this.logger = LogProvider.CreateLogger<AdoUtil>();
             this.dbProvider = dbProvider;
-            log = LogProvider.GetLogger("Quartz.SQL");
         }
 
         public void AddCommandParameter(IDbCommand cmd, string paramName, object? paramValue)
@@ -89,9 +91,9 @@ namespace Quartz.Impl.AdoJobStore
             cmd.CommandText = commandText;
             cth.Attach(cmd);
 
-            if (log.IsDebugEnabled())
+            if (logger.IsEnabled(LogLevel.Debug))
             {
-                log.DebugFormat("Prepared SQL: {0}", cmd.CommandText);
+                logger.LogDebug("Prepared SQL: {Sql}", cmd.CommandText);
             }
 
             return cmd;

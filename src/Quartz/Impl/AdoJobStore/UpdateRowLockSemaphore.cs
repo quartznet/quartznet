@@ -24,8 +24,9 @@ using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Impl.AdoJobStore.Common;
-using Quartz.Logging;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -99,16 +100,16 @@ namespace Quartz.Impl.AdoJobStore
                     lastFailure = e;
                     if (i + 1 == RetryCount)
                     {
-                        if (Log.IsDebugEnabled())
+                        if (logger.IsEnabled(LogLevel.Debug))
                         {
-                            Log.DebugFormat("Lock '{0}' was not obtained by: {1}", lockName, requestorId);
+                            logger.LogDebug("Lock '{LockName}' was not obtained by: {RequestorId}", lockName, requestorId);
                         }
                     }
                     else
                     {
-                        if (Log.IsDebugEnabled())
+                        if (logger.IsEnabled(LogLevel.Debug))
                         {
-                            Log.DebugFormat("Lock '{0}' was not obtained by: {1} - will try again.", lockName, requestorId);
+                            logger.LogDebug("Lock '{LockName}' was not obtained by: {RequestorId} - will try again.", lockName, requestorId);
                         }
 
                         await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(false);
@@ -132,9 +133,9 @@ namespace Quartz.Impl.AdoJobStore
             AdoUtil.AddCommandParameter(cmd, "schedulerName", SchedName);
             AdoUtil.AddCommandParameter(cmd, "lockName", lockName);
 
-            if (Log.IsDebugEnabled())
+            if (logger.IsEnabled(LogLevel.Debug))
             {
-                Log.DebugFormat("Lock '{0}' is being obtained: {1}", lockName, requestorId);
+                logger.LogDebug("Lock '{LockName}' is being obtained: {RequestorId}", lockName, requestorId);
             }
             return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) >= 1;
         }
@@ -151,9 +152,9 @@ namespace Quartz.Impl.AdoJobStore
                 throw new ArgumentNullException(nameof(sql));
             }
 
-            if (Log.IsDebugEnabled())
+            if (logger.IsEnabled(LogLevel.Debug))
             {
-                Log.DebugFormat("Inserting new lock row for lock: '{0}' being obtained: {1}", lockName, requestorId);
+                logger.LogDebug("Inserting new lock row for lock: '{LockName}' being obtained: {RequestorId}", lockName, requestorId);
             }
 
             using var cmd = AdoUtil.PrepareCommand(conn, sql);

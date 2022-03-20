@@ -19,9 +19,13 @@
 
 using System;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Logging;
 using Quartz.Spi;
 using Quartz.Util;
+
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace Quartz.Simpl
 {
@@ -35,11 +39,11 @@ namespace Quartz.Simpl
 	/// <author>Marko Lahma (.NET)</author>
 	public class SimpleJobFactory : IJobFactory
 	{
-		private readonly ILog log;
+		private readonly ILogger<SimpleJobFactory> logger;
 
         public SimpleJobFactory()
         {
-            log = LogProvider.GetLogger(typeof(SimpleJobFactory));
+            logger = LogProvider.CreateLogger<SimpleJobFactory>();
         }
 
         /// <summary>
@@ -66,9 +70,9 @@ namespace Quartz.Simpl
 			Type jobType = jobDetail.JobType;
 			try
 			{
-				if (log.IsDebugEnabled())
+				if (logger.IsEnabled(LogLevel.Debug))
 				{
-					log.Debug($"Producing instance of Job '{jobDetail.Key}', class={jobType.FullName}");
+					logger.LogDebug("Producing instance of Job '{JobKey}', class={JobFullName}", jobDetail.Key,jobType.FullName);
 				}
 
 				return ObjectUtils.InstantiateType<IJob>(jobType);
