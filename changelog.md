@@ -13,6 +13,7 @@ By default, this prevents jobs from running while the application is still start
   * Fix StartDelayed delaying the start of other hosted services (#1314)
   * Set NextFireTime of the replaced trigger relative to the old trigger's StartTime if the old trigger's PreviousFireTime is null (#1519)
   * Include InvertTimeRange property in DailyCalendar.Clone (#1522)
+  * QuartzHealthCheck never recovers after detecting failure (#1496)
 
 
 * IMPROVEMENTS
