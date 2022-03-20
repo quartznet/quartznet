@@ -1,8 +1,6 @@
 using System;
 using System.Threading.Tasks;
 
-using log4net;
-
 using Microsoft.Extensions.Logging;
 
 using Quartz.Logging;
@@ -10,7 +8,7 @@ using Quartz.Logging;
 namespace Quartz.Server
 {
     /// <summary>
-    /// A sample job that just prints info on console for demostration purposes.
+    /// A sample job that just prints info on console for demonstration purposes.
     /// </summary>
     public class SampleJob : IJob
     {
