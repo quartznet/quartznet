@@ -12,11 +12,18 @@
         <br/>
     }
 
+    <br />
+
     <h1 class="display-4">Currently Executing Jobs</h1>
     @foreach (var job in Model.CurrentlyExecutingJobs)
     {
         <span>@job.JobDetail.Key.Group / @job.JobDetail.Key.Name  - triggered by @job.Trigger.Key.Group / @job.Trigger.Key.Name</span>
         <br/>
     }
+    
+    <br />
 
+    <h1 class="display-4">Health Status</h1>
+    <a href="/healthchecks-ui">Open health checks UI</a>
+    
 </div>

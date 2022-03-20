@@ -15,6 +15,7 @@
 
     <ItemGroup>
       <PackageReference Include="AspNetCore.HealthChecks.UI" Version="6.0.4" />
+      <PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="6.0.4" />
       <PackageReference Include="AspNetCore.HealthChecks.UI.InMemory.Storage" Version="6.0.4" />
       <PackageReference Include="OpenTelemetry.Exporter.Jaeger" Version="1.1.0" />
       <PackageReference Include="OpenTelemetry.Exporter.Zipkin" Version="1.1.0" />
