@@ -3,7 +3,9 @@ using System.Collections.Specialized;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.Logging;
 
+using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
 
@@ -27,6 +29,11 @@ namespace Quartz
         public void UseSimpleTypeLoader()
         {
             UseTypeLoader<SimpleTypeLoadHelper>();
+        }
+
+        public void SetLoggerFactory(ILoggerFactory loggerFactory)
+        {
+            LogProvider.SetLogProvider(loggerFactory);
         }
 
         public void SetProperty(string name, string value)

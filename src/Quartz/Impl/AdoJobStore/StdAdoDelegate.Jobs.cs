@@ -6,9 +6,12 @@ using System.Runtime.Serialization;
 using System.Threading;
 using System.Threading.Tasks;
 
-using Quartz.Logging;
+using Microsoft.Extensions.Logging;
+
 using Quartz.Spi;
 using Quartz.Util;
+
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -78,9 +81,9 @@ namespace Quartz.Impl.AdoJobStore
             CancellationToken cancellationToken = default)
         {
             using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteJobDetail));
-            if (logger.IsDebugEnabled())
+            if (logger.IsEnabled(LogLevel.Debug))
             {
-                logger.Debug("Deleting job: " + jobKey);
+                logger.LogDebug("Deleting job: {JobKey}",jobKey);
             }
 
             AddCommandParameter(cmd, "schedulerName", schedName);
@@ -232,9 +235,9 @@ namespace Quartz.Impl.AdoJobStore
                 return jobBuilder.Build();
             }
 
-            if (logger.IsDebugEnabled())
+            if (logger.IsEnabled(LogLevel.Debug))
             {
-                logger.Debug("No job for trigger '" + triggerKey + "'.");
+                logger.LogDebug("No job for trigger '{TriggerKey}'",triggerKey);
             }
 
             return null;

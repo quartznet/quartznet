@@ -20,6 +20,8 @@
 using System;
 using System.Reflection;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Logging;
 using Quartz.Spi;
 using Quartz.Util;
@@ -52,11 +54,11 @@ namespace Quartz.Simpl
 	/// <author>Marko Lahma (.NET)</author>
 	public class PropertySettingJobFactory : SimpleJobFactory
 	{
-	    private readonly ILog log;
+	    private readonly ILogger<PropertySettingJobFactory> logger;
 
         public PropertySettingJobFactory()
         {
-            log = LogProvider.GetLogger(typeof(PropertySettingJobFactory));
+            logger = LogProvider.CreateLogger<PropertySettingJobFactory>();
         }
 
         /// <summary>
@@ -229,11 +231,11 @@ namespace Quartz.Simpl
 			{
 				if (e == null)
 				{
-					log.Warn(message);
+					logger.LogWarning(message);
 				}
 				else
 				{
-					log.WarnException(message, e);
+					logger.LogWarning(e,message);
 				}
 			}
 		}

@@ -29,6 +29,8 @@ using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Core;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
@@ -135,7 +137,7 @@ namespace Quartz.Impl
 
         private PropertiesParser cfg = null!;
 
-        private ILog log = null!;
+        private ILogger<StdSchedulerFactory> logger = null!;
 
         private string SchedulerName
         {
@@ -172,13 +174,14 @@ namespace Quartz.Impl
         /// </summary>
         public StdSchedulerFactory()
         {
+            this.logger = LogProvider.CreateLogger<StdSchedulerFactory>();
         }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="StdSchedulerFactory"/> class.
         /// </summary>
         /// <param name="props">The props.</param>
-        public StdSchedulerFactory(NameValueCollection props)
+        public StdSchedulerFactory(NameValueCollection props) : this()
         {
             Initialize(props);
         }
@@ -206,12 +209,12 @@ namespace Quartz.Impl
                 throw initException;
             }
 
-            log ??= LogProvider.GetLogger(typeof(StdSchedulerFactory));
-            var props = InitializeProperties(log, throwOnProblem: true);
+            logger = LogProvider.CreateLogger<StdSchedulerFactory>();
+            var props = InitializeProperties(logger, throwOnProblem: true);
             Initialize(OverrideWithSysProps(props ?? new NameValueCollection()));
         }
 
-        internal static NameValueCollection? InitializeProperties(ILog logger, bool throwOnProblem)
+        internal static NameValueCollection? InitializeProperties(ILogger<StdSchedulerFactory> logger, bool throwOnProblem)
         {
             var props = Util.Configuration.GetSection(ConfigurationSectionName);
             var requestedFile = QuartzEnvironment.GetEnvironmentVariable(PropertiesFile);
@@ -227,11 +230,11 @@ namespace Quartz.Impl
                 {
                     PropertiesParser pp = PropertiesParser.ReadFromFileResource(propFileName!);
                     props = pp.UnderlyingProperties;
-                    logger?.Info($"Quartz.NET properties loaded from configuration file '{propFileName}'");
+                    logger.LogInformation("Quartz.NET properties loaded from configuration file {propFileName}", propFileName);
                 }
                 catch (Exception ex)
                 {
-                    logger?.ErrorException("Could not load properties for Quartz from file {0}: {1}".FormatInvariant(propFileName!, ex.Message), ex);
+                    logger.LogError(ex, "Could not load properties for Quartz from file {propFileName}: {ExceptionMessage}",propFileName, ex.Message);
                 }
             }
 
@@ -242,11 +245,11 @@ namespace Quartz.Impl
                 {
                     PropertiesParser pp = PropertiesParser.ReadFromEmbeddedAssemblyResource("Quartz.quartz.config");
                     props = pp.UnderlyingProperties;
-                    logger?.Info("Default Quartz.NET properties loaded from embedded resource file");
+                    logger.LogInformation("Default Quartz.NET properties loaded from embedded resource file");
                 }
                 catch (Exception ex)
                 {
-                    logger?.ErrorException("Could not load default properties for Quartz from Quartz assembly: {0}".FormatInvariant(ex.Message), ex);
+                    logger.LogError(ex,"Could not load default properties for Quartz from Quartz assembly: {0}".FormatInvariant(ex.Message));
                 }
             }
 
@@ -353,8 +356,6 @@ Please add configuration to your application config file to correctly initialize
             {
                 throw initException;
             }
-
-            log ??= LogProvider.GetLogger(typeof(StdSchedulerFactory));
 
             ISchedulerExporter? exporter = null;
             IJobStore js;
@@ -652,7 +653,7 @@ Please add configuration to your application config file to correctly initialize
                 try
                 {
                     objectSerializer = InstantiateType<IObjectSerializer>(loadHelper.LoadType(objectSerializerType));
-                    log.Info("Using object serializer: " + objectSerializerType);
+                    logger.LogInformation("Using object serializer: {Type}",objectSerializerType);
 
                     ObjectUtils.SetObjectProperties(objectSerializer, tProps);
 
@@ -729,7 +730,7 @@ Please add configuration to your application config file to correctly initialize
                         }
 
                         jobStoreSupport.LockHandler = lockHandler;
-                        log.Info("Using custom data access locking (synchronization): " + lockHandlerType);
+                        logger.LogInformation("Using custom data access locking (synchronization): {LockHandlerType}",lockHandlerType);
                     }
                     catch (Exception e)
                     {
@@ -868,7 +869,7 @@ Please add configuration to your application config file to correctly initialize
 #if !REMOTING
             if (exporterType != null && exporterType.StartsWith("Quartz.Simpl.RemotingSchedulerExporter"))
             {
-                log.Warn("RemotingSchedulerExporter configuration was ignored as Remoting is not supported");
+                logger.LogWarning("RemotingSchedulerExporter configuration was ignored as Remoting is not supported");
                 exporterType = null;
             }
 #endif
@@ -921,7 +922,7 @@ Please add configuration to your application config file to correctly initialize
                     }
                     catch (Exception e)
                     {
-                        log.ErrorException("Couldn't generate instance Id!", e);
+                        logger.LogError(e,"Couldn't generate instance Id!");
                         throw new InvalidOperationException("Cannot run without an instance id.");
                     }
                 }
@@ -1005,9 +1006,9 @@ Please add configuration to your application config file to correctly initialize
                 jrsf.Initialize(sched);
                 qs.Initialize();
 
-                log.Info("Quartz scheduler '{0}' initialized".FormatInvariant(sched.SchedulerName));
+                logger.LogInformation("Quartz scheduler '{0}' initialized".FormatInvariant(sched.SchedulerName));
 
-                log.Info("Quartz scheduler version: {0}".FormatInvariant(qs.Version));
+                logger.LogInformation(("Quartz scheduler version: {0}".FormatInvariant(qs.Version)));
 
                 // prevents the repository from being garbage collected
                 qs.AddNoGCObject(schedRep);
@@ -1053,7 +1054,7 @@ Please add configuration to your application config file to correctly initialize
             }
             catch (Exception e)
             {
-                log.ErrorException("Got another exception while shutting down after instantiation exception", e);
+                logger.LogError(e,"Got another exception while shutting down after instantiation exception");
             }
         }
 

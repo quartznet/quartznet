@@ -1,6 +1,10 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
+
+using Castle.Core.Logging;
+
+using Microsoft.Extensions.Logging;
 
 using NUnit.Framework;
 
@@ -126,7 +130,7 @@ namespace Quartz.Tests.Integration.Core
         [DisallowConcurrentExecution]
         public class RecoverJobsTestJob : IJob
         {
-            private static readonly ILog log = LogProvider.GetLogger(typeof(RecoverJobsTestJob));
+            private static readonly ILogger<RecoverJobsTestJob> logger = LogProvider.CreateLogger<RecoverJobsTestJob>();
 
             internal static bool runForever = true;
 
@@ -134,19 +138,19 @@ namespace Quartz.Tests.Integration.Core
             {
                 long now = DateTime.UtcNow.Ticks;
                 int tic = 0;
-                log.Info("Started - " + now);
+                logger.LogInformation("Started - {StartTime}",now);
                 try
                 {
                     while (runForever)
                     {
                         await Task.Delay(1000);
-                        log.Info("Tic " + ++tic + "- " + now);
+                        logger.LogInformation("Tic " + ++tic + "- " + now);
                     }
-                    log.Info("Stopped - " + now);
+                    logger.LogInformation("Stopped - {StopTime}",now);
                 }
                 catch (ThreadInterruptedException)
                 {
-                    log.Info("Interrupted - " + now);
+                    logger.LogInformation("Interrupted - {InterruptionTime}",now);
                 }
             }
         }

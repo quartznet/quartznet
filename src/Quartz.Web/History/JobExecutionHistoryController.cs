@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
 using Microsoft.AspNetCore.Mvc;
-
+using Microsoft.Extensions.Logging;
 using Quartz.Logging;
 using Quartz.Web.Api.Dto;
 
@@ -14,7 +14,7 @@ namespace Quartz.Web.History
     /// </summary>
     public class JobExecutionHistoryController : Controller
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof (JobExecutionHistoryController));
+        private static readonly ILogger<JobExecutionHistoryController> log = LogContext.CreateLogger<JobExecutionHistoryController>();
 
         [HttpGet]
         [Route("api/schedulers/{schedulerName}/jobs/history")]
@@ -22,7 +22,7 @@ namespace Quartz.Web.History
         {
             var jobHistoryDelegate = DatabaseExecutionHistoryPlugin.Delegate;
             IReadOnlyList<JobHistoryEntryDto> entries = new List<JobHistoryEntryDto>();
-            string errorMessage = null;
+            string errorMessage = string.Empty;
 
             try
             {
@@ -30,7 +30,7 @@ namespace Quartz.Web.History
             }
             catch (Exception e)
             {
-                log.ErrorException("Error while retrieving history entries",  e);
+                log.LogError(e,"Error while retrieving history entries");
                 errorMessage = e.Message;
             }
             var model = new JobHistoryViewModel(entries, errorMessage);

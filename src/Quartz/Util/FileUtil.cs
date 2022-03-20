@@ -21,6 +21,8 @@ using System;
 using System.IO;
 using System.Security;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Logging;
 
 #if HTTPCONTEXT
@@ -69,8 +71,8 @@ namespace Quartz.Util
                         // can happen under Xamarin android, see https://github.com/quartznet/quartznet/issues/1008
                         // and https://github.com/xamarin/xamarin-android/issues/3489
 
-                        var logger = LogProvider.GetLogger(typeof(FileUtil));
-                        logger.WarnFormat("Unable to resolve file path '{0}' as AppContext.BaseDirectory returned null/empty", fName);
+                        var logger = LogProvider.CreateLogger<FileUtil>();
+                        logger.LogWarning("Unable to resolve file path '{FilePath}' as AppContext.BaseDirectory returned null/empty", fName);
                         return null;
                     }
 
@@ -81,8 +83,8 @@ namespace Quartz.Util
                 }
                 catch (SecurityException)
                 {
-                    var logger = LogProvider.GetLogger(typeof(FileUtil));
-                    logger.WarnFormat("Unable to resolve file path '{0}' due to security exception, probably running under medium trust", fName);
+                    var logger = LogProvider.CreateLogger<FileUtil>();
+                    logger.LogWarning("Unable to resolve file path '{FileName}' due to security exception, probably running under medium trust", fName);
                     return null;
                 }
             }

@@ -1,7 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Threading.Tasks;
+
+using Microsoft.Extensions.Logging;
 
 using NUnit.Framework;
 
@@ -12,7 +14,7 @@ namespace Quartz.Tests.Unit.Core
 {
     public class MissSchedulingChangeSignalTest
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof (MissSchedulingChangeSignalTest));
+        private static readonly ILogger<MissSchedulingChangeSignalTest> logger = LogProvider.CreateLogger<MissSchedulingChangeSignalTest>();
 
         [Test]
         [Explicit]
@@ -24,9 +26,9 @@ namespace Quartz.Tests.Unit.Core
             properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
             IScheduler sched = await sf.GetScheduler();
-            log.Info("------- Initialization Complete -----------");
+            logger.LogInformation("------- Initialization Complete -----------");
 
-            log.Info("------- Scheduling Job  -------------------");
+            logger.LogInformation("------- Scheduling Job  -------------------");
 
             IJobDetail job = JobBuilder.Create<CollectDurationBetweenFireTimesJob>().WithIdentity("job", "group").Build();
 
@@ -45,7 +47,7 @@ namespace Quartz.Tests.Unit.Core
             // scheduler has been started)
             await sched.Start();
 
-            log.Info("------- Scheduler Started -----------------");
+            logger.LogInformation("------- Scheduler Started -----------------");
 
             // wait long enough so that the scheduler has an opportunity to
             // run the job in theory around 50 times
@@ -72,12 +74,12 @@ namespace Quartz.Tests.Unit.Core
     public class CollectDurationBetweenFireTimesJob : IJob
     {
         private static DateTime? lastFireTime;
-        private static readonly ILog log = LogProvider.GetLogger(typeof (CollectDurationBetweenFireTimesJob));
+        private static readonly ILogger<CollectDurationBetweenFireTimesJob> logger = LogProvider.CreateLogger<CollectDurationBetweenFireTimesJob>();
 
         public Task Execute(IJobExecutionContext context)
         {
             DateTime now = DateTime.UtcNow;
-            log.Info("Fire time: " + now);
+            logger.LogInformation("Fire time: {FireTime}",now);
             if (lastFireTime != null)
             {
                 Durations.Add(now - lastFireTime.Value);

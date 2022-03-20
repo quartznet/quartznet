@@ -20,7 +20,6 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
     </PackageReference>
-    <PackageReference Include="LibLog" Version="5.0.8" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="2.1.1" />
     <PackageReference Include="System.Configuration.ConfigurationManager" Version="4.7.0" Condition=" '$(FullFramework)' != 'true'  " />
     <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="4.7.1" Condition=" '$(DiagnosticsSource)' == 'true'  " />

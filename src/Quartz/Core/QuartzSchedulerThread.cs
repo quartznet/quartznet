@@ -26,10 +26,14 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Impl.AdoJobStore;
 using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
+
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace Quartz.Core
 {
@@ -44,6 +48,7 @@ namespace Quartz.Core
     /// <author>Marko Lahma (.NET)</author>
     public class QuartzSchedulerThread
     {
+        private readonly ILogger logger;
         private readonly QuartzScheduler qs;
         private readonly QuartzSchedulerResources qsRsrcs;
         private readonly int idleWaitVariableness;
@@ -58,12 +63,6 @@ namespace Quartz.Core
 
         private CancellationTokenSource cancellationTokenSource = null!;
         private Task task = null!;
-
-        /// <summary>
-        /// Gets the log.
-        /// </summary>
-        /// <value>The log.</value>
-        internal ILog Log { get; }
 
         /// <summary>
         /// Gets the randomized idle wait time.
@@ -108,7 +107,7 @@ namespace Quartz.Core
         /// <param name="qsRsrcs">The resources.</param>
         internal QuartzSchedulerThread(QuartzScheduler qs, QuartzSchedulerResources qsRsrcs)
         {
-            Log = LogProvider.GetLogger(GetType());
+            this.logger = LogProvider.CreateLogger<QuartzSchedulerThread>();
             this.qs = qs;
             this.qsRsrcs = qsRsrcs;
             idleWaitVariableness = (int) (qsRsrcs.IdleWaitTime.TotalMilliseconds * 0.2);
@@ -283,9 +282,9 @@ namespace Quartz.Core
                             var maxCount = Math.Min(availThreadCount, qsRsrcs.MaxBatchSize);
                             triggers = new List<IOperableTrigger>(await qsRsrcs.JobStore.AcquireNextTriggers(noLaterThan, maxCount, qsRsrcs.BatchTimeWindow, CancellationToken.None).ConfigureAwait(false));
                             acquiresFailed = 0;
-                            if (Log.IsDebugEnabled())
+                            if (logger.IsEnabled(LogLevel.Debug))
                             {
-                                Log.DebugFormat("Batch acquisition of {0} triggers", triggers?.Count ?? 0);
+                                logger.LogDebug("Batch acquisition of {TriggerCount} triggers", triggers.Count);
                             }
                         }
                         catch (JobPersistenceException jpe)
@@ -307,7 +306,7 @@ namespace Quartz.Core
                         {
                             if (acquiresFailed == 0)
                             {
-                                Log.ErrorException("quartzSchedulerThreadLoop: RuntimeException " + e.Message, e);
+                                logger.LogError(e, "quartzSchedulerThreadLoop: RuntimeException {Message}", e.Message);
                             }
                             if (acquiresFailed < int.MaxValue)
                             {
@@ -409,7 +408,7 @@ namespace Quartz.Core
                                 // TODO SQL exception?
                                 if (exception != null && (exception is DbException || exception.InnerException is DbException))
                                 {
-                                    Log.ErrorException("DbException while firing trigger " + trigger, exception);
+                                    logger.LogError(exception,"DbException while firing trigger {Trigger}",trigger);
                                     await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger, CancellationToken.None).ConfigureAwait(false);
                                     continue;
                                 }
@@ -449,7 +448,7 @@ namespace Quartz.Core
                                     // scheduler being shutdown or a bug in the thread pool or
                                     // a thread pool being used concurrently - which the docs
                                     // say not to do...
-                                    Log.Error("ThreadPool.RunInThread() returned false!");
+                                    logger.LogError("ThreadPool.RunInThread() returned false");
                                     await qsRsrcs.JobStore.TriggeredJobComplete(trigger, bndle.JobDetail, SchedulerInstruction.SetAllJobTriggersError, CancellationToken.None).ConfigureAwait(false);
                                 }
                             }
@@ -487,7 +486,7 @@ namespace Quartz.Core
                 }
                 catch (Exception re)
                 {
-                    Log.ErrorException("Runtime error occurred in main trigger firing loop.", re);
+                    logger.LogError(re,"Runtime error occurred in main trigger firing loop.");
                 }
             } // while (!halted)
         }

@@ -1,6 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+
+using Microsoft.Extensions.Logging;
 
 using Quartz.Logging;
 
@@ -120,8 +122,8 @@ namespace Quartz.Util
                     }
                     catch
                     {
-                        var logger = LogProvider.GetLogger(typeof(TimeZoneUtil));
-                        logger.ErrorFormat("Could not find time zone using alias id " + aliasedId);
+                        var logger = LogProvider.CreateLogger(nameof(TimeZoneUtil));
+                        logger.LogError("Could not find time zone using alias id {AliasId}",aliasedId);
                     }
                 }
 

@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-using Quartz.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -78,7 +78,7 @@ namespace Quartz.Impl.AdoJobStore
 
             if (null == cal)
             {
-                logger.Warn("Couldn't find calendar with name '" + calendarName + "'.");
+                logger.LogWarning("Couldn't find calendar with name '{CalendarName}'",calendarName);
             }
 
             return cal;

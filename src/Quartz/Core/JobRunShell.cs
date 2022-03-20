@@ -23,10 +23,14 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Impl;
 using Quartz.Listener;
 using Quartz.Logging;
 using Quartz.Spi;
+
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace Quartz.Core
 {
@@ -51,7 +55,7 @@ namespace Quartz.Core
     /// <author>Marko Lahma (.NET)</author>
     public class JobRunShell : SchedulerListenerSupport
     {
-        private readonly ILog log;
+        private readonly ILogger<JobRunShell> logger;
 #if DIAGNOSTICS_SOURCE
         private readonly JobDiagnosticsWriter jobExecutionJobDiagnostics = new JobDiagnosticsWriter();
 #endif
@@ -71,7 +75,7 @@ namespace Quartz.Core
         {
             this.scheduler = scheduler;
             firedTriggerBundle = bundle;
-            log = LogProvider.GetLogger(GetType());
+            logger = LogProvider.CreateLogger<JobRunShell>();
         }
 
         public override Task SchedulerShuttingdown(CancellationToken cancellationToken = default)
@@ -191,9 +195,9 @@ namespace Quartz.Core
                     // Execute the job
                     try
                     {
-                        if (log.IsDebugEnabled())
+                        if (logger.IsEnabled(LogLevel.Debug))
                         {
-                            log.Debug("Calling Execute on job " + jobDetail.Key);
+                            logger.LogDebug("Calling Execute on job {JobKey}", jobDetail.Key);
                         }
 
 #if DIAGNOSTICS_SOURCE
@@ -208,7 +212,7 @@ namespace Quartz.Core
                     when (jec.CancellationToken.IsCancellationRequested)
                     {
                         endTime = SystemTime.UtcNow();
-                        log.InfoFormat($"Job {jobDetail.Key} was cancelled");
+                        logger.LogInformation("Job {JobDetailKey} was cancelled", jobDetail.Key);
                     }
                     catch (JobExecutionException jee)
                     {
@@ -217,12 +221,12 @@ namespace Quartz.Core
 #if DIAGNOSTICS_SOURCE
                         jobExecutionJobDiagnostics.WriteException(activity, jobExEx);
 #endif
-                        log.ErrorException($"Job {jobDetail.Key} threw a JobExecutionException: ", jobExEx);
+                        logger.LogError(jobExEx,"Job {JobDetailKey} threw a JobExecutionException: ", jobDetail.Key);
                     }
                     catch (Exception e)
                     {
                         endTime = SystemTime.UtcNow();
-                        log.ErrorException($"Job {jobDetail.Key} threw an unhandled Exception: ", e);
+                        logger.LogError(e,"Job {JobDetailKey} threw an unhandled Exception: ", jobDetail.Key);
                         SchedulerException se = new SchedulerException("Job threw an unhandled exception.", e);
                         string msg = $"Job {jec.JobDetail.Key} threw an exception.";
                         await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
@@ -247,9 +251,9 @@ namespace Quartz.Core
                     try
                     {
                         instCode = trigger.ExecutionComplete(jec, jobExEx);
-                        if (log.IsDebugEnabled())
+                        if (logger.IsEnabled(LogLevel.Debug))
                         {
-                            log.Debug($"Trigger instruction : {instCode}");
+                            logger.LogDebug("Trigger instruction : {InstCode}", instCode);
                         }
                     }
                     catch (Exception e)
@@ -267,9 +271,9 @@ namespace Quartz.Core
                     // update job/trigger or re-Execute job
                     if (instCode == SchedulerInstruction.ReExecuteJob)
                     {
-                        if (log.IsDebugEnabled())
+                        if (logger.IsEnabled(LogLevel.Debug))
                         {
-                            log.Debug("Rescheduling trigger to reexecute");
+                            logger.LogDebug("Rescheduling trigger to reexecute");
                         }
                         jec.IncrementRefireCount();
                         try
@@ -353,9 +357,9 @@ namespace Quartz.Core
                 try
                 {
 #if DIAGNOSTICS_SOURCE
-                    if (LogContext.Cached.Default.Value.IsEnabled(OperationName.Job.Veto))
+                    if (LogProvider.Cached.Default.Value.IsEnabled(OperationName.Job.Veto))
                     {
-                        LogContext.Cached.Default.Value.Write(OperationName.Job.Veto, ctx);
+                        LogProvider.Cached.Default.Value.Write(OperationName.Job.Veto, ctx);
                     }
 #endif
 

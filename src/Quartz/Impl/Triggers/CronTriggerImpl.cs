@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -20,6 +20,8 @@
 #endregion
 
 using System;
+
+using Microsoft.Extensions.Logging;
 
 using Quartz.Logging;
 using Quartz.Spi;
@@ -633,8 +635,9 @@ namespace Quartz.Impl.Triggers
                     cb.WithMisfireHandlingInstructionIgnoreMisfires();
                     break;
                 default:
-                    var logger = LogProvider.GetLogger(typeof(CronTriggerImpl));
-                    logger.Warn($"Unrecognized misfire policy {MisfireInstruction}. Derived builder will use the default cron trigger behavior (FireOnceNow)");
+                    var logger = LogProvider.CreateLogger<CronTriggerImpl>();
+                    logger.LogWarning("Unrecognized misfire policy {MisfireInstruction}. Derived builder will use the default cron trigger behavior (FireOnceNow)", 
+                        MisfireInstruction);
                     break;
             }
 

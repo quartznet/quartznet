@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -30,12 +30,16 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Logging;
 using Quartz.Spi;
 using Quartz.Util;
+
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -77,7 +81,7 @@ namespace Quartz.Impl.AdoJobStore
             ClusterCheckinMisfireThreshold = TimeSpan.FromMilliseconds(7500);
             MaxMisfiresToHandleAtATime = 20;
             DbRetryInterval = TimeSpan.FromSeconds(15);
-            Log = LogProvider.GetLogger(GetType());
+            Logger = LogProvider.CreateLogger<JobStoreSupport>();
             delegateType = typeof (StdAdoDelegate);
         }
 
@@ -95,7 +99,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Gets the log.
         /// </summary>
         /// <value>The log.</value>
-        internal ILog Log { get; }
+        internal ILogger<JobStoreSupport> Logger { get; }
 
         /// <summary>
         /// Get or sets the prefix that should be pre-pended to all table names.
@@ -459,7 +463,7 @@ namespace Quartz.Impl.AdoJobStore
 
             if (Delegate is SQLiteDelegate && (LockHandler == null || LockHandler.GetType() != typeof(UpdateLockRowSemaphore)))
             {
-                Log.Info("Detected SQLite usage, changing to use UpdateLockRowSemaphore");
+                Logger.LogInformation("Detected SQLite usage, changing to use UpdateLockRowSemaphore");
                 var lockHandler = new UpdateLockRowSemaphore(DbProvider)
                 {
                     SchedName = InstanceName,
@@ -476,13 +480,13 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 if (!AcquireTriggersWithinLock)
                 {
-                    Log.Info("With SQLite we need to set AcquireTriggersWithinLock to true, changing");
+                    Logger.LogInformation("With SQLite we need to set AcquireTriggersWithinLock to true, changing");
                     AcquireTriggersWithinLock = true;
 
                 }
                 if (!TxIsolationLevelSerializable)
                 {
-                    Log.Info("Detected usage of SQLiteDelegate - defaulting 'txIsolationLevelSerializable' to 'true'");
+                    Logger.LogInformation("Detected usage of SQLiteDelegate - defaulting 'txIsolationLevelSerializable' to 'true'");
                     TxIsolationLevelSerializable = true;
                 }
             }
@@ -505,17 +509,17 @@ namespace Quartz.Impl.AdoJobStore
                         if (SelectWithLockSQL == null)
                         {
                             const string DefaultLockSql = "SELECT * FROM {0}LOCKS WITH (UPDLOCK,ROWLOCK) WHERE " + ColumnSchedulerName + " = @schedulerName AND LOCK_NAME = @lockName";
-                            Log.InfoFormat("Detected usage of SqlServerDelegate - defaulting 'selectWithLockSQL' to '" + DefaultLockSql + "'.", TablePrefix, "'" + InstanceName + "'");
+                            Logger.LogInformation("Detected usage of SqlServerDelegate - defaulting 'selectWithLockSQL' to '{DefaultLockSql}.{TablePrefix}' {InstanceName}",DefaultLockSql ,TablePrefix, InstanceName);
                             SelectWithLockSQL = DefaultLockSql;
                         }
                     }
 
-                    Log.Info("Using db table-based data access locking (synchronization).");
+                    Logger.LogInformation("Using db table-based data access locking (synchronization).");
                     LockHandler = new StdRowLockSemaphore(TablePrefix, InstanceName, SelectWithLockSQL, DbProvider);
                 }
                 else
                 {
-                    Log.Info("Using thread monitor-based data access locking (synchronization).");
+                    Logger.LogInformation("Using thread monitor-based data access locking (synchronization).");
                     LockHandler = new SimpleSemaphore();
                 }
             }
@@ -524,7 +528,7 @@ namespace Quartz.Impl.AdoJobStore
                 // be ready to give a friendly warning if SQL Server is used and sub-optimal locking
                 if (LockHandler is UpdateLockRowSemaphore && Delegate is SqlServerDelegate)
                 {
-                    Log.Warn("Detected usage of SqlServerDelegate and UpdateLockRowSemaphore, removing 'quartz.jobStore.lockHandler.type' would allow more efficient SQL Server specific (UPDLOCK,ROWLOCK) row access");
+                    Logger.LogWarning("Detected usage of SqlServerDelegate and UpdateLockRowSemaphore, removing 'quartz.jobStore.lockHandler.type' would allow more efficient SQL Server specific (UPDLOCK,ROWLOCK) row access");
                 }
                 // be ready to give a friendly warning if SQL Server provider and wrong delegate
                 if (DbProvider.Metadata.ConnectionType?.Namespace != null
@@ -532,7 +536,7 @@ namespace Quartz.Impl.AdoJobStore
                     && DbProvider.Metadata.ConnectionType.Name == "SqlConnection"
                     && !(Delegate is SqlServerDelegate))
                 {
-                    Log.Warn("Detected usage of SQL Server provider without SqlServerDelegate, SqlServerDelegate would provide better performance");
+                    Logger.LogWarning("Detected usage of SQL Server provider without SqlServerDelegate, SqlServerDelegate would provide better performance");
                 }
             }
 
@@ -556,7 +560,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (SchedulerException se)
                 {
-                    Log.ErrorException("Failure occurred during job recovery: " + se.Message, se);
+                    Logger.LogError(se,"Failure occurred during job recovery: {ExceptionMessage}",se.Message);
                     throw new SchedulerConfigException("Failure occurred during job recovery.", se);
                 }
             }
@@ -611,7 +615,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception sqle)
             {
-                Log.WarnException("Database connection Shutdown unsuccessful.", sqle);
+                Logger.LogWarning(sqle,"Database connection Shutdown unsuccessful.");
             }
         }
 
@@ -636,7 +640,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (LockException le)
                 {
-                    Log.ErrorException("Error returning lock: " + le.Message, le);
+                    Logger.LogError(le,"Error returning lock: {ExceptionMessage}",le.Message);
                 }
             }
         }
@@ -670,15 +674,14 @@ namespace Quartz.Impl.AdoJobStore
                     StatePausedBlocked,
                     StatePausedBlocked, cancellationToken).ConfigureAwait(false);
 
-                Log.Info("Freed " + rows + " triggers from 'acquired' / 'blocked' state.");
+                Logger.LogInformation("Freed {Count} triggers from 'acquired' / 'blocked' state.",rows);
 
                 // clean up misfired jobs
                 await RecoverMisfiredJobs(conn, true, cancellationToken).ConfigureAwait(false);
 
                 // recover jobs marked for recovery that were not fully executed
                 var recoveringJobTriggers = await Delegate.SelectTriggersForRecoveringJobs(conn, cancellationToken).ConfigureAwait(false);
-                Log.Info("Recovering " + recoveringJobTriggers.Count +
-                         " jobs that were in-progress at the time of the last shut-down.");
+                Logger.LogInformation("Recovering {Count} jobs that were in-progress at the time of the last shut-down.", recoveringJobTriggers.Count);
 
                 foreach (IOperableTrigger trigger in recoveringJobTriggers)
                 {
@@ -688,7 +691,7 @@ namespace Quartz.Impl.AdoJobStore
                         await StoreTrigger(conn, trigger, null, false, StateWaiting, false, true, cancellationToken).ConfigureAwait(false);
                     }
                 }
-                Log.Info("Recovery complete.");
+                Logger.LogInformation("Recovery complete.");
 
                 // remove lingering 'complete' triggers...
                 var triggersInState = await Delegate.SelectTriggersInState(conn, StateComplete, cancellationToken).ConfigureAwait(false);
@@ -696,11 +699,11 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     await RemoveTrigger(conn, trigger, cancellationToken).ConfigureAwait(false);
                 }
-                Log.Info($"Removed {triggersInState.Count} 'complete' triggers.");
+                Logger.LogInformation("Removed  {Count} 'complete' triggers.", triggersInState.Count);
 
                 // clean up any fired trigger entries
                 int n = await Delegate.DeleteFiredTriggers(conn, cancellationToken).ConfigureAwait(false);
-                Log.Info("Removed " + n + " stale fired job entries.");
+                Logger.LogInformation("Removed {Count} stale fired job entries.",n);
             }
             catch (JobPersistenceException)
             {
@@ -733,20 +736,18 @@ namespace Quartz.Impl.AdoJobStore
 
             if (hasMoreMisfiredTriggers)
             {
-                Log.Info(
-                    "Handling the first " + misfiredTriggers.Count +
-                    " triggers that missed their scheduled fire-time.  " +
-                    "More misfired triggers remain to be processed.");
+                Logger.LogInformation(
+                    "Handling the first {Count} triggers that missed their scheduled fire-time. More misfired triggers remain to be processed.", 
+                    misfiredTriggers.Count);
             }
             else if (misfiredTriggers.Count > 0)
             {
-                Log.Info(
-                    "Handling " + misfiredTriggers.Count +
-                    " trigger(s) that missed their scheduled fire-time.");
+                Logger.LogInformation(
+                    "Handling {Count} trigger(s) that missed their scheduled fire-time.", misfiredTriggers.Count);
             }
             else
             {
-                Log.Debug(
+                Logger.LogInformation(
                     "Found 0 triggers that missed their scheduled fire-time.");
                 return RecoverMisfiredJobsResult.NoOp;
             }
@@ -760,7 +761,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (Exception e)
                 {
-                    Log.ErrorException($"Error retrieving the misfired trigger: '{triggerKey}'", e);
+                    Logger.LogError(e,"Error retrieving the misfired trigger: '{TriggerKey}'", triggerKey);
                     continue;
                 }
 
@@ -775,7 +776,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (Exception e)
                 {
-                    Log.ErrorException($"Error updating misfired trigger: '{trig.Key}'", e);
+                    Logger.LogError(e,"Error updating misfired trigger: '{TriggerKey}'", trig.Key);
                     continue;
                 }
 
@@ -2653,12 +2654,12 @@ namespace Quartz.Impl.AdoJobStore
                         {
                             try
                             {
-                                Log.ErrorException("Error retrieving job, setting trigger state to ERROR.", jpe);
+                                Logger.LogError(jpe,"Error retrieving job, setting trigger state to ERROR.");
                                 await Delegate.UpdateTriggerState(conn, triggerKey, StateError, cancellationToken).ConfigureAwait(false);
                             }
                             catch (Exception ex)
                             {
-                                Log.ErrorException("Unable to set trigger state to ERROR.", ex);
+                                Logger.LogError(ex,"Unable to set trigger state to ERROR.");
                             }
                             continue;
                         }
@@ -2680,7 +2681,7 @@ namespace Quartz.Impl.AdoJobStore
                         // able to be clean up by Quartz since we are not returning it to be processed.
                         if (nextFireTimeUtc == null)
                         {
-                            Log.Warn($"Trigger {nextTrigger.Key} returned null on nextFireTime and yet still exists in DB!");
+                            Logger.LogWarning("Trigger {TriggerKey} returned null on nextFireTime and yet still exists in DB!", nextTrigger.Key);
                             continue;
                         }
 
@@ -2784,12 +2785,12 @@ namespace Quartz.Impl.AdoJobStore
                         }
                         catch (JobPersistenceException jpe)
                         {
-                            Log.ErrorFormat("Caught job persistence exception: " + jpe.Message, jpe);
+                            Logger.LogError(jpe, "Caught job persistence exception: {ExceptionMessage}",jpe.Message);
                             result = new TriggerFiredResult(jpe);
                         }
                         catch (Exception ex)
                         {
-                            Log.ErrorFormat("Caught exception: " + ex.Message, ex);
+                            Logger.LogError(ex,"Caught exception: {ExceptionMessage}",ex.Message);
                             result = new TriggerFiredResult(ex);
                         }
 
@@ -2868,12 +2869,12 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    Log.ErrorException("Error retrieving job, setting trigger state to ERROR.", jpe);
+                    Logger.LogError(jpe,"Error retrieving job, setting trigger state to ERROR.");
                     await Delegate.UpdateTriggerState(conn, trigger.Key, StateError, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception sqle)
                 {
-                    Log.ErrorException("Unable to set trigger state to ERROR.", sqle);
+                    Logger.LogError(sqle,"Unable to set trigger state to ERROR.");
                 }
                 throw;
             }
@@ -2994,7 +2995,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetTriggerError)
                 {
-                    Log.Info("Trigger " + trigger.Key + " set to ERROR state.");
+                    Logger.LogInformation("Trigger {Trigger} set to ERROR state.", trigger.Key);
                     await Delegate.UpdateTriggerState(conn, trigger.Key, StateError, cancellationToken).ConfigureAwait(false);
                     conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
                 }
@@ -3005,7 +3006,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersError)
                 {
-                    Log.Info("All triggers of Job " + trigger.JobKey + " set to ERROR state.");
+                    Logger.LogInformation("All triggers of Job {Job} set to ERROR state.", trigger.JobKey);
                     await Delegate.UpdateTriggerStatesForJob(conn, trigger.JobKey, StateError, cancellationToken).ConfigureAwait(false);
                     conn.SignalSchedulingChangeOnTxCompletion = SchedulerConstants.SchedulingSignalDateTime;
                 }
@@ -3071,9 +3072,9 @@ namespace Quartz.Impl.AdoJobStore
                     ? await Delegate.CountMisfiredTriggersInState(conn, StateWaiting, MisfireTime, cancellationToken).ConfigureAwait(false)
                     : int.MaxValue;
 
-                if (Log.IsDebugEnabled())
+                if (Logger.IsEnabled(LogLevel.Debug))
                 {
-                    Log.DebugFormat("Found {0} triggers that missed their scheduled fire-time.", misfireCount);
+                    Logger.LogDebug("Found {MisfireCount} triggers that missed their scheduled fire-time.", misfireCount);
                 }
 
                 if (misfireCount > 0)
@@ -3249,10 +3250,10 @@ namespace Quartz.Impl.AdoJobStore
                 if (!foundThisScheduler && !firstCheckIn)
                 {
                     // TODO: revisit when handle self-failed-out impl'ed (see TODO in clusterCheckIn() below)
-                    Log.Warn(
-                        "This scheduler instance (" + InstanceId + ") is still " +
+                    Logger.LogWarning(
+                        "This scheduler instance ({InstanceId}) is still " +
                         "active but was recovered by another instance in the cluster.  " +
-                        "This may cause inconsistent behavior.");
+                        "This may cause inconsistent behavior.", InstanceId);
                 }
 
                 return failedInstances;
@@ -3296,7 +3297,7 @@ namespace Quartz.Impl.AdoJobStore
 
                     orphanedInstances.Add(orphanedInstance);
 
-                    Log.Warn("Found orphaned fired triggers for instance: " + orphanedInstance.SchedulerInstanceId);
+                    Logger.LogWarning("Found orphaned fired triggers for instance: {SchedulerInstanceId}",orphanedInstance.SchedulerInstanceId);
                 }
             }
 
@@ -3349,8 +3350,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     foreach (SchedulerStateRecord rec in failedInstances)
                     {
-                        Log.Info("ClusterManager: Scanning for instance \"" + rec.SchedulerInstanceId +
-                                 "\"'s failed in-progress jobs.");
+                        Logger.LogInformation("ClusterManager: Scanning for instance {SchedulerInstanceId}'s failed in-progress jobs.", rec.SchedulerInstanceId);
 
                         var firedTriggerRecs = await Delegate.SelectInstancesFiredTriggerRecords(conn, rec.SchedulerInstanceId, cancellationToken).ConfigureAwait(false);
 
@@ -3409,8 +3409,7 @@ namespace Quartz.Impl.AdoJobStore
                                 }
                                 else
                                 {
-                                    Log.Warn("ClusterManager: failed job '" + jKey +
-                                             "' no longer exists, cannot schedule recovery.");
+                                    Logger.LogWarning("ClusterManager: failed job {JobKey} no longer exists, cannot schedule recovery.",jKey);
                                     otherCount++;
                                 }
                             }
@@ -3473,11 +3472,11 @@ namespace Quartz.Impl.AdoJobStore
         {
             if (val > 0)
             {
-                Log.Info(warning);
+                Logger.LogInformation(warning);
             }
             else
             {
-                Log.Debug(warning);
+                Logger.LogDebug(warning);
             }
         }
 
@@ -3519,7 +3518,7 @@ namespace Quartz.Impl.AdoJobStore
             if (cth == null)
             {
                 // db might be down or similar
-                Log.Info("ConnectionAndTransactionHolder passed to RollbackConnection was null, ignoring");
+                Logger.LogInformation("ConnectionAndTransactionHolder passed to RollbackConnection was null, ignoring");
                 return;
             }
 
@@ -3711,7 +3710,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             if (cth == null)
             {
-                Log.Debug("ConnectionAndTransactionHolder passed to CommitConnection was null, ignoring");
+                Logger.LogDebug("ConnectionAndTransactionHolder passed to CommitConnection was null, ignoring");
                 return;
             }
             cth.Commit(openNewTransaction);
@@ -3796,7 +3795,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (Exception e)
                 {
-                    Log.ErrorException("retryExecuteInNonManagedTXLock: RuntimeException " + e.Message, e);
+                    Logger.LogError(e,"retryExecuteInNonManagedTXLock: RuntimeException {ExceptionMessage}",e.Message);
                 }
 
                 // retry every N seconds (the db connection must be failed)

@@ -23,8 +23,8 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
-using Quartz.Logging;
 
 namespace Quartz.Listener
 {
@@ -45,7 +45,7 @@ namespace Quartz.Listener
     public class BroadcastJobListener : IJobListener
     {
         private readonly List<IJobListener> listeners;
-        private readonly ILog log;
+        private readonly ILogger<BroadcastJobListener> logger;
 
         /// <summary>
         /// Construct an instance with the given name.
@@ -53,12 +53,13 @@ namespace Quartz.Listener
         /// <remarks>
         /// (Remember to add some delegate listeners!)
         /// </remarks>
+        /// <param name="logger">Logger</param>
         /// <param name="name">the name of this instance</param>
-        public BroadcastJobListener(string name)
+        public BroadcastJobListener(ILogger<BroadcastJobListener> logger, string name)
         {
             Name = name ?? throw new ArgumentNullException(nameof(name), "Listener name cannot be null!");
             listeners = new List<IJobListener>();
-            log = LogProvider.GetLogger(GetType());
+            this.logger = logger;
         }
 
         /// <summary>
@@ -66,9 +67,10 @@ namespace Quartz.Listener
         /// </summary>
         /// <remarks>
         /// </remarks>
+        /// <param name="logger">logger</param>
         /// <param name="name">the name of this instance</param>
         /// <param name="listeners">the initial List of JobListeners to broadcast to.</param>
-        public BroadcastJobListener(string name, List<IJobListener> listeners) : this(name)
+        public BroadcastJobListener(ILogger<BroadcastJobListener> logger, string name, List<IJobListener> listeners) : this(logger, name)
         {
             this.listeners.AddRange(listeners);
         }
@@ -129,10 +131,8 @@ namespace Quartz.Listener
                 }
                 catch (Exception e)
                 {
-                    if (log.IsErrorEnabled())
-                    {
-                        log.ErrorException($"Listener {listener.Name} - method {methodName} raised an exception: {e.Message}", e);
-                    }
+                    logger.LogError(e, "Listener {ListenerName} - method {MethodName} raised an exception: {Message}", 
+                        listener.Name, methodName, e.Message);
                 }
             }
         }

@@ -24,9 +24,13 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Logging;
 
-namespace Quartz.Listener
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
+
+    namespace Quartz.Listener
 {
     /// <summary>
     /// Holds a List of references to TriggerListener instances and broadcasts all
@@ -45,7 +49,7 @@ namespace Quartz.Listener
     public class BroadcastTriggerListener : ITriggerListener
     {
         private readonly List<ITriggerListener> listeners;
-        private readonly ILog log;
+        private readonly ILogger<BroadcastTriggerListener> logger;
 
         /// <summary>
         /// Construct an instance with the given name.
@@ -58,7 +62,7 @@ namespace Quartz.Listener
         {
             Name = name ?? throw new ArgumentNullException(nameof(name), "Listener name cannot be null!");
             listeners = new List<ITriggerListener>();
-            log = LogProvider.GetLogger(GetType());
+            logger = LogProvider.CreateLogger<BroadcastTriggerListener>();
         }
 
         /// <summary>
@@ -146,9 +150,10 @@ namespace Quartz.Listener
                 }
                 catch (Exception e)
                 {
-                    if (log.IsErrorEnabled())
+                    if (logger.IsEnabled(LogLevel.Error))
                     {
-                        log.ErrorException($"Listener {listener.Name} - method {methodName} raised an exception: {e.Message}", e);
+                        logger.LogError(e,"Listener {ListenerName} - method {MethodName} raised an exception: {ExceptionMessage}", 
+                            listener.Name,methodName,e.Message);
                     }
                 }
             }

@@ -3,6 +3,8 @@ using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Listener;
 using Quartz.Logging;
 using Quartz.Spi;
@@ -25,7 +27,7 @@ namespace Quartz.Plugin.Interrupt
         public const string JobDataMapKeyAutoInterruptable = "AutoInterruptable";
         public const string JobDataMapKeyMaxRunTime = "MaxRunTime";
 
-        private ILog log = LogProvider.GetLogger(typeof(JobInterruptMonitorPlugin));
+        private ILogger<JobInterruptMonitorPlugin> logger = LogProvider.CreateLogger<JobInterruptMonitorPlugin>();
 
         private IScheduler scheduler = null!;
         private string name = null!;
@@ -87,12 +89,12 @@ namespace Quartz.Plugin.Interrupt
                     }
 
                     monitorPlugin.ScheduleJobInterruptMonitor(context.FireInstanceId, context.JobDetail.Key, jobDataDelay);
-                    log.Debug("Job's Interrupt Monitor has been scheduled to interrupt with the delay :" + jobDataDelay);
+                    logger.LogDebug("Job's Interrupt Monitor has been scheduled to interrupt with the delay :{Delay}",jobDataDelay);
                 }
             }
             catch (SchedulerException e)
             {
-                log.Info($"Error scheduling interrupt monitor {e.Message}", e);
+                logger.LogError(e,"Error scheduling interrupt monitor {ErrorMessage}", e.Message);
             }
 
             return Task.CompletedTask;
@@ -115,7 +117,7 @@ namespace Quartz.Plugin.Interrupt
 
         public Task Initialize(string name, IScheduler scheduler, CancellationToken cancellationToken = default)
         {
-            log.Info("Registering Job Interrupt Monitor Plugin");
+            logger.LogInformation("Registering Job Interrupt Monitor Plugin");
             this.name = name;
 
             taskScheduler = new QueuedTaskScheduler(1, "JobInterruptMonitorPlugin");
@@ -130,7 +132,7 @@ namespace Quartz.Plugin.Interrupt
 
         private sealed class InterruptMonitor
         {
-            private readonly ILog log = LogProvider.GetLogger(typeof(InterruptMonitor));
+            private readonly ILogger<InterruptMonitor> logger = LogProvider.CreateLogger<InterruptMonitor>();
 
             private readonly JobKey jobKey;
             private readonly IScheduler scheduler;
@@ -157,7 +159,7 @@ namespace Quartz.Plugin.Interrupt
                     await Task.Delay(delay, cancellationTokenSource.Token);
 
                     // Interrupt the job here - using Scheduler API that gets propagated to Job's interrupt
-                    log.Info($"Interrupting Job as it ran more than the configured max time. Job Details [{jobKey.Name}:{jobKey.Group}]");
+                    logger.LogInformation("Interrupting Job as it ran more than the configured max time. Job Details [{JobName}:{JobGroup}]",jobKey.Name, jobKey.Group);
                     await scheduler.Interrupt(jobKey, cancellationTokenSource.Token);
                 }
                 catch (TaskCanceledException)
@@ -166,7 +168,7 @@ namespace Quartz.Plugin.Interrupt
                 }
                 catch (SchedulerException ex)
                 {
-                    log.Error($"Error interrupting Job: {ex.Message}", ex);
+                    logger.LogError(ex,"Error interrupting Job: {ExceptionMessage}",ex.Message);
                 }
             }
 
@@ -178,7 +180,7 @@ namespace Quartz.Plugin.Interrupt
                 }
                 catch (Exception ex)
                 {
-                    log.Error($"Error cancelling monitor: {ex.Message}", ex);
+                    logger.LogError(ex,"Error cancelling monitor: {ExceptionMessage}", ex.Message);
                 }
             }
         }
