@@ -16,7 +16,7 @@ namespace Quartz.Examples.Worker
 
         public async Task Execute(IJobExecutionContext context)
         {
-            logger.LogInformation(context.JobDetail.Key + " job executing, triggered by " + context.Trigger.Key);
+            logger.LogInformation( "{Job} job executing, triggered by {Trigger}", context.JobDetail.Key,context.Trigger.Key);
             await Task.Delay(TimeSpan.FromSeconds(1));
         }
 

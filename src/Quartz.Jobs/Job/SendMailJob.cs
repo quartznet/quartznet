@@ -26,6 +26,8 @@ using System.Net.Mail;
 using System.Text;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Logging;
 
 namespace Quartz.Job
@@ -38,7 +40,7 @@ namespace Quartz.Job
     /// <author>Marko Lahma (.NET)</author>
     public class SendMailJob : IJob
     {
-        private readonly ILog log;
+        private readonly ILogger<SendMailJob> logger;
 
         /// <summary> The host name of the smtp server. REQUIRED.</summary>
         public const string PropertySmtpHost = "smtp_host";
@@ -75,7 +77,7 @@ namespace Quartz.Job
 
         public SendMailJob()
         {
-            log = LogProvider.GetLogger(typeof(SendMailJob));
+            logger = LogProvider.CreateLogger<SendMailJob>();
         }
 
         /// <summary>
@@ -171,7 +173,7 @@ namespace Quartz.Job
 
         protected virtual void Send(MailInfo mailInfo)
         {
-            log.Info($"Sending message {GetMessageDescription(mailInfo.MailMessage)}");
+            logger.LogInformation("Sending message {MailMessage}", GetMessageDescription(mailInfo.MailMessage));
 
             using (var client = new SmtpClient(mailInfo.SmtpHost))
             {

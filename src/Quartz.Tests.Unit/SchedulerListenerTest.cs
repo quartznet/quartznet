@@ -1,6 +1,8 @@
-﻿using System.Collections.Specialized;
+using System.Collections.Specialized;
 using System.Threading;
 using System.Threading.Tasks;
+
+using Microsoft.Extensions.Logging;
 
 using NUnit.Framework;
 
@@ -17,7 +19,7 @@ namespace Quartz.Tests.Unit
     [TestFixture]
     public class SchedulerListenerTest
     {
-        private static readonly ILog logger = LogProvider.GetLogger(typeof(SchedulerListenerTest));
+        private static readonly ILogger<SchedulerListenerTest> logger = LogProvider.CreateLogger<SchedulerListenerTest>();
         private static int jobExecutionCount;
 
         public class Qtz205Job : IJob
@@ -25,7 +27,7 @@ namespace Quartz.Tests.Unit
             public Task Execute(IJobExecutionContext context)
             {
                 jobExecutionCount++;
-                logger.Info("Job executed. jobExecutionCount=" + jobExecutionCount);
+                logger.LogInformation("Job executed. jobExecutionCount={ExecutionCount}",jobExecutionCount);
                 return Task.CompletedTask;
             }
         }
@@ -39,7 +41,7 @@ namespace Quartz.Tests.Unit
             public Task TriggerFired(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken)
             {
                 FireCount++;
-                logger.Info("Trigger fired. count " + FireCount);
+                logger.LogInformation("Trigger fired. count {FireCount}",FireCount);
                 return Task.FromResult(true);
             }
 
@@ -83,7 +85,7 @@ namespace Quartz.Tests.Unit
             public Task TriggerFinalized(ITrigger trigger, CancellationToken cancellationToken)
             {
                 TriggerFinalizedCount ++;
-                logger.Info("triggerFinalized " + trigger);
+                logger.LogInformation("triggerFinalized {Trigger}",trigger);
                 return Task.FromResult(true);
             }
 

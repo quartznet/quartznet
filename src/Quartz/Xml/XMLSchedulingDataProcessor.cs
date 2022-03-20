@@ -25,9 +25,9 @@ using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Schema;
 using System.Xml.Serialization;
+using Microsoft.Extensions.Logging;
 
 using Quartz.Impl.Matchers;
-using Quartz.Logging;
 using Quartz.Spi;
 using Quartz.Util;
 using Quartz.Xml.JobSchedulingData20;
@@ -81,15 +81,16 @@ namespace Quartz.Xml
 
         private readonly List<string> jobGroupsToNeverDelete = new List<string>();
         private readonly List<string> triggerGroupsToNeverDelete = new List<string>();
+        private ILogger<XMLSchedulingDataProcessor> logger;
 
         /// <summary>
         /// Constructor for XMLSchedulingDataProcessor.
         /// </summary>
-        public XMLSchedulingDataProcessor(ITypeLoadHelper typeLoadHelper)
+        public XMLSchedulingDataProcessor(ILogger<XMLSchedulingDataProcessor> logger, ITypeLoadHelper typeLoadHelper)
         {
             OverWriteExistingData = true;
             IgnoreDuplicates = false;
-            Log = LogProvider.GetLogger(GetType());
+            this.logger = logger;
             TypeLoadHelper = typeLoadHelper;
         }
 
@@ -121,12 +122,6 @@ namespace Quartz.Xml
         /// and trigger's next fire time will updated to be next from this last fire time.
         /// </summary>
         public virtual bool ScheduleTriggerRelativeToReplacedTrigger { get; set; }
-
-        /// <summary>
-        /// Gets the log.
-        /// </summary>
-        /// <value>The log.</value>
-        private ILog Log { get; }
 
         protected virtual IReadOnlyList<IJobDetail> LoadedJobs => loadedJobs.AsReadOnly();
 
@@ -171,7 +166,7 @@ namespace Quartz.Xml
             // resolve file name first
             fileName = FileUtil.ResolveFile(fileName) ?? fileName;
 
-            Log.InfoFormat("Parsing XML file: {0} with systemId: {1}", fileName, systemId);
+            logger.LogInformation("Parsing XML file: {FileName} with systemId: {SystemId}", fileName, systemId);
 
             using (var stream = File.Open(fileName, FileMode.Open, FileAccess.Read, FileShare.Read))
             using (StreamReader sr = new StreamReader(stream))
@@ -192,7 +187,7 @@ namespace Quartz.Xml
             string? systemId,
             CancellationToken cancellationToken = default)
         {
-            Log.InfoFormat("Parsing XML from stream with systemId: {0}", systemId);
+            logger.LogInformation("Parsing XML from stream with systemId: {SystemId}", systemId);
             using StreamReader sr = new StreamReader(stream);
             ProcessInternal(await sr.ReadToEndAsync().ConfigureAwait(false));
         }
@@ -289,12 +284,12 @@ namespace Quartz.Xml
                 }
             }
 
-            if (Log.IsDebugEnabled())
+            if (logger.IsEnabled(LogLevel.Debug))
             {
-                Log.Debug("Found " + jobGroupsToDelete.Count + " delete job group commands.");
-                Log.Debug("Found " + triggerGroupsToDelete.Count + " delete trigger group commands.");
-                Log.Debug("Found " + jobsToDelete.Count + " delete job commands.");
-                Log.Debug("Found " + triggersToDelete.Count + " delete trigger commands.");
+                logger.LogDebug("Found {JobGroupCount} delete job group commands.", jobGroupsToDelete.Count);
+                logger.LogDebug("Found {TriggerGroupDeleteCount}delete trigger group commands.", triggerGroupsToDelete.Count);
+                logger.LogDebug("Found {JobsToDeleteCount} delete job commands.", jobsToDelete.Count);
+                logger.LogDebug("Found {TriggersToDelete} delete trigger commands.", triggersToDelete.Count);
             }
 
             //
@@ -303,34 +298,35 @@ namespace Quartz.Xml
             if (data.processingdirectives != null && data.processingdirectives.Length > 0)
             {
                 bool overWrite = data.processingdirectives[0].overwriteexistingdata;
-                Log.Debug("Directive 'overwrite-existing-data' specified as: " + overWrite);
+                logger.LogDebug("Directive 'overwrite-existing-data' specified as: {Overwrite}",overWrite);
                 OverWriteExistingData = overWrite;
             }
             else
             {
-                Log.Debug("Directive 'overwrite-existing-data' not specified, defaulting to " + OverWriteExistingData);
+                logger.LogDebug("Directive 'overwrite-existing-data' not specified, defaulting to {Overwrite}",OverWriteExistingData);
             }
 
             if (data.processingdirectives != null && data.processingdirectives.Length > 0)
             {
                 bool ignoreduplicates = data.processingdirectives[0].ignoreduplicates;
-                Log.Debug("Directive 'ignore-duplicates' specified as: " + ignoreduplicates);
+                logger.LogDebug("Directive 'ignore-duplicates' specified as: {IgnoreDuplicates}",ignoreduplicates);
                 IgnoreDuplicates = ignoreduplicates;
             }
             else
             {
-                Log.Debug("Directive 'ignore-duplicates' not specified, defaulting to " + IgnoreDuplicates);
+                logger.LogDebug("Directive 'ignore-duplicates' not specified, defaulting to {IgnoreDuplicates}",IgnoreDuplicates);
             }
 
             if (data.processingdirectives != null && data.processingdirectives.Length > 0)
             {
                 bool scheduleRelative = data.processingdirectives[0].scheduletriggerrelativetoreplacedtrigger;
-                Log.Debug("Directive 'schedule-trigger-relative-to-replaced-trigger' specified as: " + scheduleRelative);
+                logger.LogDebug("Directive 'schedule-trigger-relative-to-replaced-trigger' specified as: {ScheduleRelative}",scheduleRelative);
                 ScheduleTriggerRelativeToReplacedTrigger = scheduleRelative;
             }
             else
             {
-                Log.Debug("Directive 'schedule-trigger-relative-to-replaced-trigger' not specified, defaulting to " + ScheduleTriggerRelativeToReplacedTrigger);
+                logger.LogDebug("Directive 'schedule-trigger-relative-to-replaced-trigger' not specified, defaulting to {ScheduleTriggerRelativeToReplacedTrigger}",
+                    ScheduleTriggerRelativeToReplacedTrigger);
             }
 
             //
@@ -348,7 +344,7 @@ namespace Quartz.Xml
                 }
             }
 
-            Log.Debug("Found " + jobNodes.Count + " job definitions.");
+            logger.LogDebug("Found {Count} job definitions.", jobNodes.Count);
 
             foreach (jobdetailType jobDetailType in jobNodes)
             {
@@ -378,9 +374,9 @@ namespace Quartz.Xml
                     }
                 }
 
-                if (Log.IsDebugEnabled())
+                if (logger.IsEnabled(LogLevel.Debug))
                 {
-                    Log.Debug("Parsed job definition: " + jobDetail);
+                    logger.LogDebug("Parsed job definition: {JobDetail}",jobDetail);
                 }
 
                 AddJobToSchedule(jobDetail);
@@ -402,7 +398,7 @@ namespace Quartz.Xml
                 }
             }
 
-            Log.Debug("Found " + triggerEntries.Count + " trigger definitions.");
+            logger.LogDebug("Found {TriggerCount} trigger definitions.", triggerEntries.Count);
 
             foreach (triggerType triggerNode in triggerEntries)
             {
@@ -510,9 +506,9 @@ namespace Quartz.Xml
                     }
                 }
 
-                if (Log.IsDebugEnabled())
+                if (logger.IsEnabled(LogLevel.Debug))
                 {
-                    Log.Debug("Parsed trigger definition: " + trigger);
+                    logger.LogDebug("Parsed trigger definition: {Trigger}",trigger);
                 }
 
                 AddTriggerToSchedule(trigger);
@@ -602,7 +598,7 @@ namespace Quartz.Xml
             }
             catch (Exception ex)
             {
-                Log.WarnException("Unable to validate XML with schema: " + ex.Message, ex);
+                logger.LogWarning(ex, "Unable to validate XML with schema: {Message}",ex.Message);
             }
         }
 
@@ -614,7 +610,7 @@ namespace Quartz.Xml
             }
             else
             {
-                Log.Warn(e.Message);
+                logger.LogWarning(e.Message);
             }
         }
 
@@ -712,7 +708,7 @@ namespace Quartz.Xml
             List<IJobDetail> jobs = new List<IJobDetail>(LoadedJobs);
             List<ITrigger> triggers = new List<ITrigger>(LoadedTriggers);
 
-            Log.Info("Adding " + jobs.Count + " jobs, " + triggers.Count + " triggers.");
+            logger.LogInformation("Adding {JobCount} jobs, {TriggerCount} triggers", jobs.Count, triggers.Count);
 
             IDictionary<JobKey, List<IMutableTrigger>> triggersByFQJobName = BuildTriggersByFQJobNameMap(triggers);
 
@@ -735,7 +731,7 @@ namespace Quartz.Xml
                     if (e.InnerException is TypeLoadException && OverWriteExistingData)
                     {
                         // We are going to replace jobDetail anyway, so just delete it first.
-                        Log.Info("Removing job: " + detail.Key);
+                        logger.LogInformation("Removing job: {JobKey}",detail.Key);
                         await sched.DeleteJob(detail.Key, cancellationToken).ConfigureAwait(false);
                     }
                     else
@@ -748,7 +744,7 @@ namespace Quartz.Xml
                 {
                     if (!OverWriteExistingData && IgnoreDuplicates)
                     {
-                        Log.Info("Not overwriting existing job: " + dupeJ.Key);
+                        logger.LogInformation("Not overwriting existing job: {JobKey}",dupeJ.Key);
                         continue; // just ignore the entry
                     }
                     if (!OverWriteExistingData && !IgnoreDuplicates)
@@ -759,11 +755,11 @@ namespace Quartz.Xml
 
                 if (dupeJ != null)
                 {
-                    Log.Info("Replacing job: " + detail.Key);
+                    logger.LogInformation("Replacing job: {JobKey}",detail.Key);
                 }
                 else
                 {
-                    Log.Info("Adding job: " + detail.Key);
+                    logger.LogInformation("Adding job: {JobKey}",detail.Key);
                 }
 
                 triggersByFQJobName.TryGetValue(detail.Key, out var triggersOfJob);
@@ -813,14 +809,14 @@ namespace Quartz.Xml
                         {
                             if (OverWriteExistingData)
                             {
-                                if (Log.IsDebugEnabled())
+                                if (logger.IsEnabled(LogLevel.Debug))
                                 {
-                                    Log.DebugFormat("Rescheduling job: {0} with updated trigger: {1}", trigger.JobKey, trigger.Key);
+                                    logger.LogDebug("Rescheduling job: {JobKey} with updated trigger: {TriggerKey}", trigger.JobKey, trigger.Key);
                                 }
                             }
                             else if (IgnoreDuplicates)
                             {
-                                Log.Info("Not overwriting existing trigger: " + dupeT.Key);
+                                logger.LogInformation("Not overwriting existing trigger: {Key}", dupeT.Key);
                                 continue; // just ignore the trigger (and possibly job)
                             }
                             else
@@ -837,9 +833,9 @@ namespace Quartz.Xml
                         }
                         else
                         {
-                            if (Log.IsDebugEnabled())
+                            if (logger.IsEnabled(LogLevel.Debug))
                             {
-                                Log.DebugFormat("Scheduling job: {0} with trigger: {1}", trigger.JobKey, trigger.Key);
+                                logger.LogDebug("Scheduling job: {JobKey} with trigger: {TriggerKey}", trigger.JobKey, trigger.Key);
                             }
 
                             try
@@ -856,9 +852,9 @@ namespace Quartz.Xml
                             }
                             catch (ObjectAlreadyExistsException)
                             {
-                                if (Log.IsDebugEnabled())
+                                if (logger.IsEnabled(LogLevel.Debug))
                                 {
-                                    Log.DebugFormat("Adding trigger: {0} for job: {1} failed because the trigger already existed.  "
+                                    logger.LogDebug("Adding trigger: {TriggerKey} for job: {JobKey} failed because the trigger already existed.  "
                                         + "This is likely due to a race condition between multiple instances "
                                         + "in the cluster.  Will try to reschedule instead.", trigger.Key, detail.Key);
                                 }
@@ -879,14 +875,14 @@ namespace Quartz.Xml
                 {
                     if (OverWriteExistingData)
                     {
-                        if (Log.IsDebugEnabled())
+                        if (logger.IsEnabled(LogLevel.Debug))
                         {
-                            Log.DebugFormat("Rescheduling job: " + trigger.JobKey + " with updated trigger: " + trigger.Key);
+                            logger.LogDebug("Rescheduling job: {JobKey} with updated trigger: {TriggerKey}", trigger.JobKey , trigger.Key);
                         }
                     }
                     else if (IgnoreDuplicates)
                     {
-                        Log.Info("Not overwriting existing trigger: " + dupeT.Key);
+                        logger.LogInformation("Not overwriting existing trigger: {JobKey}",dupeT.Key);
                         continue; // just ignore the trigger
                     }
                     else
@@ -903,9 +899,9 @@ namespace Quartz.Xml
                 }
                 else
                 {
-                    if (Log.IsDebugEnabled())
+                    if (logger.IsEnabled(LogLevel.Debug))
                     {
-                        Log.DebugFormat("Scheduling job: {0} with trigger: {1}", trigger.JobKey, trigger.Key);
+                        logger.LogDebug("Scheduling job: {JobKey} with trigger: {TriggerKey}", trigger.JobKey, trigger.Key);
                     }
 
                     try
@@ -914,9 +910,9 @@ namespace Quartz.Xml
                     }
                     catch (ObjectAlreadyExistsException)
                     {
-                        if (Log.IsDebugEnabled())
+                        if (logger.IsEnabled(LogLevel.Debug))
                         {
-                            Log.Debug(
+                            logger.LogDebug(
                                 "Adding trigger: " + trigger.Key + " for job: " + trigger.JobKey +
                                 " failed because the trigger already existed.  " +
                                 "This is likely due to a race condition between multiple instances " +
@@ -932,7 +928,8 @@ namespace Quartz.Xml
 
         private void ReportDuplicateTrigger(IMutableTrigger trigger)
         {
-            Log.WarnFormat("Possibly duplicately named ({0}) trigger in configuration, this can be caused by not having a fixed job key for targeted jobs", trigger.Key);
+            logger.LogWarning("Possibly duplicately named ({TriggerKey}) trigger in configuration, this can be caused by not having a fixed job key for targeted jobs", 
+                trigger.Key);
         }
 
         private Task DoRescheduleJob(
@@ -944,7 +941,7 @@ namespace Quartz.Xml
             // if this is a trigger with default start time we can consider relative scheduling
             if (oldTrigger != null && trigger.StartTimeUtc - SystemTime.UtcNow() < TimeSpan.FromSeconds(5) && ScheduleTriggerRelativeToReplacedTrigger)
             {
-                Log.DebugFormat("Using relative scheduling for trigger with key {0}", trigger.Key);
+                logger.LogDebug("Using relative scheduling for trigger with key {TriggerKey}", trigger.Key);
 
                 var oldTriggerPreviousFireTime = oldTrigger.GetPreviousFireTimeUtc();
                 trigger.StartTimeUtc = oldTrigger.StartTimeUtc;
@@ -980,7 +977,7 @@ namespace Quartz.Xml
             {
                 if (group.Equals("*"))
                 {
-                    Log.Info("Deleting all jobs in ALL groups.");
+                    logger.LogInformation("Deleting all jobs in ALL groups.");
                     foreach (string groupName in await scheduler.GetJobGroupNames(cancellationToken).ConfigureAwait(false))
                     {
                         if (!jobGroupsToNeverDelete.Contains(groupName))
@@ -996,7 +993,7 @@ namespace Quartz.Xml
                 {
                     if (!jobGroupsToNeverDelete.Contains(group))
                     {
-                        Log.InfoFormat("Deleting all jobs in group: {0}", group);
+                        logger.LogInformation("Deleting all jobs in group: {Group}", group);
                         foreach (JobKey key in await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(group), cancellationToken).ConfigureAwait(false))
                         {
                             await scheduler.DeleteJob(key, cancellationToken).ConfigureAwait(false);
@@ -1009,7 +1006,7 @@ namespace Quartz.Xml
             {
                 if (group.Equals("*"))
                 {
-                    Log.Info("Deleting all triggers in ALL groups.");
+                    logger.LogInformation("Deleting all triggers in ALL groups.");
                     foreach (string groupName in await scheduler.GetTriggerGroupNames(cancellationToken).ConfigureAwait(false))
                     {
                         if (!triggerGroupsToNeverDelete.Contains(groupName))
@@ -1025,7 +1022,7 @@ namespace Quartz.Xml
                 {
                     if (!triggerGroupsToNeverDelete.Contains(group))
                     {
-                        Log.InfoFormat("Deleting all triggers in group: {0}", group);
+                        logger.LogInformation("Deleting all triggers in group: {Group}", group);
                         foreach (TriggerKey key in await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals(group), cancellationToken).ConfigureAwait(false))
                         {
                             await scheduler.UnscheduleJob(key, cancellationToken).ConfigureAwait(false);
@@ -1038,7 +1035,7 @@ namespace Quartz.Xml
             {
                 if (!jobGroupsToNeverDelete.Contains(key.Group))
                 {
-                    Log.InfoFormat("Deleting job: {0}", key);
+                    logger.LogInformation("Deleting job: {Key}", key);
                     await scheduler.DeleteJob(key, cancellationToken).ConfigureAwait(false);
                 }
             }
@@ -1047,7 +1044,7 @@ namespace Quartz.Xml
             {
                 if (!triggerGroupsToNeverDelete.Contains(key.Group))
                 {
-                    Log.InfoFormat("Deleting trigger: {0}", key);
+                    logger.LogInformation("Deleting trigger: {Key}", key);
                     await scheduler.UnscheduleJob(key, cancellationToken).ConfigureAwait(false);
                 }
             }

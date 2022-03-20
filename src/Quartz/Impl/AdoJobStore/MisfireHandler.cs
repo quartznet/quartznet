@@ -2,6 +2,8 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Logging;
 using Quartz.Util;
 
@@ -9,7 +11,7 @@ namespace Quartz.Impl.AdoJobStore
 {
     internal sealed class MisfireHandler
     {
-        private readonly ILog log;
+        private readonly ILogger<MisfireHandler> logger;
         // keep constant lock requestor id for handler's lifetime
         private readonly Guid requestorId = Guid.NewGuid();
 
@@ -23,7 +25,7 @@ namespace Quartz.Impl.AdoJobStore
         internal MisfireHandler(JobStoreSupport jobStoreSupport)
         {
             this.jobStoreSupport = jobStoreSupport;
-            log = LogProvider.GetLogger(typeof(MisfireHandler));
+            logger = LogProvider.CreateLogger<MisfireHandler>();
 
             string threadName = $"QuartzScheduler_{jobStoreSupport.InstanceName}-{jobStoreSupport.InstanceId}_MisfireHandler";
             taskScheduler = new QueuedTaskScheduler(threadCount: 1, threadName: threadName, useForegroundThreads: !jobStoreSupport.MakeThreadsDaemons);
@@ -89,7 +91,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             try
             {
-                log.Debug("Scanning for misfires...");
+                logger.LogDebug("Scanning for misfires...");
 
                 RecoverMisfiredJobsResult res = await jobStoreSupport.DoRecoverMisfires(requestorId, CancellationToken.None).ConfigureAwait(false);
                 numFails = 0;
@@ -99,7 +101,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 if (numFails%jobStoreSupport.RetryableActionErrorLogThreshold == 0)
                 {
-                    log.ErrorException("Error handling misfires: " + e.Message, e);
+                    logger.LogError(e,"Error handling misfires: {ExceptionMessage}",e.Message);
                 }
                 numFails++;
             }

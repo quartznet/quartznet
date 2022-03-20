@@ -24,6 +24,8 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Logging;
 using Quartz.Spi;
 
@@ -37,11 +39,11 @@ namespace Quartz.Simpl
     {
         protected const int IdMaxLength = 50;
 
-        private readonly ILog logger;
+        private readonly ILogger<HostNameBasedIdGenerator> logger;
 
         protected HostNameBasedIdGenerator()
         {
-            logger = LogProvider.GetLogger(GetType());
+            logger = LogProvider.CreateLogger<HostNameBasedIdGenerator>();
         }
 
         /// <summary>
@@ -63,7 +65,7 @@ namespace Quartz.Simpl
                 if (hostName != null && hostName.Length > maxLength)
                 {
                     string newName = hostName.Substring(0, maxLength);
-                    logger.InfoFormat("Host name '{0}' was too long, shortened to '{1}'", hostName, newName);
+                    logger.LogInformation("Host name '{HostName}' was too long, shortened to '{Newname}'", hostName, newName);
                     hostName = newName;
                 }
                 return hostName;

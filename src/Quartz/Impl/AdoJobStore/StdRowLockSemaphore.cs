@@ -24,8 +24,9 @@ using System.Data.Common;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Impl.AdoJobStore.Common;
-using Quartz.Logging;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -107,9 +108,9 @@ namespace Quartz.Impl.AdoJobStore
                     bool found;
                     using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
                     {
-                        if (Log.IsDebugEnabled())
+                        if (logger.IsEnabled(LogLevel.Debug))
                         {
-                            Log.DebugFormat("Lock '{0}' is being obtained: {1}", lockName, requestorId);
+                            logger.LogDebug("Lock '{LockName}' is being obtained: {RequestorId}", lockName, requestorId);
                         }
 
                         found = await rs.ReadAsync(cancellationToken).ConfigureAwait(false);
@@ -117,9 +118,9 @@ namespace Quartz.Impl.AdoJobStore
 
                     if (!found)
                     {
-                        if (Log.IsDebugEnabled())
+                        if (logger.IsEnabled(LogLevel.Debug))
                         {
-                            Log.DebugFormat("Inserting new lock row for lock: '{0}' being obtained by thread: {1}", lockName, requestorId);
+                            logger.LogDebug("Inserting new lock row for lock: '{LockName}' being obtained by thread: {RequestorId}", lockName, requestorId);
                         }
 
                         using DbCommand cmd2 = AdoUtil.PrepareCommand(conn, expandedInsertSql);
@@ -153,9 +154,9 @@ namespace Quartz.Impl.AdoJobStore
                         initCause = sqle;
                     }
 
-                    if (Log.IsDebugEnabled())
+                    if (logger.IsEnabled(LogLevel.Debug))
                     {
-                        Log.DebugFormat("Lock '{0}' was not obtained by: {1}{2}", lockName, requestorId, count < maxRetryLocal ? " - will try again." : "");
+                        logger.LogDebug("Lock '{LockName}' was not obtained by: {RequestorId}{RetryMessage}", lockName, requestorId, count < maxRetryLocal ? " - will try again." : "");
                     }
 
                     if (count < maxRetryLocal)

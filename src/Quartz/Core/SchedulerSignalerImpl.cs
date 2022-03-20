@@ -21,6 +21,8 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Logging;
 using Quartz.Spi;
 
@@ -33,8 +35,8 @@ namespace Quartz.Core
 	/// <author>James House</author>
 	/// <author>Marko Lahma (.NET)</author>
 	public class SchedulerSignalerImpl : ISchedulerSignaler
-	{
-		private readonly ILog log = LogProvider.GetLogger(typeof (SchedulerSignalerImpl));
+    {
+        private readonly ILogger<SchedulerSignalerImpl> logger = LogProvider.CreateLogger<SchedulerSignalerImpl>();
         protected readonly QuartzScheduler sched;
         protected readonly QuartzSchedulerThread schedThread;
 
@@ -43,7 +45,7 @@ namespace Quartz.Core
             this.sched = sched;
             this.schedThread = schedThread;
 
-            log.Info("Initialized Scheduler Signaller of type: " + GetType());
+            logger.LogInformation("Initialized Scheduler Signaller of type: {Type}",GetType());
         }
 
 
@@ -62,7 +64,7 @@ namespace Quartz.Core
             }
             catch (SchedulerException se)
             {
-                log.ErrorException("Error notifying listeners of trigger misfire.", se);
+                logger.LogError(se,"Error notifying listeners of trigger misfire.");
                 await sched.NotifySchedulerListenersError("Error notifying listeners of trigger misfire.", se, cancellationToken).ConfigureAwait(false);
             }
         }

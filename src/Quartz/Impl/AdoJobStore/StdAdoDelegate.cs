@@ -31,6 +31,8 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Matchers;
 using Quartz.Logging;
@@ -49,7 +51,7 @@ namespace Quartz.Impl.AdoJobStore
         private const string FileScanListenerName = "FILE_SCAN_LISTENER_NAME";
         private const string DirectoryScanListenerName = "DIRECTORY_SCAN_LISTENER_NAME";
 
-        private ILog logger = null!;
+        private ILogger<StdAdoDelegate> logger = null!;
         private string tablePrefix = DefaultTablePrefix;
         private string instanceId = null!;
         private string schedName = null!;
@@ -68,7 +70,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         public virtual void Initialize(DelegateInitializationArgs args)
         {
-            logger = LogProvider.GetLogger(GetType());
+            logger = LogProvider.CreateLogger<StdAdoDelegate>();
             tablePrefix = args.TablePrefix;
             schedName = args.InstanceName;
             instanceId = args.InstanceId;

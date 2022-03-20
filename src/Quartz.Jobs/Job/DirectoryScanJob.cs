@@ -4,8 +4,12 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Logging;
 using Quartz.Spi;
+
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace Quartz.Job
 {
@@ -66,11 +70,11 @@ namespace Quartz.Job
         ///This is required to find out deleted files during next iteration.
         internal const string CurrentFileList = "CURRENT_FILE_LIST";
 
-        private readonly ILog log;
+        private readonly ILogger<DirectoryScanJob> logger;
 
         public DirectoryScanJob()
         {
-            log = LogProvider.GetLogger(GetType());
+            logger = LogProvider.CreateLogger<DirectoryScanJob>();
         }
 
         /// <summary>
@@ -104,7 +108,7 @@ namespace Quartz.Job
             {
                 foreach (var fileInfo in updatedFiles)
                 {
-                    log.Info($"Directory '{fileInfo.DirectoryName}' contents updated, notifying listener.");
+                    logger.LogInformation("Directory {DirectoryName} contents updated, notifying listener.", fileInfo.DirectoryName);
                 }
 
                 // notify call back...
@@ -122,11 +126,11 @@ namespace Quartz.Job
                 //Update current file list
                 model.UpdateFileList(allFiles);
             }
-            else if (log.IsDebugEnabled())
+            else if (logger.IsEnabled(LogLevel.Debug))
             {
                 foreach (var dir in model.DirectoriesToScan)
                 {
-                    log.Debug($"Directory '{dir}' contents unchanged.");
+                    logger.LogDebug("Directory '{Directory}' contents unchanged.", dir);
                 }
             }
             return Task.CompletedTask;
@@ -142,7 +146,7 @@ namespace Quartz.Job
             DirectoryInfo dir = new DirectoryInfo(dirName);
             if (!dir.Exists)
             {
-                log.Warn($"Directory '{dirName}' does not exist.");
+                logger.LogWarning("Directory '{DirectoryName}' does not exist.", dirName);
                 return;
             }
 

@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Threading;
 using System.Threading.Tasks;
 
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
-
+using Microsoft.Extensions.Logging;
 using Quartz.Impl.Calendar;
 using Quartz.Logging;
 using Quartz.Spi;
@@ -15,7 +15,7 @@ namespace Quartz.Web
 {
     public class WebConsolePlugin : ISchedulerPlugin
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof (WebConsolePlugin));
+        private static readonly ILogger<WebConsolePlugin> log = LogContext.CreateLogger<WebConsolePlugin>();
         private IDisposable host;
 
         public string HostName { get; set; }
@@ -48,7 +48,7 @@ namespace Quartz.Web
                 .UseStartup<Startup>()
                 .Build();
             
-            log.InfoFormat("Quartz Web Console bound to address {0}", baseAddress);
+            log.LogInformation("Quartz Web Console bound to address {BaseAddress}", baseAddress);
             return TaskUtil.CompletedTask;
         }
 

@@ -21,6 +21,8 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Logging;
 using Quartz.Spi;
 
@@ -45,7 +47,7 @@ namespace Quartz.Impl.AdoJobStore
             CancellationToken cancellationToken = default)
         {
             base.Initialize(loadHelper, signaler, cancellationToken);
-            Log.Info("JobStoreTX initialized.");
+            Logger.LogInformation("JobStoreTX initialized.");
             return Task.CompletedTask;
         }
 

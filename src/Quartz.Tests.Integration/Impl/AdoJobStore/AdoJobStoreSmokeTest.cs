@@ -4,11 +4,16 @@ using System.Collections.Specialized;
 using System.Data.SQLite;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
 
+using MELT;
+
 using Microsoft.Data.Sqlite;
+using Microsoft.Extensions.Logging;
+
 using NUnit.Framework;
 
 using Quartz.Impl;
@@ -16,7 +21,6 @@ using Quartz.Impl.Calendar;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
-using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
@@ -30,7 +34,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         private static readonly Dictionary<string, string> dbConnectionStrings = new Dictionary<string, string>();
         private bool clearJobs = true;
         private bool scheduleJobs = true;
-        private ILogProvider oldProvider;
+        private TestLoggerHelper testLoggerHelper;
 
         private const string KeyResetEvent = "ResetEvent";
 
@@ -49,16 +53,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         [OneTimeSetUp]
         public void FixtureSetUp()
         {
-            // set Adapter to report problems
-            oldProvider = (ILogProvider) typeof(LogProvider).GetField("s_currentLogProvider", BindingFlags.NonPublic | BindingFlags.Static).GetValue(null);
-            LogProvider.SetCurrentLogProvider(new FailFastLoggerFactoryAdapter());
-        }
-
-        [OneTimeTearDown]
-        public void FixtureTearDown()
-        {
-            // default back to old
-            LogProvider.SetCurrentLogProvider(oldProvider);
+            testLoggerHelper = new TestLoggerHelper();
         }
 
         [Test]
@@ -237,14 +232,15 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             }
 
             // Clear any old errors from the log
-            FailFastLoggerFactoryAdapter.Errors.Clear();
+            testLoggerHelper.ClearLogs();
+            ;
 
             // First we must get a reference to a scheduler
             IScheduler sched = await config.BuildScheduler();
             SmokeTestPerformer performer = new SmokeTestPerformer();
             await performer.Test(sched, clearJobs, scheduleJobs);
 
-            Assert.IsEmpty(FailFastLoggerFactoryAdapter.Errors, "Found error from logging output");
+            Assert.IsEmpty(testLoggerHelper.LogEntries.Where(le => le.LogLevel == LogLevel.Error), "Found error from logging output");
         }
 
         [Test]

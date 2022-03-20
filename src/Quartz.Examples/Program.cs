@@ -23,8 +23,8 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using System.Threading.Tasks;
-
 using Quartz.Util;
+using Spectre.Console;
 
 namespace Quartz.Examples
 {
@@ -38,8 +38,20 @@ namespace Quartz.Examples
         {
             try
             {
-                var logRepository = log4net.LogManager.GetRepository(Assembly.GetEntryAssembly());
-                log4net.Config.XmlConfigurator.Configure(logRepository, new System.IO.FileInfo("log4net.config"));
+                var logOption = AnsiConsole.Prompt(
+                    new SelectionPrompt<string>()
+                        .Title("Select logger")
+                        .AddChoices("microsoft", "serilog")
+                );
+                switch (logOption)
+                {
+                    case "microsoft":
+                        Logging.ConfigureMicrosoftLogger();
+                        break;
+                    case "serilog":
+                        Logging.ConfigureSerilogLogger();
+                        break;
+                }
 
                 Assembly asm = typeof(Program).Assembly;
                 Type[] types = asm.GetTypes();

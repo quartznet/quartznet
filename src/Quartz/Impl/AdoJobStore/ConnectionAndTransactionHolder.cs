@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -22,6 +22,8 @@
 using System;
 using System.Data;
 using System.Data.Common;
+
+using Microsoft.Extensions.Logging;
 
 using Quartz.Logging;
 
@@ -89,11 +91,11 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                var log = LogProvider.GetLogger(typeof(ConnectionAndTransactionHolder));
+                var log = LogProvider.CreateLogger<ConnectionAndTransactionHolder>();
 
-                log.ErrorException(
+                log.LogError(e,
                     "Unexpected exception closing Connection." +
-                    "  This is often due to a Connection being returned after or during shutdown.", e);
+                    "  This is often due to a Connection being returned after or during shutdown.");
             }
         }
 
@@ -148,16 +150,16 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (Exception e)
                 {
-                    var log = LogProvider.GetLogger(typeof(ConnectionAndTransactionHolder));
+                    var log = LogProvider.CreateLogger<ConnectionAndTransactionHolder>();
                     if (transientError)
                     {
                         // original error was transient, ones we have in Azure, don't complain too much about it
                         // we will try again anyway
-                        log.Debug("Rollback failed due to transient error");
+                        log.LogDebug("Rollback failed due to transient error");
                     }
                     else
                     {
-                        log.ErrorException("Couldn't rollback ADO.NET connection. " + e.Message, e);
+                        log.LogError(e,"Couldn't rollback ADO.NET connection. {ExceptionMessage}",e.Message);
                     }
                 }
             }

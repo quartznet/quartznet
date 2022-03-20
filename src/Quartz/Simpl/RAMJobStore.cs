@@ -27,10 +27,11 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Logging;
+
 using Quartz.Impl.Matchers;
 using Quartz.Logging;
 using Quartz.Spi;
-using Quartz.Util;
 
 namespace Quartz.Simpl
 {
@@ -69,7 +70,7 @@ namespace Quartz.Simpl
         /// </summary>
         public RAMJobStore()
         {
-            Log = LogProvider.GetLogger(GetType());
+            logger = LogProvider.CreateLogger<RAMJobStore>();
         }
 
         /// <summary>
@@ -117,7 +118,7 @@ namespace Quartz.Simpl
             CancellationToken cancellationToken = default)
         {
             this.signaler = signaler;
-            Log.Info("RAMJobStore initialized.");
+            logger.LogInformation("RAMJobStore initialized.");
             return Task.CompletedTask;
         }
 
@@ -204,7 +205,7 @@ namespace Quartz.Simpl
             return Task.CompletedTask;
         }
 
-        private ILog Log { get; }
+        private ILogger<RAMJobStore> logger { get; }
 
         /// <summary>
         /// Store the given <see cref="IJobDetail" /> and <see cref="ITrigger" />.
@@ -1869,7 +1870,7 @@ namespace Quartz.Simpl
                 {
                     if (triggerInstCode == SchedulerInstruction.DeleteTrigger)
                     {
-                        Log.Debug("Deleting trigger");
+                        logger.LogDebug("Deleting trigger");
                         DateTimeOffset? d = trigger.GetNextFireTimeUtc();
                         if (!d.HasValue)
                         {
@@ -1882,7 +1883,7 @@ namespace Quartz.Simpl
                             }
                             else
                             {
-                                Log.Debug("Deleting cancelled - trigger still active");
+                                logger.LogDebug("Deleting cancelled - trigger still active");
                             }
                         }
                         else
@@ -1899,13 +1900,13 @@ namespace Quartz.Simpl
                     }
                     else if (triggerInstCode == SchedulerInstruction.SetTriggerError)
                     {
-                        Log.Info($"Trigger {trigger.Key} set to ERROR state.");
+                        logger.LogInformation("Trigger {TriggerKey} set to ERROR state.", trigger.Key);
                         tw.state = InternalTriggerState.Error;
                         signaler.SignalSchedulingChange(null, cancellationToken);
                     }
                     else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersError)
                     {
-                        Log.Info($"All triggers of Job {trigger.JobKey} set to ERROR state.");
+                        logger.LogInformation("All triggers of Job {JobKey} set to ERROR state.", trigger.JobKey);
                         SetAllTriggersOfJobToState(trigger.JobKey, InternalTriggerState.Error);
                         signaler.SignalSchedulingChange(null, cancellationToken);
                     }

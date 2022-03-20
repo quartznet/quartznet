@@ -1,7 +1,9 @@
-﻿using System.Collections.Specialized;
+using System.Collections.Specialized;
 using System.Data;
 using System.Data.Common;
 using System.Threading.Tasks;
+
+using Microsoft.Extensions.Logging;
 
 using NUnit.Framework;
 
@@ -15,7 +17,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
     [Category("sqlserver")]
     public class DeleteNonExistsJobTest
     {
-        private static readonly ILog log = LogProvider.GetLogger(typeof(DeleteNonExistsJobTest));
+        private static readonly ILogger<DeleteNonExistsJobTest> logger = LogProvider.CreateLogger<DeleteNonExistsJobTest>();
         private const string DBName = "default";
         private const string SchedulerName = "DeleteNonExistsJobTestScheduler";
         private static IScheduler scheduler;
@@ -146,7 +148,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         {
             public Task Execute(IJobExecutionContext context)
             {
-                log.InfoFormat("Job is executing {0}", context);
+                logger.LogInformation("Job is executing {Context}", context);
                 return Task.CompletedTask;
             }
         }
