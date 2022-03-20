@@ -946,7 +946,9 @@ namespace Quartz.Xml
                 var oldTriggerPreviousFireTime = oldTrigger.GetPreviousFireTimeUtc();
                 trigger.StartTimeUtc = oldTrigger.StartTimeUtc;
                 ((IOperableTrigger)trigger).SetPreviousFireTimeUtc(oldTriggerPreviousFireTime);
-                ((IOperableTrigger)trigger).SetNextFireTimeUtc(trigger.GetFireTimeAfter(oldTriggerPreviousFireTime));
+                // if oldTriggerPreviousFireTime is null then NextFireTime should be set relative to oldTrigger.StartTimeUtc 
+                // to be able to handle misfiring for an existing trigger that has never been executed before.
+                ((IOperableTrigger)trigger).SetNextFireTimeUtc(trigger.GetFireTimeAfter(oldTriggerPreviousFireTime ?? oldTrigger.StartTimeUtc));
             }
 
             return sched.RescheduleJob(trigger.Key, trigger, cancellationToken);

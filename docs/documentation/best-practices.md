@@ -28,8 +28,6 @@ values from the JobDataMap on found on the JobExecutionContext, rather than dire
 
 TriggerUtils:
 
-* Offers a simpler way to create triggers (schedules)
-* Has various methods for creating triggers with schedules that meet particular descriptions, as opposed to directly instantiating triggers of a specific type (i.e. SimpleTrigger, CronTrigger, etc.) and then invoking various setter methods to configure them
 * Offers a simple way to create Dates (for start/end dates)
 * Offers helpers for analyzing triggers (e.g. calculating future fire times)
 

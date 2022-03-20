@@ -1,7 +1,10 @@
 using System;
 using System.Globalization;
 
+using HealthChecks.UI.Client;
+
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -51,12 +54,9 @@ namespace Quartz.Examples.AspNetCore
                     .AddZipkinExporter(o =>
                     {
                         o.Endpoint = new Uri("http://localhost:9411/api/v2/spans");
-                        o.ServiceName = "Quartz.Examples.AspNetCore";
                     })
                     .AddJaegerExporter(o =>
                     {
-                        o.ServiceName = "Quartz.Examples.AspNetCore";
-
                         // these are the defaults
                         o.AgentHost = "localhost";
                         o.AgentPort = 6831;
@@ -263,6 +263,11 @@ namespace Quartz.Examples.AspNetCore
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapRazorPages();
+                endpoints.MapHealthChecks("healthz", new HealthCheckOptions
+                {
+                    Predicate = _ => true,
+                    ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
+                });
                 endpoints.MapHealthChecksUI();
             });
         }

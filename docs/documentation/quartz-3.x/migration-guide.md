@@ -32,15 +32,15 @@ Check that you reference the required NuGet packages and that your configuration
 
 ### Migrating HolidayCalendar binary format
 
-If you have HolidayCalendars stored in database in binary format (just stored with AdoJobStore). You need to first load them with Quartz 2.4 or later 2.x version and then re-store them.
+If you have `HolidayCalendar`s stored in database in binary format (just stored with AdoJobStore). You need to first load them with Quartz 2.4 or later 2.x version and then re-store them.
 This will make the serialization use format that is not dependant on precense of C5 library.
 
 ### Thread pool changes
 
-* SimpleThreadPool was removed altogether and it's now a synonym for DefaultThreadPool
+* `SimpleThreadPool` was removed altogether and it's now a synonym for `DefaultThreadPool`
 * Jobs are now ran in CLR thread pool
-* ThreadCount parameter still limits how many items will be queued at most to CLR thread pool
-* Thread priority is no longer supported, you need to remove threadPriority parameter
+* `ThreadCount` parameter still limits how many items will be queued at most to CLR thread pool
+* Thread priority is no longer supported, you need to remove `threadPriority` parameter
 
 ### API Changes
 
@@ -73,11 +73,15 @@ public class MyJob : IJob
 }
 ```
 
-If you don't have any async'ness in your job, you can just  return Task.CompletedTask at the end of Execute method (available from .NET 4.6 onwards).
+If you don't have any async'ness in your job, you can just  return `Task.CompletedTask` at the end of Execute method (available from .NET 4.6 onwards).
 
-IInterruptableJob interface has been removed. You need to check for IJobExecutionContext's CancellationToken.IsCancellationRequested to determine whether job interruption has been requested.
+##### IInterruptableJob
 
-IStatefulJob interface that was obsoleted in 2.x has been removed, you should use DisallowConcurrentExecution and PersistJobDataAfterExecution attributes to achieve your goal.
+`IInterruptableJob` interface has been removed. You need to check for `IJobExecutionContext`'s` CancellationToken.IsCancellationRequested` to determine whether job interruption has been requested.
+
+##### IStatefulJob
+
+`IStatefulJob` interface that was obsoleted in 2.x has been removed, you should use `DisallowConcurrentExecution` and `PersistJobDataAfterExecution` attributes to achieve your goal.
 
 #### Other APIs
 
@@ -119,7 +123,7 @@ ISchedulerFactory sf = new StdSchedulerFactory(properties);
 
 ## Simplified job store provider names
 
-ADO.NET provider names have been simplified, the provider names are without version, e.g. SqlServer-20 => SqlServer. They are now bound to whatever version that can be loaded.
+ADO.NET provider names have been simplified, the provider names are without version, e.g. `SqlServer-20` => `SqlServer`. They are now bound to whatever version that can be loaded.
 
 ### C5 Collections
 
