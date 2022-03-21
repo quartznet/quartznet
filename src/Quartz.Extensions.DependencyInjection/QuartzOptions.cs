@@ -98,7 +98,7 @@ namespace Quartz
 
         bool IDictionary<string, string>.ContainsKey(string key)
         {
-            throw new NotImplementedException();
+            return this[key] is not null;
         }
 
         bool IDictionary<string, string>.Remove(string key)
@@ -108,7 +108,8 @@ namespace Quartz
 
         bool IDictionary<string, string>.TryGetValue(string key, out string value)
         {
-            throw new NotImplementedException();
+            value = this[key];
+            return value is not null;
         }
 
         ICollection<string> IDictionary<string, string>.Keys => throw new NotImplementedException();
