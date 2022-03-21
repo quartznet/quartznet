@@ -50,12 +50,12 @@
     <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All"/>
   </ItemGroup>
 
-  <PropertyGroup Condition=" '$(TargetFramework)' == 'net461' OR '$(TargetFramework)' == 'net472' ">
+  <PropertyGroup Condition=" '$(TargetFramework)' == 'net462' OR '$(TargetFramework)' == 'net472' ">
     <DefineConstants>$(DefineConstants);REMOTING</DefineConstants>
     <FullFramework>true</FullFramework>
   </PropertyGroup>
 
-  <PropertyGroup Condition="'$(TargetFramework)' != 'net461' ">
+  <PropertyGroup Condition="'$(TargetFramework)' != 'net462' ">
     <DefineConstants>$(DefineConstants);DIAGNOSTICS_SOURCE</DefineConstants>
     <DiagnosticsSource>true</DiagnosticsSource>
   </PropertyGroup>
