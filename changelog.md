@@ -37,6 +37,7 @@ By default, this prevents jobs from running while the application is still start
 * BREAKING CHANGES
 
   * Quartz.OpenTelemetry.Instrumentation is now obsolete as there is contrib package on OT side: https://github.com/open-telemetry/opentelemetry-dotnet-contrib/tree/main/src/OpenTelemetry.Instrumentation.Quartz
+  * .NET Framework minimum version is 4.6.2 (previously 4.6.1) (#1549)
 
 
 ## Release 3.3.3, Aug 1 2021
