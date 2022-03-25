@@ -85,7 +85,7 @@ namespace Quartz.Impl.Triggers
             get { return key!; }
             set
             {
-                // Update fields to ensure we remain backward compatibile for serialization
+                // Update fields to ensure we remain backward compatible for serialization
                 if (value == null)
                 {
                     name = null!;

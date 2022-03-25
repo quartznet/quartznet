@@ -10,7 +10,7 @@ using Quartz.Logging;
 namespace Quartz.Server
 {
     /// <summary>
-    /// A sample job that just prints info on console for demostration purposes.
+    /// A sample job that just prints info on console for demonstration purposes.
     /// </summary>
     public class SampleJob : IJob
     {
