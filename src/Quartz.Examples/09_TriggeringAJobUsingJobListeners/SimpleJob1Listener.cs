@@ -33,7 +33,7 @@ namespace Quartz.Examples.Example09
 
         public virtual Task JobToBeExecuted(
             IJobExecutionContext inContext, 
-            CancellationToken canncellationToken)
+            CancellationToken cancellationToken)
         {
             Console.WriteLine("Job1Listener says: Job Is about to be executed.");
             return Task.CompletedTask;
@@ -49,7 +49,7 @@ namespace Quartz.Examples.Example09
 
         public virtual async Task JobWasExecuted(IJobExecutionContext inContext,
             JobExecutionException? inException,
-            CancellationToken canncellationToken = default)
+            CancellationToken cancellationToken = default)
         {
             Console.WriteLine("Job1Listener says: Job was executed.");
 
@@ -66,7 +66,7 @@ namespace Quartz.Examples.Example09
             try
             {
                 // schedule the job to run!
-                await inContext.Scheduler.ScheduleJob(job2, trigger, canncellationToken);
+                await inContext.Scheduler.ScheduleJob(job2, trigger, cancellationToken);
             }
             catch (SchedulerException e)
             {

@@ -110,8 +110,8 @@ namespace Quartz.Impl.Matchers
         public virtual bool Equals(StringOperator? other)
         {
 #if !NET5_0_OR_GREATER
-            // This optimalization should not be applied on .NET 5.0 (and higher) as GetType() and/or Type
-            // comparison has speeded up significantly
+            // This optimization should not be applied on .NET 5.0 (and higher) as GetType() and/or Type
+            // comparison has sped up significantly
             if (ReferenceEquals(this, other))
             {
                 return true;

@@ -13,7 +13,7 @@
     <job>
       <name>jobName1</name>
       <group>jobGroup1</group>
-      <description>jobDesciption1</description>
+      <description>jobDescription1</description>
       <job-type>Quartz.Examples.Example15.SimpleJob, Quartz.Examples</job-type>
       <durable>true</durable>
       <recover>false</recover>
