@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -39,7 +39,7 @@ namespace Quartz.Simpl
         protected virtual void ConfigureScope(IServiceScope scope, TriggerFiredBundle bundle, IScheduler scheduler)
         {
             // Configuration point for Services that are Scoped and need
-            // the ambiente context of a Job
+            // the ambient context of a Job
         }
 
         public override void SetObjectProperties(object obj, JobDataMap data)

@@ -13,7 +13,7 @@ namespace Quartz.Spi
     {
         /// <summary>
         /// Called by <see cref="DirectoryScanJob"/> to provide a list of directory paths
-        /// to montitor - absolute paths are recommended.
+        /// to monitor - absolute paths are recommended.
         /// </summary>
         /// <returns></returns>
         IReadOnlyList<string> GetDirectoriesToScan(JobDataMap mergedJobDataMap);

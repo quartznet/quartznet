@@ -32,7 +32,7 @@ namespace Quartz.Simpl
         /// </summary>
         private Action<Task> completeTask = null!;
 
-        // The semaphore used to limit concurrency and integers representing maximim concurrent tasks
+        // The semaphore used to limit concurrency and integers representing maximum concurrent tasks
         private SemaphoreSlim concurrencySemaphore = null!;
 
         private int maxConcurrency;
@@ -153,7 +153,7 @@ namespace Quartz.Simpl
 
         /// <summary>
         /// Determines the number of threads that are currently available in
-        /// the pool; blocks until at least one is avaialble
+        /// the pool; blocks until at least one is available
         /// </summary>
         /// <returns>The number of currently available threads</returns>
         public int BlockForAvailableThreads()

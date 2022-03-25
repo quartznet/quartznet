@@ -25,7 +25,7 @@
 		<job-detail>
 			<name>jobName1</name>
 			<group>jobGroup1</group>
-			<description>jobDesciption1</description>
+			<description>jobDescription1</description>
 			<job-type>Quartz.Job.NoOpJob, Quartz</job-type>
 			<job-listener-ref>jobListener1</job-listener-ref>
 			<volatile>false</volatile>
