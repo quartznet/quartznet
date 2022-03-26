@@ -212,8 +212,16 @@ namespace Quartz.Examples.AspNetCore
             });
 
             // we can use options pattern to support hooking your own configuration with Quartz's
-            // because we don't use service registration api, we need to manally ensure the job is present in DI
+            // because we don't use service registration api, we need to manually ensure the job is present in DI
             services.AddTransient<ExampleJob>();
+
+            // if there is no need to use key matchers, job and trigger listeners can be added to services and Quartz will automatically use these
+            services.AddSingleton<IJobListener, SecondSampleJobListener>();
+            services.AddSingleton<ITriggerListener>(serviceProvider =>
+            {
+                var logger = serviceProvider.GetRequiredService<ILogger<SecondSampleTriggerListener>>();
+                return new SecondSampleTriggerListener(logger, "Example value");
+            });
 
             services.Configure<SampleOptions>(Configuration.GetSection("Sample"));
             services.AddOptions<QuartzOptions>()

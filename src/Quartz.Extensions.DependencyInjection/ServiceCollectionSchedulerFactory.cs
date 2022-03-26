@@ -69,17 +69,19 @@ namespace Quartz
             }
 
             var jobListeners = serviceProvider.GetServices<IJobListener>();
-            foreach (var configuration in serviceProvider.GetServices<JobListenerConfiguration>())
+            var jobListenerConfigurations = serviceProvider.GetServices<JobListenerConfiguration>().ToArray();
+            foreach (var listener in jobListeners)
             {
-                var listener = jobListeners.First(x => x.GetType() == configuration.ListenerType);
-                scheduler.ListenerManager.AddJobListener(listener, configuration.Matchers);
+                var configuration = jobListenerConfigurations.SingleOrDefault(x => x.ListenerType == listener.GetType());
+                scheduler.ListenerManager.AddJobListener(listener, configuration?.Matchers ?? Array.Empty<IMatcher<JobKey>>());
             }
 
             var triggerListeners = serviceProvider.GetServices<ITriggerListener>();
-            foreach (var configuration in serviceProvider.GetServices<TriggerListenerConfiguration>())
+            var triggerListenerConfigurations = serviceProvider.GetServices<TriggerListenerConfiguration>().ToArray();
+            foreach (var listener in triggerListeners)
             {
-                var listener = triggerListeners.First(x => x.GetType() == configuration.ListenerType);
-                scheduler.ListenerManager.AddTriggerListener(listener, configuration.Matchers);
+                var configuration = triggerListenerConfigurations.SingleOrDefault(x => x.ListenerType == listener.GetType());
+                scheduler.ListenerManager.AddTriggerListener(listener, configuration?.Matchers ?? Array.Empty<IMatcher<TriggerKey>>());
             }
 
             var calendars = serviceProvider.GetServices<CalendarConfiguration>();
