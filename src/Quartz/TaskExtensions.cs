@@ -8,7 +8,11 @@ namespace Quartz
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static bool IsCompletedSuccessfully(this Task t)
         {
-            return t.Status == TaskStatus.RanToCompletion && !t.IsFaulted && !t.IsCanceled;
-        }   
+#if NETSTANDARD2_1_OR_GREATER || NETCOREAPP2_0_OR_GREATER
+            return t.IsCompletedSuccessfully;
+#else
+            return t.Status == TaskStatus.RanToCompletion;
+#endif
+        }
     }
 }
