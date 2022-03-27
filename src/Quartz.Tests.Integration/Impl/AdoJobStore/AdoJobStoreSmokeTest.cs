@@ -431,7 +431,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
             manualResetEvent.Wait(TimeSpan.FromSeconds(20));
 
-            Assert.That(await scheduler.GetTriggerState(badTrigger.Key), Is.EqualTo(TriggerState.Error));
+            Assert.That(await scheduler.GetTriggerState(badTrigger.Key), Is.Not.EqualTo(TriggerState.Blocked));
         }
 
         private static async Task<IScheduler> CreateScheduler(NameValueCollection properties)
@@ -563,6 +563,16 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     throw new TypeLoadException();
                 }
                 return base.LoadType(name);
+            }
+        }
+
+        [TearDown]
+        public async Task ShutdownSchedulers()
+        {
+            var schedulers = await SchedulerRepository.Instance.LookupAll(CancellationToken.None);
+            foreach (var scheduler in schedulers)
+            {
+                await scheduler.Shutdown(CancellationToken.None);
             }
         }
     }
