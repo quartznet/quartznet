@@ -21,6 +21,8 @@ on:
     branches:
       - main
       - 3.x
+    tags:
+      - 'v*.*.*'
     paths:
       - '**/*'
       - '!docs/**/*'

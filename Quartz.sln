@@ -57,6 +57,8 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Workflows", "Workflows", "{BB894600-46FC-4EAD-84C8-F98622A3D012}"
 ProjectSection(SolutionItems) = preProject
 	.github\workflows\docs.yml = .github\workflows\docs.yml
+	.github\workflows\build.yml = .github\workflows\build.yml
+	.github\workflows\pr.yml = .github\workflows\pr.yml
 EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "_build", "build\_build.csproj", "{1252A3D8-2CF1-4AF6-A80C-A9889634543B}"

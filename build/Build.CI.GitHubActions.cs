@@ -18,6 +18,7 @@ using Nuke.Common.CI.GitHubActions;
     GitHubActionsImage.UbuntuLatest,
     GitHubActionsImage.MacOsLatest,
     OnPushBranches = new [] { "main", "3.x" },
+    OnPushTags = new[] { "v*.*.*" },
     OnPushIncludePaths = new[] { "**/*" },
     OnPushExcludePaths = new[] { "docs/**/*", "package.json", "readme.md" },
     PublishArtifacts = true,
