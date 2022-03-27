@@ -6,11 +6,10 @@
     <Description>Quartz.NET JSON Serialization Support; $(Description)</Description>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
   </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="..\AssemblyInfo.cs" />
-  </ItemGroup>
+
 </Project>
