@@ -9,10 +9,6 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="..\AssemblyInfo.cs" />
-    </ItemGroup>
-
-    <ItemGroup>
         <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" Version="2.1.1" />
         <PackageReference Include="Microsoft.Extensions.Options" Version="2.1.1" />
         <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="2.1.1" />

@@ -2,10 +2,11 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
-## Release 3.4.0, _____TODO_MARKO_LAHMA_RELEASE_DATE_____
+## Release 3.4.0, Mar 27 2022
 
 This release has Quartz jobs start executing only after application startup completes successfully, unless QuartzHostedServiceOptions are used to specify otherwise.
 By default, this prevents jobs from running while the application is still starting, and it alleviates the need to use arbitrary start delays to achieve the effect manually.
+Quartz.OpenTelemetry.Instrumentation has been marked obsolete as there's official contrib project on OpenTelemetry project side.
 
 * FIXES
 
@@ -27,14 +28,11 @@ By default, this prevents jobs from running while the application is still start
   * Increase precision of SimpleTriggerImpl to ticks. (#1360)
   * Switch from FAKE to NUKE (#1413)
   * QuartzHostedService now has jobs start after application startup (#1449)
-
-
-* NEW FEATURES
-
   * QuartzHostedServiceOptions can let jobs be started as part of application startup, as before this version  (#1432)
   * Add helper methods to setup Microsoft.Data.Sqlite (#1275)
+  * Quartz will scan job and trigger listeners from MS DI container automatically (#1561)
 
-  
+ 
 * BREAKING CHANGES
 
   * Quartz.OpenTelemetry.Instrumentation is now obsolete as there is contrib package on OT side: https://github.com/open-telemetry/opentelemetry-dotnet-contrib/tree/main/src/OpenTelemetry.Instrumentation.Quartz

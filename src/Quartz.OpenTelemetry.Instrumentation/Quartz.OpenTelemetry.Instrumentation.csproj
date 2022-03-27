@@ -8,9 +8,6 @@
     <NoWarn>$(NoWarn);NU5104</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="..\AssemblyInfo.cs" />
-  </ItemGroup>
-  <ItemGroup>
     <PackageReference Include="OpenTelemetry" Version="0.6.0-beta.1" />
   </ItemGroup>
   <ItemGroup>

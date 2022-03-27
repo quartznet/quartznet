@@ -8,9 +8,6 @@
     <Authors>Sean Farrow, Quartz.NET</Authors>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="..\AssemblyInfo.cs" />
-  </ItemGroup>
-  <ItemGroup>
     <PackageReference Include="TimeZoneConverter" Version="5.0.0" />
   </ItemGroup>
   <ItemGroup>
