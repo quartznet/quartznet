@@ -11,7 +11,7 @@ Please visit [https://www.quartz-scheduler.net/](https://www.quartz-scheduler.ne
 
 ## Compatibility
 
-Quartz.NET supports .NET Core/netstandard 2.0 and .NET Framework 4.6.1 and later.
+Quartz.NET supports .NET Core/netstandard 2.0 and .NET Framework 4.6.2 and later.
 
 ## Installation
 
