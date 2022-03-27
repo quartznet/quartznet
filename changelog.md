@@ -2,6 +2,44 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+## Release 4.0.0, T.B.D
+
+* BREAKING CHANGES
+
+  * **JobKey** and **TriggerKey** now throw an **ArgumentNullException** when you specify **null** for _name_ or _group_ (#1359)
+  * The following properties have been removed from **AbstractTrigger** as they represent information that is already available through the **Key** and **JobKey** properties:
+    * Name
+    * GroupName
+    * JobName
+    * JobGroup
+    * FullName
+  * Triggers can no longer be constructed with a **null** group name (#1359)
+  * The *endUtc* argument of **SimpleTriggerImpl** is no longer nullable.
+  * If a value is explicitly specified for "IdleWaitTime", we will no longer silently ignore the value (and use 
+    a default value of 30 seconds instead) if it's less than or equal to **zero**.
+  * If you use **StdSchedulerFactory** to create a scheduler, we will no longer reject an **IdleWaitTime** that
+    is greater than **zero** but less than **1000 milliseconds**.
+  * An negative value for **IdleWaitTime** or **BatchTimeWindow** will no longer be accepted.
+  * For **MaxBatchSize**, a value less than or equal to **zero** will be rejected.
+  * The ctor for **QuartzScheduler** no longer takes an **idleWaitTime** argument. This value
+    is now obtained from a newly introduced **IdleWaitTime** property on **QuartzSchedulerResources**.
+
+  * The `Equals(StringOperator? other)` method of **StringOperator** is now also virtual to allow it to be
+    overridden in pair with `Equals(object? obj)` and `GetHashCode()`.
+
+  * The **Quartz.Util.DictionaryExtensions** type was removed.
+    
+  * The 'Get(TKey key)' method of **DirtyFlagMap<TKey,TValue>** has been removed. You can instead use the
+    this[TKey key] indexer or `TryGetValue(TKey key, out TValue value)` to obtain the value for a given key.
+    
+  * (Logging): `LibLog` has been removed and replaced with `Microsoft.Logging.Abstractions` (#1480).
+      
+  * The following properties of **DirtyFlagMap<TKey,TValue>** are now explicit interface implementations:
+    * IsReadOnly
+    * IsFixedSize
+    * SyncRoot
+    * IsSynchronized
+
 ## Release 3.4.0, Mar 27 2022
 
 This release has Quartz jobs start executing only after application startup completes successfully, unless QuartzHostedServiceOptions are used to specify otherwise.

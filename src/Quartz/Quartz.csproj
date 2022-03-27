@@ -1,9 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <AssemblyTitle>Quartz.NET</AssemblyTitle>
-    <TargetFrameworkVersion>4.6.2</TargetFrameworkVersion>
-    <TargetFrameworks>net462;net472;netstandard2.0</TargetFrameworks>
-    <TargetFrameworkVersion>4.7.2</TargetFrameworkVersion>
     <TargetFrameworks>net472;netstandard2.0</TargetFrameworks>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
   </PropertyGroup>
