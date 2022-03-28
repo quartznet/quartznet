@@ -24,6 +24,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Schema;
+using System.Linq;
 using System.Xml.Serialization;
 
 using Quartz.Impl.Matchers;
@@ -31,6 +32,7 @@ using Quartz.Logging;
 using Quartz.Spi;
 using Quartz.Util;
 using Quartz.Xml.JobSchedulingData20;
+using Quartz.Impl.AdoJobStore;
 
 namespace Quartz.Xml
 {
@@ -400,6 +402,13 @@ namespace Quartz.Xml
                         triggerEntries.AddRange(schedule.trigger);
                     }
                 }
+            }
+
+            // check for triggers with the same name
+            var duplicatedTriggers = triggerEntries.GroupBy(c => c.Item.name).Where(c => c.Count() > 1);
+            foreach(var duplicatedEntry in duplicatedTriggers)
+            {
+                throw new InvalidConfigurationException("Found duplicated TriggerName: " + duplicatedEntry.Key);
             }
 
             Log.Debug("Found " + triggerEntries.Count + " trigger definitions.");
