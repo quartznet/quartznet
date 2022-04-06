@@ -149,5 +149,33 @@ namespace Quartz
         /// <param name="newJobDataMap"></param>
         /// <returns></returns>
         JobBuilder SetJobData(JobDataMap? newJobDataMap);
+
+        /// <summary>
+        /// Instructs the <see cref="IScheduler" /> whether or not concurrent execution of the job should be disallowed.
+        /// </summary>
+        /// <param name="concurrentExecutionDisallowed">Indicates whether or not concurrent execution of the job should be disallowed.</param>
+        /// <returns>
+        /// The updated <see cref="JobBuilder"/>.
+        /// </returns>
+        /// <remarks>
+        /// If not explicitly set, concurrent execution of a job is only disallowed if either the <see cref="IJobDetail.JobType"/> itself,
+        /// one of its ancestors or one of the interfaces that it implements, is annotated with <see cref="DisallowConcurrentExecutionAttribute"/>.
+        /// </remarks>
+        /// <seealso cref="DisallowConcurrentExecutionAttribute"/>
+        JobBuilder DisallowConcurrentExecution(bool concurrentExecutionDisallowed = true);
+
+        /// <summary>
+        /// Instructs the <see cref="IScheduler" /> whether or not job data should be re-stored when execution of the job completes.
+        /// </summary>
+        /// <param name="persistJobDataAfterExecution">Indicates whether or not job data should be re-stored when execution of the job completes.</param>
+        /// <returns>
+        /// The updated <see cref="JobBuilder"/>.
+        /// </returns>
+        /// <remarks>
+        /// If not explicitly set, job data is only re-stored if either the <see cref="IJobDetail.JobType"/> itself, one of
+        /// its ancestors or one of the interfaces that it implements, is annotated with <see cref="PersistJobDataAfterExecutionAttribute"/>.
+        /// </remarks>
+        /// <seealso cref="PersistJobDataAfterExecutionAttribute"/>
+        JobBuilder PersistJobDataAfterExecution(bool persistJobDataAfterExecution = true);
     }
 }
