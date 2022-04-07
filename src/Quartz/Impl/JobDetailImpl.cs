@@ -214,7 +214,7 @@ namespace Quartz.Impl
         {
             get => name;
 
-            private set
+            set
             {
                 if (string.IsNullOrWhiteSpace(value))
                 {
@@ -235,7 +235,7 @@ namespace Quartz.Impl
         public string Group
         {
             get => group;
-            private set
+            set
             {
                 if (value != null && value.Trim().Length == 0)
                 {
@@ -300,7 +300,7 @@ namespace Quartz.Impl
         public string? Description
         {
             get => description;
-            private set => description = value;
+            set => description = value;
         }
 
         /// <summary>
@@ -312,7 +312,7 @@ namespace Quartz.Impl
         public virtual Type JobType
         {
             get => jobType;
-            private set
+            set
             {
                 if (value == null)
                 {
@@ -342,7 +342,7 @@ namespace Quartz.Impl
                 return jobDataMap;
             }
 
-            private set => jobDataMap = value;
+            set => jobDataMap = value;
         }
 
         /// <summary>
@@ -354,7 +354,7 @@ namespace Quartz.Impl
         /// </para>
         /// </summary>
         /// <seealso cref="IJobExecutionContext.Recovering" />
-        public bool RequestsRecovery { get; private set; }
+        public bool RequestsRecovery { get; set; }
 
         /// <summary>
         /// Whether or not the <see cref="IJob" /> should remain stored after it is
@@ -367,7 +367,7 @@ namespace Quartz.Impl
         /// <see langword="true" /> if the Job should remain persisted after
         /// being orphaned.
         /// </returns>
-        public bool Durable { get; private set; }
+        public bool Durable { get; set; }
 
         /// <summary>
         /// Gets a value indicating whether job data should be re-stored when execution of the job completes.
