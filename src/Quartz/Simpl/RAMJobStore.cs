@@ -320,7 +320,9 @@ namespace Quartz.Simpl
                     found = true;
                 }
 
-                if (jobsByKey.Remove(jobKey) || found)
+                found = jobsByKey.Remove(jobKey) || found;
+                
+                if (found)
                 {
                     if (jobsByGroup.TryGetValue(jobKey.Group, out var grpMap))
                     {
