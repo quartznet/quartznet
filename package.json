@@ -4,17 +4,11 @@
   "description": "Quartz.NET Documentation",
   "main": "index.js",
   "devDependencies": {
-    "@vuepress/plugin-active-header-links": "^1.6.0",
-    "@vuepress/plugin-back-to-top": "^1.6.0",
-    "@vuepress/plugin-blog": "^1.9.2",
-    "@vuepress/plugin-google-analytics": "^1.6.0",
-    "vue": "^2.6.12",
-    "vuepress": "^1.6.0"
-  },
-  "dependencies": {
-    "esm": "^3.2.25",
-    "remove-markdown": "^0.3.0",
-    "vue-tweet-embed": "^2.4.0"
+    "@vuepress/plugin-active-header-links": "^1.9.7",
+    "@vuepress/plugin-back-to-top": "^1.9.7",
+    "@vuepress/plugin-blog": "^1.9.4",
+    "@vuepress/plugin-google-analytics": "^1.9.7",
+    "vuepress": "^1.9.7"
   },
   "scripts": {
     "docs:build": "bash -c \"rm -rf docs/.vuepress/dist\" && vuepress build docs",
