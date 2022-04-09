@@ -67,7 +67,7 @@ namespace Quartz.Simpl
             (job as IDisposable)?.Dispose();
         }
 
-        private sealed class ScopedJob : IJob, IDisposable
+        private sealed class ScopedJob : IJob, IJobWrapper, IDisposable
         {
             private readonly IServiceScope scope;
             private readonly bool canDispose;
@@ -80,6 +80,7 @@ namespace Quartz.Simpl
             }
             
             internal IJob InnerJob { get; }
+            public IJob Target => InnerJob;
 
             public void Dispose()
             {
