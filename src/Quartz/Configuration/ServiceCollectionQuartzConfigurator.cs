@@ -8,7 +8,7 @@ using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
 
-namespace Quartz
+namespace Quartz.Configuration
 {
     internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQuartzConfigurator
     {
@@ -93,12 +93,6 @@ namespace Quartz
             UseJobFactory<MicrosoftDependencyInjectionJobFactory>(configure);
         }
 
-        [Obsolete("Jobs are always created with scope, use UseMicrosoftDependencyInjectionJobFactory")]
-        public void UseMicrosoftDependencyInjectionScopedJobFactory(Action<JobFactoryOptions>? configure = null)
-        {
-            UseJobFactory<MicrosoftDependencyInjectionJobFactory>(configure);
-        }
-
         public void UseJobFactory<T>(Action<JobFactoryOptions>? configure = null) where T : class, IJobFactory
         {
             schedulerBuilder.UseJobFactory<T>();
@@ -109,7 +103,7 @@ namespace Quartz
                 {
                     configure(options.JobFactory);
                 });
-            };
+            }
         }
 
         public void UseTypeLoader<T>() where T : ITypeLoadHelper

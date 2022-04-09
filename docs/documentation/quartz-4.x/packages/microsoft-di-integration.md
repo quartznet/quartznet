@@ -10,14 +10,6 @@ provides integration with [Microsoft Dependency Injection](https://docs.microsof
 Quartz 3.1 or later required.
 :::
 
-## Installation
-
-You need to add NuGet package reference to your project which uses Quartz.
-
-```shell
-Install-Package Quartz.Extensions.DependencyInjection
-```
-
 ## Using
 
 You can add Quartz configuration by invoking an extension method `AddQuartz` on `IServiceCollection`.

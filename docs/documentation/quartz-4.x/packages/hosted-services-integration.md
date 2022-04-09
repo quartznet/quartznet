@@ -6,26 +6,6 @@ title: Hosted Services Integration
 [Quartz.Extensions.Hosting](https://www.nuget.org/packages/Quartz.Extensions.Hosting)
 provides integration with [hosted services](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services).
 
-::: tip
-Quartz 3.2 or later required for Quartz.Extensions.Hosting. You can use package Quartz.AspNetCore with version 3.1.
-:::
-
-## Installation
-
-You need to add NuGet package reference to your project which uses Quartz.
-
-**Quartz 3.1**
-
-```shell
-Install-Package Quartz.AspNetCore 
-```
-
-**Quartz 3.2 onwards**
-
-```shell
-Install-Package Quartz.Extensions.Hosting
-```
-
 ## Using
 
 You can add Quartz configuration by invoking an extension method `AddQuartzHostedService` on `IServiceCollection`.

@@ -71,6 +71,8 @@
   * To configure JSON serialization to be used in job store instead of old `UseJsonSerializer` you should now use `UseNewtonsoftJsonSerializer`
     and replace old package reference `Quartz.Serialization.Json` with `Quartz.Serialization.Newtonsoft`
 
+  * `Quartz.Extensions.DependencyInjection` and `Quartz.Extensions.Hosting` were merged to be part of main Quartz package, you can now remove those package references
+
 #### Cron Parser
 
   * Add cron parser support for 'L' and 'LW' in expression combinations for daysOfMonth (#1939) (#1288)

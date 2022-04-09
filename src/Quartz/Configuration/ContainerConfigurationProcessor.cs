@@ -4,7 +4,7 @@ using Microsoft.Extensions.Options;
 using Quartz.Spi;
 using Quartz.Xml;
 
-namespace Quartz
+namespace Quartz.Configuration
 {
     /// <summary>
     /// Reuse logic for adding and removing items by using XMLSchedulingDataProcessor.

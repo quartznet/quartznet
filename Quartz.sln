@@ -41,11 +41,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Examples.AspNetCore"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Examples", "Examples", "{FCD766DA-FF68-4A60-9130-07A56C2480F0}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Extensions.DependencyInjection", "src\Quartz.Extensions.DependencyInjection\Quartz.Extensions.DependencyInjection.csproj", "{FD743112-25F0-4719-B0DF-144C78600955}"
-EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.OpenTelemetry.Instrumentation", "src\Quartz.OpenTelemetry.Instrumentation\Quartz.OpenTelemetry.Instrumentation.csproj", "{5B99035A-3623-4584-9AFA-C6D77F5704BD}"
-EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Extensions.Hosting", "src\Quartz.Extensions.Hosting\Quartz.Extensions.Hosting.csproj", "{7CC26420-E06F-44EA-AF23-7861B56906BB}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Examples.Worker", "src\Quartz.Examples.Worker\Quartz.Examples.Worker.csproj", "{2BB03F5A-7736-42E9-A572-5D60336A9BFF}"
 EndProject
@@ -126,18 +122,10 @@ Global
 		{5224231E-7678-4EC6-B18A-FA302D9553E3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5224231E-7678-4EC6-B18A-FA302D9553E3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5224231E-7678-4EC6-B18A-FA302D9553E3}.Release|Any CPU.Build.0 = Release|Any CPU
-		{FD743112-25F0-4719-B0DF-144C78600955}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{FD743112-25F0-4719-B0DF-144C78600955}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{FD743112-25F0-4719-B0DF-144C78600955}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{FD743112-25F0-4719-B0DF-144C78600955}.Release|Any CPU.Build.0 = Release|Any CPU
 		{5B99035A-3623-4584-9AFA-C6D77F5704BD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{5B99035A-3623-4584-9AFA-C6D77F5704BD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5B99035A-3623-4584-9AFA-C6D77F5704BD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5B99035A-3623-4584-9AFA-C6D77F5704BD}.Release|Any CPU.Build.0 = Release|Any CPU
-		{7CC26420-E06F-44EA-AF23-7861B56906BB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{7CC26420-E06F-44EA-AF23-7861B56906BB}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{7CC26420-E06F-44EA-AF23-7861B56906BB}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{7CC26420-E06F-44EA-AF23-7861B56906BB}.Release|Any CPU.Build.0 = Release|Any CPU
 		{2BB03F5A-7736-42E9-A572-5D60336A9BFF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{2BB03F5A-7736-42E9-A572-5D60336A9BFF}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2BB03F5A-7736-42E9-A572-5D60336A9BFF}.Release|Any CPU.ActiveCfg = Release|Any CPU

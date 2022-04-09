@@ -46,12 +46,6 @@ namespace Quartz
         /// </summary>
         void UseMicrosoftDependencyInjectionJobFactory(Action<JobFactoryOptions>? configure = null);
 
-        /// <summary>
-        /// Use <see cref="UseMicrosoftDependencyInjectionScopedJobFactory"/> to produce Quartz jobs.
-        /// </summary>
-        [Obsolete("Jobs are always created with scope, use UseMicrosoftDependencyInjectionJobFactory")]
-        void UseMicrosoftDependencyInjectionScopedJobFactory(Action<JobFactoryOptions>? configure = null);
-
         void UseInMemoryStore(Action<SchedulerBuilder.InMemoryStoreOptions>? configure = null);
         void UsePersistentStore(Action<SchedulerBuilder.PersistentStoreOptions> configure);
         void UsePersistentStore<T>(Action<SchedulerBuilder.PersistentStoreOptions> configure) where T : class, IJobStore;

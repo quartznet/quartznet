@@ -10,7 +10,6 @@
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
-    <ProjectReference Include="..\Quartz.Extensions.Hosting\Quartz.Extensions.Hosting.csproj" />
     <ProjectReference Include="..\Quartz.HttpClient\Quartz.HttpClient.csproj" />
   </ItemGroup>
 

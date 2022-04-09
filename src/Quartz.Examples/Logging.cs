@@ -6,7 +6,6 @@ using Serilog;
 
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
-using NLog;
 using NLog.Extensions.Logging;
 
 namespace Quartz.Examples
