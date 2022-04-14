@@ -325,32 +325,5 @@ namespace Quartz.Tests.Unit
 
             await scheduler.Shutdown(true);
         }
-        
-        [Test]
-        public async Task TestJobDeleteReturnValue()
-        {
-            var config = new NameValueCollection
-            {
-                ["quartz.scheduler.instanceName"] = "SchedulerTest_Scheduler",
-                ["quartz.scheduler.instanceId"] = "AUTO"
-            };
-            var scheduler = await new StdSchedulerFactory(config).GetScheduler();
-
-            var job = JobBuilder.Create()
-                .OfType<TestJob>()
-                .WithIdentity("j5")
-                .StoreDurably()
-                .Build();
-
-            await scheduler.AddJob(job, false);
-
-            var deleteSuccess = await scheduler.DeleteJob(new JobKey("j5"));
-            Assert.IsTrue(deleteSuccess, "Expected DeleteJob to return True when deleting an existing job");
-
-            deleteSuccess = await scheduler.DeleteJob(new JobKey("j5"));
-            Assert.IsFalse(deleteSuccess, "Expected DeleteJob to return False when deleting an non-existing job");
-            
-            await scheduler.Shutdown();
-        }
     }
 }
