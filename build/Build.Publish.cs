@@ -1,7 +1,7 @@
+using System;
 using System.Collections.Generic;
 
 using Nuke.Common;
-using Nuke.Common.Git;
 using Nuke.Common.IO;
 using Nuke.Common.Tooling;
 using Nuke.Common.Tools.DotNet;
@@ -20,7 +20,7 @@ public partial class Build
     string SourceToUse => !string.IsNullOrWhiteSpace(TagVersion) ? NuGetSource : MyGetGetSource;
 
     Target Publish => _ => _
-        .OnlyWhenDynamic(() => IsRunningOnWindows && (GitRepository.IsOnMainBranch() || IsTaggedBuild))
+        .OnlyWhenDynamic(() => IsRunningOnWindows && (string.Equals("3.x", GitRepository.Branch, StringComparison.OrdinalIgnoreCase) || IsTaggedBuild))
         .DependsOn(Pack)
         .Requires(() => NuGetApiKey)
         .Executes(() =>
