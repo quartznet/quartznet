@@ -428,6 +428,24 @@ namespace Quartz.Tests.Unit.Simpl
                 Assert.AreEqual("job" + i, triggers[i].Key.Name);
             }
         }
+        
+        [Test]
+        public async Task TestJobDeleteReturnValue()
+        {
+            var job = JobBuilder.Create<NoOpJob>()
+                .WithIdentity("job0")
+                .StoreDurably()
+                .Build();
+
+            var store = new RAMJobStore();
+            await store.StoreJob(job, false);
+            
+            var deleteSuccess = await store.RemoveJob(new JobKey("job0"));
+            Assert.IsTrue(deleteSuccess, "Expected RemoveJob to return True when deleting an existing job");
+
+            deleteSuccess = await store.RemoveJob(new JobKey("job0"));
+            Assert.IsFalse(deleteSuccess, "Expected RemoveJob to return False when deleting an non-existing job");
+        }
 
         public class SampleSignaler : ISchedulerSignaler
         {
