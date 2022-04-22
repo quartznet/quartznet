@@ -131,6 +131,8 @@ namespace Quartz.Impl
 
         public const string SystemPropertyAsInstanceId = "SYS_PROP";
 
+        private readonly SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
+
         private SchedulerException? initException;
 
         private PropertiesParser cfg = null!;
@@ -1093,30 +1095,36 @@ Please add configuration to your application config file to correctly initialize
         /// </remarks>
         public virtual async Task<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
         {
-            if (cfg == null)
-            {
-                Initialize();
-            }
-
-            SchedulerRepository schedRep = SchedulerRepository.Instance;
-
-            IScheduler? sched = await schedRep.Lookup(SchedulerName, cancellationToken).ConfigureAwait(false);
-
-            if (sched != null)
-            {
-                if (sched.IsShutdown)
+            // We always need to guarantee exclusivity because of the possible sequence of interactions with
+            // the SchedulerRepository.
+            if(!semaphore.Wait(0, cancellationToken))
+                await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try {
+                if (cfg == null)
                 {
-                    schedRep.Remove(SchedulerName);
+                    Initialize();
                 }
-                else
+
+                IScheduler? sched = await SchedulerRepository.Instance.Lookup(SchedulerName, cancellationToken).ConfigureAwait(false);
+
+                if (sched != null)
                 {
-                    return sched;
+                    if (sched.IsShutdown)
+                    {
+                        SchedulerRepository.Instance.Remove(SchedulerName);
+                    }
+                    else
+                    {
+                        return sched;
+                    }
                 }
+
+                sched = await Instantiate().ConfigureAwait(false);
+
+                return sched;
+            } finally {
+                semaphore.Release();
             }
-
-            sched = await Instantiate().ConfigureAwait(false);
-
-            return sched!;
         }
 
         /// <summary> <para>

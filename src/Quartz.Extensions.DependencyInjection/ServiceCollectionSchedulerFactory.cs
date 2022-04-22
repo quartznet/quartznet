@@ -21,7 +21,7 @@ namespace Quartz
         private readonly IOptions<QuartzOptions> options;
         private readonly ContainerConfigurationProcessor processor;
         private bool initialized;
-        private readonly SemaphoreSlim initializationLock = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
 
         public ServiceCollectionSchedulerFactory(
             IServiceProvider serviceProvider,
@@ -35,30 +35,30 @@ namespace Quartz
 
         public override async Task<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
         {
-            // check if logging provider configured and let if configure
-            serviceProvider.GetService<MicrosoftLoggingProvider>();
-
-            base.Initialize(options.Value);
-            var scheduler = await base.GetScheduler(cancellationToken);
-            if (initialized)
-            {
-                return scheduler;
-            }
-
-            await initializationLock.WaitAsync(cancellationToken);
+            if(initialized)
+                return await base.GetScheduler(cancellationToken);
+        
+            await semaphore.WaitAsync(cancellationToken);
             try
             {
-                if (!initialized)
-                {
-                    await InitializeScheduler(scheduler, cancellationToken);
-                    initialized = true;
-                }
+                if(initialized)
+                    return await base.GetScheduler(cancellationToken);
+                    
+                // check if logging provider configured and let if configure
+                serviceProvider.GetService<MicrosoftLoggingProvider>();
+
+                base.Initialize(options.Value);
+                var scheduler = await base.GetScheduler(cancellationToken);
+                
+                await InitializeScheduler(scheduler, cancellationToken);
+                initialized = true;
+                
+                return scheduler;
             }
             finally
             {
-                initializationLock.Release();
+                semaphore.Release();
             }
-            return scheduler;
         }
 
         private async Task InitializeScheduler(IScheduler scheduler, CancellationToken cancellationToken)
