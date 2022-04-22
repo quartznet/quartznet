@@ -369,8 +369,6 @@ Please add configuration to your application config file to correctly initialize
             TimeSpan idleWaitTime = TimeSpan.Zero;
             TimeSpan dbFailureRetry = TimeSpan.FromSeconds(15);
 
-            SchedulerRepository schedRep = SchedulerRepository.Instance;
-
             // Get Scheduler Properties
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -450,8 +448,6 @@ Please add configuration to your application config file to correctly initialize
                 string uid = QuartzSchedulerResources.GetUniqueIdentifier(schedName, schedInstId);
 
                 RemoteScheduler remoteScheduler = new RemoteScheduler(uid, factory);
-
-                schedRep.Bind(remoteScheduler);
 
                 return remoteScheduler;
             }
@@ -1016,15 +1012,11 @@ Please add configuration to your application config file to correctly initialize
 
                 log.Info("Quartz scheduler version: {0}".FormatInvariant(qs.Version));
 
-                // prevents the repository from being garbage collected
-                qs.AddNoGCObject(schedRep);
                 // prevents the db manager from being garbage collected
                 if (dbMgr != null)
                 {
                     qs.AddNoGCObject(dbMgr);
                 }
-
-                schedRep.Bind(sched);
 
                 return sched;
             }
@@ -1120,6 +1112,7 @@ Please add configuration to your application config file to correctly initialize
                 }
 
                 sched = await Instantiate().ConfigureAwait(false);
+                SchedulerRepository.Instance.Bind(sched);
 
                 return sched;
             } finally {
