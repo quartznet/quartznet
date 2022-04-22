@@ -1020,11 +1020,6 @@ Please add configuration to your application config file to correctly initialize
 
                 return sched;
             }
-            catch (SchedulerException)
-            {
-                await ShutdownFromInstantiateException(tp, qs, tpInited, qsInited).ConfigureAwait(false);
-                throw;
-            }
             catch
             {
                 await ShutdownFromInstantiateException(tp, qs, tpInited, qsInited).ConfigureAwait(false);
