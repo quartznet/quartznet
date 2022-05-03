@@ -19,6 +19,7 @@
 
 #endregion
 
+using System;
 using System.Collections.Generic;
 
 using Quartz.Impl.Matchers;
@@ -42,19 +43,25 @@ namespace Quartz
     public interface IListenerManager
     {
         /// <summary>
-        /// Add the given <see cref="IJobListener" /> to the<see cref="IScheduler" />,
+        /// Add the given <see cref="IJobListener" /> to the <see cref="IScheduler" />,
         /// and register it to receive events for Jobs that are matched by ANY of the
         /// given Matchers.
         /// </summary>
         /// <remarks>
-        /// If no matchers are provided, the <see cref="EverythingMatcher{TKey}" /> will be used.
+        /// <para>
+        /// If no matchers are provided, the <see cref="IJobListener" /> will receive all events.
+        /// </para>
+        /// <para>
+        /// If a <see cref="IJobListener" /> with the same name is already registered, that listener
+        /// and the associated matchers will be replaced.
+        /// </para>
         /// </remarks>
         /// <seealso cref="IMatcher{T}" />
         /// <seealso cref="EverythingMatcher{T}" />
         void AddJobListener(IJobListener jobListener, params IMatcher<JobKey>[] matchers);
 
         /// <summary>
-        /// Add the given <see cref="IJobListener" /> to the<see cref="IScheduler" />,
+        /// Add the given <see cref="IJobListener" /> to the <see cref="IScheduler" />,
         /// and register it to receive events for Jobs that are matched by ANY of the
         /// given Matchers.
         /// </summary>
@@ -73,59 +80,87 @@ namespace Quartz
         /// </remarks>
         /// <param name="listenerName">the name of the listener to add the matcher to</param>
         /// <param name="matcher">the additional matcher to apply for selecting events</param>
-        /// <returns>true if the identified listener was found and updated</returns>
+        /// <returns>
+        /// <see langword="true"/> if the identified listener was found and the matcher was associated;
+        /// otherwise, <see langword="false"/>.
+        /// </returns>
+        /// <exception cref="ArgumentNullException"><paramref name="listenerName"/> is <see langword="null"/>.</exception>
         bool AddJobListenerMatcher(string listenerName, IMatcher<JobKey> matcher);
 
         /// <summary>
-        /// Remove the given Matcher to the set of matchers for which the listener
+        /// Removes the given <see cref="IMatcher{JobKey}"/> from the set of matchers for which the listener
         /// will receive events if ANY of the matchers match.
         /// </summary>
-        /// <remarks>
-        /// </remarks>
-        /// <param name="listenerName">the name of the listener to add the matcher to</param>
-        /// <param name="matcher">the additional matcher to apply for selecting events</param>
-        /// <returns>true if the given matcher was found and removed from the listener's list of matchers</returns>
+        /// <param name="listenerName">The name of the listener to remove the matcher for.</param>
+        /// <param name="matcher">The matcher to remove.</param>
+        /// <returns>
+        /// <see langword="true"/> if the given matcher was found and removed from the listener's list of matchers;
+        /// otherwise, <see langword="false"/>.
+        /// </returns>
+        /// <exception cref="ArgumentNullException"><paramref name="listenerName"/> is <see langword="null"/>.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="matcher"/> is <see langword="null"/>.</exception>
         bool RemoveJobListenerMatcher(string listenerName, IMatcher<JobKey> matcher);
 
         /// <summary>
-        /// Set the set of Matchers for which the listener
-        /// will receive events if ANY of the matchers match.
+        /// Sets the matchers for which the listener will receive events if ANY of the matchers match.
         /// </summary>
+        /// <param name="listenerName">The name of the listener to set the matchers for.</param>
+        /// <param name="matchers">The matchers to set. When empty, the <see cref="IJobListener"/> will receive all events.</param>
+        /// <returns>
+        /// <see langword="true"/> if the specified listener exists and the matchers were set; otherwise,
+        /// <see langword="false"/>.
+        /// </returns>
+        /// <exception cref="ArgumentNullException"><paramref name="listenerName"/> is <see langword="null"/>.</exception>
+        /// <exception cref="ArgumentNullException"><paramref name="matchers"/> is <see langword="null"/>.</exception>
         /// <remarks>
-        /// <para>Removes any existing matchers for the identified listener!</para>
+        /// This removes any existing matchers for the identified listener!
         /// </remarks>
-        /// <param name="listenerName">the name of the listener to add the matcher to</param>
-        /// <param name="matchers">the matchers to apply for selecting events</param>
-        /// <returns>true if the given matcher was found and removed from the listener's list of matchers</returns>
         bool SetJobListenerMatchers(string listenerName, IReadOnlyCollection<IMatcher<JobKey>> matchers);
 
         /// <summary>
-        /// Get the set of Matchers for which the listener
-        /// will receive events if ANY of the matchers match.
+        /// Get the set of <see cref="IMatcher{JobKey}"/> instances that were registered for the specified
+        /// listener.
         /// </summary>
+        /// <param name="listenerName">The name of the listener to add the matcher to</param>
+        /// <returns>
+        /// The matchers registered for selecting events for the identified listener, or <see langword="null"/> if
+        /// no matcher where registered for the <see cref="IJobListener"/>.
+        /// </returns>
+        /// <exception cref="ArgumentNullException"><paramref name="listenerName"/> is <see langword="null"/>.</exception>
         /// <remarks>
+        /// A <see cref="IJobListener"/> will receive a given event if no matchers were registered for the
+        /// listener or the event matches ANY of the matchers that were registered for that
+        /// <see cref="IJobListener"/>.
         /// </remarks>
-        /// <param name="listenerName">the name of the listener to add the matcher to</param>
-        /// <returns>the matchers registered for selecting events for the identified listener</returns>
         IReadOnlyCollection<IMatcher<JobKey>>? GetJobListenerMatchers(string listenerName);
 
         /// <summary>
-        /// Remove the identified <see cref="IJobListener" /> from the<see cref="IScheduler" />.
+        /// Remove the identified <see cref="IJobListener" /> from the <see cref="IScheduler" />.
         /// </summary>
-        /// <remarks>
-        /// </remarks>
-        /// <returns>true if the identified listener was found in the list, and removed.</returns>
+        /// <returns>
+        /// <see langword="true"/> if the identified listener was found in the list, and removed;
+        /// otherwise, <see langword="true"/>.
+        /// </returns>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
         bool RemoveJobListener(string name);
 
         /// <summary>
-        /// Get a List containing all of the <see cref="IJobListener" />s in
-        /// the<see cref="IScheduler" />.
+        /// Gets all of the <see cref="IJobListener" />s in the <see cref="IScheduler" />.
         /// </summary>
-        IReadOnlyCollection<IJobListener> GetJobListeners();
+        /// <returns>
+        /// A shallow copy of all <see cref="IJobListener" /> instances that are registered.
+        /// </returns>
+        IJobListener[] GetJobListeners();
 
         /// <summary>
         /// Get the <see cref="IJobListener" /> that has the given name.
         /// </summary>
+        /// <param name="name">The name of the <see cref="IJobListener" /> to retrieve.</param>
+        /// <returns>
+        /// The <see cref="IJobListener" /> with the specified name.
+        /// </returns>
+        /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
+        /// <exception cref="KeyNotFoundException">No <see cref="IJobListener"/> was found with the specified name.</exception>
         IJobListener GetJobListener(string name);
 
         /// <summary>

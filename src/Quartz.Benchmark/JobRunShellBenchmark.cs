@@ -45,11 +45,14 @@ namespace Quartz.Benchmark
 
         private static QuartzScheduler CreateQuartzScheduler(string name, string instanceId, int threadCount)
         {
+            var threadPool = new DefaultThreadPool { MaxConcurrency = threadCount };
+            threadPool.Initialize();
+
             QuartzSchedulerResources res = new QuartzSchedulerResources
             {
                 Name = name,
                 InstanceId = instanceId,
-                ThreadPool = new DefaultThreadPool { MaxConcurrency = threadCount },
+                ThreadPool = threadPool,
                 JobStore = new NoOpJobStore(),
                 IdleWaitTime = TimeSpan.FromSeconds(30),
                 MaxBatchSize = threadCount,

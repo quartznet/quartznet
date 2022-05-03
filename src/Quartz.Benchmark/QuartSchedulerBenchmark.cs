@@ -1,6 +1,7 @@
 using BenchmarkDotNet.Attributes;
 using Quartz.Core;
 using Quartz.Impl;
+using Quartz.Impl.Matchers;
 using Quartz.Simpl;
 using Quartz.Spi;
 using System;
@@ -15,9 +16,9 @@ namespace Quartz.Benchmark
     /// |           |    job    | scheduler |  trigger  |    job    | scheduler |  trigger  |
     /// | --------- | --------- | --------- | --------- | --------- | --------- | --------- |
     /// |     1     |     1     |     0     |     0     |     0     |     0     |     0     |
-    /// |     2     |     2     |     1     |     1     |     0     |     0     |     0     |
+    /// |     2     |     1     |     1     |     1     |     1     |     0     |     0     |
     /// |     3     |     1     |     0     |     0     |     1     |     1     |     1     |
-    /// |     4     |     2     |     1     |     1     |     1     |     1     |     1     |
+    /// |     4     |     1     |     1     |     1     |     2     |     1     |     1     |
     /// 
     /// Note:
     /// -----
@@ -40,20 +41,20 @@ namespace Quartz.Benchmark
             _quartzScheduler1 = CreateQuartzScheduler("#1", "#1", 5);
 
             _quartzScheduler2 = CreateQuartzScheduler("#2", "#2", 5);
-            _quartzScheduler2.AddInternalJobListener(new NoOpListener("InternalJob1"));
+            _quartzScheduler2.ListenerManager.AddJobListener(new NoOpListener("GlobalJob1"));
             _quartzScheduler2.AddInternalSchedulerListener(new NoOpListener("InternalScheduler1"));
             _quartzScheduler2.AddInternalTriggerListener(new NoOpListener("InternalTrigger1"));
 
             _quartzScheduler3 = CreateQuartzScheduler("#3", "#3", 5);
-            _quartzScheduler3.ListenerManager.AddJobListener(new NoOpListener("GlobalJob1"));
+            _quartzScheduler3.ListenerManager.AddJobListener(new NoOpListener("GlobalJob1"), EverythingMatcher<JobKey>.AllJobs());
             _quartzScheduler3.ListenerManager.AddSchedulerListener(new NoOpListener("GlobalScheduler1"));
             _quartzScheduler3.ListenerManager.AddTriggerListener(new NoOpListener("GlobalTrigger1"));
 
             _quartzScheduler4 = CreateQuartzScheduler("#4", "#4", 5);
-            _quartzScheduler4.AddInternalJobListener(new NoOpListener("InternalJob1"));
             _quartzScheduler4.AddInternalSchedulerListener(new NoOpListener("InternalScheduler1"));
             _quartzScheduler4.AddInternalTriggerListener(new NoOpListener("InternalTrigger1"));
             _quartzScheduler4.ListenerManager.AddJobListener(new NoOpListener("GlobalJob1"));
+            _quartzScheduler4.ListenerManager.AddJobListener(new NoOpListener("GlobalJob2"), EverythingMatcher<JobKey>.AllJobs());
             _quartzScheduler4.ListenerManager.AddSchedulerListener(new NoOpListener("GlobalScheduler1"));
             _quartzScheduler4.ListenerManager.AddTriggerListener(new NoOpListener("GlobalTrigger1"));
 
@@ -69,6 +70,9 @@ namespace Quartz.Benchmark
         public void GlobalCleanup()
         {
             _quartzScheduler1.Shutdown(true).GetAwaiter().GetResult();
+            _quartzScheduler2.Shutdown(true).GetAwaiter().GetResult();
+            _quartzScheduler3.Shutdown(true).GetAwaiter().GetResult();
+            _quartzScheduler4.Shutdown(true).GetAwaiter().GetResult();
         }
 
         [Benchmark]
@@ -389,11 +393,14 @@ namespace Quartz.Benchmark
 
         private static QuartzScheduler CreateQuartzScheduler(string name, string instanceId, int threadCount)
         {
+            var threadPool = new DefaultThreadPool { MaxConcurrency = threadCount };
+            threadPool.Initialize();
+
             QuartzSchedulerResources res = new QuartzSchedulerResources
             {
                 Name = name,
                 InstanceId = instanceId,
-                ThreadPool = new DefaultThreadPool { MaxConcurrency = threadCount },
+                ThreadPool = threadPool,
                 JobStore = new RAMJobStore(),
                 IdleWaitTime = TimeSpan.FromSeconds(30),
                 MaxBatchSize = threadCount,

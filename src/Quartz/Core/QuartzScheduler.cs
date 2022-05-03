@@ -69,13 +69,11 @@ namespace Quartz.Core
         internal readonly QuartzSchedulerResources resources = null!;
 
         internal readonly QuartzSchedulerThread schedThread = null!;
-
-        private readonly ConcurrentDictionary<string, IJobListener> internalJobListeners = new ConcurrentDictionary<string, IJobListener>();
         private readonly ConcurrentDictionary<string, ITriggerListener> internalTriggerListeners = new ConcurrentDictionary<string, ITriggerListener>();
         private readonly List<ISchedulerListener> internalSchedulerListeners = new List<ISchedulerListener>(10);
 
         private IJobFactory jobFactory = new PropertySettingJobFactory();
-        private readonly ExecutingJobsManager jobMgr = null!;
+        private readonly ExecutingJobsManager jobMgr;
         private readonly QuartzRandom random = new QuartzRandom();
         private readonly List<object> holdToPreventGc = new List<object>(5);
         private volatile bool closed;
@@ -254,31 +252,21 @@ namespace Quartz.Core
             }
         }
 
-        // ReSharper disable once MemberCanBePrivate.Global
-        protected QuartzScheduler()
-        {
-            logger = LogProvider.CreateLogger<QuartzScheduler>();
-        }
-
         /// <summary>
         /// Create a <see cref="QuartzScheduler" /> with the given configuration
         /// properties.
         /// </summary>
         /// <seealso cref="QuartzSchedulerResources" />
-        public QuartzScheduler(QuartzSchedulerResources resources) : this()
+        public QuartzScheduler(QuartzSchedulerResources resources)
         {
             this.resources = resources;
 
-            if (resources.JobStore is IJobListener listener)
-            {
-                AddInternalJobListener(listener);
-            }
+            logger = LogProvider.CreateLogger<QuartzScheduler>();
 
             schedThread = new QuartzSchedulerThread(this, resources);
             schedThread.Start();
 
             jobMgr = new ExecutingJobsManager();
-            AddInternalJobListener(jobMgr);
             var errLogger = new ErrorLogger();
             AddInternalSchedulerListener(errLogger);
 
@@ -1449,50 +1437,6 @@ namespace Quartz.Core
         public IListenerManager ListenerManager { get; } = new ListenerManagerImpl();
 
         /// <summary>
-        /// Add the given <see cref="IJobListener" /> to the
-        /// <see cref="IScheduler" />'s <i>internal</i> list.
-        /// </summary>
-        /// <param name="jobListener"></param>
-        public void AddInternalJobListener(IJobListener jobListener)
-        {
-            if (jobListener.Name.IsNullOrWhiteSpace())
-            {
-                throw new ArgumentException("JobListener name cannot be empty.", nameof(jobListener));
-            }
-            internalJobListeners[jobListener.Name] = jobListener;
-        }
-
-        /// <summary>
-        /// Remove the identified <see cref="IJobListener" /> from the <see cref="IScheduler" />'s
-        /// list of <i>internal</i> listeners.
-        /// </summary>
-        /// <param name="name"></param>
-        /// <returns>true if the identified listener was found in the list, and removed.</returns>
-        public bool RemoveInternalJobListener(string name)
-        {
-            return internalJobListeners.TryRemove(name, out _);
-        }
-
-        /// <summary>
-        /// Get a List containing all of the <see cref="IJobListener" />s
-        /// in the <see cref="IScheduler" />'s <i>internal</i> list.
-        /// </summary>
-        /// <returns></returns>
-        public IReadOnlyList<IJobListener> InternalJobListeners => new List<IJobListener>(internalJobListeners.Values);
-
-        /// <summary>
-        /// Get the <i>internal</i> <see cref="IJobListener" />
-        /// that has the given name.
-        /// </summary>
-        /// <param name="name"></param>
-        /// <returns></returns>
-        public IJobListener? GetInternalJobListener(string name)
-        {
-            internalJobListeners.TryGetValue(name, out var listener);
-            return listener;
-        }
-
-        /// <summary>
         /// Add the given <see cref="ITriggerListener" /> to the
         /// <see cref="IScheduler" />'s <i>internal</i> list.
         /// </summary>
@@ -1581,21 +1525,6 @@ namespace Quartz.Core
             }
 
             return listeners.Concat(internalTriggerListeners.Values);
-        }
-
-        private static (IJobListener?, IEnumerable<IJobListener>?) BuildJobListenerList(IListenerManager listenerManager, ICollection<IJobListener> internalListeners)
-        {
-            var listeners = listenerManager.GetJobListeners();
-
-            if (listeners.Count == 0 && internalListeners.Count == 1)
-            {
-                // default case is that we only have our internal one
-                using var enumerator = internalListeners.GetEnumerator();
-                enumerator.MoveNext();
-                return (enumerator.Current, null);
-            }
-
-            return (null, listeners.Concat(internalListeners));
         }
 
         private IEnumerable<ISchedulerListener> BuildSchedulerListenerList()
@@ -1817,36 +1746,45 @@ namespace Quartz.Core
                                         JobExecutionException? je,
                                         CancellationToken cancellationToken)
         {
-            var (singleListener, listeners) = BuildJobListenerList(ListenerManager, internalJobListeners.Values);
-            if (singleListener != null)
+            var listeners = ListenerManager.GetJobListeners();
+            if (listeners.Length == 0)
             {
-                if (!MatchJobListener(ListenerManager, singleListener, jec.JobDetail.Key))
-                {
-                    return Task.CompletedTask;
-                }
-
-                try
-                {
-                    var task = notifyAction(singleListener, jec, je, cancellationToken);
-                    return task.IsCompletedSuccessfully() ? Task.CompletedTask : NotifySingle(task, singleListener);
-                }
-                catch (Exception e)
-                {
-                    SchedulerException se = new SchedulerException($"JobListener '{singleListener.Name}' threw exception: {e.Message}", e);
-                    throw se;
-                }
+                return NotifyExecutingJobManager(notifyAction, jec, je, cancellationToken, jobMgr);
             }
 
-            return listeners is null ? Task.CompletedTask
-                                     : NotifyAwaited(ListenerManager, listeners, notifyAction, jec, je, cancellationToken);
+            return NotifyAllJobListeners(ListenerManager, jobMgr, listeners, notifyAction, jec, je, cancellationToken);
+
+            static Task NotifyExecutingJobManager(Func<IJobListener, IJobExecutionContext, JobExecutionException?, CancellationToken, Task> notifyAction,
+                                                  IJobExecutionContext jec,
+                                                  JobExecutionException? je,
+                                                  CancellationToken cancellationToken,
+                                                  ExecutingJobsManager jobsManager)
+            {
+                var task = notifyAction(jobsManager, jec, je, cancellationToken);
+                return task.IsCompletedSuccessfully() ? Task.CompletedTask : NotifySingle(task, jobsManager);
+            }
+
+            static Task NotifyAllJobListeners(IListenerManager listenerManager,
+                                              ExecutingJobsManager jobManager,
+                                              IReadOnlyCollection<IJobListener> listeners,
+                                              Func<IJobListener, IJobExecutionContext, JobExecutionException?, CancellationToken, Task> notifyAction,
+                                              IJobExecutionContext jec,
+                                              JobExecutionException? je,
+                                              CancellationToken cancellationToken)
+            {
+                return NotifyAwaited(listenerManager, jobManager, listeners, notifyAction, jec, je, cancellationToken);
+            }
 
             static async Task NotifyAwaited(IListenerManager listenerManager,
-                                            IEnumerable<IJobListener> listeners,
+                                            ExecutingJobsManager jobManager,
+                                            IReadOnlyCollection<IJobListener> listeners,
                                             Func<IJobListener, IJobExecutionContext, JobExecutionException?, CancellationToken, Task> notifyAction,
                                             IJobExecutionContext jec,
                                             JobExecutionException? je,
                                             CancellationToken cancellationToken)
             {
+                await NotifySingle(notifyAction(jobManager, jec, je, cancellationToken), jobManager).ConfigureAwait(false);
+
                 foreach (var jl in listeners)
                 {
                     if (!MatchJobListener(listenerManager, jl, jec.JobDetail.Key))
