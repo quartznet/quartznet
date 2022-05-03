@@ -40,6 +40,19 @@
     * SyncRoot
     * IsSynchronized
 
+  * A **IJobStore** that implements **IJobListener** no longer automatically receives all events. You should
+    instead register it as job listener using the **ListenerManager** of the **QuartzScheduler**.
+
+  * **QuartzScheduler** no longer defines a default protected ctor. You should use ctor((QuartzSchedulerResources resources)
+    to initialize the **QuartzScheduler**.
+
+  * To improve performance and reduce allocations, `IListenerManager.GetJobListeners()` now returns (a shallow copy of)
+    the registered **IJobListener** instances as an array instead of an **IReadOnlyCollection<IJobListener>**.
+
+  * **QuartzScheduler** no longer defines properties and methods for accessing or manipulating internal job listeners.
+    **ListenerManager** on **QuartzScheduler** allows more control over the events that a **IJobListener** will
+    receive.
+
 ## Release 3.4.0, Mar 27 2022
 
 This release has Quartz jobs start executing only after application startup completes successfully, unless QuartzHostedServiceOptions are used to specify otherwise.

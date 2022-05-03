@@ -1,4 +1,4 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
@@ -103,6 +103,26 @@ namespace Quartz.Collections
                 {
                     array[i + arrayIndex] = entries[i].Value;
                 }
+            }
+
+            public TValue[] ToArray()
+            {
+                var count = Count;
+
+                if (count == 0)
+                {
+                    return Array.Empty<TValue>();
+                }
+
+                var entries = _orderedDictionary._entries;
+                var array = new TValue[count];
+
+                for (int i = 0; i < count; ++i)
+                {
+                    array[i] = entries[i].Value;
+                }
+
+                return array;
             }
 
             bool ICollection<TValue>.Remove(TValue item) => throw new NotSupportedException();
