@@ -472,5 +472,301 @@ namespace Quartz
 
             return GetNullableGuid(key);
         }
+
+        /// <summary>
+        /// Try to retrieve the identified <see cref="int" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual bool TryGetIntValueFromString(string key, out int value)
+        {
+            try
+            {
+                value = GetIntValueFromString(key);
+                return true;
+            }
+            catch
+            {
+                value = default;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Try to retrieve the identified <see cref="bool" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual bool TryGetBooleanValueFromString(string key, out bool value)
+        {
+            try
+            {
+                value = GetBooleanValueFromString(key);
+                return true;
+            }
+            catch
+            {
+                value = default;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Try to retrieve the identified <see cref="double" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual bool TryGetDoubleValueFromString(string key, out double value)
+        {
+            try
+            {
+                value = GetDoubleValueFromString(key);
+                return true;
+            }
+            catch
+            {
+                value = default;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Try to retrieve the identified <see cref="float" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual bool TryGetFloatValueFromString(string key, out float value)
+        {
+            try
+            {
+                value = GetFloatValueFromString(key);
+                return true;
+            }
+            catch
+            {
+                value = default;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Try to retrieve the identified <see cref="long" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual bool TryGetLongValueFromString(string key, out long value)
+        {
+            try
+            {
+                value = GetLongValueFromString(key);
+                return true;
+            }
+            catch
+            {
+                value = default;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Try to retrieve the identified <see cref="DateTime" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual bool TryGetDateTimeValueFromString(string key, out DateTime value)
+        {
+            try
+            {
+                value = GetDateTimeValueFromString(key);
+                return true;
+            }
+            catch
+            {
+                value = default;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Try to retrieve the identified <see cref="DateTimeOffset" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual bool TryGetDateTimeOffsetValueFromString(string key, out DateTimeOffset value)
+        {
+            try
+            {
+                value = GetDateTimeOffsetValueFromString(key);
+                return true;
+            }
+            catch
+            {
+                value = default;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Try to retrieve the identified <see cref="TimeSpan" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual bool TryGetTimeSpanValueFromString(string key, out TimeSpan value)
+        {
+            try
+            {
+                value = GetTimeSpanValueFromString(key);
+                return true;
+            }
+            catch
+            {
+                value = default;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Try to retrieve the identified <see cref="Guid" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual bool TryGetGuidValueFromString(string key, out Guid value)
+        {
+            try
+            {
+                value = GetGuidValueFromString(key);
+                return true;
+            }
+            catch
+            {
+                value = default;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Try to retrieve the identified <see cref="int" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual bool TryGetIntValue(string key, out int value)
+        {
+            var result = TryGetIntValueFromString(key, out value);
+            if (!result)
+            {
+                result = TryGetInt(key, out value);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Try to retrieve the identified <see cref="bool" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual bool TryGetBooleanValue(string key, out bool value)
+        {
+            var result = TryGetBooleanValueFromString(key, out value);
+            if (!result)
+            {
+                result = TryGetBoolean(key, out value);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Try to retrieve the identified <see cref="double" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual bool TryGetDoubleValue(string key, out double value)
+        {
+            var result = TryGetDoubleValueFromString(key, out value);
+            if (!result)
+            {
+                result = TryGetDouble(key, out value);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Try to retrieve the identified <see cref="float" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual bool TryGetFloatValue(string key, out float value)
+        {
+            var result = TryGetFloatValueFromString(key, out value);
+            if (!result)
+            {
+                result = TryGetFloat(key, out value);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Try to retrieve the identified <see cref="long" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual bool TryGetLongValue(string key, out long value)
+        {
+            var result = TryGetLongValueFromString(key, out value);
+            if (!result)
+            {
+                result = TryGetLong(key, out value);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Try to retrieve the identified <see cref="DateTime" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual bool TryGetDateTimeValue(string key, out DateTime value)
+        {
+            var result = TryGetDateTimeValueFromString(key, out value);
+            if (!result)
+            {
+                result = TryGetDateTime(key, out value);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Try to retrieve the identified <see cref="DateTimeOffset" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual bool TryGetDateTimeOffsetValue(string key, out DateTimeOffset value)
+        {
+            var result = TryGetDateTimeOffsetValueFromString(key, out value);
+            if (!result)
+            {
+                result = TryGetDateTimeOffset(key, out value);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Try to retrieve the identified <see cref="TimeSpan" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual bool TryGetTimeSpanValue(string key, out TimeSpan value)
+        {
+            var result = TryGetTimeSpanValueFromString(key, out value);
+            if (!result)
+            {
+                result = TryGetTimeSpan(key, out value);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Try to retrieve the identified <see cref="Guid" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual bool TryGetGuidValue(string key, out int value)
+        {
+            var result = TryGetIntValueFromString(key, out value);
+            if (!result)
+            {
+                result = TryGetInt(key, out value);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Try to retrieve the identified <see cref="char" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual bool TryGetCharFromString(string key, out char value)
+        {
+            try
+            {
+                value = GetCharFromString(key);
+                return true;
+            }
+            catch
+            {
+                value = default;
+                return false;
+            }
+        }
     }
 }
