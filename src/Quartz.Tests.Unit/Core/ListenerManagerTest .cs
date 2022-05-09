@@ -707,15 +707,15 @@ namespace Quartz.Tests.Unit.Core
 
             // test adding listener without matcher
             _manager.AddTriggerListener(tl1);
-            Assert.AreEqual(1, _manager.GetTriggerListeners().Count, "Unexpected size of listener list");
+            Assert.AreEqual(1, _manager.GetTriggerListeners().Length, "Unexpected size of listener list");
 
             // test adding listener with matcher
             _manager.AddTriggerListener(tl2, GroupMatcher<TriggerKey>.GroupEquals("foo"));
-            Assert.AreEqual(2, _manager.GetTriggerListeners().Count, "Unexpected size of listener list");
+            Assert.AreEqual(2, _manager.GetTriggerListeners().Length, "Unexpected size of listener list");
 
             // test removing a listener
             _manager.RemoveTriggerListener("tl1");
-            Assert.AreEqual(1, _manager.GetTriggerListeners().Count, "Unexpected size of listener list");
+            Assert.AreEqual(1, _manager.GetTriggerListeners().Length, "Unexpected size of listener list");
 
             // test adding a matcher
             _manager.AddTriggerListenerMatcher("tl2", NameMatcher<TriggerKey>.NameContains("foo"));

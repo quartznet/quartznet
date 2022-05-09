@@ -12,14 +12,12 @@ namespace Quartz.Core
     public class ListenerManagerImpl : IListenerManager
     {
         private readonly object globalJobListenerLock = new object();
-
         private OrderedDictionary<string, IJobListener>? globalJobListeners;
-
-        private readonly OrderedDictionary<string, ITriggerListener> globalTriggerListeners = new OrderedDictionary<string, ITriggerListener>(10);
-
         private Dictionary<string, List<IMatcher<JobKey>>>? globalJobListenersMatchers;
 
-        private readonly Dictionary<string, List<IMatcher<TriggerKey>>> globalTriggerListenersMatchers = new Dictionary<string, List<IMatcher<TriggerKey>>>(10);
+        private readonly object globalTriggerListenerLock = new object();
+        private OrderedDictionary<string, ITriggerListener>? globalTriggerListeners;
+        private Dictionary<string, List<IMatcher<TriggerKey>>>? globalTriggerListenersMatchers;
 
         private readonly List<ISchedulerListener> schedulerListeners = new List<ISchedulerListener>(10);
 
@@ -34,17 +32,18 @@ namespace Quartz.Core
         {
             if (string.IsNullOrEmpty(jobListener.Name))
             {
-                throw new ArgumentException("JobListener name cannot be empty.");
+                throw new ArgumentException($"{nameof(jobListener.Name)} cannot be empty.", nameof(jobListener));
             }
 
             lock (globalJobListenerLock)
             {
+                // Add or replace the job listener
                 globalJobListeners ??= new OrderedDictionary<string, IJobListener>();
                 globalJobListeners[jobListener.Name] = jobListener;
 
                 if (matchers != null && matchers.Count > 0)
                 {
-                    // Add or replace matchers for the job listener
+                    // Add or replace the matchers for the job listener
                     globalJobListenersMatchers ??= new Dictionary<string, List<IMatcher<JobKey>>>();
                     globalJobListenersMatchers[jobListener.Name] = new List<IMatcher<JobKey>>(matchers);
                 }
@@ -175,6 +174,7 @@ namespace Quartz.Core
                 }
                 else
                 {
+                    // Add or replace the matchers for the job listener
                     globalJobListenersMatchers ??= new Dictionary<string, List<IMatcher<JobKey>>>();
                     globalJobListenersMatchers[listenerName] = new List<IMatcher<JobKey>>(matchers);
                 }
@@ -254,66 +254,96 @@ namespace Quartz.Core
 
         public void AddTriggerListener(ITriggerListener triggerListener, params IMatcher<TriggerKey>[] matchers)
         {
-            AddTriggerListener(triggerListener, new List<IMatcher<TriggerKey>>(matchers));
+            IReadOnlyCollection<IMatcher<TriggerKey>> matchersCollection = matchers;
+
+            AddTriggerListener(triggerListener, matchersCollection);
         }
 
         public void AddTriggerListener(ITriggerListener triggerListener, IReadOnlyCollection<IMatcher<TriggerKey>> matchers)
         {
             if (string.IsNullOrEmpty(triggerListener.Name))
             {
-                throw new ArgumentException("TriggerListener name cannot be empty.");
+                throw new ArgumentException($"{nameof(triggerListener.Name)} cannot be empty.", nameof(triggerListener));
             }
 
-            lock (globalTriggerListeners)
+            lock (globalTriggerListenerLock)
             {
+                // Add or replace the trigger listener
+                globalTriggerListeners ??= new OrderedDictionary<string, ITriggerListener>();
                 globalTriggerListeners[triggerListener.Name] = triggerListener;
 
-                List<IMatcher<TriggerKey>> matchersL = new List<IMatcher<TriggerKey>>();
                 if (matchers != null && matchers.Count > 0)
                 {
-                    matchersL.AddRange(matchers);
+                    // Add or replace the matchers for the trigger listener
+                    globalTriggerListenersMatchers ??= new Dictionary<string, List<IMatcher<TriggerKey>>>();
+                    globalTriggerListenersMatchers[triggerListener.Name] = new List<IMatcher<TriggerKey>>(matchers);
                 }
                 else
                 {
-                    matchersL.Add(EverythingMatcher<TriggerKey>.AllTriggers());
+                    // Remove any registered matchers for the trigger listener
+                    RemoveJobListenerMatchers(triggerListener.Name);
                 }
-
-                globalTriggerListenersMatchers[triggerListener.Name] = matchersL;
             }
         }
 
         public void AddTriggerListener(ITriggerListener triggerListener, IMatcher<TriggerKey> matcher)
         {
+            if (triggerListener == null)
+            {
+                throw new ArgumentNullException(nameof(triggerListener));
+            }
+
             if (matcher == null)
             {
-                throw new ArgumentException("Non-null value not acceptable for matcher.");
+                throw new ArgumentNullException(nameof(matcher));
             }
 
             if (string.IsNullOrEmpty(triggerListener.Name))
             {
-                throw new ArgumentException("TriggerListener name cannot be empty.");
+                throw new ArgumentException($"{nameof(triggerListener.Name)} cannot be empty.", nameof(triggerListener));
             }
 
-            lock (globalTriggerListeners)
+            lock (globalTriggerListenerLock)
             {
+                // Add or replace the trigger listener
+                globalTriggerListeners ??= new OrderedDictionary<string, ITriggerListener>();
                 globalTriggerListeners[triggerListener.Name] = triggerListener;
-                var matchers = new List<IMatcher<TriggerKey>> { matcher };
-                globalTriggerListenersMatchers[triggerListener.Name] = matchers;
+
+                // Add or replace the matchers for the trigger listener
+                globalTriggerListenersMatchers ??= new Dictionary<string, List<IMatcher<TriggerKey>>>();
+                globalTriggerListenersMatchers[triggerListener.Name] = new List<IMatcher<TriggerKey>> { matcher };
             }
         }
 
         public bool AddTriggerListenerMatcher(string listenerName, IMatcher<TriggerKey> matcher)
         {
-            if (matcher == null)
+            if (listenerName == null)
             {
-                throw new ArgumentException("Non-null value not acceptable.");
+                throw new ArgumentNullException(nameof(listenerName));
             }
 
-            lock (globalTriggerListeners)
+            if (matcher == null)
             {
-                if (!globalTriggerListenersMatchers.TryGetValue(listenerName, out var matchers))
+                throw new ArgumentNullException(nameof(matcher));
+            }
+
+            lock (globalTriggerListenerLock)
+            {
+                if (globalTriggerListenersMatchers == null || !globalTriggerListenersMatchers.TryGetValue(listenerName, out var matchers))
                 {
-                    return false;
+                    // Return false if no trigger listener is registered with the specified name
+                    if (globalTriggerListeners == null || !globalTriggerListeners.ContainsKey(listenerName))
+                    {
+                        return false;
+                    }
+
+                    // We may be adding the first matcher for any job listener, so make sure globalJobListenersMatchers
+                    // is initialized
+                    globalTriggerListenersMatchers ??= new Dictionary<string, List<IMatcher<TriggerKey>>>();
+
+                    // We're adding the first matcher for the specified job listener
+                    matchers = new List<IMatcher<TriggerKey>>();
+                    globalTriggerListenersMatchers.Add(listenerName, matchers);
                 }
 
                 matchers.Add(matcher);
@@ -323,73 +353,163 @@ namespace Quartz.Core
 
         public bool RemoveTriggerListenerMatcher(string listenerName, IMatcher<TriggerKey> matcher)
         {
-            if (matcher == null)
+            if (listenerName == null)
             {
-                throw new ArgumentException("Non-null value not acceptable.");
+                throw new ArgumentNullException(nameof(listenerName));
             }
 
-            lock (globalTriggerListeners)
+            if (matcher == null)
             {
-                if (!globalTriggerListenersMatchers.TryGetValue(listenerName, out var matchers))
+                throw new ArgumentNullException(nameof(matcher));
+            }
+
+            if (globalTriggerListenersMatchers == null)
+            {
+                return false;
+            }
+
+            lock (globalTriggerListenerLock)
+            {
+                if (globalTriggerListenersMatchers == null || !globalTriggerListenersMatchers.TryGetValue(listenerName, out var matchers))
                 {
                     return false;
                 }
 
-                return matchers.Remove(matcher);
+                var removed = matchers.Remove(matcher);
+
+                if (removed && matchers.Count == 0)
+                {
+                    RemoveTriggerListenerMatchers(listenerName);
+                }
+
+                return removed;
             }
         }
 
         public IReadOnlyCollection<IMatcher<TriggerKey>>? GetTriggerListenerMatchers(string listenerName)
         {
-            lock (globalTriggerListeners)
+            if (listenerName == null)
             {
-                globalTriggerListenersMatchers.TryGetValue(listenerName, out var matchers);
-                return matchers;
+                throw new ArgumentNullException(nameof(listenerName));
+            }
+
+            if (globalTriggerListenersMatchers == null)
+            {
+                return null;
+            }
+
+            lock (globalTriggerListenerLock)
+            {
+                if (globalTriggerListenersMatchers == null || !globalTriggerListenersMatchers.TryGetValue(listenerName, out var matchers))
+                {
+                    return null;
+                }
+
+                return matchers.AsReadOnly();
             }
         }
 
         public bool SetTriggerListenerMatchers(string listenerName, IReadOnlyCollection<IMatcher<TriggerKey>> matchers)
         {
-            if (matchers == null)
+            if (listenerName == null)
             {
-                throw new ArgumentException("Non-null value not acceptable.");
+                throw new ArgumentNullException(nameof(listenerName));
             }
 
-            lock (globalTriggerListeners)
+            if (matchers == null)
             {
-                if (!globalTriggerListenersMatchers.TryGetValue(listenerName, out _))
+                throw new ArgumentNullException(nameof(matchers));
+            }
+
+            lock (globalTriggerListenerLock)
+            {
+                if (globalTriggerListeners == null || !globalTriggerListeners.ContainsKey(listenerName))
                 {
                     return false;
                 }
 
-                globalTriggerListenersMatchers[listenerName] = new List<IMatcher<TriggerKey>>(matchers);
+                if (matchers.Count == 0)
+                {
+                    RemoveTriggerListenerMatchers(listenerName);
+                }
+                else
+                {
+                    // Add or replace the matchers for the job listener
+                    globalTriggerListenersMatchers ??= new Dictionary<string, List<IMatcher<TriggerKey>>>();
+                    globalTriggerListenersMatchers[listenerName] = new List<IMatcher<TriggerKey>>(matchers);
+                }
+
                 return true;
             }
         }
 
         public bool RemoveTriggerListener(string name)
         {
+            if (name == null)
+            {
+                throw new ArgumentNullException(nameof(name));
+            }
+
+            if (globalTriggerListeners == null)
+            {
+                return false;
+            }
+
             lock (globalTriggerListeners)
             {
-                return globalTriggerListeners.Remove(name);
+                if (globalTriggerListeners == null)
+                {
+                    return false;
+                }
+
+                var removed = globalTriggerListeners.Remove(name);
+
+                // When we've removed a job listener, make sure to also remove associated matchers
+                if (removed)
+                {
+                    RemoveTriggerListenerMatchers(name);
+
+                    if (globalTriggerListeners.Count == 0)
+                    {
+                        globalTriggerListeners = null;
+                    }
+                }
+
+                return removed;
+
             }
         }
 
-        public IReadOnlyCollection<ITriggerListener> GetTriggerListeners()
+        public ITriggerListener[] GetTriggerListeners()
         {
-            lock (globalTriggerListeners)
+            if (globalTriggerListeners == null)
             {
-                return globalTriggerListeners.Count > 0
-                    ? new List<ITriggerListener>(globalTriggerListeners.Values)
-                    : EmptyReadOnlyCollection<ITriggerListener>.Instance;
+                return Array.Empty<ITriggerListener>();
+            }
+
+            lock (globalTriggerListenerLock)
+            {
+                return globalTriggerListeners != null ? globalTriggerListeners.Values.ToArray()
+                                                      : Array.Empty<ITriggerListener>();
             }
         }
 
         public ITriggerListener GetTriggerListener(string name)
         {
-            lock (globalTriggerListeners)
+            if (name == null)
             {
-                return globalTriggerListeners[name];
+                throw new ArgumentNullException(nameof(name));
+            }
+
+            lock (globalTriggerListenerLock)
+            {
+                // Avoid initializing globalTriggerListeners when no trigger listeners have been added
+                if (globalTriggerListeners == null || !globalTriggerListeners.TryGetValue(name, out var triggerListener))
+                {
+                    throw new KeyNotFoundException();
+                }
+
+                return triggerListener;
             }
         }
 
@@ -434,5 +554,22 @@ namespace Quartz.Core
                 globalJobListenersMatchers = null;
             }
         }
+
+        private void RemoveTriggerListenerMatchers(string listenerName)
+        {
+            if (globalTriggerListenersMatchers == null)
+            {
+                return;
+            }
+
+            // If we're removing the last matcher of the only trigger listener with matchers, then
+            // reset globalTriggerListenersMatchers to null to avoid having to lock in subsequent calls
+            // to GetTriggerListenerMatchers(string listenerName)
+            if (globalTriggerListenersMatchers.Remove(listenerName) && globalTriggerListenersMatchers.Count == 0)
+            {
+                globalTriggerListenersMatchers = null;
+            }
+        }
+
     }
 }

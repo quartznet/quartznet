@@ -16,9 +16,9 @@ namespace Quartz.Benchmark
     /// |           |    job    | scheduler |  trigger  |    job    | scheduler |  trigger  |
     /// | --------- | --------- | --------- | --------- | --------- | --------- | --------- |
     /// |     1     |     1     |     0     |     0     |     0     |     0     |     0     |
-    /// |     2     |     1     |     1     |     1     |     1     |     0     |     0     |
+    /// |     2     |     1     |     1     |     0     |     1     |     0     |     0     |
     /// |     3     |     1     |     0     |     0     |     1     |     1     |     1     |
-    /// |     4     |     1     |     1     |     1     |     2     |     1     |     1     |
+    /// |     4     |     1     |     1     |     0     |     2     |     1     |     2     |
     /// 
     /// Note:
     /// -----
@@ -43,7 +43,6 @@ namespace Quartz.Benchmark
             _quartzScheduler2 = CreateQuartzScheduler("#2", "#2", 5);
             _quartzScheduler2.ListenerManager.AddJobListener(new NoOpListener("GlobalJob1"));
             _quartzScheduler2.AddInternalSchedulerListener(new NoOpListener("InternalScheduler1"));
-            _quartzScheduler2.AddInternalTriggerListener(new NoOpListener("InternalTrigger1"));
 
             _quartzScheduler3 = CreateQuartzScheduler("#3", "#3", 5);
             _quartzScheduler3.ListenerManager.AddJobListener(new NoOpListener("GlobalJob1"), EverythingMatcher<JobKey>.AllJobs());
@@ -52,11 +51,11 @@ namespace Quartz.Benchmark
 
             _quartzScheduler4 = CreateQuartzScheduler("#4", "#4", 5);
             _quartzScheduler4.AddInternalSchedulerListener(new NoOpListener("InternalScheduler1"));
-            _quartzScheduler4.AddInternalTriggerListener(new NoOpListener("InternalTrigger1"));
             _quartzScheduler4.ListenerManager.AddJobListener(new NoOpListener("GlobalJob1"));
             _quartzScheduler4.ListenerManager.AddJobListener(new NoOpListener("GlobalJob2"), EverythingMatcher<JobKey>.AllJobs());
             _quartzScheduler4.ListenerManager.AddSchedulerListener(new NoOpListener("GlobalScheduler1"));
             _quartzScheduler4.ListenerManager.AddTriggerListener(new NoOpListener("GlobalTrigger1"));
+            _quartzScheduler4.ListenerManager.AddTriggerListener(new NoOpListener("GlobalTrigger2"), EverythingMatcher<TriggerKey>.AllTriggers());
 
             _basicScheduler = new StdScheduler(_quartzScheduler1);
 

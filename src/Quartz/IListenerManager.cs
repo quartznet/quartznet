@@ -164,7 +164,7 @@ namespace Quartz
         IJobListener GetJobListener(string name);
 
         /// <summary>
-        /// Add the given <see cref="ITriggerListener" /> to the<see cref="IScheduler" />,
+        /// Add the given <see cref="ITriggerListener" /> to the <see cref="IScheduler" />,
         /// and register it to receive events for Triggers that are matched by ANY of the
         /// given Matchers.
         /// </summary>
@@ -176,7 +176,7 @@ namespace Quartz
         void AddTriggerListener(ITriggerListener triggerListener, params IMatcher<TriggerKey>[] matchers);
 
         /// <summary>
-        /// Add the given <see cref="ITriggerListener" /> to the<see cref="IScheduler" />,
+        /// Add the given <see cref="ITriggerListener" /> to the <see cref="IScheduler" />,
         /// and register it to receive events for Triggers that are matched by ANY of the
         /// given Matchers.
         /// </summary>
@@ -232,7 +232,7 @@ namespace Quartz
         IReadOnlyCollection<IMatcher<TriggerKey>>? GetTriggerListenerMatchers(string listenerName);
 
         /// <summary>
-        /// Remove the identified <see cref="ITriggerListener" /> from the<see cref="IScheduler" />.
+        /// Removes the identified <see cref="ITriggerListener" /> from the <see cref="IScheduler" />.
         /// </summary>
         /// <remarks>
         /// </remarks>
@@ -241,10 +241,12 @@ namespace Quartz
         bool RemoveTriggerListener(string name);
 
         /// <summary>
-        /// Get a List containing all of the <see cref="ITriggerListener" />s
-        /// in the<see cref="IScheduler" />.
+        /// Gets all of the <see cref="ITriggerListener" /> instances in the <see cref="IScheduler" />.
         /// </summary>
-        IReadOnlyCollection<ITriggerListener> GetTriggerListeners();
+        /// <returns>
+        /// A shallow copy of all <see cref="ITriggerListener" /> instances that are registered.
+        /// </returns>
+        ITriggerListener[] GetTriggerListeners();
 
         /// <summary>
         /// Get the <see cref="ITriggerListener" /> that has the given name.
@@ -268,7 +270,7 @@ namespace Quartz
 
         /// <summary>
         /// Get a List containing all of the <see cref="ISchedulerListener" />s
-        /// registered with the<see cref="IScheduler" />.
+        /// registered with the <see cref="IScheduler" />.
         /// </summary>
         IReadOnlyCollection<ISchedulerListener> GetSchedulerListeners();
     }

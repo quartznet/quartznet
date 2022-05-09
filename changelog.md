@@ -53,6 +53,13 @@
     **ListenerManager** on **QuartzScheduler** allows more control over the events that a **IJobListener** will
     receive.
 
+  * To improve performance and reduce allocations, `IListenerManager.GetTriggerListeners()` now returns (a shallow copy of)
+    the registered **ITriggerListener** instances as an array instead of an **IReadOnlyCollection<ITriggerListener>**.
+
+  * **QuartzScheduler** no longer defines properties and methods for accessing or manipulating internal trigger listeners.
+    **ListenerManager** on **QuartzScheduler** allows more control over the events that a **ITriggerListener** will
+    receive.
+
 ## Release 3.4.0, Mar 27 2022
 
 This release has Quartz jobs start executing only after application startup completes successfully, unless QuartzHostedServiceOptions are used to specify otherwise.
