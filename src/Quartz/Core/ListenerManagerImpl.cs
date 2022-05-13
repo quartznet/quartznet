@@ -30,9 +30,14 @@ namespace Quartz.Core
 
         public void AddJobListener(IJobListener jobListener, IReadOnlyCollection<IMatcher<JobKey>> matchers)
         {
+            if (jobListener == null)
+            {
+                throw new ArgumentNullException(nameof(jobListener));
+            }
+
             if (string.IsNullOrEmpty(jobListener.Name))
             {
-                throw new ArgumentException($"{nameof(jobListener.Name)} cannot be empty.", nameof(jobListener));
+                throw new ArgumentException($"{nameof(jobListener.Name)} cannot be null or empty.", nameof(jobListener));
             }
 
             lock (globalJobListenerLock)
@@ -261,6 +266,11 @@ namespace Quartz.Core
 
         public void AddTriggerListener(ITriggerListener triggerListener, IReadOnlyCollection<IMatcher<TriggerKey>> matchers)
         {
+            if (triggerListener == null)
+            {
+                throw new ArgumentNullException(nameof(triggerListener));
+            }
+
             if (string.IsNullOrEmpty(triggerListener.Name))
             {
                 throw new ArgumentException($"{nameof(triggerListener.Name)} cannot be empty.", nameof(triggerListener));
@@ -281,7 +291,7 @@ namespace Quartz.Core
                 else
                 {
                     // Remove any registered matchers for the trigger listener
-                    RemoveJobListenerMatchers(triggerListener.Name);
+                    RemoveTriggerListenerMatchers(triggerListener.Name);
                 }
             }
         }
@@ -300,7 +310,7 @@ namespace Quartz.Core
 
             if (string.IsNullOrEmpty(triggerListener.Name))
             {
-                throw new ArgumentException($"{nameof(triggerListener.Name)} cannot be empty.", nameof(triggerListener));
+                throw new ArgumentException($"{nameof(triggerListener.Name)} cannot be null or empty.", nameof(triggerListener));
             }
 
             lock (globalTriggerListenerLock)
