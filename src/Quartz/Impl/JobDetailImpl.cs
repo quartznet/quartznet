@@ -22,7 +22,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Globalization;
-using System.Reflection;
 
 using Quartz.Util;
 
@@ -144,7 +143,7 @@ namespace Quartz.Impl
         {
             Name = name;
             Group = group;
-            JobType = jobType;
+            JobTypeWithStorage = new JobType(jobType);
         }
 
         /// <summary>
@@ -163,7 +162,7 @@ namespace Quartz.Impl
         {
             Name = name;
             Group = group;
-            JobType = jobType;
+            JobTypeWithStorage = new JobType(jobType);
             Durable = isDurable;
             RequestsRecovery = requestsRecovery;
         }
@@ -173,16 +172,16 @@ namespace Quartz.Impl
         /// the given settings of all the other properties.
         /// </summary>
         /// <param name="key">The key of the job.</param>
-        /// <param name="jobType">Type of the job.</param>
+        /// <param name="jobTypeWithStorage">Type of the job.</param>
         /// <param name="description">The description given to the <see cref="IJob" /> instance by its creator.</param>
         /// <param name="isDurable">if set to <c>true</c>, job will be durable.</param>
         /// <param name="requestsRecovery">if set to <c>true</c>, job will request recovery.</param>
         /// <param name="jobDataMap">The data that is associated with the <see cref="IJob" />.</param>
-        /// <param name="disallowConcurrentExecution">Indicates whether or not concurrent exection of the job should be disallowed.</param>
+        /// <param name="disallowConcurrentExecution">Indicates whether or not concurrent execution of the job should be disallowed.</param>
         /// <param name="persistJobDataAfterExecution">Indicates whether or not job data should re-stored when execution of the job completes.</param>
         /// <exception cref="ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
         internal JobDetailImpl(JobKey key,
-                               Type? jobType,
+                               JobType jobTypeWithStorage,
                                string? description,
                                bool isDurable,
                                bool requestsRecovery,
@@ -191,7 +190,7 @@ namespace Quartz.Impl
                                bool? persistJobDataAfterExecution)
         {
             Key = key;
-            JobType = jobType!;
+            JobTypeWithStorage = jobTypeWithStorage;
             Description = description;
             Durable = isDurable;
             RequestsRecovery = requestsRecovery;
@@ -303,30 +302,9 @@ namespace Quartz.Impl
             private set => description = value;
         }
 
-        /// <summary>
-        /// Get or sets the instance of <see cref="IJob" /> that will be executed.
-        /// </summary>
-        /// <exception cref="ArgumentException">
-        /// if jobType is null or the class is not a <see cref="IJob" />.
-        /// </exception>
-        public virtual Type JobType
-        {
-            get => jobType;
-            private set
-            {
-                if (value == null)
-                {
-                    throw new ArgumentException("Job class cannot be null.");
-                }
+        public JobType JobTypeWithStorage { get; set; } = new ();
 
-                if (!typeof(IJob).IsAssignableFrom(value))
-                {
-                    throw new ArgumentException("Job class must implement the Job interface.");
-                }
-
-                jobType = value;
-            }
-        }
+        public virtual Type JobType => JobTypeWithStorage.Type!;
 
         /// <summary>
         /// Get or set the <see cref="JobDataMap" /> that is associated with the <see cref="IJob" />.
@@ -339,6 +317,7 @@ namespace Quartz.Impl
                 {
                     jobDataMap = new JobDataMap();
                 }
+
                 return jobDataMap;
             }
 

@@ -22,6 +22,7 @@
 using System;
 
 using Quartz.Impl;
+using Quartz.Util;
 
 namespace Quartz
 {
@@ -68,6 +69,7 @@ namespace Quartz
         private JobKey? key;
         private string? description;
         private Type? jobType;
+        private string? jobTypeSerialized;
         private bool durability;
         private bool shouldRecover;
         private bool? _concurrentExecutionDisallowed;
@@ -157,7 +159,7 @@ namespace Quartz
             }
 
             return new JobDetailImpl(Key ?? new JobKey(Guid.NewGuid().ToString()),
-                                     jobType,
+                                     new JobType(jobTypeSerialized),
                                      description,
                                      durability,
                                      shouldRecover,
@@ -270,6 +272,17 @@ namespace Quartz
         }
 
         /// <summary>
+        /// Set the JobType Serialized name
+        /// </summary>
+        /// <param name="jobTypeSerialized">the serialized job Type</param>
+        /// /// <returns>the updated JobBuilder</returns>
+        public JobBuilder WithJobTypeSerialized(string? jobTypeSerialized)
+        {
+            this.jobTypeSerialized = jobTypeSerialized;
+            return this;
+        }
+
+        /// <summary>
         /// Set the class which will be instantiated and executed when a
         /// Trigger fires that is associated with this JobDetail.
         /// </summary>
@@ -289,6 +302,7 @@ namespace Quartz
         public JobBuilder OfType(Type type)
         {
             jobType = type;
+            jobTypeSerialized = type.AssemblyQualifiedNameWithoutVersion();
             return this;
         }
 
