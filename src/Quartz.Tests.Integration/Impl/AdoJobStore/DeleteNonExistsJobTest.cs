@@ -14,7 +14,7 @@ using Quartz.Util;
 namespace Quartz.Tests.Integration.Impl.AdoJobStore
 {
     [TestFixture]
-    [Category("sqlserver")]
+    [Category("db-sqlserver")]
     public class DeleteNonExistsJobTest
     {
         private static readonly ILogger<DeleteNonExistsJobTest> logger = LogProvider.CreateLogger<DeleteNonExistsJobTest>();
