@@ -5,7 +5,7 @@ using Quartz.Util;
 namespace Quartz.Impl;
 
 /// <summary>
-/// Store the Job Type and storable backing field name for serialization
+/// Store the Job Type and backing field name for serialization
 /// </summary>
 public class JobType
 {

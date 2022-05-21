@@ -21,6 +21,8 @@
 
 using System.Threading.Tasks;
 
+using FluentAssertions;
+
 using NUnit.Framework;
 
 using Quartz.Impl;
@@ -94,6 +96,16 @@ namespace Quartz.Tests.Unit
 
             Assert.That(loadedType, Is.Not.Null);
             Assert.That(loadedType, Is.EqualTo(type));
+        }
+
+        [Test]
+        public void CanConstructJobAndReadJobType()
+        {
+            var type = typeof(GenericJob<string>);
+            var job = new JobDetailImpl("name", "group", type, true, true);
+            
+            job.JobType.Should().Be(type);
+            job.JobTypeWithStorage.StorableTypeName.Should().Be(type.AssemblyQualifiedNameWithoutVersion());
         }
 
         public class GenericJob<T> : IJob
