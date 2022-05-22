@@ -5,20 +5,16 @@ using Quartz.Util;
 namespace Quartz.Impl;
 
 /// <summary>
-/// Store the Job Type and backing field name for serialization
+/// Store the Job Type and FullName for serialization
 /// </summary>
-public class JobType
+[Serializable]
+public sealed class JobType
 {
-    private string storableTypeName = string.Empty;
-    private Lazy<Type> lazyType = new(() => throw new InvalidOperationException("Type not defined"));
+    private Lazy<Type> type = new(() => throw new InvalidOperationException("Type not defined"));
 
-    public JobType()
+    public JobType(string? fullName)
     {
-    }
-
-    public JobType(string? typeStorageName)
-    {
-        this.StorableTypeName = typeStorageName ?? throw new ArgumentNullException(nameof(typeStorageName));
+        SetWithFullName(fullName ?? throw new ArgumentNullException(nameof(fullName)));
     }
 
     /// <summary>
@@ -26,44 +22,45 @@ public class JobType
     /// </summary>
     public JobType(Type type)
     {
-        Type = type;
+        SetWithType(type);
     }
 
     /// <summary>
-    /// Type as a string represented storable name.
+    /// JobType Serialized Full name
     /// </summary>
-    public string StorableTypeName
+    public string FullName { get; private set; } = "undefined";
+
+    private void SetWithFullName(string fullName)
     {
-        get => storableTypeName;
-        set
-        {
-            storableTypeName = value;
-            lazyType = new Lazy<Type>(() =>
-                Type.GetType(value) ?? throw new InvalidOperationException("Job class Type cannot be resolved."));
-        }
+        this.FullName = fullName;
+        type = new Lazy<Type>(() =>
+            Type.GetType(fullName) ?? throw new InvalidOperationException($"Job class Type {fullName} cannot be resolved."));
     }
 
-    public virtual Type Type
+    /// <summary>
+    /// Set the Job class type
+    /// </summary>
+    /// <param name="jobType"></param>
+    /// <exception cref="ArgumentException"></exception>
+    public void SetWithType(Type jobType)
     {
-        get => string.IsNullOrEmpty(StorableTypeName) ? null! : lazyType.Value;
-        private set
+        if (jobType == null)
         {
-            if (value == null)
-            {
-                throw new ArgumentException("Job class cannot be null.");
-            }
-
-            if (!typeof(IJob).IsAssignableFrom(value))
-            {
-                throw new ArgumentException("Job class must implement the Job interface.");
-            }
-
-            lazyType = new Lazy<Type>(() => value);
-            storableTypeName = GetStorableJobTypeName(value);
+            throw new ArgumentException("Job type cannot be null.");
         }
+
+        if (!typeof(IJob).IsAssignableFrom(jobType))
+        {
+            throw new ArgumentException("Job class must implement Quartz.IJob interface.");
+        }
+
+        this.type = new Lazy<Type>(() => jobType);
+        FullName = GetFullName(jobType);
     }
 
-    private string GetStorableJobTypeName(Type jobType)
+    public Type Type => type.Value;
+
+    private string GetFullName(Type jobType)
     {
         if (jobType.AssemblyQualifiedName == null)
         {
@@ -71,5 +68,24 @@ public class JobType
         }
 
         return jobType.AssemblyQualifiedNameWithoutVersion();
+    }
+
+    public static implicit operator Type(JobType jobType) => jobType.Type;
+
+    public static implicit operator JobType(string? fullName) => new(fullName);
+
+    private bool Equals(JobType other)
+    {
+        return FullName == other.FullName;
+    }
+
+    public override bool Equals(object? obj)
+    {
+        return ReferenceEquals(this, obj) || obj is JobType other && Equals(other);
+    }
+
+    public override int GetHashCode()
+    {
+        return FullName.GetHashCode();
     }
 }

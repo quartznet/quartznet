@@ -11,7 +11,6 @@ using Quartz.Tests.Integration.TestHelpers;
 
 namespace Quartz.Tests.Integration;
 
-[TestFixture]
 public class JobMaintenanceTests : IntegrationTest
 {
     [Test]

@@ -30,7 +30,7 @@ namespace Quartz.Impl.AdoJobStore
             using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateJobDetail));
             AddCommandParameter(cmd, "schedulerName", schedName);
             AddCommandParameter(cmd, "jobDescription", job.Description);
-            AddCommandParameter(cmd, "jobType", job.JobTypeWithStorage.StorableTypeName);
+            AddCommandParameter(cmd, "jobType", job.JobType.FullName);
             AddCommandParameter(cmd, "jobDurable", GetDbBooleanValue(job.Durable));
             AddCommandParameter(cmd, "jobVolatile", GetDbBooleanValue(job.ConcurrentExecutionDisallowed));
             AddCommandParameter(cmd, "jobStateful", GetDbBooleanValue(job.PersistJobDataAfterExecution));
@@ -137,7 +137,7 @@ namespace Quartz.Impl.AdoJobStore
                 var jobBuilder = JobBuilder.Create()
                     .WithIdentity(new JobKey(rs.GetString(ColumnJobName)!, rs.GetString(ColumnJobGroup)!))
                     .WithDescription(rs.GetString(ColumnDescription))
-                    .WithJobTypeSerialized(rs.GetString(ColumnJobClass))
+                    .OfType(rs.GetString(ColumnJobClass))
                     .RequestRecovery(GetBooleanFromDbValue(rs[ColumnRequestsRecovery]))
                     .StoreDurably(GetBooleanFromDbValue(rs[ColumnIsDurable]));
 
@@ -215,7 +215,7 @@ namespace Quartz.Impl.AdoJobStore
                 var jobBuilder = JobBuilder.Create()
                     .WithIdentity(new JobKey(rs.GetString(ColumnJobName)!, rs.GetString(ColumnJobGroup)!))
                     .RequestRecovery(GetBooleanFromDbValue(rs[ColumnRequestsRecovery]))
-                    .WithJobTypeSerialized(rs.GetString(ColumnJobClass))
+                    .OfType(rs.GetString(ColumnJobClass))
                     .StoreDurably(GetBooleanFromDbValue(rs[ColumnIsDurable]));
 
                 if (loadJobType)
@@ -320,7 +320,7 @@ namespace Quartz.Impl.AdoJobStore
             AddCommandParameter(cmd, "jobName", job.Key.Name);
             AddCommandParameter(cmd, "jobGroup", job.Key.Group);
             AddCommandParameter(cmd, "jobDescription", job.Description);
-            AddCommandParameter(cmd, "jobType", job.JobTypeWithStorage.StorableTypeName);
+            AddCommandParameter(cmd, "jobType", job.JobType.FullName);
             AddCommandParameter(cmd, "jobDurable", GetDbBooleanValue(job.Durable));
             AddCommandParameter(cmd, "jobVolatile", GetDbBooleanValue(job.ConcurrentExecutionDisallowed));
             AddCommandParameter(cmd, "jobStateful", GetDbBooleanValue(job.PersistJobDataAfterExecution));

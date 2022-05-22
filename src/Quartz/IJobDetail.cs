@@ -19,8 +19,6 @@
 
 #endregion
 
-using System;
-
 using Quartz.Impl;
 namespace Quartz
 {
@@ -62,14 +60,9 @@ namespace Quartz
         string? Description { get; }
 
         /// <summary>
-        /// Get or sets the instance of <see cref="IJob" /> that will be executed.
+        /// Get the instance of <see cref="IJob" /> that will be executed.
         /// </summary>
-        Type JobType { get; }
-
-        /// <summary>
-        /// JobType type in serialized format.
-        /// </summary>
-        JobType JobTypeWithStorage { get; }
+        JobType JobType { get; }
 
         /// <summary>
         /// Get or set the <see cref="JobDataMap" /> that is associated with the <see cref="IJob" />.

@@ -39,7 +39,4 @@
     <Reference Include="Microsoft.CSharp" />
     <PackageReference Include="Oracle.ManagedDataAccess" Version="19.7.0" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="TestHelpers\" />
-  </ItemGroup>
 </Project>

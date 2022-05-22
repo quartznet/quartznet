@@ -69,7 +69,7 @@ namespace Quartz
         private JobKey? key;
         private string? description;
         private Type? jobType;
-        private string? jobTypeSerialized;
+        private string? jobTypeName;
         private bool durability;
         private bool shouldRecover;
         private bool? _concurrentExecutionDisallowed;
@@ -159,7 +159,7 @@ namespace Quartz
             }
 
             return new JobDetailImpl(Key ?? new JobKey(Guid.NewGuid().ToString()),
-                                     new JobType(jobTypeSerialized),
+                                     jobTypeName,
                                      description,
                                      durability,
                                      shouldRecover,
@@ -272,13 +272,13 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Set the JobType Serialized name
+        /// Set the JobType by name
         /// </summary>
-        /// <param name="jobTypeSerialized">the serialized job Type</param>
-        /// /// <returns>the updated JobBuilder</returns>
-        public JobBuilder WithJobTypeSerialized(string? jobTypeSerialized)
+        /// <param name="typeName">the Type name</param>
+        /// <returns>the updated JobBuilder</returns>
+        public JobBuilder OfType(string? typeName)
         {
-            this.jobTypeSerialized = jobTypeSerialized;
+            this.jobTypeName = typeName;
             return this;
         }
 
@@ -302,7 +302,7 @@ namespace Quartz
         public JobBuilder OfType(Type type)
         {
             jobType = type;
-            jobTypeSerialized = type.AssemblyQualifiedNameWithoutVersion();
+            jobTypeName = type.AssemblyQualifiedNameWithoutVersion();
             return this;
         }
 

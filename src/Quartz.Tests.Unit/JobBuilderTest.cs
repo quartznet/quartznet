@@ -1,5 +1,7 @@
 using System.Threading.Tasks;
 
+using FluentAssertions;
+
 using NUnit.Framework;
 
 namespace Quartz.Tests.Unit
@@ -57,8 +59,7 @@ namespace Quartz.Tests.Unit
             Assert.IsFalse(job.RequestsRecovery, "Expected requestsRecovery == false ");
             Assert.IsFalse(job.ConcurrentExecutionDisallowed, "Expected isConcurrentExecutionDisallowed == false ");
             Assert.IsFalse(job.PersistJobDataAfterExecution, "Expected isPersistJobDataAfterExecution == false ");
-            Assert.IsTrue(job.JobType.Equals(typeof (TestJob)), "Unexpected job class: " + job.JobType)
-                ;
+            job.JobType.Type.Should().Be(typeof(TestJob));
 
             job = JobBuilder.Create()
                 .OfType<TestAnnotatedJob>()

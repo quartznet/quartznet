@@ -106,20 +106,6 @@ namespace Quartz.Impl
         private JobKey key = null!;
 
         /// <summary>
-        /// Create a <see cref="IJobDetail" /> with no specified name or group, and
-        /// the default settings of all the other properties.
-        /// <para>
-        /// Note that the <see cref="Name" />,<see cref="Group" /> and
-        /// <see cref="JobType" /> properties must be set before the job can be
-        /// placed into a <see cref="IScheduler" />.
-        /// </para>
-        /// </summary>
-        public JobDetailImpl()
-        {
-            // do nothing...
-        }
-
-        /// <summary>
         /// Create a <see cref="IJobDetail" /> with the given name, default group, and
         /// the default settings of all the other properties.
         /// If <see langword="null" />, SchedulerConstants.DefaultGroup will be used.
@@ -143,7 +129,7 @@ namespace Quartz.Impl
         {
             Name = name;
             Group = group;
-            JobTypeWithStorage = new JobType(jobType);
+            this.JobType = new JobType(jobType);
         }
 
         /// <summary>
@@ -162,7 +148,7 @@ namespace Quartz.Impl
         {
             Name = name;
             Group = group;
-            JobTypeWithStorage = new JobType(jobType);
+            this.JobType = new JobType(jobType);
             Durable = isDurable;
             RequestsRecovery = requestsRecovery;
         }
@@ -172,7 +158,7 @@ namespace Quartz.Impl
         /// the given settings of all the other properties.
         /// </summary>
         /// <param name="key">The key of the job.</param>
-        /// <param name="jobTypeWithStorage">Type of the job.</param>
+        /// <param name="jobType">Type of the job.</param>
         /// <param name="description">The description given to the <see cref="IJob" /> instance by its creator.</param>
         /// <param name="isDurable">if set to <c>true</c>, job will be durable.</param>
         /// <param name="requestsRecovery">if set to <c>true</c>, job will request recovery.</param>
@@ -181,7 +167,7 @@ namespace Quartz.Impl
         /// <param name="persistJobDataAfterExecution">Indicates whether or not job data should re-stored when execution of the job completes.</param>
         /// <exception cref="ArgumentNullException"><paramref name="key"/> is <see langword="null"/>.</exception>
         internal JobDetailImpl(JobKey key,
-                               JobType jobTypeWithStorage,
+                               JobType jobType,
                                string? description,
                                bool isDurable,
                                bool requestsRecovery,
@@ -190,7 +176,7 @@ namespace Quartz.Impl
                                bool? persistJobDataAfterExecution)
         {
             Key = key;
-            JobTypeWithStorage = jobTypeWithStorage;
+            JobType = jobType;
             Description = description;
             Durable = isDurable;
             RequestsRecovery = requestsRecovery;
@@ -302,10 +288,8 @@ namespace Quartz.Impl
             private set => description = value;
         }
 
-        public JobType JobTypeWithStorage { get; set; } = new ();
-
-        public virtual Type JobType => JobTypeWithStorage.Type!;
-
+        public JobType JobType { get; set; }
+    
         /// <summary>
         /// Get or set the <see cref="JobDataMap" /> that is associated with the <see cref="IJob" />.
         /// </summary>
@@ -450,7 +434,7 @@ namespace Quartz.Impl
         {
             //doesn't consider job's saved data,
             //durability etc
-            return detail != null && detail.Name == Name && detail.Group == Group && detail.JobType == JobType;
+            return detail != null && detail.Name == Name && detail.Group == Group && detail.JobType.Equals(JobType);
         }
 
         /// <summary>
@@ -495,7 +479,7 @@ namespace Quartz.Impl
 
         public virtual JobBuilder GetJobBuilder()
         {
-            JobBuilder b = JobBuilder.Create()
+            return JobBuilder.Create()
                                      .OfType(JobType)
                                      .RequestRecovery(RequestsRecovery)
                                      .StoreDurably(Durable)
@@ -504,8 +488,6 @@ namespace Quartz.Impl
                                      .PersistJobDataAfterExecution(PersistJobDataAfterExecution)
                                      .WithDescription(description)
                                      .WithIdentity(Key);
-
-            return b;
         }
     }
 }
