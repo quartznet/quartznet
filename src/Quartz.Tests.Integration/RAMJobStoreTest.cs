@@ -71,6 +71,7 @@ namespace Quartz.Tests.Integration
         protected abstract Task<IScheduler> CreateScheduler(string name, int threadPoolSize);
 
         [Test]
+        [Category("db-sqlserver")]
         public async Task TestBasicStorageFunctions()
         {
             IScheduler sched = await CreateScheduler("testBasicStorageFunctions", 2);
