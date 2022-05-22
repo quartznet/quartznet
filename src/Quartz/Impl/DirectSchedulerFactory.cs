@@ -317,7 +317,8 @@ namespace Quartz.Impl
 
             // Fire everything up
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-            SchedulerDetailsSetter.SetDetails(threadPool, schedulerName, schedulerInstanceId);
+            threadPool.InstanceName = schedulerName;
+            threadPool.InstanceId = schedulerInstanceId;
 
             threadPool.Initialize();
 
@@ -347,7 +348,8 @@ namespace Quartz.Impl
             ITypeLoadHelper cch = new SimpleTypeLoadHelper();
             cch.Initialize();
 
-            SchedulerDetailsSetter.SetDetails(jobStore, schedulerName, schedulerInstanceId);
+            jobStore.InstanceName = schedulerName;
+            jobStore.InstanceId = schedulerInstanceId;
             jobStore.Initialize(cch, qs.SchedulerSignaler);
 
             IScheduler scheduler = new StdScheduler(qs);
