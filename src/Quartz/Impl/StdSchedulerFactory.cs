@@ -673,8 +673,8 @@ Please add configuration to your application config file to correctly initialize
                                                        "Out of the box supported values are 'json' and 'binary'. JSON doesn't suffer from versioning as much as binary serialization but you cannot use it if you already have binary serialized data.");
                 throw initException;
             }
-
-            SchedulerDetailsSetter.SetDetails(js, schedName, schedInstId);
+            js.InstanceName = schedName;
+            js.InstanceId = schedInstId;
 
             tProps = cfg.GetPropertyGroup(PropertyJobStorePrefix, true, new[] {PropertyJobStoreLockHandlerPrefix});
 
@@ -946,7 +946,8 @@ Please add configuration to your application config file to correctly initialize
                 rsrcs.InterruptJobsOnShutdownWithWait = interruptJobsOnShutdownWithWait;
                 rsrcs.SchedulerExporter = exporter;
 
-                SchedulerDetailsSetter.SetDetails(tp, schedName, schedInstId);
+                tp.InstanceName = schedName;
+                tp.InstanceId = schedInstId;
 
                 rsrcs.ThreadPool = tp;
 
