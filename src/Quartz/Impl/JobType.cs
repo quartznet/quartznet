@@ -12,6 +12,12 @@ public sealed class JobType
 {
     private Lazy<Type> type = new(() => throw new InvalidOperationException("Type not defined"));
 
+    /// <summary>
+    /// Construct a Job Type specifying the Assembly Qualified NameWithout Version.
+    /// There is no check on construction this type is valid.
+    /// </summary>
+    /// <param name="fullName">Type full name</param>
+    /// <exception cref="ArgumentNullException">Cannot be null</exception>
     public JobType(string? fullName)
     {
         SetWithFullName(fullName ?? throw new ArgumentNullException(nameof(fullName)));
