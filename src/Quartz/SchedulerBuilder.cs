@@ -555,9 +555,24 @@ namespace Quartz
             this SchedulerBuilder.PersistentStoreOptions options,
             Action<SchedulerBuilder.AdoProviderOptions> configurer)
         {
+            UseMySqlInternal(options, "MySql", configurer);
+        }
+
+        public static void UseMySqlConnector(
+            this SchedulerBuilder.PersistentStoreOptions options,
+            Action<SchedulerBuilder.AdoProviderOptions> configurer)
+        {
+            UseMySqlInternal(options, "MySqlConnector", configurer);
+        }
+
+        internal static void UseMySqlInternal(
+            this SchedulerBuilder.PersistentStoreOptions options,
+            string provider,
+            Action<SchedulerBuilder.AdoProviderOptions> configurer)
+        {
             options.SetProperty("quartz.jobStore.driverDelegateType", typeof(MySQLDelegate).AssemblyQualifiedNameWithoutVersion());
             options.SetProperty("quartz.jobStore.dataSource", SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName);
-            options.SetProperty($"quartz.dataSource.{SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}.provider", "MySql");
+            options.SetProperty($"quartz.dataSource.{SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}.provider", provider);
 
             var adoProviderOptions = new SchedulerBuilder.AdoProviderOptions(options);
             configurer.Invoke(adoProviderOptions);
