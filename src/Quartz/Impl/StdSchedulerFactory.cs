@@ -131,6 +131,8 @@ namespace Quartz.Impl
 
         public const string SystemPropertyAsInstanceId = "SYS_PROP";
 
+        private readonly SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
+
         private SchedulerException? initException;
 
         private PropertiesParser cfg = null!;
@@ -367,8 +369,6 @@ Please add configuration to your application config file to correctly initialize
             TimeSpan idleWaitTime = TimeSpan.Zero;
             TimeSpan dbFailureRetry = TimeSpan.FromSeconds(15);
 
-            SchedulerRepository schedRep = SchedulerRepository.Instance;
-
             // Get Scheduler Properties
             // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -448,8 +448,6 @@ Please add configuration to your application config file to correctly initialize
                 string uid = QuartzSchedulerResources.GetUniqueIdentifier(schedName, schedInstId);
 
                 RemoteScheduler remoteScheduler = new RemoteScheduler(uid, factory);
-
-                schedRep.Bind(remoteScheduler);
 
                 return remoteScheduler;
             }
@@ -1014,22 +1012,13 @@ Please add configuration to your application config file to correctly initialize
 
                 log.Info("Quartz scheduler version: {0}".FormatInvariant(qs.Version));
 
-                // prevents the repository from being garbage collected
-                qs.AddNoGCObject(schedRep);
                 // prevents the db manager from being garbage collected
                 if (dbMgr != null)
                 {
                     qs.AddNoGCObject(dbMgr);
                 }
 
-                schedRep.Bind(sched);
-
                 return sched;
-            }
-            catch (SchedulerException)
-            {
-                await ShutdownFromInstantiateException(tp, qs, tpInited, qsInited).ConfigureAwait(false);
-                throw;
             }
             catch
             {
@@ -1093,30 +1082,37 @@ Please add configuration to your application config file to correctly initialize
         /// </remarks>
         public virtual async Task<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
         {
-            if (cfg == null)
-            {
-                Initialize();
-            }
-
-            SchedulerRepository schedRep = SchedulerRepository.Instance;
-
-            IScheduler? sched = await schedRep.Lookup(SchedulerName, cancellationToken).ConfigureAwait(false);
-
-            if (sched != null)
-            {
-                if (sched.IsShutdown)
+            // We always need to guarantee exclusivity because of the possible sequence of interactions with
+            // the SchedulerRepository.
+            if(!semaphore.Wait(0, cancellationToken))
+                await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try {
+                if (cfg == null)
                 {
-                    schedRep.Remove(SchedulerName);
+                    Initialize();
                 }
-                else
+
+                IScheduler? sched = await SchedulerRepository.Instance.Lookup(SchedulerName, cancellationToken).ConfigureAwait(false);
+
+                if (sched != null)
                 {
-                    return sched;
+                    if (sched.IsShutdown)
+                    {
+                        SchedulerRepository.Instance.Remove(SchedulerName);
+                    }
+                    else
+                    {
+                        return sched;
+                    }
                 }
+
+                sched = await Instantiate().ConfigureAwait(false);
+                SchedulerRepository.Instance.Bind(sched);
+
+                return sched;
+            } finally {
+                semaphore.Release();
             }
-
-            sched = await Instantiate().ConfigureAwait(false);
-
-            return sched!;
         }
 
         /// <summary> <para>

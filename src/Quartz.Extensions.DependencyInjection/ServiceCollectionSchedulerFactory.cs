@@ -20,8 +20,8 @@ namespace Quartz
         private readonly IServiceProvider serviceProvider;
         private readonly IOptions<QuartzOptions> options;
         private readonly ContainerConfigurationProcessor processor;
-        private bool initialized;
-        private readonly SemaphoreSlim initializationLock = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
+        private IScheduler? initializedScheduler;
 
         public ServiceCollectionSchedulerFactory(
             IServiceProvider serviceProvider,
@@ -31,34 +31,36 @@ namespace Quartz
             this.serviceProvider = serviceProvider;
             this.options = options;
             this.processor = processor;
+            this.initializedScheduler = null;
         }
 
         public override async Task<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
         {
-            // check if logging provider configured and let if configure
-            serviceProvider.GetService<MicrosoftLoggingProvider>();
-
-            base.Initialize(options.Value);
-            var scheduler = await base.GetScheduler(cancellationToken);
-            if (initialized)
-            {
-                return scheduler;
-            }
-
-            await initializationLock.WaitAsync(cancellationToken);
+            await semaphore.WaitAsync(cancellationToken);
             try
             {
-                if (!initialized)
-                {
-                    await InitializeScheduler(scheduler, cancellationToken);
-                    initialized = true;
+                if(initializedScheduler == null) {
+                    // check if logging provider configured and let if configure
+                    serviceProvider.GetService<MicrosoftLoggingProvider>();
+
+                    base.Initialize(options.Value);
                 }
+                
+                var scheduler = await base.GetScheduler(cancellationToken);
+                
+                // The base method may produce a new scheduler in the event that the original scheduler was stopped
+                if(Object.ReferenceEquals(scheduler, initializedScheduler))
+                    return scheduler;
+                
+                await InitializeScheduler(scheduler, cancellationToken);
+                initializedScheduler = scheduler;
+                
+                return scheduler;
             }
             finally
             {
-                initializationLock.Release();
+                semaphore.Release();
             }
-            return scheduler;
         }
 
         private async Task InitializeScheduler(IScheduler scheduler, CancellationToken cancellationToken)
