@@ -95,7 +95,6 @@ namespace Quartz.Impl
         public const string PropertySchedulerProxy = "quartz.scheduler.proxy";
         public const string PropertySchedulerProxyType = "quartz.scheduler.proxy.type";
         public const string PropertySchedulerIdleWaitTime = "quartz.scheduler.idleWaitTime";
-        public const string PropertySchedulerDbFailureRetryInterval = "quartz.scheduler.dbFailureRetryInterval";
         public const string PropertySchedulerMakeSchedulerThreadDaemon = "quartz.scheduler.makeSchedulerThreadDaemon";
         public const string PropertySchedulerTypeLoadHelperType = "quartz.scheduler.typeLoadHelper.type";
         public const string PropertySchedulerJobFactoryType = "quartz.scheduler.jobFactory.type";
@@ -105,6 +104,7 @@ namespace Quartz.Impl
         public const string PropertySchedulerContextPrefix = "quartz.context.key";
         public const string PropertyThreadPoolPrefix = "quartz.threadPool";
         public const string PropertyThreadPoolType = "quartz.threadPool.type";
+        public const string PropertyJobStoreDbRetryInterval = "quartz.jobStore.dbRetryInterval";
         public const string PropertyJobStorePrefix = "quartz.jobStore";
         public const string PropertyJobStoreLockHandlerPrefix = PropertyJobStorePrefix + ".lockHandler";
         public const string PropertyJobStoreLockHandlerType = PropertyJobStoreLockHandlerPrefix + ".type";
@@ -395,10 +395,10 @@ Please add configuration to your application config file to correctly initialize
                 throw new SchedulerException("quartz.scheduler.idleWaitTime of less than 1000ms is not legal.");
             }
 
-            dbFailureRetry = cfg.GetTimeSpanProperty(PropertySchedulerDbFailureRetryInterval, dbFailureRetry);
+            dbFailureRetry = cfg.GetTimeSpanProperty(PropertyJobStoreDbRetryInterval, dbFailureRetry);
             if (dbFailureRetry < TimeSpan.Zero)
             {
-                throw new SchedulerException(PropertySchedulerDbFailureRetryInterval + " of less than 0 ms is not legal.");
+                throw new SchedulerException(PropertyJobStoreDbRetryInterval + " of less than 0 ms is not legal.");
             }
 
             bool makeSchedulerThreadDaemon = cfg.GetBooleanProperty(PropertySchedulerMakeSchedulerThreadDaemon);
