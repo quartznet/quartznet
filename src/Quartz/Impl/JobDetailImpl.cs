@@ -49,7 +49,7 @@ namespace Quartz.Impl
         /// </summary>
         /// <param name="jobType">The type for which information will be searched</param>
         /// <returns>
-        /// An <see cref="JobTypeInformation"/> object that describe specified type 
+        /// An <see cref="JobTypeInformation"/> object that describe specified type
         /// </returns>
         public static JobTypeInformation GetOrCreate(Type jobType)
         {
@@ -129,7 +129,7 @@ namespace Quartz.Impl
         {
             Name = name;
             Group = group;
-            this.JobType = new JobType(jobType);
+            JobType = new JobType(jobType);
         }
 
         /// <summary>
@@ -148,7 +148,7 @@ namespace Quartz.Impl
         {
             Name = name;
             Group = group;
-            this.JobType = new JobType(jobType);
+            JobType = new JobType(jobType);
             Durable = isDurable;
             RequestsRecovery = requestsRecovery;
         }
@@ -288,8 +288,8 @@ namespace Quartz.Impl
             private set => description = value;
         }
 
-        public JobType JobType { get; set; }
-    
+        public JobType JobType { get; private set; }
+
         /// <summary>
         /// Get or set the <see cref="JobDataMap" /> that is associated with the <see cref="IJob" />.
         /// </summary>

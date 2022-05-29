@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
@@ -137,7 +137,7 @@ namespace Quartz.Impl.AdoJobStore
                 var jobBuilder = JobBuilder.Create()
                     .WithIdentity(new JobKey(rs.GetString(ColumnJobName)!, rs.GetString(ColumnJobGroup)!))
                     .WithDescription(rs.GetString(ColumnDescription))
-                    .OfType(rs.GetString(ColumnJobClass))
+                    .OfType(rs.GetString(ColumnJobClass)!)
                     .RequestRecovery(GetBooleanFromDbValue(rs[ColumnRequestsRecovery]))
                     .StoreDurably(GetBooleanFromDbValue(rs[ColumnIsDurable]));
 
@@ -215,7 +215,7 @@ namespace Quartz.Impl.AdoJobStore
                 var jobBuilder = JobBuilder.Create()
                     .WithIdentity(new JobKey(rs.GetString(ColumnJobName)!, rs.GetString(ColumnJobGroup)!))
                     .RequestRecovery(GetBooleanFromDbValue(rs[ColumnRequestsRecovery]))
-                    .OfType(rs.GetString(ColumnJobClass))
+                    .OfType(rs.GetString(ColumnJobClass)!)
                     .StoreDurably(GetBooleanFromDbValue(rs[ColumnIsDurable]));
 
                 if (loadJobType)

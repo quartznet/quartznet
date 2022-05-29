@@ -18,7 +18,7 @@ public sealed class JobType
     /// </summary>
     /// <param name="fullName">Type full name</param>
     /// <exception cref="ArgumentNullException">Cannot be null</exception>
-    public JobType(string? fullName)
+    public JobType(string fullName)
     {
         SetWithFullName(fullName ?? throw new ArgumentNullException(nameof(fullName)));
     }
@@ -38,7 +38,7 @@ public sealed class JobType
 
     private void SetWithFullName(string fullName)
     {
-        this.FullName = fullName;
+        FullName = fullName;
         type = new Lazy<Type>(() =>
             Type.GetType(fullName) ?? throw new InvalidOperationException($"Job class Type {fullName} cannot be resolved."));
     }
@@ -60,7 +60,7 @@ public sealed class JobType
             throw new ArgumentException("Job class must implement Quartz.IJob interface.");
         }
 
-        this.type = new Lazy<Type>(() => jobType);
+        type = new Lazy<Type>(() => jobType);
         FullName = GetFullName(jobType);
     }
 
@@ -78,7 +78,7 @@ public sealed class JobType
 
     public static implicit operator Type(JobType jobType) => jobType.Type;
 
-    public static implicit operator JobType(string? fullName) => new(fullName);
+    public static implicit operator JobType(string fullName) => new(fullName);
 
     private bool Equals(JobType other)
     {
