@@ -27,21 +27,20 @@ You can also use code-based configuration which essentially builds these keys.
 
 These properties configure the identification of the scheduler, and various other "top level" settings.
 
-|Property Name                                                | Required |    Type |  Default Value                                  |
+| Property Name                                               | Required |    Type |  Default Value                                  |
 |-------------------------------------------------------------|----------|---------|-------------------------------------------------|
-|quartz.scheduler.instanceName                                | no       | string  |'QuartzScheduler'                                |
-|quartz.scheduler.instanceId                                  | no       | string  | 'NON_CLUSTERED'                                 |
-|quartz.scheduler.instanceIdGenerator.type                    | no       | string  | Quartz.Simpl.SimpleInstanceIdGenerator, Quartz  |
-|quartz.scheduler.threadName                                  | no       | string  | instanceName + '_QuartzSchedulerThread'         |
-|quartz.scheduler.makeSchedulerThreadDaemon                   | no       | boolean | false                                           |
-|quartz.scheduler.idleWaitTime                                | no       | long    | 30000                                           |
-|quartz.scheduler.dbFailureRetryInterval                      | no       | long    | 15000                                           |
-|quartz.scheduler.typeLoadHelper.type                         | no       | string  | Quartz.Simpl.SimpleTypeLoadHelper               |
-|quartz.scheduler.jobFactory.type                             | no       | string  | Quartz.Simpl.PropertySettingJobFactory          |
-|quartz.context.key.SOME_KEY                                  | no       | string  | none                                            |
-|quartz.scheduler.wrapJobExecutionInUserTransaction           | no       | boolean | false                                           |
-|quartz.scheduler.batchTriggerAcquisitionMaxCount             | no       | int     | 1                                               |
-|quartz.scheduler.batchTriggerAcquisitionFireAheadTimeWindow  | no       | long    | 0                                               |
+| quartz.scheduler.instanceName                               | no       | string  |'QuartzScheduler'                                |
+| quartz.scheduler.instanceId                                 | no       | string  | 'NON_CLUSTERED'                                 |
+| quartz.scheduler.instanceIdGenerator.type                   | no       | string  | Quartz.Simpl.SimpleInstanceIdGenerator, Quartz  |
+| quartz.scheduler.threadName                                 | no       | string  | instanceName + '_QuartzSchedulerThread'         |
+| quartz.scheduler.makeSchedulerThreadDaemon                  | no       | boolean | false                                           |
+| quartz.scheduler.idleWaitTime                               | no       | long    | 30000                                           |
+| quartz.scheduler.typeLoadHelper.type                        | no       | string  | Quartz.Simpl.SimpleTypeLoadHelper               |
+| quartz.scheduler.jobFactory.type                            | no       | string  | Quartz.Simpl.PropertySettingJobFactory          |
+| quartz.context.key.SOME_KEY                                 | no       | string  | none                                            |
+| quartz.scheduler.wrapJobExecutionInUserTransaction          | no       | boolean | false                                           |
+| quartz.scheduler.batchTriggerAcquisitionMaxCount            | no       | int     | 1                                               |
+| quartz.scheduler.batchTriggerAcquisitionFireAheadTimeWindow | no       | long    | 0                                               |
 
 ### `quartz.scheduler.instanceName`
 
@@ -76,11 +75,6 @@ See also the `quartz.scheduler.makeSchedulerThreadDaemon` property for tuning th
 Is the amount of time in milliseconds that the scheduler will wait before re-queries for available triggers when the scheduler is otherwise idle.
 Normally you should not have to 'tune' this parameter, unless you’re using XA transactions, and are having problems with delayed firings of triggers that should fire immediately.
 Values less than 5000 ms are not recommended as it will cause excessive database querying. Values less than 1000 are not legal.
-
-### `quartz.scheduler.dbFailureRetryInterval`
-
-Is the amount of time in milliseconds that the scheduler will wait between re-tries when it has detected a loss of connectivity within the JobStore (e.g. to the database).
-This parameter is obviously not very meaningful when using RamJobStore.
 
 ### `quartz.scheduler.typeLoadHelper.type`
 
@@ -328,6 +322,7 @@ JobStoreTX can be tuned with the following properties:
 
 |Property Name  | Required| Type    | Default Value|
 |---------------|---------|---------|--------------|
+|quartz.jobStore.dbRetryInterval | no | long    | 15000   (15 seconds) |
 |quartz.jobStore.driverDelegateType|    yes|    string| null|
 |quartz.jobStore.dataSource |yes|   string  |null|
 |quartz.jobStore.tablePrefix    |no|    string  |"QRTZ_"|
@@ -341,6 +336,11 @@ JobStoreTX can be tuned with the following properties:
 |quartz.jobStore.acquireTriggersWithinLock  |no|    boolean |false (or true - see doc below)|
 |quartz.jobStore.lockHandler.type | no| string| null|
 |quartz.jobStore.driverDelegateInitString|  no  |string|    null|
+
+### `quartz.scheduler.dbRetryInterval`
+
+Is the amount of time in milliseconds that the scheduler will wait between re-tries when it has detected a loss of connectivity within the JobStore (e.g. to the database).
+This parameter is obviously not very meaningful when using RamJobStore.
 
 ### `quartz.jobStore.driverDelegateType`
 
