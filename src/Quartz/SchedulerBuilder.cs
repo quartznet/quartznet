@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -357,14 +357,14 @@ namespace Quartz
             }
 
             /// <summary>
-            /// Gets or sets the database retry interval.
+            /// Sets the database retry interval.
             /// </summary>
             /// <remarks>
             /// Defaults to 15 seconds.
             /// </remarks>
             public TimeSpan RetryInterval
             {
-                set => SetProperty("quartz.jobStore.dbRetryInterval", ((int) value.TotalMilliseconds).ToString());
+                set => SetProperty(StdSchedulerFactory.PropertyJobStoreDbRetryInterval, ((int) value.TotalMilliseconds).ToString());
             }
 
             /// <summary>
