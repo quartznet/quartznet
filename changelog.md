@@ -60,6 +60,11 @@
     **ListenerManager** on **QuartzScheduler** allows more control over the events that a **ITriggerListener** will
     receive.
 
+* FIXES
+  * Configuration property `quartz.jobStore.dbRetryInterval` will be correctly set when constructing the Scheduler JobStore.
+    If you previously had configuration with the key `quartz.scheduler.dbFailureRetryInterval` please change to the above mentioned key. 
+  
+
 ## Release 3.4.0, Mar 27 2022
 
 This release has Quartz jobs start executing only after application startup completes successfully, unless QuartzHostedServiceOptions are used to specify otherwise.

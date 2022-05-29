@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Data.Common;
 
 using NUnit.Framework;
 
+using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Plugin.TimeZoneConverter;
@@ -54,7 +55,7 @@ namespace Quartz.Tests.Unit
             Assert.That(config.Properties["quartz.jobStore.tablePrefix"], Is.EqualTo("QRTZ2019_"));
             Assert.That(config.Properties["quartz.jobStore.clusterCheckinInterval"], Is.EqualTo("10000"));
             Assert.That(config.Properties["quartz.jobStore.clusterCheckinMisfireThreshold"], Is.EqualTo("15000"));
-            Assert.That(config.Properties["quartz.jobStore.dbRetryInterval"], Is.EqualTo("20000"));
+            Assert.That(config.Properties[StdSchedulerFactory.PropertyJobStoreDbRetryInterval], Is.EqualTo("20000"));
 
             Assert.That(config.Properties["quartz.dataSource.default.connectionProvider.type"], Is.EqualTo("Quartz.Tests.Unit.SchedulerBuilderTest+CustomConnectionProvider, Quartz.Tests.Unit"));
         }

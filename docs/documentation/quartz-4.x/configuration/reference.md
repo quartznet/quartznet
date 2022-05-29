@@ -29,13 +29,13 @@ These properties configure the identification of the scheduler, and various othe
 
 |Property Name                                                | Required |    Type |  Default Value                                  |
 |-------------------------------------------------------------|----------|---------|-------------------------------------------------|
+|quartz.jobStore.dbRetryInterval                              | no       | long    | 15000   (15 seconds)                            |
 |quartz.scheduler.instanceName                                | no       | string  |'QuartzScheduler'                                |
 |quartz.scheduler.instanceId                                  | no       | string  | 'NON_CLUSTERED'                                 |
 |quartz.scheduler.instanceIdGenerator.type                    | no       | string  | Quartz.Simpl.SimpleInstanceIdGenerator, Quartz  |
 |quartz.scheduler.threadName                                  | no       | string  | instanceName + '_QuartzSchedulerThread'         |
 |quartz.scheduler.makeSchedulerThreadDaemon                   | no       | boolean | false                                           |
 |quartz.scheduler.idleWaitTime                                | no       | long    | 30000                                           |
-|quartz.scheduler.dbFailureRetryInterval                      | no       | long    | 15000                                           |
 |quartz.scheduler.typeLoadHelper.type                         | no       | string  | Quartz.Simpl.SimpleTypeLoadHelper               |
 |quartz.scheduler.jobFactory.type                             | no       | string  | Quartz.Simpl.PropertySettingJobFactory          |
 |quartz.context.key.SOME_KEY                                  | no       | string  | none                                            |
@@ -77,10 +77,11 @@ Is the amount of time in milliseconds that the scheduler will wait before re-que
 Normally you should not have to 'tune' this parameter, unless you’re using XA transactions, and are having problems with delayed firings of triggers that should fire immediately.
 Values less than 5000 ms are not recommended as it will cause excessive database querying. Values less than 1000 are not legal.
 
-### `quartz.scheduler.dbFailureRetryInterval`
+### `quartz.jobStore.dbRetryInterval`
 
 Is the amount of time in milliseconds that the scheduler will wait between re-tries when it has detected a loss of connectivity within the JobStore (e.g. to the database).
 This parameter is obviously not very meaningful when using RamJobStore.
+It is also used in a Job misfire scenario, if a Job fails, and there is a configured retry value (default of 4) then this is the amount of time to wait between retries.
 
 ### `quartz.scheduler.typeLoadHelper.type`
 
