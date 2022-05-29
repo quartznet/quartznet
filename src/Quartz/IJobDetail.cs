@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /* 
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -19,8 +19,7 @@
 
 #endregion
 
-using System;
-
+using Quartz.Impl;
 namespace Quartz
 {
     /// <summary>
@@ -61,9 +60,9 @@ namespace Quartz
         string? Description { get; }
 
         /// <summary>
-        /// Get or sets the instance of <see cref="IJob" /> that will be executed.
+        /// Get the instance of <see cref="IJob" /> that will be executed.
         /// </summary>
-        Type JobType { get; }
+        JobType JobType { get; }
 
         /// <summary>
         /// Get or set the <see cref="JobDataMap" /> that is associated with the <see cref="IJob" />.

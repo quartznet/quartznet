@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 
 using NUnit.Framework;
 
+using Quartz.Impl;
 using Quartz.Impl.Matchers;
 
 namespace Quartz.Tests.Integration
@@ -360,7 +361,9 @@ namespace Quartz.Tests.Integration
         [Test]
         public async Task TestDurableStorageFunctions()
         {
-            IScheduler sched = await CreateScheduler("testDurableStorageFunctions", 2);
+            const string schedulerName = "testDurableStorageFunctions";
+            SchedulerRepository.Instance.Remove(schedulerName + "Scheduler"); // workaround prior test cleanup - relates to issue in #1453
+            IScheduler sched = await CreateScheduler(schedulerName, 2);
             await sched.Clear();
 
             // test basic storage functions of scheduler...

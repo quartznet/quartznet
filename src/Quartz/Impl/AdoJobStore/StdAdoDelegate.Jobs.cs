@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Data.Common;
 using System.IO;
@@ -17,15 +17,7 @@ namespace Quartz.Impl.AdoJobStore
 {
     public partial class StdAdoDelegate
     {
-        protected virtual string GetStorableJobTypeName(Type jobType)
-        {
-            if (jobType.AssemblyQualifiedName == null)
-            {
-                throw new ArgumentException("Cannot determine job type name when type's AssemblyQualifiedName is null");
-            }
 
-            return jobType.AssemblyQualifiedNameWithoutVersion();
-        }
 
         /// <inheritdoc />
         public virtual async Task<int> UpdateJobDetail(
@@ -38,7 +30,7 @@ namespace Quartz.Impl.AdoJobStore
             using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateJobDetail));
             AddCommandParameter(cmd, "schedulerName", schedName);
             AddCommandParameter(cmd, "jobDescription", job.Description);
-            AddCommandParameter(cmd, "jobType", GetStorableJobTypeName(job.JobType));
+            AddCommandParameter(cmd, "jobType", job.JobType.FullName);
             AddCommandParameter(cmd, "jobDurable", GetDbBooleanValue(job.Durable));
             AddCommandParameter(cmd, "jobVolatile", GetDbBooleanValue(job.ConcurrentExecutionDisallowed));
             AddCommandParameter(cmd, "jobStateful", GetDbBooleanValue(job.PersistJobDataAfterExecution));
@@ -47,9 +39,7 @@ namespace Quartz.Impl.AdoJobStore
             AddCommandParameter(cmd, "jobName", job.Key.Name);
             AddCommandParameter(cmd, "jobGroup", job.Key.Group);
 
-            int insertResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-
-            return insertResult;
+            return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc />
@@ -147,7 +137,7 @@ namespace Quartz.Impl.AdoJobStore
                 var jobBuilder = JobBuilder.Create()
                     .WithIdentity(new JobKey(rs.GetString(ColumnJobName)!, rs.GetString(ColumnJobGroup)!))
                     .WithDescription(rs.GetString(ColumnDescription))
-                    .OfType(loadHelper.LoadType(rs.GetString(ColumnJobClass)!)!)
+                    .OfType(rs.GetString(ColumnJobClass)!)
                     .RequestRecovery(GetBooleanFromDbValue(rs[ColumnRequestsRecovery]))
                     .StoreDurably(GetBooleanFromDbValue(rs[ColumnIsDurable]));
 
@@ -225,6 +215,7 @@ namespace Quartz.Impl.AdoJobStore
                 var jobBuilder = JobBuilder.Create()
                     .WithIdentity(new JobKey(rs.GetString(ColumnJobName)!, rs.GetString(ColumnJobGroup)!))
                     .RequestRecovery(GetBooleanFromDbValue(rs[ColumnRequestsRecovery]))
+                    .OfType(rs.GetString(ColumnJobClass)!)
                     .StoreDurably(GetBooleanFromDbValue(rs[ColumnIsDurable]));
 
                 if (loadJobType)
@@ -329,7 +320,7 @@ namespace Quartz.Impl.AdoJobStore
             AddCommandParameter(cmd, "jobName", job.Key.Name);
             AddCommandParameter(cmd, "jobGroup", job.Key.Group);
             AddCommandParameter(cmd, "jobDescription", job.Description);
-            AddCommandParameter(cmd, "jobType", GetStorableJobTypeName(job.JobType));
+            AddCommandParameter(cmd, "jobType", job.JobType.FullName);
             AddCommandParameter(cmd, "jobDurable", GetDbBooleanValue(job.Durable));
             AddCommandParameter(cmd, "jobVolatile", GetDbBooleanValue(job.ConcurrentExecutionDisallowed));
             AddCommandParameter(cmd, "jobStateful", GetDbBooleanValue(job.PersistJobDataAfterExecution));

@@ -1,20 +1,20 @@
 #region License
 
-/* 
+/*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -22,6 +22,7 @@
 using System;
 
 using Quartz.Impl;
+using Quartz.Util;
 
 namespace Quartz
 {
@@ -30,7 +31,7 @@ namespace Quartz
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The builder will always try to keep itself in a valid state, with 
+    /// The builder will always try to keep itself in a valid state, with
     /// reasonable defaults set for calling Build() at any point.  For instance
     /// if you do not invoke <i>WithIdentity(..)</i> a job name will be generated
     /// for you.
@@ -50,13 +51,13 @@ namespace Quartz
     ///         IJobDetail job = JobBuilder.Create&lt;MyJob&gt;()
     ///             .WithIdentity("myJob")
     ///             .Build();
-    ///             
-    ///         ITrigger trigger = TriggerBuilder.Create() 
+    ///
+    ///         ITrigger trigger = TriggerBuilder.Create()
     ///             .WithIdentity("myTrigger", "myTriggerGroup")
     ///             .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
     ///             .StartAt(DateBuilder.FutureDate(10, IntervalUnit.Minute))
     ///             .Build();
-    ///         
+    ///
     ///         scheduler.scheduleJob(job, trigger);
     /// </code>
     /// </remarks>
@@ -67,7 +68,7 @@ namespace Quartz
     {
         private JobKey? key;
         private string? description;
-        private Type? jobType;
+        private JobType? jobType;
         private bool durability;
         private bool shouldRecover;
         private bool? _concurrentExecutionDisallowed;
@@ -137,22 +138,28 @@ namespace Quartz
         /// <returns>the defined JobDetail.</returns>
         public IJobDetail Build()
         {
+            if (jobType is null)
+            {
+                throw new InvalidOperationException("Job type has not been set");
+            }
+
             var concurrentExecutionDisallowed = _concurrentExecutionDisallowed;
             var persistJobDataAfterExecution = _persistJobDataAfterExecution;
 
             // When the user specified a job type, we can deduce the values for
             // ConcurrentExecutionDisallowed and PersistJobDataAfterExecution if
             // no explicit values were specified
-            if (jobType != null)
+            var resolvedJobType = Type.GetType(jobType.FullName);
+            if (resolvedJobType != null)
             {
                 if (!_concurrentExecutionDisallowed.HasValue)
                 {
-                    concurrentExecutionDisallowed = JobTypeInformation.GetOrCreate(jobType).ConcurrentExecutionDisallowed;
+                    concurrentExecutionDisallowed = JobTypeInformation.GetOrCreate(resolvedJobType).ConcurrentExecutionDisallowed;
                 }
 
                 if (!persistJobDataAfterExecution.HasValue)
                 {
-                    persistJobDataAfterExecution = JobTypeInformation.GetOrCreate(jobType).PersistJobDataAfterExecution;
+                    persistJobDataAfterExecution = JobTypeInformation.GetOrCreate(resolvedJobType).PersistJobDataAfterExecution;
                 }
             }
 
@@ -213,7 +220,7 @@ namespace Quartz
         /// </remarks>
         /// <param name="name">the name element for the Job's JobKey</param>
         /// <returns>the updated JobBuilder</returns>
-        /// <seealso cref="JobKey" /> 
+        /// <seealso cref="JobKey" />
         /// <seealso cref="IJobDetail.Key" />
         public JobBuilder WithIdentity(string name)
         {
@@ -270,6 +277,17 @@ namespace Quartz
         }
 
         /// <summary>
+        /// Set the JobType by name
+        /// </summary>
+        /// <param name="typeName">the Type name</param>
+        /// <returns>the updated JobBuilder</returns>
+        public JobBuilder OfType(string typeName)
+        {
+            jobType = typeName;
+            return this;
+        }
+
+        /// <summary>
         /// Set the class which will be instantiated and executed when a
         /// Trigger fires that is associated with this JobDetail.
         /// </summary>
@@ -288,7 +306,7 @@ namespace Quartz
         /// <seealso cref="IJobDetail.JobType" />
         public JobBuilder OfType(Type type)
         {
-            jobType = type;
+            jobType = new JobType(type);
             return this;
         }
 
@@ -413,7 +431,7 @@ namespace Quartz
         }
 
         /// <summary>
-        /// Add all the data from the given <see cref="JobDataMap" /> to the 
+        /// Add all the data from the given <see cref="JobDataMap" /> to the
         /// <see cref="IJobDetail" />'s <see cref="JobDataMap" />.
         /// </summary>
         ///<returns>the updated JobBuilder</returns>
