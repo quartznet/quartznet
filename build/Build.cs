@@ -7,6 +7,7 @@ using System.Text.RegularExpressions;
 
 using Nuke.Common;
 using Nuke.Common.CI;
+using Nuke.Common.CI.GitHubActions;
 using Nuke.Common.Execution;
 using Nuke.Common.Git;
 using Nuke.Common.IO;
@@ -109,6 +110,7 @@ partial class Build : NukeBuild
                 .SetProjectFile(Solution.GetProject("Quartz.Tests.Unit"))
                 .SetConfiguration(Configuration)
                 .SetFramework(framework)
+                .SetLoggers(GitHubActions.Instance is not null ? new [] { "GitHubActions" }  : Array.Empty<string>())
             );
         });
 

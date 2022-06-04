@@ -1,7 +1,0 @@
-<Project>
-  <Import Project="..\Directory.Build.props" />
-
-  <PropertyGroup>
-    <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
-  </PropertyGroup>
-</Project>

@@ -57,7 +57,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        [Category("sqlserver")]
+        [Category("db-sqlserver")]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public Task TestSqlServer(string serializerType)
         {
@@ -69,7 +69,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        [Category("sqlserver")]
+        [Category("db-sqlserver")]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public Task TestSqlServerMemoryOptimizedTables(string serializerType)
         {
@@ -82,6 +82,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
+        [Category("db-postgres")]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public Task TestPostgreSql(string serializerType)
         {
@@ -91,6 +92,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
+        [Category("db-mysql")]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public Task TestMySql(string serializerType)
         {
@@ -100,6 +102,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
+        [Category("db-sqlite")]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public async Task TestSQLiteMicrosoft(string serializerType)
         {
@@ -127,6 +130,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
+        [Category("db-firebird")]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public Task TestFirebird(string serializerType)
         {
@@ -136,6 +140,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
+        [Category("db-oracle")]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public Task TestOracleODPManaged(string serializerType)
         {
@@ -145,6 +150,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
+        [Category("db-sqlite")]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public async Task TestSQLite(string serializerType)
         {
@@ -244,7 +250,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        [Category("sqlserver")]
+        [Category("db-sqlserver")]
         public async Task ShouldBeAbleToUseMixedProperties()
         {
             NameValueCollection properties = new NameValueCollection();
@@ -301,6 +307,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
         [Test]
         [Explicit]
+        [Category("db-sqlserver")]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public async Task TestSqlServerStress(string serializerType)
         {
@@ -357,7 +364,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        [Category("sqlserver")]
+        [Category("db-sqlserver")]
         public async Task TestGetTriggerKeysWithLike()
         {
             var sched = await CreateScheduler(null);
@@ -366,7 +373,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        [Category("sqlserver")]
+        [Category("db-sqlserver")]
         public async Task TestGetTriggerKeysWithEquals()
         {
             var sched = await CreateScheduler(null);
@@ -375,7 +382,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        [Category("sqlserver")]
+        [Category("db-sqlserver")]
         public async Task TestGetJobKeysWithLike()
         {
             var sched = await CreateScheduler(null);
@@ -384,7 +391,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        [Category("sqlserver")]
+        [Category("db-sqlserver")]
         public async Task TestGetJobKeysWithEquals()
         {
             var sched = await CreateScheduler(null);
@@ -393,7 +400,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        [Category("sqlserver")]
+        [Category("db-sqlserver")]
         public async Task JobTypeNotFoundShouldNotBlock()
         {
             NameValueCollection properties = new NameValueCollection();

@@ -21,8 +21,7 @@ Quartz.NET supports .NET Core/netstandard 2.0 and .NET Framework 4.6.2 and later
 ## Building
 
 * You can build the code by running `build.cmd` (Windows) or `build.sh` (*nix platform)
-* You need MSBuild 17 and .NET Core SDK 6.0 to build - easiest to [download Visual Studio 2019 Community](https://www.visualstudio.com/downloads/)
-* You need Visual Studio 2022 to open the solution, [Community version](https://www.visualstudio.com/downloads/) should suffice
+* You need MSBuild 17 and .NET Core SDK 6.0 to build
 
 ## Acknowledgements
 

@@ -1,4 +1,4 @@
-﻿using System.Threading.Tasks;
+using System.Threading.Tasks;
 
 using NUnit.Framework;
 
@@ -15,6 +15,7 @@ namespace Quartz.Tests.Integration
     public class JobDataMapStorageTest : IntegrationTest
     {
         [Test]
+        [Category("db-sqlserver")]
         public async Task TestJobDataMapDirtyFlag()
         {
             IScheduler scheduler = await CreateScheduler("testBasicStorageFunctions");

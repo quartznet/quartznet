@@ -20,7 +20,6 @@
 #endregion
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
@@ -31,14 +30,12 @@ using System.Threading.Tasks;
 
 using Microsoft.Extensions.Logging;
 
-using Quartz.Collections;
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
-using Quartz.Util;
 
 #if REMOTING
 using System.Runtime.Remoting;
@@ -69,7 +66,6 @@ namespace Quartz.Core
         internal readonly QuartzSchedulerResources resources = null!;
 
         internal readonly QuartzSchedulerThread schedThread = null!;
-        private readonly ConcurrentDictionary<string, ITriggerListener> internalTriggerListeners = new ConcurrentDictionary<string, ITriggerListener>();
         private readonly List<ISchedulerListener> internalSchedulerListeners = new List<ISchedulerListener>(10);
 
         private IJobFactory jobFactory = new PropertySettingJobFactory();
@@ -1436,47 +1432,6 @@ namespace Quartz.Core
 
         public IListenerManager ListenerManager { get; } = new ListenerManagerImpl();
 
-        /// <summary>
-        /// Add the given <see cref="ITriggerListener" /> to the
-        /// <see cref="IScheduler" />'s <i>internal</i> list.
-        /// </summary>
-        /// <param name="triggerListener"></param>
-        public void AddInternalTriggerListener(ITriggerListener triggerListener)
-        {
-            if (triggerListener.Name.IsNullOrWhiteSpace())
-            {
-                throw new ArgumentException("TriggerListener name cannot be empty.", nameof(triggerListener));
-            }
-            internalTriggerListeners[triggerListener.Name] = triggerListener;
-        }
-
-        /// <summary>
-        /// Remove the identified <see cref="ITriggerListener" /> from the <see cref="IScheduler" />'s
-        /// list of <i>internal</i> listeners.
-        /// </summary>
-        /// <param name="name"></param>
-        /// <returns>true if the identified listener was found in the list, and removed.</returns>
-        public bool RemoveinternalTriggerListener(string name)
-        {
-            return internalTriggerListeners.TryRemove(name, out _);
-        }
-
-        /// <summary>
-        /// Get a list containing all of the <see cref="ITriggerListener" />s
-        /// in the <see cref="IScheduler" />'s <i>internal</i> list.
-        /// </summary>
-        public IReadOnlyCollection<ITriggerListener> InternalTriggerListeners => new ReadOnlyCollectionWrapper<ITriggerListener>(internalTriggerListeners.Values);
-
-        /// <summary>
-        /// Get the <i>internal</i> <see cref="ITriggerListener" /> that
-        /// has the given name.
-        /// </summary>
-        public ITriggerListener? GetInternalTriggerListener(string name)
-        {
-            internalTriggerListeners.TryGetValue(name, out var triggerListener);
-            return triggerListener;
-        }
-
         public virtual Task NotifyJobStoreJobVetoed(
             IOperableTrigger trigger,
             IJobDetail detail,
@@ -1507,24 +1462,6 @@ namespace Quartz.Core
             {
                 schedThread.SignalSchedulingChange(candidateNewNextFireTimeUtc);
             }
-        }
-
-        private IEnumerable<ITriggerListener>? BuildTriggerListenerList()
-        {
-            var listeners = ListenerManager.GetTriggerListeners();
-
-            // We use the enumerator trick for performance reasons; it allocates 64 bytes (on .NET 5.0),
-            // but is considerable faster than IsEmpty or checking if Count is zero, and allows for
-            // better parallelism. It doesn't provide snapshot semantics, and can there provide incorrect
-            // results. See https://github.com/dotnet/runtime/issues/25503 for more information.
-
-            if (listeners.Count == 0 && !internalTriggerListeners.GetEnumerator().MoveNext())
-            {
-                // default case that we don't have any
-                return null;
-            }
-
-            return listeners.Concat(internalTriggerListeners.Values);
         }
 
         private IEnumerable<ISchedulerListener> BuildSchedulerListenerList()
@@ -1571,13 +1508,13 @@ namespace Quartz.Core
             IJobExecutionContext jec,
             CancellationToken cancellationToken = default)
         {
-            var listeners = BuildTriggerListenerList();
-            return listeners is null
-                ? Task.FromResult(false)
-                : NotifyAwaited(ListenerManager, listeners, jec, cancellationToken);
+            var listeners = ListenerManager.GetTriggerListeners();
+
+            return listeners.Length == 0 ? Task.FromResult(false)
+                                         : NotifyAwaited(ListenerManager, listeners, jec, cancellationToken);
 
             static async Task<bool> NotifyAwaited(IListenerManager listenerManager,
-                                                  IEnumerable<ITriggerListener> listeners,
+                                                  ITriggerListener[] listeners,
                                                   IJobExecutionContext jec,
                                                   CancellationToken cancellationToken)
             {
@@ -1618,13 +1555,13 @@ namespace Quartz.Core
             ITrigger trigger,
             CancellationToken cancellationToken = default)
         {
-            var listeners = BuildTriggerListenerList();
-            return listeners is null
-                ? Task.CompletedTask
-                : NotifyAwaited(ListenerManager, listeners, trigger, cancellationToken);
+            var listeners = ListenerManager.GetTriggerListeners();
+
+            return listeners.Length == 0 ? Task.CompletedTask
+                                         : NotifyAwaited(ListenerManager, listeners, trigger, cancellationToken);
 
             static async Task NotifyAwaited(IListenerManager listenerManager,
-                                            IEnumerable<ITriggerListener> listeners,
+                                            ITriggerListener[] listeners,
                                             ITrigger trigger,
                                             CancellationToken cancellationToken)
             {
@@ -1659,16 +1596,13 @@ namespace Quartz.Core
             SchedulerInstruction instCode,
             CancellationToken cancellationToken = default)
         {
-            var listeners = BuildTriggerListenerList();
-            if (listeners is null)
-            {
-                return Task.CompletedTask;
-            }
+            var listeners = ListenerManager.GetTriggerListeners();
 
-            return NotifyAwaited(ListenerManager, listeners, jec, instCode, cancellationToken);
+            return listeners.Length == 0 ? Task.CompletedTask
+                                         : NotifyAwaited(ListenerManager, listeners, jec, instCode, cancellationToken);
 
             static async Task NotifyAwaited(IListenerManager listenerManager,
-                                            IEnumerable<ITriggerListener> listeners,
+                                            ITriggerListener[] listeners,
                                             IJobExecutionContext jec,
                                             SchedulerInstruction instCode,
                                             CancellationToken cancellationToken)

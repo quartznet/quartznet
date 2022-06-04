@@ -21,6 +21,8 @@
 
 using System.Threading.Tasks;
 
+using FluentAssertions;
+
 using NUnit.Framework;
 
 using Quartz.Impl;
@@ -53,7 +55,7 @@ namespace Quartz.Tests.Unit
         [Test]
         public void TestClone()
         {
-            JobDetailImpl jobDetail = new JobDetailImpl();
+            JobDetailImpl jobDetail = new JobDetailImpl("test",typeof(NoOpJob));
             JobDetailImpl clonedJobDetail = (JobDetailImpl) jobDetail.Clone();
 
             Assert.AreEqual(jobDetail, clonedJobDetail);
@@ -76,7 +78,7 @@ namespace Quartz.Tests.Unit
         [Test]
         public void SettingKeyShouldAlsoSetNameAndGroup()
         {
-            JobDetailImpl detail = new JobDetailImpl();
+            JobDetailImpl detail = new JobDetailImpl(nameof(SettingKeyShouldAlsoSetNameAndGroup), typeof(NoOpJob));
             detail.Key = new JobKey("name", "group");
 
             Assert.That(detail.Name, Is.EqualTo("name"));
@@ -94,6 +96,16 @@ namespace Quartz.Tests.Unit
 
             Assert.That(loadedType, Is.Not.Null);
             Assert.That(loadedType, Is.EqualTo(type));
+        }
+
+        [Test]
+        public void CanConstructJobAndReadJobType()
+        {
+            var type = typeof(GenericJob<string>);
+            var job = new JobDetailImpl("name", "group", type, true, true);
+            
+            job.JobType.Type.Should().Be(type);
+            job.JobType.FullName.Should().Be(type.AssemblyQualifiedNameWithoutVersion());
         }
 
         public class GenericJob<T> : IJob

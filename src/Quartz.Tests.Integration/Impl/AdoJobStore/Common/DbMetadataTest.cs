@@ -30,18 +30,21 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore.Common
     public class DbMetadataTest
     {
         [Test]
+        [Category("db-sqlserver")]
         public void TestDbMetadataSqlServer20()
         {
             TestDbMetadata(TestConstants.DefaultSqlServerProvider);
         }
 
         [Test]
+        [Category("db-firebird")]
         public void TestDbMetadataFirebird()
         {
             TestDbMetadata("Firebird", hashCustomBinaryType: false);
         }
 
         [Test]
+        [Category("db-mysql")]
         public void TestDbMetadataMySql()
         {
             TestDbMetadata("MySqlConnector");
@@ -50,12 +53,14 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore.Common
 #if !NETCORE
         
         [Test]
+        [Category("db-oracle")]
         public void TestDbMetadataOracleODP()
         {
             TestDbMetadata("OracleODP");
         }
 
         [Test]
+        [Category("db-oracle")]
         public void TestDbMetadataOracleODPManaged()
         {
             var provider = TestDbMetadata("OracleODPManaged");

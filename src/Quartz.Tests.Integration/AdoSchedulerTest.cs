@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Threading.Tasks;
 
 using NUnit.Framework;
@@ -12,7 +12,7 @@ using Quartz.Util;
 
 namespace Quartz.Tests.Integration
 {
-    [Category("sqlserver")]
+    [Category("db-sqlserver")]
     [TestFixture(typeof(BinaryObjectSerializer))]
     [TestFixture(typeof(JsonObjectSerializer))]
     public class AdoSchedulerTest : AbstractSchedulerTest

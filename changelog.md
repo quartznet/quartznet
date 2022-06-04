@@ -53,6 +53,30 @@
     **ListenerManager** on **QuartzScheduler** allows more control over the events that a **IJobListener** will
     receive.
 
+  * To improve performance and reduce allocations, `IListenerManager.GetTriggerListeners()` now returns (a shallow copy of)
+    the registered **ITriggerListener** instances as an array instead of an **IReadOnlyCollection<ITriggerListener>**.
+
+  * **QuartzScheduler** no longer defines properties and methods for accessing or manipulating internal trigger listeners.
+    **ListenerManager** on **QuartzScheduler** allows more control over the events that a **ITriggerListener** will
+    receive.
+
+  * Introduce JobType to allow storing job's type information without actual Type instance (#1610)
+
+## Release 3.5.0, mmm dd 2022
+
+* NEW FEATURES
+
+    * Allow PersistJobDataAfterExecution and ConcurrentExecutionDisallowed to be explicitly set in JobBuilder and pulled up to IJobConfigurator (#1575)
+    * Add TryGet functions to JobDataMap and StringKeyDirtyFlagMap (#1592)
+    * Add UseMySqlConnector overload for DB configuration (#1621)
+
+* FIXES
+
+    * Make RAMJobStore.RemoveJobInternal return true even if job has no triggers (#1580)
+    * Configuration property `quartz.jobStore.dbRetryInterval` will be correctly set when constructing the Scheduler JobStore.
+        * If you previously had configuration with the key `quartz.scheduler.dbFailureRetryInterval` please change to the above mentioned key.
+
+
 ## Release 3.4.0, Mar 27 2022
 
 This release has Quartz jobs start executing only after application startup completes successfully, unless QuartzHostedServiceOptions are used to specify otherwise.
