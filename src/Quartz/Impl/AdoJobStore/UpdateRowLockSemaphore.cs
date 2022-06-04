@@ -51,9 +51,6 @@ namespace Quartz.Impl.AdoJobStore
         public static readonly string SqlUpdateForLock =
             $"UPDATE {TablePrefixSubst}{TableLocks} SET {ColumnLockName} = {ColumnLockName} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnLockName} = @lockName";
 
-        public static readonly string SqlInsertLock =
-            $"INSERT INTO {TablePrefixSubst}{TableLocks}({ColumnSchedulerName}, {ColumnLockName}) VALUES (@schedulerName, @lockName)";
-
         protected virtual int RetryCount => 2;
 
         /// <summary>

@@ -292,13 +292,6 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         public string? DriverDelegateInitString { get; set; }
 
-        /// <summary>
-        /// set the SQL statement to use to select and lock a row in the "locks"
-        /// table.
-        /// </summary>
-        /// <seealso cref="StdRowLockSemaphore" />
-        public virtual string? SelectWithLockSQL { get; set; }
-
         protected virtual ITypeLoadHelper TypeLoadHelper => typeLoadHelper;
 
         /// <summary>
@@ -504,18 +497,8 @@ namespace Quartz.Impl.AdoJobStore
 
                 if (UseDBLocks)
                 {
-                    if (Delegate is SqlServerDelegate)
-                    {
-                        if (SelectWithLockSQL == null)
-                        {
-                            const string DefaultLockSql = "SELECT * FROM {0}LOCKS WITH (UPDLOCK,ROWLOCK) WHERE " + ColumnSchedulerName + " = @schedulerName AND LOCK_NAME = @lockName";
-                            Logger.LogInformation("Detected usage of SqlServerDelegate - defaulting 'selectWithLockSQL' to '{DefaultLockSql}'.", DefaultLockSql);
-                            SelectWithLockSQL = DefaultLockSql;
-                        }
-                    }
-
                     Logger.LogInformation("Using db table-based data access locking (synchronization).");
-                    LockHandler = new StdRowLockSemaphore(TablePrefix, InstanceName, SelectWithLockSQL, DbProvider);
+                    LockHandler = new StdRowLockSemaphore(TablePrefix, InstanceName, ((StdAdoDelegate)Delegate).GetSelectWithLockSql(), ((StdAdoDelegate)Delegate).GetInsertLockSql(), DbProvider);
                 }
                 else
                 {

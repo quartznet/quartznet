@@ -37,30 +37,24 @@ namespace Quartz.Impl.AdoJobStore
     /// </summary>
     public class StdRowLockSemaphore : DBSemaphore
     {
-        public static readonly string SelectForLock =
-            $"SELECT * FROM {TablePrefixSubst}{TableLocks} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnLockName} = @lockName FOR UPDATE";
-
-        public static readonly string InsertLock =
-            $"INSERT INTO {TablePrefixSubst}{TableLocks}({ColumnSchedulerName}, {ColumnLockName}) VALUES (@schedulerName, @lockName)";
-
         /// <summary>
         /// Initializes a new instance of the <see cref="StdRowLockSemaphore"/> class.
         /// </summary>
         public StdRowLockSemaphore(IDbProvider dbProvider)
-            : base(DefaultTablePrefix, null, SelectForLock, InsertLock, dbProvider)
+            : base(DefaultTablePrefix, null, SqlSelectWithLock, SqlInsertLock, dbProvider)
         {
 
         }
-
         /// <summary>
         /// Initializes a new instance of the <see cref="StdRowLockSemaphore"/> class.
         /// </summary>
         /// <param name="tablePrefix">The table prefix.</param>
         /// <param name="schedName">the scheduler name</param>
-        /// <param name="selectWithLockSQL">The select with lock SQL.</param>
+        /// <param name="selectWithLockSql">The select with lock SQL.</param>
+        /// <param name="insertLockSql">The insert lock SQL.</param>
         /// <param name="dbProvider"></param>
-        public StdRowLockSemaphore(string tablePrefix, string schedName, string? selectWithLockSQL, IDbProvider dbProvider)
-            : base(tablePrefix, schedName, selectWithLockSQL ?? SelectForLock, InsertLock, dbProvider)
+        public StdRowLockSemaphore(string tablePrefix, string schedName, string selectWithLockSql, string insertLockSql, IDbProvider dbProvider)
+            : base(tablePrefix, schedName, selectWithLockSql, insertLockSql, dbProvider)
         {
         }
 

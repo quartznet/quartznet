@@ -86,5 +86,9 @@ namespace Quartz.Impl.AdoJobStore
 
             base.AddCommandParameter(cmd, paramName, paramValue, dataType, size);
         }
+        public override string GetSelectWithLockSql()
+        {
+            return "SELECT * FROM {0}"+ TableLocks + " WITH (UPDLOCK,ROWLOCK) WHERE " + ColumnSchedulerName + " = @schedulerName AND LOCK_NAME = @lockName";
+        }
     }
 }
