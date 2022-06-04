@@ -352,5 +352,11 @@ namespace Quartz.Impl.AdoJobStore
 
         public static readonly string SqlUpdateTriggerStatesFromOtherStates =
             $"UPDATE {TablePrefixSubst}{TableTriggers} SET {ColumnTriggerState} = @newState WHERE {ColumnSchedulerName} = @schedulerName AND ({ColumnTriggerState} = @oldState1 OR {ColumnTriggerState} = @oldState2)";
+
+        public static readonly string SqlSelectWithLock = 
+            $"SELECT * FROM {TablePrefixSubst}{TableLocks} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnLockName} = @lockName FOR UPDATE";
+
+        public static readonly string SqlInsertLock = 
+            $"INSERT INTO {TablePrefixSubst}{TableLocks}({ColumnSchedulerName}, {ColumnLockName}) VALUES (@schedulerName, @lockName)";
     }
 }
