@@ -94,6 +94,12 @@ namespace Quartz
             var service = serviceProvider.GetService<T>();
             if (service is null)
             {
+                var diCtor = (implementationType ?? typeof(T)).GetConstructor(new[] { typeof(IServiceProvider) });
+                if (diCtor != null)
+                {
+                    return (T)diCtor.Invoke(new[] { serviceProvider });
+                }
+
                 service = ObjectUtils.InstantiateType<T>(implementationType);
             }
             return service;
