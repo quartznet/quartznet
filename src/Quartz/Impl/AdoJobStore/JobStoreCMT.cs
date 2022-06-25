@@ -26,7 +26,6 @@ using System.Threading.Tasks;
 
 using Microsoft.Extensions.Logging;
 
-using Quartz.Logging;
 using Quartz.Spi;
 
 namespace Quartz.Impl.AdoJobStore
@@ -56,7 +55,7 @@ namespace Quartz.Impl.AdoJobStore
         /// used, in order to give the it a chance to Initialize.
         /// </summary>
         public override Task Initialize(
-            ITypeLoadHelper loadHelper, 
+            ITypeLoadHelper loadHelper,
             ISchedulerSignaler signaler,
             CancellationToken cancellationToken = default)
         {
@@ -109,14 +108,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException(
-                    $"Failed to obtain DB connection from data source '{DataSource}': {e}", e);
-            }
-
-            if (conn == null)
-            {
-                throw new JobPersistenceException(
-                    $"Could not get connection from DataSource '{DataSource}'");
+                ThrowHelper.ThrowJobPersistenceException($"Failed to obtain DB connection from data source '{DataSource}': {e}", e);
+                return default;
             }
 
             return new ConnectionAndTransactionHolder(conn, null);

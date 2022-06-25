@@ -118,7 +118,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             if (lastFailure != null)
             {
-                throw new LockException("Failure obtaining db row lock: " + lastFailure.Message, lastFailure);
+                ThrowHelper.ThrowLockException("Failure obtaining db row lock: " + lastFailure.Message, lastFailure);
             }
         }
 
@@ -149,7 +149,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             if (sql == null)
             {
-                throw new ArgumentNullException(nameof(sql));
+                ThrowHelper.ThrowArgumentNullException(nameof(sql));
             }
 
             if (logger.IsEnabled(LogLevel.Debug))
@@ -163,7 +163,7 @@ namespace Quartz.Impl.AdoJobStore
 
             if (await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) != 1)
             {
-                throw new InvalidOperationException(
+                ThrowHelper.ThrowInvalidOperationException(
                     AdoJobStoreUtil.ReplaceTablePrefix("No row exists, and one could not be inserted in table " + TablePrefixSubst + TableLocks + " for lock named: " + lockName, TablePrefix));
             }
         }

@@ -200,7 +200,7 @@ namespace Quartz.Impl
         /// <throws>  SchedulerException </throws>
         public virtual IJobFactory JobFactory
         {
-            set => throw new SchedulerException("Operation not supported for remote schedulers.");
+            set => ThrowHelper.ThrowSchedulerException("Operation not supported for remote schedulers.");
         }
 
         /// <summary>
@@ -629,7 +629,14 @@ namespace Quartz.Impl
             return CallInGuard(x => x.GetCalendarNames());
         }
 
-        public IListenerManager ListenerManager => throw new SchedulerException("Operation not supported for remote schedulers.");
+        public IListenerManager ListenerManager
+        {
+            get
+            {
+                ThrowHelper.ThrowSchedulerException("Operation not supported for remote schedulers.");
+                return null;
+            }
+        }
 
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
@@ -644,7 +651,8 @@ namespace Quartz.Impl
             }
             catch (SchedulerException se)
             {
-                throw new UnableToInterruptJobException(se);
+                ThrowHelper.ThrowUnableToInterruptJobException(se);
+                return Task.FromResult(false);
             }
 #if REMOTING
             catch (RemotingException re)
@@ -652,7 +660,8 @@ namespace Quartz.Impl
             catch (Exception re) // TODO (NetCore Port): Determine the correct exception type
 #endif // REMOTING
             {
-                throw new UnableToInterruptJobException(InvalidateHandleCreateException("Error communicating with remote scheduler.", re));
+                ThrowHelper.ThrowUnableToInterruptJobException(InvalidateHandleCreateException("Error communicating with remote scheduler.", re));
+                return Task.FromResult(false);
             }
         }
 
@@ -666,7 +675,8 @@ namespace Quartz.Impl
             }
             catch (SchedulerException se)
             {
-                throw new UnableToInterruptJobException(se);
+                ThrowHelper.ThrowUnableToInterruptJobException(se);
+                return Task.FromResult(false);
             }
 #if REMOTING
             catch (RemotingException re)
@@ -674,7 +684,8 @@ namespace Quartz.Impl
             catch (Exception re) // TODO (NetCore Port): Determine the correct exception type
 #endif // REMOTING
             {
-                throw new UnableToInterruptJobException(InvalidateHandleCreateException("Error communicating with remote scheduler.", re));
+                ThrowHelper.ThrowUnableToInterruptJobException(InvalidateHandleCreateException("Error communicating with remote scheduler.", re));
+                return Task.FromResult(false);
             }
         }
 

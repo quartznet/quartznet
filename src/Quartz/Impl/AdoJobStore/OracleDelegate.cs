@@ -64,7 +64,8 @@ namespace Quartz.Impl.AdoJobStore
                 return Convert.ToInt32(columnValue) == 1;
             }
 
-            throw new ArgumentException("Value must be non-null.");
+            ThrowHelper.ThrowArgumentException("Value must be non-null.");
+            return false;
         }
     }
 }

@@ -104,7 +104,7 @@ namespace Quartz
         {
             if (!typeof(IJob).IsAssignableFrom(jobType))
             {
-                ExceptionHelper.ThrowArgumentException("jobType must implement the IJob interface", nameof(jobType));
+                ThrowHelper.ThrowArgumentException("jobType must implement the IJob interface", nameof(jobType));
             }
             var c = new JobConfigurator();
             if (jobKey != null)
@@ -136,7 +136,7 @@ namespace Quartz
 
             if (trigger.JobKey is null)
             {
-                throw new InvalidOperationException("Trigger hasn't been associated with a job");
+                ThrowHelper.ThrowInvalidOperationException("Trigger hasn't been associated with a job");
             }
 
             options.Services.Configure<QuartzOptions>(x =>
@@ -186,7 +186,7 @@ namespace Quartz
 
             if (t.JobKey is null || !t.JobKey.Equals(jobDetail.Key))
             {
-                throw new InvalidOperationException("Trigger doesn't refer to job being scheduled");
+                ThrowHelper.ThrowInvalidOperationException("Trigger doesn't refer to job being scheduled");
             }
 
             options.Services.Configure<QuartzOptions>(quartzOptions =>

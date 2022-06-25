@@ -42,7 +42,7 @@ namespace Quartz.Impl.Matchers
         {
             if (leftOperand == null || rightOperand == null)
             {
-                throw new ArgumentException("Two non-null operands required!");
+                ThrowHelper.ThrowArgumentException("Two non-null operands required!");
             }
 
             LeftOperand = leftOperand;

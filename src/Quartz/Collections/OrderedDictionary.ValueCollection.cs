@@ -37,7 +37,7 @@ namespace Quartz.Collections
             TValue IList<TValue>.this[int index]
             {
                 get => this[index];
-                set => throw new NotSupportedException();
+                set => ThrowHelper.ThrowNotSupportedException();
             }
 
             bool ICollection<TValue>.IsReadOnly => true;
@@ -72,13 +72,13 @@ namespace Quartz.Collections
                 return -1;
             }
 
-            void IList<TValue>.Insert(int index, TValue item) => throw new NotSupportedException();
+            void IList<TValue>.Insert(int index, TValue item) => ThrowHelper.ThrowNotSupportedException();
 
-            void IList<TValue>.RemoveAt(int index) => throw new NotSupportedException();
+            void IList<TValue>.RemoveAt(int index) => ThrowHelper.ThrowNotSupportedException();
 
-            void ICollection<TValue>.Add(TValue item) => throw new NotSupportedException();
+            void ICollection<TValue>.Add(TValue item) => ThrowHelper.ThrowNotSupportedException();
 
-            void ICollection<TValue>.Clear() => throw new NotSupportedException();
+            void ICollection<TValue>.Clear() => ThrowHelper.ThrowNotSupportedException();
 
             bool ICollection<TValue>.Contains(TValue item) => ((IList<TValue>)this).IndexOf(item) >= 0;
 
@@ -86,16 +86,16 @@ namespace Quartz.Collections
             {
                 if (array == null)
                 {
-                    throw new ArgumentNullException(nameof(array));
+                    ThrowHelper.ThrowArgumentNullException(nameof(array));
                 }
                 if ((uint)arrayIndex > (uint)array.Length)
                 {
-                    throw new ArgumentOutOfRangeException(nameof(arrayIndex));
+                    ThrowHelper.ThrowArgumentOutOfRangeException(nameof(arrayIndex));
                 }
                 int count = Count;
                 if (array.Length - arrayIndex < count)
                 {
-                    throw new ArgumentException();
+                    ThrowHelper.ThrowArgumentException("Invalid range");
                 }
 
                 Entry[] entries = _orderedDictionary._entries;
@@ -125,7 +125,11 @@ namespace Quartz.Collections
                 return array;
             }
 
-            bool ICollection<TValue>.Remove(TValue item) => throw new NotSupportedException();
+            bool ICollection<TValue>.Remove(TValue item)
+            {
+                ThrowHelper.ThrowNotSupportedException();
+                return false;
+            }
 
             /// <summary>
             /// Enumerates the elements of a <see cref="OrderedDictionary{TKey, TValue}.ValueCollection" />.
@@ -169,7 +173,7 @@ namespace Quartz.Collections
                 {
                     if (_version != _orderedDictionary._version)
                     {
-                        throw new InvalidOperationException();
+                        ThrowHelper.ThrowInvalidOperationException();
                     }
 
                     if (_index < _orderedDictionary.Count)
@@ -186,7 +190,7 @@ namespace Quartz.Collections
                 {
                     if (_version != _orderedDictionary._version)
                     {
-                        throw new InvalidOperationException();
+                        ThrowHelper.ThrowInvalidOperationException();
                     }
 
                     _index = 0;

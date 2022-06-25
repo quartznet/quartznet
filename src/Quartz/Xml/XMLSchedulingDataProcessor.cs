@@ -222,7 +222,7 @@ namespace Quartz.Xml
 
             if (data == null)
             {
-                throw new SchedulerConfigException("Job definition data from XML was null after deserialization");
+                ThrowHelper.ThrowSchedulerConfigException("Job definition data from XML was null after deserialization");
             }
 
             //
@@ -265,7 +265,7 @@ namespace Quartz.Xml
 
                             if (name == null)
                             {
-                                throw new SchedulerConfigException("Encountered a 'delete-job' command without a name specified.");
+                                ThrowHelper.ThrowSchedulerConfigException("Encountered a 'delete-job' command without a name specified.");
                             }
 
                             jobsToDelete.Add(new JobKey(name, group ?? Key<string>.DefaultGroup));
@@ -281,7 +281,7 @@ namespace Quartz.Xml
 
                             if (name == null)
                             {
-                                throw new SchedulerConfigException("Encountered a 'delete-trigger' command without a name specified.");
+                                ThrowHelper.ThrowSchedulerConfigException("Encountered a 'delete-trigger' command without a name specified.");
                             }
 
                             triggersToDelete.Add(new TriggerKey(name, group));
@@ -488,7 +488,8 @@ namespace Quartz.Xml
                 }
                 else
                 {
-                    throw new SchedulerConfigException("Unknown trigger type in XML configuration");
+                    ThrowHelper.ThrowSchedulerConfigException("Unknown trigger type in XML configuration");
+                    return;
                 }
 
                 IMutableTrigger trigger = (IMutableTrigger) TriggerBuilder.Create()
@@ -553,7 +554,7 @@ namespace Quartz.Xml
 
             if (!TryParseEnum(intervalUnit, out IntervalUnit retValue))
             {
-                throw new SchedulerConfigException("Unknown interval unit for DateIntervalTrigger: " + intervalUnit);
+                ThrowHelper.ThrowSchedulerConfigException("Unknown interval unit for DateIntervalTrigger: " + intervalUnit);
             }
 
             return retValue;
@@ -591,7 +592,7 @@ namespace Quartz.Xml
 
                 if (stream is null)
                 {
-                    throw new Exception("Could not read XSD from embedded resource");
+                    ThrowHelper.ThrowArgumentException("Could not read XSD from embedded resource");
                 }
 
                 var schema = XmlSchema.Read(stream, XmlValidationCallBack);
@@ -759,7 +760,7 @@ namespace Quartz.Xml
 
                     if (!OverWriteExistingData && !IgnoreDuplicates)
                     {
-                        throw new ObjectAlreadyExistsException(detail);
+                        ThrowHelper.ThrowObjectAlreadyExistsException(detail);
                     }
                 }
 
@@ -778,14 +779,14 @@ namespace Quartz.Xml
                 {
                     if (dupeJ == null)
                     {
-                        throw new SchedulerException(
+                        ThrowHelper.ThrowSchedulerException(
                             "A new job defined without any triggers must be durable: " +
                             detail.Key);
                     }
 
                     if (dupeJ.Durable && (await sched.GetTriggersOfJob(detail.Key, cancellationToken).ConfigureAwait(false)).Count == 0)
                     {
-                        throw new SchedulerException(
+                        ThrowHelper.ThrowSchedulerException(
                             "Can't change existing durable job without triggers to non-durable: " +
                             detail.Key);
                     }
@@ -830,7 +831,7 @@ namespace Quartz.Xml
                             }
                             else
                             {
-                                throw new ObjectAlreadyExistsException(trigger);
+                                ThrowHelper.ThrowObjectAlreadyExistsException(trigger);
                             }
 
                             if (!dupeT.JobKey.Equals(trigger.JobKey))
@@ -897,7 +898,7 @@ namespace Quartz.Xml
                     }
                     else
                     {
-                        throw new ObjectAlreadyExistsException(trigger);
+                        ThrowHelper.ThrowObjectAlreadyExistsException(trigger);
                     }
 
                     if (!dupeT.JobKey.Equals(trigger.JobKey))
@@ -957,7 +958,7 @@ namespace Quartz.Xml
                 var oldTriggerPreviousFireTime = oldTrigger.GetPreviousFireTimeUtc();
                 trigger.StartTimeUtc = oldTrigger.StartTimeUtc;
                 ((IOperableTrigger) trigger).SetPreviousFireTimeUtc(oldTriggerPreviousFireTime);
-                // if oldTriggerPreviousFireTime is null then NextFireTime should be set relative to oldTrigger.StartTimeUtc 
+                // if oldTriggerPreviousFireTime is null then NextFireTime should be set relative to oldTrigger.StartTimeUtc
                 // to be able to handle misfiring for an existing trigger that has never been executed before.
                 ((IOperableTrigger) trigger).SetNextFireTimeUtc(trigger.GetFireTimeAfter(oldTriggerPreviousFireTime ?? oldTrigger.StartTimeUtc));
             }
@@ -1130,7 +1131,8 @@ namespace Quartz.Xml
                 }
 
                 // not found
-                throw new Exception($"Unknown field '{field}'");
+                ThrowHelper.ThrowArgumentException($"Unknown field '{field}'");
+                return 0;
             }
         }
     }

@@ -14,8 +14,7 @@ public class JobTypeTests
     {
         Action act = () => new Quartz.Impl.JobType(typeof(ClassDoesNotImplementIJob));
 
-        act.Should().Throw<ArgumentException>()
-            .WithMessage("Job class must implement Quartz.IJob interface.");
+        act.Should().Throw<ArgumentException>().WithMessage("Job type must implement Quartz.IJob interface*");
     }
 
     [Test]

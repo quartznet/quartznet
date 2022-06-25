@@ -30,12 +30,12 @@ namespace Quartz
 	/// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class SchedulerConfigException : SchedulerException
+    public sealed class SchedulerConfigException : SchedulerException
 	{
 		/// <summary>
 		/// Create a <see cref="JobPersistenceException" /> with the given message.
 		/// </summary>
-		public SchedulerConfigException(string msg) : base(msg)
+		public SchedulerConfigException(string message) : base(message)
 		{
 		}
 
@@ -43,7 +43,7 @@ namespace Quartz
 		/// Create a <see cref="JobPersistenceException" /> with the given message
 		/// and cause.
 		/// </summary>
-		public SchedulerConfigException(string msg, Exception cause) : base(msg, cause)
+		public SchedulerConfigException(string message, Exception? innerException) : base(message, innerException)
 		{
 		}
 

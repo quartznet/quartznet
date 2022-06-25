@@ -78,7 +78,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (Exception e)
                 {
-                    throw new JobPersistenceException("Couldn't commit ADO.NET transaction. " + e.Message, e);
+                    ThrowHelper.ThrowJobPersistenceException("Couldn't commit ADO.NET transaction. " + e.Message, e);
                 }
             }
         }
@@ -169,7 +169,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             if (transaction != null && transaction.Connection == null)
             {
-                throw new InvalidOperationException("Transaction not connected, or was disconnected");
+                ThrowHelper.ThrowInvalidOperationException("Transaction not connected, or was disconnected");
             }
         }
     }

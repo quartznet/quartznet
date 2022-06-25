@@ -362,7 +362,7 @@ namespace Quartz
             JobKey k = jobDetail.Key;
             if (k.Name == null)
             {
-                throw new ArgumentException("The given job has not yet had a name assigned to it.");
+                ThrowHelper.ThrowArgumentException("The given job has not yet had a name assigned to it.");
             }
             jobKey = k;
             return this;

@@ -17,7 +17,6 @@
  */
 #endregion
 
-using System;
 using System.Collections.Generic;
 using System.Data.Common;
 
@@ -109,7 +108,7 @@ namespace Quartz.Util
 	    {
             if (string.IsNullOrEmpty(dsName))
             {
-                throw new ArgumentException("DataSource name cannot be null or empty", nameof(dsName));
+                ThrowHelper.ThrowArgumentException("DataSource name cannot be null or empty", nameof(dsName));
             }
 
             IDbProvider? provider;
@@ -120,7 +119,7 @@ namespace Quartz.Util
 
             if (provider == null)
             {
-                throw new Exception($"There is no DataSource named '{dsName}'");
+                ThrowHelper.ThrowArgumentException($"There is no DataSource named '{dsName}'", nameof(dsName));
             }
 
             return provider;

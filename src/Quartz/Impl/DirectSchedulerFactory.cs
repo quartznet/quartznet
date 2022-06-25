@@ -299,17 +299,17 @@ namespace Quartz.Impl
         {
             if (idleWaitTime < TimeSpan.Zero)
             {
-                throw new ArgumentOutOfRangeException(nameof(idleWaitTime), $"Cannot be less than {nameof(TimeSpan)}.{nameof(TimeSpan.Zero)}.");
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(idleWaitTime), $"Cannot be less than {nameof(TimeSpan)}.{nameof(TimeSpan.Zero)}.");
             }
 
             if (maxBatchSize < 1)
             {
-                throw new ArgumentOutOfRangeException(nameof(maxBatchSize), "Cannot be less than 1.");
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(maxBatchSize), "Cannot be less than 1.");
             }
 
             if (batchTimeWindow < TimeSpan.Zero)
             {
-                throw new ArgumentOutOfRangeException(nameof(batchTimeWindow), $"Cannot be less than {nameof(TimeSpan)}.{nameof(TimeSpan.Zero)}.");
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(batchTimeWindow), $"Cannot be less than {nameof(TimeSpan)}.{nameof(TimeSpan.Zero)}.");
             }
 
             // Currently only one run-shell factory is available...
@@ -394,7 +394,7 @@ namespace Quartz.Impl
 		{
 			if (!initialized)
 			{
-				throw new SchedulerException(
+				ThrowHelper.ThrowSchedulerException(
 					"you must call createRemoteScheduler or createScheduler methods before calling getScheduler()");
 			}
 			SchedulerRepository schedRep = SchedulerRepository.Instance;

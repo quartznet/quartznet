@@ -1,20 +1,20 @@
     #region License
 
-/* 
+/*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -60,7 +60,11 @@ using LogLevel = Microsoft.Extensions.Logging.LogLevel;
         /// <param name="name">the name of this instance</param>
         public BroadcastTriggerListener(string name)
         {
-            Name = name ?? throw new ArgumentNullException(nameof(name), "Listener name cannot be null!");
+            if (name is null)
+            {
+                ThrowHelper.ThrowArgumentNullException(nameof(name), "Listener name cannot be null!");
+            }
+            Name = name;
             listeners = new List<ITriggerListener>();
             logger = LogProvider.CreateLogger<BroadcastTriggerListener>();
         }
@@ -103,15 +107,15 @@ using LogLevel = Microsoft.Extensions.Logging.LogLevel;
         public IReadOnlyList<ITriggerListener> Listeners => listeners;
 
         public Task TriggerFired(
-            ITrigger trigger, 
-            IJobExecutionContext context, 
+            ITrigger trigger,
+            IJobExecutionContext context,
             CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.TriggerFired(trigger, context, cancellationToken), nameof(TriggerFired));
         }
 
         public async Task<bool> VetoJobExecution(
-            ITrigger trigger, 
+            ITrigger trigger,
             IJobExecutionContext context,
             CancellationToken cancellationToken = default)
         {
@@ -132,14 +136,14 @@ using LogLevel = Microsoft.Extensions.Logging.LogLevel;
         }
 
         public Task TriggerComplete(
-            ITrigger trigger, 
-            IJobExecutionContext context, 
+            ITrigger trigger,
+            IJobExecutionContext context,
             SchedulerInstruction triggerInstructionCode,
             CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.TriggerComplete(trigger, context, triggerInstructionCode, cancellationToken), nameof(TriggerComplete));
         }
-        
+
         private async Task IterateListenersInGuard(Func<ITriggerListener, Task> action, string methodName)
         {
             foreach (var listener in listeners)
@@ -152,7 +156,7 @@ using LogLevel = Microsoft.Extensions.Logging.LogLevel;
                 {
                     if (logger.IsEnabled(LogLevel.Error))
                     {
-                        logger.LogError(e,"Listener {ListenerName} - method {MethodName} raised an exception: {ExceptionMessage}", 
+                        logger.LogError(e,"Listener {ListenerName} - method {MethodName} raised an exception: {ExceptionMessage}",
                             listener.Name,methodName,e.Message);
                     }
                 }

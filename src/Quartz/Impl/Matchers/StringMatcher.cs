@@ -39,7 +39,11 @@ namespace Quartz.Impl.Matchers
 
         protected StringMatcher(string compareTo, StringOperator compareWith)
         {
-            CompareToValue = compareTo ?? throw new ArgumentNullException(nameof(compareTo), "CompareTo value cannot be null!");
+            if (compareTo is null)
+            {
+                ThrowHelper.ThrowArgumentNullException(nameof(compareTo), "CompareTo value cannot be null!");
+            }
+            CompareToValue = compareTo;
             CompareWithOperator = compareWith;
         }
 

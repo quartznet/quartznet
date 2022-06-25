@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 
 using Quartz.Collections;
-using Quartz.Impl.Matchers;
 
 namespace Quartz.Core
 {
@@ -32,12 +31,12 @@ namespace Quartz.Core
         {
             if (jobListener == null)
             {
-                throw new ArgumentNullException(nameof(jobListener));
+                ThrowHelper.ThrowArgumentNullException(nameof(jobListener));
             }
 
             if (string.IsNullOrEmpty(jobListener.Name))
             {
-                throw new ArgumentException($"{nameof(jobListener.Name)} cannot be null or empty.", nameof(jobListener));
+                ThrowHelper.ThrowArgumentException($"{nameof(jobListener.Name)} cannot be null or empty.", nameof(jobListener));
             }
 
             lock (globalJobListenerLock)
@@ -64,12 +63,12 @@ namespace Quartz.Core
         {
             if (listenerName == null)
             {
-                throw new ArgumentNullException(nameof(listenerName));
+                ThrowHelper.ThrowArgumentNullException(nameof(listenerName));
             }
 
             if (matcher == null)
             {
-                throw new ArgumentNullException(nameof(matcher));
+                ThrowHelper.ThrowArgumentNullException(nameof(matcher));
             }
 
             lock (globalJobListenerLock)
@@ -100,12 +99,12 @@ namespace Quartz.Core
         {
             if (listenerName == null)
             {
-                throw new ArgumentNullException(nameof(listenerName));
+                ThrowHelper.ThrowArgumentNullException(nameof(listenerName));
             }
 
             if (matcher == null)
             {
-                throw new ArgumentNullException(nameof(matcher));
+                ThrowHelper.ThrowArgumentNullException(nameof(matcher));
             }
 
             if (globalJobListenersMatchers == null)
@@ -135,7 +134,7 @@ namespace Quartz.Core
         {
             if (listenerName == null)
             {
-                throw new ArgumentNullException(nameof(listenerName));
+                ThrowHelper.ThrowArgumentNullException(nameof(listenerName));
             }
 
             if (globalJobListenersMatchers == null)
@@ -158,12 +157,12 @@ namespace Quartz.Core
         {
             if (listenerName == null)
             {
-                throw new ArgumentNullException(nameof(listenerName));
+                ThrowHelper.ThrowArgumentNullException(nameof(listenerName));
             }
 
             if (matchers == null)
             {
-                throw new ArgumentNullException(nameof(matchers));
+                ThrowHelper.ThrowArgumentNullException(nameof(matchers));
             }
 
             lock (globalJobListenerLock)
@@ -192,7 +191,7 @@ namespace Quartz.Core
         {
             if (name == null)
             {
-                throw new ArgumentNullException(nameof(name));
+                ThrowHelper.ThrowArgumentNullException(nameof(name));
             }
 
             if (globalJobListeners == null)
@@ -242,7 +241,7 @@ namespace Quartz.Core
         {
             if (name == null)
             {
-                throw new ArgumentNullException(nameof(name));
+                ThrowHelper.ThrowArgumentNullException(nameof(name));
             }
 
             lock (globalJobListenerLock)
@@ -250,7 +249,8 @@ namespace Quartz.Core
                 // Avoid initializing globalJobListeners when no job listeners have been added
                 if (globalJobListeners == null || !globalJobListeners.TryGetValue(name, out var jobListener))
                 {
-                    throw new KeyNotFoundException();
+                    ThrowHelper.ThrowKeyNotFoundException();
+                    return default;
                 }
 
                 return jobListener;
@@ -268,12 +268,12 @@ namespace Quartz.Core
         {
             if (triggerListener == null)
             {
-                throw new ArgumentNullException(nameof(triggerListener));
+                ThrowHelper.ThrowArgumentNullException(nameof(triggerListener));
             }
 
             if (string.IsNullOrEmpty(triggerListener.Name))
             {
-                throw new ArgumentException($"{nameof(triggerListener.Name)} cannot be empty.", nameof(triggerListener));
+                ThrowHelper.ThrowArgumentException($"{nameof(triggerListener.Name)} cannot be empty.", nameof(triggerListener));
             }
 
             lock (globalTriggerListenerLock)
@@ -300,17 +300,17 @@ namespace Quartz.Core
         {
             if (triggerListener == null)
             {
-                throw new ArgumentNullException(nameof(triggerListener));
+                ThrowHelper.ThrowArgumentNullException(nameof(triggerListener));
             }
 
             if (matcher == null)
             {
-                throw new ArgumentNullException(nameof(matcher));
+                ThrowHelper.ThrowArgumentNullException(nameof(matcher));
             }
 
             if (string.IsNullOrEmpty(triggerListener.Name))
             {
-                throw new ArgumentException($"{nameof(triggerListener.Name)} cannot be null or empty.", nameof(triggerListener));
+                ThrowHelper.ThrowArgumentException($"{nameof(triggerListener.Name)} cannot be null or empty.", nameof(triggerListener));
             }
 
             lock (globalTriggerListenerLock)
@@ -329,12 +329,12 @@ namespace Quartz.Core
         {
             if (listenerName == null)
             {
-                throw new ArgumentNullException(nameof(listenerName));
+                ThrowHelper.ThrowArgumentNullException(nameof(listenerName));
             }
 
             if (matcher == null)
             {
-                throw new ArgumentNullException(nameof(matcher));
+                ThrowHelper.ThrowArgumentNullException(nameof(matcher));
             }
 
             lock (globalTriggerListenerLock)
@@ -365,12 +365,12 @@ namespace Quartz.Core
         {
             if (listenerName == null)
             {
-                throw new ArgumentNullException(nameof(listenerName));
+                ThrowHelper.ThrowArgumentNullException(nameof(listenerName));
             }
 
             if (matcher == null)
             {
-                throw new ArgumentNullException(nameof(matcher));
+                ThrowHelper.ThrowArgumentNullException(nameof(matcher));
             }
 
             if (globalTriggerListenersMatchers == null)
@@ -400,7 +400,7 @@ namespace Quartz.Core
         {
             if (listenerName == null)
             {
-                throw new ArgumentNullException(nameof(listenerName));
+                ThrowHelper.ThrowArgumentNullException(nameof(listenerName));
             }
 
             if (globalTriggerListenersMatchers == null)
@@ -423,12 +423,12 @@ namespace Quartz.Core
         {
             if (listenerName == null)
             {
-                throw new ArgumentNullException(nameof(listenerName));
+                ThrowHelper.ThrowArgumentNullException(nameof(listenerName));
             }
 
             if (matchers == null)
             {
-                throw new ArgumentNullException(nameof(matchers));
+                ThrowHelper.ThrowArgumentNullException(nameof(matchers));
             }
 
             lock (globalTriggerListenerLock)
@@ -457,7 +457,7 @@ namespace Quartz.Core
         {
             if (name == null)
             {
-                throw new ArgumentNullException(nameof(name));
+                ThrowHelper.ThrowArgumentNullException(nameof(name));
             }
 
             if (globalTriggerListeners == null)
@@ -508,7 +508,7 @@ namespace Quartz.Core
         {
             if (name == null)
             {
-                throw new ArgumentNullException(nameof(name));
+                ThrowHelper.ThrowArgumentNullException(nameof(name));
             }
 
             lock (globalTriggerListenerLock)
@@ -516,7 +516,8 @@ namespace Quartz.Core
                 // Avoid initializing globalTriggerListeners when no trigger listeners have been added
                 if (globalTriggerListeners == null || !globalTriggerListeners.TryGetValue(name, out var triggerListener))
                 {
-                    throw new KeyNotFoundException();
+                    ThrowHelper.ThrowKeyNotFoundException();
+                    return default;
                 }
 
                 return triggerListener;

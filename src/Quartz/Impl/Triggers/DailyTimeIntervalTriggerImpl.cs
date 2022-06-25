@@ -246,13 +246,13 @@ namespace Quartz.Impl.Triggers
             {
                 if (value == DateTimeOffset.MinValue)
                 {
-                    throw new ArgumentException("Start time cannot be DateTimeOffset.MinValue");
+                    ThrowHelper.ThrowArgumentException("Start time cannot be DateTimeOffset.MinValue");
                 }
 
                 DateTimeOffset? eTime = EndTimeUtc;
                 if (eTime != null && eTime < value)
                 {
-                    throw new ArgumentException("End time cannot be before start time");
+                    ThrowHelper.ThrowArgumentException("End time cannot be before start time");
                 }
 
                 startTimeUtc = value;
@@ -271,7 +271,7 @@ namespace Quartz.Impl.Triggers
                 DateTimeOffset sTime = StartTimeUtc;
                 if (value != null && sTime > value)
                 {
-                    throw new ArgumentException("End time cannot be before start time");
+                    ThrowHelper.ThrowArgumentException("End time cannot be before start time");
                 }
 
                 endTimeUtc = value;
@@ -289,7 +289,7 @@ namespace Quartz.Impl.Triggers
             {
                 if (value < 0 && value != RepeatIndefinitely)
                 {
-                    throw new ArgumentException("Repeat count must be >= 0, use the constant RepeatIndefinitely for infinite.");
+                    ThrowHelper.ThrowArgumentException("Repeat count must be >= 0, use the constant RepeatIndefinitely for infinite.");
                 }
 
                 repeatCount = value;
@@ -312,7 +312,7 @@ namespace Quartz.Impl.Triggers
                       value == IntervalUnit.Minute ||
                       value == IntervalUnit.Hour))
                 {
-                    throw new ArgumentException("Invalid repeat IntervalUnit (must be Second, Minute or Hour)");
+                    ThrowHelper.ThrowArgumentException("Invalid repeat IntervalUnit (must be Second, Minute or Hour)");
                 }
 
                 repeatIntervalUnit = value;
@@ -331,7 +331,7 @@ namespace Quartz.Impl.Triggers
             {
                 if (value < 0)
                 {
-                    throw new ArgumentException("Repeat interval must be >= 1");
+                    ThrowHelper.ThrowArgumentException("Repeat interval must be >= 1");
                 }
 
                 repeatInterval = value;
@@ -834,26 +834,26 @@ namespace Quartz.Impl.Triggers
 
             if (repeatIntervalUnit != IntervalUnit.Second && repeatIntervalUnit != IntervalUnit.Minute && repeatIntervalUnit != IntervalUnit.Hour)
             {
-                throw new SchedulerException("Invalid repeat IntervalUnit (must be Second, Minute or Hour).");
+                ThrowHelper.ThrowSchedulerException("Invalid repeat IntervalUnit (must be Second, Minute or Hour).");
             }
             if (repeatInterval < 1)
             {
-                throw new SchedulerException("Repeat Interval cannot be zero.");
+                ThrowHelper.ThrowSchedulerException("Repeat Interval cannot be zero.");
             }
 
             // Ensure interval does not exceed 24 hours
             const long SecondsInHour = 24 * 60 * 60L;
             if (repeatIntervalUnit == IntervalUnit.Second && repeatInterval > SecondsInHour)
             {
-                throw new SchedulerException("repeatInterval can not exceed 24 hours (" + SecondsInHour + " seconds). Given " + repeatInterval);
+                ThrowHelper.ThrowSchedulerException("repeatInterval can not exceed 24 hours (" + SecondsInHour + " seconds). Given " + repeatInterval);
             }
             if (repeatIntervalUnit == IntervalUnit.Minute && repeatInterval > SecondsInHour / 60L)
             {
-                throw new SchedulerException("repeatInterval can not exceed 24 hours (" + SecondsInHour / 60L + " minutes). Given " + repeatInterval);
+                ThrowHelper.ThrowSchedulerException("repeatInterval can not exceed 24 hours (" + SecondsInHour / 60L + " minutes). Given " + repeatInterval);
             }
             if (repeatIntervalUnit == IntervalUnit.Hour && repeatInterval > 24)
             {
-                throw new SchedulerException("repeatInterval can not exceed 24 hours. Given " + repeatInterval + " hours.");
+                ThrowHelper.ThrowSchedulerException("repeatInterval can not exceed 24 hours. Given " + repeatInterval + " hours.");
             }
 
             // Ensure timeOfDay is in order.
@@ -862,7 +862,7 @@ namespace Quartz.Impl.Triggers
                 && !StartTimeOfDay.Equals(EndTimeOfDay)
                 && !StartTimeOfDay.Before(EndTimeOfDay))
             {
-                throw new SchedulerException($"StartTimeOfDay {startTimeOfDay} should not come after endTimeOfDay {endTimeOfDay}");
+                ThrowHelper.ThrowSchedulerException($"StartTimeOfDay {startTimeOfDay} should not come after endTimeOfDay {endTimeOfDay}");
             }
         }
 
@@ -888,11 +888,11 @@ namespace Quartz.Impl.Triggers
             {
                 if (value == null || value.Count == 0)
                 {
-                    throw new ArgumentException("DaysOfWeek set must be a set that contains at least one day.");
+                    ThrowHelper.ThrowArgumentException("DaysOfWeek set must be a set that contains at least one day.");
                 }
                 if (value.Count == 0)
                 {
-                    throw new ArgumentException("DaysOfWeek set must contain at least one day.");
+                    ThrowHelper.ThrowArgumentException("DaysOfWeek set must contain at least one day.");
                 }
 
                 daysOfWeek = new HashSet<DayOfWeek>(value);
@@ -916,14 +916,13 @@ namespace Quartz.Impl.Triggers
             {
                 if (value == null)
                 {
-                    throw new ArgumentException("Start time of day cannot be null");
+                    ThrowHelper.ThrowArgumentException("Start time of day cannot be null");
                 }
 
                 TimeOfDay eTime = EndTimeOfDay;
                 if (eTime != null && eTime.Before(value))
                 {
-                    throw new ArgumentException(
-                        "End time of day cannot be before start time of day");
+                    ThrowHelper.ThrowArgumentException("End time of day cannot be before start time of day");
                 }
 
                 startTimeOfDay = value;
@@ -940,13 +939,13 @@ namespace Quartz.Impl.Triggers
             {
                 if (value == null)
                 {
-                    throw new ArgumentException("End time of day cannot be null");
+                    ThrowHelper.ThrowArgumentException("End time of day cannot be null");
                 }
 
                 TimeOfDay sTime = StartTimeOfDay;
                 if (sTime != null && value.Before(sTime))
                 {
-                    throw new ArgumentException("End time of day cannot be before start time of day");
+                    ThrowHelper.ThrowArgumentException("End time of day cannot be before start time of day");
                 }
                 endTimeOfDay = value;
             }

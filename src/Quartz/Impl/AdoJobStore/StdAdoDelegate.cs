@@ -130,13 +130,13 @@ namespace Quartz.Impl.AdoJobStore
                             }
                             catch (Exception e)
                             {
-                                throw new NoSuchDelegateException("Error instantiating TriggerPersistenceDelegate of type: " + triggerTypeName, e);
+                                ThrowHelper.ThrowNoSuchDelegateException("Error instantiating TriggerPersistenceDelegate of type: " + triggerTypeName, e);
                             }
                         }
                     }
                     else
                     {
-                        throw new NoSuchDelegateException("Unknown setting: '" + name + "'");
+                        ThrowHelper.ThrowNoSuchDelegateException("Unknown setting: '" + name + "'");
                     }
                 }
             }
@@ -222,7 +222,8 @@ namespace Quartz.Impl.AdoJobStore
                 return Convert.ToBoolean(columnValue);
             }
 
-            throw new ArgumentException("Value must be non-null.");
+            ThrowHelper.ThrowArgumentException("Value must be non-null.");
+            return false;
         }
 
         /// <summary>
@@ -297,8 +298,8 @@ namespace Quartz.Impl.AdoJobStore
                 if (await isDbNull.ConfigureAwait(false))
                 {
                     return null;
-                }            
-                
+                }
+
                 if (CanUseProperties)
                 {
                     try
@@ -430,7 +431,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             else
             {
-                throw new ArgumentOutOfRangeException("Don't know how to translate " + matcher.CompareWithOperator + " into SQL");
+                ThrowHelper.ThrowArgumentOutOfRangeException("Don't know how to translate " + matcher.CompareWithOperator + " into SQL");
+                return default;
             }
             return groupName;
         }
@@ -547,13 +549,12 @@ namespace Quartz.Impl.AdoJobStore
                 string key = entry.Key;
                 object val = entry.Value ?? string.Empty;
 
-                if (!(val is string))
+                if (val is not string s)
                 {
-                    throw new IOException("JobDataMap values must be strings " +
-                                          "when the 'useProperties' property is set. " +
-                                          " Key of offending value: " + key);
+                    ThrowHelper.ThrowArgumentException($"JobDataMap values must be strings when the 'useProperties' property is set.  Key of offending value: {key}");
+                    return default;
                 }
-                properties[key] = (string) val;
+                properties[key] = s;
             }
             return properties;
         }

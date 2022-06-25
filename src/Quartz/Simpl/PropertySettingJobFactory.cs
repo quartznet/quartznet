@@ -224,7 +224,7 @@ namespace Quartz.Simpl
 		{
 			if (ThrowIfPropertyNotFound)
 			{
-				throw new SchedulerException(message, e);
+				ThrowHelper.ThrowSchedulerException(message, e);
 			}
 
 			if (WarnIfPropertyNotFound)

@@ -145,7 +145,8 @@ namespace Quartz.Impl
                         jobDataMap.GetString(SchedulerConstants.FailedJobOriginalTriggerGroup)!);
                 }
 
-                throw new InvalidOperationException("Not a recovering job");
+                ThrowHelper.ThrowInvalidOperationException("Not a recovering job");
+                return default;
             }
         }
 

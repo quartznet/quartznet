@@ -65,7 +65,7 @@ namespace Quartz.Collections
         public static int GetPrime(int min)
         {
             if (min < 0)
-                throw new ArgumentException("Hashtable's capacity overflowed and went negative. Check load factor, capacity and the current size of the table.");
+                ThrowHelper.ThrowArgumentException("Hashtable's capacity overflowed and went negative. Check load factor, capacity and the current size of the table.");
 
             for (int i = 0; i < primes.Length; i++)
             {

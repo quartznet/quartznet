@@ -1,20 +1,20 @@
 #region License
 
-/* 
+/*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
@@ -57,7 +57,11 @@ namespace Quartz.Listener
         /// <param name="name">the name of this instance</param>
         public BroadcastJobListener(ILogger<BroadcastJobListener> logger, string name)
         {
-            Name = name ?? throw new ArgumentNullException(nameof(name), "Listener name cannot be null!");
+            if (name is null)
+            {
+                ThrowHelper.ThrowArgumentNullException(nameof(name), "Listener name cannot be null!");
+            }
+            Name = name;
             listeners = new List<IJobListener>();
             this.logger = logger;
         }
@@ -101,7 +105,7 @@ namespace Quartz.Listener
         public IReadOnlyList<IJobListener> Listeners => listeners;
 
         public Task JobToBeExecuted(
-            IJobExecutionContext context, 
+            IJobExecutionContext context,
             CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.JobToBeExecuted(context, cancellationToken), nameof(JobToBeExecuted));
@@ -131,7 +135,7 @@ namespace Quartz.Listener
                 }
                 catch (Exception e)
                 {
-                    logger.LogError(e, "Listener {ListenerName} - method {MethodName} raised an exception: {Message}", 
+                    logger.LogError(e, "Listener {ListenerName} - method {MethodName} raised an exception: {Message}",
                         listener.Name, methodName, e.Message);
                 }
             }

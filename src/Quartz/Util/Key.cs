@@ -62,9 +62,9 @@ namespace Quartz.Util
         public Key(string name, string group)
         {
             if (name == null)
-                ExceptionHelper.ThrowArgumentNullException(nameof(name));
+                ThrowHelper.ThrowArgumentNullException(nameof(name));
             if (group == null)
-                ExceptionHelper.ThrowArgumentNullException(nameof(group));
+                ThrowHelper.ThrowArgumentNullException(nameof(group));
 
             this.name = name;
             this.group = group;
@@ -82,7 +82,7 @@ namespace Quartz.Util
             set
             {
                 if (value == null)
-                    ExceptionHelper.ThrowArgumentNullException(nameof(value));
+                    ThrowHelper.ThrowArgumentNullException(nameof(value));
 
                 name = value;
             }
@@ -101,7 +101,7 @@ namespace Quartz.Util
             set
             {
                 if (value == null)
-                    ExceptionHelper.ThrowArgumentNullException(nameof(value));
+                    ThrowHelper.ThrowArgumentNullException(nameof(value));
 
                 group = value;
             }

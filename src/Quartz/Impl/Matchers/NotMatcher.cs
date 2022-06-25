@@ -40,7 +40,11 @@ namespace Quartz.Impl.Matchers
 
         protected NotMatcher(IMatcher<TKey> operand)
         {
-            Operand = operand ?? throw new ArgumentNullException(nameof(operand), "Non-null operand required!");
+            if (operand is null)
+            {
+                ThrowHelper.ThrowArgumentNullException(nameof(operand), "Non-null operand required!");
+            }
+            Operand = operand;
         }
 
         /// <summary>

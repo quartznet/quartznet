@@ -273,11 +273,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (SerializationException e)
             {
-                throw new SerializationException(
-                    "Unable to serialize JobDataMap for insertion into " +
-                    "database because the value of property '" +
-                    GetKeyOfNonSerializableValue(data) +
-                    "' is not serializable: " + e.Message);
+                ThrowHelper.ThrowSerializationException($"Unable to serialize JobDataMap for insertion into database because the value of property '{GetKeyOfNonSerializableValue(data)}' is not serializable: {e.Message}");
+                return default;
             }
         }
 

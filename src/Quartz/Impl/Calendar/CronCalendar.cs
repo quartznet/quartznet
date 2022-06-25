@@ -116,7 +116,8 @@ namespace Quartz.Impl.Calendar
                     cronExpression = (CronExpression) info.GetValue("cronExpression", typeof(CronExpression))!;
                     break;
                 default:
-                    throw new NotSupportedException("Unknown serialization version");
+                    ThrowHelper.ThrowNotSupportedException("Unknown serialization version");
+                    break;
             }
         }
 
@@ -233,7 +234,14 @@ namespace Quartz.Impl.Calendar
         public CronExpression CronExpression
         {
             get => cronExpression;
-            set => cronExpression = value ?? throw new ArgumentException("expression cannot be null");
+            set
+            {
+                if (value is null)
+                {
+                    ThrowHelper.ThrowArgumentException("expression cannot be null");
+                }
+                cronExpression = value;
+            }
         }
 
         /// <summary>

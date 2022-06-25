@@ -40,24 +40,8 @@ namespace Quartz
 	/// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class JobExecutionException : SchedulerException
+    public sealed class JobExecutionException : SchedulerException
 	{
-		/// <summary>
-		/// Gets or sets a value indicating whether to unschedule firing trigger.
-		/// </summary>
-		/// <value>
-		/// 	<c>true</c> if firing trigger should be unscheduled; otherwise, <c>false</c>.
-		/// </value>
-		public virtual bool UnscheduleFiringTrigger { set; get; }
-
-		/// <summary>
-		/// Gets or sets a value indicating whether to unschedule all triggers.
-		/// </summary>
-		/// <value>
-		/// 	<c>true</c> if all triggers should be unscheduled; otherwise, <c>false</c>.
-		/// </value>
-		public virtual bool UnscheduleAllTriggers { set; get; }
-
 		/// <summary>
 		/// Create a JobExecutionException, with the 're-fire immediately' flag set
 		/// to <see langword="false" />.
@@ -69,24 +53,24 @@ namespace Quartz
 		/// <summary>
 		/// Create a JobExecutionException, with the given cause.
 		/// </summary>
-		/// <param name="cause">The cause.</param>
-		public JobExecutionException(Exception cause) : base(cause)
+		/// <param name="innerException">The cause.</param>
+		public JobExecutionException(Exception innerException) : base(innerException)
 		{
 		}
 
 		/// <summary>
 		/// Create a JobExecutionException, with the given message.
 		/// </summary>
-		public JobExecutionException(string msg) : base(msg)
+		public JobExecutionException(string message) : base(message)
 		{
 		}
 
 		/// <summary>
 		/// Initializes a new instance of the <see cref="JobExecutionException"/> class.
 		/// </summary>
-		/// <param name="msg">The message.</param>
-		/// <param name="cause">The original cause.</param>
-		public JobExecutionException(string msg, Exception cause) : base(msg, cause)
+		/// <param name="message">The message.</param>
+		/// <param name="innerException">The original cause.</param>
+		public JobExecutionException(string message, Exception innerException) : base(message, innerException)
 		{
 		}
 
@@ -103,7 +87,7 @@ namespace Quartz
 		/// Create a JobExecutionException with the given underlying exception, and
 		/// the 're-fire immediately' flag set to the given value.
 		/// </summary>
-		public JobExecutionException(Exception cause, bool refireImmediately) : base(cause)
+		public JobExecutionException(Exception innerException, bool refireImmediately) : base(innerException)
 		{
 			RefireImmediately = refireImmediately;
 		}
@@ -112,7 +96,7 @@ namespace Quartz
 		/// Create a JobExecutionException with the given message, and underlying
 		/// exception, and the 're-fire immediately' flag set to the given value.
 		/// </summary>
-		public JobExecutionException(string msg, Exception cause, bool refireImmediately) : base(msg, cause)
+		public JobExecutionException(string message, Exception innerException, bool refireImmediately) : base(message, innerException)
 		{
 			RefireImmediately = refireImmediately;
 		}
@@ -124,9 +108,26 @@ namespace Quartz
         /// <param name="context">The <see cref="T:System.Runtime.Serialization.StreamingContext"></see> that contains contextual information about the source or destination.</param>
         /// <exception cref="T:System.Runtime.Serialization.SerializationException">The class name is null or <see cref="P:System.Exception.HResult"></see> is zero (0). </exception>
         /// <exception cref="T:System.ArgumentNullException">The info parameter is null. </exception>
-        protected JobExecutionException(SerializationInfo info, StreamingContext context) : base(info, context)
+        private JobExecutionException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether to unschedule firing trigger.
+        /// </summary>
+        /// <value>
+        /// 	<c>true</c> if firing trigger should be unscheduled; otherwise, <c>false</c>.
+        /// </value>
+        public bool UnscheduleFiringTrigger { set; get; }
+
+        /// <summary>
+        /// Gets or sets a value indicating whether to unschedule all triggers.
+        /// </summary>
+        /// <value>
+        /// 	<c>true</c> if all triggers should be unscheduled; otherwise, <c>false</c>.
+        /// </value>
+        public bool UnscheduleAllTriggers { set; get; }
+
 
 		/// <summary>
 		/// Gets or sets a value indicating whether to refire immediately.

@@ -233,7 +233,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 if (value.TotalMilliseconds < 1)
                 {
-                    throw new ArgumentException("MisfireThreshold must be larger than 0");
+                    ThrowHelper.ThrowArgumentException("MisfireThreshold must be larger than 0");
                 }
                 misfireThreshold = value;
             }
@@ -251,7 +251,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 if (value.TotalMilliseconds < 1)
                 {
-                    throw new ArgumentException("MisfireHandlerFrequency must be larger than 0");
+                    ThrowHelper.ThrowArgumentException("MisfireHandlerFrequency must be larger than 0");
                 }
                 misfirehandlerFrequence = value;
             }
@@ -317,7 +317,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <returns></returns>
         public bool DoubleCheckLockMisfireHandler { get; set; }
-        
+
         public virtual TimeSpan GetAcquireRetryDelay(int failureCount) => DbRetryInterval;
 
         protected DbMetadata DbMetadata => ConnectionManager.GetDbMetadata(DataSource);
@@ -339,11 +339,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException($"Failed to obtain DB connection from data source '{DataSource}': {e}", e);
-            }
-            if (conn == null)
-            {
-                throw new JobPersistenceException($"Could not get connection from DataSource '{DataSource}'");
+                ThrowHelper.ThrowJobPersistenceException($"Failed to obtain DB connection from data source '{DataSource}': {e}", e);
+                return default;
             }
 
             try
@@ -361,7 +358,8 @@ namespace Quartz.Impl.AdoJobStore
             catch (Exception e)
             {
                 conn.Close();
-                throw new JobPersistenceException("Failure setting up connection.", e);
+                ThrowHelper.ThrowJobPersistenceException("Failure setting up connection.", e);
+                return default;
             }
 
             return new ConnectionAndTransactionHolder(conn, tx);
@@ -419,7 +417,7 @@ namespace Quartz.Impl.AdoJobStore
                             var ctor = delegateType.GetConstructor(Type.EmptyTypes);
                             if (ctor == null)
                             {
-                                throw new InvalidConfigurationException("Configured delegate does not have public constructor that takes no arguments");
+                                ThrowHelper.ThrowInvalidConfigurationException("Configured delegate does not have public constructor that takes no arguments");
                             }
 
                             driverDelegate = (IDriverDelegate) ctor.Invoke(null);
@@ -427,7 +425,7 @@ namespace Quartz.Impl.AdoJobStore
                         }
                         catch (Exception e)
                         {
-                            throw new NoSuchDelegateException("Couldn't instantiate delegate: " + e.Message, e);
+                            ThrowHelper.ThrowNoSuchDelegateException("Couldn't instantiate delegate: " + e.Message, e);
                         }
                     }
                 }
@@ -455,7 +453,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             if (string.IsNullOrWhiteSpace(DataSource))
             {
-                throw new SchedulerConfigException("DataSource name not set.");
+                ThrowHelper.ThrowSchedulerConfigException("DataSource name not set.");
             }
 
             typeLoadHelper = loadHelper;
@@ -476,7 +474,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 if (Clustered)
                 {
-                    throw new InvalidConfigurationException("SQLite cannot be used as clustered mode due to locking problems");
+                    ThrowHelper.ThrowInvalidConfigurationException("SQLite cannot be used as clustered mode due to locking problems");
                 }
                 if (!AcquireTriggersWithinLock)
                 {
@@ -561,7 +559,7 @@ namespace Quartz.Impl.AdoJobStore
                 catch (SchedulerException se)
                 {
                     Logger.LogError(se,"Failure occurred during job recovery: {ExceptionMessage}",se.Message);
-                    throw new SchedulerConfigException("Failure occurred during job recovery.", se);
+                    ThrowHelper.ThrowSchedulerConfigException("Failure occurred during job recovery.", se);
                 }
             }
 
@@ -711,7 +709,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't recover jobs: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't recover jobs: " + e.Message, e);
             }
         }
 
@@ -737,7 +735,7 @@ namespace Quartz.Impl.AdoJobStore
             if (hasMoreMisfiredTriggers)
             {
                 Logger.LogInformation(
-                    "Handling the first {Count} triggers that missed their scheduled fire-time. More misfired triggers remain to be processed.", 
+                    "Handling the first {Count} triggers that missed their scheduled fire-time. More misfired triggers remain to be processed.",
                     misfiredTriggers.Count);
             }
             else if (misfiredTriggers.Count > 0)
@@ -818,7 +816,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException($"Couldn't update misfired trigger '{triggerKey}': {e.Message}", e);
+                ThrowHelper.ThrowJobPersistenceException($"Couldn't update misfired trigger '{triggerKey}': {e.Message}", e);
+                return false;
             }
         }
 
@@ -875,7 +874,8 @@ namespace Quartz.Impl.AdoJobStore
             string groupName,
             CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException();
+            ThrowHelper.ThrowNotImplementedException();
+            return Task.FromResult(false);
         }
 
         /// <summary>
@@ -888,7 +888,8 @@ namespace Quartz.Impl.AdoJobStore
             string groupName,
             CancellationToken cancellationToken = default)
         {
-            throw new NotImplementedException();
+            ThrowHelper.ThrowNotImplementedException();
+            return Task.FromResult(false);
         }
 
         /// <summary>
@@ -928,7 +929,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     if (!replaceExisting)
                     {
-                        throw new ObjectAlreadyExistsException(newJob);
+                        ThrowHelper.ThrowObjectAlreadyExistsException(newJob);
                     }
                     await Delegate.UpdateJobDetail(conn, newJob, cancellationToken).ConfigureAwait(false);
                 }
@@ -939,11 +940,11 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (IOException e)
             {
-                throw new JobPersistenceException("Couldn't store job: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't store job: " + e.Message, e);
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't store job: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't store job: " + e.Message, e);
             }
         }
 
@@ -961,8 +962,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException(
-                    "Couldn't determine job existence (" + jobKey + "): " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't determine job existence (" + jobKey + "): " + e.Message, e);
+                return false;
             }
         }
 
@@ -1008,7 +1009,7 @@ namespace Quartz.Impl.AdoJobStore
 
             if (existingTrigger && !replaceExisting)
             {
-                throw new ObjectAlreadyExistsException(newTrigger);
+                ThrowHelper.ThrowObjectAlreadyExistsException(newTrigger);
             }
 
             try
@@ -1040,7 +1041,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 if (job == null)
                 {
-                    throw new JobPersistenceException($"The job ({newTrigger.JobKey}) referenced by the trigger does not exist.");
+                    ThrowHelper.ThrowJobPersistenceException($"The job ({newTrigger.JobKey}) referenced by the trigger does not exist.");
                 }
                 if (job.ConcurrentExecutionDisallowed && !recovering)
                 {
@@ -1058,7 +1059,7 @@ namespace Quartz.Impl.AdoJobStore
             catch (Exception e)
             {
                 string message = $"Couldn't store trigger '{newTrigger.Key}' for '{newTrigger.JobKey}' job: {e.Message}";
-                throw new JobPersistenceException(message, e);
+                ThrowHelper.ThrowJobPersistenceException(message, e);
             }
         }
 
@@ -1076,8 +1077,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException(
-                    "Couldn't determine trigger existence (" + triggerKey + "): " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't determine trigger existence (" + triggerKey + "): " + e.Message, e);
+                return default;
             }
         }
 
@@ -1120,7 +1121,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't remove job: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't remove job: " + e.Message, e);
+                return default;
             }
         }
 
@@ -1239,15 +1241,18 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (TypeLoadException e)
             {
-                throw new JobPersistenceException("Couldn't retrieve job because a required type was not found: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't retrieve job because a required type was not found: " + e.Message, e);
+                return default;
             }
             catch (IOException e)
             {
-                throw new JobPersistenceException("Couldn't retrieve job because the BLOB couldn't be deserialized: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't retrieve job because the BLOB couldn't be deserialized: " + e.Message, e);
+                return default;
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't retrieve job: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't retrieve job: " + e.Message, e);
+                return default;
             }
         }
 
@@ -1327,7 +1332,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't remove trigger: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't remove trigger: " + e.Message, e);
+                return default;
             }
 
             return removedTrigger;
@@ -1374,7 +1380,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 if (!newTrigger.JobKey.Equals(job.Key))
                 {
-                    throw new JobPersistenceException("New trigger is not related to the same job as the old trigger.");
+                    ThrowHelper.ThrowJobPersistenceException("New trigger is not related to the same job as the old trigger.");
                 }
 
                 bool removedTrigger = await DeleteTriggerAndChildren(conn, triggerKey, cancellationToken).ConfigureAwait(false);
@@ -1385,7 +1391,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't remove trigger: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't remove trigger: " + e.Message, e);
+                return default;
             }
         }
 
@@ -1415,7 +1422,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't retrieve trigger: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't retrieve trigger: " + e.Message, e);
+                return default;
             }
         }
 
@@ -1490,8 +1498,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException(
-                    "Couldn't determine state of trigger (" + triggerKey + "): " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't determine state of trigger (" + triggerKey + "): " + e.Message, e);
+                return default;
             }
         }
 
@@ -1537,14 +1545,14 @@ namespace Quartz.Impl.AdoJobStore
                 bool existingCal = await CalendarExists(conn, calName, cancellationToken).ConfigureAwait(false);
                 if (existingCal && !replaceExisting)
                 {
-                    throw new ObjectAlreadyExistsException("Calendar with name '" + calName + "' already exists.");
+                    ThrowHelper.ThrowObjectAlreadyExistsException("Calendar with name '" + calName + "' already exists.");
                 }
 
                 if (existingCal)
                 {
                     if (await Delegate.UpdateCalendar(conn, calName, calendar, cancellationToken).ConfigureAwait(false) < 1)
                     {
-                        throw new JobPersistenceException("Couldn't store calendar.  Update failed.");
+                        ThrowHelper.ThrowJobPersistenceException("Couldn't store calendar.  Update failed.");
                     }
 
                     if (updateTriggers)
@@ -1562,7 +1570,7 @@ namespace Quartz.Impl.AdoJobStore
                 {
                     if (await Delegate.InsertCalendar(conn, calName, calendar, cancellationToken).ConfigureAwait(false) < 1)
                     {
-                        throw new JobPersistenceException("Couldn't store calendar.  Insert failed.");
+                        ThrowHelper.ThrowJobPersistenceException("Couldn't store calendar.  Insert failed.");
                     }
                 }
 
@@ -1573,12 +1581,12 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (IOException e)
             {
-                throw new JobPersistenceException(
+                ThrowHelper.ThrowJobPersistenceException(
                     "Couldn't store calendar because the BLOB couldn't be serialized: " + e.Message, e);
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't store calendar: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't store calendar: " + e.Message, e);
             }
         }
 
@@ -1593,8 +1601,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException(
-                    "Couldn't determine calendar existence (" + calName + "): " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't determine calendar existence (" + calName + "): " + e.Message, e);
+                return default;
             }
         }
 
@@ -1628,7 +1636,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 if (await Delegate.CalendarIsReferenced(conn, calName, cancellationToken).ConfigureAwait(false))
                 {
-                    throw new JobPersistenceException("Calender cannot be removed if it referenced by a trigger!");
+                    ThrowHelper.ThrowJobPersistenceException("Calender cannot be removed if it referenced by a trigger!");
                 }
 
                 if (!Clustered)
@@ -1640,7 +1648,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't remove calendar: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't remove calendar: " + e.Message, e);
+                return default;
             }
         }
 
@@ -1685,12 +1694,13 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (IOException e)
             {
-                throw new JobPersistenceException(
-                    "Couldn't retrieve calendar because the BLOB couldn't be deserialized: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't retrieve calendar because the BLOB couldn't be deserialized: " + e.Message, e);
+                return default;
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't retrieve calendar: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't retrieve calendar: " + e.Message, e);
+                return default;
             }
         }
 
@@ -1714,7 +1724,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't obtain number of jobs: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't obtain number of jobs: " + e.Message, e);
+                return default;
             }
         }
 
@@ -1738,7 +1749,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't obtain number of triggers: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't obtain number of triggers: " + e.Message, e);
+                return default;
             }
         }
 
@@ -1762,7 +1774,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't obtain number of calendars: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't obtain number of calendars: " + e.Message, e);
+                return default;
             }
         }
 
@@ -1793,7 +1806,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't obtain job names: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't obtain job names: " + e.Message, e);
+                return default;
             }
         }
 
@@ -1826,7 +1840,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't check for existence of job: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't check for existence of job: " + e.Message, e);
+                return default;
             }
         }
 
@@ -1858,7 +1873,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't check for existence of job: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't check for existence of job: " + e.Message, e);
+                return default;
             }
         }
 
@@ -1890,7 +1906,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't check for existence of job: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't check for existence of job: " + e.Message, e);
+                return default;
             }
         }
 
@@ -1915,7 +1932,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Error clearing scheduling data: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Error clearing scheduling data: " + e.Message, e);
             }
         }
 
@@ -1946,7 +1963,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't obtain trigger names: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't obtain trigger names: " + e.Message, e);
+                return default;
             }
         }
 
@@ -1976,7 +1994,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't obtain job groups: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't obtain job groups: " + e.Message, e);
+                return default;
             }
         }
 
@@ -2006,7 +2025,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't obtain trigger groups: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't obtain trigger groups: " + e.Message, e);
+                return default;
             }
         }
 
@@ -2035,7 +2055,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't obtain trigger groups: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't obtain trigger groups: " + e.Message, e);
+                return default;
             }
         }
 
@@ -2064,7 +2085,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't obtain triggers for job: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't obtain triggers for job: " + e.Message, e);
+                return default;
             }
         }
 
@@ -2101,7 +2123,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException(
+                ThrowHelper.ThrowJobPersistenceException(
                     "Couldn't pause trigger '" + triggerKey + "': " + e.Message, e);
             }
         }
@@ -2188,8 +2210,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException(
-                    "Couldn't determine if trigger should be in a blocked state '" + jobKey + "': " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't determine if trigger should be in a blocked state '" + jobKey + "': " + e.Message, e);
+                return default;
             }
         }
 
@@ -2247,7 +2269,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't resume trigger '" + triggerKey + "': " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't resume trigger '" + triggerKey + "': " + e.Message, e);
             }
         }
 
@@ -2359,7 +2381,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't pause trigger group '" + matcher + "': " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't pause trigger group '" + matcher + "': " + e.Message, e);
+                return default;
             }
         }
 
@@ -2383,7 +2406,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't determine paused trigger groups: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't determine paused trigger groups: " + e.Message, e);
+                return default;
             }
         }
 
@@ -2459,7 +2483,8 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't pause trigger group '" + matcher + "': " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't pause trigger group '" + matcher + "': " + e.Message, e);
+                return default;
             }
         }
 
@@ -2497,7 +2522,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't pause all trigger groups: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't pause all trigger groups: " + e.Message, e);
             }
         }
 
@@ -2541,7 +2566,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't resume all trigger groups: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't resume all trigger groups: " + e.Message, e);
             }
         }
 
@@ -2591,7 +2616,8 @@ namespace Quartz.Impl.AdoJobStore
                     }
                     catch (Exception e)
                     {
-                        throw new JobPersistenceException("error validating trigger acquisition", e);
+                        ThrowHelper.ThrowJobPersistenceException("error validating trigger acquisition", e);
+                        return default;
                     }
                 },
                 cancellationToken);
@@ -2609,7 +2635,7 @@ namespace Quartz.Impl.AdoJobStore
         {
             if (timeWindow < TimeSpan.Zero)
             {
-                throw new ArgumentOutOfRangeException(nameof(timeWindow));
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(timeWindow));
             }
 
             List<IOperableTrigger> acquiredTriggers = new List<IOperableTrigger>();
@@ -2725,7 +2751,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (Exception e)
                 {
-                    throw new JobPersistenceException("Couldn't acquire next trigger: " + e.Message, e);
+                    ThrowHelper.ThrowJobPersistenceException("Couldn't acquire next trigger: " + e.Message, e);
                 }
             } while (true);
 
@@ -2761,7 +2787,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't release acquired trigger: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't release acquired trigger: " + e.Message, e);
             }
         }
 
@@ -2828,7 +2854,8 @@ namespace Quartz.Impl.AdoJobStore
                     }
                     catch (Exception e)
                     {
-                        throw new JobPersistenceException("error validating trigger acquisition", e);
+                        ThrowHelper.ThrowJobPersistenceException("error validating trigger acquisition", e);
+                        return default;
                     }
                 },
                 cancellationToken);
@@ -2854,7 +2881,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't select trigger state: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't select trigger state: " + e.Message, e);
             }
 
             try
@@ -2894,7 +2921,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't update fired trigger: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't update fired trigger: " + e.Message, e);
             }
 
             DateTimeOffset? prevFireTime = trigger.GetPreviousFireTimeUtc();
@@ -2917,7 +2944,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (Exception e)
                 {
-                    throw new JobPersistenceException("Couldn't update states of blocked triggers: " + e.Message, e);
+                    ThrowHelper.ThrowJobPersistenceException("Couldn't update states of blocked triggers: " + e.Message, e);
                 }
             }
 
@@ -3028,17 +3055,17 @@ namespace Quartz.Impl.AdoJobStore
                     }
                     catch (IOException e)
                     {
-                        throw new JobPersistenceException("Couldn't serialize job data: " + e.Message, e);
+                        ThrowHelper.ThrowJobPersistenceException("Couldn't serialize job data: " + e.Message, e);
                     }
                     catch (Exception e)
                     {
-                        throw new JobPersistenceException("Couldn't update job data: " + e.Message, e);
+                        ThrowHelper.ThrowJobPersistenceException("Couldn't update job data: " + e.Message, e);
                     }
                 }
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't update trigger state(s): " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't update trigger state(s): " + e.Message, e);
             }
 
             try
@@ -3047,7 +3074,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Couldn't delete fired trigger: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Couldn't delete fired trigger: " + e.Message, e);
             }
         }
 
@@ -3095,7 +3122,8 @@ namespace Quartz.Impl.AdoJobStore
             catch (Exception e)
             {
                 RollbackConnection(conn, e);
-                throw new JobPersistenceException("Database error recovering from misfires.", e);
+                ThrowHelper.ThrowJobPersistenceException("Database error recovering from misfires.", e);
+                return default;
             }
             finally
             {
@@ -3261,8 +3289,8 @@ namespace Quartz.Impl.AdoJobStore
             catch (Exception e)
             {
                 LastCheckin = SystemTime.UtcNow();
-                throw new JobPersistenceException("Failure identifying failed instances when checking-in: "
-                                                  + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Failure identifying failed instances when checking-in: " + e.Message, e);
+                return default;
             }
         }
 
@@ -3329,7 +3357,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             catch (Exception e)
             {
-                throw new JobPersistenceException("Failure updating scheduler state when checking-in: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Failure updating scheduler state when checking-in: " + e.Message, e);
             }
 
             return failedInstances;
@@ -3463,7 +3491,7 @@ namespace Quartz.Impl.AdoJobStore
                 }
                 catch (Exception e)
                 {
-                    throw new JobPersistenceException("Failure recovering jobs: " + e.Message, e);
+                    ThrowHelper.ThrowJobPersistenceException("Failure recovering jobs: " + e.Message, e);
                 }
             }
         }
@@ -3561,7 +3589,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 // ignore
             }
-            
+
 
             return ex is TimeoutException;
         }
@@ -3697,7 +3725,7 @@ namespace Quartz.Impl.AdoJobStore
             }
 
             return false;
-        } 
+        }
 
 
         /// <summary>
@@ -3802,7 +3830,8 @@ namespace Quartz.Impl.AdoJobStore
                 await Task.Delay(DbRetryInterval, cancellationToken).ConfigureAwait(false);
             }
 
-            throw new InvalidOperationException("JobStore is shutdown - aborting retry");
+            ThrowHelper.ThrowInvalidOperationException("JobStore is shutdown - aborting retry");
+            return default;
         }
 
         protected Task ExecuteInNonManagedTXLock(
@@ -3860,7 +3889,7 @@ namespace Quartz.Impl.AdoJobStore
                     requestorId = Guid.NewGuid();
                 }
             }
-            
+
             bool transOwner = false;
             ConnectionAndTransactionHolder? conn = null;
             try
@@ -3920,7 +3949,8 @@ namespace Quartz.Impl.AdoJobStore
             catch (Exception e)
             {
                 RollbackConnection(conn, e);
-                throw new JobPersistenceException("Unexpected runtime exception: " + e.Message, e);
+                ThrowHelper.ThrowJobPersistenceException("Unexpected runtime exception: " + e.Message, e);
+                return default;
             }
             finally
             {

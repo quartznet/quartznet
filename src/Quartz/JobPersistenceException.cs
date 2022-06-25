@@ -35,7 +35,7 @@ namespace Quartz
 		/// Create a <see cref="JobPersistenceException" /> with the given message.
 		/// </para>
 		/// </summary>
-		public JobPersistenceException(string msg) : base(msg)
+		public JobPersistenceException(string message) : base(message)
 		{
 		}
 
@@ -55,7 +55,7 @@ namespace Quartz
 		/// and cause.
 		/// </para>
 		/// </summary>
-		public JobPersistenceException(string msg, Exception? cause) : base(msg, cause)
+		public JobPersistenceException(string message, Exception? innerException) : base(message, innerException)
 		{
 		}
 	}

@@ -23,12 +23,10 @@ namespace Quartz.Simpl
         /// <param name="obj">Object to serialize.</param>
         public byte[] Serialize<T>(T obj) where T : class
         {
-            using (MemoryStream ms = new MemoryStream())
-            {
-                BinaryFormatter bf = new BinaryFormatter();
-                bf.Serialize(ms, obj);
-                return ms.ToArray();
-            }
+            using MemoryStream ms = new MemoryStream();
+            BinaryFormatter bf = new BinaryFormatter();
+            bf.Serialize(ms, obj);
+            return ms.ToArray();
         }
 
         /// <summary>
@@ -37,11 +35,9 @@ namespace Quartz.Simpl
         /// <param name="data">Data to deserialize object from.</param>
         public T? DeSerialize<T>(byte[] data) where T : class
         {
-            using (MemoryStream ms = new MemoryStream(data))
-            {
-                BinaryFormatter bf = new BinaryFormatter();
-                return (T) bf.Deserialize(ms);
-            }
+            using MemoryStream ms = new MemoryStream(data);
+            BinaryFormatter bf = new BinaryFormatter();
+            return (T) bf.Deserialize(ms);
         }
     }
 }

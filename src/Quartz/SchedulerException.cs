@@ -44,8 +44,7 @@ namespace Quartz
         /// <summary>
         /// Initializes a new instance of the <see cref="SchedulerException"/> class.
         /// </summary>
-        /// <param name="msg">The MSG.</param>
-        public SchedulerException(string msg) : base(msg)
+        public SchedulerException(string message) : base(message)
         {
         }
 
@@ -63,17 +62,17 @@ namespace Quartz
         /// <summary>
         /// Initializes a new instance of the <see cref="SchedulerException"/> class.
         /// </summary>
-        /// <param name="cause">The cause.</param>
-        public SchedulerException(Exception cause) : base(cause.Message, cause)
+        /// <param name="innerException">The cause.</param>
+        public SchedulerException(Exception innerException) : base(innerException.Message, innerException)
         {
         }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="SchedulerException"/> class.
         /// </summary>
-        /// <param name="msg">The MSG.</param>
-        /// <param name="cause">The cause.</param>
-        public SchedulerException(string msg, Exception? cause) : base(msg, cause)
+        /// <param name="message">The MSG.</param>
+        /// <param name="innerException">The cause.</param>
+        public SchedulerException(string message, Exception? innerException) : base(message, innerException)
         {
         }
 

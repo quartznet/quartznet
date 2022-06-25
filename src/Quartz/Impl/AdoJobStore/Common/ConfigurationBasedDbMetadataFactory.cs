@@ -23,10 +23,15 @@ namespace Quartz.Impl.AdoJobStore.Common
         {
             if (string.IsNullOrEmpty(propertyGroupName))
             {
-                throw new ArgumentNullException(nameof(propertyGroupName));
+                ThrowHelper.ThrowArgumentNullException(nameof(propertyGroupName));
             }
 
-            this.properties = properties ?? throw new ArgumentNullException(nameof(properties));
+            if (properties is null)
+            {
+                ThrowHelper.ThrowArgumentNullException(nameof(properties));
+            }
+
+            this.properties = properties;
             this.propertyGroupName = propertyGroupName;
         }
 
@@ -71,7 +76,8 @@ namespace Quartz.Impl.AdoJobStore.Common
             }
             catch (Exception ex)
             {
-                throw new ArgumentException("Error while reading metadata information for provider '" + providerName + "'", nameof(providerName), ex);
+                ThrowHelper.ThrowArgumentException("Error while reading metadata information for provider '" + providerName + "'", nameof(providerName), ex);
+                return default!;
             }
         }
     }

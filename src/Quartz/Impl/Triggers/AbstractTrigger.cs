@@ -207,7 +207,7 @@ namespace Quartz.Impl.Triggers
 			{
 				if (!ValidateMisfireInstruction(value))
 				{
-					throw new ArgumentException("The misfire instruction code is invalid for this type of trigger.");
+					ThrowHelper.ThrowArgumentException("The misfire instruction code is invalid for this type of trigger.");
 				}
 				misfireInstruction = value;
 			}
@@ -249,7 +249,7 @@ namespace Quartz.Impl.Triggers
 
 				if (value.HasValue && sTime > value.Value)
 				{
-					throw new ArgumentException("End time cannot be before start time");
+					ThrowHelper.ThrowArgumentException("End time cannot be before start time");
 				}
 
 				endTimeUtc = value;
@@ -275,7 +275,7 @@ namespace Quartz.Impl.Triggers
 			{
 				if (EndTimeUtc.HasValue && EndTimeUtc.Value < value)
 				{
-					throw new ArgumentException("End time cannot be before start time");
+					ThrowHelper.ThrowArgumentException("End time cannot be before start time");
 				}
 
 				if (!HasMillisecondPrecision)
@@ -517,12 +517,12 @@ namespace Quartz.Impl.Triggers
 		{
 			if (key == null)
 			{
-				throw new SchedulerException("Trigger's key cannot be null");
+				ThrowHelper.ThrowSchedulerException("Trigger's key cannot be null");
 			}
 
 			if (jobKey == null)
 			{
-				throw new SchedulerException("Trigger's job key cannot be null");
+				ThrowHelper.ThrowSchedulerException("Trigger's job key cannot be null");
 			}
 		}
 

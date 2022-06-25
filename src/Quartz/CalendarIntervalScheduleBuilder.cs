@@ -340,7 +340,7 @@ namespace Quartz
         {
             if (interval <= 0)
             {
-                throw new ArgumentException("Interval must be a positive value.");
+                ThrowHelper.ThrowArgumentException("Interval must be a positive value.");
             }
         }
 

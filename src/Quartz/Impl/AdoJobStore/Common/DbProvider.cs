@@ -80,7 +80,7 @@ namespace Quartz.Impl.AdoJobStore.Common
 
             if (Metadata == null)
             {
-                throw new ArgumentException($"Invalid DB provider name: {dbProviderName}{Environment.NewLine}{GenerateValidProviderNamesInfo()}");
+                ThrowHelper.ThrowArgumentException($"Invalid DB provider name: {dbProviderName}{Environment.NewLine}{GenerateValidProviderNamesInfo()}");
             }
 
             // check if command supports direct setting of BindByName property, needed for Oracle Managed ODP diver at least
@@ -119,7 +119,7 @@ namespace Quartz.Impl.AdoJobStore.Common
                         return result;
                     }
                 }
-                throw new ArgumentOutOfRangeException(nameof(providerName), "There is no metadata information for provider '" + providerName + "'");
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(providerName), "There is no metadata information for provider '" + providerName + "'");
             }
 
             return result;

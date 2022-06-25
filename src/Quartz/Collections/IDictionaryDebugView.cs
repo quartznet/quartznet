@@ -2,7 +2,6 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
@@ -14,7 +13,11 @@ namespace Quartz.Collections
 
         public IDictionaryDebugView(IDictionary<K, V> dictionary)
         {
-            _dict = dictionary ?? throw new ArgumentNullException(nameof(dictionary));
+            if (dictionary is null)
+            {
+                ThrowHelper.ThrowArgumentNullException(nameof(dictionary));
+            }
+            _dict = dictionary;
         }
 
         [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
@@ -35,7 +38,11 @@ namespace Quartz.Collections
 
         public DictionaryKeyCollectionDebugView(ICollection<TKey> collection)
         {
-            _collection = collection ?? throw new ArgumentNullException(nameof(collection));
+            if (collection is null)
+            {
+                ThrowHelper.ThrowArgumentNullException(nameof(collection));
+            }
+            _collection = collection;
         }
 
         [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]
@@ -56,7 +63,11 @@ namespace Quartz.Collections
 
         public DictionaryValueCollectionDebugView(ICollection<TValue> collection)
         {
-            _collection = collection ?? throw new ArgumentNullException(nameof(collection));
+            if (collection is null)
+            {
+                ThrowHelper.ThrowArgumentNullException(nameof(collection));
+            }
+            _collection = collection;
         }
 
         [DebuggerBrowsable(DebuggerBrowsableState.RootHidden)]

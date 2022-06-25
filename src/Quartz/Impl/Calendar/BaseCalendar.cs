@@ -128,7 +128,8 @@ namespace Quartz.Impl.Calendar
                     }
                     break;
                 default:
-                    throw new NotSupportedException("Unknown serialization version");
+                    ThrowHelper.ThrowNotSupportedException("Unknown serialization version");
+                    break;
             }
 
             CalendarBase = (ICalendar) info.GetValue(prefix + "baseCalendar", typeof(ICalendar))!;
@@ -183,7 +184,7 @@ namespace Quartz.Impl.Calendar
         {
             if (timeStampUtc == DateTimeOffset.MinValue)
             {
-                throw new ArgumentException("timeStampUtc must be greater 0");
+                ThrowHelper.ThrowArgumentException("timeStampUtc must be greater 0");
             }
 
             if (CalendarBase != null)
@@ -207,7 +208,7 @@ namespace Quartz.Impl.Calendar
         {
             if (timeUtc == DateTimeOffset.MinValue)
             {
-                throw new ArgumentException("timeStamp must be greater DateTimeOffset.MinValue");
+                ThrowHelper.ThrowArgumentException("timeStamp must be greater DateTimeOffset.MinValue");
             }
 
             if (CalendarBase != null)

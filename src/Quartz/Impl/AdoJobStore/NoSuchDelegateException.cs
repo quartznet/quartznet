@@ -29,13 +29,13 @@ namespace Quartz.Impl.AdoJobStore
     /// <author><a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class NoSuchDelegateException : JobPersistenceException
+    public sealed class NoSuchDelegateException : JobPersistenceException
 	{
-		public NoSuchDelegateException(string msg, Exception cause) : base(msg, cause)
+		public NoSuchDelegateException(string message, Exception? innerException) : base(message, innerException)
 		{
 		}
 
-		public NoSuchDelegateException(string msg) : base(msg)
+		public NoSuchDelegateException(string message) : base(message)
 		{
 		}
 
@@ -46,7 +46,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="context">The <see cref="T:System.Runtime.Serialization.StreamingContext"></see> that contains contextual information about the source or destination.</param>
         /// <exception cref="T:System.Runtime.Serialization.SerializationException">The class name is null or <see cref="P:System.Exception.HResult"></see> is zero (0). </exception>
         /// <exception cref="T:System.ArgumentNullException">The info parameter is null. </exception>
-        protected NoSuchDelegateException(SerializationInfo info, StreamingContext context) : base(info, context)
+        private NoSuchDelegateException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
     }

@@ -30,7 +30,7 @@ namespace Quartz.Simpl
             var property = Environment.GetEnvironmentVariable(SystemPropertyName);
             if (property == null)
             {
-                throw new SchedulerException("No value for '" + SystemProperty + "' system property found, please configure your environment accordingly!");
+                ThrowHelper.ThrowSchedulerException("No value for '" + SystemProperty + "' system property found, please configure your environment accordingly!");
             }
 
             if (Prepend != null)

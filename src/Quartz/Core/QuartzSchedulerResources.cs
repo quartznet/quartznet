@@ -67,7 +67,7 @@ namespace Quartz.Core
 			{
 				if (string.IsNullOrWhiteSpace(value))
 				{
-					throw new ArgumentException("Scheduler name cannot be empty.");
+					ThrowHelper.ThrowArgumentException("Scheduler name cannot be empty.");
 				}
 
 				name = value;
@@ -93,7 +93,7 @@ namespace Quartz.Core
 			{
 				if (string.IsNullOrWhiteSpace(value))
 				{
-					throw new ArgumentException("Scheduler instanceId cannot be empty.");
+					ThrowHelper.ThrowArgumentException("Scheduler instanceId cannot be empty.");
 				}
 
 				instanceId = value;
@@ -114,7 +114,7 @@ namespace Quartz.Core
 			{
 				if (string.IsNullOrWhiteSpace(value))
 				{
-					throw new ArgumentException("Scheduler thread name cannot be empty.");
+					ThrowHelper.ThrowArgumentException("Scheduler thread name cannot be empty.");
 				}
 
 				threadName = value;
@@ -129,12 +129,19 @@ namespace Quartz.Core
 		/// if threadPool is null.
 		/// </exception>
 		public virtual IThreadPool ThreadPool
-		{
-			get => threadPool;
-		    set => threadPool = value ?? throw new ArgumentException("ThreadPool cannot be null.");
-		}
+        {
+            get => threadPool;
+            set
+            {
+                if (value is null)
+                {
+                    ThrowHelper.ThrowArgumentException("ThreadPool cannot be null.");
+                }
+                threadPool = value;
+            }
+        }
 
-		/// <summary>
+        /// <summary>
 		/// Get or set the <see cref="IJobStore" /> for the <see cref="QuartzScheduler" />
 		/// to use.
 		/// </summary>
@@ -142,12 +149,19 @@ namespace Quartz.Core
 		/// if jobStore is null.
 		/// </exception>
 		public virtual IJobStore JobStore
-		{
-			get => jobStore;
-		    set => jobStore = value ?? throw new ArgumentException("JobStore cannot be null.");
-		}
+        {
+            get => jobStore;
+            set
+            {
+                if (value is null)
+                {
+                    ThrowHelper.ThrowArgumentException("JobStore cannot be null.");
+                }
+                jobStore = value;
+            }
+        }
 
-		/// <summary>
+        /// <summary>
 		/// Get or set the <see cref="JobRunShellFactory" /> for the <see cref="QuartzScheduler" />
 		/// to use.
 		/// </summary>
@@ -155,12 +169,19 @@ namespace Quartz.Core
 		/// if jobRunShellFactory is null.
 		/// </exception>
 		public virtual IJobRunShellFactory JobRunShellFactory
-		{
-			get => jobRunShellFactory;
-		    set => jobRunShellFactory = value ?? throw new ArgumentException("JobRunShellFactory cannot be null.");
-		}
+        {
+            get => jobRunShellFactory;
+            set
+            {
+                if (value is null)
+                {
+                    ThrowHelper.ThrowArgumentException("JobRunShellFactory cannot be null.");
+                }
+                jobRunShellFactory = value;
+            }
+        }
 
-		/// <summary>
+        /// <summary>
 		/// Gets the unique identifier.
 		/// </summary>
 		/// <param name="schedName">Name of the scheduler.</param>
@@ -224,12 +245,12 @@ namespace Quartz.Core
         /// <exception cref="ArgumentOutOfRangeException"><paramref name="value"/> is less than <see cref="TimeSpan.Zero"/>.</exception>
         public TimeSpan IdleWaitTime
         {
-            get { return _idleWaitTime; }
+            get => _idleWaitTime;
             set
             {
                 if (value < TimeSpan.Zero)
                 {
-                    ExceptionHelper.ThrowArgumentOutOfRangeException($"Cannot be less than {nameof(TimeSpan)}.{nameof(TimeSpan.Zero)}.", nameof(value));
+                    ThrowHelper.ThrowArgumentOutOfRangeException(nameof(value), $"Cannot be less than {nameof(TimeSpan)}.{nameof(TimeSpan.Zero)}.");
                 }
 
                 _idleWaitTime = value;
@@ -244,13 +265,14 @@ namespace Quartz.Core
         /// <see cref="TimeSpan.Zero"/>.
         /// </value>
         /// <exception cref="ArgumentOutOfRangeException"><paramref name="value"/> is less than <see cref="TimeSpan.Zero"/>.</exception>
-        public TimeSpan BatchTimeWindow {
-            get { return _batchTimeWindow; }
+        public TimeSpan BatchTimeWindow
+        {
+            get => _batchTimeWindow;
             set
             {
                 if (value < TimeSpan.Zero)
                 {
-                    ExceptionHelper.ThrowArgumentOutOfRangeException($"Cannot be less than {nameof(TimeSpan)}.{nameof(TimeSpan.Zero)}.", nameof(value));
+                    ThrowHelper.ThrowArgumentOutOfRangeException(nameof(value), $"Cannot be less than {nameof(TimeSpan)}.{nameof(TimeSpan.Zero)}.");
                 }
 
                 _batchTimeWindow = value;
@@ -267,12 +289,12 @@ namespace Quartz.Core
         /// <exception cref="ArgumentOutOfRangeException"><paramref name="value"/> is less than <c>1</c>.</exception>
 	    public int MaxBatchSize
         {
-            get { return _maxBatchSize; }
+            get => _maxBatchSize;
             set
             {
                 if (value < 1)
                 {
-                    ExceptionHelper.ThrowArgumentOutOfRangeException($"Cannot be less than 1.", nameof(value));
+                    ThrowHelper.ThrowArgumentOutOfRangeException(nameof(value), $"Cannot be less than 1.");
                 }
 
                 _maxBatchSize = value;

@@ -22,7 +22,6 @@
 using System;
 
 using Quartz.Impl;
-using Quartz.Util;
 
 namespace Quartz
 {
@@ -66,11 +65,11 @@ namespace Quartz
     /// <seealso cref="IJobDetail" />
     public class JobBuilder : IJobConfigurator
     {
-        private JobKey? key;
-        private string? description;
-        private JobType? jobType;
-        private bool durability;
-        private bool shouldRecover;
+        private JobKey? _key;
+        private string? _description;
+        private JobType? _jobType;
+        private bool _durability;
+        private bool _shouldRecover;
         private bool? _concurrentExecutionDisallowed;
         private bool? _persistJobDataAfterExecution;
 
@@ -79,7 +78,7 @@ namespace Quartz
         /// <summary>
         /// The key that identifies the job uniquely.
         /// </summary>
-        internal JobKey? Key => key;
+        internal JobKey? Key => _key;
 
         protected JobBuilder()
         {
@@ -138,9 +137,9 @@ namespace Quartz
         /// <returns>the defined JobDetail.</returns>
         public IJobDetail Build()
         {
-            if (jobType is null)
+            if (_jobType is null)
             {
-                throw new InvalidOperationException("Job type has not been set");
+                ThrowHelper.ThrowInvalidOperationException("Job type has not been set");
             }
 
             var concurrentExecutionDisallowed = _concurrentExecutionDisallowed;
@@ -149,7 +148,7 @@ namespace Quartz
             // When the user specified a job type, we can deduce the values for
             // ConcurrentExecutionDisallowed and PersistJobDataAfterExecution if
             // no explicit values were specified
-            var resolvedJobType = Type.GetType(jobType.FullName);
+            var resolvedJobType = Type.GetType(_jobType.FullName);
             if (resolvedJobType != null)
             {
                 if (!_concurrentExecutionDisallowed.HasValue)
@@ -164,10 +163,10 @@ namespace Quartz
             }
 
             return new JobDetailImpl(Key ?? new JobKey(Guid.NewGuid().ToString()),
-                                     jobType,
-                                     description,
-                                     durability,
-                                     shouldRecover,
+                                     _jobType,
+                                     _description,
+                                     _durability,
+                                     _shouldRecover,
                                      jobDataMap.IsEmpty ? null : jobDataMap,
                                      concurrentExecutionDisallowed,
                                      persistJobDataAfterExecution);
@@ -224,7 +223,7 @@ namespace Quartz
         /// <seealso cref="IJobDetail.Key" />
         public JobBuilder WithIdentity(string name)
         {
-            key = new JobKey(name);
+            _key = new JobKey(name);
             return this;
         }
 
@@ -243,7 +242,7 @@ namespace Quartz
         /// <seealso cref="IJobDetail.Key" />
         public JobBuilder WithIdentity(string name, string group)
         {
-            key = new JobKey(name, group);
+            _key = new JobKey(name, group);
             return this;
         }
 
@@ -260,7 +259,7 @@ namespace Quartz
         /// <seealso cref="IJobDetail.Key" />
         public JobBuilder WithIdentity(JobKey key)
         {
-            this.key = key;
+            this._key = key;
             return this;
         }
 
@@ -272,7 +271,7 @@ namespace Quartz
         /// <seealso cref="IJobDetail.Description" />
         public JobBuilder WithDescription(string? description)
         {
-            this.description = description;
+            this._description = description;
             return this;
         }
 
@@ -283,7 +282,7 @@ namespace Quartz
         /// <returns>the updated JobBuilder</returns>
         public JobBuilder OfType(string typeName)
         {
-            jobType = typeName;
+            _jobType = typeName;
             return this;
         }
 
@@ -306,7 +305,7 @@ namespace Quartz
         /// <seealso cref="IJobDetail.JobType" />
         public JobBuilder OfType(Type type)
         {
-            jobType = new JobType(type);
+            _jobType = new JobType(type);
             return this;
         }
 
@@ -322,7 +321,7 @@ namespace Quartz
         /// <returns>the updated JobBuilder</returns>
         public JobBuilder RequestRecovery(bool shouldRecover = true)
         {
-            this.shouldRecover = shouldRecover;
+            this._shouldRecover = shouldRecover;
             return this;
         }
 
@@ -338,7 +337,7 @@ namespace Quartz
         /// <seealso cref="IJobDetail.Durable" />
         public JobBuilder StoreDurably(bool durability = true)
         {
-            this.durability = durability;
+            this._durability = durability;
             return this;
         }
 
@@ -438,6 +437,10 @@ namespace Quartz
         /// <seealso cref="IJobDetail.JobDataMap" />
         public JobBuilder UsingJobData(JobDataMap newJobDataMap)
         {
+            if (newJobDataMap is null)
+            {
+                ThrowHelper.ThrowArgumentNullException(nameof(newJobDataMap));
+            }
             jobDataMap.PutAll(newJobDataMap);
             return this;
         }
@@ -448,9 +451,13 @@ namespace Quartz
         /// </summary>
         /// <param name="newJobDataMap"></param>
         /// <returns></returns>
-        public JobBuilder SetJobData(JobDataMap? newJobDataMap)
+        public JobBuilder SetJobData(JobDataMap newJobDataMap)
         {
-            jobDataMap = newJobDataMap ?? throw new ArgumentNullException(nameof(newJobDataMap));
+            if (newJobDataMap is null)
+            {
+                ThrowHelper.ThrowArgumentNullException(nameof(newJobDataMap));
+            }
+            jobDataMap = newJobDataMap;
             return this;
         }
     }

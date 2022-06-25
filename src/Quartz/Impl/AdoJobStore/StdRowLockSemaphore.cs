@@ -138,7 +138,7 @@ namespace Quartz.Impl.AdoJobStore
                                 // try again ...
                                 continue;
                             }
-                            throw new Exception(AdoJobStoreUtil.ReplaceTablePrefix(
+                            ThrowHelper.ThrowInvalidOperationException(AdoJobStoreUtil.ReplaceTablePrefix(
                                 "No row exists, and one could not be inserted in table " + TablePrefixSubst + TableLocks +
                                 " for lock named: " + lockName, TablePrefix));
                         }
@@ -168,11 +168,11 @@ namespace Quartz.Impl.AdoJobStore
                         continue;
                     }
 
-                    throw new LockException("Failure obtaining db row lock: " + sqle.Message, sqle);
+                    ThrowHelper.ThrowLockException("Failure obtaining db row lock: " + sqle.Message, sqle);
                 }
             } while (count < maxRetryLocal + 1);
 
-            throw new LockException("Failure obtaining db row lock, reached maximum number of attempts. Initial exception (if any) attached as root cause.", initCause);
+            ThrowHelper.ThrowLockException("Failure obtaining db row lock, reached maximum number of attempts. Initial exception (if any) attached as root cause.", initCause);
         }
     }
 }
