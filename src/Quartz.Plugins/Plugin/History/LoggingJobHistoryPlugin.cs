@@ -35,8 +35,7 @@ using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 namespace Quartz.Plugin.History
 {
     /// <summary>
-    /// Logs a history of all job executions (and execution vetoes) via common
-    /// logging.
+    /// Logs a history of all job executions (and execution vetoes).
     /// </summary>
     /// <remarks>
     /// 	<para>
