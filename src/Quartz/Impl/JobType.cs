@@ -10,59 +10,47 @@ namespace Quartz.Impl;
 [Serializable]
 public sealed class JobType
 {
-    private Lazy<Type> type = new(() => throw new InvalidOperationException("Type not defined"));
+    private Lazy<Type> type;
 
     /// <summary>
     /// Construct a Job Type specifying the Assembly Qualified NameWithout Version.
     /// There is no check on construction this type is valid.
     /// </summary>
     /// <param name="fullName">Type full name</param>
-    /// <exception cref="ArgumentNullException">Cannot be null</exception>
+    /// <exception cref="ArgumentNullException"><paramref name="fullName"/> is <see langword="null" /></exception>
     public JobType(string fullName)
     {
-        SetWithFullName(fullName ?? throw new ArgumentNullException(nameof(fullName)));
-    }
-
-    /// <summary>
-    /// Job Type declaration
-    /// </summary>
-    public JobType(Type type)
-    {
-        SetWithType(type);
-    }
-
-    /// <summary>
-    /// JobType Serialized Full name
-    /// </summary>
-    public string FullName { get; private set; } = "undefined";
-
-    private void SetWithFullName(string fullName)
-    {
-        FullName = fullName;
+        FullName = fullName ?? throw new ArgumentNullException(nameof(fullName));
         type = new Lazy<Type>(() =>
             Type.GetType(fullName) ?? throw new InvalidOperationException($"Job class Type {fullName} cannot be resolved."));
     }
 
     /// <summary>
-    /// Set the Job class type
+    /// Job Type declaration
     /// </summary>
-    /// <param name="jobType"></param>
-    /// <exception cref="ArgumentException"></exception>
-    public void SetWithType(Type jobType)
+    /// <param name="type">The Job Type</param>
+    /// <exception cref="ArgumentException"><paramref name="type"/> is not assignable from  <see cref="Quartz.IJob"/></exception>
+    /// <exception cref="ArgumentNullException"><paramref name="type"/> is <see langword="null" /></exception>
+    public JobType(Type type)
     {
-        if (jobType == null)
+        if (type == null)
         {
-            throw new ArgumentException("Job type cannot be null.");
+            throw new ArgumentNullException(nameof(type));
         }
 
-        if (!typeof(IJob).IsAssignableFrom(jobType))
+        if (!typeof(IJob).IsAssignableFrom(type))
         {
             throw new ArgumentException("Job class must implement Quartz.IJob interface.");
         }
 
-        type = new Lazy<Type>(() => jobType);
-        FullName = GetFullName(jobType);
+        this.type = new Lazy<Type>(() => type);
+        FullName = GetFullName(type);
     }
+
+    /// <summary>
+    /// JobType Serialized Full name
+    /// </summary>
+    public string FullName { get; private set; }
 
     public Type Type => type.Value;
 
