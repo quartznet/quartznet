@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
@@ -12,7 +11,7 @@ using Quartz.Spi;
 namespace Quartz.Simpl
 {
     /// <summary>
-    /// Default object serialization strategy that uses <see cref="JsonSerializer" /> 
+    /// Default object serialization strategy that uses <see cref="JsonSerializer" />
     /// under the hood.
     /// </summary>
     /// <author>Marko Lahma</author>
@@ -48,7 +47,7 @@ namespace Quartz.Simpl
         }
 
         /// <summary>
-        /// Serializes given object as bytes 
+        /// Serializes given object as bytes
         /// that can be stored to permanent stores.
         /// </summary>
         /// <param name="obj">Object to serialize.</param>
@@ -56,9 +55,9 @@ namespace Quartz.Simpl
         {
             if (serializer is null)
             {
-                throw new InvalidOperationException("The serializer hasn't been initialized, did you forget to call Initialize()?");
+                ThrowHelper.ThrowInvalidOperationException("The serializer hasn't been initialized, did you forget to call Initialize()?");
             }
-            
+
             using var ms = new MemoryStream();
             using (var sw = new StreamWriter(ms))
             {
@@ -76,9 +75,9 @@ namespace Quartz.Simpl
         {
             if (serializer is null)
             {
-                throw new InvalidOperationException("The serializer hasn't been initialized, did you forget to call Initialize()?");
+                ThrowHelper.ThrowInvalidOperationException("The serializer hasn't been initialized, did you forget to call Initialize()?");
             }
-            
+
             try
             {
                 using var ms = new MemoryStream(obj);

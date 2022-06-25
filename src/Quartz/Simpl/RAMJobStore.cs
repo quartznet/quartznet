@@ -90,7 +90,7 @@ namespace Quartz.Simpl
             {
                 if (value.TotalMilliseconds < 1)
                 {
-                    throw new ArgumentException("MisfireThreshold must be larger than 0");
+                    ThrowHelper.ThrowArgumentException("MisfireThreshold must be larger than 0");
                 }
                 misfireThreshold = value;
             }
@@ -274,7 +274,7 @@ namespace Quartz.Simpl
                 {
                     if (!replaceExisting)
                     {
-                        throw new ObjectAlreadyExistsException(newJob);
+                        ThrowHelper.ThrowObjectAlreadyExistsException(newJob);
                     }
 
                     // update job detail
@@ -328,7 +328,7 @@ namespace Quartz.Simpl
                 }
 
                 found = jobsByKey.Remove(jobKey) || found;
-                
+
                 if (found)
                 {
                     if (jobsByGroup.TryGetValue(jobKey.Group, out var grpMap))
@@ -389,13 +389,13 @@ namespace Quartz.Simpl
 
                         if (jobsByKey.ContainsKey(job.Key))
                         {
-                            throw new ObjectAlreadyExistsException(job);
+                            ThrowHelper.ThrowObjectAlreadyExistsException(job);
                         }
                         foreach (ITrigger trigger in triggersByJob.Value)
                         {
                             if (triggersByKey.ContainsKey(trigger.Key))
                             {
-                                throw new ObjectAlreadyExistsException(trigger);
+                                ThrowHelper.ThrowObjectAlreadyExistsException(trigger);
                             }
                         }
                     }
@@ -457,7 +457,7 @@ namespace Quartz.Simpl
                 {
                     if (!replaceExisting)
                     {
-                        throw new ObjectAlreadyExistsException(newTrigger);
+                        ThrowHelper.ThrowObjectAlreadyExistsException(newTrigger);
                     }
 
                     // don't delete orphaned job, this trigger has the job anyways
@@ -466,7 +466,7 @@ namespace Quartz.Simpl
 
                 if (!CheckExistsInternal(tw.JobKey))
                 {
-                    throw new JobPersistenceException("The job (" + tw.JobKey +
+                    ThrowHelper.ThrowJobPersistenceException("The job (" + tw.JobKey +
                                                       ") referenced by the trigger does not exist.");
                 }
 
@@ -592,7 +592,7 @@ namespace Quartz.Simpl
                 {
                     if (!tw!.JobKey.Equals(newTrigger.JobKey))
                     {
-                        throw new JobPersistenceException("New trigger is not related to the same job as the old trigger.");
+                        ThrowHelper.ThrowJobPersistenceException("New trigger is not related to the same job as the old trigger.");
                     }
 
                     // remove from triggers by group
@@ -792,7 +792,7 @@ namespace Quartz.Simpl
 
                 if (obj != null && replaceExisting == false)
                 {
-                    throw new ObjectAlreadyExistsException($"Calendar with name '{name}' already exists.");
+                    ThrowHelper.ThrowObjectAlreadyExistsException($"Calendar with name '{name}' already exists.");
                 }
                 if (obj != null)
                 {
@@ -857,7 +857,7 @@ namespace Quartz.Simpl
                 }
                 if (numRefs > 0)
                 {
-                    throw new JobPersistenceException("Calender cannot be removed if it referenced by a Trigger!");
+                    ThrowHelper.ThrowJobPersistenceException("Calender cannot be removed if it referenced by a Trigger!");
                 }
 
                 return calendarsByName.Remove(calName);
@@ -1829,11 +1829,8 @@ namespace Quartz.Simpl
                     if (jobDetail.PersistJobDataAfterExecution)
                     {
                         JobDataMap newData = jobDetail.JobDataMap;
-                        if (newData != null)
-                        {
-                            newData = (JobDataMap) newData.Clone();
-                            newData.ClearDirtyFlag();
-                        }
+                        newData = (JobDataMap) newData.Clone();
+                        newData.ClearDirtyFlag();
                         jd = jd.GetJobBuilder().SetJobData(newData).Build();
                         jw.JobDetail = jd;
                     }

@@ -23,7 +23,6 @@ using System.Collections.Specialized;
 using System.Globalization;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 
 namespace Quartz.Util
 {
@@ -164,7 +163,7 @@ namespace Quartz.Util
 			var val = GetStringProperty(name);
 			if (val == null)
 			{
-				throw new FormatException(" null string");
+				ThrowHelper.ThrowFormatException(" null string");
 			}
 
 			try
@@ -173,8 +172,9 @@ namespace Quartz.Util
 			}
 			catch (FormatException)
 			{
-				throw new FormatException($" '{val}'");
-			}
+				ThrowHelper.ThrowFormatException($" '{val}'");
+                return default;
+            }
 		}
 
         /// <summary>
@@ -197,7 +197,8 @@ namespace Quartz.Util
 			}
 			catch (FormatException)
 			{
-				throw new FormatException($" '{val}'");
+				ThrowHelper.ThrowFormatException($" '{val}'");
+                return default;
 			}
 		}
 
@@ -254,7 +255,7 @@ namespace Quartz.Util
 			var val = GetStringProperty(name);
 			if (val == null)
 			{
-				throw new FormatException(" null string");
+				ThrowHelper.ThrowFormatException(" null string");
 			}
 
 			try
@@ -263,7 +264,8 @@ namespace Quartz.Util
 			}
 			catch (FormatException)
 			{
-				throw new FormatException($" '{val}'");
+				ThrowHelper.ThrowFormatException($" '{val}'");
+                return default;
 			}
 		}
 
@@ -287,7 +289,8 @@ namespace Quartz.Util
 			}
 			catch (FormatException)
 			{
-				throw new FormatException($" '{val}'");
+				ThrowHelper.ThrowFormatException($" '{val}'");
+                return default;
 			}
 		}
 
@@ -301,7 +304,7 @@ namespace Quartz.Util
 			var val = GetStringProperty(name);
 			if (val == null)
 			{
-				throw new FormatException(" null string");
+				ThrowHelper.ThrowFormatException(" null string");
 			}
 
 			try
@@ -310,7 +313,8 @@ namespace Quartz.Util
 			}
 			catch (FormatException)
 			{
-				throw new FormatException($" '{val}'");
+				ThrowHelper.ThrowFormatException($" '{val}'");
+                return default;
 			}
 		}
 
@@ -334,7 +338,8 @@ namespace Quartz.Util
 			}
 			catch (FormatException)
 			{
-				throw new FormatException($" '{val}'");
+				ThrowHelper.ThrowFormatException($" '{val}'");
+                return default;
 			}
 		}
 
@@ -348,7 +353,7 @@ namespace Quartz.Util
 			var val = GetStringProperty(name);
 			if (val == null)
 			{
-				throw new FormatException(" null string");
+				ThrowHelper.ThrowFormatException(" null string");
 			}
 
 			try
@@ -357,7 +362,8 @@ namespace Quartz.Util
 			}
 			catch (FormatException)
 			{
-				throw new FormatException($" '{val}'");
+				ThrowHelper.ThrowFormatException($" '{val}'");
+                return default;
 			}
 		}
 
@@ -381,7 +387,8 @@ namespace Quartz.Util
 			}
 			catch (FormatException)
 			{
-				throw new FormatException($" '{val}'");
+				ThrowHelper.ThrowFormatException($" '{val}'");
+                return default;
 			}
 		}
 
@@ -423,7 +430,7 @@ namespace Quartz.Util
 						}
 						catch (FormatException)
 						{
-							throw new FormatException($" '{vals}'");
+							ThrowHelper.ThrowFormatException($" '{vals}'");
 						}
 					}
 					return ints;
@@ -447,7 +454,7 @@ namespace Quartz.Util
 			var val = GetStringProperty(name);
 			if (val == null)
 			{
-				throw new FormatException(" null string");
+				ThrowHelper.ThrowFormatException(" null string");
 			}
 
 			try
@@ -456,7 +463,8 @@ namespace Quartz.Util
 			}
 			catch (FormatException)
 			{
-				throw new FormatException($" '{val}'");
+				ThrowHelper.ThrowFormatException($" '{val}'");
+                return default;
 			}
 		}
 
@@ -480,7 +488,8 @@ namespace Quartz.Util
 			}
 			catch (FormatException)
 			{
-				throw new FormatException($" '{val}'");
+				ThrowHelper.ThrowFormatException($" '{val}'");
+                return default;
 			}
 		}
 
@@ -504,7 +513,8 @@ namespace Quartz.Util
             }
             catch (FormatException)
             {
-                throw new FormatException($" '{val}'");
+                ThrowHelper.ThrowFormatException($" '{val}'");
+                return default;
             }
         }
 
@@ -518,7 +528,7 @@ namespace Quartz.Util
 			var val = GetStringProperty(name);
 			if (val == null)
 			{
-				throw new FormatException(" null string");
+				ThrowHelper.ThrowFormatException(" null string");
 			}
 
 			try
@@ -527,7 +537,8 @@ namespace Quartz.Util
 			}
 			catch (FormatException)
 			{
-				throw new FormatException($" '{val}'");
+				ThrowHelper.ThrowFormatException($" '{val}'");
+                return default;
 			}
 		}
 
@@ -551,7 +562,8 @@ namespace Quartz.Util
 			}
 			catch (FormatException)
 			{
-				throw new FormatException($" '{val}'");
+				ThrowHelper.ThrowFormatException($" '{val}'");
+                return default;
 			}
 		}
 
@@ -659,7 +671,11 @@ namespace Quartz.Util
         public static PropertiesParser ReadFromEmbeddedAssemblyResource(string resourceName)
          {
 	         var stream = typeof(IScheduler).Assembly.GetManifestResourceStream(resourceName);
-	         return ReadFromStream(stream ?? throw new ArgumentException("cannot find resource " + resourceName));
+             if (stream is null)
+             {
+                 ThrowHelper.ThrowArgumentException("cannot find resource " + resourceName);
+             }
+	         return ReadFromStream(stream);
          }
 
         /// <summary>

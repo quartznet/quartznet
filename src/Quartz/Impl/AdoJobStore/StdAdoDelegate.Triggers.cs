@@ -708,7 +708,7 @@ namespace Quartz.Impl.AdoJobStore
 
                     if (tDel == null)
                     {
-                        throw new JobPersistenceException("No TriggerPersistenceDelegate for trigger discriminator type: " + triggerType);
+                        ThrowHelper.ThrowJobPersistenceException("No TriggerPersistenceDelegate for trigger discriminator type: " + triggerType);
                     }
 
                     try

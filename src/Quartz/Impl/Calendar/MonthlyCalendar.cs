@@ -90,7 +90,8 @@ namespace Quartz.Impl.Calendar
                     excludeAll = (bool) info.GetValue("excludeAll", typeof(bool))!;
                     break;
                 default:
-                    throw new NotSupportedException("Unknown serialization version");
+                    ThrowHelper.ThrowNotSupportedException("Unknown serialization version");
+                    break;
             }
         }
 
@@ -141,7 +142,7 @@ namespace Quartz.Impl.Calendar
         {
             if (day < 1 || day > MaxDaysInMonth)
             {
-                throw new ArgumentException(
+                ThrowHelper.ThrowArgumentException(
                     $"The day parameter must be in the range of 1 to {MaxDaysInMonth}");
             }
             return excludeDays[day - 1];

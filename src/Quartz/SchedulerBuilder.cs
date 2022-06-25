@@ -123,7 +123,7 @@ namespace Quartz
         {
             if (options == null)
             {
-                throw new ArgumentNullException(nameof(options));
+                ThrowHelper.ThrowArgumentNullException(nameof(options));
             }
 
             options(new PersistentStoreOptions(this, typeof(T)));

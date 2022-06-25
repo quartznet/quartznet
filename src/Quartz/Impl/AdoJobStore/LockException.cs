@@ -30,13 +30,13 @@ namespace Quartz.Impl.AdoJobStore
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class LockException : JobPersistenceException
+    public sealed class LockException : JobPersistenceException
 	{
-		public LockException(string msg) : base(msg)
+		public LockException(string message) : base(message)
 		{
 		}
 
-		public LockException(string msg, Exception? cause) : base(msg, cause)
+		public LockException(string message, Exception? innerException) : base(message, innerException)
 		{
 		}
 
@@ -47,7 +47,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="context">The <see cref="T:System.Runtime.Serialization.StreamingContext"></see> that contains contextual information about the source or destination.</param>
         /// <exception cref="T:System.Runtime.Serialization.SerializationException">The class name is null or <see cref="P:System.Exception.HResult"></see> is zero (0). </exception>
         /// <exception cref="T:System.ArgumentNullException">The info parameter is null. </exception>
-        protected LockException(SerializationInfo info, StreamingContext context) : base(info, context)
+        private LockException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
     }

@@ -1,6 +1,4 @@
-﻿using System;
-
-using Quartz.Spi;
+﻿using Quartz.Spi;
 
 namespace Quartz.Simpl
 {
@@ -23,9 +21,9 @@ namespace Quartz.Simpl
         {
             if (string.IsNullOrWhiteSpace(Address))
             {
-                throw new InvalidOperationException("Address hasn't been configured");
+                ThrowHelper.ThrowInvalidOperationException("Address hasn't been configured");
             }
-            
+
 #if REMOTING
             return (IRemotableQuartzScheduler) System.Activator.GetObject(typeof(IRemotableQuartzScheduler), Address);
 #else // REMOTING

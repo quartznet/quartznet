@@ -20,7 +20,7 @@ namespace Quartz.Impl.AdoJobStore
 
             if (StatePropertyNames.Length != StatePropertyValues.Length)
             {
-                throw new ArgumentException("property names and values must be of same length");
+                ThrowHelper.ThrowArgumentException("property names and values must be of same length");
             }
         }
 

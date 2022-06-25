@@ -25,7 +25,6 @@ using System.Threading.Tasks;
 
 using Microsoft.Extensions.Logging;
 
-using Quartz.Collections;
 using Quartz.Logging;
 
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
@@ -109,7 +108,7 @@ namespace Quartz.Impl.AdoJobStore
         /// thread.
         /// </summary>
         public virtual Task ReleaseLock(
-            Guid requestorId, 
+            Guid requestorId,
             string lockName,
             CancellationToken cancellationToken = default)
         {

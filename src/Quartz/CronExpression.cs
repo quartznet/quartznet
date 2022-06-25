@@ -391,7 +391,7 @@ namespace Quartz
         {
             if (cronExpression == null)
             {
-                throw new ArgumentException("cronExpression cannot be null");
+                ThrowHelper.ThrowArgumentException("cronExpression cannot be null");
             }
 
             CronExpressionString = CultureInfo.InvariantCulture.TextInfo.ToUpper(cronExpression);
@@ -430,7 +430,8 @@ namespace Quartz
                     }
                     break;
                 default:
-                    throw new NotSupportedException("Unknown serialization version");
+                    ThrowHelper.ThrowNotSupportedException("Unknown serialization version");
+                    break;
             }
         }
 
@@ -613,16 +614,16 @@ namespace Quartz
                     // throw an exception if L is used with other days of the month
                     if (exprOn == DayOfMonth && expr.IndexOf('L') != -1 && expr.Length > 1 && expr.IndexOf(",", StringComparison.Ordinal) >= 0)
                     {
-                        throw new FormatException("Support for specifying 'L' and 'LW' with other days of the month is not implemented");
+                        ThrowHelper.ThrowFormatException("Support for specifying 'L' and 'LW' with other days of the month is not implemented");
                     }
                     // throw an exception if L is used with other days of the week
                     if (exprOn == DayOfWeek && expr.IndexOf('L') != -1 && expr.Length > 1 && expr.IndexOf(",", StringComparison.Ordinal) >= 0)
                     {
-                        throw new FormatException("Support for specifying 'L' with other days of the week is not implemented");
+                        ThrowHelper.ThrowFormatException("Support for specifying 'L' with other days of the week is not implemented");
                     }
                     if (exprOn == DayOfWeek && expr.IndexOf('#') != -1 && expr.IndexOf('#', expr.IndexOf('#') + 1) != -1)
                     {
-                        throw new FormatException("Support for specifying multiple \"nth\" days is not implemented.");
+                        ThrowHelper.ThrowFormatException("Support for specifying multiple \"nth\" days is not implemented.");
                     }
 
                     string[] vTok = expr.Split(commaSeparator);
@@ -636,7 +637,7 @@ namespace Quartz
 
                 if (exprOn <= DayOfWeek)
                 {
-                    throw new FormatException("Unexpected end of expression.");
+                    ThrowHelper.ThrowFormatException("Unexpected end of expression.");
                 }
 
                 if (exprOn <= Year)
@@ -644,8 +645,8 @@ namespace Quartz
                     StoreExpressionVals(0, "*", Year);
                 }
 
-                ISet<int> dow = GetSet(DayOfWeek);
-                ISet<int> dom = GetSet(DayOfMonth);
+                var dow = GetSet(DayOfWeek);
+                var dom = GetSet(DayOfMonth);
 
                 // Copying the logic from the UnsupportedOperationException below
                 bool dayOfMSpec = !dom.Contains(NoSpec);
@@ -661,7 +662,7 @@ namespace Quartz
                 }
                 else
                 {
-                    throw new FormatException("Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.");
+                    ThrowHelper.ThrowFormatException("Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.");
                 }
             }
             catch (FormatException)
@@ -670,7 +671,7 @@ namespace Quartz
             }
             catch (Exception e)
             {
-                throw new FormatException($"Illegal cron expression format ({e.Message})", e);
+                ThrowHelper.ThrowFormatException($"Illegal cron expression format ({e.Message})", e);
             }
         }
 
@@ -700,7 +701,7 @@ namespace Quartz
                     sval = GetMonthNumber(sub) + 1;
                     if (sval <= 0)
                     {
-                        throw new FormatException($"Invalid Month value: '{sub}'");
+                        ThrowHelper.ThrowFormatException($"Invalid Month value: '{sub}'");
                     }
                     if (s.Length > i + 3)
                     {
@@ -712,7 +713,7 @@ namespace Quartz
                             eval = GetMonthNumber(sub) + 1;
                             if (eval <= 0)
                             {
-                                throw new FormatException(
+                                ThrowHelper.ThrowFormatException(
                                     $"Invalid Month value: '{sub}'");
                             }
                         }
@@ -723,7 +724,7 @@ namespace Quartz
                     sval = GetDayOfWeekNumber(sub);
                     if (sval < 0)
                     {
-                        throw new FormatException($"Invalid Day-of-Week value: '{sub}'");
+                        ThrowHelper.ThrowFormatException($"Invalid Day-of-Week value: '{sub}'");
                     }
                     if (s.Length > i + 3)
                     {
@@ -735,7 +736,7 @@ namespace Quartz
                             eval = GetDayOfWeekNumber(sub);
                             if (eval < 0)
                             {
-                                throw new FormatException(
+                                ThrowHelper.ThrowFormatException(
                                     $"Invalid Day-of-Week value: '{sub}'");
                             }
                         }
@@ -745,15 +746,14 @@ namespace Quartz
                             {
                                 i += 4;
                                 nthdayOfWeek = Convert.ToInt32(s.Substring(i), CultureInfo.InvariantCulture);
-                                if (nthdayOfWeek < 1 || nthdayOfWeek > 5)
+                                if (nthdayOfWeek is < 1 or > 5)
                                 {
-                                    throw new Exception();
+                                    ThrowHelper.ThrowFormatException("nthdayOfWeek is < 1 or > 5");
                                 }
                             }
                             catch (Exception)
                             {
-                                throw new FormatException(
-                                    "A numeric value between 1 and 5 must follow the '#' option");
+                                ThrowHelper.ThrowFormatException("A numeric value between 1 and 5 must follow the '#' option");
                             }
                         }
                         else if (c == '/')
@@ -762,15 +762,14 @@ namespace Quartz
                             {
                                 i += 4;
                                 everyNthWeek = Convert.ToInt32(s.Substring(i), CultureInfo.InvariantCulture);
-                                if (everyNthWeek < 1 || everyNthWeek > 5)
+                                if (everyNthWeek is < 1 or > 5)
                                 {
-                                    throw new Exception();
+                                    ThrowHelper.ThrowFormatException("everyNthWeek is < 1 or > 5");
                                 }
                             }
                             catch (Exception)
                             {
-                                throw new FormatException(
-                                    "A numeric value between 1 and 5 must follow the '/' option");
+                                ThrowHelper.ThrowFormatException("A numeric value between 1 and 5 must follow the '/' option");
                             }
                         }
                         else if (c == 'L')
@@ -780,13 +779,14 @@ namespace Quartz
                         }
                         else
                         {
-                            throw new FormatException($"Illegal characters for this position: '{sub}'");
+                            ThrowHelper.ThrowFormatException($"Illegal characters for this position: '{sub}'");
                         }
                     }
                 }
                 else
                 {
-                    throw new FormatException($"Illegal characters for this position: '{sub}'");
+                    ThrowHelper.ThrowFormatException($"Illegal characters for this position: '{sub}'");
+                    return default;
                 }
                 if (eval != -1)
                 {
@@ -801,12 +801,11 @@ namespace Quartz
                 i++;
                 if (i + 1 < s.Length && s[i] != ' ' && s[i + 1] != '\t')
                 {
-                    throw new FormatException("Illegal character after '?': "
-                                              + s[i]);
+                    ThrowHelper.ThrowFormatException("Illegal character after '?': " + s[i]);
                 }
                 if (type != DayOfWeek && type != DayOfMonth)
                 {
-                    throw new FormatException(
+                    ThrowHelper.ThrowFormatException(
                         "'?' can only be specified for Day-of-Month or Day-of-Week.");
                 }
                 if (type == DayOfWeek && !lastdayOfMonth)
@@ -814,7 +813,7 @@ namespace Quartz
                     int val = daysOfMonth.LastOrDefault();
                     if (val == NoSpecInt)
                     {
-                        throw new FormatException(
+                        ThrowHelper.ThrowFormatException(
                             "'?' can only be specified for Day-of-Month -OR- Day-of-Week.");
                     }
                 }
@@ -833,7 +832,7 @@ namespace Quartz
                 }
                 if (c == '/' && (i + 1 >= s.Length || s[i + 1] == ' ' || s[i + 1] == '\t'))
                 {
-                    throw new FormatException("'/' must be followed by an integer.");
+                    ThrowHelper.ThrowFormatException("'/' must be followed by an integer.");
                 }
                 if (startsWithAsterisk)
                 {
@@ -846,7 +845,7 @@ namespace Quartz
                     i++;
                     if (i >= s.Length)
                     {
-                        throw new FormatException("Unexpected end of string.");
+                        ThrowHelper.ThrowFormatException("Unexpected end of string.");
                     }
 
                     incr = GetNumericValue(s, i);
@@ -863,7 +862,7 @@ namespace Quartz
                     if (startsWithAsterisk)
                     {
                         // invalid value s
-                        throw new FormatException("Illegal characters after asterisk: " + s);
+                        ThrowHelper.ThrowFormatException("Illegal characters after asterisk: " + s);
                     }
                     incr = 1;
                 }
@@ -891,7 +890,7 @@ namespace Quartz
                         lastdayOffset = vs.theValue;
                         if (lastdayOffset > 30)
                         {
-                            throw new FormatException("Offset from last day must be <= 30");
+                            ThrowHelper.ThrowFormatException("Offset from last day must be <= 30");
                         }
                         i = vs.pos;
                     }
@@ -930,7 +929,7 @@ namespace Quartz
             }
             else
             {
-                throw new FormatException($"Unexpected character: {c}");
+                ThrowHelper.ThrowFormatException($"Unexpected character: {c}");
             }
 
             return i;
@@ -941,23 +940,23 @@ namespace Quartz
         {
             if (incr > 59 && (type == Second || type == Minute))
             {
-                throw new FormatException($"Increment > 60 : {incr}");
+                ThrowHelper.ThrowFormatException($"Increment > 60 : {incr}");
             }
             if (incr > 23 && type == Hour)
             {
-                throw new FormatException($"Increment > 24 : {incr}");
+                ThrowHelper.ThrowFormatException($"Increment > 24 : {incr}");
             }
             if (incr > 31 && type == DayOfMonth)
             {
-                throw new FormatException($"Increment > 31 : {incr}");
+                ThrowHelper.ThrowFormatException($"Increment > 31 : {incr}");
             }
             if (incr > 7 && type == DayOfWeek)
             {
-                throw new FormatException($"Increment > 7 : {incr}");
+                ThrowHelper.ThrowFormatException($"Increment > 7 : {incr}");
             }
             if (incr > 12 && type == Month)
             {
-                throw new FormatException($"Increment > 12 : {incr}");
+                ThrowHelper.ThrowFormatException($"Increment > 12 : {incr}");
             }
         }
 
@@ -988,15 +987,15 @@ namespace Quartz
                 {
                     if (val < 1 || val > 7)
                     {
-                        throw new FormatException("Day-of-Week values must be between 1 and 7");
+                        ThrowHelper.ThrowFormatException("Day-of-Week values must be between 1 and 7");
                     }
                     lastdayOfWeek = true;
                 }
                 else
                 {
-                    throw new FormatException($"'L' option is not valid here. (pos={i})");
+                    ThrowHelper.ThrowFormatException($"'L' option is not valid here. (pos={i})");
                 }
-                ISet<int> data = GetSet(type);
+                var data = GetSet(type);
                 data.Add(val);
                 i++;
                 return i;
@@ -1010,14 +1009,14 @@ namespace Quartz
                 }
                 else
                 {
-                    throw new FormatException($"'W' option is not valid here. (pos={i})");
+                    ThrowHelper.ThrowFormatException($"'W' option is not valid here. (pos={i})");
                 }
                 if (val > 31)
                 {
-                    throw new FormatException("The 'W' option does not make sense with values larger than 31 (max number of days in a month)");
+                    ThrowHelper.ThrowFormatException("The 'W' option does not make sense with values larger than 31 (max number of days in a month)");
                 }
 
-                ISet<int> data = GetSet(type);
+                var data = GetSet(type);
                 data.Add(val);
                 i++;
                 return i;
@@ -1027,25 +1026,23 @@ namespace Quartz
             {
                 if (type != DayOfWeek)
                 {
-                    throw new FormatException(
-                        $"'#' option is not valid here. (pos={i})");
+                    ThrowHelper.ThrowFormatException($"'#' option is not valid here. (pos={i})");
                 }
                 i++;
                 try
                 {
                     nthdayOfWeek = Convert.ToInt32(s.Substring(i), CultureInfo.InvariantCulture);
-                    if (nthdayOfWeek < 1 || nthdayOfWeek > 5)
+                    if (nthdayOfWeek is < 1 or > 5)
                     {
-                        throw new Exception();
+                        ThrowHelper.ThrowFormatException("nthdayOfWeek is < 1 or > 5");
                     }
                 }
                 catch (Exception)
                 {
-                    throw new FormatException(
-                        "A numeric value between 1 and 5 must follow the '#' option");
+                    ThrowHelper.ThrowFormatException("A numeric value between 1 and 5 must follow the '#' option");
                 }
 
-                ISet<int> data = GetSet(type);
+                var data = GetSet(type);
                 data.Add(val);
                 i++;
                 return i;
@@ -1063,9 +1060,9 @@ namespace Quartz
                 }
                 else
                 {
-                    throw new FormatException($"'C' option is not valid here. (pos={i})");
+                    ThrowHelper.ThrowFormatException($"'C' option is not valid here. (pos={i})");
                 }
-                ISet<int> data = GetSet(type);
+                var data = GetSet(type);
                 data.Add(val);
                 i++;
                 return i;
@@ -1122,7 +1119,7 @@ namespace Quartz
             {
                 if (i + 1 >= s.Length || s[i + 1] == ' ' || s[i + 1] == '\t')
                 {
-                    throw new FormatException("\'/\' must be followed by an integer.");
+                    ThrowHelper.ThrowFormatException("\'/\' must be followed by an integer.");
                 }
 
                 i++;
@@ -1145,7 +1142,7 @@ namespace Quartz
                     i = vs.pos;
                     return i;
                 }
-                throw new FormatException($"Unexpected character '{c}' after '/'");
+                ThrowHelper.ThrowFormatException($"Unexpected character '{c}' after '/'");
             }
 
             AddToSet(val, end, 0, type);
@@ -1282,22 +1279,20 @@ namespace Quartz
         /// <param name="type">The type.</param>
         protected virtual void AddToSet(int val, int end, int incr, int type)
         {
-            ISet<int> data = GetSet(type);
+            var data = GetSet(type);
 
             if (type == Second || type == Minute)
             {
                 if ((val < 0 || val > 59 || end > 59) && val != AllSpecInt)
                 {
-                    throw new FormatException(
-                        "Minute and Second values must be between 0 and 59");
+                    ThrowHelper.ThrowFormatException("Minute and Second values must be between 0 and 59");
                 }
             }
             else if (type == Hour)
             {
                 if ((val < 0 || val > 23 || end > 23) && val != AllSpecInt)
                 {
-                    throw new FormatException(
-                        "Hour values must be between 0 and 23");
+                    ThrowHelper.ThrowFormatException("Hour values must be between 0 and 23");
                 }
             }
             else if (type == DayOfMonth)
@@ -1305,16 +1300,14 @@ namespace Quartz
                 if ((val < 1 || val > 31 || end > 31) && val != AllSpecInt
                     && val != NoSpecInt)
                 {
-                    throw new FormatException(
-                        "Day of month values must be between 1 and 31");
+                    ThrowHelper.ThrowFormatException("Day of month values must be between 1 and 31");
                 }
             }
             else if (type == Month)
             {
                 if ((val < 1 || val > 12 || end > 12) && val != AllSpecInt)
                 {
-                    throw new FormatException(
-                        "Month values must be between 1 and 12");
+                    ThrowHelper.ThrowFormatException("Month values must be between 1 and 12");
                 }
             }
             else if (type == DayOfWeek)
@@ -1322,8 +1315,7 @@ namespace Quartz
                 if ((val == 0 || val > 7 || end > 7) && val != AllSpecInt
                     && val != NoSpecInt)
                 {
-                    throw new FormatException(
-                        "Day-of-Week values must be between 1 and 7");
+                    ThrowHelper.ThrowFormatException("Day-of-Week values must be between 1 and 7");
                 }
             }
 
@@ -1442,8 +1434,12 @@ namespace Quartz
                     case DayOfMonth:
                         max = 31;
                         break;
-                    case Year: throw new ArgumentException("Start year must be less than stop year");
-                    default: throw new ArgumentException("Unexpected type encountered");
+                    case Year:
+                        ThrowHelper.ThrowArgumentException("Start year must be less than stop year");
+                        break;
+                    default:
+                        ThrowHelper.ThrowArgumentException("Unexpected type encountered");
+                        break;
                 }
                 stopAt += max;
             }
@@ -1476,7 +1472,7 @@ namespace Quartz
         /// </summary>
         /// <param name="type">The type of set to get.</param>
         /// <returns></returns>
-        protected virtual ISet<int> GetSet(int type)
+        protected virtual SortedSet<int> GetSet(int type)
         {
             switch (type)
             {
@@ -1495,7 +1491,8 @@ namespace Quartz
                 case Year:
                     return years;
                 default:
-                    throw new ArgumentOutOfRangeException();
+                    ThrowHelper.ThrowArgumentOutOfRangeException();
+                    return default;
             }
         }
 
@@ -2056,8 +2053,7 @@ namespace Quartz
                 else
                 {
                     // dayOfWSpec && !dayOfMSpec
-                    throw new Exception(
-                        "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.");
+                    ThrowHelper.ThrowFormatException("Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.");
                 }
 
                 d = new DateTimeOffset(d.Year, d.Month, day, d.Hour, d.Minute, d.Second, d.Offset);

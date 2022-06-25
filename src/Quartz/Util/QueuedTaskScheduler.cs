@@ -35,7 +35,11 @@ namespace Quartz.Util
             /// <param name="scheduler">The scheduler.</param>
             public QueuedTaskSchedulerDebugView(QueuedTaskScheduler scheduler)
             {
-                _scheduler = scheduler ?? throw new ArgumentNullException("scheduler");
+                if (scheduler is null)
+                {
+                    ThrowHelper.ThrowArgumentNullException(nameof(scheduler));
+                }
+                _scheduler = scheduler;
             }
 
             /// <summary>Gets all of the Tasks queued to the scheduler directly.</summary>
@@ -92,7 +96,7 @@ namespace Quartz.Util
             // If the thread count is 0, default to the number of logical processors.
             if (threadCount < 0)
             {
-                throw new ArgumentOutOfRangeException("concurrencyLevel");
+                ThrowHelper.ThrowArgumentOutOfRangeException("concurrencyLevel");
             }
             else if (threadCount == 0)
             {
@@ -181,7 +185,7 @@ namespace Quartz.Util
             // If we've been disposed, no one should be queueing
             if (_disposeCancellation.IsCancellationRequested)
             {
-                throw new ObjectDisposedException(GetType().Name);
+                ThrowHelper.ThrowObjectDisposedException(GetType().Name);
             }
 
             // add the task to the blocking queue

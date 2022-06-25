@@ -406,7 +406,8 @@ namespace Quartz.Impl.Calendar
                     InvertTimeRange = info.GetBoolean("invertTimeRange");
                     break;
                 default:
-                    throw new NotSupportedException("Unknown serialization version");
+                    ThrowHelper.ThrowNotSupportedException("Unknown serialization version");
+                    break;
             }
         }
 
@@ -652,7 +653,7 @@ namespace Quartz.Impl.Calendar
 
             if (rangeStartingTime.Length < 2 || rangeStartingTime.Length > 4)
             {
-                throw new ArgumentException($"Invalid time string '{rangeStartingTimeString}'");
+                ThrowHelper.ThrowArgumentException($"Invalid time string '{rangeStartingTimeString}'");
             }
 
             int rangeStartingHourOfDay = Convert.ToInt32(rangeStartingTime[0], CultureInfo.InvariantCulture);
@@ -679,7 +680,7 @@ namespace Quartz.Impl.Calendar
 
             if (rangeEndingTime.Length < 2 || rangeEndingTime.Length > 4)
             {
-                throw new ArgumentException($"Invalid time string '{rangeEndingTimeString}'");
+                ThrowHelper.ThrowArgumentException($"Invalid time string '{rangeEndingTimeString}'");
             }
 
             int rangeEndingHourOfDay = Convert.ToInt32(rangeEndingTime[0], CultureInfo.InvariantCulture);
@@ -754,7 +755,7 @@ namespace Quartz.Impl.Calendar
 
             if (!(startCal < endCal))
             {
-                throw new ArgumentException($"{InvalidTimeRange}{rangeStartingHourOfDay}:{rangeStartingMinute}:{rangeStartingSecond}:{rangeStartingMillis}{Separator}{rangeEndingHourOfDay}:{rangeEndingMinute}:{rangeEndingSecond}:{rangeEndingMillis}");
+                ThrowHelper.ThrowArgumentException($"{InvalidTimeRange}{rangeStartingHourOfDay}:{rangeStartingMinute}:{rangeStartingSecond}:{rangeStartingMillis}{Separator}{rangeEndingHourOfDay}:{rangeEndingMinute}:{rangeEndingSecond}:{rangeEndingMillis}");
             }
 
             this.rangeStartingHourOfDay = rangeStartingHourOfDay;
@@ -831,19 +832,19 @@ namespace Quartz.Impl.Calendar
         {
             if (hourOfDay < 0 || hourOfDay > 23)
             {
-                throw new ArgumentException(InvalidHourOfDay + hourOfDay);
+                ThrowHelper.ThrowArgumentException(InvalidHourOfDay + hourOfDay);
             }
             if (minute < 0 || minute > 59)
             {
-                throw new ArgumentException(InvalidMinute + minute);
+                ThrowHelper.ThrowArgumentException(InvalidMinute + minute);
             }
             if (second < 0 || second > 59)
             {
-                throw new ArgumentException(InvalidSecond + second);
+                ThrowHelper.ThrowArgumentException(InvalidSecond + second);
             }
             if (millis < 0 || millis > 999)
             {
-                throw new ArgumentException(InvalidMillis + millis);
+                ThrowHelper.ThrowArgumentException(InvalidMillis + millis);
             }
         }
 

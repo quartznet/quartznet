@@ -28,19 +28,19 @@ namespace Quartz
 	/// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class UnableToInterruptJobException : SchedulerException
+    public sealed class UnableToInterruptJobException : SchedulerException
 	{
 		/// <summary>
 		/// Create a <see cref="UnableToInterruptJobException" /> with the given message.
 		/// </summary>
-		public UnableToInterruptJobException(string msg) : base(msg)
+		public UnableToInterruptJobException(string message) : base(message)
 		{
 		}
 
 		/// <summary>
 		/// Create a <see cref="UnableToInterruptJobException" /> with the given cause.
 		/// </summary>
-		public UnableToInterruptJobException(Exception cause) : base(cause)
+		public UnableToInterruptJobException(Exception innerException) : base(innerException)
 		{
 		}
 

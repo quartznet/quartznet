@@ -189,13 +189,13 @@ namespace Quartz.Impl.Triggers
             {
                 if (value == DateTimeOffset.MinValue)
                 {
-                    throw new ArgumentException("Start time cannot be DateTimeOffset.MinValue");
+                    ThrowHelper.ThrowArgumentException("Start time cannot be DateTimeOffset.MinValue");
                 }
 
                 DateTimeOffset? eTime = EndTimeUtc;
                 if (eTime != null && eTime < value)
                 {
-                    throw new ArgumentException("End time cannot be before start time");
+                    ThrowHelper.ThrowArgumentException("End time cannot be before start time");
                 }
 
                 startTime = value;
@@ -220,7 +220,7 @@ namespace Quartz.Impl.Triggers
                 DateTimeOffset sTime = StartTimeUtc;
                 if (value != null && sTime > value)
                 {
-                    throw new ArgumentException("End time cannot be before start time");
+                    ThrowHelper.ThrowArgumentException("End time cannot be before start time");
                 }
 
                 endTime = value;
@@ -244,7 +244,7 @@ namespace Quartz.Impl.Triggers
             {
                 if (value < 0)
                 {
-                    throw new ArgumentException("Repeat interval must be >= 1");
+                    ThrowHelper.ThrowArgumentException("Repeat interval must be >= 1");
                 }
 
                 repeatInterval = value;
@@ -887,12 +887,12 @@ namespace Quartz.Impl.Triggers
 
             if (RepeatIntervalUnit == IntervalUnit.Millisecond)
             {
-                throw new SchedulerException("Invalid repeat IntervalUnit (must be Second, Minute, Hour, Day, Month, Week or Year).");
+                ThrowHelper.ThrowSchedulerException("Invalid repeat IntervalUnit (must be Second, Minute, Hour, Day, Month, Week or Year).");
             }
 
             if (repeatInterval < 1)
             {
-                throw new SchedulerException("Repeat Interval cannot be zero.");
+                ThrowHelper.ThrowSchedulerException("Repeat Interval cannot be zero.");
             }
         }
 

@@ -122,7 +122,7 @@ namespace Quartz.Impl.AdoJobStore
         protected IDbAccessor DbAccessor { get; private set; } = null!;
 
         public async Task<int> DeleteExtendedTriggerProperties(
-            ConnectionAndTransactionHolder conn, 
+            ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
         {
@@ -135,8 +135,8 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         public async Task<int> InsertExtendedTriggerProperties(
-            ConnectionAndTransactionHolder conn, 
-            IOperableTrigger trigger, 
+            ConnectionAndTransactionHolder conn,
+            IOperableTrigger trigger,
             string state,
             IJobDetail jobDetail,
             CancellationToken cancellationToken = default)
@@ -165,7 +165,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         public async Task<TriggerPropertyBundle> LoadExtendedTriggerProperties(
-            ConnectionAndTransactionHolder conn, 
+            ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
         {
@@ -180,7 +180,8 @@ namespace Quartz.Impl.AdoJobStore
                 return ReadTriggerPropertyBundle(rs);
             }
 
-            throw new InvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, TablePrefix));
+            ThrowHelper.ThrowInvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectSimpleTrigger, TablePrefix));
+            return default;
         }
 
         public TriggerPropertyBundle ReadTriggerPropertyBundle(DbDataReader rs)
@@ -204,9 +205,9 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         public async Task<int> UpdateExtendedTriggerProperties(
-            ConnectionAndTransactionHolder conn, 
-            IOperableTrigger trigger, 
-            string state, 
+            ConnectionAndTransactionHolder conn,
+            IOperableTrigger trigger,
+            string state,
             IJobDetail jobDetail,
             CancellationToken cancellationToken = default)
         {

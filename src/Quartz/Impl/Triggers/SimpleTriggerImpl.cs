@@ -203,7 +203,7 @@ namespace Quartz.Impl.Triggers
             {
                 if (value < 0 && value != RepeatIndefinitely)
                 {
-                    throw new ArgumentException("Repeat count must be >= 0, use the constant RepeatIndefinitely for infinite.");
+                    ThrowHelper.ThrowArgumentException("Repeat count must be >= 0, use the constant RepeatIndefinitely for infinite.");
                 }
 
                 repeatCount = value;
@@ -221,7 +221,7 @@ namespace Quartz.Impl.Triggers
             {
                 if (value < TimeSpan.Zero)
                 {
-                    throw new ArgumentException("Repeat interval must be >= 0");
+                    ThrowHelper.ThrowArgumentException("Repeat interval must be >= 0");
                 }
 
                 repeatInterval = value;
@@ -737,7 +737,7 @@ namespace Quartz.Impl.Triggers
 
             if (repeatCount != 0 && repeatInterval.Ticks < 1)
             {
-                throw new SchedulerException("Repeat Interval cannot be zero.");
+                ThrowHelper.ThrowSchedulerException("Repeat Interval cannot be zero.");
             }
         }
     }

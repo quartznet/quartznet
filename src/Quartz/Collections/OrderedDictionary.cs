@@ -87,7 +87,7 @@ namespace Quartz.Collections
                 int index = IndexOf(key);
                 if (index < 0)
                 {
-                    throw new KeyNotFoundException();
+                    ThrowHelper.ThrowKeyNotFoundException();
                 }
                 return _entries[index].Value;
             }
@@ -106,7 +106,7 @@ namespace Quartz.Collections
             {
                 if ((uint)index >= (uint)Count)
                 {
-                    throw new ArgumentOutOfRangeException(nameof(index));
+                    ThrowHelper.ThrowArgumentOutOfRangeException(nameof(index));
                 }
 
                 return _entries[index].Value;
@@ -115,7 +115,7 @@ namespace Quartz.Collections
             {
                 if ((uint)index >= (uint)Count)
                 {
-                    throw new ArgumentOutOfRangeException(nameof(index));
+                    ThrowHelper.ThrowArgumentOutOfRangeException(nameof(index));
                 }
 
                 _entries[index].Value = value;
@@ -159,7 +159,7 @@ namespace Quartz.Collections
         {
             if (capacity < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(capacity));
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(capacity));
             }
             if (capacity > 0)
             {
@@ -184,7 +184,7 @@ namespace Quartz.Collections
         {
             if (collection == null)
             {
-                throw new ArgumentNullException(nameof(collection));
+                ThrowHelper.ThrowArgumentNullException(nameof(collection));
             }
 
             foreach (KeyValuePair<TKey, TValue> pair in collection)
@@ -234,7 +234,7 @@ namespace Quartz.Collections
         {
             if (capacity < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(capacity));
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(capacity));
             }
 
             if (_entries.Length >= capacity)
@@ -273,7 +273,7 @@ namespace Quartz.Collections
         {
             if (valueFactory == null)
             {
-                throw new ArgumentNullException(nameof(valueFactory));
+                ThrowHelper.ThrowArgumentNullException(nameof(valueFactory));
             }
 
             int index = IndexOf(key, out uint hashCode);
@@ -311,7 +311,7 @@ namespace Quartz.Collections
         {
             if ((uint)index > (uint)Count)
             {
-                throw new ArgumentOutOfRangeException(nameof(index));
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(index));
             }
 
             TryInsert(index, key, value, InsertionBehavior.ThrowOnExisting);
@@ -335,11 +335,11 @@ namespace Quartz.Collections
         {
             if ((uint)fromIndex >= (uint)Count)
             {
-                throw new ArgumentOutOfRangeException(nameof(fromIndex));
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(fromIndex));
             }
             if ((uint)toIndex >= (uint)Count)
             {
-                throw new ArgumentOutOfRangeException(nameof(toIndex));
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(toIndex));
             }
 
             if (fromIndex == toIndex)
@@ -389,23 +389,23 @@ namespace Quartz.Collections
 
             if ((uint)fromIndex >= (uint)Count)
             {
-                throw new ArgumentOutOfRangeException(nameof(fromIndex));
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(fromIndex));
             }
             if ((uint)toIndex >= (uint)Count)
             {
-                throw new ArgumentOutOfRangeException(nameof(toIndex));
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(toIndex));
             }
             if (count < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(count));
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(count));
             }
             if (fromIndex + count > Count)
             {
-                throw new ArgumentException();
+                ThrowHelper.ThrowArgumentException("Invalid range");
             }
             if (toIndex + count > Count)
             {
-                throw new ArgumentException();
+                ThrowHelper.ThrowArgumentException("Invalid range");
             }
 
             if (fromIndex == toIndex || count == 0)
@@ -489,7 +489,7 @@ namespace Quartz.Collections
             int count = Count;
             if ((uint)index >= (uint)count)
             {
-                throw new ArgumentOutOfRangeException(nameof(index));
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(index));
             }
 
             // Remove the entry from the bucket
@@ -521,7 +521,7 @@ namespace Quartz.Collections
         {
             if (capacity < Count)
             {
-                throw new ArgumentOutOfRangeException(nameof(capacity));
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(capacity));
             }
 
             int newSize = HashHelpers.GetPrime(capacity);
@@ -567,7 +567,7 @@ namespace Quartz.Collections
             {
                 if ((uint)index >= (uint)Count)
                 {
-                    throw new ArgumentOutOfRangeException(nameof(index));
+                    ThrowHelper.ThrowArgumentOutOfRangeException(nameof(index));
                 }
 
                 Entry entry = _entries[index];
@@ -577,7 +577,7 @@ namespace Quartz.Collections
             {
                 if ((uint)index >= (uint)Count)
                 {
-                    throw new ArgumentOutOfRangeException(nameof(index));
+                    ThrowHelper.ThrowArgumentOutOfRangeException(nameof(index));
                 }
 
                 TKey key = value.Key;
@@ -601,7 +601,7 @@ namespace Quartz.Collections
                 // key already exists in dictionary but not at the specified index thus throw exception as this method shouldn't affect the indices of other entries
                 else
                 {
-                    throw new ArgumentException();
+                    ThrowHelper.ThrowArgumentException("Invalid index");
                 }
             }
         }
@@ -630,16 +630,16 @@ namespace Quartz.Collections
         {
             if (array == null)
             {
-                throw new ArgumentNullException(nameof(array));
+                ThrowHelper.ThrowArgumentNullException(nameof(array));
             }
             if ((uint)arrayIndex > (uint)array.Length)
             {
-                throw new ArgumentOutOfRangeException(nameof(arrayIndex));
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(arrayIndex));
             }
             int count = Count;
             if (array.Length - arrayIndex < count)
             {
-                throw new ArgumentException();
+                ThrowHelper.ThrowArgumentException("Invalid range");
             }
 
             Entry[] entries = _entries;
@@ -695,7 +695,7 @@ namespace Quartz.Collections
         {
             if (key == null)
             {
-                throw new ArgumentNullException(nameof(key));
+                ThrowHelper.ThrowArgumentNullException(nameof(key));
             }
 
             IEqualityComparer<TKey>? comparer = _comparer;
@@ -721,7 +721,7 @@ namespace Quartz.Collections
                     {
                         // The chain of entries forms a loop; which means a concurrent update has happened.
                         // Break out of the loop and throw, rather than looping forever.
-                        throw new InvalidOperationException();
+                        ThrowHelper.ThrowInvalidOperationException();
                     }
                     ++collisionCount;
                 } while (index >= 0);
@@ -740,7 +740,8 @@ namespace Quartz.Collections
                         _entries[i].Value = value;
                         return true;
                     case InsertionBehavior.ThrowOnExisting:
-                        throw new ArgumentException();
+                        ThrowHelper.ThrowArgumentException("Key already exists");
+                        return false;
                     default:
                         return false;
                 }
@@ -814,7 +815,7 @@ namespace Quartz.Collections
                     {
                         // The chain of entries forms a loop; which means a concurrent update has happened.
                         // Break out of the loop and throw, rather than looping forever.
-                        throw new InvalidOperationException();
+                        ThrowHelper.ThrowInvalidOperationException();
                     }
                     ++collisionCount;
                 }
@@ -849,7 +850,7 @@ namespace Quartz.Collections
                     {
                         // The chain of entries forms a loop; which means a concurrent update has happened.
                         // Break out of the loop and throw, rather than looping forever.
-                        throw new InvalidOperationException();
+                        ThrowHelper.ThrowInvalidOperationException();
                     }
                     ++collisionCount;
                 }
@@ -898,7 +899,7 @@ namespace Quartz.Collections
             {
                 if (_version != _orderedDictionary._version)
                 {
-                    throw new InvalidOperationException();
+                    ThrowHelper.ThrowInvalidOperationException();
                 }
 
                 if (_index < _orderedDictionary.Count)
@@ -916,7 +917,7 @@ namespace Quartz.Collections
             {
                 if (_version != _orderedDictionary._version)
                 {
-                    throw new InvalidOperationException();
+                    ThrowHelper.ThrowInvalidOperationException();
                 }
 
                 _index = 0;

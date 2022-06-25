@@ -216,7 +216,8 @@ namespace Quartz.Util
             }
             catch (Exception)
             {
-                throw new InvalidCastException("Identified object is not an Integer.");
+                ThrowHelper.ThrowInvalidCastException("Identified object is not an Integer.");
+                return default;
             }
         }
 
@@ -233,7 +234,8 @@ namespace Quartz.Util
             }
             catch (Exception)
             {
-                throw new InvalidCastException("Identified object is not a Long.");
+                ThrowHelper.ThrowInvalidCastException("Identified object is not a Long.");
+                return default;
             }
         }
 
@@ -250,7 +252,8 @@ namespace Quartz.Util
             }
             catch (Exception)
             {
-                throw new InvalidCastException("Identified object is not a Float.");
+                ThrowHelper.ThrowInvalidCastException("Identified object is not a Float.");
+                return default;
             }
         }
 
@@ -267,7 +270,8 @@ namespace Quartz.Util
             }
             catch (Exception)
             {
-                throw new InvalidCastException("Identified object is not a Double.");
+                ThrowHelper.ThrowInvalidCastException("Identified object is not a Double.");
+                return default;
             }
         }
 
@@ -284,7 +288,8 @@ namespace Quartz.Util
             }
             catch (Exception)
             {
-                throw new InvalidCastException("Identified object is not a Boolean.");
+                ThrowHelper.ThrowInvalidCastException("Identified object is not a Boolean.");
+                return default;
             }
         }
 
@@ -301,7 +306,8 @@ namespace Quartz.Util
             }
             catch (Exception)
             {
-                throw new InvalidCastException("Identified object is not a Character.");
+                ThrowHelper.ThrowInvalidCastException("Identified object is not a Character.");
+                return default;
             }
         }
 
@@ -318,7 +324,8 @@ namespace Quartz.Util
             }
             catch (Exception)
             {
-                throw new InvalidCastException("Identified object is not a String.");
+                ThrowHelper.ThrowInvalidCastException("Identified object is not a String.");
+                return default;
             }
         }
 
@@ -338,7 +345,8 @@ namespace Quartz.Util
             }
             catch (Exception)
             {
-                throw new InvalidCastException("Identified object is not a DateTime.");
+                ThrowHelper.ThrowInvalidCastException("Identified object is not a DateTime.");
+                return default;
             }
         }
 

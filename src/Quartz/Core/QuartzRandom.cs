@@ -44,8 +44,11 @@ namespace Quartz.Core
         /// <returns>integer between minValue and maxValue</returns>
         public int Next(int minValue, int maxValue)
         {
-            if(maxValue <= minValue)
-                throw new ArgumentOutOfRangeException("maxValue", "maxValue must be larger then minValue");
+            if (maxValue <= minValue)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(nameof(maxValue), "maxValue must be larger then minValue");
+            }
+
             long range = maxValue - minValue;
             return (int) Math.Floor(NextDouble() * range) + minValue;
         }

@@ -87,7 +87,7 @@ namespace Quartz.Util
                     }
                 }
 
-                throw new NotSupportedException($"{newValue} is no a supported value for a target of type {requiredType}");
+                ThrowHelper.ThrowNotSupportedException($"{newValue} is no a supported value for a target of type {requiredType}");
             }
 
             if (requiredType.IsValueType)
@@ -107,13 +107,13 @@ namespace Quartz.Util
         {
             if (type == null)
             {
-                ExceptionHelper.ThrowArgumentNullException(nameof(type), "Cannot instantiate null");
+                ThrowHelper.ThrowArgumentNullException(nameof(type), "Cannot instantiate null");
             }
-            
+
             var ci = type.GetConstructor(Type.EmptyTypes);
             if (ci == null)
             {
-                ExceptionHelper.ThrowArgumentException("Cannot instantiate type which has no empty constructor", type.Name);
+                ThrowHelper.ThrowArgumentException("Cannot instantiate type which has no empty constructor", type.Name);
             }
             return (T) ci.Invoke(Array.Empty<object>());
         }
@@ -132,8 +132,7 @@ namespace Quartz.Util
                 }
                 catch (Exception nfe)
                 {
-                    throw new SchedulerConfigException(
-                        $"Could not parse property '{name}' into correct data type: {nfe.Message}", nfe);
+                    ThrowHelper.ThrowSchedulerConfigException($"Could not parse property '{name}' into correct data type: {nfe.Message}", nfe);
                 }
             }
         }
@@ -157,14 +156,13 @@ namespace Quartz.Util
                 }
                 catch (Exception nfe)
                 {
-                    throw new SchedulerConfigException(
-                        $"Could not parse property '{name}' into correct data type: {nfe.Message}", nfe);
+                    ThrowHelper.ThrowSchedulerConfigException($"Could not parse property '{name}' into correct data type: {nfe.Message}", nfe);
                 }
             }
         }
 
         private static readonly ConcurrentDictionary<(Type ObjectType, string PropertyName), PropertyInfo?> propertyResolutionCache = new ();
-        
+
         public static void SetPropertyValue(object target, string propertyName, object? value)
         {
             var pi = propertyResolutionCache.GetOrAdd((target.GetType(), propertyName), tuple =>
@@ -196,14 +194,14 @@ namespace Quartz.Util
             if (pi == null)
             {
                 // not match from anywhere
-                throw new MemberAccessException($"No writable property '{propertyName}' found");
+                ThrowHelper.ThrowMemberAccessException($"No writable property '{propertyName}' found");
             }
 
             var mi = pi.GetSetMethod();
 
             if (mi == null)
             {
-                throw new MemberAccessException($"Property '{propertyName}' has no setter");
+                ThrowHelper.ThrowMemberAccessException($"Property '{propertyName}' has no setter");
             }
 
             if (mi.GetParameters()[0].ParameterType == typeof(TimeSpan))
@@ -241,7 +239,8 @@ namespace Quartz.Util
                 case TimeSpanParseRule.Hours:
                     return TimeSpan.FromHours(longValue);
                 default:
-                    throw new ArgumentOutOfRangeException();
+                    ThrowHelper.ThrowArgumentOutOfRangeException();
+                    return default;
             }
         }
 

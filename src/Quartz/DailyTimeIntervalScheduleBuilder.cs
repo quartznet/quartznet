@@ -208,7 +208,7 @@ namespace Quartz
             if (!(unit == IntervalUnit.Second ||
                   unit == IntervalUnit.Minute || unit == IntervalUnit.Hour))
             {
-                throw new ArgumentException("Invalid repeat IntervalUnit (must be Second, Minute or Hour).");
+                ThrowHelper.ThrowArgumentException("Invalid repeat IntervalUnit (must be Second, Minute or Hour).");
             }
 
             ValidateInterval(interval);
@@ -269,14 +269,14 @@ namespace Quartz
         {
             if (onDaysOfWeek == null || onDaysOfWeek.Count == 0)
             {
-                throw new ArgumentException("Days of week must be an non-empty set.");
+                ThrowHelper.ThrowArgumentException("Days of week must be an non-empty set.");
             }
 
             foreach (DayOfWeek day in onDaysOfWeek)
             {
                 if (!AllDaysOfTheWeek.Contains(day))
                 {
-                    throw new ArgumentException("Invalid value for day of week: " + day);
+                    ThrowHelper.ThrowArgumentException("Invalid value for day of week: " + day);
                 }
             }
 
@@ -331,7 +331,11 @@ namespace Quartz
         /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
         public DailyTimeIntervalScheduleBuilder StartingDailyAt(TimeOfDay timeOfDayUtc)
         {
-            startTimeOfDayUtc = timeOfDayUtc ?? throw new ArgumentException("Start time of day cannot be null!");
+            if (timeOfDayUtc is null)
+            {
+                ThrowHelper.ThrowArgumentException("Start time of day cannot be null!", nameof(timeOfDayUtc));
+            }
+            startTimeOfDayUtc = timeOfDayUtc;
             return this;
         }
 
@@ -356,12 +360,12 @@ namespace Quartz
         {
             if (count <= 0)
             {
-                throw new ArgumentException("Ending daily after count must be a positive number!");
+                ThrowHelper.ThrowArgumentException("Ending daily after count must be a positive number!");
             }
 
             if (startTimeOfDayUtc == null)
             {
-                throw new ArgumentException("You must set the StartDailyAt() before calling this EndingDailyAfterCount()!");
+                ThrowHelper.ThrowArgumentException("You must set the StartDailyAt() before calling this EndingDailyAfterCount()!");
             }
 
             DateTimeOffset today = SystemTime.UtcNow();
@@ -389,18 +393,19 @@ namespace Quartz
             }
             else
             {
-                throw new ArgumentException("The IntervalUnit: " + intervalUnit + " is invalid for this trigger.");
+                ThrowHelper.ThrowArgumentException("The IntervalUnit: " + intervalUnit + " is invalid for this trigger.");
+                return this;
             }
 
             if (remainingMillisInDay < intervalInMillis)
             {
-                throw new ArgumentException("The startTimeOfDay is too late with given Interval and IntervalUnit values.");
+                ThrowHelper.ThrowArgumentException("The startTimeOfDay is too late with given Interval and IntervalUnit values.");
             }
 
             long maxNumOfCount = remainingMillisInDay.Ticks / intervalInMillis.Ticks;
             if (count > maxNumOfCount)
             {
-                throw new ArgumentException("The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
+                ThrowHelper.ThrowArgumentException("The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
             }
 
             TimeSpan incrementInMillis = TimeSpan.FromTicks((count - 1) * intervalInMillis.Ticks);
@@ -408,7 +413,7 @@ namespace Quartz
 
             if (endTimeOfDayDate > maxEndTimeOfDayDate)
             {
-                throw new ArgumentException("The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
+                ThrowHelper.ThrowArgumentException("The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
             }
 
             DateTime cal = SystemTime.UtcNow().Date;
@@ -484,7 +489,7 @@ namespace Quartz
         {
             if (interval <= 0)
             {
-                throw new ArgumentException("Interval must be a positive value.");
+                ThrowHelper.ThrowArgumentException("Interval must be a positive value.");
             }
         }
     }

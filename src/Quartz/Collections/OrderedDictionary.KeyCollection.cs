@@ -37,7 +37,7 @@ namespace Quartz.Collections
             TKey IList<TKey>.this[int index]
             {
                 get => this[index];
-                set => throw new NotSupportedException();
+                set => ThrowHelper.ThrowNotSupportedException();
             }
 
             bool ICollection<TKey>.IsReadOnly => true;
@@ -59,13 +59,13 @@ namespace Quartz.Collections
 
             int IList<TKey>.IndexOf(TKey item) => _orderedDictionary.IndexOf(item);
 
-            void IList<TKey>.Insert(int index, TKey item) => throw new NotSupportedException();
+            void IList<TKey>.Insert(int index, TKey item) => ThrowHelper.ThrowNotSupportedException();
 
-            void IList<TKey>.RemoveAt(int index) => throw new NotSupportedException();
+            void IList<TKey>.RemoveAt(int index) => ThrowHelper.ThrowNotSupportedException();
 
-            void ICollection<TKey>.Add(TKey item) => throw new NotSupportedException();
+            void ICollection<TKey>.Add(TKey item) => ThrowHelper.ThrowNotSupportedException();
 
-            void ICollection<TKey>.Clear() => throw new NotSupportedException();
+            void ICollection<TKey>.Clear() => ThrowHelper.ThrowNotSupportedException();
 
             bool ICollection<TKey>.Contains(TKey item) => _orderedDictionary.ContainsKey(item);
 
@@ -73,16 +73,16 @@ namespace Quartz.Collections
             {
                 if (array == null)
                 {
-                    throw new ArgumentNullException(nameof(array));
+                    ThrowHelper.ThrowArgumentNullException(nameof(array));
                 }
                 if ((uint)arrayIndex > (uint)array.Length)
                 {
-                    throw new ArgumentOutOfRangeException(nameof(arrayIndex));
+                    ThrowHelper.ThrowArgumentOutOfRangeException(nameof(arrayIndex));
                 }
                 int count = Count;
                 if (array.Length - arrayIndex < count)
                 {
-                    throw new ArgumentException();
+                    ThrowHelper.ThrowArgumentException("Invalid array length");
                 }
 
                 Entry[] entries = _orderedDictionary._entries;
@@ -92,7 +92,11 @@ namespace Quartz.Collections
                 }
             }
 
-            bool ICollection<TKey>.Remove(TKey item) => throw new NotSupportedException();
+            bool ICollection<TKey>.Remove(TKey item)
+            {
+                ThrowHelper.ThrowNotSupportedException();
+                return false;
+            }
 
             /// <summary>
             /// Enumerates the elements of a <see cref="OrderedDictionary{TKey, TValue}.KeyCollection" />.
@@ -136,7 +140,7 @@ namespace Quartz.Collections
                 {
                     if (_version != _orderedDictionary._version)
                     {
-                        throw new InvalidOperationException();
+                        ThrowHelper.ThrowInvalidOperationException();
                     }
 
                     if (_index < _orderedDictionary.Count)
@@ -153,7 +157,7 @@ namespace Quartz.Collections
                 {
                     if (_version != _orderedDictionary._version)
                     {
-                        throw new InvalidOperationException();
+                        ThrowHelper.ThrowInvalidOperationException();
                     }
 
                     _index = 0;

@@ -51,7 +51,7 @@ namespace Quartz.Impl.AdoJobStore.Common
 
             if (deprecatedProviders.Contains(providerName))
             {
-                throw new InvalidConfigurationException(providerName + " provider is no longer supported.");
+                ThrowHelper.ThrowInvalidConfigurationException(providerName + " provider is no longer supported.");
             }
 
             try
@@ -67,7 +67,8 @@ namespace Quartz.Impl.AdoJobStore.Common
             }
             catch (Exception ex)
             {
-                throw new ArgumentException("Error while reading metadata information for provider '" + providerName + "'", nameof(providerName), ex);
+                ThrowHelper.ThrowArgumentException("Error while reading metadata information for provider '" + providerName + "'", nameof(providerName), ex);
+                return default!;
             }
         }
     }

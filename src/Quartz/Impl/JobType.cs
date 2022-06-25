@@ -20,9 +20,20 @@ public sealed class JobType
     /// <exception cref="ArgumentNullException"><paramref name="fullName"/> is <see langword="null" /></exception>
     public JobType(string fullName)
     {
-        FullName = fullName ?? throw new ArgumentNullException(nameof(fullName));
+        if (fullName is null)
+        {
+            ThrowHelper.ThrowArgumentNullException(nameof(fullName));
+        }
+        FullName = fullName;
         type = new Lazy<Type>(() =>
-            Type.GetType(fullName) ?? throw new InvalidOperationException($"Job class Type {fullName} cannot be resolved."));
+        {
+            var loadedType = Type.GetType(fullName);
+            if (loadedType is null)
+            {
+                ThrowHelper.ThrowInvalidOperationException($"Job type {fullName} cannot be resolved.");
+            }
+            return loadedType!;
+        });
     }
 
     /// <summary>
@@ -35,12 +46,12 @@ public sealed class JobType
     {
         if (type == null)
         {
-            throw new ArgumentNullException(nameof(type));
+            ThrowHelper.ThrowArgumentNullException(nameof(type));
         }
 
         if (!typeof(IJob).IsAssignableFrom(type))
         {
-            throw new ArgumentException("Job class must implement Quartz.IJob interface.");
+            ThrowHelper.ThrowArgumentException("Job type must implement Quartz.IJob interface", nameof(type));
         }
 
         this.type = new Lazy<Type>(() => type);
@@ -58,7 +69,7 @@ public sealed class JobType
     {
         if (jobType.AssemblyQualifiedName == null)
         {
-            throw new ArgumentException("Cannot determine job type name when type's AssemblyQualifiedName is null");
+            ThrowHelper.ThrowArgumentException("Cannot determine job type name when type's AssemblyQualifiedName is null", nameof(jobType));
         }
 
         return jobType.AssemblyQualifiedNameWithoutVersion();

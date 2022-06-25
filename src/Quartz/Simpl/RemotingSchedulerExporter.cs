@@ -68,13 +68,13 @@ namespace Quartz.Simpl
         {
             if (scheduler == null)
             {
-                throw new ArgumentNullException(nameof(scheduler));
+                ThrowHelper.ThrowArgumentNullException(nameof(scheduler));
             }
 
 #if REMOTING
             if (!(scheduler is MarshalByRefObject))
             {
-                throw new ArgumentException("Exported scheduler must be of type MarshallByRefObject", nameof(scheduler));
+                ThrowHelper.ThrowArgumentException("Exported scheduler must be of type MarshallByRefObject", nameof(scheduler));
             }
 
             RegisterRemotingChannelIfNeeded();
@@ -121,7 +121,7 @@ namespace Quartz.Simpl
                 string channelRegistrationKey = ChannelType + "_" + Port;
                 if (registeredChannels.ContainsKey(channelRegistrationKey))
                 {
-                    Log.LogWarning("Channel '{ChannelType}' already registered for port {Port}, not registering again", 
+                    Log.LogWarning("Channel '{ChannelType}' already registered for port {Port}, not registering again",
                         ChannelType,Port);
                     return;
                 }
@@ -136,7 +136,8 @@ namespace Quartz.Simpl
                 }
                 else
                 {
-                    throw new ArgumentException("Unknown remoting channel type '" + ChannelType + "'");
+                    ThrowHelper.ThrowArgumentException("Unknown remoting channel type '" + ChannelType + "'");
+                    return;
                 }
 
                 if (RejectRemoteRequests)
@@ -148,7 +149,7 @@ namespace Quartz.Simpl
                     Log.LogInformation("Remoting is allowing remote calls");
                 }
 
-                Log.LogInformation("Registering remoting channel of type '{ChannelType}' to port ({Port}) with name ({ChannelName})", 
+                Log.LogInformation("Registering remoting channel of type '{ChannelType}' to port ({Port}) with name ({ChannelName})",
                     chan.GetType(), Port, chan.ChannelName);
 
                 ChannelServices.RegisterChannel(chan, false);
@@ -201,12 +202,12 @@ namespace Quartz.Simpl
         {
             if (scheduler == null)
             {
-                throw new ArgumentNullException(nameof(scheduler));
+                ThrowHelper.ThrowArgumentNullException(nameof(scheduler));
             }
 #if REMOTING
             if (!(scheduler is MarshalByRefObject))
             {
-                throw new ArgumentException("Exported scheduler must be of type MarshallByRefObject", nameof(scheduler));
+                ThrowHelper.ThrowArgumentException("Exported scheduler must be of type MarshallByRefObject", nameof(scheduler));
             }
 #endif // REMOTING
 

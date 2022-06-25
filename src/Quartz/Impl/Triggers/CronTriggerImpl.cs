@@ -467,7 +467,7 @@ namespace Quartz.Impl.Triggers
                 DateTimeOffset? eTime = EndTimeUtc;
                 if (eTime.HasValue && eTime.Value < value)
                 {
-                    throw new ArgumentException("End time cannot be before start time");
+                    ThrowHelper.ThrowArgumentException("End time cannot be before start time");
                 }
 
                 // round off millisecond...
@@ -488,7 +488,7 @@ namespace Quartz.Impl.Triggers
                 DateTimeOffset sTime = StartTimeUtc;
                 if (value.HasValue && sTime > value.Value)
                 {
-                    throw new ArgumentException("End time cannot be before start time");
+                    ThrowHelper.ThrowArgumentException("End time cannot be before start time");
                 }
 
                 endTimeUtc = value;

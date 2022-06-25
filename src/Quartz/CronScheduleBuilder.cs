@@ -68,7 +68,11 @@ namespace Quartz
 
         protected CronScheduleBuilder(CronExpression cronExpression)
         {
-            this.cronExpression = cronExpression ?? throw new ArgumentNullException(nameof(cronExpression), "cronExpression cannot be null");
+            if (cronExpression is null)
+            {
+                ThrowHelper.ThrowArgumentNullException(nameof(cronExpression), "cronExpression cannot be null");
+            }
+            this.cronExpression = cronExpression;
         }
 
         /// <summary>
@@ -121,8 +125,8 @@ namespace Quartz
             catch (FormatException e)
             {
                 // all methods of construction ensure the expression is valid by this point...
-                throw new Exception("CronExpression '" + presumedValidCronExpression +
-                        "' is invalid, which should not be possible, please report bug to Quartz developers.", e);
+                ThrowHelper.ThrowFormatException("CronExpression '" + presumedValidCronExpression + "' is invalid, which should not be possible, please report bug to Quartz developers.", e);
+                return default;
             }
         }
 
@@ -170,7 +174,7 @@ namespace Quartz
         {
             if (daysOfWeek == null || daysOfWeek.Length == 0)
             {
-                throw new ArgumentException("You must specify at least one day of week.");
+                ThrowHelper.ThrowArgumentException("You must specify at least one day of week.");
             }
 
             DateBuilder.ValidateHour(hour);

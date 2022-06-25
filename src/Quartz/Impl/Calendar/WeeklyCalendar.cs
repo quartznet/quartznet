@@ -88,7 +88,8 @@ namespace Quartz.Impl.Calendar
                     excludeAll = (bool) info.GetValue("excludeAll", typeof(bool))!;
                     break;
                 default:
-                    throw new NotSupportedException("Unknown serialization version");
+                    ThrowHelper.ThrowNotSupportedException("Unknown serialization version");
+                    break;
             }
         }
 

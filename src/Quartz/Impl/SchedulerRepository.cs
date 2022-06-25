@@ -56,7 +56,7 @@ namespace Quartz.Impl
 			{
 				if (schedulers.ContainsKey(sched.SchedulerName))
 				{
-					throw new SchedulerException($"Scheduler with name '{sched.SchedulerName}' already exists.");
+					ThrowHelper.ThrowSchedulerException($"Scheduler with name '{sched.SchedulerName}' already exists.");
 				}
 
 				schedulers[sched.SchedulerName] = sched;

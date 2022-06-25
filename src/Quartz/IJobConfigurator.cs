@@ -14,7 +14,7 @@ namespace Quartz
         /// </remarks>
         /// <param name="name">the name element for the Job's JobKey</param>
         /// <returns>the updated JobBuilder</returns>
-        /// <seealso cref="JobKey" /> 
+        /// <seealso cref="JobKey" />
         /// <seealso cref="IJobDetail.Key" />
         JobBuilder WithIdentity(string name);
 
@@ -135,7 +135,7 @@ namespace Quartz
         JobBuilder UsingJobData(string key, char value);
 
         /// <summary>
-        /// Add all the data from the given <see cref="JobDataMap" /> to the 
+        /// Add all the data from the given <see cref="JobDataMap" /> to the
         /// <see cref="IJobDetail" />'s <see cref="JobDataMap" />.
         /// </summary>
         ///<returns>the updated JobBuilder</returns>
@@ -148,7 +148,7 @@ namespace Quartz
         /// </summary>
         /// <param name="newJobDataMap"></param>
         /// <returns></returns>
-        JobBuilder SetJobData(JobDataMap? newJobDataMap);
+        JobBuilder SetJobData(JobDataMap newJobDataMap);
 
         /// <summary>
         /// Instructs the <see cref="IScheduler" /> whether or not concurrent execution of the job should be disallowed.

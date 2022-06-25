@@ -5,11 +5,8 @@ using System.Data.SQLite;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-
-using MELT;
 
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;

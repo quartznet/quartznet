@@ -112,7 +112,8 @@ namespace Quartz.Impl.Calendar
                     excludeDays = (SortedSet<DateTime>) info.GetValue("excludeDays", typeof(SortedSet<DateTime>))!;
                     break;
                 default:
-                    throw new NotSupportedException("Unknown serialization version");
+                    ThrowHelper.ThrowNotSupportedException("Unknown serialization version");
+                    break;
             }
         }
 

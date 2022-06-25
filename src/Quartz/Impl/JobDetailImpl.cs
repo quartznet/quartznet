@@ -203,7 +203,7 @@ namespace Quartz.Impl
             {
                 if (string.IsNullOrWhiteSpace(value))
                 {
-                    throw new ArgumentException("Job name cannot be empty.");
+                    ThrowHelper.ThrowArgumentException("Job name cannot be empty.");
                 }
 
                 name = value;
@@ -224,7 +224,7 @@ namespace Quartz.Impl
             {
                 if (value != null && value.Trim().Length == 0)
                 {
-                    throw new ArgumentException("Group name cannot be empty.");
+                    ThrowHelper.ThrowArgumentException("Group name cannot be empty.");
                 }
 
                 if (value == null)
@@ -265,7 +265,7 @@ namespace Quartz.Impl
             {
                 if (value is null)
                 {
-                    throw new ArgumentNullException(nameof(value));
+                    ThrowHelper.ThrowArgumentNullException(nameof(value));
                 }
 
                 Name = value.Name;
@@ -381,17 +381,17 @@ namespace Quartz.Impl
         {
             if (name == null)
             {
-                throw new SchedulerException("Job's name cannot be null");
+                ThrowHelper.ThrowSchedulerException("Job's name cannot be null");
             }
 
             if (group == null)
             {
-                throw new SchedulerException("Job's group cannot be null");
+                ThrowHelper.ThrowSchedulerException("Job's group cannot be null");
             }
 
             if (jobType == null)
             {
-                throw new SchedulerException("Job's class cannot be null");
+                ThrowHelper.ThrowSchedulerException("Job's class cannot be null");
             }
         }
 

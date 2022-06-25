@@ -120,7 +120,8 @@ namespace Quartz.Util
                     map = (Dictionary<TKey, TValue>) info.GetValue("map", typeof(Dictionary<TKey, TValue>))!;
                     break;
                 default:
-                    throw new NotSupportedException("Unknown serialization version");
+                    ThrowHelper.ThrowNotSupportedException("Unknown serialization version");
+                    break;
             }
         }
 
