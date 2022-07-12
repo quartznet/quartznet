@@ -247,7 +247,7 @@ window of time depends on your trigger's locale, as explained above).
 The reason is that depending on your trigger's schedule, and the particular 
 daylight event, the trigger may be skipped or may appear to not fire for an 
 hour or two. As examples, say you are in the United States, where daylight 
-savings events occur at 2:00 am. If you have a CronTrrigger that fires every 
+savings events occur at 2:00 am. If you have a CronTrigger that fires every 
 day at 2:15 am, then on the day of the beginning of daylight savings time 
 the trigger will be skipped, since, 2:15 am never occurs that day. If you 
 have a CronTrigger that fires every 15 minutes of every hour of every day, 
