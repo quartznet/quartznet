@@ -34,7 +34,7 @@ public void ConfigureServices(IServiceCollection services)
     services.AddQuartzServer(options =>
     {
         // when shutting down we want jobs to complete gracefully
-        options.WaitForJobsToComplete = true;
+        options.InterruptJobsOnShutdownWithWait = false;
     });
 }
 ```
