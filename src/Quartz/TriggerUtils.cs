@@ -42,18 +42,18 @@ namespace Quartz
         /// The input trigger will be cloned before any work is done, so you need
         /// not worry about its state being altered by this method.
         /// </summary>
-        /// <param name="trigg">The trigger upon which to do the work</param>
-        /// <param name="cal">The calendar to apply to the trigger's schedule</param>
+        /// <param name="trigger">The trigger upon which to do the work</param>
+        /// <param name="calendar">The calendar to apply to the trigger's schedule</param>
         /// <param name="numTimes">The number of next fire times to produce</param>
-        public static IReadOnlyList<DateTimeOffset> ComputeFireTimes(IOperableTrigger trigg, ICalendar? cal, int numTimes)
+        public static IReadOnlyList<DateTimeOffset> ComputeFireTimes(IOperableTrigger trigger, ICalendar? calendar, int numTimes)
         {
             List<DateTimeOffset> lst = new List<DateTimeOffset>();
 
-            IOperableTrigger t = (IOperableTrigger) trigg.Clone();
+            IOperableTrigger t = (IOperableTrigger) trigger.Clone();
 
             if (t.GetNextFireTimeUtc() == null || !t.GetNextFireTimeUtc().HasValue)
             {
-                t.ComputeFirstFireTimeUtc(cal);
+                t.ComputeFirstFireTimeUtc(calendar);
             }
 
             for (int i = 0; i < numTimes; i++)
@@ -62,7 +62,7 @@ namespace Quartz
                 if (d.HasValue)
                 {
                     lst.Add(d.Value);
-                    t.Triggered(cal);
+                    t.Triggered(calendar);
                 }
                 else
                 {
@@ -138,21 +138,21 @@ namespace Quartz
         /// in the output List.
         /// </para>
         /// </summary>
-        /// <param name="trigg">The trigger upon which to do the work</param>
-        /// <param name="cal">The calendar to apply to the trigger's schedule</param>
+        /// <param name="trigger">The trigger upon which to do the work</param>
+        /// <param name="calendar">The calendar to apply to the trigger's schedule</param>
         /// <param name="from">The starting date at which to find fire times</param>
         /// <param name="to">The ending date at which to stop finding fire times</param>
-        public static IReadOnlyList<DateTimeOffset> ComputeFireTimesBetween(IOperableTrigger trigg, ICalendar? cal, DateTimeOffset from, DateTimeOffset to)
+        public static IReadOnlyList<DateTimeOffset> ComputeFireTimesBetween(IOperableTrigger trigger, ICalendar? calendar, DateTimeOffset from, DateTimeOffset to)
         {
             List<DateTimeOffset> lst = new List<DateTimeOffset>();
 
-            IOperableTrigger t = (IOperableTrigger) trigg.Clone();
+            IOperableTrigger t = (IOperableTrigger) trigger.Clone();
 
             if (t.GetNextFireTimeUtc() == null || !t.GetNextFireTimeUtc().HasValue)
             {
                 t.StartTimeUtc = from;
                 t.EndTimeUtc = to;
-                t.ComputeFirstFireTimeUtc(cal);
+                t.ComputeFirstFireTimeUtc(calendar);
             }
 
             // TODO: this method could be more efficient by using logic specific
@@ -164,7 +164,7 @@ namespace Quartz
                 {
                     if (d.Value < from)
                     {
-                        t.Triggered(cal);
+                        t.Triggered(calendar);
                         continue;
                     }
                     if (d.Value > to)
@@ -172,7 +172,7 @@ namespace Quartz
                         break;
                     }
                     lst.Add(d.Value);
-                    t.Triggered(cal);
+                    t.Triggered(calendar);
                 }
                 else
                 {
