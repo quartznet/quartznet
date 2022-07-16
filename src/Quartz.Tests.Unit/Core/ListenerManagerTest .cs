@@ -3,14 +3,11 @@ using NUnit.Framework;
 using Quartz.Core;
 using Quartz.Impl.Matchers;
 using Quartz.Listener;
-using System;
-using System.Collections.Generic;
-using System.Linq;
 
 namespace Quartz.Tests.Unit.Core
 {
     /// <summary>
-    /// Tests for <see cref="ListenerManagerImpl" />. 
+    /// Tests for <see cref="ListenerManagerImpl" />.
     /// </summary>
     public class ListenerManagerTest
     {
@@ -70,7 +67,7 @@ namespace Quartz.Tests.Unit.Core
             var matchers = Array.Empty<IMatcher<JobKey>>();
 
             try
-            { 
+            {
                 _manager.AddJobListener(jobListener, matchers);
                 Assert.Fail();
             }

@@ -1,7 +1,4 @@
-using System;
-using System.Threading.Tasks;
-
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 using Quartz.Spi;
@@ -28,7 +25,7 @@ namespace Quartz.Simpl
         protected override IJob InstantiateJob(TriggerFiredBundle bundle, IScheduler scheduler)
         {
             //  Generate a scope for the job, this allows the job to be registered
-            //	using .AddScoped<T>() which means we can use scoped dependencies 
+            //	using .AddScoped<T>() which means we can use scoped dependencies
             //	e.g. database contexts
             var scope = serviceProvider.CreateScope();
             ConfigureScope(scope, bundle, scheduler);
@@ -58,7 +55,7 @@ namespace Quartz.Simpl
                 // use the registered one
                 return (job, true);
             }
-            
+
             return (activatorCache.CreateInstance(serviceProvider, bundle.JobDetail.JobType), false);
         }
 
@@ -78,7 +75,7 @@ namespace Quartz.Simpl
                 this.canDispose = canDispose;
                 InnerJob = innerJob;
             }
-            
+
             internal IJob InnerJob { get; }
             public IJob Target => InnerJob;
 

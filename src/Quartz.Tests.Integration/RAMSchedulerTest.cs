@@ -1,6 +1,4 @@
-﻿using System.Threading.Tasks;
-
-using NUnit.Framework;
+﻿using NUnit.Framework;
 
 namespace Quartz.Tests.Integration
 {
@@ -10,7 +8,7 @@ namespace Quartz.Tests.Integration
         protected override Task<IScheduler> CreateScheduler(string name, int threadPoolSize)
         {
             var config = SchedulerBuilder.Create("AUTO", name + "Scheduler");
-            
+
             config.UseDefaultThreadPool(x =>
             {
                 x.MaxConcurrency = threadPoolSize;

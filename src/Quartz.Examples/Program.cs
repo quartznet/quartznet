@@ -19,10 +19,8 @@
 
 #endregion
 
-using System;
-using System.Collections.Generic;
 using System.Reflection;
-using System.Threading.Tasks;
+
 using Quartz.Util;
 using Spectre.Console;
 

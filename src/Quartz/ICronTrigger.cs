@@ -1,9 +1,7 @@
-using System;
-
 namespace Quartz
 {
     /// <summary>
-    /// The public interface for inspecting settings specific to a CronTrigger, 
+    /// The public interface for inspecting settings specific to a CronTrigger,
     /// which is used to fire a <see cref="IJob" />
     /// at given moments in time, defined with Unix 'cron-like' schedule definitions.
     /// </summary>
@@ -13,12 +11,12 @@ namespace Quartz
     /// schedule such as: "At 8:00am every Monday through Friday" or "At 1:30am
     /// every last Friday of the month".
     /// </para>
-    /// 
+    ///
     /// <para>
-    /// The format of a "Cron-Expression" string is documented on the 
+    /// The format of a "Cron-Expression" string is documented on the
     /// <see cref="CronExpression" /> class.
     /// </para>
-    /// 
+    ///
     /// <para>
     /// Here are some full examples: <br />
     /// <table cellspacing="8">
@@ -127,12 +125,12 @@ namespace Quartz
     /// </tr>
     /// </table>
     /// </para>
-    /// 
+    ///
     /// <para>
     /// Pay attention to the effects of '?' and '*' in the day-of-week and
     /// day-of-month fields!
     /// </para>
-    /// 
+    ///
     /// <para>
     /// <b>NOTES:</b>
     /// <ul>
@@ -167,7 +165,7 @@ namespace Quartz
         /// If <see cref="CronExpressionString" /> is set after this
         /// property, the TimeZone setting on the CronExpression will "win".  However
         /// if <see cref="CronExpressionString" /> is set after this property, the
-        /// time zone applied by this method will remain in effect, since the 
+        /// time zone applied by this method will remain in effect, since the
         /// string cron expression does not carry a time zone!
         /// </remarks>
         /// <value>The time zone.</value>

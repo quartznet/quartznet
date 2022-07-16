@@ -1,7 +1,5 @@
 using BenchmarkDotNet.Attributes;
 using Quartz.Spi;
-using System;
-using System.Collections.Generic;
 
 namespace Quartz.Benchmark
 {
@@ -126,7 +124,7 @@ namespace Quartz.Benchmark
                 _comparerNew.Compare(_triggerAPrio1NextFireTimeNull, _triggerBPrio1NextFireTimeNull);
             }
         }
-        
+
         [Benchmark(OperationsPerInvoke = 300_000)]
         public void CompareTo_ReferenceEquality_Old()
         {

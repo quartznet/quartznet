@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.Specialized;
 
 using Quartz.Impl;
@@ -32,7 +30,7 @@ namespace Quartz
                 {
                     return null;
                 }
-                return TimeSpan.FromMilliseconds(int.Parse(value)); 
+                return TimeSpan.FromMilliseconds(int.Parse(value));
             }
             set => this["quartz.jobStore.misfireThreshold"] =  value != null ? ((int) value.Value.TotalMilliseconds).ToString() : "";
         }

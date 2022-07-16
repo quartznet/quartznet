@@ -1,7 +1,6 @@
 ﻿using NUnit.Framework;
 using Quartz.Util;
-using System;
-using System.IO;
+
 using System.Runtime.Serialization.Formatters;
 using System.Runtime.Serialization.Formatters.Binary;
 

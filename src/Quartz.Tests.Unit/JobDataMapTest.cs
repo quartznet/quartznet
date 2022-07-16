@@ -19,8 +19,6 @@
 
 #endregion
 
-using System;
-
 using NUnit.Framework;
 
 using Quartz.Simpl;

@@ -4,10 +4,6 @@ using Quartz.Impl;
 using Quartz.Impl.Matchers;
 using Quartz.Simpl;
 using Quartz.Spi;
-using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Quartz.Benchmark
 {
@@ -19,11 +15,11 @@ namespace Quartz.Benchmark
     /// |     2     |     1     |     1     |     0     |     1     |     0     |     0     |
     /// |     3     |     1     |     0     |     0     |     1     |     1     |     1     |
     /// |     4     |     1     |     1     |     0     |     2     |     1     |     2     |
-    /// 
+    ///
     /// Note:
     /// -----
     /// There's always one internal job listener, which is Quartz.Core.ExecutingJobsManager.
-    /// 
+    ///
     /// </summary>
     [MemoryDiagnoser]
     public class QuartSchedulerBenchmark

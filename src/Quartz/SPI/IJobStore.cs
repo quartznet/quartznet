@@ -1,35 +1,30 @@
 #region License
 
-/* 
+/*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
-
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 
 using Quartz.Core;
 using Quartz.Impl.Matchers;
 
 namespace Quartz.Spi
 {
-    /// <summary> 
+    /// <summary>
     /// The interface to be implemented by classes that want to provide a <see cref="IJob" />
     /// and <see cref="ITrigger" /> storage mechanism for the
     /// <see cref="QuartzScheduler" />'s use.
@@ -53,7 +48,7 @@ namespace Quartz.Spi
         /// used, in order to give the it a chance to Initialize.
         /// </summary>
         Task Initialize(
-            ITypeLoadHelper loadHelper, 
+            ITypeLoadHelper loadHelper,
             ISchedulerSignaler signaler,
             CancellationToken cancellationToken = default);
 
@@ -89,8 +84,8 @@ namespace Quartz.Spi
         bool SupportsPersistence { get; }
 
         /// <summary>
-        /// How long (in milliseconds) the <see cref="IJobStore" /> implementation 
-        /// estimates that it will take to release a trigger and acquire a new one. 
+        /// How long (in milliseconds) the <see cref="IJobStore" /> implementation
+        /// estimates that it will take to release a trigger and acquire a new one.
         /// </summary>
         long EstimatedTimeToReleaseAndAcquireTrigger { get; }
 
@@ -108,8 +103,8 @@ namespace Quartz.Spi
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <throws>  ObjectAlreadyExistsException </throws>
         Task StoreJobAndTrigger(
-            IJobDetail newJob, 
-            IOperableTrigger newTrigger, 
+            IJobDetail newJob,
+            IOperableTrigger newTrigger,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -149,7 +144,7 @@ namespace Quartz.Spi
             CancellationToken cancellationToken = default);
 
         Task StoreJobsAndTriggers(
-            IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, 
+            IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs,
             bool replace,
             CancellationToken cancellationToken = default);
 
@@ -195,7 +190,7 @@ namespace Quartz.Spi
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <throws>  ObjectAlreadyExistsException </throws>
         Task StoreTrigger(
-            IOperableTrigger newTrigger, 
+            IOperableTrigger newTrigger,
             bool replaceExisting,
             CancellationToken cancellationToken = default);
 
@@ -239,7 +234,7 @@ namespace Quartz.Spi
         /// name and group was found and removed from the store.
         /// </returns>
         Task<bool> ReplaceTrigger(
-            TriggerKey triggerKey, 
+            TriggerKey triggerKey,
             IOperableTrigger newTrigger,
             CancellationToken cancellationToken = default);
 
@@ -309,9 +304,9 @@ namespace Quartz.Spi
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <throws>  ObjectAlreadyExistsException </throws>
         Task StoreCalendar(
-            string name, 
-            ICalendar calendar, 
-            bool replaceExisting, 
+            string name,
+            ICalendar calendar,
+            bool replaceExisting,
             bool updateTriggers,
             CancellationToken cancellationToken = default);
 
@@ -418,7 +413,7 @@ namespace Quartz.Spi
         /// <summary>
         /// Get the names of all of the <see cref="ICalendar" /> s
         /// in the <see cref="IJobStore" />.
-        /// 
+        ///
         /// <para>
         /// If there are no Calendars in the given group name, the result should be
         /// a zero-length array (not <see langword="null" />).
@@ -433,7 +428,7 @@ namespace Quartz.Spi
         /// If there are no matches, a zero-length array should be returned.
         /// </remarks>
         Task<IReadOnlyCollection<IOperableTrigger>> GetTriggersForJob(
-            JobKey jobKey, 
+            JobKey jobKey,
             CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -441,7 +436,7 @@ namespace Quartz.Spi
         /// </summary>
         /// <seealso cref="TriggerState" />
         Task<TriggerState> GetTriggerState(
-            TriggerKey triggerKey, 
+            TriggerKey triggerKey,
             CancellationToken cancellationToken = default);
 
         /////////////////////////////////////////////////////////////////////////////
@@ -492,7 +487,7 @@ namespace Quartz.Spi
         /// <summary>
         /// Resume (un-pause) the <see cref="ITrigger" /> with the
         /// given key.
-        /// 
+        ///
         /// <para>
         /// If the <see cref="ITrigger" /> missed one or more fire-times, then the
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
@@ -523,7 +518,7 @@ namespace Quartz.Spi
         Task<IReadOnlyCollection<string>> GetPausedTriggerGroups(
             CancellationToken cancellationToken = default);
 
-        /// <summary> 
+        /// <summary>
         /// Resume (un-pause) the <see cref="IJob" /> with the
         /// given key.
         /// <para>
@@ -541,7 +536,7 @@ namespace Quartz.Spi
         /// If any of the <see cref="IJob" /> s had <see cref="ITrigger" /> s that
         /// missed one or more fire-times, then the <see cref="ITrigger" />'s
         /// misfire instruction will be applied.
-        /// </para> 
+        /// </para>
         /// </summary>
         Task<IReadOnlyCollection<string>> ResumeJobs(
             GroupMatcher<JobKey> matcher,
@@ -565,7 +560,7 @@ namespace Quartz.Spi
         /// If any <see cref="ITrigger" /> missed one or more fire-times, then the
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </para>
-        /// 
+        ///
         /// </summary>
         /// <seealso cref="PauseAll" />
         Task ResumeAll(CancellationToken cancellationToken = default);
@@ -584,12 +579,12 @@ namespace Quartz.Spi
         /// <seealso cref="ITrigger">
         /// </seealso>
         Task<IReadOnlyCollection<IOperableTrigger>> AcquireNextTriggers(
-            DateTimeOffset noLaterThan, 
-            int maxCount, 
+            DateTimeOffset noLaterThan,
+            int maxCount,
             TimeSpan timeWindow,
             CancellationToken cancellationToken = default);
 
-        /// <summary> 
+        /// <summary>
         /// Inform the <see cref="IJobStore" /> that the scheduler no longer plans to
         /// fire the given <see cref="ITrigger" />, that it had previously acquired
         /// (reserved).
@@ -621,19 +616,19 @@ namespace Quartz.Spi
         /// is stateful.
         /// </summary>
         Task TriggeredJobComplete(
-            IOperableTrigger trigger, 
-            IJobDetail jobDetail, 
+            IOperableTrigger trigger,
+            IJobDetail jobDetail,
             SchedulerInstruction triggerInstCode,
             CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Inform the <see cref="IJobStore" /> of the Scheduler instance's Id, 
+        /// Inform the <see cref="IJobStore" /> of the Scheduler instance's Id,
         /// prior to initialize being invoked.
         /// </summary>
         string InstanceId { set; }
 
         /// <summary>
-        /// Inform the <see cref="IJobStore" /> of the Scheduler instance's name, 
+        /// Inform the <see cref="IJobStore" /> of the Scheduler instance's name,
         /// prior to initialize being invoked.
         /// </summary>
         string InstanceName { set; }
@@ -642,9 +637,9 @@ namespace Quartz.Spi
         /// Tells the JobStore the pool size used to execute jobs.
         /// </summary>
         int ThreadPoolSize { set; }
-        
+
         /* TODO V4 add to interface
-        
+
         /// <summary>
         /// Get the amount of time (in ms) to wait when accessing this job store repeatedly fails.
         /// </summary>
@@ -653,12 +648,12 @@ namespace Quartz.Spi
         /// and the thread thus wants to wait a bit before trying again, to not consume 100% CPU,
         /// write huge amounts of errors into logs, etc. in cases like the DB being offline/restarting.
         ///
-        /// The delay returned by implementations should be between 20 and 600000 milliseconds.* @param failureCount 
+        /// The delay returned by implementations should be between 20 and 600000 milliseconds.* @param failureCount
         /// </remarks>
         /// <param name="failureCount">the number of successive failures seen so far</param>
         /// <returns>the time (in milliseconds) to wait before trying again</returns>
         TimeSpan GetAcquireRetryDelay(int failureCount);
-        
+
         */
     }
 }

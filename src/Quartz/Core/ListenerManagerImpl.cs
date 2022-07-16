@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 using Quartz.Collections;
 
 namespace Quartz.Core

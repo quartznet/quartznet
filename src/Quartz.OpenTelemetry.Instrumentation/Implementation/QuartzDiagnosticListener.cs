@@ -1,4 +1,3 @@
-using System;
 using System.Diagnostics;
 
 using OpenTelemetry.Instrumentation;
@@ -11,7 +10,7 @@ namespace Quartz.OpenTelemetry.Instrumentation.Implementation
         private readonly QuartzInstrumentationOptions options;
         private readonly ActivitySourceAdapter activitySource;
 
-        public QuartzDiagnosticListener(string sourceName, QuartzInstrumentationOptions options, ActivitySourceAdapter activitySource) 
+        public QuartzDiagnosticListener(string sourceName, QuartzInstrumentationOptions options, ActivitySourceAdapter activitySource)
             : base(sourceName)
         {
             this.options = options ?? throw new ArgumentNullException(nameof(options));
@@ -42,7 +41,7 @@ namespace Quartz.OpenTelemetry.Instrumentation.Implementation
             {
                 return;
             }
-            
+
             if (!(payload is Exception exception))
             {
                 QuartzInstrumentationEventSource.Log.NullPayload(nameof(QuartzDiagnosticListener), nameof(OnStopActivity));

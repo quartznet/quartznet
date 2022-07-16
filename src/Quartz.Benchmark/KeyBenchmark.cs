@@ -1,6 +1,5 @@
 ﻿using BenchmarkDotNet.Attributes;
 using Quartz.Util;
-using System;
 
 namespace Quartz.Benchmark
 {

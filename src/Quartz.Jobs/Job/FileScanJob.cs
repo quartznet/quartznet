@@ -1,25 +1,21 @@
 #region License
-/* 
+/*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 #endregion
-
-using System;
-using System.IO;
-using System.Threading.Tasks;
 
 using Microsoft.Extensions.Logging;
 
@@ -27,11 +23,11 @@ using Quartz.Logging;
 
 namespace Quartz.Job
 {
-	/// <summary> 
+	/// <summary>
 	/// Inspects a file and compares whether its "last modified date" has changed
 	/// since the last time it was inspected.  If the file has been updated, the
-	/// job invokes a "call-back" method on an identified 
-	/// <see cref="IFileScanListener" /> that can be found in the 
+	/// job invokes a "call-back" method on an identified
+	/// <see cref="IFileScanListener" /> that can be found in the
 	/// <see cref="SchedulerContext" />.
 	/// </summary>
 	/// <author>James House</author>
@@ -48,7 +44,7 @@ namespace Quartz.Job
 
         /// <summary>
         /// JobDataMap key with which to specify the <see cref="IFileScanListener" />
-        /// to be notified when the file contents change. 
+        /// to be notified when the file contents change.
         /// </summary>
 		public const string FileScanListenerName = "FILE_SCAN_LISTENER_NAME";
 
@@ -59,12 +55,12 @@ namespace Quartz.Job
 	    /// new/altered.  This is necessary because another process may still be
 	    /// in the middle of writing to the file when the scan occurs, and the
 	    /// file may therefore not yet be ready for processing.
-	    /// 
-	    /// <para>If this parameter is not specified, a default value of 
+	    ///
+	    /// <para>If this parameter is not specified, a default value of
 	    /// 5000 (five seconds) will be used.</para>
 	    /// </summary>
-	    public const string MinimumUpdateAge = "MINIMUM_UPDATE_AGE"; 
-	    
+	    public const string MinimumUpdateAge = "MINIMUM_UPDATE_AGE";
+
 	    private const string LastModifiedTime = "LAST_MODIFIED_TIME";
 
 		/// <summary>
@@ -139,9 +135,9 @@ namespace Quartz.Job
             {
                 minAge = mergedJobDataMap.GetLong(MinimumUpdateAge);
             }
-            
+
             DateTime maxAgeDate = DateTime.Now.AddMilliseconds(minAge);
-        
+
 			DateTime newDate = GetLastModifiedDate(fileName);
 
 			if (newDate == DateTime.MinValue)

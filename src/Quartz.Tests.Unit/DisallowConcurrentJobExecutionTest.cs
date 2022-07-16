@@ -1,8 +1,4 @@
-using System;
-using System.Collections.Generic;
-using System.Collections.Specialized;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Collections.Specialized;
 
 using NUnit.Framework;
 
@@ -117,10 +113,10 @@ namespace Quartz.Tests.Unit
             {
                 ["quartz.scheduler.idleWaitTime"] = "1500",
                 ["quartz.scheduler.batchTriggerAcquisitionMaxCount"] = "2",
-                ["quartz.threadPool.threadCount"] = "2", 
+                ["quartz.threadPool.threadCount"] = "2",
                 ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
             };
-            
+
             var scheduler = await new StdSchedulerFactory(props).GetScheduler();
             scheduler.ListenerManager.AddJobListener(new TestJobListener(2));
             await scheduler.ScheduleJob(job1, trigger1);

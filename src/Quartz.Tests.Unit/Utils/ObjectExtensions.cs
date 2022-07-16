@@ -1,4 +1,3 @@
-using System.IO;
 using System.Runtime.Serialization.Formatters.Binary;
 
 namespace Quartz.Tests.Unit.Utils

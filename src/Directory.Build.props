@@ -34,6 +34,7 @@
     <DebugSymbols>True</DebugSymbols>
 
     <LangVersion>latest</LangVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
 
   </PropertyGroup>
 

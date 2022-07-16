@@ -19,10 +19,6 @@
 
 #endregion
 
-using System;
-using System.Collections.Generic;
-using System.Threading;
-
 using Quartz.Spi;
 
 namespace Quartz.Impl

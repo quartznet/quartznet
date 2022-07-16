@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -19,11 +19,7 @@
 
 #endregion
 
-using System;
-using System.Collections.Generic;
 using System.Collections.Specialized;
-using System.Linq;
-using System.Threading.Tasks;
 
 using FluentAssertions;
 
@@ -361,7 +357,7 @@ namespace Quartz.Tests.Unit
             Assert.That(times.Count, Is.EqualTo(2), "wrong occurrancy count");
             Assert.That(times[1].ToLocalTime().DateTime, Is.EqualTo(new DateTime(2015, 1, 1, 10, 0, 0)), "wrong occurrancy count");
         }
-        
+
         [Test]
         public void TriggerBuilderShouldHandleIgnoreMisfirePolicy()
         {
@@ -374,7 +370,7 @@ namespace Quartz.Tests.Unit
             var trigger2 = trigger1
                 .GetTriggerBuilder()
                 .Build();
-            
+
             trigger1.MisfireInstruction.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
             trigger2.MisfireInstruction.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
         }

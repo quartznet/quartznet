@@ -17,8 +17,6 @@
  */
 #endregion
 
-using System;
-using System.IO;
 using System.Security;
 
 using Microsoft.Extensions.Logging;

@@ -19,9 +19,6 @@
 
 #endregion
 
-using System;
-using System.Collections.Generic;
-
 using Quartz.Impl.Matchers;
 using Quartz.Spi;
 

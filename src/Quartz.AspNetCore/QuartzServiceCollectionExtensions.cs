@@ -1,6 +1,4 @@
-﻿using System;
-
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 
 #if SUPPORTS_HEALTH_CHECKS
 using Quartz.AspNetCore.HealthChecks;

@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Specialized;
 using System.Configuration;
 using Microsoft.Extensions.Logging;
@@ -19,7 +18,7 @@ namespace Quartz.Server
 		private const string KeyServiceDisplayName = PrefixServerConfiguration + ".serviceDisplayName";
 		private const string KeyServiceDescription = PrefixServerConfiguration + ".serviceDescription";
         private const string KeyServerImplementationType = PrefixServerConfiguration + ".type";
-		
+
 		private const string DefaultServiceName = "QuartzServer";
 		private const string DefaultServiceDisplayName = "Quartz Server";
 		private const string DefaultServiceDescription = "Quartz Job Scheduling Server";

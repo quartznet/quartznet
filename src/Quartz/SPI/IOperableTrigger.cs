@@ -1,5 +1,3 @@
-using System;
-
 namespace Quartz.Spi
 {
     /// <summary>
@@ -28,17 +26,17 @@ namespace Quartz.Spi
         /// added to the scheduler, in order to have the <see cref="ITrigger" />
         /// compute its first fire time, based on any associated calendar.
         /// </para>
-        /// 
+        ///
         /// <para>
         /// After this method has been called, <see cref="ITrigger.GetNextFireTimeUtc" />
         /// should return a valid answer.
         /// </para>
         /// </remarks>
-        /// <returns> 
+        /// <returns>
         /// The first time at which the <see cref="ITrigger" /> will be fired
         /// by the scheduler, which is also the same value <see cref="ITrigger.GetNextFireTimeUtc" />
         /// will return (until after the first firing of the <see cref="ITrigger" />).
-        /// </returns>     
+        /// </returns>
         DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? calendar);
 
         /// <summary>
@@ -65,7 +63,7 @@ namespace Quartz.Spi
         /// <seealso cref="Triggered" />
         SchedulerInstruction ExecutionComplete(IJobExecutionContext context, JobExecutionException? result);
 
-        /// <summary> 
+        /// <summary>
         /// This method should not be used by the Quartz client.
         /// <para>
         /// To be implemented by the concrete classes that extend this class.
@@ -78,13 +76,13 @@ namespace Quartz.Spi
         /// </summary>
         void UpdateAfterMisfire(ICalendar? cal);
 
-        /// <summary> 
+        /// <summary>
         /// This method should not be used by the Quartz client.
         /// <para>
         /// The implementation should update the <see cref="ITrigger" />'s state
         /// based on the given new version of the associated <see cref="ICalendar" />
         /// (the state should be updated so that it's next fire time is appropriate
-        /// given the Calendar's new settings). 
+        /// given the Calendar's new settings).
         /// </para>
         /// </summary>
         /// <param name="cal"> </param>
@@ -97,7 +95,7 @@ namespace Quartz.Spi
         /// </summary>
         void Validate();
 
-        /// <summary> 
+        /// <summary>
         /// This method should not be used by the Quartz client.
         /// </summary>
         /// <remarks>

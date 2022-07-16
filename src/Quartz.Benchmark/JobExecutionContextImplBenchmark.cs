@@ -1,7 +1,5 @@
 #nullable disable
 
-using System;
-
 using BenchmarkDotNet.Attributes;
 
 using Quartz.Core;

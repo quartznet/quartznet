@@ -19,10 +19,6 @@
 
 #endregion
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-
 using Quartz.Impl.Triggers;
 using Quartz.Spi;
 using Quartz.Util;

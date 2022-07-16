@@ -19,12 +19,8 @@
 
 #endregion
 
-using System;
 using System.Collections.Specialized;
 using System.Data;
-using System.IO;
-using System.Threading;
-using System.Threading.Tasks;
 
 using FakeItEasy;
 
@@ -61,7 +57,7 @@ namespace Quartz.Tests.Integration.Xml
             mockScheduler = A.Fake<IScheduler>();
             A.CallTo(() => mockScheduler.GetJobDetail(A<JobKey>._, A<CancellationToken>._)).Returns(Task.FromResult<IJobDetail>(null));
             A.CallTo(() => mockScheduler.GetTrigger(A<TriggerKey>._, A<CancellationToken>._)).Returns(Task.FromResult<ITrigger>(null));
-            
+
         }
 
         [Test]
@@ -135,7 +131,7 @@ namespace Quartz.Tests.Integration.Xml
             await processor.ProcessStream(s, null);
             await processor.ScheduleJobs(mockScheduler);
         }
-        
+
         /// <summary>
         /// The default XMLSchedulingDataProcessor will setOverWriteExistingData(true), and we want to
         /// test programmatically overriding this value.

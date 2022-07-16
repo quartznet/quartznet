@@ -1,5 +1,4 @@
 using System.Runtime.CompilerServices;
-using System.Threading.Tasks;
 
 namespace Quartz
 {
@@ -9,6 +8,6 @@ namespace Quartz
         public static bool IsCompletedSuccessfully(this Task t)
         {
             return t.Status == TaskStatus.RanToCompletion && !t.IsFaulted && !t.IsCanceled;
-        }   
+        }
     }
 }

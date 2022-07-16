@@ -19,10 +19,6 @@
 
 #endregion
 
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace Quartz.Examples.Example09
 {
     /// <author>wkratzer</author>

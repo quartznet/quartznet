@@ -1,26 +1,23 @@
 #region License
 
-/* 
+/*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 
 #endregion
-
-using System.Threading;
-using System.Threading.Tasks;
 
 using Quartz.Spi;
 
@@ -28,7 +25,7 @@ namespace Quartz
 {
     /// <summary>
     /// The interface to be implemented by classes that want to be informed when a
-    /// <see cref="IJobDetail" /> executes. In general,  applications that use a 
+    /// <see cref="IJobDetail" /> executes. In general,  applications that use a
     /// <see cref="IScheduler" /> will not have use for this mechanism.
     /// </summary>
     /// <seealso cref="IListenerManager.AddJobListener(Quartz.IJobListener,System.Collections.Generic.IReadOnlyCollection{Quartz.IMatcher{Quartz.JobKey}})" />
@@ -57,18 +54,18 @@ namespace Quartz
         /// </summary>
         /// <seealso cref="JobExecutionVetoed" />
         Task JobToBeExecuted(
-            IJobExecutionContext context, 
+            IJobExecutionContext context,
             CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
         /// was about to be executed (an associated <see cref="ITrigger" />
-        /// has occurred), but a <see cref="ITriggerListener" /> vetoed it's 
+        /// has occurred), but a <see cref="ITriggerListener" /> vetoed it's
         /// execution.
         /// </summary>
         /// <seealso cref="JobToBeExecuted" />
         Task JobExecutionVetoed(
-            IJobExecutionContext context, 
+            IJobExecutionContext context,
             CancellationToken cancellationToken = default);
 
         /// <summary>

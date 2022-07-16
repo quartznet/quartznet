@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace Quartz.Simpl
 {
     /// <summary>
@@ -33,7 +30,7 @@ namespace Quartz.Simpl
         }
 
         /// <summary>
-        /// Serves as a hash function for a particular type. 
+        /// Serves as a hash function for a particular type.
         /// </summary>
         /// <returns>
         /// A hash code for the current <see cref="T:System.Object"/>.

@@ -1,5 +1,3 @@
-using System.Threading.Tasks;
-
 using FluentAssertions;
 
 using NUnit.Framework;

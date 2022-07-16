@@ -19,8 +19,6 @@
 
 #endregion
 
-using System;
-
 namespace Quartz.Impl.Matchers
 {
     /// <summary>

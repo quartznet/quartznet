@@ -1,7 +1,4 @@
-﻿using System;
-using System.Threading;
-
-namespace Quartz.Core
+﻿namespace Quartz.Core
 {
     internal static class Context
     {

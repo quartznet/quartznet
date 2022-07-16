@@ -19,8 +19,6 @@
 
 #endregion
 
-using System.Threading.Tasks;
-
 namespace Quartz.Tests.Integration
 {
     /// <author>Marko Lahma (.NET)</author>

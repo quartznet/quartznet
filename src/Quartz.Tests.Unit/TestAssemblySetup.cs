@@ -1,7 +1,4 @@
-using System;
-using System.IO;
-
-using NUnit.Framework;
+﻿using NUnit.Framework;
 
 namespace Quartz.Tests.Unit
 {
@@ -12,7 +9,7 @@ namespace Quartz.Tests.Unit
         public void SetUp()
         {
             // set default directory to make sure file loading works
-            // (https://youtrack.jetbrains.com/issue/RSRP-451142) 
+            // (https://youtrack.jetbrains.com/issue/RSRP-451142)
             string codeBase = GetType().Assembly.Location;
             string pathToUse = codeBase;
             if (!codeBase.StartsWith("/"))

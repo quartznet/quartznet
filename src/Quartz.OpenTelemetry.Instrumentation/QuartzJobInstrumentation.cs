@@ -1,5 +1,3 @@
-using System;
-
 using OpenTelemetry.Instrumentation;
 using OpenTelemetry.Trace;
 

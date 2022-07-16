@@ -19,7 +19,6 @@
 
 #endregion
 
-using System;
 using System.Globalization;
 
 namespace Quartz.Util

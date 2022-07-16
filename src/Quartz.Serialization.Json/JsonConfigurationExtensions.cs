@@ -1,5 +1,3 @@
-using System;
-
 using Quartz.Simpl;
 
 namespace Quartz

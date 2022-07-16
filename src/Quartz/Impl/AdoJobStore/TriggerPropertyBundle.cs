@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Quartz.Impl.AdoJobStore
+﻿namespace Quartz.Impl.AdoJobStore
 {
     /// <summary>
     /// Property name and value holder for trigger state data.

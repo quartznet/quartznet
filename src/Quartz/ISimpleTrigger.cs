@@ -1,5 +1,3 @@
-using System;
-
 using Quartz.Impl.Triggers;
 
 namespace Quartz

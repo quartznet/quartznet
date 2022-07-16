@@ -1,8 +1,3 @@
-using System;
-using System.Threading.Tasks;
-
-using Microsoft.Extensions.Logging;
-
 namespace Quartz.Examples.AspNetCore
 {
     public class ExampleJob : IJob, IDisposable
