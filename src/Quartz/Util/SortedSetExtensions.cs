@@ -1,6 +1,4 @@
-using System.Collections.Generic;
-
-namespace Quartz.Util
+﻿namespace Quartz.Util
 {
     internal static class SortedSetExtensions
     {

@@ -1,8 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-
 using Quartz.Simpl;
 using Quartz.Spi;
 
@@ -14,8 +9,8 @@ namespace Quartz.Tests.Unit.Core
     public class SlowRAMJobStore : RAMJobStore
     {
         public override async Task<IReadOnlyCollection<IOperableTrigger>> AcquireNextTriggers(
-            DateTimeOffset noLaterThan, 
-            int maxCount, 
+            DateTimeOffset noLaterThan,
+            int maxCount,
             TimeSpan timeWindow,
             CancellationToken cancellationToken = default)
         {

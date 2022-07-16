@@ -1,5 +1,3 @@
-using System;
-
 using Microsoft.Extensions.Logging;
 
 using Quartz.Logging;

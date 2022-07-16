@@ -1,11 +1,8 @@
-using NUnit.Framework;
+﻿using NUnit.Framework;
 using Quartz.Impl;
 using Quartz.Listener;
-using System;
-using System.Collections.Generic;
+
 using System.Collections.Specialized;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Quartz.Tests.Unit
 {
@@ -23,13 +20,13 @@ namespace Quartz.Tests.Unit
         private static readonly TimeSpan jobBlockTime = TimeSpan.FromMilliseconds(300);
         private static readonly List<DateTime> jobExecDates = new List<DateTime>();
         private static readonly AutoResetEvent barrier = new AutoResetEvent(false);
-        
+
         [PersistJobDataAfterExecution]
         [DisallowConcurrentExecution]
         public interface ITestJob : IJob
         {
         }
-        
+
         public class TestJob : ITestJob
         {
             public async Task Execute(IJobExecutionContext context)
@@ -86,7 +83,7 @@ namespace Quartz.Tests.Unit
             Assert.IsTrue(job.PersistJobDataAfterExecution);
             Assert.IsTrue(job.ConcurrentExecutionDisallowed);
         }
-        
+
         [Test]
         public async Task TestNoConcurrentExecOnSameJob()
         {
@@ -144,7 +141,7 @@ namespace Quartz.Tests.Unit
             await scheduler.Start();
             barrier.WaitOne();
             await scheduler.Shutdown(true);
-            
+
             Assert.AreEqual(2, jobExecDates.Count);
             Assert.That((jobExecDates[1] - jobExecDates[0]).TotalMilliseconds, Is.GreaterThanOrEqualTo(jobBlockTime.TotalMilliseconds).Within(5));
         }

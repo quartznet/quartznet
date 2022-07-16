@@ -1,5 +1,3 @@
-using System;
-
 namespace Quartz
 {
     internal sealed class TriggerConfigurator : ITriggerConfigurator

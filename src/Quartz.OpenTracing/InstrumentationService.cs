@@ -1,8 +1,6 @@
-using Microsoft.Extensions.Hosting;
-using System;
+﻿using Microsoft.Extensions.Hosting;
+
 using System.Diagnostics;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Quartz.OpenTracing
 {

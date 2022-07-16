@@ -17,7 +17,6 @@
  */
 #endregion
 
-using System;
 using System.Globalization;
 
 namespace Quartz.Impl.AdoJobStore

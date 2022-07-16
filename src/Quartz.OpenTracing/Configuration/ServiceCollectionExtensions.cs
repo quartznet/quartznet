@@ -3,7 +3,6 @@ using Microsoft.Extensions.Hosting;
 using OpenTracing;
 using OpenTracing.Util;
 using Quartz.OpenTracing;
-using System;
 
 namespace Microsoft.Extensions.DependencyInjection
 {

@@ -19,9 +19,6 @@
 
 #endregion
 
-using System;
-using System.Collections.Generic;
-
 using Quartz.Util;
 
 namespace Quartz.Impl.Triggers

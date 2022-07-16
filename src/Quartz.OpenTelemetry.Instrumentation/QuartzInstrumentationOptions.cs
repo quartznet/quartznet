@@ -1,5 +1,3 @@
-using System.Collections.Generic;
-
 using Quartz.Logging;
 
 namespace Quartz.OpenTelemetry.Instrumentation

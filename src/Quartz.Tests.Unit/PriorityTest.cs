@@ -19,11 +19,8 @@
 
 #endregion
 
-using System;
 using System.Collections.Specialized;
 using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 
 using NUnit.Framework;
 

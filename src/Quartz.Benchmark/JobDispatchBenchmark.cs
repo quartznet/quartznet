@@ -1,6 +1,3 @@
-using System;
-using System.Threading.Tasks;
-
 using BenchmarkDotNet.Attributes;
 
 using Quartz.Core;
@@ -31,7 +28,7 @@ namespace Quartz.Benchmark
             var bundle = new TriggerFiredBundle(job, trigger, null, false, DateTimeOffset.UtcNow, null, null, null);
             shell = new JobRunShell(scheduler, bundle);
         }
-        
+
         [Benchmark]
         public async Task Run()
         {

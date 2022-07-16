@@ -1,8 +1,3 @@
-using System;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-
 using Serilog;
 
 namespace Quartz.Examples.Worker
@@ -15,7 +10,7 @@ namespace Quartz.Examples.Worker
                 .Enrich.FromLogContext()
                 .WriteTo.Console()
                 .CreateLogger();
-            
+
             CreateHostBuilder(args).Build().Run();
         }
 
@@ -42,7 +37,7 @@ namespace Quartz.Examples.Worker
                         var loggerFactory = new LoggerFactory()
                             .AddSerilog(Log.Logger);
                         q.SetLoggerFactory(loggerFactory);
-                        
+
                         // we take this from appsettings.json, just show it's possible
                         // q.SchedulerName = "Quartz ASP.NET Core Sample Scheduler";
 
@@ -56,7 +51,7 @@ namespace Quartz.Examples.Worker
                         {
                             tp.MaxConcurrency = 10;
                         });
-                        
+
                         // quickest way to create a job with single trigger is to use ScheduleJob
                         q.ScheduleJob<ExampleJob>(trigger => trigger
                             .WithIdentity("Combined Configuration Trigger")
@@ -64,7 +59,7 @@ namespace Quartz.Examples.Worker
                             .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second))
                             .WithDescription("my awesome trigger configured for a job with single call")
                         );
-                        
+
                         // configure jobs with code
                         var jobKey = new JobKey("awesome job", "awesome group");
                         q.AddJob<ExampleJob>(j => j
@@ -74,7 +69,7 @@ namespace Quartz.Examples.Worker
                         );
 
                         q.AddTrigger(t => t
-                            .WithIdentity("Simple Trigger")    
+                            .WithIdentity("Simple Trigger")
                             .ForJob(jobKey)
                             .StartNow()
                             .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).RepeatForever())

@@ -1,5 +1,3 @@
-using System.Threading.Tasks;
-
 namespace Quartz.Tests.Integration.ExceptionPolicy
 {
     public class ExceptionJob : IJob
@@ -32,7 +30,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
                 toThrow.RefireImmediately = Refire;
                 toThrow.UnscheduleFiringTrigger = UnscheduleFiringTrigger;
                 toThrow.UnscheduleAllTriggers = UnscheduleAllTriggers;
-               
+
                 throw toThrow;
             }
             return Task.CompletedTask;

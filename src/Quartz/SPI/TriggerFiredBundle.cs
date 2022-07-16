@@ -19,8 +19,6 @@
 
 #endregion
 
-using System;
-
 using Quartz.Core;
 
 namespace Quartz.Spi

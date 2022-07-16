@@ -1,4 +1,3 @@
-using System;
 using System.Globalization;
 
 using Quartz.Plugin.Interrupt;
@@ -29,7 +28,7 @@ namespace Quartz
             configure?.Invoke(new JobAutoInterruptOptions(configurer));
             return configurer;
         }
-        
+
     }
 
     public class JobAutoInterruptOptions : PropertiesSetter

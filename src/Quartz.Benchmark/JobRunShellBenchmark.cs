@@ -4,10 +4,6 @@ using Quartz.Impl;
 using Quartz.Impl.Matchers;
 using Quartz.Simpl;
 using Quartz.Spi;
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Quartz.Benchmark
 {

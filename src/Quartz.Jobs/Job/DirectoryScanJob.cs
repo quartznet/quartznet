@@ -1,9 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Threading.Tasks;
-
 using Microsoft.Extensions.Logging;
 
 using Quartz.Logging;
@@ -58,7 +52,7 @@ namespace Quartz.Job
         internal const string LastModifiedTime = "LAST_MODIFIED_TIME";
 
         /// <summary>
-        /// The search string to match against the names of files. 
+        /// The search string to match against the names of files.
         /// Can contain combination of valid literal path and wildcard (* and ?) characters
         /// </summary>
         internal const string SearchPattern = "SEARCH_PATTERN";
@@ -66,7 +60,7 @@ namespace Quartz.Job
         ///<see cref="JobDataMap"/> Key to specify whether to scan sub directories for file changes.
         internal const string IncludeSubDirectories = "INCLUDE_SUB_DIRECTORIES";
 
-        ///<see cref="JobDataMap"/> key to store the current file list of the scanned directories. 
+        ///<see cref="JobDataMap"/> key to store the current file list of the scanned directories.
         ///This is required to find out deleted files during next iteration.
         internal const string CurrentFileList = "CURRENT_FILE_LIST";
 
@@ -178,7 +172,7 @@ namespace Quartz.Job
                 {
                     return false;
                 }
-                
+
                 return x.FullName.Equals(y.FullName);
             }
 

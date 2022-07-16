@@ -19,8 +19,6 @@
 
 #endregion
 
-using System;
-
 using NUnit.Framework;
 
 using Quartz.Impl.Calendar;
@@ -36,7 +34,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
         public CronCalendarTest(Type serializerType) : base(serializerType)
         {
         }
-        
+
         [Test]
         public void TestTimeIncluded()
         {

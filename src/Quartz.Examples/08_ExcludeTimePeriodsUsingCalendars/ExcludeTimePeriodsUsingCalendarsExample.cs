@@ -19,9 +19,6 @@
 
 #endregion
 
-using System;
-using System.Threading.Tasks;
-
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
 

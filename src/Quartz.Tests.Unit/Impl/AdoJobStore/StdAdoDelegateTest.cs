@@ -19,12 +19,9 @@
 
 #endregion
 
-using System;
 using System.Collections;
 using System.Data.Common;
 using System.Runtime.Serialization;
-using System.Threading;
-using System.Threading.Tasks;
 
 using FakeItEasy;
 

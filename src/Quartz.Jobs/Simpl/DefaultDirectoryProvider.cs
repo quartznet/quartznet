@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 using Quartz.Job;
 using Quartz.Spi;
 

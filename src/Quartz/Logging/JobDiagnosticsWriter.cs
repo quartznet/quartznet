@@ -1,6 +1,5 @@
 #if DIAGNOSTICS_SOURCE
 
-using System;
 using System.Diagnostics;
 
 namespace Quartz.Logging

@@ -17,9 +17,6 @@
  */
 #endregion
 
-using System;
-using System.Collections.Generic;
-
 using NUnit.Framework;
 
 using Quartz.Impl;

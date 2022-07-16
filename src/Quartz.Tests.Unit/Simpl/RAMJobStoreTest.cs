@@ -19,12 +19,6 @@
 
 #endregion
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
-
 using NUnit.Framework;
 
 using Quartz.Impl.Calendar;
@@ -427,7 +421,7 @@ namespace Quartz.Tests.Unit.Simpl
                 Assert.AreEqual("job" + i, triggers[i].Key.Name);
             }
         }
-        
+
         [Test]
         public async Task TestJobDeleteReturnValue()
         {
@@ -438,7 +432,7 @@ namespace Quartz.Tests.Unit.Simpl
 
             var store = new RAMJobStore();
             await store.StoreJob(job, false);
-            
+
             var deleteSuccess = await store.RemoveJob(new JobKey("job0"));
             Assert.IsTrue(deleteSuccess, "Expected RemoveJob to return True when deleting an existing job");
 
@@ -451,7 +445,7 @@ namespace Quartz.Tests.Unit.Simpl
             internal int fMisfireCount;
 
             public Task NotifyTriggerListenersMisfired(
-                ITrigger trigger, 
+                ITrigger trigger,
                 CancellationToken cancellationToken = default)
             {
                 fMisfireCount++;
@@ -459,28 +453,28 @@ namespace Quartz.Tests.Unit.Simpl
             }
 
             public Task NotifySchedulerListenersFinalized(
-                ITrigger trigger, 
+                ITrigger trigger,
                 CancellationToken cancellationToken = default)
             {
                 return Task.FromResult(true);
             }
 
             public void SignalSchedulingChange(
-                DateTimeOffset? candidateNewNextFireTimeUtc, 
+                DateTimeOffset? candidateNewNextFireTimeUtc,
                 CancellationToken cancellationToken = default)
             {
             }
 
             public Task NotifySchedulerListenersError(
                 string message,
-                SchedulerException jpe, 
+                SchedulerException jpe,
                 CancellationToken cancellationToken = default)
             {
                 return Task.FromResult(true);
             }
 
             public Task NotifySchedulerListenersJobDeleted(
-                JobKey jobKey, 
+                JobKey jobKey,
                 CancellationToken cancellationToken = default)
             {
                 return Task.FromResult(true);

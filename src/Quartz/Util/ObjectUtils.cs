@@ -19,12 +19,10 @@
 
 #endregion
 
-using System;
 using System.Collections.Concurrent;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Globalization;
-using System.Linq;
 using System.Reflection;
 
 namespace Quartz.Util

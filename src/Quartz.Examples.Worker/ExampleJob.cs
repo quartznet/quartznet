@@ -1,8 +1,3 @@
-using System;
-using System.Threading.Tasks;
-
-using Microsoft.Extensions.Logging;
-
 namespace Quartz.Examples.Worker
 {
     public class ExampleJob : IJob, IDisposable

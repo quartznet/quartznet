@@ -1,10 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-
 namespace Quartz.Examples.Worker
 {
     public class Worker : BackgroundService

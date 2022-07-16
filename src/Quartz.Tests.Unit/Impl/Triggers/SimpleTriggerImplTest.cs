@@ -1,6 +1,5 @@
 using NUnit.Framework;
 using Quartz.Impl.Triggers;
-using System;
 
 namespace Quartz.Tests.Unit.Impl.Triggers
 {

@@ -1,5 +1,3 @@
-using System.Threading.Tasks;
-
 using NUnit.Framework;
 
 using Quartz.Plugin.TimeZoneConverter;

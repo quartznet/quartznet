@@ -19,7 +19,6 @@
 
 #endregion
 
-using System.Collections.Generic;
 using System.Runtime.Serialization;
 
 using Quartz.Util;

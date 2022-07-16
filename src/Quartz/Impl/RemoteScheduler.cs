@@ -19,11 +19,6 @@
 
 #endregion
 
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-
 using Quartz.Core;
 using Quartz.Impl.Matchers;
 using Quartz.Simpl;

@@ -1,7 +1,5 @@
 using NUnit.Framework;
 using Quartz.Core;
-using System;
-using System.Collections.Generic;
 
 namespace Quartz.Tests.Unit.Core
 {

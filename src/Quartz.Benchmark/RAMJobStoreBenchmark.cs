@@ -3,10 +3,6 @@ using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Simpl;
 using Quartz.Spi;
-using System;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace Quartz.Benchmark
 {

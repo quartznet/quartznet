@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Quartz
+﻿namespace Quartz
 {
     /// <summary>
     /// Attribute to use with public <see cref="TimeSpan" /> properties that
@@ -34,22 +32,22 @@ namespace Quartz
     public enum TimeSpanParseRule
     {
         /// <summary>
-        /// 
+        ///
         /// </summary>
         Milliseconds = 0,
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         Seconds = 1,
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         Minutes = 2,
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         Hours = 3
     }

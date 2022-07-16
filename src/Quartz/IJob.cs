@@ -17,8 +17,6 @@
  */
 #endregion
 
-using System.Threading.Tasks;
-
 namespace Quartz
 {
 	/// <summary> 

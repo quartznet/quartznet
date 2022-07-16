@@ -1,10 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data.Common;
-using System.IO;
+﻿using System.Data.Common;
 using System.Runtime.Serialization;
-using System.Threading;
-using System.Threading.Tasks;
 
 using Microsoft.Extensions.Logging;
 

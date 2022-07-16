@@ -1,5 +1,3 @@
-using System.Threading.Tasks;
-
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;

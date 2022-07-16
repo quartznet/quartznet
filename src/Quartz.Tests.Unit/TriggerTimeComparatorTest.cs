@@ -1,6 +1,5 @@
 using NUnit.Framework;
 using Quartz.Spi;
-using System;
 
 namespace Quartz.Tests.Unit
 {

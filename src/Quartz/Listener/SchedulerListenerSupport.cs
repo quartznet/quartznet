@@ -17,9 +17,6 @@
  */
 #endregion
 
-using System.Threading;
-using System.Threading.Tasks;
-
 namespace Quartz.Listener
 {
     /// <summary>

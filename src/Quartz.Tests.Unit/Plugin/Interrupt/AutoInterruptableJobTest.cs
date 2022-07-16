@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Specialized;
-using System.Threading;
-using System.Threading.Tasks;
+﻿using System.Collections.Specialized;
 
 using NUnit.Framework;
 
@@ -68,7 +65,7 @@ namespace Quartz.Tests.Unit.Plugin.Interrupt
             var scheduler = await CreateScheduler<NoOpJob>();
 
             await Task.Delay(TimeSpan.FromSeconds(2));
-            
+
             await scheduler.Clear();
 
             await scheduler.Shutdown();

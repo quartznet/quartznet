@@ -1,10 +1,7 @@
-﻿using System;
-using System.Threading.Tasks;
-
-namespace Quartz.Examples.Example15
+﻿namespace Quartz.Examples.Example15
 {
     /// <summary>
-    /// This is just a simple job that gets fired off many times 
+    /// This is just a simple job that gets fired off many times
     /// by ConfigureJobSchedulingByUsingXmlConfigurations Example.
     /// </summary>
     /// <author>Bill Kratzer</author>

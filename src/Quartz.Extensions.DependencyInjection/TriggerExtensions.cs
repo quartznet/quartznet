@@ -1,5 +1,3 @@
-using System;
-
 namespace Quartz
 {
     public static class TriggerExtensions

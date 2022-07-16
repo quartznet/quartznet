@@ -19,10 +19,6 @@
 
 #endregion
 
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-
 using Quartz.Core;
 
 namespace Quartz.Spi

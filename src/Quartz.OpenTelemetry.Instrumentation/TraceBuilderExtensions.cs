@@ -1,5 +1,3 @@
-using System;
-
 using Quartz.OpenTelemetry.Instrumentation;
 
 // ReSharper disable once CheckNamespace

@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -32,14 +29,14 @@ namespace Quartz.Converters
 
             return converter;
         }
-            
+
         public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
         {
             if (!(value is ICalendar calendar))
             {
                 throw new ArgumentException("The value must implement ICalendar", nameof(value));
             }
-            
+
             writer.WriteStartObject();
             writer.WritePropertyName("$type");
             var type = value!.GetType().AssemblyQualifiedNameWithoutVersion();

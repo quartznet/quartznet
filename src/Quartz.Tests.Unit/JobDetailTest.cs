@@ -19,8 +19,6 @@
 
 #endregion
 
-using System.Threading.Tasks;
-
 using FluentAssertions;
 
 using NUnit.Framework;
@@ -103,7 +101,7 @@ namespace Quartz.Tests.Unit
         {
             var type = typeof(GenericJob<string>);
             var job = new JobDetailImpl("name", "group", type, true, true);
-            
+
             job.JobType.Type.Should().Be(type);
             job.JobType.FullName.Should().Be(type.AssemblyQualifiedNameWithoutVersion());
         }

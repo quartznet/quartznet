@@ -1,26 +1,23 @@
 #region License
-/* 
+/*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 #endregion
 
-using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.IO;
 using System.Runtime.Serialization.Formatters;
 using System.Runtime.Serialization.Formatters.Binary;
 using NUnit.Framework;
@@ -1986,7 +1983,7 @@ namespace Quartz.Tests.Unit.Utils
 
         //[Test]
         //[Ignore]
-        //public void TestEntrySetRemove() 
+        //public void TestEntrySetRemove()
         //{
         //    DirtyFlagMap<string, string> dirtyFlagMap = new DirtyFlagMap<string, string>();
         //    ISet<string> entrySet = dirtyFlagMap.EntrySet();
@@ -2000,7 +1997,7 @@ namespace Quartz.Tests.Unit.Utils
         //    Assert.IsTrue(dirtyFlagMap.Dirty);
         //}
 
-        //		public void TestEntrySetRetainAll() 
+        //		public void TestEntrySetRetainAll()
         //		{
         //			DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
         //			ISet entrySet = dirtyFlagMap.EntrySet();
@@ -2014,7 +2011,7 @@ namespace Quartz.Tests.Unit.Utils
         //			Assert.IsTrue(dirtyFlagMap.Dirty);
         //		}
 
-        //		public void TestEntrySetRemoveAll() 
+        //		public void TestEntrySetRemoveAll()
         //		{
         //			DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
         //			ISet entrySet = dirtyFlagMap.EntrySet();
@@ -2030,7 +2027,7 @@ namespace Quartz.Tests.Unit.Utils
 
         //[Test]
         //[Ignore]
-        //public void TestEntrySetClear() 
+        //public void TestEntrySetClear()
         //{
         //    DirtyFlagMap<string,string> dirtyFlagMap = new DirtyFlagMap<string, string>();
         //    Dictionary<string, string>.Enumerator entrySet = dirtyFlagMap.EntrySet();
@@ -2044,7 +2041,7 @@ namespace Quartz.Tests.Unit.Utils
 
         //[Test]
         //[Ignore]
-        //public void TestEntrySetIterator() 
+        //public void TestEntrySetIterator()
         //{
         //    DirtyFlagMap<string, string> dirtyFlagMap = new DirtyFlagMap<string, string>();
         //    IDictionary<string, string> entrySet = dirtyFlagMap.EntrySet();
@@ -2067,7 +2064,7 @@ namespace Quartz.Tests.Unit.Utils
 
         //[Test]
         //[Ignore]
-        //public void TestEntrySetToArray() 
+        //public void TestEntrySetToArray()
         //{
         //    DirtyFlagMap<string,string> dirtyFlagMap = new DirtyFlagMap<string, string>();
         //    Dictionary<string, string>.Enumerator entrySet = dirtyFlagMap.EntrySet();
@@ -2085,7 +2082,7 @@ namespace Quartz.Tests.Unit.Utils
 
         //[Test]
         //[Ignore]
-        //public void TestEntrySetToArrayWithArg() 
+        //public void TestEntrySetToArrayWithArg()
         //{
         //    DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
         //    ISet entrySet = dirtyFlagMap.EntrySet();
@@ -2103,7 +2100,7 @@ namespace Quartz.Tests.Unit.Utils
 
         //[Test]
         //[Ignore]
-        //public void TestKeySetClear() 
+        //public void TestKeySetClear()
         //{
         //    DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
         //    ISet keySet = dirtyFlagMap.KeySet();
@@ -2118,7 +2115,7 @@ namespace Quartz.Tests.Unit.Utils
 
         //[Test]
         //[Ignore]
-        //public void TestValuesClear() 
+        //public void TestValuesClear()
         //{
         //    DirtyFlagMap dirtyFlagMap = new DirtyFlagMap();
         //    IList values = new ArrayList(dirtyFlagMap.Values);

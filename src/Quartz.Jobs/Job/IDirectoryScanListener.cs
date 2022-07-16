@@ -1,6 +1,3 @@
-using System.Collections.Generic;
-using System.IO;
-
 namespace Quartz.Job
 {
     ///<summary>
