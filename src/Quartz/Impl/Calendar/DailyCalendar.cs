@@ -448,16 +448,14 @@ namespace Quartz.Impl.Calendar
 
             DateTimeOffset startOfDayInMillis = GetStartOfDay(timeUtc);
             DateTimeOffset endOfDayInMillis = GetEndOfDay(timeUtc);
-            DateTimeOffset timeRangeStartingTimeInMillis =
-                GetTimeRangeStartingTimeUtc(timeUtc);
-            DateTimeOffset timeRangeEndingTimeInMillis =
-                GetTimeRangeEndingTimeUtc(timeUtc);
+            DateTimeOffset timeRangeStartingTimeInMillis = GetTimeRangeStartingTimeUtc(timeUtc);
+            DateTimeOffset timeRangeEndingTimeInMillis = GetTimeRangeEndingTimeUtc(timeUtc);
             if (!InvertTimeRange)
             {
-                if (timeUtc > startOfDayInMillis &&
+                if (timeUtc >= startOfDayInMillis &&
                     timeUtc < timeRangeStartingTimeInMillis ||
                     timeUtc > timeRangeEndingTimeInMillis &&
-                    timeUtc < endOfDayInMillis)
+                    timeUtc <= endOfDayInMillis)
                 {
                     return true;
                 }
