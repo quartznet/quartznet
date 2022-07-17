@@ -75,7 +75,7 @@
     * Make RAMJobStore.RemoveJobInternal return true even if job has no triggers (#1580)
     * Configuration property `quartz.jobStore.dbRetryInterval` will be correctly set when constructing the Scheduler JobStore.
         * If you previously had configuration with the key `quartz.scheduler.dbFailureRetryInterval` please change to the above mentioned key.
-
+    * DailyCalendar doesn't include first and last millisecond of day in checks (#1665)
 
 ## Release 3.4.0, Mar 27 2022
 
