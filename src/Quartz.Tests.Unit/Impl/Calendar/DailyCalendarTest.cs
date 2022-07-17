@@ -21,9 +21,12 @@
 
 using System;
 
+using FluentAssertions;
+
 using NUnit.Framework;
 
 using Quartz.Impl.Calendar;
+using Quartz.Impl.Triggers;
 using Quartz.Simpl;
 using Quartz.Util;
 
@@ -90,6 +93,22 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             // 11/2/2012 17:00 (utc) is 11/2/2012 13:00 (est)
             DateTimeOffset timeToCheck = new DateTimeOffset(2012, 11, 2, 17, 0, 0, TimeSpan.FromHours(0));
             Assert.IsTrue(dailyCalendar.IsTimeIncluded(timeToCheck));
+        }
+
+        [Test]
+        public void ShouldAllowExactMidnight()
+        {
+            var calendar = new DailyCalendar("01:00", "05:00");
+
+            var trigger = (CronTriggerImpl) TriggerBuilder.Create()
+                .WithIdentity("TestJobTrigger", "group1")
+                .StartNow()
+                .WithCronSchedule("0 0 0 * * ? *")
+                .ModifiedByCalendar("CustomCalendar")
+                .Build();
+
+            var fireTimeUtc = trigger.ComputeFirstFireTimeUtc(calendar);
+            fireTimeUtc.Should().NotBeNull();
         }
 
         protected override DailyCalendar GetTargetObject()
