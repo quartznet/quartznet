@@ -20,12 +20,11 @@
 #endregion
 
 #if REMOTING
- using System;
 using System.Collections.Specialized;
-using System.Threading.Tasks;
+
 using Quartz.Impl;
- using Quartz.Simpl;
- using Quartz.Util;
+using Quartz.Simpl;
+using Quartz.Util;
 
 namespace Quartz.Examples.Example12
 {

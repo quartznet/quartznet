@@ -19,10 +19,7 @@
 
 #endregion
 
-
 #if REMOTING
-using System;
-using System.Threading.Tasks;
 
 using Quartz.Impl.Matchers;
 
