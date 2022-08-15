@@ -381,16 +381,14 @@ namespace Quartz
             /// </summary>
             /// <param name="provider">Valid provider name to configure driver details.</param>
             /// <param name="configurer">Callback to refine configuration.</param>
+            /// <param name="dataSourceName">Name of the database. Defaults to '<see cref="AdoProviderOptions.DefaultDataSourceName"/>'.</param>
             /// <returns></returns>
             public void UseGenericDatabase(
                 string provider,
-                Action<AdoProviderOptions>? configurer = null)
+                Action<AdoProviderOptions>? configurer = null,
+                string? dataSourceName = null)
             {
-                SetProperty("quartz.jobStore.driverDelegateType", typeof(StdAdoDelegate).AssemblyQualifiedNameWithoutVersion());
-                SetProperty("quartz.jobStore.dataSource", AdoProviderOptions.DefaultDataSourceName);
-                SetProperty($"quartz.dataSource.{AdoProviderOptions.DefaultDataSourceName}.provider", provider);
-
-                configurer?.Invoke(new AdoProviderOptions(this));
+                UseGenericDatabase<StdAdoDelegate>(provider, configurer, dataSourceName);
             }
 
             /// <summary>
@@ -407,6 +405,28 @@ namespace Quartz
             public void UseSerializer<T>() where T : IObjectSerializer
             {
                 SetProperty("quartz.serializer.type", typeof(T).AssemblyQualifiedNameWithoutVersion());
+            }
+
+            /// <summary>
+            /// Configures persistence to use custom ADO provider.
+            /// </summary>
+            /// <typeparam name="TAdoDelegate">Type of the <see cref="StdAdoDelegate"/> inheritor.</typeparam>
+            /// <param name="provider">Valid provider name to configure driver details.</param>
+            /// <param name="configurer">Callback to refine configuration.</param>
+            /// <param name="dataSourceName">Name of the database. Defaults to '<see cref="AdoProviderOptions.DefaultDataSourceName"/>'.</param>
+            public void UseGenericDatabase<TAdoDelegate>(
+                string provider,
+                Action<AdoProviderOptions>? configurer = null,
+                string? dataSourceName = null)
+                where TAdoDelegate : StdAdoDelegate
+            {
+                dataSourceName ??= AdoProviderOptions.DefaultDataSourceName;
+
+                SetProperty("quartz.jobStore.driverDelegateType", typeof(TAdoDelegate).AssemblyQualifiedNameWithoutVersion());
+                SetProperty("quartz.jobStore.dataSource", dataSourceName);
+                SetProperty($"quartz.dataSource.{dataSourceName}.provider", provider);
+
+                configurer?.Invoke(new AdoProviderOptions(this, dataSourceName));
             }
         }
 
@@ -456,10 +476,12 @@ namespace Quartz
             public const string DefaultDataSourceName = "default";
 
             private readonly PersistentStoreOptions options;
+            private readonly string dataSourceName;
 
-            protected internal AdoProviderOptions(PersistentStoreOptions options)
+            protected internal AdoProviderOptions(PersistentStoreOptions options, string dataSourceName)
             {
                 this.options = options;
+                this.dataSourceName = dataSourceName;
             }
 
             /// <summary>
@@ -475,7 +497,7 @@ namespace Quartz
             /// </summary>
             public string ConnectionString
             {
-                set => options.SetProperty($"quartz.dataSource.{DefaultDataSourceName}.connectionString", value);
+                set => options.SetProperty($"quartz.dataSource.{dataSourceName}.connectionString", value);
             }
 
             /// <summary>
@@ -483,7 +505,7 @@ namespace Quartz
             /// </summary>
             public string ConnectionStringName
             {
-                set => options.SetProperty($"quartz.dataSource.{DefaultDataSourceName}.connectionStringName", value);
+                set => options.SetProperty($"quartz.dataSource.{dataSourceName}.connectionStringName", value);
             }
 
             /// <summary>
@@ -499,7 +521,7 @@ namespace Quartz
             /// </summary>
             public void UseConnectionProvider<T>() where T : IDbProvider
             {
-                options.SetProperty($"quartz.dataSource.{DefaultDataSourceName}.connectionProvider.type", typeof(T).AssemblyQualifiedNameWithoutVersion());
+                options.SetProperty($"quartz.dataSource.{dataSourceName}.connectionProvider.type", typeof(T).AssemblyQualifiedNameWithoutVersion());
             }
         }
     }
@@ -515,14 +537,10 @@ namespace Quartz
 
         public static void UseSqlServer(
             this SchedulerBuilder.PersistentStoreOptions options,
-            Action<SchedulerBuilder.AdoProviderOptions> configurer)
+            Action<SchedulerBuilder.AdoProviderOptions> configurer,
+            string? dataSourceName = null)
         {
-            options.SetProperty("quartz.jobStore.driverDelegateType", typeof(SqlServerDelegate).AssemblyQualifiedNameWithoutVersion());
-            options.SetProperty("quartz.jobStore.dataSource", SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName);
-            options.SetProperty($"quartz.dataSource.{SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}.provider", "SqlServer");
-
-            var adoProviderOptions = new SchedulerBuilder.AdoProviderOptions(options);
-            configurer.Invoke(adoProviderOptions);
+            options.UseGenericDatabase<SqlServerDelegate>("SqlServer", configurer, dataSourceName);
         }
 
         public static void UsePostgres(
@@ -534,14 +552,10 @@ namespace Quartz
 
         public static void UsePostgres(
             this SchedulerBuilder.PersistentStoreOptions options,
-            Action<SchedulerBuilder.AdoProviderOptions> configurer)
+            Action<SchedulerBuilder.AdoProviderOptions> configurer,
+            string? dataSourceName = null)
         {
-            options.SetProperty("quartz.jobStore.driverDelegateType", typeof(PostgreSQLDelegate).AssemblyQualifiedNameWithoutVersion());
-            options.SetProperty("quartz.jobStore.dataSource", SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName);
-            options.SetProperty($"quartz.dataSource.{SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}.provider", "Npgsql");
-
-            var adoProviderOptions = new SchedulerBuilder.AdoProviderOptions(options);
-            configurer.Invoke(adoProviderOptions);
+            options.UseGenericDatabase<PostgreSQLDelegate>("Npgsql", configurer, dataSourceName);
         }
 
         public static void UseMySql(
@@ -553,29 +567,27 @@ namespace Quartz
 
         public static void UseMySql(
             this SchedulerBuilder.PersistentStoreOptions options,
-            Action<SchedulerBuilder.AdoProviderOptions> configurer)
+            Action<SchedulerBuilder.AdoProviderOptions> configurer,
+            string? dataSourceName = null)
         {
-            UseMySqlInternal(options, "MySql", configurer);
+            UseMySqlInternal(options, "MySql", configurer, dataSourceName);
         }
 
         public static void UseMySqlConnector(
             this SchedulerBuilder.PersistentStoreOptions options,
-            Action<SchedulerBuilder.AdoProviderOptions> configurer)
+            Action<SchedulerBuilder.AdoProviderOptions> configurer,
+            string? dataSourceName = null)
         {
-            UseMySqlInternal(options, "MySqlConnector", configurer);
+            UseMySqlInternal(options, "MySqlConnector", configurer, dataSourceName);
         }
 
         internal static void UseMySqlInternal(
             this SchedulerBuilder.PersistentStoreOptions options,
             string provider,
-            Action<SchedulerBuilder.AdoProviderOptions> configurer)
+            Action<SchedulerBuilder.AdoProviderOptions> configurer,
+            string? dataSourceName = null)
         {
-            options.SetProperty("quartz.jobStore.driverDelegateType", typeof(MySQLDelegate).AssemblyQualifiedNameWithoutVersion());
-            options.SetProperty("quartz.jobStore.dataSource", SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName);
-            options.SetProperty($"quartz.dataSource.{SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}.provider", provider);
-
-            var adoProviderOptions = new SchedulerBuilder.AdoProviderOptions(options);
-            configurer.Invoke(adoProviderOptions);
+            options.UseGenericDatabase<MySQLDelegate>(provider, configurer, dataSourceName);
         }
 
         public static void UseFirebird(
@@ -587,14 +599,10 @@ namespace Quartz
 
         public static void UseFirebird(
             this SchedulerBuilder.PersistentStoreOptions options,
-            Action<SchedulerBuilder.AdoProviderOptions> configurer)
+            Action<SchedulerBuilder.AdoProviderOptions> configurer,
+            string? dataSourceName = null)
         {
-            options.SetProperty("quartz.jobStore.driverDelegateType", typeof(FirebirdDelegate).AssemblyQualifiedNameWithoutVersion());
-            options.SetProperty("quartz.jobStore.dataSource", SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName);
-            options.SetProperty($"quartz.dataSource.{SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}.provider", "Firebird");
-
-            var adoProviderOptions = new SchedulerBuilder.AdoProviderOptions(options);
-            configurer.Invoke(adoProviderOptions);
+            options.UseGenericDatabase<FirebirdDelegate>("Firebird", configurer, dataSourceName);
         }
 
         public static void UseOracle(
@@ -606,14 +614,10 @@ namespace Quartz
 
         public static void UseOracle(
             this SchedulerBuilder.PersistentStoreOptions options,
-            Action<SchedulerBuilder.AdoProviderOptions> configurer)
+            Action<SchedulerBuilder.AdoProviderOptions> configurer,
+            string? dataSourceName = null)
         {
-            options.SetProperty("quartz.jobStore.driverDelegateType", typeof(OracleDelegate).AssemblyQualifiedNameWithoutVersion());
-            options.SetProperty("quartz.jobStore.dataSource", SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName);
-            options.SetProperty($"quartz.dataSource.{SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}.provider", "OracleODPManaged");
-
-            var adoProviderOptions = new SchedulerBuilder.AdoProviderOptions(options);
-            configurer.Invoke(adoProviderOptions);
+            options.UseGenericDatabase<OracleDelegate>("OracleODPManaged", configurer, dataSourceName);
         }
 
         /// <summary>
@@ -631,9 +635,10 @@ namespace Quartz
         /// </summary>
         public static void UseSQLite(
             this SchedulerBuilder.PersistentStoreOptions options,
-            Action<SchedulerBuilder.AdoProviderOptions> configurer)
+            Action<SchedulerBuilder.AdoProviderOptions> configurer,
+            string? dataSourceName = null)
         {
-            options.UseSQLite("SQLite", configurer);
+            options.UseSQLite("SQLite", configurer, dataSourceName);
         }
 
         /// <summary>
@@ -651,22 +656,19 @@ namespace Quartz
         /// </summary>
         public static void UseMicrosoftSQLite(
             this SchedulerBuilder.PersistentStoreOptions options,
-            Action<SchedulerBuilder.AdoProviderOptions> configurer)
+            Action<SchedulerBuilder.AdoProviderOptions> configurer,
+            string? dataSourceName = null)
         {
-            options.UseSQLite("SQLite-Microsoft", configurer);
+            options.UseSQLite("SQLite-Microsoft", configurer, dataSourceName);
         }
 
         private static void UseSQLite(
             this SchedulerBuilder.PersistentStoreOptions options,
             string provider,
-            Action<SchedulerBuilder.AdoProviderOptions> configurer)
+            Action<SchedulerBuilder.AdoProviderOptions> configurer,
+            string? dataSourceName)
         {
-            options.SetProperty("quartz.jobStore.driverDelegateType", typeof(SQLiteDelegate).AssemblyQualifiedNameWithoutVersion());
-            options.SetProperty("quartz.jobStore.dataSource", SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName);
-            options.SetProperty($"quartz.dataSource.{SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}.provider", provider);
-
-            var adoProviderOptions = new SchedulerBuilder.AdoProviderOptions(options);
-            configurer.Invoke(adoProviderOptions);
+            options.UseGenericDatabase<SQLiteDelegate>(provider, configurer, dataSourceName);
         }
     }
 }
