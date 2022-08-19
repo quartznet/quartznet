@@ -53,6 +53,7 @@ namespace Quartz
 
         void UseInMemoryStore(Action<SchedulerBuilder.InMemoryStoreOptions>? configure = null);
         void UsePersistentStore(Action<SchedulerBuilder.PersistentStoreOptions> configure);
+        void UsePersistentStore<T>(Action<SchedulerBuilder.PersistentStoreOptions> configure) where T : IJobStore;
         void UseThreadPool<T>(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null) where T : IThreadPool;
         void UseDefaultThreadPool(int maxConcurrency, Action<SchedulerBuilder.ThreadPoolOptions>? configure = null);
         void UseDefaultThreadPool(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null);
