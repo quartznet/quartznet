@@ -29,7 +29,7 @@ namespace Quartz
 
         public override async Task<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
         {
-            base.Initialize(options.Value);
+            base.Initialize(options.Value.ToNameValueCollection());
             var scheduler = await base.GetScheduler(cancellationToken);
             if (initialized)
             {
