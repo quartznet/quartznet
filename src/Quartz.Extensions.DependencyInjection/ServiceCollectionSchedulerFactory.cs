@@ -43,18 +43,20 @@ namespace Quartz
                     // check if logging provider configured and let if configure
                     serviceProvider.GetService<MicrosoftLoggingProvider>();
 
-                    base.Initialize(options.Value);
+                    base.Initialize(options.Value.ToNameValueCollection());
                 }
-                
+
                 var scheduler = await base.GetScheduler(cancellationToken);
-                
+
                 // The base method may produce a new scheduler in the event that the original scheduler was stopped
-                if(Object.ReferenceEquals(scheduler, initializedScheduler))
+                if (ReferenceEquals(scheduler, initializedScheduler))
+                {
                     return scheduler;
-                
+                }
+
                 await InitializeScheduler(scheduler, cancellationToken);
                 initializedScheduler = scheduler;
-                
+
                 return scheduler;
             }
             finally
