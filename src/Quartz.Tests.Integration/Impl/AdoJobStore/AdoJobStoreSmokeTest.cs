@@ -202,6 +202,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             config.UsePersistentStore(store =>
             {
                 store.UseProperties = false;
+                store.PerformSchemaValidation = true;
 
                 if (clustered)
                 {

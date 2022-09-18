@@ -1,19 +1,19 @@
 #region License
-/* 
+/*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
- * 
- * Licensed under the Apache License, Version 2.0 (the "License"); you may not 
- * use this file except in compliance with the License. You may obtain a copy 
- * of the License at 
- * 
- *   http://www.apache.org/licenses/LICENSE-2.0 
- *   
- * Unless required by applicable law or agreed to in writing, software 
- * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT 
- * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the 
- * License for the specific language governing permissions and limitations 
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy
+ * of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations
  * under the License.
- * 
+ *
  */
 #endregion
 
@@ -39,20 +39,19 @@ namespace Quartz.Impl.AdoJobStore
         /// Called by the QuartzScheduler before the <see cref="IJobStore"/> is
         /// used, in order to give the it a chance to Initialize.
         /// </summary>
-        public override Task Initialize(
-            ITypeLoadHelper loadHelper, 
+        public override async Task Initialize(
+            ITypeLoadHelper loadHelper,
             ISchedulerSignaler signaler,
             CancellationToken cancellationToken = default)
         {
-            base.Initialize(loadHelper, signaler, cancellationToken);
+            await base.Initialize(loadHelper, signaler, cancellationToken).ConfigureAwait(false);
             Log.Info("JobStoreTX initialized.");
-            return Task.CompletedTask;
         }
 
         /// <summary>
-        /// For <see cref="JobStoreTX" />, the non-managed TX connection is just 
+        /// For <see cref="JobStoreTX" />, the non-managed TX connection is just
         /// the normal connection because it is not CMT.
-        /// </summary> 
+        /// </summary>
         /// <seealso cref="JobStoreSupport.GetConnection()" />
         protected override ConnectionAndTransactionHolder GetNonManagedTXConnection()
         {
@@ -62,11 +61,11 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Execute the given callback having optionally acquired the given lock.
         /// For <see cref="JobStoreTX" />, because it manages its own transactions
-        /// and only has the one datasource, this is the same behavior as 
+        /// and only has the one datasource, this is the same behavior as
         /// <see cref="JobStoreSupport.ExecuteInNonManagedTXLock" />.
         /// </summary>
         /// <param name="lockName">
-        /// The name of the lock to acquire, for example "TRIGGER_ACCESS". 
+        /// The name of the lock to acquire, for example "TRIGGER_ACCESS".
         /// If null, then no lock is acquired, but the lockCallback is still
         /// executed in a transaction.
         /// </param>
@@ -77,7 +76,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <seealso cref="JobStoreSupport.GetNonManagedTXConnection()" />
         /// <seealso cref="JobStoreSupport.GetConnection()" />
         protected override Task<T> ExecuteInLock<T>(
-            string? lockName, 
+            string? lockName,
             Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
             CancellationToken cancellationToken = default)
         {

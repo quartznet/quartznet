@@ -193,7 +193,8 @@ namespace Quartz.Examples.AspNetCore
                 /*
                 q.UsePersistentStore(s =>
                 {
-                    s.UseProperties = true;
+                    s.PerformSchemaValidation = true; // default
+                    s.UseProperties = true; // preferred, but not default
                     s.RetryInterval = TimeSpan.FromSeconds(15);
                     s.UseSqlServer(sqlServer =>
                     {
