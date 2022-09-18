@@ -994,7 +994,7 @@ Please add configuration to your application config file to correctly initialize
                     sched.Context.Put((string) key!, val);
                 }
 
-                // fire up job store, and runshell factory
+                // fire up job store, and job run shell factory
 
                 js.InstanceId = schedInstId;
                 js.InstanceName = schedName;
@@ -1004,9 +1004,9 @@ Please add configuration to your application config file to correctly initialize
                 jrsf.Initialize(sched);
                 qs.Initialize();
 
-                logger.LogInformation("Quartz scheduler '{0}' initialized".FormatInvariant(sched.SchedulerName));
-
-                logger.LogInformation(("Quartz scheduler version: {0}".FormatInvariant(qs.Version)));
+                logger.LogInformation("Quartz Scheduler {Version} - '{SchedulerName}' with instanceId '{SchedulerInstanceId}' initialized", qs.Version, qs.SchedulerName, qs.SchedulerInstanceId);
+                logger.LogInformation("Using thread pool '{ThreadPoolType}', size: {ThreadPoolSize}", qs.ThreadPoolClass.FullName, qs.ThreadPoolSize);
+                logger.LogInformation("Using job store '{JobStoreType}', supports persistence: {SupportsPersistence}, clustered: {Clustered}", qs.JobStoreClass.FullName, qs.SupportsPersistence, qs.Clustered);
 
                 // prevents the repository from being garbage collected
                 qs.AddNoGCObject(schedRep);

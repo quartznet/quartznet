@@ -62,14 +62,17 @@
 
   * Introduce JobType to allow storing job's type information without actual Type instance (#1610)
 
-## Release 3.5.0, mmm dd 2022
+
+## Release 3.5.0, Sep 18 2022
 
 * NEW FEATURES
 
     * Allow PersistJobDataAfterExecution and ConcurrentExecutionDisallowed to be explicitly set in JobBuilder and pulled up to IJobConfigurator (#1575)
     * Add TryGet functions to JobDataMap and StringKeyDirtyFlagMap (#1592)
     * Add UseMySqlConnector overload for DB configuration (#1621)
-  * Validate database schema during scheduler initialization (#1716)
+    * Validate database schema during scheduler initialization (#1716)
+    * Support DataSource name configuration (#1710)
+    * Add "UsePersistentStore<T> where T : IJobStore" in DI Extension (#1715)
 
 * FIXES
 
@@ -79,6 +82,11 @@
     * DailyCalendar doesn't include first and last millisecond of day in checks (#1665)
     * StdSchedulerFactory and derived factories are not thread-safe (#1587)
     * Change QuartzOptions to inherit from Dictionary<string, string?> instead of NameValueCollection to fix Microsoft.Extensions.Configuration 7 RC integration (#1748)
+
+* IMPROVEMENTS
+
+    * Reduce scheduler initialization logging noise (#1752)
+
 
 ## Release 3.4.0, Mar 27 2022
 
