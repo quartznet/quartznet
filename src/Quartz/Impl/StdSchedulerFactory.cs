@@ -998,7 +998,7 @@ Please add configuration to your application config file to correctly initialize
                     sched.Context.Put((string) key!, val);
                 }
 
-                // fire up job store, and runshell factory
+                // fire up job store, and job run shell factory
 
                 js.InstanceId = schedInstId!;
                 js.InstanceName = schedName;
@@ -1008,9 +1008,9 @@ Please add configuration to your application config file to correctly initialize
                 jrsf.Initialize(sched);
                 qs.Initialize();
 
-                log.Info("Quartz scheduler '{0}' initialized".FormatInvariant(sched.SchedulerName));
-
-                log.Info("Quartz scheduler version: {0}".FormatInvariant(qs.Version));
+                log.Info($"Quartz Scheduler {qs.Version} - '{SchedulerName}' with instanceId '{qs.SchedulerInstanceId}' initialized");
+                log.Info($"Using thread pool '{qs.ThreadPoolClass.FullName}', size: {qs.ThreadPoolSize}");
+                log.Info($"Using job store '{qs.JobStoreClass.FullName}', supports persistence: {qs.SupportsPersistence}, clustered: {qs.Clustered}");
 
                 // prevents the db manager from being garbage collected
                 if (dbMgr != null)
