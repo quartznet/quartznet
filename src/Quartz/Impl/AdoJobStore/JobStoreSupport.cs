@@ -313,7 +313,13 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <returns></returns>
         public bool DoubleCheckLockMisfireHandler { get; set; }
-        
+
+        /// <summary>
+        /// Whether to perform a schema check on scheduler startup and try to determine if correct tables are in place.
+        /// Defaults to true.
+        /// </summary>
+        public bool PerformSchemaValidation { get; set; } = true;
+
         public virtual TimeSpan GetAcquireRetryDelay(int failureCount) => DbRetryInterval;
 
         protected DbMetadata DbMetadata => ConnectionManager.GetDbMetadata(DataSource);
@@ -444,7 +450,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Called by the QuartzScheduler before the <see cref="IJobStore" /> is
         /// used, in order to give it a chance to Initialize.
         /// </summary>
-        public virtual Task Initialize(
+        public virtual async Task Initialize(
             ITypeLoadHelper loadHelper,
             ISchedulerSignaler signaler,
             CancellationToken cancellationToken = default)
@@ -536,7 +542,22 @@ namespace Quartz.Impl.AdoJobStore
                 }
             }
 
-            return Task.CompletedTask;
+            if (PerformSchemaValidation && driverDelegate is StdAdoDelegate adoDelegate)
+            {
+                try
+                {
+                    var tableCount = await ExecuteWithoutLock(conn => adoDelegate.ValidateSchema(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
+                    Log.Info($"Successfully validated presence of {tableCount} schema objects");
+                }
+                catch (Exception ex)
+                {
+                    const string error = "Database schema validation failed."
+                                         + " Make sure you have created the database tables that Quartz requires using the database schema scripts."
+                                         + " You can disable this check by setting quartz.jobStore.performSchemaValidation to false";
+
+                    throw new SchedulerException(error, ex);
+                }
+            }
         }
 
         /// <seealso cref="IJobStore.SchedulerStarted(CancellationToken)" />
@@ -3563,7 +3584,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 // ignore
             }
-            
+
 
             return ex is TimeoutException;
         }
@@ -3699,7 +3720,7 @@ namespace Quartz.Impl.AdoJobStore
             }
 
             return false;
-        } 
+        }
 
 
         /// <summary>
@@ -3862,7 +3883,7 @@ namespace Quartz.Impl.AdoJobStore
                     requestorId = Guid.NewGuid();
                 }
             }
-            
+
             bool transOwner = false;
             ConnectionAndTransactionHolder? conn = null;
             try
