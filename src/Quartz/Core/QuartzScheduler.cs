@@ -299,16 +299,8 @@ namespace Quartz.Core
             }
             catch (Exception re)
             {
-                throw new SchedulerException(
-                    "Unable to bind scheduler to remoting.", re);
+                throw new SchedulerException("Unable to bind scheduler to remoting.", re);
             }
-
-            log.Info("Scheduler meta-data: " +
-                     new SchedulerMetaData(SchedulerName, SchedulerInstanceId, GetType(), boundRemotely, RunningSince != null,
-                         InStandbyMode, IsShutdown, RunningSince,
-                         NumJobsExecuted, JobStoreClass,
-                         SupportsPersistence, Clustered, ThreadPoolClass,
-                         ThreadPoolSize, Version));
         }
 
         /// <summary>
