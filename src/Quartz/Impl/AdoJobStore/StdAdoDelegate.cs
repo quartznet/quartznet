@@ -611,5 +611,29 @@ namespace Quartz.Impl.AdoJobStore
         {
             adoUtil.AddCommandParameter(cmd, paramName, paramValue, dataType, size);
         }
+
+        /// <summary>
+        /// Validates the persistence schema and returns the number of validates objects.
+        /// </summary>
+        public virtual async Task<int> ValidateSchema(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken)
+        {
+            foreach (var tableName in AllTableNames)
+            {
+                var targetTable = $"{tablePrefix}{tableName}";
+                var sql = $"SELECT 1 FROM {targetTable}";
+
+                try
+                {
+                    using var cmd = PrepareCommand(conn, sql);
+                    await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    throw new JobPersistenceException($"Unable to query against table {targetTable}: " + ex.Message, ex);
+                }
+            }
+
+            return AllTableNames.Length;
+        }
     }
 }

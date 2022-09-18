@@ -355,6 +355,17 @@ namespace Quartz
             }
 
             /// <summary>
+            /// Set whether database schema validated will be tried during scheduler initialization.
+            /// </summary>
+            /// <remarks>
+            /// Optional feature and all providers do no support it.
+            /// </remarks>
+            public bool PerformSchemaValidation
+            {
+                set => SetProperty("quartz.jobStore.performSchemaValidation", value.ToString().ToLowerInvariant());
+            }
+
+            /// <summary>
             /// Sets the database retry interval.
             /// </summary>
             /// <remarks>

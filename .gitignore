@@ -87,5 +87,7 @@ node_modules
 /src/Quartz.Examples.AspNetCore/healthchecksdb
 
 docs/.vuepress/dist
+docs/.vuepress/.temp
+
 /node_modules
 BenchmarkDotNet.Artifacts

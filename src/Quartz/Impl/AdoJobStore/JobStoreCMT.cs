@@ -51,7 +51,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Called by the QuartzScheduler before the <see cref="IJobStore"/> is
         /// used, in order to give the it a chance to Initialize.
         /// </summary>
-        public override Task Initialize(
+        public override async Task Initialize(
             ITypeLoadHelper loadHelper,
             ISchedulerSignaler signaler,
             CancellationToken cancellationToken = default)
@@ -63,10 +63,8 @@ namespace Quartz.Impl.AdoJobStore
                 UseDBLocks = true;
             }
 
-            base.Initialize(loadHelper, signaler, cancellationToken);
-
+            await base.Initialize(loadHelper, signaler, cancellationToken).ConfigureAwait(false);
             Logger.LogInformation("JobStoreCMT initialized.");
-            return Task.CompletedTask;
         }
 
         /// <summary>

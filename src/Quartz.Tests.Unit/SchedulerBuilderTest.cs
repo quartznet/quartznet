@@ -25,6 +25,7 @@ namespace Quartz.Tests.Unit
             Assert.That(config.Properties["quartz.threadPool.maxConcurrency"], Is.EqualTo("100"));
         }
 
+
         [Test]
         public void TestSqlServerJobStore()
         {
@@ -33,6 +34,7 @@ namespace Quartz.Tests.Unit
             {
                 js.UseJsonSerializer();
                 js.RetryInterval = TimeSpan.FromSeconds(20);
+                js.PerformSchemaValidation = true;
                 js.UseClustering(c =>
                 {
                     c.CheckinInterval = TimeSpan.FromSeconds(10);
@@ -52,6 +54,7 @@ namespace Quartz.Tests.Unit
             Assert.That(config.Properties["quartz.jobStore.driverDelegateType"], Is.EqualTo(typeof(SqlServerDelegate).AssemblyQualifiedNameWithoutVersion()));
             Assert.That(config.Properties["quartz.jobStore.dataSource"], Is.EqualTo("default"));
             Assert.That(config.Properties["quartz.jobStore.tablePrefix"], Is.EqualTo("QRTZ2019_"));
+            Assert.That(config.Properties["quartz.jobStore.performSchemaValidation"], Is.EqualTo("true"));
             Assert.That(config.Properties["quartz.jobStore.clusterCheckinInterval"], Is.EqualTo("10000"));
             Assert.That(config.Properties["quartz.jobStore.clusterCheckinMisfireThreshold"], Is.EqualTo("15000"));
             Assert.That(config.Properties[StdSchedulerFactory.PropertyJobStoreDbRetryInterval], Is.EqualTo("20000"));
