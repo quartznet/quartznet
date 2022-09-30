@@ -1687,7 +1687,7 @@ namespace Quartz.Core
 
             static Task NotifyAllJobListeners(IListenerManager listenerManager,
                                               ExecutingJobsManager jobManager,
-                                              IReadOnlyCollection<IJobListener> listeners,
+                                              IJobListener[] listeners,
                                               Func<IJobListener, IJobExecutionContext, JobExecutionException?, CancellationToken, Task> notifyAction,
                                               IJobExecutionContext jec,
                                               JobExecutionException? je,
@@ -1698,7 +1698,7 @@ namespace Quartz.Core
 
             static async Task NotifyAwaited(IListenerManager listenerManager,
                                             ExecutingJobsManager jobManager,
-                                            IReadOnlyCollection<IJobListener> listeners,
+                                            IJobListener[] listeners,
                                             Func<IJobListener, IJobExecutionContext, JobExecutionException?, CancellationToken, Task> notifyAction,
                                             IJobExecutionContext jec,
                                             JobExecutionException? je,
