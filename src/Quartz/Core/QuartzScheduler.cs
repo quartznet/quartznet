@@ -1623,7 +1623,7 @@ namespace Quartz.Core
             IJobExecutionContext jec,
             CancellationToken cancellationToken = default)
         {
-            return NotifyJobListeners((jl, jec, je, cancellationToken) => jl.JobToBeExecuted(jec, cancellationToken),
+            return NotifyJobListeners(static (jl, jec, je, cancellationToken) => jl.JobToBeExecuted(jec, cancellationToken),
                                       jec,
                                       null,
                                       cancellationToken);
@@ -1638,7 +1638,7 @@ namespace Quartz.Core
             IJobExecutionContext jec,
             CancellationToken cancellationToken = default)
         {
-            return NotifyJobListeners((jl, jec, je, cancellationToken) => jl.JobExecutionVetoed(jec, cancellationToken),
+            return NotifyJobListeners(static (jl, jec, je, cancellationToken) => jl.JobExecutionVetoed(jec, cancellationToken),
                                       jec,
                                       null,
                                       cancellationToken);
@@ -1655,7 +1655,7 @@ namespace Quartz.Core
             JobExecutionException? je,
             CancellationToken cancellationToken = default)
         {
-            return NotifyJobListeners((jl, jec, je, cancellationToken) => jl.JobWasExecuted(jec, je, cancellationToken),
+            return NotifyJobListeners(static (jl, jec, je, cancellationToken) => jl.JobWasExecuted(jec, je, cancellationToken),
                                       jec,
                                       je,
                                       cancellationToken);
