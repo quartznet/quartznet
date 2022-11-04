@@ -97,6 +97,13 @@ module.exports = {
         ]
       },
       {
+        title: 'How To\'s',
+        collapsable: false,
+        children: [
+          ['/documentation/quartz-3.x/how-tos/one-off-job', 'One-Off Job'],
+        ]
+      },
+      {
         title: 'Packages',
         collapsable: false,
         children: [
