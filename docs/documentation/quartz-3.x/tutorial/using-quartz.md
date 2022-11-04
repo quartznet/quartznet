@@ -24,7 +24,7 @@ Install-Packake Quartz.Serialization.Json
 
 ### Configure `Program.cs`
 
-A minimal example of configuring Quartz.NET with the Microsoft Hosting framework
+A minimal style example of configuring Quartz.NET with the Microsoft Hosting framework
 looks like this.
 
 ```csharp
@@ -93,3 +93,36 @@ await builder.RunAsync();
 ```
 
 As you can see, working with Quartz.NET is rather simple. In [Lesson 2](jobs-and-triggers.md) we'll give a quick overview of Jobs and Triggers, so that you can more fully understand this example.
+
+## Traditional Program.cs
+
+If you are working in a pre-minimal api project, you can use the same old `Program.cs` structure
+as well.
+
+```csharp
+using Microsoft.Extensions.Hosting;
+using Quartz;
+
+namespace Example;
+
+public class Program
+{
+    public static async Task Main(string[] args) {
+        var builder = Host.CreateDefaultBuilder()
+            .ConfigureServices((cxt, services) =>
+            {
+                services.AddQuartz(q =>
+                {
+                    q.UseMicrosoftDependencyInjectionJobFactory();
+                });
+                services.AddQuartzHostedService(opt =>
+                {
+                    opt.WaitForJobsToComplete = true;
+                });
+            }).Build();
+
+        // will block until the last running job completes
+        await builder.RunAsync();
+    }
+}
+```
