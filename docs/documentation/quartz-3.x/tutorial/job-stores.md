@@ -2,6 +2,8 @@
 title: 'Job Stores'
 ---
 
+# Job Stores
+
 JobStore's are responsible for keeping track of all the "work data" that you give to the scheduler: 
 jobs, triggers, calendars, etc. Selecting the appropriate `IJobStore` implementation for your Quartz scheduler instance is an important step. 
 Luckily, the choice should be a very easy one once you understand the differences between them. 

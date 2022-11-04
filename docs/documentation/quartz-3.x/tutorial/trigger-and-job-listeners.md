@@ -2,6 +2,8 @@
 title: 'Trigger and Job Listeners'
 ---
 
+# Trigger and Job Listeners
+
 Listeners are objects that you create to perform actions based on events occuring within the scheduler.
 As you can probably guess, TriggerListeners receive events related to triggers, and JobListeners receive events related to jobs.
 

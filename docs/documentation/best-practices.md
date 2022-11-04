@@ -3,7 +3,7 @@ layout: default
 title: Best Practices
 ---
 
-*This document was adapted from Quartz Java*
+# Best Practices
 
 ## JobDataMap Tips
 

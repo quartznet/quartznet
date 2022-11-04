@@ -3,6 +3,8 @@ title: Frequently Asked Questions
 sidebarDepth: 0
 ---
 
+# FAQ
+
 ::: tip
 This FAQ was adapted from Quartz Java
 :::

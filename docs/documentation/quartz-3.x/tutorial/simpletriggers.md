@@ -1,6 +1,8 @@
 ---
-title: 'SimpleTrigger'
+title: 'Simple Triggers'
 ---
+
+# Simple Triggers
 
 SimpleTrigger should meet your scheduling needs if you need to have a job execute exactly once at a specific moment in time,
 or at a specific moment in time followed by repeats at a specific interval. Or plainer english, if you want the trigger to

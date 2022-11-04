@@ -75,6 +75,7 @@ module.exports = {
             path: '/documentation/quartz-3.x/tutorial/',
             children: [
               '/documentation/quartz-3.x/tutorial/using-quartz',
+              '/documentation/quartz-3.x/tutorial/overview',
               '/documentation/quartz-3.x/tutorial/jobs-and-triggers',
               '/documentation/quartz-3.x/tutorial/more-about-jobs',
               '/documentation/quartz-3.x/tutorial/more-about-triggers',
@@ -102,6 +103,7 @@ module.exports = {
         children: [
           ['/documentation/quartz-3.x/how-tos/one-off-job', 'One-Off Job'],
           ['/documentation/quartz-3.x/how-tos/multiple-triggers', 'Multiple Triggers'],
+          '/documentation/quartz-3.x/how-tos/job-template'
         ]
       },
       {
