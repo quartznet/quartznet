@@ -20,8 +20,51 @@ any same-named value in the Job.
 Storing JobDataMap values on a Trigger can be useful in the case where you have a Job that is stored in the scheduler for regular/repeated use by multiple Triggers,
 yet with each independent triggering, you want to supply the Job with different data inputs.
 
-In light of all of the above, we recommend as a best practice the following: Code within the `IJob.Execute(..)` method should generally retrieve
-values from the JobDataMap on found on the JobExecutionContext, rather than directly from the one on the JobDetail.
+We recommend that code within the `IJob.Execute(..)` method should retrieve
+values from the `MergedJobDataMap` on the `JobExecutionContext`, rather than directly 
+from the JobDetail or Trigger.
+
+```csharp
+public class SomeJob : IJob 
+{
+    public static readonly JobKey Key = new JobKey("job-name", "group-name");
+
+    public Task Execute(IJobExecutionContext context) 
+    {
+        // don't do this
+        var badMethod = context.JobDetail.JobDataMap.GetString("a-value");
+        var alsoBadMethod = context.Trigger.JobDataMap.GetString("a-value");
+
+        // do this
+        var goodMethod = context.MergedJobDataMap.GetString("a-value");
+    }
+}
+```
+
+## Job Tips
+
+### Static Job Key
+
+To simplify `JobKey` access we recommend defining a static field that allows
+easy access to the job's key.
+
+```csharp
+public class SomeJob : IJob 
+{
+    public static readonly JobKey Key = new JobKey("job-name", "group-name");
+
+    public Task Execute(IJobExecutionContext context) { /* elided */ }
+}
+```
+
+then later
+
+```csharp
+public async Task DoSomething(IScheduler schedule, CancellationToken ct)
+{
+    await schedule.TriggerJob(SomeJob.Key, ct)
+}
+```
 
 ## Trigger Tips
 
