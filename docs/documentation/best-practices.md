@@ -57,12 +57,27 @@ public class SomeJob : IJob
 }
 ```
 
-then later
+then later you can trigger the job directly with
 
 ```csharp
 public async Task DoSomething(IScheduler schedule, CancellationToken ct)
 {
     await schedule.TriggerJob(SomeJob.Key, ct)
+}
+```
+
+or schedule it with a trigger
+
+```csharp
+public async Task DoSomething(IScheduler schedule, CancellationToken ct)
+{
+    var trigger = TriggerBuilder.Create()
+                .WithIdentity("a-trigger", "a-group")
+                .ForJob(SomeJob.Key)
+                .StartNow()
+                .Build();
+
+    await schedule.ScheduleJob(trigger, ct)
 }
 ```
 
