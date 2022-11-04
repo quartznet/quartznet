@@ -101,6 +101,7 @@ module.exports = {
         collapsable: false,
         children: [
           ['/documentation/quartz-3.x/how-tos/one-off-job', 'One-Off Job'],
+          ['/documentation/quartz-3.x/how-tos/multiple-triggers', 'Multiple Triggers'],
         ]
       },
       {

@@ -14,7 +14,8 @@ Only store primitive data types (including strings) in JobDataMap to avoid data 
 ### Use the Merged JobDataMap
 
 The JobDataMap that is found on the `JobExecutionContext` during Job execution serves as a convenience.
-It is a merge of the JobDataMap found on the JobDetail and the one found on the Trigger, with the value in the latter overriding any same-named values in the former.
+The data in the JobDataMap is a merger of the JobDetail and the Trigger, with the data in the Trigger overriding
+any same-named value in the Job.
 
 Storing JobDataMap values on a Trigger can be useful in the case where you have a Job that is stored in the scheduler for regular/repeated use by multiple Triggers,
 yet with each independent triggering, you want to supply the Job with different data inputs.
