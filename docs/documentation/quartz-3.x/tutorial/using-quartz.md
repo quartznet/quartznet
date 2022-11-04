@@ -44,6 +44,7 @@ var builder = Host.CreateDefaultBuilder()
         });
     }).Build();
 
+// will block until the last running job completes
 await builder.RunAsync();
 ```
 
@@ -87,7 +88,7 @@ var trigger = TriggerBuilder.Create()
 
 await scheduler.ScheduleJob(job, trigger);
 
-
+// will block until the last running job completes
 await builder.RunAsync();
 ```
 
