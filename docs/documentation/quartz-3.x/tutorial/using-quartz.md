@@ -17,9 +17,8 @@ Here's a quick snippet of code, that instantiates and starts a scheduler, and sc
 ```sh
 Install-Package Microsoft.Extensions.Hosting
 Install-Package Quartz
-Install-Packake Quartz.Extensions.DependencyInjection
-Install-Packake Quartz.Extensions.Hosting
-Install-Packake Quartz.Serialization.Json
+Install-Package Quartz.Extensions.DependencyInjection
+Install-Package Quartz.Extensions.Hosting
 ```
 
 ### Configure `Program.cs`
