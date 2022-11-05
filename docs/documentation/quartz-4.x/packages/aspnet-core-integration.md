@@ -14,7 +14,7 @@ You need to add NuGet package reference to your project which uses Quartz.
 ## Using
 
 You can add Quartz configuration by invoking an extension method `AddQuartzServer` on `IServiceCollection`.
-This will add a hosted quartz server into ASP.NET Core process that will be started and stopped based on applications lifetime.
+This will add a hosted Quartz server into ASP.NET Core process that will be started and stopped based on applications lifetime.
 
 ::: tip
 See [Quartz.Extensions.DependencyInjection documentation](microsoft-di-integration) to learn more about configuring Quartz scheduler, jobs and triggers.
@@ -27,7 +27,7 @@ public void ConfigureServices(IServiceCollection services)
 {
     services.AddQuartz(q =>
     {
-        // base quartz scheduler, job and trigger configuration
+        // base Quartz scheduler, job and trigger configuration
     });
 
     // ASP.NET Core hosting

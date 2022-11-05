@@ -42,7 +42,7 @@ ITrigger trigger = TriggerBuilder.Create()
 
 var sched = scheduleFactory.GetScheduler();
 
-// Tell quartz to schedule the job using our trigger
+// Tell Quartz to schedule the job using our trigger
 await sched.ScheduleJob(job, trigger);
 ```
   

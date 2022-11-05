@@ -27,7 +27,7 @@ You can add Quartz configuration by invoking an extension method `AddQuartzOpenT
 ```csharp
 public void ConfigureServices(IServiceCollection services)
 {
-    // make sure you configure logging and OpenTracing before quartz services
+    // make sure you configure logging and OpenTracing before Quartz services
     services.AddQuartzOpenTracing(options =>
     {
         // these are the defaults

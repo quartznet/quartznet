@@ -39,7 +39,7 @@ Job that are specific to the firings of the trigger. Quartz ships with a handful
 jobs. It developed a specific way of describing how a job runs, however the `CronTrigger` uses a different format where Quartz expects seconds as the first parameter. [More...](/documentation/quartz-3.x/tutorial/crontrigger)
 :::
 
-**SimpleTrigger** is handy if you need 'one-shot' execution (just single execution of a job at a given moment in time), or if you need to fire a job at a given time, and have it repeat `N` times, with a delay of `T` between executions. 
+**SimpleTrigger** is handy if you need 'one-shot' execution (just single execution of a job at a given moment in time), or if you need to fire a job at a given time, and have it repeat `N` times, with a delay of `T` between executions. This should feel similar to the .NET Timer class.
 
 ```csharp
 var example = TriggerBuilder.Create()
@@ -54,8 +54,7 @@ var example = TriggerBuilder.Create()
 ```
 
 **CronTrigger** is useful if you wish to have triggering based on calendar-like schedules - 
-such as ["every Friday, at noon"](https://crontab.guru/#00_12_*_*_5)
- or ["at 10:15 on the 10th day of every month."](https://crontab.guru/#15_10_10_*_*)
+such as "every Friday, at noon" or "at 10:15 on the 10th day of every month.". You can use [Cron Maker](http://www.cronmaker.com/) to explore the syntax.
 
 ```csharp
 var example = TriggerBuilder.Create()

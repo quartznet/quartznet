@@ -55,8 +55,8 @@ have a no-arguement constructor. Another ramification is that it does not make s
 on the job class - as their values would not be preserved between job executions.
 
 :::tip Dependency Injection
-If using quartz with a dependency injection framework, your constructor can pull in service dependencies just
-like a controller in an ASP.Net MVC.
+If using Quartz with a dependency injection framework, your constructor can pull in service dependencies just
+like a controller in an ASP.NET MVC.
 :::
 
 You may now be wanting to ask "how can I provide properties/configuration for a Job instance?" and "how can I 
@@ -116,7 +116,7 @@ and strings can be stored in the map, thus eliminating any possibility of later 
 If you add properties with a public `set` accessor to your job class that correspond to the names of keys in the `JobDataMap`,  then Quartz's default JobFactory implementation will automatically call those setters when the job is instantiated, thus preventing the need to explicitly get the values out of the map within your execute method. Note this
 functionality is not maintained by default when using a custom `JobFactory`.
 
-Triggers can also have `JobDataMaps` associated with them. This can be useful in the case where you have a Job that is stored in the scheduler for regular/repeated use by multiple Triggers, yet with each independent triggering, you want to supply the Job with different data inputs.
+Triggers can also have `JobDataMap`s associated with them. This can be useful in the case where you have a Job that is stored in the scheduler for regular/repeated use by multiple Triggers, yet with each independent triggering, you want to supply the Job with different data inputs.
 
 The JobDataMap that is found on the `JobExecutionContext` during Job execution serves as a convenience. It is a merger
 of the `JobDataMap` found on the `JobDetail` and the one found on the `Trigger`, with the values of the trigger overriding

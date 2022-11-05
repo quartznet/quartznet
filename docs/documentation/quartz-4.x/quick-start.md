@@ -232,7 +232,7 @@ ITrigger trigger = TriggerBuilder.Create()
 		.RepeatForever())
 	.Build();
 
-// Tell quartz to schedule the job using our trigger
+// Tell Quartz to schedule the job using our trigger
 await scheduler.ScheduleJob(job, trigger);
 
 // You could also schedule multiple triggers for the same job with
@@ -288,7 +288,7 @@ namespace QuartzSampleApp
                     .RepeatForever())
                 .Build();
 
-            // Tell quartz to schedule the job using our trigger
+            // Tell Quartz to schedule the job using our trigger
             await scheduler.ScheduleJob(job, trigger);
 
             // some sleep to show what's happening
