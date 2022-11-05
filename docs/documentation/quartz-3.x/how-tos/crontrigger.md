@@ -1,6 +1,8 @@
 ---
-title: 'CronTrigger Tutorial'
+title: 'Using the CronTrigger'
 ---
+
+# Using the Cron Trigger 
 
 ## Introduction
 

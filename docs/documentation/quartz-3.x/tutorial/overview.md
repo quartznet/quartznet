@@ -28,22 +28,22 @@ Quartz provides "builder" classes that define a Domain Specific Language (or DSL
 ```csharp
 // define the job and tie it to our HelloJob class
 IJobDetail job = JobBuilder.Create<HelloJob>()
-    .WithIdentity("myJob", "group1") // name "myJob", group "group1"
+    .WithIdentity(name: "myJob", group: "group1")
     .Build();
     
 // Trigger the job to run now, and then every 40 seconds
 ITrigger trigger = TriggerBuilder.Create()
-    .WithIdentity("myTrigger", "group1")
+    .WithIdentity(name: "myTrigger", group: "group1")
     .StartNow()
     .WithSimpleSchedule(x => x
         .WithIntervalInSeconds(40)
         .RepeatForever())            
     .Build();
 
-var sched = scheduleFactory.GetSchedule();
+var sched = scheduleFactory.GetScheduler();
 
 // Tell quartz to schedule the job using our trigger
-await sched.scheduleJob(job, trigger);
+await sched.ScheduleJob(job, trigger);
 ```
   
 The block of code that builds the job definition is using `JobBuilder` to create the `IJobDetail`.

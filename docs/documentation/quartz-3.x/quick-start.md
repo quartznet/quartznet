@@ -3,6 +3,8 @@ layout: default
 title: Quartz.NET Quick Start Guide
 ---
 
+# Welcome to the Docs
+
 Welcome to the Quick Start Guide for Quartz.NET. As you read this guide, expect to see details of:
 
 * Downloading Quartz.NET

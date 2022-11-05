@@ -23,9 +23,9 @@ namespace Quartz
 
 When the job's trigger fires (more on that in a moment), the `Execute(..)` method is invoked by one of the scheduler's worker threads.
 The `JobExecutionContext` object that is passed to this method provides the job instance with information about its "run-time" environment -
-a handle to the `Scheduler` that executed it, a handle to the Trigger that triggered the execution, the job's `JobDetail` object, and a few other items.
+a handle to the `IScheduler` that executed it, a handle to the Trigger that triggered the execution, the job's `IJobDetail` object, and a few other items.
 
-The `JobDetail` object is created by the Quartz.NET client (your program) at the time the job is added to the scheduler.
+The `IJobDetail` object is created by the Quartz.NET client (your program) at the time the job is added to the scheduler.
 It contains various property settings for the job, as well as a `JobDataMap`, which can be used to store state information for a given instance of your job class.
 It is essentially the definition of the job instance, and is discussed in further detail in the next lesson.
 
@@ -34,24 +34,23 @@ It is essentially the definition of the job instance, and is discussed in furthe
 Trigger objects are used to trigger the execution (or 'firing') of jobs. When you wish to schedule a job, you instantiate a trigger and use its properties to configure the scheduling you wish to have. Triggers may also have a `JobDataMap` associated with them. - this is useful to passing parameters to a 
 Job that are specific to the firings of the trigger. Quartz ships with a handful of different trigger types, but the most commonly used types are simple trigger (interface `ISimpleTrigger`) and a cron trigger (interface `ICronTrigger`).
 
-:::tip De
+:::warning
 [`cron`](https://en.wikipedia.org/wiki/Cron) is the name of an early Linux command-line utility used to schedule
-jobs. It developed a specific way of describing how a job runs, and the `CronTrigger` brings that functionality
-to Quartz.
+jobs. It developed a specific way of describing how a job runs, however the `CronTrigger` uses a different format where Quartz expects seconds as the first parameter. [More...](/documentation/quartz-3.x/tutorial/crontrigger)
 :::
 
 **SimpleTrigger** is handy if you need 'one-shot' execution (just single execution of a job at a given moment in time), or if you need to fire a job at a given time, and have it repeat `N` times, with a delay of `T` between executions. 
 
 ```csharp
 var example = TriggerBuilder.Create()
-                    .WithIdentity("trigger-name", "trigger-group")
-                    .ForJob("job-name", "job-group")
-                    .WithSimpleSchedule(o =>
-                    {
-                        o.WithRepeatCount(5)
-                            .WithInterval(TimeSpan.FromMinutes(5));
-                    })
-                    .Build();
+    .WithIdentity("trigger-name", "trigger-group")
+    .ForJob("job-name", "job-group")
+    .WithSimpleSchedule(o =>
+    {
+        o.WithRepeatCount(5)
+            .WithInterval(TimeSpan.FromMinutes(5));
+    })
+    .Build();
 ```
 
 **CronTrigger** is useful if you wish to have triggering based on calendar-like schedules - 
@@ -60,10 +59,10 @@ such as ["every Friday, at noon"](https://crontab.guru/#00_12_*_*_5)
 
 ```csharp
 var example = TriggerBuilder.Create()
-                    .WithIdentity("trigger-name", "trigger-group")
-                    .ForJob("job-name", "job-group")
-                    .WithCronSchedule("45 23 * * 6")
-                    .Build();
+    .WithIdentity("trigger-name", "trigger-group")
+    .ForJob("job-name", "job-group")
+    .WithCronSchedule("45 23 * * 6")
+    .Build();
 ```
 
 ## Why Jobs and Triggers?
