@@ -16,15 +16,20 @@ title: Tuning the Scheduler
 ## Microsoft Hosting Extensions
 
 ```csharp
-services.AddQuartz(opt => 
-{
-    opt.SchedulerId = "";
-    opt.SchedulerName = "";
-    opt.MaxBatchSize = "";
-    opt.InterruptJobsOnShutdown = true;
-    opt.InterruptJobsOnShutdownWithWait = true;
-    q.BatchTriggerAcquisitionFireAheadTimeWindow = TimeSpan.Zero;
-})
+var host = Host.CreateDefaultBuilder()
+    .ConfigureServices(services => 
+    {
+        services.AddQuartz(opt => 
+        {
+            opt.SchedulerId = "";
+            opt.SchedulerName = "";
+            opt.MaxBatchSize = "";
+            opt.InterruptJobsOnShutdown = true;
+            opt.InterruptJobsOnShutdownWithWait = true;
+            q.BatchTriggerAcquisitionFireAheadTimeWindow = TimeSpan.Zero;
+        });
+    })
+    .Build();
 ```
 
 # Building By Hand
