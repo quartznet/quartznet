@@ -6,9 +6,9 @@ title: Tuning the Scheduler
 
 | Property | |
 |---|--|
-| Scheduler Id | .. |
-| Scheduler Name | .. |
-| Max Batch Size | .. |
+| Scheduler Name | The [instance name](/documentation/quartz-3.x/configuration/reference.html#main-configuration), used when clustering  |
+| Scheduler Id | The [instance id](/documentation/quartz-3.x/configuration/reference.html#main-configuration). Can be auto-generated |
+| Max Batch Size | max number of jobs to run at one time |
 | InterruptJobsOnShutdown | .. |
 | InterruptJobsOnShutdownWithWait| .. |
 | BatchTriggerAcquisitionFireAheadTimeWindow | .. |
