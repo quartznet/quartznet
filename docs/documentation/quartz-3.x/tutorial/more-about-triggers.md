@@ -2,6 +2,8 @@
 title: 'More About Triggers'
 ---
 
+# More About Triggers
+
 Like jobs, triggers are relatively easy to work with, but do contain a variety of customizable options that you need to
 be aware of and understand before you can make full use of Quartz.NET. Also, as noted earlier, there are different types of triggers, 
 that you can select to meet different scheduling needs.

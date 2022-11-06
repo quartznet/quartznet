@@ -176,7 +176,7 @@ ITrigger trigger = TriggerBuilder.Create()
 		.RepeatForever())
 	.Build();
 
-// Tell quartz to schedule the job using our trigger
+// Tell Quartz to schedule the job using our trigger
 scheduler.ScheduleJob(job, trigger);
 ```
 
@@ -220,7 +220,7 @@ namespace ConsoleApplication1
                         .RepeatForever())
                     .Build();
 
-                // Tell quartz to schedule the job using our trigger
+                // Tell Quartz to schedule the job using our trigger
                 scheduler.ScheduleJob(job, trigger);
 
                 // some sleep to show what's happening

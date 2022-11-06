@@ -3,6 +3,8 @@ title: Frequently Asked Questions
 sidebarDepth: 0
 ---
 
+# FAQ
+
 ::: tip
 This FAQ was adapted from Quartz Java
 :::
@@ -92,7 +94,7 @@ and monitor is really the amount of storage space available to the JobStore
 Now, aside from "how many can I store?" is the question of "how many jobs 
 can Quartz be running at the same moment in time?"
 
-One thing that CAN slow down quartz itself is using a lot of listeners 
+One thing that CAN slow down Quartz itself is using a lot of listeners 
 (TriggerListeners, JobListeners, and SchedulerListeners). The time spent in 
 each listener obviously adds into the time spent "processing" a job's 
 execution, outside of actual execution of the job. This doesn't mean that 

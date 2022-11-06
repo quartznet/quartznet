@@ -75,6 +75,7 @@ module.exports = {
             path: '/documentation/quartz-3.x/tutorial/',
             children: [
               '/documentation/quartz-3.x/tutorial/using-quartz',
+              '/documentation/quartz-3.x/tutorial/overview',
               '/documentation/quartz-3.x/tutorial/jobs-and-triggers',
               '/documentation/quartz-3.x/tutorial/more-about-jobs',
               '/documentation/quartz-3.x/tutorial/more-about-triggers',
@@ -83,17 +84,17 @@ module.exports = {
               '/documentation/quartz-3.x/tutorial/trigger-and-job-listeners',
               '/documentation/quartz-3.x/tutorial/scheduler-listeners',
               '/documentation/quartz-3.x/tutorial/job-stores',
+              '/documentation/quartz-3.x/tutorial/schedule-builder',
               '/documentation/quartz-3.x/tutorial/configuration-resource-usage-and-scheduler-factory',
-              '/documentation/quartz-3.x/tutorial/advanced-enterprise-features',
-              '/documentation/quartz-3.x/tutorial/miscellaneous-features',
-              '/documentation/quartz-3.x/tutorial/crontrigger'
+              '/documentation/quartz-3.x/tutorial/advanced-enterprise-features'
             ]
           },
           ['/documentation/quartz-3.x/configuration/reference', 'Configuration Reference'],
           '/documentation/faq',
           '/documentation/best-practices',
           ['http://quartznet.sourceforge.net/apidoc/3.0/html', 'API Documentation'],
-          ['/documentation/quartz-3.x/migration-guide', 'Migration Guide' ]
+          ['/documentation/quartz-3.x/migration-guide', 'Migration Guide' ],
+          '/documentation/quartz-3.x/miscellaneous-features',
         ]
       },
       {
@@ -102,6 +103,8 @@ module.exports = {
         children: [
           ['/documentation/quartz-3.x/how-tos/one-off-job', 'One-Off Job'],
           ['/documentation/quartz-3.x/how-tos/multiple-triggers', 'Multiple Triggers'],
+          '/documentation/quartz-3.x/how-tos/job-template',
+          '/documentation/quartz-3.x/how-tos/crontrigger'
         ]
       },
       {

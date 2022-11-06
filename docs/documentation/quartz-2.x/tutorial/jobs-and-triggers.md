@@ -36,7 +36,7 @@ Quartz provides "builder" classes that define a Domain Specific Language (or DSL
 			.RepeatForever())            
 		.Build();
 		
-	// Tell quartz to schedule the job using our trigger
+	// Tell Quartz to schedule the job using our trigger
 	sched.scheduleJob(job, trigger);
 ```
   

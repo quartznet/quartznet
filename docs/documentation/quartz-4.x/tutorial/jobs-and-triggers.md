@@ -37,7 +37,7 @@ ITrigger trigger = TriggerBuilder.Create()
         .RepeatForever())            
     .Build();
     
-// Tell quartz to schedule the job using our trigger
+// Tell Quartz to schedule the job using our trigger
 await sched.scheduleJob(job, trigger);
 ```
   

@@ -7,7 +7,7 @@ title: 'Lesson 11: Advanced (Enterprise) Features'
 Clustering currently only works with the AdoJobstore (JobStoreTX). Features include load-balancing and job fail-over (if the JobDetail's "request recovery" flag is set to true).
 
 Enable clustering by setting the "quartz.jobStore.clustered" property to "true". 
-Each instance in the cluster should use the same copy of the quartz properties. 
+Each instance in the cluster should use the same copy of the Quartz properties. 
 Exceptions of this would be to use properties that are identical, with the following allowable exceptions: 
 Different thread pool size, and different value for the "quartz.scheduler.instanceId" property. 
 Each node in the cluster MUST have a unique instanceId, which is easily done (without needing different properties files) by placing "AUTO" as the value of this property.

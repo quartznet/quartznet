@@ -1,6 +1,8 @@
 ---
-title: 'CronTrigger'
+title: 'Cron Triggers'
 ---
+
+# Cron Triggers
 
 CronTriggers are often more useful than SimpleTrigger, if you need a job-firing schedule that recurs based on calendar-like notions, 
 rather than on the exactly specified intervals of SimpleTrigger.

@@ -47,7 +47,7 @@ $ docker run -d --name jaeger \
 ```csharp
 public void ConfigureServices(IServiceCollection services)
 {
-    // make sure you configure logging and open telemetry before quartz services
+    // make sure you configure logging and open telemetry before Quartz services
 
     services.AddOpenTelemetry(builder =>
     {
