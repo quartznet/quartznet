@@ -72,9 +72,9 @@ jobs:
         with:
           name: artifacts
           path: artifacts
-  macOS-latest:
-    name: macOS-latest
-    runs-on: macOS-latest
+  macos-latest:
+    name: macos-latest
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v2
       - name: Cache .nuke/temp, ~/.nuget/packages
