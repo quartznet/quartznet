@@ -84,7 +84,7 @@ module.exports = {
               '/documentation/quartz-3.x/tutorial/trigger-and-job-listeners',
               '/documentation/quartz-3.x/tutorial/scheduler-listeners',
               '/documentation/quartz-3.x/tutorial/job-stores',
-              '/documentation/quartz-3.x/tutorial/schedule-builder',
+              '/documentation/quartz-3.x/tutorial/scheduler-builder',
               '/documentation/quartz-3.x/tutorial/configuration-resource-usage-and-scheduler-factory',
               '/documentation/quartz-3.x/tutorial/advanced-enterprise-features'
             ]
