@@ -6,6 +6,12 @@ namespace Quartz.Calendars;
 
 internal sealed class CronCalendarSerializer : CalendarSerializer<CronCalendar>
 {
+    public static CronCalendarSerializer Instance { get; } = new();
+
+    private CronCalendarSerializer()
+    {
+    }
+
     public const string CalendarTypeKey = "CronCalendar";
 
     public override string CalendarTypeForJson => CalendarTypeKey;

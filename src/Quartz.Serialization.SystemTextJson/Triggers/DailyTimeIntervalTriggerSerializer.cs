@@ -6,6 +6,12 @@ namespace Quartz.Triggers;
 
 internal class DailyTimeIntervalTriggerSerializer : TriggerSerializer<IDailyTimeIntervalTrigger>
 {
+    public static DailyTimeIntervalTriggerSerializer Instance { get; } = new();
+
+    private DailyTimeIntervalTriggerSerializer()
+    {
+    }
+
     public const string TriggerTypeKey = "DailyTimeIntervalTrigger";
 
     public override string TriggerTypeForJson => TriggerTypeKey;

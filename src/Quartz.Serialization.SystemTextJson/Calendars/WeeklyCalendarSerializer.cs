@@ -7,6 +7,12 @@ namespace Quartz.Calendars;
 
 internal sealed class WeeklyCalendarSerializer : CalendarSerializer<WeeklyCalendar>
 {
+    public static WeeklyCalendarSerializer Instance { get; } = new();
+
+    private WeeklyCalendarSerializer()
+    {
+    }
+
     public const string CalendarTypeKey = "WeeklyCalendar";
 
     public override string CalendarTypeForJson => CalendarTypeKey;

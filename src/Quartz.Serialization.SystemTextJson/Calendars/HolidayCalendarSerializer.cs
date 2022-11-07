@@ -7,6 +7,12 @@ namespace Quartz.Calendars;
 
 internal sealed class HolidayCalendarSerializer : CalendarSerializer<HolidayCalendar>
 {
+    public static HolidayCalendarSerializer Instance { get; } = new();
+
+    private HolidayCalendarSerializer()
+    {
+    }
+
     public const string CalendarTypeKey = "HolidayCalendar";
 
     public override string CalendarTypeForJson => CalendarTypeKey;

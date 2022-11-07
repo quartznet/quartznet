@@ -6,6 +6,12 @@ namespace Quartz.Calendars;
 
 internal sealed class DailyCalendarSerializer : CalendarSerializer<DailyCalendar>
 {
+    public static DailyCalendarSerializer Instance { get; } = new();
+
+    private DailyCalendarSerializer()
+    {
+    }
+
     public const string CalendarTypeKey = "DailyCalendar";
 
     public override string CalendarTypeForJson => CalendarTypeKey;

@@ -12,16 +12,16 @@ internal class TriggerConverter : JsonConverter<ITrigger>
 {
     private static readonly Dictionary<string, ITriggerSerializer> converters = new()
     {
-        { CalendarIntervalTriggerSerializer.TriggerTypeKey, new CalendarIntervalTriggerSerializer() },
-        { CronTriggerSerializer.TriggerTypeKey, new CronTriggerSerializer() },
-        { DailyTimeIntervalTriggerSerializer.TriggerTypeKey, new DailyTimeIntervalTriggerSerializer() },
-        { SimpleTriggerSerializer.TriggerTypeKey, new SimpleTriggerSerializer() },
+        { CalendarIntervalTriggerSerializer.TriggerTypeKey, CalendarIntervalTriggerSerializer.Instance },
+        { CronTriggerSerializer.TriggerTypeKey, CronTriggerSerializer.Instance },
+        { DailyTimeIntervalTriggerSerializer.TriggerTypeKey, DailyTimeIntervalTriggerSerializer.Instance },
+        { SimpleTriggerSerializer.TriggerTypeKey, SimpleTriggerSerializer.Instance },
 
         // Support also type name
-        { typeof(CalendarIntervalTriggerImpl).AssemblyQualifiedNameWithoutVersion(), new CalendarIntervalTriggerSerializer() },
-        { typeof(CronTriggerImpl).AssemblyQualifiedNameWithoutVersion(), new CronTriggerSerializer() },
-        { typeof(DailyTimeIntervalTriggerImpl).AssemblyQualifiedNameWithoutVersion(), new DailyTimeIntervalTriggerSerializer() },
-        { typeof(SimpleTriggerImpl).AssemblyQualifiedNameWithoutVersion(), new SimpleTriggerSerializer() }
+        { typeof(CalendarIntervalTriggerImpl).AssemblyQualifiedNameWithoutVersion(), CalendarIntervalTriggerSerializer.Instance },
+        { typeof(CronTriggerImpl).AssemblyQualifiedNameWithoutVersion(), CronTriggerSerializer.Instance },
+        { typeof(DailyTimeIntervalTriggerImpl).AssemblyQualifiedNameWithoutVersion(), DailyTimeIntervalTriggerSerializer.Instance },
+        { typeof(SimpleTriggerImpl).AssemblyQualifiedNameWithoutVersion(), SimpleTriggerSerializer.Instance }
     };
 
     public override bool CanConvert(Type objectType) => typeof(ITrigger).IsAssignableFrom(objectType);

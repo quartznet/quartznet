@@ -11,22 +11,22 @@ internal class CalendarConverter : JsonConverter<ICalendar>
 {
     private static readonly Dictionary<string, ICalendarSerializer> converters = new()
     {
-        { BaseCalendarSerializer.CalendarTypeKey, new BaseCalendarSerializer() },
-        { AnnualCalendarSerializer.CalendarTypeKey, new AnnualCalendarSerializer() },
-        { CronCalendarSerializer.CalendarTypeKey, new CronCalendarSerializer() },
-        { DailyCalendarSerializer.CalendarTypeKey, new DailyCalendarSerializer() },
-        { HolidayCalendarSerializer.CalendarTypeKey, new HolidayCalendarSerializer() },
-        { MonthlyCalendarSerializer.CalendarTypeKey, new MonthlyCalendarSerializer() },
-        { WeeklyCalendarSerializer.CalendarTypeKey, new WeeklyCalendarSerializer() },
+        { BaseCalendarSerializer.CalendarTypeKey, BaseCalendarSerializer.Instance },
+        { AnnualCalendarSerializer.CalendarTypeKey, AnnualCalendarSerializer.Instance },
+        { CronCalendarSerializer.CalendarTypeKey, CronCalendarSerializer.Instance },
+        { DailyCalendarSerializer.CalendarTypeKey, DailyCalendarSerializer.Instance },
+        { HolidayCalendarSerializer.CalendarTypeKey, HolidayCalendarSerializer.Instance },
+        { MonthlyCalendarSerializer.CalendarTypeKey, MonthlyCalendarSerializer.Instance },
+        { WeeklyCalendarSerializer.CalendarTypeKey, WeeklyCalendarSerializer.Instance },
 
         // Support also type name
-        { typeof(BaseCalendar).AssemblyQualifiedNameWithoutVersion(), new BaseCalendarSerializer() },
-        { typeof(AnnualCalendar).AssemblyQualifiedNameWithoutVersion(), new AnnualCalendarSerializer() },
-        { typeof(CronCalendar).AssemblyQualifiedNameWithoutVersion(), new CronCalendarSerializer() },
-        { typeof(DailyCalendar).AssemblyQualifiedNameWithoutVersion(), new DailyCalendarSerializer() },
-        { typeof(HolidayCalendar).AssemblyQualifiedNameWithoutVersion(), new HolidayCalendarSerializer() },
-        { typeof(MonthlyCalendar).AssemblyQualifiedNameWithoutVersion(), new MonthlyCalendarSerializer() },
-        { typeof(WeeklyCalendar).AssemblyQualifiedNameWithoutVersion(), new WeeklyCalendarSerializer() }
+        { typeof(BaseCalendar).AssemblyQualifiedNameWithoutVersion(), BaseCalendarSerializer.Instance },
+        { typeof(AnnualCalendar).AssemblyQualifiedNameWithoutVersion(), AnnualCalendarSerializer.Instance },
+        { typeof(CronCalendar).AssemblyQualifiedNameWithoutVersion(), CronCalendarSerializer.Instance },
+        { typeof(DailyCalendar).AssemblyQualifiedNameWithoutVersion(), DailyCalendarSerializer.Instance },
+        { typeof(HolidayCalendar).AssemblyQualifiedNameWithoutVersion(), HolidayCalendarSerializer.Instance },
+        { typeof(MonthlyCalendar).AssemblyQualifiedNameWithoutVersion(), MonthlyCalendarSerializer.Instance },
+        { typeof(WeeklyCalendar).AssemblyQualifiedNameWithoutVersion(), WeeklyCalendarSerializer.Instance }
     };
 
     public override bool CanConvert(Type objectType) => typeof(ICalendar).IsAssignableFrom(objectType);

@@ -6,6 +6,12 @@ namespace Quartz.Triggers;
 
 internal class SimpleTriggerSerializer : TriggerSerializer<ISimpleTrigger>
 {
+    public static SimpleTriggerSerializer Instance { get; } = new();
+
+    private SimpleTriggerSerializer()
+    {
+    }
+
     public const string TriggerTypeKey = "SimpleTrigger";
 
     public override string TriggerTypeForJson => TriggerTypeKey;

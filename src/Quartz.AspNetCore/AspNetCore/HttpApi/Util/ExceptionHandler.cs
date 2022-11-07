@@ -22,12 +22,12 @@ internal class ExceptionHandler
     {
         if (exception is BadRequestException)
         {
-            return Results.Problem(exception.Message, statusCode: StatusCodes.Status400BadRequest);
+            return Results.Problem(GetMessageWithInnerExceptionMessage(exception), statusCode: StatusCodes.Status400BadRequest);
         }
 
         if (exception is NotFoundException)
         {
-            return Results.Problem(exception.Message, statusCode: StatusCodes.Status404NotFound);
+            return Results.Problem(GetMessageWithInnerExceptionMessage(exception), statusCode: StatusCodes.Status404NotFound);
         }
 
         if (exception is SchedulerException)
@@ -65,5 +65,15 @@ internal class ExceptionHandler
             statusCode: StatusCodes.Status500InternalServerError,
             extensions: extensions
         );
+
+        static string GetMessageWithInnerExceptionMessage(Exception exception)
+        {
+            if (exception.InnerException != null)
+            {
+                return $"{exception.Message} {exception.InnerException.Message}";
+            }
+
+            return exception.Message;
+        }
     }
 }

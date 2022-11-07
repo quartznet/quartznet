@@ -1,12 +1,22 @@
-﻿namespace Quartz.AspNetCore.HttpApi.Util;
+﻿using System.Runtime.Serialization;
 
-internal class NotFoundException : Exception
+namespace Quartz.AspNetCore.HttpApi.Util;
+
+internal sealed class NotFoundException : Exception
 {
-    private NotFoundException(string message) : base(message)
+    public NotFoundException(string message) : base(message)
     {
     }
 
-    // Keep in sync with Quartz.HttpClient.HttpClientExtensions
+    public NotFoundException(string? message, Exception? innerException) : base(message, innerException)
+    {
+    }
+
+    public NotFoundException(SerializationInfo info, StreamingContext context) : base(info, context)
+    {
+    }
+
+    // Keep in sync with Quartz.HttpClient.HttpClientExtensions.CheckResponseStatusCode
     public static NotFoundException ForScheduler(string schedulerName) => new($"Unknown scheduler {schedulerName}");
 
     public static NotFoundException ForCalendar(string calendarName) => new($"Unknown calendar {calendarName}");

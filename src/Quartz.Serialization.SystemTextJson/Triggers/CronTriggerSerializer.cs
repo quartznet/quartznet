@@ -6,6 +6,12 @@ namespace Quartz.Triggers;
 
 internal class CronTriggerSerializer : TriggerSerializer<ICronTrigger>
 {
+    public static CronTriggerSerializer Instance { get; } = new();
+
+    private CronTriggerSerializer()
+    {
+    }
+
     public const string TriggerTypeKey = "CronTrigger";
 
     public override string TriggerTypeForJson => TriggerTypeKey;

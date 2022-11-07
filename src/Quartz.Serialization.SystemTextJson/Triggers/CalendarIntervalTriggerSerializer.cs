@@ -6,6 +6,12 @@ namespace Quartz.Triggers;
 
 internal class CalendarIntervalTriggerSerializer : TriggerSerializer<ICalendarIntervalTrigger>
 {
+    public static CalendarIntervalTriggerSerializer Instance { get; } = new();
+
+    private CalendarIntervalTriggerSerializer()
+    {
+    }
+
     public const string TriggerTypeKey = "CalendarIntervalTrigger";
 
     public override string TriggerTypeForJson => TriggerTypeKey;
