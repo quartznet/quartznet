@@ -7,15 +7,29 @@ namespace Quartz.Converters;
 
 internal class JobDataMapConverter : JsonConverter<JobDataMap>
 {
-    public override JobDataMap? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    public override JobDataMap Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        var rootElement = JsonDocument.ParseValue(ref reader).RootElement;
-        var result = rootElement.GetJobDataMap();
-        return result;
+        try
+        {
+            var rootElement = JsonDocument.ParseValue(ref reader).RootElement;
+            var result = rootElement.GetJobDataMap();
+            return result;
+        }
+        catch (Exception e)
+        {
+            throw new JsonSerializationException("Failed to parse JobDataMap from json", e);
+        }
     }
 
     public override void Write(Utf8JsonWriter writer, JobDataMap value, JsonSerializerOptions options)
     {
-        writer.WriteJobDataMapValue(value);
+        try
+        {
+            writer.WriteJobDataMapValue(value);
+        }
+        catch (Exception e)
+        {
+            throw new JsonSerializationException("Failed to serialize JobDataMap to json", e);
+        }
     }
 }

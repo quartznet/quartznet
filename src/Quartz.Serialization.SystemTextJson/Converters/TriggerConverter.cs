@@ -28,64 +28,78 @@ internal class TriggerConverter : JsonConverter<ITrigger>
 
     public override ITrigger Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        var rootElement = JsonDocument.ParseValue(ref reader).RootElement;
-        var type = rootElement.GetProperty("TriggerType").GetString();
-
-        var triggerSerializer = GetTriggerSerializer(type);
-        var scheduleBuilder = triggerSerializer.CreateScheduleBuilder(rootElement);
-
-        var key = rootElement.GetProperty("Key").GetTriggerKey();
-        var jobKey = rootElement.GetProperty("JobKey").GetJobKey();
-        var description = rootElement.GetProperty("Description").GetString();
-        var calendarName = rootElement.GetProperty("CalendarName").GetString();
-        var jobDataMap = rootElement.GetProperty("JobDataMap").GetJobDataMap();
-        var misfireInstruction = rootElement.GetProperty("MisfireInstruction").GetInt32();
-        var endTimeUtc = rootElement.GetProperty("EndTimeUtc").GetDateTimeOffsetOrNull();
-        var startTimeUtc = rootElement.GetProperty("StartTimeUtc").GetDateTimeOffset();
-        var priority = rootElement.GetProperty("Priority").GetInt32();
-
-        var builder = TriggerBuilder.Create()
-            .WithSchedule(scheduleBuilder)
-            .WithIdentity(key);
-
-        if (jobKey != null)
+        try
         {
-            builder = builder.ForJob(jobKey);
+            var rootElement = JsonDocument.ParseValue(ref reader).RootElement;
+            var type = rootElement.GetProperty("TriggerType").GetString();
+
+            var triggerSerializer = GetTriggerSerializer(type);
+            var scheduleBuilder = triggerSerializer.CreateScheduleBuilder(rootElement);
+
+            var key = rootElement.GetProperty("Key").GetTriggerKey();
+            var jobKey = rootElement.GetProperty("JobKey").GetJobKey();
+            var description = rootElement.GetProperty("Description").GetString();
+            var calendarName = rootElement.GetProperty("CalendarName").GetString();
+            var jobDataMap = rootElement.GetProperty("JobDataMap").GetJobDataMap();
+            var misfireInstruction = rootElement.GetProperty("MisfireInstruction").GetInt32();
+            var endTimeUtc = rootElement.GetProperty("EndTimeUtc").GetDateTimeOffsetOrNull();
+            var startTimeUtc = rootElement.GetProperty("StartTimeUtc").GetDateTimeOffset();
+            var priority = rootElement.GetProperty("Priority").GetInt32();
+
+            var builder = TriggerBuilder.Create()
+                .WithSchedule(scheduleBuilder)
+                .WithIdentity(key);
+
+            if (jobKey != null)
+            {
+                builder = builder.ForJob(jobKey);
+            }
+
+            var trigger = builder
+                .WithDescription(description)
+                .ModifiedByCalendar(calendarName)
+                .UsingJobData(jobDataMap)
+                .EndAt(endTimeUtc)
+                .StartAt(startTimeUtc)
+                .WithPriority(priority)
+                .Build();
+
+            ((IMutableTrigger)trigger).MisfireInstruction = misfireInstruction;
+            return trigger;
         }
-
-        var trigger = builder
-            .WithDescription(description)
-            .ModifiedByCalendar(calendarName)
-            .UsingJobData(jobDataMap)
-            .EndAt(endTimeUtc)
-            .StartAt(startTimeUtc)
-            .WithPriority(priority)
-            .Build();
-
-        ((IMutableTrigger)trigger).MisfireInstruction = misfireInstruction;
-        return trigger;
+        catch (Exception e)
+        {
+            throw new JsonSerializationException("Failed to parse ITrigger from json", e);
+        }
     }
 
     public override void Write(Utf8JsonWriter writer, ITrigger value, JsonSerializerOptions options)
     {
-        writer.WriteStartObject();
-        var type = value.GetType().AssemblyQualifiedNameWithoutVersion();
-        var triggerSerializer = GetTriggerSerializer(type);
+        try
+        {
+            writer.WriteStartObject();
+            var type = value.GetType().AssemblyQualifiedNameWithoutVersion();
+            var triggerSerializer = GetTriggerSerializer(type);
 
-        writer.WriteString("TriggerType", triggerSerializer.TriggerTypeForJson);
+            writer.WriteString("TriggerType", triggerSerializer.TriggerTypeForJson);
 
-        writer.WriteKey("Key", value.Key);
-        writer.WriteKey("JobKey", value.JobKey);
-        writer.WriteString("Description", value.Description);
-        writer.WriteString("CalendarName", value.CalendarName);
-        writer.WriteJobDataMap("JobDataMap", value.JobDataMap);
-        writer.WriteNumber("MisfireInstruction", value.MisfireInstruction);
-        writer.WriteString("StartTimeUtc", value.StartTimeUtc);
-        writer.WriteString("EndTimeUtc", value.EndTimeUtc);
-        writer.WriteNumber("Priority", value.Priority);
+            writer.WriteKey("Key", value.Key);
+            writer.WriteKey("JobKey", value.JobKey);
+            writer.WriteString("Description", value.Description);
+            writer.WriteString("CalendarName", value.CalendarName);
+            writer.WriteJobDataMap("JobDataMap", value.JobDataMap);
+            writer.WriteNumber("MisfireInstruction", value.MisfireInstruction);
+            writer.WriteString("StartTimeUtc", value.StartTimeUtc);
+            writer.WriteString("EndTimeUtc", value.EndTimeUtc);
+            writer.WriteNumber("Priority", value.Priority);
 
-        triggerSerializer.SerializeFields(writer, value);
-        writer.WriteEndObject();
+            triggerSerializer.SerializeFields(writer, value);
+            writer.WriteEndObject();
+        }
+        catch (Exception e)
+        {
+            throw new JsonSerializationException("Failed to serialize ITrigger to json", e);
+        }
     }
 
     private static ITriggerSerializer GetTriggerSerializer(string? typeName)

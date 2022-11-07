@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
+using Quartz.Converters;
 using Quartz.HttpApiContract;
 
 namespace Quartz.AspNetCore.HttpApi.Util;
@@ -22,6 +23,12 @@ internal class ExceptionHandler
     {
         if (exception is BadRequestException)
         {
+            return Results.Problem(GetMessageWithInnerExceptionMessage(exception), statusCode: StatusCodes.Status400BadRequest);
+        }
+
+        if (exception is JsonSerializationException)
+        {
+            logger.LogWarning(exception, "Failed to deserialize request");
             return Results.Problem(GetMessageWithInnerExceptionMessage(exception), statusCode: StatusCodes.Status400BadRequest);
         }
 

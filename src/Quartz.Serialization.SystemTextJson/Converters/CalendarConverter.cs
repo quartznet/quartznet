@@ -33,58 +33,72 @@ internal class CalendarConverter : JsonConverter<ICalendar>
 
     public override ICalendar Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
-        var rootElement = JsonDocument.ParseValue(ref reader).RootElement;
-        return DeserializeCalendar(rootElement);
-
-        static ICalendar DeserializeCalendar(JsonElement rootElement)
+        try
         {
-            var type = rootElement.GetProperty("CalendarType").GetString();
+            var rootElement = JsonDocument.ParseValue(ref reader).RootElement;
+            return DeserializeCalendar(rootElement);
 
-            var calendarSerializer = GetCalendarSerializer(type);
-            var calendar = calendarSerializer.Create(rootElement);
-
-            calendar.Description = rootElement.GetProperty("Description").GetString();
-            if (calendar is BaseCalendar target)
+            static ICalendar DeserializeCalendar(JsonElement rootElement)
             {
-                target.TimeZone = rootElement.GetProperty("TimeZoneId").GetTimeZone();
-            }
+                var type = rootElement.GetProperty("CalendarType").GetString();
 
-            if (rootElement.TryGetProperty("CalendarBase", out var baseCalendarJsonElement) && baseCalendarJsonElement.ValueKind != JsonValueKind.Null)
-            {
-                calendar.CalendarBase = DeserializeCalendar(baseCalendarJsonElement);
-            }
+                var calendarSerializer = GetCalendarSerializer(type);
+                var calendar = calendarSerializer.Create(rootElement);
 
-            calendarSerializer.DeserializeFields(calendar, rootElement);
-            return calendar;
+                calendar.Description = rootElement.GetProperty("Description").GetString();
+                if (calendar is BaseCalendar target)
+                {
+                    target.TimeZone = rootElement.GetProperty("TimeZoneId").GetTimeZone();
+                }
+
+                if (rootElement.TryGetProperty("CalendarBase", out var baseCalendarJsonElement) && baseCalendarJsonElement.ValueKind != JsonValueKind.Null)
+                {
+                    calendar.CalendarBase = DeserializeCalendar(baseCalendarJsonElement);
+                }
+
+                calendarSerializer.DeserializeFields(calendar, rootElement);
+                return calendar;
+            }
+        }
+        catch (Exception e)
+        {
+            throw new JsonSerializationException("Failed to parse ICalendar from json", e);
         }
     }
 
     public override void Write(Utf8JsonWriter writer, ICalendar value, JsonSerializerOptions options)
     {
-        writer.WriteStartObject();
-        var type = value.GetType().AssemblyQualifiedNameWithoutVersion();
-        var calendarSerializer = GetCalendarSerializer(type);
-
-        writer.WriteString("CalendarType", calendarSerializer.CalendarTypeForJson);
-        writer.WriteString("Description", value.Description);
-
-        writer.WritePropertyName("CalendarBase");
-        if (value.CalendarBase != null)
+        try
         {
-            Write(writer, value.CalendarBase, options);
-        }
-        else
-        {
-            writer.WriteNullValue();
-        }
+            writer.WriteStartObject();
+            var type = value.GetType().AssemblyQualifiedNameWithoutVersion();
+            var calendarSerializer = GetCalendarSerializer(type);
 
-        if (value is BaseCalendar baseCalendar)
-        {
-            writer.WriteString("TimeZoneId", baseCalendar.TimeZone.Id);
-        }
+            writer.WriteString("CalendarType", calendarSerializer.CalendarTypeForJson);
+            writer.WriteString("Description", value.Description);
 
-        calendarSerializer.SerializeFields(writer, value);
-        writer.WriteEndObject();
+            writer.WritePropertyName("CalendarBase");
+            if (value.CalendarBase != null)
+            {
+                Write(writer, value.CalendarBase, options);
+            }
+            else
+            {
+                writer.WriteNullValue();
+            }
+
+            if (value is BaseCalendar baseCalendar)
+            {
+                writer.WriteString("TimeZoneId", baseCalendar.TimeZone.Id);
+            }
+
+            calendarSerializer.SerializeFields(writer, value);
+            writer.WriteEndObject();
+        }
+        catch (Exception e)
+        {
+            throw new JsonSerializationException("Failed to serialize ICalendar to json", e);
+        }
     }
 
     private static ICalendarSerializer GetCalendarSerializer(string? typeName)
