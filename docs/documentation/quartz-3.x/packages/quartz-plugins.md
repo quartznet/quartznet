@@ -10,7 +10,7 @@ You need to add NuGet package reference to your project which uses Quartz.
 
 Plugins are configured by using either DI configuration extensions or adding required configuration keys. 
 
-Configuration key in in format `quartz.plgin.{name-to-refer-with}.{property}`.
+Configuration key in in format `quartz.plugin.{name-to-refer-with}.{property}`.
 
 [See configuration reference](../configuration/reference.html#plug-ins) on how to configure each plugin
 
