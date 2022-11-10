@@ -17,6 +17,11 @@ internal record CurrentlyExecutingJobDto(
 {
     public static CurrentlyExecutingJobDto Create(IJobExecutionContext context)
     {
+        if (context == null)
+        {
+            throw new ArgumentNullException(nameof(context));
+        }
+
         return new CurrentlyExecutingJobDto(
             JobDetail: JobDetailDto.Create(context.JobDetail),
             Trigger: context.Trigger,
@@ -48,7 +53,7 @@ internal record CurrentlyExecutingJobDto(
             nextFireTimeUtc: NextFireTime
         );
 
-        var result = new JobExecutionContextImpl(scheduler, triggerFiredBundle, null!);
+        var result = new JobExecutionContextImpl(scheduler, triggerFiredBundle, job: null!);
         return (result, null);
     }
 }

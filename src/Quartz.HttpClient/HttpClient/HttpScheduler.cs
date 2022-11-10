@@ -15,7 +15,7 @@ public class HttpScheduler : IScheduler
     {
         if (string.IsNullOrWhiteSpace(schedulerName))
         {
-            throw new ArgumentException("Scheduler name required");
+            throw new ArgumentException("Scheduler name required", nameof(schedulerName));
         }
 
         SchedulerName = schedulerName;
@@ -62,12 +62,22 @@ public class HttpScheduler : IScheduler
 
     public async Task<bool> IsJobGroupPaused(string groupName, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(groupName))
+        {
+            throw new ArgumentException("Group name required", nameof(groupName));
+        }
+
         var result = await httpClient.Get<GroupPausedResponse>($"{JobEndpointUrl()}/groups/{groupName}/paused", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
         return result.Paused;
     }
 
     public async Task<bool> IsTriggerGroupPaused(string groupName, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(groupName))
+        {
+            throw new ArgumentException("Group name required", nameof(groupName));
+        }
+
         var result = await httpClient.Get<GroupPausedResponse>($"{TriggerEndpointUrl()}/groups/{groupName}/paused", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
         return result.Paused;
     }
@@ -161,6 +171,11 @@ public class HttpScheduler : IScheduler
 
     public Task<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger, CancellationToken cancellationToken = default)
     {
+        if (jobDetail == null)
+        {
+            throw new ArgumentNullException(nameof(jobDetail));
+        }
+
         return DoScheduleJob(jobDetail, trigger, cancellationToken);
     }
 
@@ -171,6 +186,11 @@ public class HttpScheduler : IScheduler
 
     private async Task<DateTimeOffset> DoScheduleJob(IJobDetail? jobDetail, ITrigger trigger, CancellationToken cancellationToken)
     {
+        if (trigger == null)
+        {
+            throw new ArgumentNullException(nameof(trigger));
+        }
+
         var jobDetailsDto = jobDetail != null ? JobDetailDto.Create(jobDetail) : null;
         var result = await httpClient.PostWithResponse<ScheduleJobRequest, ScheduleJobResponse>(
             $"{TriggerEndpointUrl()}/schedule",
@@ -184,6 +204,11 @@ public class HttpScheduler : IScheduler
 
     public Task ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
     {
+        if (triggersAndJobs == null)
+        {
+            throw new ArgumentNullException(nameof(triggersAndJobs));
+        }
+
         var requestItems = triggersAndJobs.Select(CreateRequestItem).ToArray();
         var request = new ScheduleJobsRequest(requestItems, replace);
 
@@ -192,6 +217,11 @@ public class HttpScheduler : IScheduler
         static ScheduleJobsRequestItem CreateRequestItem(KeyValuePair<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJob)
         {
             var (job, triggers) = (triggersAndJob.Key, triggersAndJob.Value);
+            if (triggers == null)
+            {
+                throw new ArgumentNullException(nameof(triggersAndJobs));
+            }
+
             return new ScheduleJobsRequestItem(JobDetailDto.Create(job), triggers.ToArray());
         }
     }
@@ -219,6 +249,11 @@ public class HttpScheduler : IScheduler
 
     public async Task<bool> UnscheduleJobs(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
     {
+        if (triggerKeys == null)
+        {
+            throw new ArgumentNullException(nameof(triggerKeys));
+        }
+
         var result = await httpClient.PostWithResponse<UnscheduleJobsRequest, UnscheduleJobsResponse>(
             $"{TriggerEndpointUrl()}/unschedule",
             new UnscheduleJobsRequest(triggerKeys.Select(KeyDto.Create).ToArray()),
@@ -231,6 +266,11 @@ public class HttpScheduler : IScheduler
 
     public async Task<DateTimeOffset?> RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger, CancellationToken cancellationToken = default)
     {
+        if (newTrigger == null)
+        {
+            throw new ArgumentNullException(nameof(newTrigger));
+        }
+
         var result = await httpClient.PostWithResponse<RescheduleJobRequest, RescheduleJobResponse>(
             $"{TriggerEndpointUrl(triggerKey)}/reschedule",
             new RescheduleJobRequest(newTrigger),
@@ -271,6 +311,11 @@ public class HttpScheduler : IScheduler
 
     public async Task<bool> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
     {
+        if (jobKeys == null)
+        {
+            throw new ArgumentNullException(nameof(jobKeys));
+        }
+
         var result = await httpClient.PostWithResponse<DeleteJobsRequest, DeleteJobsResponse>(
             $"{JobEndpointUrl()}/delete",
             new DeleteJobsRequest(jobKeys.Select(KeyDto.Create).ToArray()),
@@ -288,6 +333,11 @@ public class HttpScheduler : IScheduler
 
     public Task TriggerJob(JobKey jobKey, JobDataMap data, CancellationToken cancellationToken = default)
     {
+        if (data == null)
+        {
+            throw new ArgumentNullException(nameof(data));
+        }
+
         var request = new TriggerJobRequest(data);
         return httpClient.Post($"{JobEndpointUrl(jobKey)}/trigger", request, jsonSerializerOptions, cancellationToken);
     }
@@ -397,6 +447,16 @@ public class HttpScheduler : IScheduler
 
     public Task AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(calName))
+        {
+            throw new ArgumentException("Calendar name required", nameof(calName));
+        }
+
+        if (calendar == null)
+        {
+            throw new ArgumentNullException(nameof(calendar));
+        }
+
         var requestContent = new AddCalendarRequest(calName, calendar, replace, updateTriggers);
         return httpClient.Post(CalendarEndpointUrl(), requestContent, jsonSerializerOptions, cancellationToken);
     }
@@ -426,6 +486,11 @@ public class HttpScheduler : IScheduler
 
     public async Task<bool> Interrupt(string fireInstanceId, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(fireInstanceId))
+        {
+            throw new ArgumentException("Fire instance id required", nameof(fireInstanceId));
+        }
+
         var response = await httpClient.PostWithResponse<InterruptResponse>(
             $"{JobEndpointUrl()}/interrupt/{fireInstanceId}",
             jsonSerializerOptions,
@@ -455,13 +520,40 @@ public class HttpScheduler : IScheduler
     private string SchedulerEndpointUrl() => $"schedulers/{SchedulerName}";
 
     private string CalendarEndpointUrl() => $"schedulers/{SchedulerName}/calendars";
-    private string CalendarEndpointUrl(string calendarName) => $"schedulers/{SchedulerName}/calendars/{calendarName}";
+
+    private string CalendarEndpointUrl(string calendarName)
+    {
+        if (string.IsNullOrWhiteSpace(calendarName))
+        {
+            throw new ArgumentException("Calendar name required", nameof(calendarName));
+        }
+
+        return $"schedulers/{SchedulerName}/calendars/{calendarName}";
+    }
 
     private string JobEndpointUrl() => $"schedulers/{SchedulerName}/jobs";
-    private string JobEndpointUrl(JobKey job) => $"schedulers/{SchedulerName}/jobs/{job.Group}/{job.Name}";
+
+    private string JobEndpointUrl(JobKey job)
+    {
+        if (job == null)
+        {
+            throw new ArgumentNullException(nameof(job), "JobKey required");
+        }
+
+        return $"schedulers/{SchedulerName}/jobs/{job.Group}/{job.Name}";
+    }
 
     private string TriggerEndpointUrl() => $"schedulers/{SchedulerName}/triggers";
-    private string TriggerEndpointUrl(TriggerKey trigger) => $"schedulers/{SchedulerName}/triggers/{trigger.Group}/{trigger.Name}";
+
+    private string TriggerEndpointUrl(TriggerKey trigger)
+    {
+        if (trigger == null)
+        {
+            throw new ArgumentNullException(nameof(trigger), "TriggerKey required");
+        }
+
+        return $"schedulers/{SchedulerName}/triggers/{trigger.Group}/{trigger.Name}";
+    }
 
     private SchedulerDto GetSchedulerDetailsSync()
     {

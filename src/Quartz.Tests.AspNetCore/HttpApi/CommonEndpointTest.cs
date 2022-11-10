@@ -46,10 +46,9 @@ public class CommonEndpointTest : WebApiTest
     {
         using var httpClient = WebApplicationFactory.CreateClient();
 
-        // TODO: This requires adding validation into the endpoints as minimal APIs does not have ModelState
-        // Completely empty request
-        //var response = await Post("{}");
-        //response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        await RunTest("");
+        await RunTest("{}");
+        await RunTest(@"{""CalendarName"": ""SomeCalendar""}"); // Missing calendar
 
         // Valid request except missing calendar type which is required by CalendarConverter
         const string requestJson = @"{
@@ -61,15 +60,14 @@ public class CommonEndpointTest : WebApiTest
     }
 }";
 
-        var response = await Post(requestJson);
-        response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        var responseContent = await RunTest(requestJson);
+        responseContent.Should().ContainEquivalentOf("Failed to parse ICalendar");
 
-        var stringContent = await response.Content.ReadAsStringAsync();
-        stringContent.Should().ContainEquivalentOf("Failed to parse ICalendar");
-
-        Task<HttpResponseMessage> Post(string contentToPost)
+        async Task<string> RunTest(string contentToPost)
         {
-            return httpClient.PostAsync($"schedulers/{HttpScheduler.SchedulerName}/calendars", new StringContent(contentToPost, Encoding.UTF8, "application/json"));
+            var response = await httpClient.PostAsync($"schedulers/{HttpScheduler.SchedulerName}/calendars", new StringContent(contentToPost, Encoding.UTF8, "application/json"));
+            response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+            return await response.Content.ReadAsStringAsync();
         }
     }
 }
