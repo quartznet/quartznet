@@ -5,6 +5,14 @@ using HealthChecks.UI.Client;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+
+using NSwag;
+using NSwag.Generation.AspNetCore;
+using NSwag.Generation.Processors;
+using NSwag.Generation.Processors.Security;
+
 using OpenTelemetry.Trace;
 
 using Quartz.Impl.Calendar;
@@ -121,6 +129,7 @@ namespace Quartz.Examples.AspNetCore
                     .StartNow()
                     .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).RepeatForever())
                     .WithDescription("my awesome simple trigger")
+                    .UsingJobData("ExampleKey", "ExampleValue")
                 );
 
                 q.AddTrigger(t => t
@@ -182,6 +191,14 @@ namespace Quartz.Examples.AspNetCore
                 q.AddJobListener<SampleJobListener>(GroupMatcher<JobKey>.GroupEquals(jobKey.Group));
                 q.AddTriggerListener<SampleTriggerListener>();
 
+                // Add Quartz.NET HTTP API
+                q.AddHttpApi(options =>
+                {
+                    // "/quartz-api" is also default value
+                    options.ApiPath = "/quartz-api";
+                    options.IncludeStackTraceInProblemDetails = true;
+                });
+
                 // example of persistent job store using JSON serializer as an example
                 /*
                 q.UsePersistentStore(s =>
@@ -232,9 +249,11 @@ namespace Quartz.Examples.AspNetCore
                     }
                 });
 
+            // Add health checks
+            services.AddQuartzHealthChecks();
 
-            // ASP.NET Core hosting
-            services.AddQuartzServer(options =>
+            // Quartz.Extensions.Hosting hosting
+            services.AddQuartzHostedService(options =>
             {
                 // when shutting down we want jobs to complete gracefully
                 options.WaitForJobsToComplete = true;
@@ -243,6 +262,17 @@ namespace Quartz.Examples.AspNetCore
             services
                 .AddHealthChecksUI()
                 .AddInMemoryStorage();
+
+            services.AddAuthentication(options =>
+                {
+                    options.DefaultScheme = ApiKeyAuthenticationOptions.Scheme;
+                })
+                .AddScheme<ApiKeyAuthenticationOptions, ApiKeyAuthenticationHandler>(ApiKeyAuthenticationOptions.Scheme, options =>
+                {
+                    options.AllowedApiKey = Configuration.GetValue<string>("QuartzHttpApiKey");
+                });
+
+            AddSwaggerDocument(services);
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -251,6 +281,8 @@ namespace Quartz.Examples.AspNetCore
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
+                app.UseOpenApi();
+                app.UseSwaggerUi3();
             }
             else
             {
@@ -262,6 +294,9 @@ namespace Quartz.Examples.AspNetCore
             app.UseStaticFiles();
             app.UseRouting();
 
+            app.UseAuthentication();
+            app.UseAuthorization();
+
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapRazorPages();
@@ -271,6 +306,49 @@ namespace Quartz.Examples.AspNetCore
                     ResponseWriter = UIResponseWriter.WriteHealthCheckUIResponse
                 });
                 endpoints.MapHealthChecksUI();
+
+                // Map HTTP API endpoints
+                endpoints.MapQuartzApi()
+                    .RequireAuthorization();
+            });
+        }
+
+        private static void AddSwaggerDocument(IServiceCollection services)
+        {
+            const string securityScope = "SwaggerApiKey";
+
+            services.AddEndpointsApiExplorer();
+            services.AddSwaggerDocument(settings =>
+            {
+                settings.AddSecurity(securityScope, new OpenApiSecurityScheme
+                {
+                    Type = OpenApiSecuritySchemeType.ApiKey,
+                    Name = ApiKeyAuthenticationHandler.ApiKeyHeaderName,
+                    In = OpenApiSecurityApiKeyLocation.Header,
+                    Description = "Quartz API key for HTTP API"
+                });
+
+                settings.Title = "Quartz.NET HTTP API";
+                settings.Version = "v1";
+                settings.SerializerSettings = new JsonSerializerSettings { Converters = { new StringEnumConverter() } };
+                settings.OperationProcessors.Add(new OperationProcessor(context =>
+                {
+                    var apiDescription = ((AspNetCoreOperationProcessorContext)context).ApiDescription;
+                    context.OperationDescription.Operation.Summary = apiDescription.ActionDescriptor.DisplayName;
+
+                    foreach (var parameter in context.OperationDescription.Operation.Parameters)
+                    {
+                        if (parameter.Name == "schedulerName")
+                        {
+                            parameter.Default = "Quartz ASP.NET Core Sample Scheduler";
+                            break;
+                        }
+                    }
+
+                    return true;
+                }));
+
+                settings.OperationProcessors.Add(new AspNetCoreOperationSecurityScopeProcessor(securityScope));
             });
         }
     }

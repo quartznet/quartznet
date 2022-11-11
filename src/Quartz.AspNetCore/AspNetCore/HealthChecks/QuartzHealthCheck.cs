@@ -1,38 +1,34 @@
-#if SUPPORTS_HEALTH_CHECKS
-
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 
-namespace Quartz.AspNetCore.HealthChecks
+namespace Quartz.AspNetCore.HealthChecks;
+
+internal sealed class QuartzHealthCheck : IHealthCheck
 {
-    internal sealed class QuartzHealthCheck : IHealthCheck
+    private readonly ISchedulerFactory schedulerFactory;
+
+    public QuartzHealthCheck(ISchedulerFactory schedulerFactory)
     {
-        private readonly ISchedulerFactory schedulerFactory;
+        this.schedulerFactory = schedulerFactory ?? throw new ArgumentNullException(nameof(schedulerFactory));
+    }
 
-        public QuartzHealthCheck(ISchedulerFactory schedulerFactory)
+    async Task<HealthCheckResult> IHealthCheck.CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken)
+    {
+        var scheduler = await schedulerFactory.GetScheduler(cancellationToken).ConfigureAwait(false);
+        if (!scheduler.IsStarted)
         {
-            this.schedulerFactory = schedulerFactory ?? throw new ArgumentNullException(nameof(schedulerFactory));
+            return HealthCheckResult.Unhealthy("Quartz scheduler is not running");
         }
 
-        async Task<HealthCheckResult> IHealthCheck.CheckHealthAsync(HealthCheckContext context, CancellationToken cancellationToken)
+        try
         {
-            var scheduler = await schedulerFactory.GetScheduler(cancellationToken);
-            if (!scheduler.IsStarted)
-            {
-                return HealthCheckResult.Unhealthy("Quartz scheduler is not running");
-            }
-
-            try
-            {
-                // Ask for a job we know doesn't exist
-                await scheduler.CheckExists(new JobKey(Guid.NewGuid().ToString()), cancellationToken);
-            }
-            catch (SchedulerException)
-            {
-                return HealthCheckResult.Unhealthy("Quartz scheduler cannot connect to the store");
-            }
-
-            return HealthCheckResult.Healthy("Quartz scheduler is ready");
+            // Ask for a job we know doesn't exist
+            await scheduler.CheckExists(new JobKey(Guid.NewGuid().ToString()), cancellationToken).ConfigureAwait(false);
         }
+        catch (SchedulerException)
+        {
+            return HealthCheckResult.Unhealthy("Quartz scheduler cannot connect to the store");
+        }
+
+        return HealthCheckResult.Healthy("Quartz scheduler is ready");
     }
 }
-#endif
