@@ -271,6 +271,7 @@ internal static class JobEndpoints
         DeleteJobsRequest request,
         CancellationToken cancellationToken = default)
     {
+        endpointHelper.AssertIsValid(request);
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
         {
             var jobKeys = request.Jobs.Select(x => x.AsJobKey()).ToArray();
@@ -283,24 +284,20 @@ internal static class JobEndpoints
     private static Task<IResult> AddJob(
         EndpointHelper endpointHelper,
         string schedulerName,
-        AddJobRequest jobDetails,
+        AddJobRequest request,
         CancellationToken cancellationToken = default)
     {
+        endpointHelper.AssertIsValid(request);
         return endpointHelper.ExecuteWithOkResponse(schedulerName, async scheduler =>
         {
-            var (newJob, jobDetailError) = jobDetails.Job.AsIJobDetail();
-            if (newJob == null)
+            var newJob = request.Job.AsIJobDetail().JobDetail!;
+            if (!request.StoreNonDurableWhileAwaitingScheduling.HasValue)
             {
-                throw new BadRequestException(jobDetailError ?? "Invalid job details");
-            }
-
-            if (!jobDetails.StoreNonDurableWhileAwaitingScheduling.HasValue)
-            {
-                await scheduler.AddJob(newJob, jobDetails.Replace, cancellationToken).ConfigureAwait(false);
+                await scheduler.AddJob(newJob, request.Replace, cancellationToken).ConfigureAwait(false);
                 return;
             }
 
-            await scheduler.AddJob(newJob, jobDetails.Replace, jobDetails.StoreNonDurableWhileAwaitingScheduling.Value, cancellationToken).ConfigureAwait(false);
+            await scheduler.AddJob(newJob, request.Replace, request.StoreNonDurableWhileAwaitingScheduling.Value, cancellationToken).ConfigureAwait(false);
         });
     }
 

@@ -21,33 +21,40 @@ internal class ExceptionHandler
 
     public IResult HandleException(Exception exception, HttpContext context)
     {
-        if (exception is BadRequestException)
+        if (exception is BadHttpRequestException badHttpRequestException)
         {
-            return Results.Problem(GetMessageWithInnerExceptionMessage(exception), statusCode: StatusCodes.Status400BadRequest);
+            logger.LogDebug(exception, "BadHttpRequestException thrown");
+            return Results.Problem(
+                detail: GetMessageWithInnerExceptionMessage(exception),
+                statusCode: badHttpRequestException.StatusCode,
+                extensions: GetCommonExtensions(exception)
+            );
         }
 
         if (exception is JsonSerializationException)
         {
-            logger.LogWarning(exception, "Failed to deserialize request");
-            return Results.Problem(GetMessageWithInnerExceptionMessage(exception), statusCode: StatusCodes.Status400BadRequest);
+            logger.LogDebug(exception, "Failed to deserialize request");
+            return Results.Problem(
+                detail: GetMessageWithInnerExceptionMessage(exception),
+                statusCode: StatusCodes.Status400BadRequest,
+                extensions: GetCommonExtensions(exception)
+            );
         }
 
         if (exception is NotFoundException)
         {
-            return Results.Problem(GetMessageWithInnerExceptionMessage(exception), statusCode: StatusCodes.Status404NotFound);
+            logger.LogDebug(exception, "NotFoundException thrown");
+            return Results.Problem(
+                detail: GetMessageWithInnerExceptionMessage(exception),
+                statusCode: StatusCodes.Status404NotFound,
+                extensions: GetCommonExtensions(exception)
+            );
         }
 
         if (exception is SchedulerException)
         {
-            var schedulerExceptionExtensions = new Dictionary<string, object?>
-            {
-                { HttpApiConstants.ProblemDetailsExceptionType, exception.GetType().Name }
-            };
-
-            if (includeStackTrace)
-            {
-                schedulerExceptionExtensions.Add(HttpApiConstants.ProblemDetailsStackTrace, exception.StackTrace);
-            }
+            var schedulerExceptionExtensions = GetCommonExtensions(exception) ?? new Dictionary<string, object?>();
+            schedulerExceptionExtensions.Add(HttpApiConstants.ProblemDetailsExceptionType, exception.GetType().Name);
 
             logger.LogWarning(exception, "SchedulerException thrown when handling api request to url {Url}", context.Request.GetDisplayUrl());
             return Results.Problem(
@@ -57,30 +64,29 @@ internal class ExceptionHandler
             );
         }
 
-        Dictionary<string, object?>? extensions = null;
-        if (includeStackTrace)
-        {
-            extensions = new Dictionary<string, object?>
-            {
-                { HttpApiConstants.ProblemDetailsStackTrace, exception.StackTrace }
-            };
-        }
-
         logger.LogError(exception, "Exception thrown when handling api request to url {Url}", context.Request.GetDisplayUrl());
         return Results.Problem(
             detail: exception.Message,
             statusCode: StatusCodes.Status500InternalServerError,
-            extensions: extensions
+            extensions: GetCommonExtensions(exception)
         );
 
         static string GetMessageWithInnerExceptionMessage(Exception exception)
         {
-            if (exception.InnerException != null)
-            {
-                return $"{exception.Message} {exception.InnerException.Message}";
-            }
-
-            return exception.Message;
+            return exception.InnerException != null ? $"{exception.Message} {exception.InnerException.Message}" : exception.Message;
         }
+    }
+
+    private Dictionary<string, object?>? GetCommonExtensions(Exception exception)
+    {
+        if (!includeStackTrace)
+        {
+            return null;
+        }
+
+        return new Dictionary<string, object?>
+        {
+            { HttpApiConstants.ProblemDetailsStackTrace, exception.StackTrace }
+        };
     }
 }

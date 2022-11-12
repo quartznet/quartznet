@@ -232,6 +232,7 @@ internal static class TriggerEndpoints
         ScheduleJobRequest request,
         CancellationToken cancellationToken = default)
     {
+        endpointHelper.AssertIsValid(request);
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
         {
             if (request.Job == null)
@@ -240,12 +241,7 @@ internal static class TriggerEndpoints
                 return new ScheduleJobResponse(firstFireTime);
             }
 
-            var (jobDetail, jobDetailError) = request.Job.AsIJobDetail();
-            if (jobDetail == null)
-            {
-                throw new BadRequestException(jobDetailError ?? "Invalid job details");
-            }
-
+            var jobDetail = request.Job.AsIJobDetail().JobDetail!;
             var firstFireTimeWithJob = await scheduler.ScheduleJob(jobDetail, request.Trigger, cancellationToken).ConfigureAwait(false);
             return new ScheduleJobResponse(firstFireTimeWithJob);
         });
@@ -259,17 +255,13 @@ internal static class TriggerEndpoints
         ScheduleJobsRequest request,
         CancellationToken cancellationToken = default)
     {
+        endpointHelper.AssertIsValid(request);
         return endpointHelper.ExecuteWithOkResponse(schedulerName, async scheduler =>
         {
             var jobsAndTriggers = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>();
             foreach (var (jobDetailDto, triggers) in request.JobsAndTriggers)
             {
-                var (jobDetail, jobDetailError) = jobDetailDto.AsIJobDetail();
-                if (jobDetail == null)
-                {
-                    throw new BadRequestException(jobDetailError ?? "Invalid job details");
-                }
-
+                var jobDetail = jobDetailDto.AsIJobDetail().JobDetail!;
                 jobsAndTriggers.Add(jobDetail, triggers);
             }
 
@@ -299,6 +291,7 @@ internal static class TriggerEndpoints
         UnscheduleJobsRequest request,
         CancellationToken cancellationToken = default)
     {
+        endpointHelper.AssertIsValid(request);
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
         {
             var triggerKeys = request.Triggers.Select(x => x.AsTriggerKey()).ToArray();
@@ -317,6 +310,7 @@ internal static class TriggerEndpoints
         RescheduleJobRequest request,
         CancellationToken cancellationToken = default)
     {
+        endpointHelper.AssertIsValid(request);
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
         {
             var firstFireTimeUtc = await scheduler.RescheduleJob(new TriggerKey(triggerName, triggerGroup), request.NewTrigger, cancellationToken).ConfigureAwait(false);

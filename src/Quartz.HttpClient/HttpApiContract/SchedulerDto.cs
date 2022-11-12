@@ -13,6 +13,16 @@ internal record SchedulerDto(
 {
     public static SchedulerDto Create(IScheduler scheduler, SchedulerMetaData metaData)
     {
+        if (scheduler == null)
+        {
+            throw new ArgumentNullException(nameof(scheduler));
+        }
+
+        if (metaData == null)
+        {
+            throw new ArgumentNullException(nameof(metaData));
+        }
+
         return new SchedulerDto(
             SchedulerInstanceId: scheduler.SchedulerInstanceId,
             Name: scheduler.SchedulerName,

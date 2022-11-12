@@ -5,31 +5,36 @@ namespace Quartz.HttpClient;
 
 internal static class Extensions
 {
-    public static string ToUrlParameters<T>(this GroupMatcher<T> groupMatcher) where T : Key<T>
+    public static string ToUrlParameters<T>(this GroupMatcher<T> matcher) where T : Key<T>
     {
-        if (groupMatcher == null || string.IsNullOrWhiteSpace(groupMatcher.CompareToValue))
+        if (matcher == null)
+        {
+            throw new ArgumentNullException(nameof(matcher));
+        }
+
+        if (string.IsNullOrWhiteSpace(matcher.CompareToValue))
         {
             return "";
         }
 
-        if (groupMatcher.CompareWithOperator.Equals(StringOperator.Equality))
+        if (matcher.CompareWithOperator.Equals(StringOperator.Equality))
         {
-            return $"groupEquals={groupMatcher.CompareToValue}";
+            return $"groupEquals={matcher.CompareToValue}";
         }
 
-        if (groupMatcher.CompareWithOperator.Equals(StringOperator.StartsWith))
+        if (matcher.CompareWithOperator.Equals(StringOperator.StartsWith))
         {
-            return $"groupStartsWith={groupMatcher.CompareToValue}";
+            return $"groupStartsWith={matcher.CompareToValue}";
         }
 
-        if (groupMatcher.CompareWithOperator.Equals(StringOperator.EndsWith))
+        if (matcher.CompareWithOperator.Equals(StringOperator.EndsWith))
         {
-            return $"groupEndsWith={groupMatcher.CompareToValue}";
+            return $"groupEndsWith={matcher.CompareToValue}";
         }
 
-        if (groupMatcher.CompareWithOperator.Equals(StringOperator.Contains))
+        if (matcher.CompareWithOperator.Equals(StringOperator.Contains))
         {
-            return $"groupContains={groupMatcher.CompareToValue}";
+            return $"groupContains={matcher.CompareToValue}";
         }
 
         return "";

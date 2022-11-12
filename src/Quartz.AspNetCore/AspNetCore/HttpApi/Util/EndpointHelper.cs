@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Http;
 
+using Quartz.HttpApiContract;
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
 using Quartz.Util;
@@ -16,7 +17,7 @@ internal class EndpointHelper
         var givenValueCount = new[] { groupContains, groupEndsWith, groupStartsWith, groupEquals }.Count(x => !string.IsNullOrWhiteSpace(x));
         if (givenValueCount > 1)
         {
-            throw new BadRequestException("Only single match rule can be given");
+            throw new BadHttpRequestException("Only single match rule can be given");
         }
 
         if (!string.IsNullOrWhiteSpace(groupContains))
@@ -40,6 +41,18 @@ internal class EndpointHelper
         }
 
         return GroupMatcher<T>.AnyGroup();
+    }
+
+    public void AssertIsValid(IValidatable toValidate)
+    {
+        var errors = toValidate.Validate().Distinct().ToArray();
+        if (errors.Length == 0)
+        {
+            return;
+        }
+
+        var message = $"Request validation failed: {string.Join(", ", errors)}";
+        throw new BadHttpRequestException(message);
     }
 
     public async Task<IResult> ExecuteWithScheduler(string schedulerName, Func<IScheduler, Task<IResult>> action)

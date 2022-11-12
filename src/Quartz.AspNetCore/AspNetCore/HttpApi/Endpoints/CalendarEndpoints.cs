@@ -62,6 +62,7 @@ internal static class CalendarEndpoints
         AddCalendarRequest request,
         CancellationToken cancellationToken = default)
     {
+        endpointHelper.AssertIsValid(request);
         return endpointHelper.ExecuteWithOkResponse(
             schedulerName,
             scheduler => scheduler.AddCalendar(request.CalendarName, request.Calendar, request.Replace, request.UpdateTriggers, cancellationToken)
