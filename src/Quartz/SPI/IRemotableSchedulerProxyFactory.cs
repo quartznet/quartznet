@@ -1,15 +1,13 @@
-﻿using Quartz.Simpl;
-
-namespace Quartz.Spi
+﻿namespace Quartz.Spi
 {
     /// <summary>
-    /// Client Proxy to a IRemotableQuartzScheduler
+    /// Client Proxy to a IScheduler
     /// </summary>
     public interface IRemotableSchedulerProxyFactory
     {
         /// <summary>
-        /// Returns a client proxy to a remote <see cref="IRemotableQuartzScheduler" />.
+        /// Returns a client proxy to a remote <see cref="IScheduler" />.
         /// </summary>
-        IRemotableQuartzScheduler? GetProxy();
+        IScheduler GetProxy(string schedulerName, string schedulerInstanceId);
     }
 }

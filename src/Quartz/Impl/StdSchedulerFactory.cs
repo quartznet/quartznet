@@ -424,7 +424,11 @@ Please add configuration to your application config file to correctly initialize
                     schedInstId = DefaultInstanceId;
                 }
 
-                var proxyType = loadHelper.LoadType(cfg.GetStringProperty(PropertySchedulerProxyType)) ?? typeof(RemotingSchedulerProxyFactory);
+                var proxyType = loadHelper.LoadType(cfg.GetStringProperty(PropertySchedulerProxyType));
+#if REMOTING
+                proxyType ??= typeof(RemotingSchedulerProxyFactory);
+#endif
+
                 IRemotableSchedulerProxyFactory factory;
                 try
                 {
@@ -437,9 +441,7 @@ Please add configuration to your application config file to correctly initialize
                     throw initException;
                 }
 
-                string uid = QuartzSchedulerResources.GetUniqueIdentifier(schedName, schedInstId);
-
-                RemoteScheduler remoteScheduler = new RemoteScheduler(uid, factory);
+                var remoteScheduler = factory.GetProxy(schedName, schedInstId);
 
                 schedRep.Bind(remoteScheduler);
 
