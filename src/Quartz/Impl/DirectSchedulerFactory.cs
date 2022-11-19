@@ -119,6 +119,7 @@ namespace Quartz.Impl
 			CreateScheduler(threadPool, jobStore);
 		}
 
+#if REMOTING
 		/// <summary>
 		/// Creates a proxy to a remote scheduler. This scheduler can be retrieved
 		/// via <see cref="DirectSchedulerFactory.GetScheduler(CancellationToken)" />.
@@ -140,16 +141,15 @@ namespace Quartz.Impl
 		/// <throws>  SchedulerException </throws>
 		protected virtual void CreateRemoteScheduler(string schedulerName, string schedulerInstanceId, string proxyAddress)
 		{
-			string uid = QuartzSchedulerResources.GetUniqueIdentifier(schedulerName, schedulerInstanceId);
-
 		    var proxyBuilder = new RemotingSchedulerProxyFactory();
 		    proxyBuilder.Address = proxyAddress;
-		    RemoteScheduler remoteScheduler = new RemoteScheduler(uid, proxyBuilder);
+            IScheduler remoteScheduler = proxyBuilder.GetProxy(schedulerName, schedulerInstanceId);
 
             SchedulerRepository schedRep = SchedulerRepository.Instance;
 			schedRep.Bind(remoteScheduler);
 		    initialized = true;
 		}
+#endif // REMOTING
 
         /// <summary>
         /// Creates a scheduler using the specified thread pool and job store, and with an idle wait time of

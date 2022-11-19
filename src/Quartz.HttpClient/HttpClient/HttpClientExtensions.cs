@@ -117,7 +117,17 @@ internal static class HttpClientExtensions
             return true;
         }
 
-        var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>(serializerOptions, cancellationToken).ConfigureAwait(false);
+        ProblemDetails? problemDetails = null;
+
+        try
+        {
+            problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>(serializerOptions, cancellationToken).ConfigureAwait(false);
+        }
+        catch
+        {
+            // Ignored because we can have responses which are not json 
+        }
+
         if (problemDetails?.Detail == null || string.IsNullOrWhiteSpace(problemDetails.Detail))
         {
             // When Web API returns error response it is always problem details, so let HTTP client throw if we do not have problem details

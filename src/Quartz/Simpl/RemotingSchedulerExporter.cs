@@ -54,9 +54,7 @@ namespace Quartz.Simpl
         public RemotingSchedulerExporter()
         {
             ChannelType = ChannelTypeTcp;
-#if REMOTING
             TypeFilterLevel = TypeFilterLevel.Full;
-#endif // REMOTING
             ChannelName = DefaultChannelName;
             BindName = DefaultBindName;
             Log = LogProvider.CreateLogger<RemotingSchedulerExporter>();
@@ -68,8 +66,6 @@ namespace Quartz.Simpl
             {
                 ThrowHelper.ThrowArgumentNullException(nameof(scheduler));
             }
-
-#if REMOTING
             if (!(scheduler is MarshalByRefObject))
             {
                 ThrowHelper.ThrowArgumentException("Exported scheduler must be of type MarshallByRefObject", nameof(scheduler));
@@ -94,9 +90,6 @@ namespace Quartz.Simpl
             {
                 Log.LogError(ex,"Exception during Bind");
             }
-#else // REMOTING
-            // TODO (NetCore Port): Replace with HTTP communication
-#endif // REMOTING
         }
 
         /// <summary>
@@ -110,7 +103,6 @@ namespace Quartz.Simpl
                 // try remoting bind
                 var props = CreateConfiguration();
 
-#if REMOTING
                 // use binary formatter
                 var formatProviderProps = ExtractFormatProviderConfiguration(props);
                 var formatprovider = new BinaryServerFormatterSinkProvider(formatProviderProps, null);
@@ -153,9 +145,6 @@ namespace Quartz.Simpl
                 ChannelServices.RegisterChannel(chan, false);
 
                 registeredChannels.Add(channelRegistrationKey, new object());
-#else // REMOTING
-                // TODO (NetCore Port): Replace with HTTP communication
-#endif // REMOTING
                 Log.LogInformation("Remoting channel registered successfully");
             }
             else
@@ -202,21 +191,15 @@ namespace Quartz.Simpl
             {
                 ThrowHelper.ThrowArgumentNullException(nameof(scheduler));
             }
-#if REMOTING
             if (!(scheduler is MarshalByRefObject))
             {
                 ThrowHelper.ThrowArgumentException("Exported scheduler must be of type MarshallByRefObject", nameof(scheduler));
             }
-#endif // REMOTING
 
             try
             {
-#if REMOTING
                 RemotingServices.Disconnect((MarshalByRefObject)scheduler);
                 Log.LogInformation("Successfully disconnected remotable scheduler");
-#else // REMOTING
-                // TODO (NetCore Port): Replace with HTTP communication
-#endif // REMOTING
             }
             catch (ArgumentException ex)
             {

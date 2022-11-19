@@ -19,13 +19,14 @@
 
 #endregion
 
+#if REMOTING
+
+using System.Runtime.Remoting;
+
 using Quartz.Core;
 using Quartz.Impl.Matchers;
 using Quartz.Simpl;
 using Quartz.Spi;
-#if REMOTING
-using System.Runtime.Remoting;
-#endif // REMOTING
 
 namespace Quartz.Impl
 {
@@ -42,13 +43,13 @@ namespace Quartz.Impl
     {
         private IRemotableQuartzScheduler? rsched;
         private readonly string schedId;
-        private readonly IRemotableSchedulerProxyFactory proxyFactory;
+        private readonly Func<IRemotableQuartzScheduler> proxyFactory;
 
         /// <summary>
         /// Construct a <see cref="RemoteScheduler" /> instance to proxy the given
         /// RemoteableQuartzScheduler instance.
         /// </summary>
-        public RemoteScheduler(string schedId, IRemotableSchedulerProxyFactory proxyFactory)
+        public RemoteScheduler(string schedId, Func<IRemotableQuartzScheduler> proxyFactory)
         {
             this.schedId = schedId;
             this.proxyFactory = proxyFactory;
@@ -252,11 +253,7 @@ namespace Quartz.Impl
                 SchedulerRepository.Instance.Remove(schedulerName);
                 return Task.CompletedTask;
             }
-#if REMOTING
             catch (RemotingException re)
-#else // REMOTING
-            catch (Exception re) // TODO (NetCore Port): Determine the correct exception type
-#endif // REMOTING
             {
                 throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
             }
@@ -649,11 +646,7 @@ namespace Quartz.Impl
                 ThrowHelper.ThrowUnableToInterruptJobException(se);
                 return Task.FromResult(false);
             }
-#if REMOTING
             catch (RemotingException re)
-#else // REMOTING
-            catch (Exception re) // TODO (NetCore Port): Determine the correct exception type
-#endif // REMOTING
             {
                 ThrowHelper.ThrowUnableToInterruptJobException(InvalidateHandleCreateException("Error communicating with remote scheduler.", re));
                 return Task.FromResult(false);
@@ -673,11 +666,7 @@ namespace Quartz.Impl
                 ThrowHelper.ThrowUnableToInterruptJobException(se);
                 return Task.FromResult(false);
             }
-#if REMOTING
             catch (RemotingException re)
-#else // REMOTING
-            catch (Exception re) // TODO (NetCore Port): Determine the correct exception type
-#endif // REMOTING
             {
                 ThrowHelper.ThrowUnableToInterruptJobException(InvalidateHandleCreateException("Error communicating with remote scheduler.", re));
                 return Task.FromResult(false);
@@ -691,11 +680,7 @@ namespace Quartz.Impl
                 action(GetRemoteScheduler());
                 return Task.CompletedTask;
             }
-#if REMOTING
             catch (RemotingException re)
-#else // REMOTING
-            catch (Exception re) // TODO (NetCore Port): Determine the correct exception type
-#endif // REMOTING
             {
                 throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
             }
@@ -707,11 +692,7 @@ namespace Quartz.Impl
             {
                 return Task.FromResult(func(GetRemoteScheduler()));
             }
-#if REMOTING
             catch (RemotingException re)
-#else // REMOTING
-            catch (Exception re) // TODO (NetCore Port): Determine the correct exception type
-#endif // REMOTING
             {
                 throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
             }
@@ -723,11 +704,7 @@ namespace Quartz.Impl
             {
                 return action(GetRemoteScheduler());
             }
-#if REMOTING
             catch (RemotingException re)
-#else // REMOTING
-            catch (Exception re) // TODO (NetCore Port): Determine the correct exception type
-#endif // REMOTING
             {
                 throw InvalidateHandleCreateException("Error communicating with remote scheduler.", re);
             }
@@ -742,7 +719,7 @@ namespace Quartz.Impl
 
             try
             {
-                rsched = proxyFactory.GetProxy();
+                rsched = proxyFactory();
             }
             catch (Exception e)
             {
@@ -762,3 +739,5 @@ namespace Quartz.Impl
         }
     }
 }
+
+#endif // REMOTING

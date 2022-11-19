@@ -1,4 +1,8 @@
-﻿using Quartz.Spi;
+﻿#if REMOTING
+
+using Quartz.Core;
+using Quartz.Impl;
+using Quartz.Spi;
 
 namespace Quartz.Simpl
 {
@@ -15,22 +19,20 @@ namespace Quartz.Simpl
         public string? Address { private get; set; }
 
         /// <summary>
-        /// Returns a client proxy to a remote <see cref="IRemotableQuartzScheduler" />.
+        /// Returns a client proxy to a remote <see cref="IScheduler" />.
         /// </summary>
-        public IRemotableQuartzScheduler? GetProxy()
+        public IScheduler GetProxy(string schedulerName, string schedulerInstanceId)
         {
             if (string.IsNullOrWhiteSpace(Address))
             {
                 ThrowHelper.ThrowInvalidOperationException("Address hasn't been configured");
             }
 
-#if REMOTING
-            return (IRemotableQuartzScheduler) System.Activator.GetObject(typeof(IRemotableQuartzScheduler), Address);
-#else // REMOTING
-            // TODO (NetCore Port): Return a new 'HttpQuartzScheduler' type which is the client that will make requests to a remote scheduler
-            //                      This new type would then be what is wrapped by RemoteScheduler to make remote calls.
-            return null;
-#endif // REMOTING
+            string uid = QuartzSchedulerResources.GetUniqueIdentifier(schedulerName, schedulerInstanceId);
+            var remoteScheduler = new RemoteScheduler(uid, () => (IRemotableQuartzScheduler)System.Activator.GetObject(typeof(IRemotableQuartzScheduler), Address));
+
+            return remoteScheduler;
         }
     }
 }
+#endif // REMOTING
