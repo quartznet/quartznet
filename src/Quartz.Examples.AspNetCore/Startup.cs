@@ -14,6 +14,7 @@ using Microsoft.Extensions.Options;
 
 using OpenTelemetry.Trace;
 
+using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Matchers;
 using Quartz.Plugin.Interrupt;
@@ -74,6 +75,9 @@ namespace Quartz.Examples.AspNetCore
                 options.Scheduling.IgnoreDuplicates = true; // default: false
                 options.Scheduling.OverWriteExistingData = true; // default: true
             });
+
+            // custom connection provider
+            services.AddSingleton<IDbProvider, CustomSqlServerConnectionProvider>();
 
             services.AddQuartz(q =>
             {
@@ -198,6 +202,9 @@ namespace Quartz.Examples.AspNetCore
                     s.RetryInterval = TimeSpan.FromSeconds(15);
                     s.UseSqlServer(sqlServer =>
                     {
+                    	// if needed, could create a custom strategy for handling connections
+                        //sqlServer.UseConnectionProvider<CustomSqlServerConnectionProvider>();
+
                         sqlServer.ConnectionString = "some connection string";
 
                         // or from appsettings.json
