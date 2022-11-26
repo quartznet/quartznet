@@ -562,10 +562,13 @@ Please add configuration to your application config file to correctly initialize
 
                     try
                     {
+                        // get new grouping for connection provider
+                        var group = datasourceKey + "." + "connectionProvider";
+                        var dbProviderProperties = new PropertiesParser(cfg.GetPropertyGroup(group, stripPrefix: true));
                         // remove the type name, so it isn't attempted to be set
-                        pp.UnderlyingProperties.Remove(PropertyDbProviderType);
+                        dbProviderProperties.UnderlyingProperties.Remove("type");
 
-                        ObjectUtils.SetObjectProperties(cp, pp.UnderlyingProperties);
+                        ObjectUtils.SetObjectProperties(cp, dbProviderProperties.UnderlyingProperties);
                         cp.Initialize();
                     }
                     catch (Exception e)
