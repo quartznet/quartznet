@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
@@ -95,6 +96,18 @@ namespace Quartz
             }
 
             await processor.ScheduleJobs(scheduler, cancellationToken);
+        }
+
+        private protected override string GetNamedConnectionString(string connectionStringName)
+        {
+            var configuration = serviceProvider.GetService<IConfiguration>();
+            var connectionString = configuration.GetConnectionString(connectionStringName);
+            if (!string.IsNullOrWhiteSpace(connectionString))
+            {
+                return connectionString;
+            }
+
+            return base.GetNamedConnectionString(connectionString);
         }
 
         protected override T InstantiateType<T>(Type? implementationType)
