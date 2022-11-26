@@ -40,11 +40,31 @@ var httpScheduler = await SchedulerBuilder.Create()
     .ProxyToRemoteScheduler<HttpSchedulerProxyFactory>("http://localhost:5000/quartz-api/")
     .BuildScheduler();*/
 
-/*/ Using SchedulerBuilder with custom ProxyFactory
+/* Using SchedulerBuilder with custom ProxyFactory
 var httpScheduler = await SchedulerBuilder.Create()
     .WithName("Quartz ASP.NET Core Sample Scheduler")
     .ProxyToRemoteScheduler<MyHttpSchedulerProxyFactory>("http://localhost:5000/quartz-api/")
     .BuildScheduler();*/
+
+/* You can register multiple schedulers by creating marker interfaces for those
+var host = Host.CreateDefaultBuilder(args)
+    .ConfigureServices(services =>
+    {
+        services.AddHttpClient("QuartzHttpClient", client =>
+        {
+            client.BaseAddress = new Uri("http://localhost:5000/quartz-api/");
+            client.DefaultRequestHeaders.Add("X-Quartz-ApiKey", "MySuperSecretApiKey");
+        });
+
+        services.AddQuartzHttpClient("Quartz ASP.NET Core Sample Scheduler", "QuartzHttpClient");
+        services.AddQuartzHttpClient<IMyScheduler>("MyScheduler", "QuartzHttpClient");
+        services.AddQuartzHttpClient<MyNamespace.IMySecondScheduler>("MySecondScheduler", "QuartzHttpClient");
+    })
+    .Build();
+
+var myScheduler = host.Services.GetRequiredService<IMyScheduler>();
+var mySecondScheduler = host.Services.GetRequiredService<MyNamespace.IMySecondScheduler>();
+var httpScheduler = host.Services.GetRequiredService<IScheduler>();*/
 
 while (true)
 {
@@ -74,5 +94,16 @@ internal class MyHttpSchedulerProxyFactory : HttpSchedulerProxyFactory
         var client = base.CreateHttpClient(address);
         client.DefaultRequestHeaders.Add("X-Quartz-ApiKey", "MySuperSecretApiKey");
         return client;
+    }
+}
+
+public interface IMyScheduler : IScheduler
+{
+}
+
+namespace MyNamespace
+{
+    public interface IMySecondScheduler : IScheduler
+    {
     }
 }
