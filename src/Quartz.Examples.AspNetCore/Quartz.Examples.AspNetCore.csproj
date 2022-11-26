@@ -18,7 +18,7 @@
       <PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="6.0.4" />
       <PackageReference Include="AspNetCore.HealthChecks.UI.InMemory.Storage" Version="6.0.4" />
       <PackageReference Include="Microsoft.Data.SqlClient" Version="5.0.1" />
-      <PackageReference Include="NSwag.AspNetCore" Version="13.17.0" />
+      <PackageReference Include="NSwag.AspNetCore" Version="13.18.0" />
       <PackageReference Include="OpenTelemetry.Exporter.Jaeger" Version="1.1.0" />
       <PackageReference Include="OpenTelemetry.Exporter.Zipkin" Version="1.1.0" />
       <PackageReference Include="OpenTelemetry.Extensions.Hosting" Version="1.0.0-rc9" />
