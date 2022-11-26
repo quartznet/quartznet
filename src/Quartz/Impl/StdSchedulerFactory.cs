@@ -585,13 +585,13 @@ Please add configuration to your application config file to correctly initialize
 
                     if (dsConnectionString == null && !string.IsNullOrEmpty(dsConnectionStringName))
                     {
-                        var connectionStringSettings = ConfigurationManager.ConnectionStrings[dsConnectionStringName];
-                        if (connectionStringSettings == null)
+                        var connectionString = GetNamedConnectionString(dsConnectionStringName);
+                        if (string.IsNullOrWhiteSpace(connectionString))
                         {
-                            initException = new SchedulerException("Named connection string '{0}' not found for DataSource: {1}".FormatInvariant(dsConnectionStringName, dataSourceName));
+                            initException = new SchedulerException($"Named connection string '{dsConnectionStringName}' not found for DataSource: {dataSourceName}");
                             throw initException;
                         }
-                        dsConnectionString = connectionStringSettings.ConnectionString;
+                        dsConnectionString = connectionString;
                     }
 
                     if (dsProvider == null)
@@ -1025,6 +1025,12 @@ Please add configuration to your application config file to correctly initialize
                 await ShutdownFromInstantiateException(tp, qs, tpInited, qsInited).ConfigureAwait(false);
                 throw;
             }
+        }
+
+        private protected virtual string GetNamedConnectionString(string dsConnectionStringName)
+        {
+            var connectionStringSettings = ConfigurationManager.ConnectionStrings[dsConnectionStringName];
+            return connectionStringSettings.ConnectionString;
         }
 
         protected virtual T InstantiateType<T>(Type? implementationType)

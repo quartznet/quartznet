@@ -33,7 +33,7 @@ jobs:
     name: windows-latest
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - name: Cache .nuke/temp, ~/.nuget/packages
         uses: actions/cache@v2
         with:
@@ -47,7 +47,7 @@ jobs:
     name: ubuntu-latest
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - name: Cache .nuke/temp, ~/.nuget/packages
         uses: actions/cache@v2
         with:
@@ -57,11 +57,11 @@ jobs:
           key: ${{ runner.os }}-${{ hashFiles('global.json', 'src/**/*.csproj', 'src/**/package.json') }}
       - name: Run './build.cmd Compile Test Pack'
         run: ./build.cmd Compile Test Pack
-  macOS-latest:
-    name: macOS-latest
-    runs-on: macOS-latest
+  macos-latest:
+    name: macos-latest
+    runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v1
+      - uses: actions/checkout@v2
       - name: Cache .nuke/temp, ~/.nuget/packages
         uses: actions/cache@v2
         with:
