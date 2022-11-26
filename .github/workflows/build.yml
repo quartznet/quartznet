@@ -5,7 +5,7 @@
 #
 #     - To turn off auto-generation set:
 #
-#         [GitHubActions (AutoGenerate = false)]
+#         [CustomGitHubActions (AutoGenerate = false)]
 #
 #     - To trigger manual generation invoke:
 #
@@ -34,6 +34,12 @@ jobs:
     name: windows-latest
     runs-on: windows-latest
     steps:
+      - if: ${{ runner.os == 'Windows' }}
+        name: 'Use GNU tar'
+        shell: cmd
+        run: |
+          echo "Adding GNU tar to PATH"
+          echo C:\Program Files\Git\usr\bin>>"%GITHUB_PATH%"
       - uses: actions/checkout@v2
       - name: Cache .nuke/temp, ~/.nuget/packages
         uses: actions/cache@v2
@@ -55,6 +61,12 @@ jobs:
     name: ubuntu-latest
     runs-on: ubuntu-latest
     steps:
+      - if: ${{ runner.os == 'Windows' }}
+        name: 'Use GNU tar'
+        shell: cmd
+        run: |
+          echo "Adding GNU tar to PATH"
+          echo C:\Program Files\Git\usr\bin>>"%GITHUB_PATH%"
       - uses: actions/checkout@v2
       - name: Cache .nuke/temp, ~/.nuget/packages
         uses: actions/cache@v2
@@ -76,6 +88,12 @@ jobs:
     name: macos-latest
     runs-on: macos-latest
     steps:
+      - if: ${{ runner.os == 'Windows' }}
+        name: 'Use GNU tar'
+        shell: cmd
+        run: |
+          echo "Adding GNU tar to PATH"
+          echo C:\Program Files\Git\usr\bin>>"%GITHUB_PATH%"
       - uses: actions/checkout@v2
       - name: Cache .nuke/temp, ~/.nuget/packages
         uses: actions/cache@v2
