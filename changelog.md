@@ -63,6 +63,13 @@
   * Introduce JobType to allow storing job's type information without actual Type instance (#1610)
 
 
+## Release 3.5.1, xxx xx 2022
+
+* FIXES
+
+    * Fix named connection string resolution when using MS DI and its configuration system (#1839)
+
+
 ## Release 3.5.0, Sep 18 2022
 
 * NEW FEATURES

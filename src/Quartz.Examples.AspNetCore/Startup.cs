@@ -153,7 +153,7 @@ namespace Quartz.Examples.AspNetCore
                         .WithSimpleSchedule(x => x.WithIntervalInSeconds(5).RepeatForever()),
                     jobConfigurator => jobConfigurator
                         .WithIdentity("slowJob")
-                        .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable, true)
+                        .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable, "true")
                         // allow only five seconds for this job, overriding default configuration
                         .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime, TimeSpan.FromSeconds(5).TotalMilliseconds.ToString(CultureInfo.InvariantCulture)));
 
@@ -209,6 +209,10 @@ namespace Quartz.Examples.AspNetCore
                     s.UseSqlServer(sqlServer =>
                     {
                         sqlServer.ConnectionString = "some connection string";
+
+                        // or from appsettings.json
+                        // sqlServer.ConnectionStringName = "Quartz";
+
                         // this is the default
                         sqlServer.TablePrefix = "QRTZ_";
                     });
