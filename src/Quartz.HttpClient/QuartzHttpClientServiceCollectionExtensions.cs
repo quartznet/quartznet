@@ -70,7 +70,7 @@ public static class QuartzHttpClientServiceCollectionExtensions
         {
             var httpClient = options.HttpClient ?? serviceProvider.GetRequiredService<IHttpClientFactory>().CreateClient(options.HttpClientName!);
 
-            var scheduler = new HttpScheduler(options.SchedulerName, httpClient);
+            var scheduler = new HttpScheduler(options.SchedulerName, httpClient, options.JsonSerializerOptions);
             SchedulerRepository.Instance.Bind(scheduler);
 
             return scheduler;
