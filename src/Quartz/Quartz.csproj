@@ -19,7 +19,7 @@
     </PackageReference>
     <PackageReference Include="LibLog" Version="5.0.8" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="2.1.1" />
-    <PackageReference Include="System.Configuration.ConfigurationManager" Version="5.0.0" Condition=" '$(FullFramework)' != 'true'  " />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="6.0.1" Condition=" '$(FullFramework)' != 'true'  " />
     <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="4.7.1" Condition=" '$(DiagnosticsSource)' == 'true'  " />
   </ItemGroup>
   <ItemGroup>

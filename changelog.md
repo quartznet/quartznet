@@ -7,7 +7,8 @@
 * FIXES
  
   * Fix named connection string resolution when using MS DI and its configuration system (#1839)
-  * Upgrade to System.Configuration.ConfigurationManager 5.0.0 to avoid vulnerable dependency chain (#1792)
+  * Upgrade to System.Configuration.ConfigurationManager 6.0.1 to avoid vulnerable dependency chain (#1792)
+  * Fix configuration handling for custom DB provider (#1795)
 
 
 ## Release 3.5.0, Sep 18 2022
