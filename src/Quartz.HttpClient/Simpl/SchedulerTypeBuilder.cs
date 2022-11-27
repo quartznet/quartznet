@@ -35,7 +35,7 @@ internal static class SchedulerTypeBuilder
 
     public static Type Create(Type interfaceType)
     {
-        var result = createdTypes.GetOrAdd(interfaceType.FullName, _ => DoCreate(interfaceType));
+        var result = createdTypes.GetOrAdd(interfaceType.FullName ?? "", _ => DoCreate(interfaceType));
         return result;
 
         static Type DoCreate(Type interfaceType)

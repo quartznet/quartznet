@@ -1037,10 +1037,14 @@ Please add configuration to your application config file to correctly initialize
             }
         }
 
-        private protected virtual string GetNamedConnectionString(string dsConnectionStringName)
+        protected virtual string? GetNamedConnectionString(string dsConnectionStringName)
         {
+#if NETFRAMEWORK
             var connectionStringSettings = ConfigurationManager.ConnectionStrings[dsConnectionStringName];
             return connectionStringSettings.ConnectionString;
+#else
+            return null;
+#endif
         }
 
         protected virtual T InstantiateType<T>(Type? implementationType)

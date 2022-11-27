@@ -21,7 +21,7 @@ public class HttpScheduler : IScheduler
         SchedulerName = schedulerName;
 
         this.httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
-        if (!this.httpClient.BaseAddress.ToString().EndsWith("/"))
+        if (!this.httpClient.BaseAddress?.ToString().EndsWith("/") == true)
         {
             throw new ArgumentException("HttpClient's BaseAddress must end in /");
         }

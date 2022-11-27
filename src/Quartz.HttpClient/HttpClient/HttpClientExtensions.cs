@@ -44,7 +44,7 @@ internal static class HttpClientExtensions
         JsonSerializerOptions serializerOptions,
         CancellationToken cancellationToken)
     {
-        var response = await client.PostAsync(requestUri, content: null, cancellationToken).ConfigureAwait(false);
+        var response = await client.PostAsync(requestUri, content: null!, cancellationToken).ConfigureAwait(false);
         await response.CheckResponseStatusCode(serializerOptions, cancellationToken).ConfigureAwait(false);
     }
 
@@ -65,7 +65,7 @@ internal static class HttpClientExtensions
         JsonSerializerOptions serializerOptions,
         CancellationToken cancellationToken)
     {
-        var response = await client.PostAsync(requestUri, content: null, cancellationToken).ConfigureAwait(false);
+        var response = await client.PostAsync(requestUri, content: null!, cancellationToken).ConfigureAwait(false);
         await response.CheckResponseStatusCode(serializerOptions, cancellationToken).ConfigureAwait(false);
 
         return await response.Content.ReadOrThrow<TResponse>(serializerOptions, cancellationToken).ConfigureAwait(false);
@@ -125,7 +125,7 @@ internal static class HttpClientExtensions
         }
         catch
         {
-            // Ignored because we can have responses which are not json 
+            // Ignored because we can have responses which are not json
         }
 
         if (problemDetails?.Detail == null || string.IsNullOrWhiteSpace(problemDetails.Detail))

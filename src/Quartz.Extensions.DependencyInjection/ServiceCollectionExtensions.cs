@@ -31,7 +31,7 @@ namespace Quartz
             Action<IServiceCollectionQuartzConfigurator>? configure = null)
         {
             services.AddOptions();
-         
+
             var schedulerBuilder = SchedulerBuilder.Create(properties);
             if (configure != null)
             {
@@ -56,6 +56,10 @@ namespace Quartz
             {
                 foreach (var key in schedulerBuilder.Properties.AllKeys)
                 {
+                    if (key is null)
+                    {
+                        continue;
+                    }
                     options[key] = schedulerBuilder.Properties[key];
                 }
             });
@@ -196,7 +200,7 @@ namespace Quartz
             return options;
         }
 
-      
+
 
         private static IJobDetail ConfigureAndBuildJobDetail(
             Type type,

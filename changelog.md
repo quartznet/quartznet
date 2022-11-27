@@ -6,6 +6,7 @@
 
 * BREAKING CHANGES
 
+  * netstandard2.0 build no longer reference System.Configuration.ConfigurationManager and thus there's no support for Full Framework style .config files
   * **JobKey** and **TriggerKey** now throw an **ArgumentNullException** when you specify **null** for _name_ or _group_ (#1359)
   * The following properties have been removed from **AbstractTrigger** as they represent information that is already available through the **Key** and **JobKey** properties:
     * Name
@@ -66,7 +67,8 @@
 ## Release 3.5.1, xxx xx 2022
 
   * Fix named connection string resolution when using MS DI and its configuration system (#1839)
-  * Upgrade to System.Configuration.ConfigurationManager 5.0.0 to avoid vulnerable dependency chain (#1792)
+  * Upgrade to System.Configuration.ConfigurationManager 6.0.1 to avoid vulnerable dependency chain (#1792)
+  * Fix configuration handling for custom DB provider (#1795)
 
 
 ## Release 3.5.0, Sep 18 2022
