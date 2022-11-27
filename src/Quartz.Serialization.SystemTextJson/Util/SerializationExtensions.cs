@@ -34,7 +34,7 @@ internal static class Utf8JsonWriterExtensions
 
     public static TimeSpan GetTimeSpan(this JsonElement jsonElement)
     {
-        var value = jsonElement.GetString();
+        var value = jsonElement.GetString() ?? "";
         var result = TimeSpan.ParseExact(value, "c", CultureInfo.InvariantCulture);
         return result;
     }
@@ -63,7 +63,7 @@ internal static class Utf8JsonWriterExtensions
 
     public static T GetEnum<T>(this JsonElement jsonElement) where T : Enum
     {
-        var value = jsonElement.GetString();
+        var value = jsonElement.GetString() ?? "";
         var result = Enum.Parse(typeof(T), value, ignoreCase: true);
         return (T)result;
     }

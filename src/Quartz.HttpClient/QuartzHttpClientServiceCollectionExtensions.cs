@@ -123,7 +123,7 @@ public static class QuartzHttpClientServiceCollectionExtensions
             if (typeof(TScheduler) != typeof(IScheduler))
             {
                 var schedulerType = SchedulerTypeBuilder.Create<TScheduler>();
-                scheduler = (IScheduler)Activator.CreateInstance(schedulerType, scheduler);
+                scheduler = (IScheduler) Activator.CreateInstance(schedulerType, scheduler)!;
             }
 
             SchedulerRepository.Instance.Bind(scheduler);

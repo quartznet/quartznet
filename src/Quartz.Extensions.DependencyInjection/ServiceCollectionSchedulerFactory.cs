@@ -85,7 +85,7 @@ namespace Quartz
             await processor.ScheduleJobs(scheduler, cancellationToken);
         }
 
-        private protected override string GetNamedConnectionString(string connectionStringName)
+        protected override string? GetNamedConnectionString(string connectionStringName)
         {
             var configuration = serviceProvider.GetService<IConfiguration>();
             var connectionString = configuration.GetConnectionString(connectionStringName);

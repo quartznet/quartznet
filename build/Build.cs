@@ -83,13 +83,9 @@ partial class Build : NukeBuild
         });
 
     Target Compile => _ => _
-        .DependsOn(Restore)
+        .DependsOn(Restore, DocsBuild)
         .Executes(() =>
         {
-            // check that docs work
-            NpmInstall();
-            NpmRun(_ => _.SetCommand("docs:build"));
-
             DotNetBuild(s => s
                 .SetProjectFile(Solution)
                 .SetConfiguration(Configuration)
@@ -98,6 +94,31 @@ partial class Build : NukeBuild
                 .SetContinuousIntegrationBuild(IsServerBuild)
             );
         });
+
+    Target DocsBuild => _ => _
+        .Executes(() =>
+        {
+            if (IsServerBuild)
+            {
+                NpmCi();
+            }
+            else
+            {
+                NpmInstall();
+            }
+
+            // https://stackoverflow.com/a/69699772/111604
+            var nodeVersion = ProcessTasks.StartProcess("node", "--version").AssertWaitForExit().Output.FirstOrDefault().Text.Trim();
+            var major = Convert.ToInt32(Regex.Match(nodeVersion, "^v(\\d+)").Groups[1].Captures[0].Value);
+
+            Log.Information("Detected Node.js major version {Version}", major);
+
+            NpmRun(_ => _
+                .When(major > 16, x => x.SetProcessEnvironmentVariable("NODE_OPTIONS", "--openssl-legacy-provider"))
+                .SetCommand("docs:build")
+            );
+        });
+
 
     Target Test => _ => _
         .After(Compile)

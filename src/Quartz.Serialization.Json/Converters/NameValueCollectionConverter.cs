@@ -11,8 +11,7 @@ namespace Quartz.Converters
     {
         public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
         {
-            var collection = value as NameValueCollection;
-            if (collection == null)
+            if (value is not NameValueCollection collection)
             {
                 return;
             }
@@ -20,6 +19,10 @@ namespace Quartz.Converters
             writer.WriteStartObject();
             foreach (var key in collection.AllKeys)
             {
+                if (key is null)
+                {
+                    continue;
+                }
                 writer.WritePropertyName(key);
                 writer.WriteValue(collection.Get(key));
             }

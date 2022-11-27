@@ -47,10 +47,6 @@
     <SignAssembly>true</SignAssembly>
   </PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All"/>
-  </ItemGroup>
-
   <PropertyGroup Condition=" '$(TargetFramework)' == 'net472' ">
     <DefineConstants>$(DefineConstants);REMOTING</DefineConstants>
     <FullFramework>true</FullFramework>
@@ -58,7 +54,6 @@
 
   <PropertyGroup>
     <DefineConstants>$(DefineConstants);DIAGNOSTICS_SOURCE</DefineConstants>
-    <DiagnosticsSource>true</DiagnosticsSource>
   </PropertyGroup>
 
   <ItemGroup>

@@ -1,0 +1,71 @@
+<Project>
+
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageVersion Include="AspNetCore.HealthChecks.UI" Version="6.0.4" />
+    <PackageVersion Include="AspNetCore.HealthChecks.UI.Client" Version="6.0.4" />
+    <PackageVersion Include="AspNetCore.HealthChecks.UI.InMemory.Storage" Version="6.0.4" />
+    <PackageVersion Include="BenchmarkDotNet" Version="0.13.2" />
+    <PackageVersion Include="FakeItEasy" Version="7.3.1" />
+    <PackageVersion Include="FirebirdSql.Data.FirebirdClient" Version="8.5.4" />
+    <PackageVersion Include="FluentAssertions" Version="6.8.0" />
+    <PackageVersion Include="MELT" Version="0.8.0" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="6.0.10" />
+    <PackageVersion Include="Microsoft.Data.SQLite" Version="3.1.6" />
+    <PackageVersion Include="Microsoft.Data.SqlClient" Version="5.0.1" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="2.1.1" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="6.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="2.1.1" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="6.0.1" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="2.1.1" />
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="2.1.1" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="5.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="2.1.1" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Configuration" Version="5.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="5.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="2.1.1" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.4.0" />
+    <PackageVersion Include="MySqlConnector" Version="2.1.8" />
+    <PackageVersion Include="NSwag.AspNetCore" Version="13.18.0" />
+    <PackageVersion Include="NUnit" Version="3.13.3" />
+    <PackageVersion Include="NUnit3TestAdapter" Version="4.3.1" />
+    <PackageVersion Include="Newtonsoft.Json" Version="12.0.3" />
+    <PackageVersion Include="Npgsql" Version="6.0.3" />
+    <PackageVersion Include="OpenTelemetry" Version="1.3.1" />
+    <PackageVersion Include="OpenTelemetry.Exporter.Jaeger" Version="1.3.1" />
+    <PackageVersion Include="OpenTelemetry.Exporter.Zipkin" Version="1.3.1" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.0.0-rc9.9" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Quartz" Version="1.0.0-alpha.1" />
+    <PackageVersion Include="OpenTracing" Version="0.12.1" />
+    <PackageVersion Include="Oracle.ManagedDataAccess" Version="19.7.0" />
+    <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="2.19.70" />
+    <PackageVersion Include="PolySharp" Version="1.8.1" />
+    <PackageVersion Include="Serilog" Version="2.10.0" />
+    <PackageVersion Include="Serilog.Extensions.Hosting" Version="4.2.0" />
+    <PackageVersion Include="Serilog.Extensions.Logging" Version="3.1.0" />
+    <PackageVersion Include="Serilog.Sinks.Console" Version="4.0.1" />
+    <PackageVersion Include="Spectre.Console" Version="0.45.0" />
+    <PackageVersion Include="System.Data.SQLite.Core" Version="1.0.115.5" />
+    <PackageVersion Include="System.Diagnostics.DiagnosticSource" Version="4.7.1" />
+    <PackageVersion Include="System.Net.Http.Json" Version="5.0.0" />
+    <PackageVersion Include="System.Reflection.Emit" Version="4.7.0" />
+    <PackageVersion Include="System.Text.Json" Version="5.0.0" />
+    <PackageVersion Include="TimeZoneConverter" Version="5.0.0" />
+    <PackageVersion Include="Topshelf" Version="4.3.0" />
+    <PackageVersion Include="log4net" Version="2.0.14" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <GlobalPackageReference Include="GitHubActionsTestLogger" Version="2.0.1" />
+    <!--
+    <GlobalPackageReference Include="Meziantou.Analyzer" Version="1.0.756"/>
+    -->
+    <GlobalPackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" />
+    <GlobalPackageReference Include="TunnelVisionLabs.ReferenceAssemblyAnnotator" Version="1.0.0-alpha.160" />
+    <PackageDownload Include="Microsoft.NETCore.App.Ref" Version="[5.0.0]" />
+  </ItemGroup>
+
+</Project>
