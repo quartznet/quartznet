@@ -8,7 +8,7 @@ This page tries to pull together a variety of common recommendations listed thro
 into one page can be easily referenced.
 
 ```csharp
-public class ASampleJob : IJob
+public class SampleJob : IJob
 {
     public static readonly JobKey Key = new JobKey("sample-job", "examples");
 
@@ -17,7 +17,7 @@ public class ASampleJob : IJob
         try 
         {
             // get data out of the MergedJobDataMap
-            var value = context.MergedJobDataMap.GetString("some-vaule");
+            var value = context.MergedJobDataMap.GetString("some-value");
             
             // ... do work
         } catch (Exception ex) {
