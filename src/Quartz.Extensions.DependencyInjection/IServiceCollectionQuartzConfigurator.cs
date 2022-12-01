@@ -63,7 +63,15 @@ namespace Quartz
         void UseDedicatedThreadPool(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null);
 
         void AddSchedulerListener<T>() where T : class, ISchedulerListener;
+        void AddSchedulerListener<T>(T implementationInstance) where T : class, ISchedulerListener;
+        void AddSchedulerListener<T>(Func<IServiceProvider, T> implementationFactory) where T : class, ISchedulerListener;
+
         void AddJobListener<T>(params IMatcher<JobKey>[] matchers) where T : class, IJobListener;
+        void AddJobListener<T>(T implementationInstance, params IMatcher<JobKey>[] matchers) where T : class, IJobListener;
+        void AddJobListener<T>(Func<IServiceProvider, T> implementationFactory, params IMatcher<JobKey>[] matchers) where T : class, IJobListener;
+
         void AddTriggerListener<T>(params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener;
+        void AddTriggerListener<T>(T implementationInstance, params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener;
+        void AddTriggerListener<T>(Func<IServiceProvider, T> implementationFactory, params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener;
     }
 }
