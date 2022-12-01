@@ -158,16 +158,50 @@ namespace Quartz
             services.AddSingleton<ISchedulerListener, T>();
         }
 
+        public void AddSchedulerListener<T>(T implementationInstance) where T : class, ISchedulerListener
+        {
+            services.AddSingleton<ISchedulerListener>(implementationInstance);
+        }
+
+        public void AddSchedulerListener<T>(Func<IServiceProvider, T> implementationFactory) where T : class, ISchedulerListener
+        {
+            services.AddSingleton<ISchedulerListener>(implementationFactory);
+        }
+
         public void AddJobListener<T>(params IMatcher<JobKey>[] matchers) where T : class, IJobListener
         {
             services.AddSingleton(new JobListenerConfiguration(typeof(T), matchers));
             services.AddSingleton<IJobListener, T>();
         }
 
+        public void AddJobListener<T>(T implementationInstance, params IMatcher<JobKey>[] matchers) where T : class, IJobListener
+        {
+            services.AddSingleton(new JobListenerConfiguration(typeof(T), matchers));
+            services.AddSingleton<IJobListener>(implementationInstance);
+        }
+
+        public void AddJobListener<T>(Func<IServiceProvider, T> implementationFactory, params IMatcher<JobKey>[] matchers) where T : class, IJobListener
+        {
+            services.AddSingleton(new JobListenerConfiguration(typeof(T), matchers));
+            services.AddSingleton<IJobListener>(implementationFactory);
+        }
+
         public void AddTriggerListener<T>(params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener
         {
             services.AddSingleton(new TriggerListenerConfiguration(typeof(T), matchers));
             services.AddSingleton<ITriggerListener, T>();
+        }
+
+        public void AddTriggerListener<T>(T implementationInstance, params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener
+        {
+            services.AddSingleton(new TriggerListenerConfiguration(typeof(T), matchers));
+            services.AddSingleton<ITriggerListener>(implementationInstance);
+        }
+
+        public void AddTriggerListener<T>(Func<IServiceProvider, T> implementationFactory, params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener
+        {
+            services.AddSingleton(new TriggerListenerConfiguration(typeof(T), matchers));
+            services.AddSingleton<ITriggerListener>(implementationFactory);
         }
     }
 }
