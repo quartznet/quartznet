@@ -41,7 +41,7 @@ public void ConfigureServices(IServiceCollection services)
 
 ## A practical example of the setup
 
-In the code below you can see a real application of the Quartz package within ASP.NET Core 6 MVC.
+In the code below you can see a real application of the Quartz package within ASP.NET Core MVC.
 
 To better illustrate the use of the Quartz library, imagine you have a `Program.cs` file that is always created when you choose the MVC architecture, and then imagine a `Jobs` folder where you have all the tasks you want Quartz to perform in the background when you run your web application. 
 
@@ -57,8 +57,9 @@ public class SendEmailJob : IJob
     public Task Execute(IJobExecutionContext context)
     {
         // Code that sends a periodic email to the user (for example)
-        // Note: This method must always return a value. This is especially important for TriggerListeners that are watching job 
-        return Task.FromResult(true); execution.
+        // Note: This method must always return a value 
+        // This is especially important for trigger listers watching job execution 
+        return Task.FromResult(true);
     }
 }        
 ```
@@ -69,16 +70,17 @@ After that, you just need to build Quartz trigger in `Program.cs`, which guarant
 builder.Services.AddQuartz(q =>
 {
     q.UseMicrosoftDependencyInjectionScopedJobFactory();
-    var jobKey = new JobKey("SendEmailJob"); // Just use the name of your job that you created in the Jobs folder.
+    // Just use the name of your job that you created in the Jobs folder.
+    var jobKey = new JobKey("SendEmailJob");
     q.AddJob<SendEmailJob>(opts => opts.WithIdentity(jobKey));
     
     q.AddTrigger(opts => opts
         .ForJob(jobKey)
         .WithIdentity("SendEmailJob-trigger")
-        .WithCronSchedule("0 * * ? * *")); //This Cron interval can be described as "run every minute"
+         //This Cron interval can be described as "run every minute" (when second is zero)
+        .WithCronSchedule("0 * * ? * *")
+    );
 });
 builder.Services.AddQuartzHostedService(q => q.WaitForJobsToComplete = true);
 ```
-For more information on CronTriggers, you can use the tutorial directly from Quartz - [CronTriggers](../tutorial/crontriggers.html).
-
-And for easy generation of Cron intervals using UI you can use - [Free Cron Expression Generator & Explainer](https://www.freeformatter.com/cron-expression-generator-quartz.html).
+For more information on cron triggers and their format, you can use the tutorial directly from Quartz - [Cron Triggers](../tutorial/crontriggers.md).
