@@ -19,6 +19,8 @@
 
 #endregion
 
+using FluentAssertions;
+
 using NUnit.Framework;
 
 using Quartz.Simpl;
@@ -57,6 +59,22 @@ namespace Quartz.Tests.Unit
             {
                 Assert.That(deserialized.Dirty, Is.False, "should not be dirty when returning from serialization");
             }
+        }
+
+        [Test]
+        public void HandlesGuid()
+        {
+            var map = new JobDataMap();
+            map["key"] = Guid.NewGuid();
+            map.TryGetGuidValue("key", out var g).Should().BeTrue();
+            g.Should().NotBe(Guid.Empty);
+
+            map["key"] = Guid.NewGuid().ToString();
+            map.TryGetGuidValue("key", out g).Should().BeTrue();
+            g.Should().NotBe(Guid.Empty);
+
+            map.TryGetNullableGuid("key-not-found", out var nullable).Should().BeTrue();
+            nullable.Should().Be(null);
         }
     }
 }
