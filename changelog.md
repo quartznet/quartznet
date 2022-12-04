@@ -10,6 +10,7 @@
   * Upgrade to System.Configuration.ConfigurationManager 6.0.1 to avoid vulnerable dependency chain (#1792)
   * Fix configuration handling for custom DB provider (#1795)
   * Add extra overloads for registering listeners (#1852)
+  * JobDataMap.TryGetGuidValue should return Guid instead of int (#1856)
 
 
 ## Release 3.5.0, Sep 18 2022
