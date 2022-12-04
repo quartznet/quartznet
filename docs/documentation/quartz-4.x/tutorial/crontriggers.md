@@ -1,6 +1,8 @@
 ---
-title: 'CronTrigger'
+title: 'Cron Triggers'
 ---
+
+# Cron Triggers
 
 CronTriggers are often more useful than SimpleTrigger, if you need a job-firing schedule that recurs based on calendar-like notions, 
 rather than on the exactly specified intervals of SimpleTrigger.
@@ -13,16 +15,24 @@ endTime that specifies when the schedule should be discontinued.
 
 ### Cron Expressions
 
-_Cron-Expressions_ are used to configure instances of CronTrigger. Cron-Expressions are strings that are actually made up 
-of seven sub-expressions, that describe individual details of the schedule. These sub-expression are separated with white-space, and represent:
+A cron expression is a string comprised of 6 or 7 fields separated by white space.
+Fields can contain any of the allowed values, along with various combinations of the allowed special characters for that field. The fields are as follows:
 
-* 1. Seconds
-* 2. Minutes
-* 3. Hours
-* 4. Day-of-Month
-* 5. Month
-* 6. Day-of-Week
-* 7. Year (optional field)
+| Field Name| Mandatory | Allowed Values	| Allowed Special Characters 	|
+|--------------|---------------|-----------------------|-----------------------------------|
+| Seconds		| YES			| 0-59 					| , - * /							|
+| Minutes		| YES			| 0-59					| , - * /							|
+| Hours		| YES			| 0-23					| , - * /							|
+| Day of month	| YES			| 1-31					| , - * ? / L W						|
+| Month		| YES			| 1-12 or JAN-DEC		| , - * /							|
+| Day of week	| YES			| 1-7 or SUN-SAT		| , - * ? / L #						|
+| Year			| NO			| empty, 1970-2099		| , - * /							|
+
+::: tip
+For easy generation of cron intervals using UI you can use some of these services:
+- [Cron Expression Generator & Explainer](https://www.freeformatter.com/cron-expression-generator-quartz.html)
+- [CronMaker](http://www.cronmaker.com/)
+:::
 
 An example of a complete cron-expression is the string `0 0 12 ? * WED` - which means "every Wednesday at 12:00 pm".
 
