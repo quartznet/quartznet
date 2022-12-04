@@ -741,12 +741,12 @@ namespace Quartz
         /// <summary>
         /// Try to retrieve the identified <see cref="Guid" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public virtual bool TryGetGuidValue(string key, out int value)
+        public virtual bool TryGetGuidValue(string key, out Guid value)
         {
-            var result = TryGetIntValueFromString(key, out value);
+            var result = TryGetGuidValueFromString(key, out value);
             if (!result)
             {
-                result = TryGetInt(key, out value);
+                result = TryGetGuid(key, out value);
             }
 
             return result;
