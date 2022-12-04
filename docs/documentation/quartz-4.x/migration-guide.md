@@ -16,7 +16,7 @@ If you are a new user starting with the latest version, you don't need to follow
 LibLog has been replaced with the Microsoft.Logging.Abstraction library.
 Reconfigure logging using a ILoggerFactory, an example, with a Microsoft.Logging.SimpleConsole logger:
 
-```c#
+```csharp
  var loggerFactory = LoggerFactory.Create(builder =>
       {
           builder
@@ -30,7 +30,7 @@ See the Quartz.Examples project for examples on setting up Serilog and Microsoft
 
 An alternative approach is to configure the LoggerFactory via a HostBuilder ConfigureServices wire-up:
 
-```c#
+```csharp
 
  Host.CreateDefaultBuilder(args)
   .ConfigureServices((hostContext, services) =>
