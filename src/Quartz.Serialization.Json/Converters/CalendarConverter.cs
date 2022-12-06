@@ -32,14 +32,14 @@ namespace Quartz.Converters
 
             return converter;
         }
-            
+
         public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
         {
             if (!(value is ICalendar calendar))
             {
                 throw new ArgumentException("The value must implement ICalendar", nameof(value));
             }
-            
+
             writer.WriteStartObject();
             writer.WritePropertyName("$type");
             var type = value!.GetType().AssemblyQualifiedNameWithoutVersion();
@@ -73,14 +73,14 @@ namespace Quartz.Converters
         public override object ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
         {
             JObject jObject = JObject.Load(reader);
-            string type = jObject["$type"]!.Value<string>();
+            string type = jObject["$type"]!.Value<string>()!;
 
             var calendarConverter = GetCalendarConverter(type);
             ICalendar calendar = calendarConverter.Create(jObject);
             if (calendar is BaseCalendar target)
             {
                 target.Description = jObject["Description"]!.Value<string>();
-                target.TimeZone = TimeZoneUtil.FindTimeZoneById(jObject["TimeZoneId"]!.Value<string>());
+                target.TimeZone = TimeZoneUtil.FindTimeZoneById(jObject["TimeZoneId"]!.Value<string>()!);
                 var baseCalendar = jObject["BaseCalendar"]!.Value<JObject>();
                 if (baseCalendar != null)
                 {
