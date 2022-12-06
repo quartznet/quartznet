@@ -11,6 +11,7 @@
   * Fix configuration handling for custom DB provider (#1795)
   * Add extra overloads for registering listeners (#1852)
   * JobDataMap.TryGetGuidValue should return Guid instead of int (#1856)
+  * Upgrade to Newtonsoft.Json 13.0.1 (#1859)
 
 
 ## Release 3.5.0, Sep 18 2022
