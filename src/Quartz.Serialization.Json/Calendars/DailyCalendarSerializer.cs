@@ -9,8 +9,8 @@ namespace Quartz.Calendars
     {
         protected override DailyCalendar Create(JObject source)
         {
-            var rangeStartingTime = source["RangeStartingTime"]!.Value<string>();
-            var rangeEndingTime = source["RangeEndingTime"]!.Value<string>();
+            var rangeStartingTime = source["RangeStartingTime"]!.Value<string>()!;
+            var rangeEndingTime = source["RangeEndingTime"]!.Value<string>()!;
             return new DailyCalendar(null, rangeStartingTime, rangeEndingTime);
         }
 

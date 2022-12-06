@@ -27,10 +27,10 @@ namespace Quartz.Converters
         public override object ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
         {
             JObject jObject = JObject.Load(reader);
-            var cronExpressionString = jObject["CronExpression"]!.Value<string>();
+            var cronExpressionString = jObject["CronExpression"]!.Value<string>()!;
 
             var cronExpression = new CronExpression(cronExpressionString);
-            cronExpression.TimeZone = TimeZoneUtil.FindTimeZoneById(jObject["TimeZoneId"]!.Value<string>());
+            cronExpression.TimeZone = TimeZoneUtil.FindTimeZoneById(jObject["TimeZoneId"]!.Value<string>()!);
             return cronExpression;
         }
 

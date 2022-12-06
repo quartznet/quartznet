@@ -70,18 +70,18 @@ namespace Quartz.Converters
         public override object ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
         {
             JObject jObject = JObject.Load(reader);
-            string type = jObject["$type"]!.Value<string>();
+            string type = jObject["$type"]!.Value<string>()!;
 
             var calendarConverter = GetCalendarConverter(type);
             ICalendar calendar = calendarConverter.Create(jObject);
             if (calendar is BaseCalendar target)
             {
                 target.Description = jObject["Description"]!.Value<string>();
-                target.TimeZone = TimeZoneUtil.FindTimeZoneById(jObject["TimeZoneId"]!.Value<string>());
+                target.TimeZone = TimeZoneUtil.FindTimeZoneById(jObject["TimeZoneId"]!.Value<string>()!);
                 var baseCalendar = jObject["BaseCalendar"]!.Value<JObject>();
                 if (baseCalendar != null)
                 {
-                    var baseCalendarType = Type.GetType(baseCalendar["$type"]!.Value<string>(), true);
+                    var baseCalendarType = Type.GetType(baseCalendar["$type"]!.Value<string>()!, true);
                     var o = baseCalendar.ToObject(baseCalendarType!, serializer);
                     target.CalendarBase = (ICalendar?) o;
                 }
