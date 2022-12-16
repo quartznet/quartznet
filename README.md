@@ -23,13 +23,6 @@ Quartz.NET supports .NET Core/netstandard 2.0 and .NET Framework 4.6.2 and later
 * You can build the code by running `build.cmd` (Windows) or `build.sh` (*nix platform)
 * You need MSBuild 17 and .NET Core SDK 6.0 to build
 
-## Acknowledgements
-
-Following components are being used by core Quartz:
-
-* [LibLog](https://github.com/damianh/LibLog) (MIT) as bridge between different logging frameworks
-
-
 ## License
 
 Licensed under the Apache License, Version 2.0 (the "License"); you may not 
