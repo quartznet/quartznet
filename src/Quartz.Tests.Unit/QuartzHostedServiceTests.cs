@@ -2,18 +2,23 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
 using Quartz.Impl.Matchers;
 using Quartz.Spi;
+
+#if NETCOREAPP3_1_OR_GREATER
+using Lifetime = Microsoft.Extensions.Hosting.IHostApplicationLifetime;
+#else
+using Lifetime = Microsoft.Extensions.Hosting.IApplicationLifetime;
+#endif
 
 namespace Quartz.Tests.Unit
 {
     [TestFixture]
     public class QuartzHostedServiceTests
     {
-        private sealed class MockApplicationLifetime : IApplicationLifetime
+        private sealed class MockApplicationLifetime : Lifetime
         {
             public CancellationTokenSource StartedSource { get; } = new CancellationTokenSource();
             public CancellationTokenSource StoppingSource { get; } = new CancellationTokenSource();
