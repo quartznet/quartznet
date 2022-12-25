@@ -66,6 +66,16 @@
 
 ## Release 3.5.1, xxx xx 2022
 
+This release contains mostly bug fixes and refinement of package dependencies/targets.
+
+* NEW FEATURES
+
+  * Add explicit netcoreapp3.1 and net6.0 targets to MS integration projects (#1879)
+  * Use IHostApplicationLifetime instead of IApplicationLifetime in >= netcoreapp3.1 Hosting targets (#1593)
+
+
+* FIXES
+ 
   * Fix named connection string resolution when using MS DI and its configuration system (#1839)
   * Upgrade to System.Configuration.ConfigurationManager 6.0.1 to avoid vulnerable dependency chain (#1792)
   * Fix configuration handling for custom DB provider (#1795)

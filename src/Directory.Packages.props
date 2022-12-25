@@ -4,6 +4,21 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
 
+  <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'net472' ">
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="2.1.1" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="2.1.1" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="2.1.1" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="2.1.1" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" '$(TargetFramework)' == 'net6.0' ">
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="6.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="6.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="6.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="6.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="6.0.0" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageVersion Include="AspNetCore.HealthChecks.UI" Version="6.0.4" />
     <PackageVersion Include="AspNetCore.HealthChecks.UI.Client" Version="6.0.4" />
@@ -18,15 +33,11 @@
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="5.0.1" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="2.1.1" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="6.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="2.1.1" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="6.0.1" />
-    <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="2.1.1" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="2.1.1" />
     <PackageVersion Include="Microsoft.Extensions.Logging" Version="5.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="2.1.1" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Configuration" Version="5.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="5.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Options" Version="2.1.1" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.4.0" />
     <PackageVersion Include="MySqlConnector" Version="2.1.8" />
     <PackageVersion Include="NSwag.AspNetCore" Version="13.18.0" />
@@ -42,7 +53,6 @@
     <PackageVersion Include="OpenTracing" Version="0.12.1" />
     <PackageVersion Include="Oracle.ManagedDataAccess" Version="19.7.0" />
     <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="2.19.70" />
-    <PackageVersion Include="PolySharp" Version="1.8.1" />
     <PackageVersion Include="Serilog" Version="2.10.0" />
     <PackageVersion Include="Serilog.Extensions.Hosting" Version="4.2.0" />
     <PackageVersion Include="Serilog.Extensions.Logging" Version="3.1.0" />
@@ -64,6 +74,7 @@
     <GlobalPackageReference Include="Meziantou.Analyzer" Version="1.0.756"/>
     -->
     <GlobalPackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" />
+    <GlobalPackageReference Include="PolySharp" Version="1.8.1" />
     <GlobalPackageReference Include="TunnelVisionLabs.ReferenceAssemblyAnnotator" Version="1.0.0-alpha.160" />
     <PackageDownload Include="Microsoft.NETCore.App.Ref" Version="[5.0.0]" />
   </ItemGroup>
