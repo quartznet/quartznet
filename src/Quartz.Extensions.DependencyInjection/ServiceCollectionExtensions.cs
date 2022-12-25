@@ -34,7 +34,7 @@ namespace Quartz
             Action<IServiceCollectionQuartzConfigurator>? configure = null)
         {
             services.AddOptions();
-            services.TryAddSingleton<MicrosoftLoggingProvider?>(serviceProvider =>
+            services.TryAddSingleton<MicrosoftLoggingProvider>(serviceProvider =>
             {
                 var loggerFactory = serviceProvider.GetService<ILoggerFactory>();
 
@@ -45,7 +45,7 @@ namespace Quartz
 
                 LogContext.SetCurrentLogProvider(loggerFactory);
 
-                return LogProvider.CurrentLogProvider as MicrosoftLoggingProvider;
+                return (LogProvider.CurrentLogProvider as MicrosoftLoggingProvider)!;
             });
 
             var schedulerBuilder = SchedulerBuilder.Create(properties);
@@ -72,7 +72,10 @@ namespace Quartz
             {
                 foreach (var key in schedulerBuilder.Properties.AllKeys)
                 {
-                    options[key] = schedulerBuilder.Properties[key];
+                    if (key is not null)
+                    {
+                        options[key] = schedulerBuilder.Properties[key];
+                    }
                 }
             });
 
@@ -212,7 +215,7 @@ namespace Quartz
             return options;
         }
 
-      
+
 
         private static IJobDetail ConfigureAndBuildJobDetail(
             Type type,

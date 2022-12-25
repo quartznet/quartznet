@@ -4,11 +4,17 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
+#if NETCOREAPP3_1_OR_GREATER
+using Lifetime = Microsoft.Extensions.Hosting.IHostApplicationLifetime;
+#else
+using Lifetime = Microsoft.Extensions.Hosting.IApplicationLifetime;
+#endif
+
 namespace Quartz
 {
     internal class QuartzHostedService : IHostedService
     {
-        private readonly IApplicationLifetime applicationLifetime;
+        private readonly Lifetime applicationLifetime;
         private readonly ISchedulerFactory schedulerFactory;
         private readonly IOptions<QuartzHostedServiceOptions> options;
         private IScheduler? scheduler;
@@ -16,7 +22,7 @@ namespace Quartz
         private bool schedulerWasStarted;
 
         public QuartzHostedService(
-            IApplicationLifetime applicationLifetime,
+            Lifetime applicationLifetime,
             ISchedulerFactory schedulerFactory,
             IOptions<QuartzHostedServiceOptions> options)
         {
