@@ -17,6 +17,7 @@
  */
 #endregion
 
+using System.Collections.Concurrent;
 using System.Data.Common;
 
 using Microsoft.Extensions.Logging;
@@ -40,8 +41,7 @@ namespace Quartz.Util
         private static readonly DBConnectionManager instance = new DBConnectionManager();
 	    private readonly ILogger<DBConnectionManager> logger;
 
-        private readonly object syncRoot = new object();
-        private readonly Dictionary<string, IDbProvider> providers = new Dictionary<string, IDbProvider>();
+        private readonly ConcurrentDictionary<string, IDbProvider> providers = new ConcurrentDictionary<string, IDbProvider>();
 
         /// <summary>
 		/// Get the class instance.
@@ -67,10 +67,7 @@ namespace Quartz.Util
         {
             logger.LogInformation("Registering datasource '{DataSource}' with db provider: '{Provider}'",dataSourceName, provider);
 
-            lock (syncRoot)
-            {
-                providers[dataSourceName] = provider;
-            }
+            providers[dataSourceName] = provider;
         }
 
 		/// <summary>
@@ -110,13 +107,7 @@ namespace Quartz.Util
                 ThrowHelper.ThrowArgumentException("DataSource name cannot be null or empty", nameof(dsName));
             }
 
-            IDbProvider? provider;
-            lock (syncRoot)
-            {
-                providers.TryGetValue(dsName, out provider);
-            }
-
-            if (provider == null)
+            if (!providers.TryGetValue(dsName, out IDbProvider? provider))
             {
                 ThrowHelper.ThrowArgumentException($"There is no DataSource named '{dsName}'", nameof(dsName));
             }
