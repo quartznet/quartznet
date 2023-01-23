@@ -33,8 +33,8 @@ Wild-cards (the '*' character) can be used to say "every" possible value of this
 "Month" field of the previous example simply means "every month". A '*' in the Day-Of-Week field would obviously mean "every day of the week".
 
 All of the fields have a set of valid values that can be specified. These values should be fairly obvious - such as the numbers 
-0 to 59 for seconds and minutes, and the values 0 to 23 for hours. Day-of-Month can be any value 0-31, but you need to be careful 
-about how many days are in a given month! Months can be specified as values between 0 and 11, or by using the strings 
+0 to 59 for seconds and minutes, and the values 0 to 23 for hours. Day-of-Month can be any value 1-31, but you need to be careful 
+about how many days are in a given month! Months can be specified as values between 1 and 12, or by using the strings 
 JAN, FEB, MAR, APR, MAY, JUN, JUL, AUG, SEP, OCT, NOV and DEC. Days-of-Week can be specified as vaules between 1 and 7 (1 = Sunday) 
 or by using the strings SUN, MON, TUE, WED, THU, FRI and SAT.
 
