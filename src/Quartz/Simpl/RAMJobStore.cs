@@ -757,6 +757,36 @@ namespace Quartz.Simpl
             return Task.FromResult(TriggerState.Normal);
         }
 
+        public Task ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        {
+            lock (lockObject)
+            {
+                // does the trigger exist?
+                if (!triggersByKey.TryGetValue(triggerKey, out var tw) || tw.Trigger == null)
+                {
+                    return Task.CompletedTask;
+                }
+
+                // is the trigger in error state?
+                if (tw.state != InternalTriggerState.Error)
+                {
+                    return Task.CompletedTask;
+                }
+
+                if (pausedTriggerGroups.Contains(triggerKey.Group))
+                {
+                    tw.state = InternalTriggerState.Paused;
+                }
+                else
+                {
+                    tw.state = InternalTriggerState.Waiting;
+                    timeTriggers.Add(tw);
+                }
+            }
+
+            return Task.CompletedTask;
+        }
+
         /// <summary>
         /// Store the given <see cref="ICalendar" />.
         /// </summary>

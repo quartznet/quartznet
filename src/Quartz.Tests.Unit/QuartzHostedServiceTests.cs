@@ -182,6 +182,11 @@ namespace Quartz.Tests.Unit
                 throw new NotImplementedException();
             }
 
+            public Task ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+            {
+                throw new NotImplementedException();
+            }
+
             public Task<bool> Interrupt(JobKey jobKey, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
