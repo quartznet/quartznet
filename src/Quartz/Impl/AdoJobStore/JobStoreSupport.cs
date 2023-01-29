@@ -1518,6 +1518,38 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
+        public Task ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        {
+            return ExecuteInLock(
+                LockTriggerAccess,
+                conn => ResetTriggerFromErrorState(conn, triggerKey, cancellationToken),
+                cancellationToken);
+        }
+
+        private async Task ResetTriggerFromErrorState(
+            ConnectionAndTransactionHolder conn,
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var newState = StateWaiting;
+
+                if (await Delegate.IsTriggerGroupPaused(conn, triggerKey.Group, cancellationToken).ConfigureAwait(false))
+                {
+                    newState = StatePaused;
+                }
+
+                await Delegate.UpdateTriggerStateFromOtherState(conn, triggerKey, newState, StateError, cancellationToken).ConfigureAwait(false);
+
+                Logger.LogInformation("Trigger {TriggerKey} reset from ERROR state to: {NewState}", triggerKey, newState);
+            }
+            catch (Exception e)
+            {
+                ThrowHelper.ThrowJobPersistenceException($"Couldn't reset from error state of trigger ({triggerKey}): {e.Message}", e);
+            }
+        }
+
         /// <summary>
         /// Store the given <see cref="ICalendar" />.
         /// </summary>

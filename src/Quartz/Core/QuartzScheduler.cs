@@ -1370,6 +1370,13 @@ namespace Quartz.Core
             return resources.JobStore.GetTriggerState(triggerKey, cancellationToken);
         }
 
+        public Task ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        {
+            ValidateState();
+
+            return resources.JobStore.ResetTriggerFromErrorState(triggerKey, cancellationToken);
+        }
+
         /// <summary>
         /// Add (register) the given <see cref="ICalendar" /> to the Scheduler.
         /// </summary>
@@ -2360,6 +2367,11 @@ namespace Quartz.Core
         TriggerState IRemotableQuartzScheduler.GetTriggerState(TriggerKey triggerKey)
         {
             return GetTriggerState(triggerKey).ConfigureAwait(false).GetAwaiter().GetResult();
+        }
+
+        void IRemotableQuartzScheduler.ResetTriggerFromErrorState(TriggerKey triggerKey)
+        {
+            ResetTriggerFromErrorState(triggerKey).ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
         void IRemotableQuartzScheduler.AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers)

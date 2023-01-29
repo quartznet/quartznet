@@ -339,4 +339,14 @@ public class TriggerEndpointsTest : WebApiTest
             })
             .MustHaveHappened(1, Times.Exactly);
     }
+
+    [Test]
+    public async Task ResetTriggerFromErrorStateShouldWork()
+    {
+        await HttpScheduler.ResetTriggerFromErrorState(triggerKeyOne);
+
+        A.CallTo(() => FakeScheduler.ResetTriggerFromErrorState(A<TriggerKey>._, A<CancellationToken>._))
+            .WhenArgumentsMatch((TriggerKey key, CancellationToken _) => key.Equals(triggerKeyOne))
+            .MustHaveHappened(1, Times.Exactly);
+    }
 }

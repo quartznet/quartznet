@@ -423,6 +423,46 @@ namespace Quartz.Tests.Unit.Simpl
         }
 
         [Test]
+        public async Task TestResetErrorTrigger()
+        {
+            var baseFireTimeDate = DateBuilder.EvenMinuteDateAfterNow();
+
+            // create and store a trigger
+            IOperableTrigger trigger1 = new SimpleTriggerImpl(
+                "trigger1",
+                "triggerGroup1",
+                fJobDetail.Key.Name,
+                fJobDetail.Key.Group,
+                baseFireTimeDate.AddMilliseconds(200000),
+                baseFireTimeDate.AddMilliseconds(200000),
+                2,
+                TimeSpan.FromMilliseconds(2000));
+
+            trigger1.ComputeFirstFireTimeUtc(null);
+            await fJobStore.StoreTrigger(trigger1, false);
+
+            var firstFireTime = trigger1.GetNextFireTimeUtc().Value;
+
+            // pretend to fire it
+            var aqTs = await fJobStore.AcquireNextTriggers(firstFireTime.AddMilliseconds(10000), 1, TimeSpan.Zero);
+            Assert.AreEqual(trigger1.Key, aqTs.First().Key);
+
+            var fTs = await fJobStore.TriggersFired(aqTs);
+            var ft = fTs.First();
+
+            // get the trigger into error state
+            await fJobStore.TriggeredJobComplete(ft.TriggerFiredBundle.Trigger, ft.TriggerFiredBundle.JobDetail, SchedulerInstruction.SetTriggerError);
+
+            var state = await fJobStore.GetTriggerState(trigger1.Key);
+            Assert.AreEqual(TriggerState.Error, state);
+
+            // test reset
+            await fJobStore.ResetTriggerFromErrorState(trigger1.Key);
+            state = await fJobStore.GetTriggerState(trigger1.Key);
+            Assert.AreEqual(TriggerState.Normal, state);
+        }
+
+        [Test]
         public async Task TestJobDeleteReturnValue()
         {
             var job = JobBuilder.Create<NoOpJob>()

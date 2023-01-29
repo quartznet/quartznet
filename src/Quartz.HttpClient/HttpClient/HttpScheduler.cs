@@ -445,6 +445,11 @@ public class HttpScheduler : IScheduler
         return result.State;
     }
 
+    public Task ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    {
+        return httpClient.Post($"{TriggerEndpointUrl(triggerKey)}/reset-from-error-state", jsonSerializerOptions, cancellationToken);
+    }
+
     public Task AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(calName))

@@ -64,24 +64,24 @@
   * Introduce JobType to allow storing job's type information without actual Type instance (#1610)
 
 
-## Release 3.5.1, xxx xx 2022
+## Release 3.6.0, Jan 29 2023
 
-This release contains mostly bug fixes and refinement of package dependencies/targets.
+This release contains new API to reset errored trigger state in job store, some bug fixes and refinement of package dependencies/targets.
 
 * NEW FEATURES
 
-  * Add explicit netcoreapp3.1 and net6.0 targets to MS integration projects (#1879)
-  * Use IHostApplicationLifetime instead of IApplicationLifetime in >= netcoreapp3.1 Hosting targets (#1593)
-
+    * Add explicit netcoreapp3.1 and net6.0 targets to MS integration projects (#1879)
+    * Use IHostApplicationLifetime instead of IApplicationLifetime in >= netcoreapp3.1 Hosting targets (#1593)
+    * Add ResetTriggerFromErrorState functionality (#1904)
 
 * FIXES
- 
-  * Fix named connection string resolution when using MS DI and its configuration system (#1839)
-  * Upgrade to System.Configuration.ConfigurationManager 6.0.1 to avoid vulnerable dependency chain (#1792)
-  * Fix configuration handling for custom DB provider (#1795)
-  * Add extra overloads for registering listeners (#1852)
-  * JobDataMap.TryGetGuidValue should return Guid instead of int (#1856)
-  * Upgrade to Newtonsoft.Json 13.0.1 (#1859)
+
+    * Fix named connection string resolution when using MS DI and its configuration system (#1839)
+    * Upgrade to System.Configuration.ConfigurationManager 6.0.1 to avoid vulnerable dependency chain (#1792)
+    * Fix configuration handling for custom DB provider (#1795)
+    * Add extra overloads for registering listeners (#1852)
+    * JobDataMap.TryGetGuidValue should return Guid instead of int (#1856)
+    * Upgrade to Newtonsoft.Json 13.0.1 (#1859)
 
 
 ## Release 3.5.0, Sep 18 2022

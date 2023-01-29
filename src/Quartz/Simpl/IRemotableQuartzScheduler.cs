@@ -147,6 +147,8 @@ namespace Quartz.Simpl
 
         TriggerState GetTriggerState(TriggerKey triggerKey);
 
+        void ResetTriggerFromErrorState(TriggerKey triggerKey);
+
         void AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers);
 
         bool DeleteCalendar(string calName);

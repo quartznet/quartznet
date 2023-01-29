@@ -26,6 +26,9 @@ internal static class TriggerEndpoints
         yield return builder.MapGet(patternPrefix + "/{triggerGroup}/{triggerName}/state", GetTriggerState)
             .WithQuartzDefaults(nameof(GetTriggerState), "Get the current state of the trigger");
 
+        yield return builder.MapPost(patternPrefix + "/{triggerGroup}/{triggerName}/reset-from-error-state", ResetTriggerFromErrorState)
+            .WithQuartzDefaults(nameof(ResetTriggerFromErrorState), "Resets trigger from error state");
+
         yield return builder.MapPost(patternPrefix + "/{triggerGroup}/{triggerName}/pause", PauseTrigger)
             .WithQuartzDefaults(nameof(PauseTrigger), "Pause trigger");
 
@@ -126,6 +129,17 @@ internal static class TriggerEndpoints
             var state = await scheduler.GetTriggerState(new TriggerKey(triggerName, triggerGroup), cancellationToken).ConfigureAwait(false);
             return new TriggerStateDto(state);
         });
+    }
+
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    private static Task<IResult> ResetTriggerFromErrorState(
+        EndpointHelper endpointHelper,
+        string schedulerName,
+        string triggerGroup,
+        string triggerName,
+        CancellationToken cancellationToken = default)
+    {
+        return endpointHelper.ExecuteWithOkResponse(schedulerName, scheduler => scheduler.ResetTriggerFromErrorState(new TriggerKey(triggerName, triggerGroup), cancellationToken));
     }
 
     [ProducesResponseType(StatusCodes.Status200OK)]

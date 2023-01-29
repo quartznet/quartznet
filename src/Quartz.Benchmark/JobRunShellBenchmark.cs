@@ -208,6 +208,11 @@ namespace Quartz.Benchmark
                 throw new NotImplementedException();
             }
 
+            public Task ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+            {
+                throw new NotImplementedException();
+            }
+
             public Task Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();

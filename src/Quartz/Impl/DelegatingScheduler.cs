@@ -235,6 +235,11 @@ public class DelegatingScheduler : IScheduler
         return scheduler.GetTriggerState(triggerKey, cancellationToken);
     }
 
+    public Task ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    {
+        return scheduler.ResetTriggerFromErrorState(triggerKey, cancellationToken);
+    }
+
     public Task AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers, CancellationToken cancellationToken = default)
     {
         return scheduler.AddCalendar(calName, calendar, replace, updateTriggers, cancellationToken);
