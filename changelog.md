@@ -2,15 +2,15 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
-## Release 3.5.1, xxx xx 2022
+## Release 3.6.0, Jan 29 2023
 
-This release contains mostly bug fixes and refinement of package dependencies/targets.
+This release contains new API to reset errored trigger state in job store, some bug fixes and refinement of package dependencies/targets.
 
 * NEW FEATURES
 
   * Add explicit netcoreapp3.1 and net6.0 targets to MS integration projects (#1879)
   * Use IHostApplicationLifetime instead of IApplicationLifetime in >= netcoreapp3.1 Hosting targets (#1593)
-
+  * Add ResetTriggerFromErrorState functionality (#1904) 
 
 * FIXES
  

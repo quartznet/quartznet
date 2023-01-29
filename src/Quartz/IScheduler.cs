@@ -685,6 +685,23 @@ namespace Quartz
             CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Reset the current state of the identified <see cref="ITrigger" /> from <see cref="TriggerState.Error" />
+        /// to <see cref="TriggerState.Normal" /> or <see cref="TriggerState.Paused" /> as appropriate.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Only affects triggers that are in <see cref="TriggerState.Error" /> state - if identified trigger is not
+        /// in that state then the result is a no-op.
+        /// </para>
+        /// <para>
+        /// The result will be the trigger returning to the normal, waiting to be fired state, unless the trigger's
+        /// group has been paused, in which case it will go into the <see cref="TriggerState.Paused" /> state.
+        /// </para>
+        /// </remarks>
+        /// <seealso cref="TriggerState"/>
+        Task ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Add (register) the given <see cref="ICalendar" /> to the Scheduler.
         /// </summary>
         /// <param name="calName">Name of the calendar.</param>

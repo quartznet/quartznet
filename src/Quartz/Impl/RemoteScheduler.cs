@@ -589,6 +589,16 @@ namespace Quartz.Impl
         /// <summary>
         /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
         /// </summary>
+        public virtual Task ResetTriggerFromErrorState(
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default)
+        {
+            return CallInGuard(x => x.ResetTriggerFromErrorState(triggerKey));
+        }
+
+        /// <summary>
+        /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+        /// </summary>
         public virtual Task AddCalendar(
             string calName,
             ICalendar calendar,
