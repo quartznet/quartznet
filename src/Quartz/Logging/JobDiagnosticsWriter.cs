@@ -19,7 +19,7 @@ namespace Quartz.Logging
 
             var activity = new Activity(name);
             activity.SetStartTime(startTimeUtc.UtcDateTime);
-            
+
             activity.AddTag(DiagnosticHeaders.SchedulerName, context.Scheduler.SchedulerName);
             activity.AddTag(DiagnosticHeaders.SchedulerId, context.Scheduler.SchedulerInstanceId);
             activity.AddTag(DiagnosticHeaders.FireInstanceId, context.FireInstanceId);
@@ -29,7 +29,7 @@ namespace Quartz.Logging
             activity.AddTag(DiagnosticHeaders.JobGroup, context.JobDetail.Key.Group);
             activity.AddTag(DiagnosticHeaders.JobName, context.JobDetail.Key.Name);
 
-            diagnosticListener.StartActivity(activity,context);
+            diagnosticListener.StartActivity(activity, new { context.MergedJobDataMap });
             return activity;
         }
 
@@ -38,7 +38,7 @@ namespace Quartz.Logging
             if (activity != null && diagnosticListener.IsEnabled(name))
             {
                 activity.SetEndTime(endTimeUtc.UtcDateTime);
-                diagnosticListener.StopActivity(activity, context);
+                diagnosticListener.StopActivity(activity, new { context.MergedJobDataMap });
             }
         }
 
