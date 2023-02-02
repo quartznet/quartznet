@@ -63,7 +63,7 @@ Here are some full examples:
 | 0 15 10 L-2 * ?			| Fire at 10:15am on the 2nd-to-last last day of every month
 | 0 15 10 ? * 6L			| Fire at 10:15am on the last Friday of every month
 | 0 15 10 ? * 6L			| Fire at 10:15am on the last Friday of every month
-| 0 15 10 ? * 6L 2002-2005	| Fire at 10:15am on every last friday of every month during the years 2002, 2003, 2004 and 2005
+| 0 15 10 ? * 6L 2002-2005	| Fire at 10:15am on every last Friday of every month during the years 2002, 2003, 2004 and 2005
 | 0 15 10 ? * 6#3			| Fire at 10:15am on the third Friday of every month
 | 0 0 12 1/5 * ?			| Fire at 12pm (noon) every 5 days every month, starting on the first day of the month.
 | 0 11 11 11 11 ?			| Fire every November 11th at 11:11am.
@@ -73,5 +73,5 @@ Here are some full examples:
 ## Notes
 
 * Support for specifying both a day-of-week and a day-of-month value is not complete (you must currently use the '?' character in one of these fields).
-* Be careful when setting fire times between the hours of the morning when "daylight savings" changes occur in your locale (for US locales, this would typically be the hour before and after 2:00 AM - because the time shift can cause a skip or a repeat depending on whether the time moves back or jumps forward. You may find this wikipedia entry helpful in determining the specifics to your locale:
+* Be careful when setting fire times between the hours of the morning when "daylight savings" changes occur in your locale (for US locales, this would typically be the hour before and after 2:00 AM - because the time shift can cause a skip or a repeat depending on whether the time moves back or jumps forward. You may find this Wikipedia entry helpful in determining the specifics to your locale:
 https://secure.wikimedia.org/wikipedia/en/wiki/Daylight_saving_time_around_the_world

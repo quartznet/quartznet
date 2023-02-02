@@ -60,7 +60,7 @@ The 'L' character is allowed for the day-of-month and day-of-week fields. This c
 but it has different meaning in each of the two fields. For example, the value "L" in the day-of-month field means 
 "the last day of the month" - day 31 for January, day 28 for February on non-leap years. If used in the day-of-week field by itself, 
 it simply means "7" or "SAT". But if used in the day-of-week field after another value, it means "the last xxx day of the month" - 
-for example "6L" or "FRIL" both mean "the last friday of the month". When using the 'L' option, it is important not to specify lists, 
+for example "6L" or "FRIL" both mean "the last Friday of the month". When using the 'L' option, it is important not to specify lists, 
 or ranges of values, as you'll get confusing results.
 
 The 'W' is used to specify the weekday (Monday-Friday) nearest the given day. As an example, if you were to specify "15W" as the value for the day-of-month field, the meaning is: "the nearest weekday to the 15th of the month".

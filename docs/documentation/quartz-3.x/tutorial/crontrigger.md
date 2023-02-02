@@ -4,7 +4,7 @@ title: 'CronTrigger Tutorial'
 
 ## Introduction
 
-cron is a UNIX tool that has been around for a long time, so its scheduling capabilities are powerful and proven. 
+cron is a UNIX tool that has been around for a long time, so its scheduling capabilities are powerful and proven.
 The CronTrigger class is based on the scheduling capabilities of cron.
 
 CronTrigger uses "cron expressions", which are able to create firing schedules such as: "At 8:00am every Monday through Friday" or "At 1:30am every last Friday of the month".
@@ -32,6 +32,7 @@ So cron expressions can be as simple as this: `* * * * ? *`
 or more complex, like this: `0/5 14,18,3-39,52 * ? JAN,MAR,SEP MON-FRI 2002-2010`
 
 ## Special characters
+
 * `*` ("all values") - used to select all values within a field. For example, `*` in the minute field means "every minute".
 * `?` ("no specific value") - useful when you need to specify something in one of the two fields in which the character is allowed, but not the other. 
 For example, if I want my trigger to fire on a particular day of the month (say, the 10th), but don't care what day of the week that happens to be, 
