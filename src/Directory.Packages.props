@@ -1,16 +1,13 @@
 <Project>
-
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
-
   <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'net472' ">
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="2.1.1" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="2.1.1" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="2.1.1" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="2.1.1" />
   </ItemGroup>
-
   <ItemGroup Condition=" '$(TargetFramework)' == 'net6.0' ">
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="6.0.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="6.0.0" />
@@ -18,8 +15,8 @@
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="6.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="6.0.0" />
   </ItemGroup>
-
   <ItemGroup>
+    <PackageVersion Include="NLog.Extensions.Logging" Version="5.2.1" />
     <PackageVersion Include="AspNetCore.HealthChecks.UI" Version="6.0.4" />
     <PackageVersion Include="AspNetCore.HealthChecks.UI.Client" Version="6.0.4" />
     <PackageVersion Include="AspNetCore.HealthChecks.UI.InMemory.Storage" Version="6.0.4" />
@@ -34,10 +31,10 @@
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="2.1.1" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="6.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="2.1.1" />
-    <PackageVersion Include="Microsoft.Extensions.Logging" Version="5.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="6.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="2.1.1" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Configuration" Version="5.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="5.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Configuration" Version="6.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="6.0.0" />
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.4.0" />
     <PackageVersion Include="MySqlConnector" Version="2.1.8" />
     <PackageVersion Include="NSwag.AspNetCore" Version="13.18.0" />
@@ -53,11 +50,11 @@
     <PackageVersion Include="OpenTracing" Version="0.12.1" />
     <PackageVersion Include="Oracle.ManagedDataAccess" Version="19.7.0" />
     <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="2.19.70" />
-    <PackageVersion Include="Serilog" Version="2.10.0" />
+    <PackageVersion Include="Serilog" Version="2.12.0" />
     <PackageVersion Include="Serilog.Extensions.Hosting" Version="4.2.0" />
     <PackageVersion Include="Serilog.Extensions.Logging" Version="3.1.0" />
-    <PackageVersion Include="Serilog.Sinks.Console" Version="4.0.1" />
-    <PackageVersion Include="Spectre.Console" Version="0.45.0" />
+    <PackageVersion Include="Serilog.Sinks.Console" Version="4.1.0" />
+    <PackageVersion Include="Spectre.Console" Version="0.46.0" />
     <PackageVersion Include="System.Data.SQLite.Core" Version="1.0.115.5" />
     <PackageVersion Include="System.Diagnostics.DiagnosticSource" Version="4.7.1" />
     <PackageVersion Include="System.Net.Http.Json" Version="5.0.0" />
@@ -65,9 +62,8 @@
     <PackageVersion Include="System.Text.Json" Version="5.0.0" />
     <PackageVersion Include="TimeZoneConverter" Version="5.0.0" />
     <PackageVersion Include="Topshelf" Version="4.3.0" />
-    <PackageVersion Include="log4net" Version="2.0.14" />
+    <PackageVersion Include="log4net" Version="2.0.15" />
   </ItemGroup>
-
   <ItemGroup>
     <GlobalPackageReference Include="GitHubActionsTestLogger" Version="2.0.1" />
     <!--
@@ -78,5 +74,4 @@
     <GlobalPackageReference Include="TunnelVisionLabs.ReferenceAssemblyAnnotator" Version="1.0.0-alpha.160" />
     <PackageDownload Include="Microsoft.NETCore.App.Ref" Version="[5.0.0]" />
   </ItemGroup>
-
 </Project>
