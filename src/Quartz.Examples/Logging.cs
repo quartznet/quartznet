@@ -6,10 +6,12 @@ using Serilog;
 
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
+using NLog;
+using NLog.Extensions.Logging;
+
 namespace Quartz.Examples
 {
-
-    public class Logging
+    public static class Logging
     {
         public static void ConfigureSerilogLogger()
         {
@@ -36,6 +38,13 @@ namespace Quartz.Examples
                         options.TimestampFormat = "hh:mm:ss ";
                     });
             });
+            LogProvider.SetLogProvider(loggerFactory);
+        }
+
+        public static void ConfigureNLogLogger()
+        {
+            var loggerFactory = LoggerFactory.Create(
+                builder => builder.AddNLog(new NLog.Config.XmlLoggingConfiguration("Nlog.config")));
             LogProvider.SetLogProvider(loggerFactory);
         }
     }

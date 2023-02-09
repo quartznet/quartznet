@@ -39,7 +39,7 @@ namespace Quartz.Examples
                 var logOption = AnsiConsole.Prompt(
                     new SelectionPrompt<string>()
                         .Title("Select logger")
-                        .AddChoices("microsoft", "serilog")
+                        .AddChoices("microsoft", "serilog","nlog")
                 );
                 switch (logOption)
                 {
@@ -48,6 +48,9 @@ namespace Quartz.Examples
                         break;
                     case "serilog":
                         Logging.ConfigureSerilogLogger();
+                        break;
+                    case "nlog":
+                        Logging.ConfigureNLogLogger();
                         break;
                 }
 
