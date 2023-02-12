@@ -14,7 +14,7 @@ If you have a static set of jobs, you can register them ahead of time using some
 If the `durable` flag is `true`, then the job will stay dormant until its triggered.
 
 ```csharp
-public Task DoSomething(IScheduler schedule, CancellationToken ct)
+public async Task DoSomething(IScheduler scheduler, CancellationToken ct)
 {
     var job = JobBuilder.Create<AnExampleJob>()
                         .WithIdentity("name", "group")
@@ -22,14 +22,14 @@ public Task DoSomething(IScheduler schedule, CancellationToken ct)
     
     var replace = true;
     var durable = true;
-    await schedule.AddJob(job, replace, durable, ct);
+    await scheduler.AddJob(job, replace, durable, ct);
 }
 ```
 
 To trigger the job later, simply call `TriggerJob` like below:
 
 ```csharp
-public Task DoSomething(IScheduler schedule, CancellationToken ct)
+public async Task DoSomething(IScheduler scheduler, CancellationToken ct)
 {
     await scheduler.TriggerJob(new JobKey("name", "group"), ct);
 }
@@ -38,7 +38,7 @@ public Task DoSomething(IScheduler schedule, CancellationToken ct)
 If you want to adjust the `JobDataMap`
 
 ```csharp
-public Task DoSomething(IScheduler schedule, CancellationToken ct)
+public async Task DoSomething(IScheduler scheduler, CancellationToken ct)
 {
     var jobData = new JobDataMap();
     await scheduler.TriggerJob(new JobKey("name", "group"), jobData, ct);
@@ -52,7 +52,7 @@ In this scenario, you may have a dynamic set of jobs and need to
 generate both the job and trigger on the fly.
 
 ```csharp
-public Task DoSomething(IScheduler schedule, CancellationToken ct)
+public async Task DoSomething(IScheduler scheduler, CancellationToken ct)
 {
     var job = JobBuilder.Create<AnExampleJob>()
                         .WithIdentity("name", "group")
@@ -70,7 +70,7 @@ public Task DoSomething(IScheduler schedule, CancellationToken ct)
 The above is the same as:
 
 ```csharp
-public Task DoSomething(IScheduler schedule, CancellationToken ct)
+public async Task DoSomething(IScheduler scheduler, CancellationToken ct)
 {
     var job = JobBuilder.Create<AnExampleJob>()
                         .WithIdentity("name", "group")
