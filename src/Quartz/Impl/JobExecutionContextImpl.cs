@@ -195,7 +195,7 @@ namespace Quartz.Impl
         /// interfaces.
         /// </para>
         /// </summary>
-        public virtual IJob JobInstance => jobInstance;
+        public virtual IJob JobInstance => (jobInstance as IJobWrapper)?.Target ?? jobInstance;
 
         /// <summary>
         /// The actual time the trigger fired. For instance the scheduled time may
