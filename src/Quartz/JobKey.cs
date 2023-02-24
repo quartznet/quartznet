@@ -66,7 +66,7 @@ namespace Quartz
         {
         }
 
-        public JobKey(string name, string group) : base(name, group)
+        public JobKey(string name, string? group) : base(name, group)
         {
         }
 
@@ -75,7 +75,7 @@ namespace Quartz
             return new JobKey(name);
         }
 
-        public static JobKey Create(string name, string group)
+        public static JobKey Create(string name, string? group)
         {
             return new JobKey(name, group);
         }

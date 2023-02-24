@@ -141,21 +141,20 @@ namespace Quartz.Impl.AdoJobStore
 
             if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                job = new JobDetailImpl();
-
-                job.Name = rs.GetString(ColumnJobName)!;
-                job.Group = rs.GetString(ColumnJobGroup)!;
-                job.Description = rs.GetString(ColumnDescription);
-                job.JobType = loadHelper.LoadType(rs.GetString(ColumnJobClass)!)!;
-                job.Durable = GetBooleanFromDbValue(rs[ColumnIsDurable]);
-                job.RequestsRecovery = GetBooleanFromDbValue(rs[ColumnRequestsRecovery]);
-
                 var map = await ReadMapFromReader(rs, 6).ConfigureAwait(false);
+                var jobDataMap = map != null ? new JobDataMap(map) : null;
 
-                if (map != null)
-                {
-                    job.JobDataMap = new JobDataMap(map);
-                }
+                job = new JobDetailImpl(
+                    new JobKey(
+                        rs.GetString(ColumnJobName)!,
+                        rs.GetString(ColumnJobGroup)),
+                    jobType: loadHelper.LoadType(rs.GetString(ColumnJobClass)!)!,
+                    description: rs.GetString(ColumnDescription),
+                    isDurable: GetBooleanFromDbValue(rs[ColumnIsDurable]),
+                    requestsRecovery: GetBooleanFromDbValue(rs[ColumnRequestsRecovery]),
+                    jobDataMap: jobDataMap,
+                    disallowConcurrentExecution: GetBooleanFromDbValue(rs[ColumnIsNonConcurrent]),
+                    persistJobDataAfterExecution: null);
             }
 
             return job;
