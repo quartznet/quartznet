@@ -33,6 +33,7 @@ using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Simpl;
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl.AdoJobStore
 {
@@ -45,7 +46,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
 
         public StdAdoDelegateTest(Type serializerType)
         {
-            serializer = (IObjectSerializer) Activator.CreateInstance(serializerType);
+            serializer = (IObjectSerializer)Activator.CreateInstance(serializerType);
             serializer.Initialize();
         }
 
@@ -109,7 +110,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             var dbProvider = A.Fake<IDbProvider>();
             var connection = A.Fake<DbConnection>();
             var transaction = A.Fake<DbTransaction>();
-            var command = (DbCommand) A.Fake<StubCommand>();
+            var command = (DbCommand)A.Fake<StubCommand>();
             var dbMetadata = new DbMetadata();
             A.CallTo(() => dbProvider.Metadata).Returns(dbMetadata);
 
@@ -161,7 +162,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             var dbProvider = A.Fake<IDbProvider>();
             var connection = A.Fake<DbConnection>();
             var transaction = A.Fake<DbTransaction>();
-            var command = (DbCommand) A.Fake<StubCommand>();
+            var command = (DbCommand)A.Fake<StubCommand>();
             var dbMetadata = new DbMetadata();
             A.CallTo(() => dbProvider.Metadata).Returns(dbMetadata);
 
@@ -221,12 +222,90 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         }
 
         [Test]
+        public async Task TestSelectJobDetail()
+        {
+            var connection = A.Fake<DbConnection>();
+            var transaction = A.Fake<DbTransaction>();
+            var conn = new ConnectionAndTransactionHolder(connection, transaction);
+
+            var dataReader = A.Fake<DbDataReader>();
+            A.CallTo(() => dataReader.ReadAsync(CancellationToken.None))
+                .Returns(true)
+                .Once();
+
+            var jobName = $"TestJobName-{Guid.NewGuid()}";
+            A.CallTo(() => dataReader[AdoConstants.ColumnJobName])
+                .Returns(jobName);
+            var jobGroup = $"TestGroup-{Guid.NewGuid()}";
+            A.CallTo(() => dataReader[AdoConstants.ColumnJobGroup])
+                .Returns(jobGroup);
+            var jobDescription = $"TestDescription-{Guid.NewGuid()}";
+            A.CallTo(() => dataReader[AdoConstants.ColumnDescription])
+                .Returns(jobDescription);
+            A.CallTo(() => dataReader[AdoConstants.ColumnJobClass])
+                .Returns(typeof(TestJob).AssemblyQualifiedNameWithoutVersion());
+            A.CallTo(() => dataReader[AdoConstants.ColumnRequestsRecovery])
+                .Returns(true);
+            A.CallTo(() => dataReader[AdoConstants.ColumnIsDurable])
+                .Returns(true);
+            A.CallTo(() => dataReader[AdoConstants.ColumnIsNonConcurrent])
+                .Returns(true);
+
+            var command = A.Fake<StubCommand>();
+
+            A.CallTo(command)
+                .Where(x => x.Method.Name == "ExecuteDbDataReaderAsync")
+                .WithReturnType<Task<DbDataReader>>()
+                .Returns(Task.FromResult(dataReader));
+
+            var dbProvider = A.Fake<IDbProvider>();
+            A.CallTo(() => dbProvider.CreateCommand())
+                .Returns(command);
+
+            var delegateInitializationArgs = new DelegateInitializationArgs
+            {
+                TablePrefix = "QRTZ_",
+                InstanceId = "TESTSCHED",
+                InstanceName = "INSTANCE",
+                TypeLoadHelper = new SimpleTypeLoadHelper(),
+                UseProperties = false,
+                InitString = "",
+                DbProvider = dbProvider
+            };
+
+            var adoDelegate = new StdAdoDelegate();
+            adoDelegate.Initialize(delegateInitializationArgs);
+
+            var jobKey = new JobKey(jobName, jobGroup);
+
+            var jobDetail = await adoDelegate.SelectJobDetail(
+                conn,
+                jobKey,
+                new SimpleTypeLoadHelper(), // Irrelevant, not used actually by method implementation
+                CancellationToken.None);
+
+            Assert.IsNotNull(jobDetail);
+            Assert.AreEqual(jobName, jobDetail.Key.Name);
+            Assert.AreEqual(jobGroup, jobDetail.Key.Group);
+            Assert.AreEqual(jobDescription, jobDetail.Description);
+            Assert.AreEqual(typeof(TestJob), jobDetail.JobType.Type);
+            Assert.IsTrue(jobDetail.RequestsRecovery);
+            Assert.IsTrue(jobDetail.Durable);
+            Assert.IsTrue(jobDetail.ConcurrentExecutionDisallowed);
+        }
+
+        private class TestJob : IJob
+        {
+            public Task Execute(IJobExecutionContext context) => throw new NotSupportedException();
+        }
+
+        [Test]
         public async Task TestSelectSimpleTriggerWithDeleteBeforeSelectExtendedProps()
         {
             var dbProvider = A.Fake<IDbProvider>();
             var connection = A.Fake<DbConnection>();
             var transaction = A.Fake<DbTransaction>();
-            var command = (DbCommand) A.Fake<StubCommand>();
+            var command = (DbCommand)A.Fake<StubCommand>();
             var dbMetadata = new DbMetadata();
             A.CallTo(() => dbProvider.Metadata).Returns(dbMetadata);
 
