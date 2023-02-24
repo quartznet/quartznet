@@ -114,7 +114,7 @@ partial class Build : NukeBuild
             Log.Information("Detected Node.js major version {Version}", major);
 
             NpmRun(_ => _
-                .When(major > 16, x => x.SetProcessEnvironmentVariable("NODE_OPTIONS", "--openssl-legacy-provider"))
+                .SetProcessEnvironmentVariable("NODE_OPTIONS", "--openssl-legacy-provider")
                 .SetCommand("docs:build")
             );
         });
