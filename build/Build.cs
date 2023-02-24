@@ -150,16 +150,34 @@ partial class Build : NukeBuild
         {
             EnsureCleanDirectory(ArtifactsDirectory);
 
-            DotNetPack(s => s
-                .SetAssemblyVersion(TagVersion)
-                .SetFileVersion(TagVersion)
-                .SetInformationalVersion(TagVersion)
-                .SetVersionSuffix(VersionSuffix)
-                .SetConfiguration(Configuration)
-                .SetOutputDirectory(ArtifactsDirectory)
-                .SetDeterministic(IsServerBuild)
-                .SetContinuousIntegrationBuild(IsServerBuild)
-            );
+            var packTargetProjects = new[]
+            {
+                "Quartz",
+                "Quartz.Extensions.DependencyInjection",
+                "Quartz.Extensions.Hosting",
+                "Quartz.Serialization.Json",
+                "Quartz.AspNetCore",
+                "Quartz.Jobs",
+                "Quartz.Plugins",
+                "Quartz.Plugins.TimeZoneConverter",
+                "Quartz.OpenTelemetry.Instrumentation",
+                "Quartz.OpenTracing"
+            };
+
+            foreach (var project in packTargetProjects)
+            {
+                DotNetPack(s => s
+                    .SetProject(Solution.GetProject(project))
+                    .SetAssemblyVersion(TagVersion)
+                    .SetFileVersion(TagVersion)
+                    .SetInformationalVersion(TagVersion)
+                    .SetVersionSuffix(VersionSuffix)
+                    .SetConfiguration(Configuration)
+                    .SetOutputDirectory(ArtifactsDirectory)
+                    .SetDeterministic(IsServerBuild)
+                    .SetContinuousIntegrationBuild(IsServerBuild)
+                );
+            }
 
             var zipContents = Array.Empty<AbsolutePath>()
                     .Concat(SourceDirectory.GlobFiles("**/*.*"))
