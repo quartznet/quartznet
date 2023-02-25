@@ -26,7 +26,7 @@
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
 
-    <VersionPrefix>3.6.1</VersionPrefix>
+    <VersionPrefix>3.6.2</VersionPrefix>
 
     <CLSCompliant>True</CLSCompliant>
     <ComVisible>False</ComVisible>
