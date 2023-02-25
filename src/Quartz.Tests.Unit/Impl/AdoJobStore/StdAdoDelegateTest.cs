@@ -264,6 +264,14 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             var dbProvider = A.Fake<IDbProvider>();
             A.CallTo(() => dbProvider.CreateCommand())
                 .Returns(command);
+                
+            var dbMetadata = new DbMetadata
+            {
+                BindByName = true,
+                ParameterNamePrefix = "@"
+            };
+            dbMetadata.Init();
+            A.CallTo(() => dbProvider.Metadata).Returns(dbMetadata);
 
             var delegateInitializationArgs = new DelegateInitializationArgs
             {
@@ -295,6 +303,21 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             Assert.IsTrue(jobDetail.RequestsRecovery);
             Assert.IsTrue(jobDetail.Durable);
             Assert.IsTrue(jobDetail.ConcurrentExecutionDisallowed);
+
+            var expectedCommandText = "SELECT "
+                + "JOB_NAME,"
+                + "JOB_GROUP,"
+                + "DESCRIPTION,"
+                + "JOB_CLASS_NAME,"
+                + "IS_DURABLE,"
+                + "REQUESTS_RECOVERY,"
+                + "JOB_DATA,"
+                + "IS_NONCONCURRENT "
+                + "FROM QRTZ_JOB_DETAILS "
+                + "WHERE SCHED_NAME = @schedulerName "
+                + "AND JOB_NAME = @jobName "
+                + "AND JOB_GROUP = @jobGroup";
+            Assert.AreEqual(expectedCommandText, command.CommandText);
         }
 
         private class TestJob : IJob
