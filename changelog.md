@@ -64,6 +64,18 @@
   * Introduce JobType to allow storing job's type information without actual Type instance (#1610)
 
 
+## Release 3.6.1, Feb 25 2023
+
+This bug fix release contains an important fix to anyone configuring jobs using job builder's `DisallowConcurrentExecution()`
+without having the attribute `DisallowConcurrentExecutionAttribute` on type itself.
+
+* FIXES
+
+    * Add missing "disallow concurrency" materialization for jobs (#1923)
+    * Allow accessing the wrapped scoped job instance from job execution context (#1917)
+    * JobDiagnosticsWriter can throw error when writing context data (#1191)
+
+
 ## Release 3.6.0, Jan 29 2023
 
 This release contains new API to reset errored trigger state in job store, some bug fixes and refinement of package dependencies/targets.
