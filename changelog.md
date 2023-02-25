@@ -2,6 +2,16 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+
+## Release 3.6.2, Feb 25 2023
+
+This is fix to a fix release, 3.6.1 introduced a regression to job selection logic when using persistent job store. 
+
+* FIXES
+
+    * Fix SqlSelectJobDetail to include IS_NONCONCURRENT #1927
+
+
 ## Release 3.6.1, Feb 25 2023
 
 This bug fix release contains an important fix to anyone configuring jobs using job builder's `DisallowConcurrentExecution()`
