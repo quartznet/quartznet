@@ -83,7 +83,7 @@ partial class Build : NukeBuild
         });
 
     Target Compile => _ => _
-        .DependsOn(Restore, DocsBuild)
+        .DependsOn(Restore)
         .Executes(() =>
         {
             DotNetBuild(s => s
@@ -114,7 +114,6 @@ partial class Build : NukeBuild
             Log.Information("Detected Node.js major version {Version}", major);
 
             NpmRun(_ => _
-                .SetProcessEnvironmentVariable("NODE_OPTIONS", "--openssl-legacy-provider")
                 .SetCommand("docs:build")
             );
         });

@@ -1,3 +1,7 @@
+---
+title: Microsoft DI Integration
+---
+
 [Quartz.Extensions.DependencyInjection](https://www.nuget.org/packages/Quartz.Extensions.DependencyInjection)
 provides integration with [Microsoft Dependency Injection](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/dependency-injection).
 
@@ -9,7 +13,9 @@ Quartz 3.1 or later required.
 
 You need to add NuGet package reference to your project which uses Quartz.
 
-    Install-Package Quartz.Extensions.DependencyInjection
+```
+Install-Package Quartz.Extensions.DependencyInjection
+```
 
 ## Using
 

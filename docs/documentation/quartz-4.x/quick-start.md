@@ -1,6 +1,5 @@
 ---
-layout: default
-title: Quartz.NET Quick Start Guide
+title: Quartz 4 Quick Start
 ---
 
 Welcome to the Quick Start Guide for Quartz.NET. As you read this guide, expect to see details of:
@@ -27,8 +26,8 @@ Couldn't get any simpler than this. Just fire up Visual Studio (with NuGet insta
 
 or from NuGet Command-Line:
 
-```powershell
-    Install-Package Quartz
+```
+Install-Package Quartz
 ```
 
 If you want to add JSON Serialization, just add the [Quartz.Serialization.Json](packages/json-serialization) package the same way.

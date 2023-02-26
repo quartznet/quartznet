@@ -1,3 +1,7 @@
+---
+title : JSON Serialization
+---
+
 ::: tip
 JSON is recommended persistent format to store data in database for greenfield projects.
 You should also strongly consider setting useProperties to true to restrict key-values to be strings.
@@ -10,7 +14,9 @@ You should also strongly consider setting useProperties to true to restrict key-
 
 You need to add NuGet package reference to your project which uses Quartz.
 
-    Install-Package Quartz.Serialization.Json
+```
+Install-Package Quartz.Serialization.Json
+```
 
 ## Configuring
 

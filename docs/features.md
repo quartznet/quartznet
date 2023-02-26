@@ -1,6 +1,5 @@
 ---
 title: Quartz.NET Features
-layout: default
 ---
 
 ## Runtime Environments

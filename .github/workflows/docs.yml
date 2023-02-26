@@ -1,4 +1,4 @@
-name: Quartz.NET Documentation
+name: docs
 on:
   push:
     branches:
@@ -6,14 +6,14 @@ on:
     paths:
       - 'docs/**'
       - 'package.json'
-      - '**/docs.yml'
+      - '**/docs*.yml'
 jobs:
   build:
-    name: Build and Deploy
+    name: build and deploy
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
 
       - name: Build
         run: |

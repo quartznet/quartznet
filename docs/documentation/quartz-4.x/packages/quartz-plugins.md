@@ -1,10 +1,16 @@
+---
+title : JSON Serialization
+---
+
 [Quartz.Plugins](https://www.nuget.org/packages/Quartz.Plugins) provides some useful ready-mady plugins for your convenience.
 
 ## Installation
 
 You need to add NuGet package reference to your project which uses Quartz.
 
-    Install-Package Quartz.Plugins
+```
+Install-Package Quartz.Plugins
+```
 
 ## Configuration
 

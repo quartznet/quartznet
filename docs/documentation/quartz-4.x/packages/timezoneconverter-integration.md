@@ -1,3 +1,7 @@
+---
+title: TimeZoneConverter Integration
+---
+
 [Quartz.Plugins.TimeZoneConverter](https://www.nuget.org/packages/Quartz.Plugins.TimeZoneConverter)
 provides integration with [TimeZoneConverter](https://github.com/mj1856/TimeZoneConverter) which helps to bridge between
 *nix and Windows differences.
@@ -6,7 +10,9 @@ provides integration with [TimeZoneConverter](https://github.com/mj1856/TimeZone
 
 You need to add NuGet package reference to your project which uses Quartz.
 
-    Install-Package Quartz.Plugins.TimeZoneConverter
+```
+Install-Package Quartz.Plugins.TimeZoneConverter
+```
 
 ## Using
 

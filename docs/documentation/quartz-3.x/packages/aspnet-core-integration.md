@@ -1,3 +1,7 @@
+---
+title: ASP.NET Core Integration
+---
+
 [Quartz.AspNetCore](https://www.nuget.org/packages/Quartz.AspNetCore)
 provides integration with [ASP.NET Core hosted services](https://docs.microsoft.com/en-us/aspnet/core/fundamentals/host/hosted-services).
 
@@ -9,7 +13,9 @@ If you only need the generic host, [generic host integration](hosted-services-in
 
 You need to add NuGet package reference to your project which uses Quartz.
 
-    Install-Package Quartz.AspNetCore
+```
+Install-Package Quartz.AspNetCore
+```
 
 ## Using
 

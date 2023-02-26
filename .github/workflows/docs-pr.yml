@@ -1,0 +1,22 @@
+name: pr / docs
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'docs/**'
+      - 'package.json'
+      - '**/docs*.yml'
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Build
+        run: |
+          npm install
+          npm run docs:build

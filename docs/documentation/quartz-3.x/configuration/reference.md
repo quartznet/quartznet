@@ -1,6 +1,5 @@
 ---
-layout: default
-title: Quartz.NET Configuration Reference
+title: Configuration Reference
 ---
 
 # Quartz.NET Configuration Reference

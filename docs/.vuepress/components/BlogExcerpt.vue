@@ -14,6 +14,7 @@
 export default {
     computed: {
         posts() {
+            return [];
             return this.$site.pages
                 .filter(x => x.id === 'post' && x.frontmatter.hidden !== true && x.frontmatter.promote !== false)
                 .sort((a, b) => b.path.localeCompare(a.path))

@@ -1,6 +1,5 @@
 ---
 title :  Website has moved to using GitHub pages
-layout: default
 categories:
 tags: 
 ---

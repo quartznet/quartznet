@@ -1,6 +1,5 @@
 ---
 title: Quartz.NET 2.x Tutorial
-layout: default
 ---
 
 ## Choose a lesson:

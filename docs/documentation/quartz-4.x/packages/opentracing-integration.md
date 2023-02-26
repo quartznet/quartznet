@@ -1,3 +1,7 @@
+---
+title: OpenTracing Integration
+---
+
 [Quartz.OpenTracing](https://www.nuget.org/packages/Quartz.OpenTracing)
 provides integration with [OpenTracing](https://opentracing.io/). You may also consider
 [Quartz.OpenTelemetry.Instrumentation](opentelemetry-integration.md) package which will supercede OpenTracing and OpenCensus
@@ -15,7 +19,9 @@ The integration library can still live a bit and thus integration API can have b
 
 You need to add NuGet package reference to your project which uses Quartz.
 
-    Install-Package Quartz.OpenTracing
+```
+Install-Package Quartz.OpenTracing
+```
 
 ## Using
 

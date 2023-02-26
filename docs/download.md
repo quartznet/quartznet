@@ -1,6 +1,5 @@
 ---
 title: Download Quartz.NET
-layout: default
 ---
 
 You can install Quartz and related packages using [NuGet](https://www.nuget.org/packages/Quartz)

@@ -1,6 +1,5 @@
 ---
 title: Mailing List
-layout: default
 ---
 
 # Quartz.NET Mailing List
