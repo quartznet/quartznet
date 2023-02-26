@@ -1,6 +1,5 @@
 ---
 title :  The tutorial has been updated to include 2.x API changes
-layout: default
 categories:
 tags: 
 ---

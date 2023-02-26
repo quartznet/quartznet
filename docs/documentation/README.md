@@ -1,6 +1,5 @@
 ---
 title: Documentation
-layout: default
 ---
 
 * [Frequently Asked Questions](faq.html)

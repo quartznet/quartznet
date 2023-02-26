@@ -1,6 +1,5 @@
 ---
-layout: default
-title: Quartz.NET Quick Start Guide
+title: Quartz 2 Quick Start
 ---
 
 Welcome to the Quick Start Guide for Quartz.NET. As you read this guide, expect to see details of:
@@ -34,7 +33,9 @@ Couldn't get any simpler than this. Just fire up Visual Studio (with NuGet insta
 
 or from NuGet Command-Line:
 
-	Install-Package Quartz
+```
+Install-Package Quartz
+```
 
 ## Configuration
 

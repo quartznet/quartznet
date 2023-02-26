@@ -1,10 +1,16 @@
+---
+title : Jobs
+---
+
 [Quartz.Jobs](https://www.nuget.org/packages/Quartz.Jobs) provides some useful ready-made jobs for your convenience.
 
 ## Installation
 
 You need to add NuGet package reference to your project which uses Quartz.
 
-    Install-Package Quartz.Jobs
+```
+Install-Package Quartz.Jobs
+```
 
 ## Features
 

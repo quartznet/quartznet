@@ -1,3 +1,7 @@
+---
+title: OpenTelemetry Integration
+---
+
 [Quartz.OpenTelemetry.Instrumentation](https://www.nuget.org/packages/Quartz.OpenTelemetry.Instrumentation)
 provides integration with [OpenTelemetry](https://opentelemetry.io/).
 
@@ -13,7 +17,9 @@ The integration library can still live a bit and thus integration API can have b
 
 You need to add NuGet package reference to your project which uses Quartz.
 
-    Install-Package Quartz.OpenTelemetry.Instrumentation
+```
+Install-Package Quartz.OpenTelemetry.Instrumentation
+```
 
 It also makes sense to install package for exporter to actually get the results somewhere.
 

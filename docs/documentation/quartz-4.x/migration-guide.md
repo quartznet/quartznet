@@ -1,6 +1,5 @@
 ---
-layout: default
-title: Version Migration Guide
+title: Migration Guide
 ---
 
 *This document outlines changes needed per version upgrade basis. You need to check the steps for each version you are jumping over. You should also check [the complete change log](https://raw.github.com/quartznet/quartznet/master/changelog.md).*

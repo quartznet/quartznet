@@ -26,6 +26,7 @@ on:
       - '**/*'
       - '!docs/**/*'
       - '!package.json'
+      - '!package-lock.json'
       - '!readme.md'
 
 jobs:
