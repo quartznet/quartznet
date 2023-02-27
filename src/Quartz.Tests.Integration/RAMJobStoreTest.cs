@@ -7,6 +7,9 @@ namespace Quartz.Tests.Integration
 {
     public abstract class AbstractSchedulerTest
     {
+        protected readonly string provider;
+        protected readonly string serializerType;
+
         private const string Barrier = "BARRIER";
         private const string DateStamps = "DATE_STAMPS";
 
@@ -29,6 +32,12 @@ namespace Quartz.Tests.Integration
         }
 
         private static readonly TimeSpan testTimeout = TimeSpan.FromSeconds(125);
+
+        protected AbstractSchedulerTest(string provider, string serializerType)
+        {
+            this.provider = provider;
+            this.serializerType = serializerType;
+        }
 
         public class TestJobWithSync : IJob
         {
@@ -355,8 +364,8 @@ namespace Quartz.Tests.Integration
         [Test]
         public async Task TestDurableStorageFunctions()
         {
-            const string schedulerName = "testDurableStorageFunctions";
-            SchedulerRepository.Instance.Remove(schedulerName + "Scheduler"); // workaround prior test cleanup - relates to issue in #1453
+            var schedulerName = CreateSchedulerName("testDurableStorageFunctions");
+            SchedulerRepository.Instance.Remove(schedulerName); // workaround prior test cleanup - relates to issue in #1453
             IScheduler sched = await CreateScheduler(schedulerName, 2);
             await sched.Clear();
 
@@ -459,6 +468,11 @@ namespace Quartz.Tests.Integration
                 await task;
                 Assert.That(shutdown, Is.True);
             }
+        }
+
+        protected string CreateSchedulerName(string name)
+        {
+            return $"{name}_Scheduler_{provider}_{serializerType}";
         }
     }
 }

@@ -17,8 +17,6 @@ using Quartz.Util;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore
 {
-    [TestFixture]
-    [Category("database")]
     public class AdoJobStoreSmokeTest
     {
         private static readonly Dictionary<string, string> dbConnectionStrings = new Dictionary<string, string>();
@@ -34,7 +32,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             dbConnectionStrings["SQLServer"] = TestConstants.SqlServerConnectionString;
             dbConnectionStrings["SQLServerMOT"] = TestConstants.SqlServerConnectionStringMOT;
             dbConnectionStrings["MySQL"] = "Server = localhost; Database = quartznet; Uid = quartznet; Pwd = quartznet";
-            dbConnectionStrings["PostgreSQL"] = "Server=127.0.0.1;Port=5432;Userid=quartznet;Password=quartznet;Pooling=true;MinPoolSize=1;MaxPoolSize=20;Timeout=15;SslMode=Disable;Database=quartznet";
+            dbConnectionStrings["PostgreSQL"] = TestConstants.PostgresConnectionString;
             dbConnectionStrings["SQLite"] = "Data Source=test.db;Version=3;";
             dbConnectionStrings["SQLite-Microsoft"] = "Data Source=test.db;";
             dbConnectionStrings["Firebird"] = "User=SYSDBA;Password=masterkey;Database=/firebird/data/quartz.fdb;DataSource=localhost;Port=3050;Dialect=3;Charset=NONE;Role=;Connection lifetime=15;Pooling=true;MinPoolSize=0;MaxPoolSize=50;Packet Size=8192;ServerType=0;";
@@ -106,7 +104,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             using (var connection = new SqliteConnection(dbConnectionStrings["SQLite-Microsoft"]))
             {
                 await connection.OpenAsync();
-                string sql = File.ReadAllText("../../../../database/tables/tables_sqlite.sql");
+                var sql = LoadSqliteTableScript();
 
                 var command = new SqliteCommand(sql, connection);
                 command.ExecuteNonQuery();
@@ -117,6 +115,15 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             NameValueCollection properties = new NameValueCollection();
             properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.SQLiteDelegate, Quartz";
             await RunAdoJobStoreTest("SQLite-Microsoft", "SQLite-Microsoft", serializerType, properties, clustered: false);
+        }
+
+        private static string LoadSqliteTableScript()
+        {
+            var path = File.Exists("../../../../database/tables/tables_sqlite.sql")
+                ? "../../../../database/tables/tables_sqlite.sql"
+                : "../../../../../database/tables/tables_sqlite.sql";
+
+            return File.ReadAllText(path);
         }
 
         [Test]
@@ -156,7 +163,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             using (var connection = new SQLiteConnection(dbConnectionStrings["SQLite"]))
             {
                 await connection.OpenAsync();
-                string sql = File.ReadAllText("../../../../database/tables/tables_sqlite.sql");
+                var sql = LoadSqliteTableScript();
 
                 var command = new SQLiteCommand(sql, connection);
                 command.ExecuteNonQuery();

@@ -1,10 +1,11 @@
-﻿using NUnit.Framework;
-
-namespace Quartz.Tests.Integration
+﻿namespace Quartz.Tests.Integration
 {
-    [TestFixture]
     public class RAMSchedulerTest : AbstractSchedulerTest
     {
+        public RAMSchedulerTest() : base("memory", "default-serializer")
+        {
+        }
+
         protected override Task<IScheduler> CreateScheduler(string name, int threadPoolSize)
         {
             var config = SchedulerBuilder.Create("AUTO", name + "Scheduler");
@@ -15,6 +16,10 @@ namespace Quartz.Tests.Integration
             });
 
             return config.BuildScheduler();
+        }
+
+        public RAMSchedulerTest(string provider) : base(provider, "default-serializer")
+        {
         }
     }
 }

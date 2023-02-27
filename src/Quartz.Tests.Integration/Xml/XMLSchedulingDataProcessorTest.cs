@@ -34,6 +34,7 @@ using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Simpl;
 using Quartz.Spi;
+using Quartz.Tests.Integration.Utils;
 using Quartz.Util;
 using Quartz.Xml;
 
@@ -43,11 +44,19 @@ namespace Quartz.Tests.Integration.Xml
     /// Tests for <see cref="XMLSchedulingDataProcessor" />.
     /// </summary>
     /// <author>Marko Lahma (.NET)</author>
+    [TestFixture(TestConstants.DefaultSqlServerProvider, Category = "db-sqlserver")]
+    [TestFixture(TestConstants.PostgresProvider, Category = "db-postgres")]
     public class XMLSchedulingDataProcessorTest
     {
+        private readonly string provider;
         private XMLSchedulingDataProcessor processor;
         private IScheduler mockScheduler;
         private ILogger<XMLSchedulingDataProcessor> logger;
+
+        public XMLSchedulingDataProcessorTest(string provider)
+        {
+            this.provider = provider;
+        }
 
         [SetUp]
         public void SetUp()
@@ -61,7 +70,6 @@ namespace Quartz.Tests.Integration.Xml
         }
 
         [Test]
-        [Category("database")]
         public async Task TestScheduling_MinimalConfiguration()
         {
             Stream s = ReadJobXmlFromEmbeddedResource("MinimalConfiguration_20.xml");
@@ -72,7 +80,6 @@ namespace Quartz.Tests.Integration.Xml
         }
 
         [Test]
-        [Category("database")]
         public async Task TestScheduling_RichConfiguration()
         {
             Stream s = ReadJobXmlFromEmbeddedResource("RichConfiguration_20.xml");
@@ -86,7 +93,6 @@ namespace Quartz.Tests.Integration.Xml
         }
 
         [Test]
-        [Category("database")]
         public async Task TestScheduling_QuartzNet250()
         {
             Stream s = ReadJobXmlFromEmbeddedResource("QRTZNET250.xml");
@@ -282,7 +288,6 @@ namespace Quartz.Tests.Integration.Xml
         }
 
         [Test]
-        [Category("database")]
         [Category("db-sqlserver")]
         public async Task TestSimpleTriggerNoRepeat()
         {
@@ -313,7 +318,6 @@ namespace Quartz.Tests.Integration.Xml
         }
 
         [Test]
-        [Category("database")]
         [Category("db-sqlserver")]
         public async Task TestRemoveJobTypeNotFound()
         {
@@ -357,19 +361,12 @@ namespace Quartz.Tests.Integration.Xml
             }
         }
 
-        private static async Task<IScheduler> CreateDbBackedScheduler()
+        private async Task<IScheduler> CreateDbBackedScheduler()
         {
-            NameValueCollection properties = new NameValueCollection();
+            var properties = DatabaseHelper.CreatePropertiesForProvider(provider);
 
             properties["quartz.scheduler.instanceName"] = "TestScheduler";
             properties["quartz.scheduler.instanceId"] = "AUTO";
-            properties["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz";
-            properties["quartz.jobStore.driverDelegateType"] = "Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz";
-            properties["quartz.jobStore.dataSource"] = "default";
-            properties["quartz.jobStore.tablePrefix"] = "QRTZ_";
-            properties["quartz.dataSource.default.connectionString"] = TestConstants.SqlServerConnectionString;
-            properties["quartz.dataSource.default.provider"] = TestConstants.DefaultSqlServerProvider;
-            properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
 
             ISchedulerFactory sf = new StdSchedulerFactory(properties);
             IScheduler scheduler = await sf.GetScheduler();
@@ -380,7 +377,6 @@ namespace Quartz.Tests.Integration.Xml
         }
 
         [Test]
-        [Category("database")]
         [Category("db-sqlserver")]
         public async Task TestOverwriteJobTypeNotFound()
         {

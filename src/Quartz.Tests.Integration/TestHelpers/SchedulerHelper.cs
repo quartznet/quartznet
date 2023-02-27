@@ -1,8 +1,7 @@
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
-using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Simpl;
-using Quartz.Util;
+using Quartz.Tests.Integration.Utils;
 
 namespace Quartz.Tests.Integration.TestHelpers;
 
@@ -10,9 +9,9 @@ public class SchedulerHelper
 {
     public const string TablePrefix = "QRTZ_";
 
-    public static Task<IScheduler> CreateScheduler(string name)
+    public static Task<IScheduler> CreateScheduler(string provider, string name)
     {
-        DBConnectionManager.Instance.AddConnectionProvider("default", new DbProvider(TestConstants.DefaultSqlServerProvider, TestConstants.SqlServerConnectionString));
+        DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType);
 
         var serializer = new JsonObjectSerializer();
         serializer.Initialize();
@@ -21,7 +20,7 @@ public class SchedulerHelper
             DataSource = "default",
             TablePrefix = TablePrefix,
             InstanceId = "AUTO",
-            DriverDelegateType = typeof(SqlServerDelegate).AssemblyQualifiedName,
+            DriverDelegateType = driverDelegateType,
             ObjectSerializer = serializer
         };
 

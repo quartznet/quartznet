@@ -2,16 +2,23 @@
 
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
-using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Job;
 using Quartz.Simpl;
-using Quartz.Util;
+using Quartz.Tests.Integration.Utils;
 
 namespace Quartz.Tests.Integration
 {
-    [TestFixture]
+    [TestFixture(TestConstants.DefaultSqlServerProvider, Category = "db-sqlserver")]
+    [TestFixture(TestConstants.PostgresProvider, Category = "db-postgres")]
     public class JobDataMapStorageTest : IntegrationTest
     {
+        private readonly string provider;
+
+        public JobDataMapStorageTest(string provider)
+        {
+            this.provider = provider;
+        }
+
         [Test]
         [Category("db-sqlserver")]
         public async Task TestJobDataMapDirtyFlag()
@@ -43,7 +50,7 @@ namespace Quartz.Tests.Integration
 
         private Task<IScheduler> CreateScheduler(string name)
         {
-            DBConnectionManager.Instance.AddConnectionProvider("default", new DbProvider(TestConstants.DefaultSqlServerProvider, TestConstants.SqlServerConnectionString));
+            DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType);
 
             var serializer = new JsonObjectSerializer();
             serializer.Initialize();
@@ -52,7 +59,7 @@ namespace Quartz.Tests.Integration
                 DataSource = "default",
                 TablePrefix = "QRTZ_",
                 InstanceId = "AUTO",
-                DriverDelegateType = typeof(SqlServerDelegate).AssemblyQualifiedName,
+                DriverDelegateType = driverDelegateType,
                 ObjectSerializer = serializer
             };
 
