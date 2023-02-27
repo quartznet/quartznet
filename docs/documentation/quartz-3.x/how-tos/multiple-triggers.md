@@ -19,7 +19,7 @@ public class HelloJob : IJob
         var customerId = context.MergedJobDataMap.GetString("CustomerId");
         var batchSize = context.MergedJobDataMap.GetString("batch-size");
 
-        Console.WriteLine($"CustomerId={customerId} batch-size={batchSize}")
+        await Console.WriteLineAsync($"CustomerId={customerId} batch-size={batchSize}")
     }
 }
 ```
