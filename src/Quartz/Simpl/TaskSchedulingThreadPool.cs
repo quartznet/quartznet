@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 
 using Quartz.Logging;
 using Quartz.Spi;
@@ -8,7 +8,8 @@ using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 namespace Quartz.Simpl
 {
     /// <summary>
-    /// An IThreadPool implementation which schedules tasks using a TaskScheduler (provided by implementers)
+    /// An <see cref="IThreadPool"/> implementation which schedules tasks using
+    /// a <see cref="TaskScheduler"/> (provided by implementers).
     /// </summary>
     public abstract class TaskSchedulingThreadPool : IThreadPool
     {
@@ -29,7 +30,10 @@ namespace Quartz.Simpl
         /// </summary>
         private Action<Task> completeTask = null!;
 
-        // The semaphore used to limit concurrency and integers representing maximum concurrent tasks
+        /// <summary>
+        /// The semaphore used to limit concurrency and integers representing maximum
+        /// concurrent tasks.
+        /// </summary>
         private SemaphoreSlim concurrencySemaphore = null!;
 
         private int maxConcurrency;
@@ -39,8 +43,13 @@ namespace Quartz.Simpl
         private bool isInitialized;
 
         /// <summary>
-        /// The TaskScheduler used to schedule tasks queued by users
+        /// Gets or sets the <see cref="TaskScheduler"/> used to schedule tasks
+        /// queued by users.
         /// </summary>
+        /// <remarks>
+        /// Once the thread pool is initialized, any attempts to change the value
+        /// will be silently ignored.
+        /// </remarks>
         public TaskScheduler Scheduler
         {
             get => scheduler;
@@ -65,8 +74,13 @@ namespace Quartz.Simpl
         protected abstract TaskScheduler GetDefaultScheduler();
 
         /// <summary>
-        /// The maximum number of thread pool tasks which can be executing in parallel
+        /// Gets or sets the maximum number of thread pool tasks which can be
+        /// executing in parallel.
         /// </summary>
+        /// <remarks>
+        /// Once the thread pool is initialized, any attempts to change the value
+        /// will be silently ignored.
+        /// </remarks>
         public int MaxConcurrency
         {
             get => maxConcurrency;
@@ -136,7 +150,7 @@ namespace Quartz.Simpl
             runningTasksCountdown = new CountdownEvent(1);
 
             // Reduce allocations by caching the delegate to mark a task as complete
-            completeTask = (task) => RemoveTaskFromRunningList(task);
+            completeTask = SignalTaskComplete;
 
             // Thread pool is ready to go
             isInitialized = true;
@@ -183,10 +197,12 @@ namespace Quartz.Simpl
         }
 
         /// <summary>
-        /// Schedules a task to run (using the task scheduler) as soon as concurrency rules allow it
+        /// Schedules a task to run (using the task scheduler) as soon as concurrency rules allow it.
         /// </summary>
         /// <param name="runnable">The action to be executed</param>
-        /// <returns>True if the task was successfully scheduled, false otherwise</returns>
+        /// <returns>
+        /// <see langword="true"/> if the task was successfully scheduled; otherwise, <see langword="false"/>.
+        /// </returns>
         public bool RunInThread(Func<Task> runnable)
         {
             if (runnable == null || !isInitialized || shutdownCancellation.IsCancellationRequested) return false;
@@ -204,6 +220,9 @@ namespace Quartz.Simpl
             // Wrap the runnable in a Task to start it asynchronously
             var task = new Task<Task>(runnable);
 
+            // Unrap the task so that we can work with the underlying task
+            var unwrappedTask = task.Unwrap();
+
             lock (runningTasksCountdown)
             {
                 // Now that the lock is held, shutdown can't proceed,
@@ -219,7 +238,7 @@ namespace Quartz.Simpl
             }
 
             // Register a callback to remove the task from the running list once it has completed
-            task.ContinueWith(completeTask);
+            unwrappedTask.ContinueWith(completeTask);
 
             // Start the task using the task scheduler
             task.Start(Scheduler);
@@ -231,8 +250,8 @@ namespace Quartz.Simpl
         /// Decrements the number of running tasks and releases the concurrency semaphore so that more
         /// tasks may begin running.
         /// </summary>
-        /// <param name="completedTask">The task which has completed</param>
-        private void RemoveTaskFromRunningList(Task completedTask)
+        /// <param name="completedTask">The task which has completed.</param>
+        private void SignalTaskComplete(Task completedTask)
         {
             concurrencySemaphore.Release();
             runningTasksCountdown.Signal();
