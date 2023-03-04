@@ -83,10 +83,11 @@
               "ApiDoc",
               "Clean",
               "Compile",
+              "IntegrationTest",
               "Pack",
               "Publish",
               "Restore",
-              "Test"
+              "UnitTest"
             ]
           }
         },
@@ -103,10 +104,11 @@
               "ApiDoc",
               "Clean",
               "Compile",
+              "IntegrationTest",
               "Pack",
               "Publish",
               "Restore",
-              "Test"
+              "UnitTest"
             ]
           }
         },

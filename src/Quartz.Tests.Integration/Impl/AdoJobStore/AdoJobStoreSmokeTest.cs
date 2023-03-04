@@ -23,8 +23,6 @@ using Quartz.Util;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore
 {
-    [TestFixture]
-    [Category("database")]
     public class AdoJobStoreSmokeTest
     {
         private static readonly Dictionary<string, string> dbConnectionStrings = new Dictionary<string, string>();
@@ -40,7 +38,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             dbConnectionStrings["SQLServer"] = TestConstants.SqlServerConnectionString;
             dbConnectionStrings["SQLServerMOT"] = TestConstants.SqlServerConnectionStringMOT;
             dbConnectionStrings["MySQL"] = "Server = localhost; Database = quartznet; Uid = quartznet; Pwd = quartznet";
-            dbConnectionStrings["PostgreSQL"] = "Server=127.0.0.1;Port=5432;Userid=quartznet;Password=quartznet;Pooling=true;MinPoolSize=1;MaxPoolSize=20;Timeout=15;SslMode=Disable;Database=quartznet";
+            dbConnectionStrings["PostgreSQL"] = TestConstants.PostgresConnectionString;
             dbConnectionStrings["SQLite"] = "Data Source=test.db;Version=3;";
             dbConnectionStrings["SQLite-Microsoft"] = "Data Source=test.db;";
             dbConnectionStrings["Firebird"] = "User=SYSDBA;Password=masterkey;Database=/firebird/data/quartz.fdb;DataSource=localhost;Port=3050;Dialect=3;Charset=NONE;Role=;Connection lifetime=15;Pooling=true;MinPoolSize=0;MaxPoolSize=50;Packet Size=8192;ServerType=0;";
@@ -62,7 +60,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        [Category("sqlserver")]
+        [Category("db-sqlserver")]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public Task TestSqlServer(string serializerType)
         {
@@ -74,7 +72,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        [Category("sqlserver")]
+        [Category("db-sqlserver")]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public Task TestSqlServerMemoryOptimizedTables(string serializerType)
         {
@@ -87,6 +85,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
+        [Category("db-postgres")]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public Task TestPostgreSql(string serializerType)
         {
@@ -96,6 +95,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
+        [Category("db-mysql")]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public Task TestMySql(string serializerType)
         {
@@ -105,6 +105,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
+        [Category("db-sqlite")]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public async Task TestSQLiteMicrosoft(string serializerType)
         {
@@ -118,7 +119,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             using (var connection = new SqliteConnection(dbConnectionStrings["SQLite-Microsoft"]))
             {
                 await connection.OpenAsync();
-                string sql = File.ReadAllText("../../../../database/tables/tables_sqlite.sql");
+                var sql = LoadSqliteTableScript();
 
                 var command = new SqliteCommand(sql, connection);
                 command.ExecuteNonQuery();
@@ -131,7 +132,17 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             await RunAdoJobStoreTest("SQLite-Microsoft", "SQLite-Microsoft", serializerType, properties, clustered: false);
         }
 
+        private static string LoadSqliteTableScript()
+        {
+            var path = File.Exists("../../../../database/tables/tables_sqlite.sql")
+                ? "../../../../database/tables/tables_sqlite.sql"
+                : "../../../../../database/tables/tables_sqlite.sql";
+
+            return File.ReadAllText(path);
+        }
+
         [Test]
+        [Category("db-firebird")]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public Task TestFirebird(string serializerType)
         {
@@ -141,6 +152,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
+        [Category("db-oracle")]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public Task TestOracleODPManaged(string serializerType)
         {
@@ -150,6 +162,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
+        [Category("db-sqlite")]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public async Task TestSQLite(string serializerType)
         {
@@ -165,7 +178,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             using (var connection = new SQLiteConnection(dbConnectionStrings["SQLite"]))
             {
                 await connection.OpenAsync();
-                string sql = File.ReadAllText("../../../../database/tables/tables_sqlite.sql");
+                var sql = LoadSqliteTableScript();
 
                 var command = new SQLiteCommand(sql, connection);
                 command.ExecuteNonQuery();
@@ -179,11 +192,6 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         public static string[] GetSerializerTypes() => new[] {"json", "binary"};
-
-        private Task RunAdoJobStoreTest(string dbProvider, string connectionStringId, string serializerType)
-        {
-            return RunAdoJobStoreTest(dbProvider, connectionStringId, serializerType, null);
-        }
 
         private async Task RunAdoJobStoreTest(
             string dbProvider,
@@ -249,7 +257,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        [Category("sqlserver")]
+        [Category("db-sqlserver")]
         public async Task ShouldBeAbleToUseMixedProperties()
         {
             NameValueCollection properties = new NameValueCollection();
@@ -357,7 +365,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        [Category("sqlserver")]
+        [Category("db-sqlserver")]
         public async Task TestGetTriggerKeysWithLike()
         {
             var sched = await CreateScheduler(null);
@@ -366,7 +374,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        [Category("sqlserver")]
+        [Category("db-sqlserver")]
         public async Task TestGetTriggerKeysWithEquals()
         {
             var sched = await CreateScheduler(null);
@@ -375,7 +383,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        [Category("sqlserver")]
+        [Category("db-sqlserver")]
         public async Task TestGetJobKeysWithLike()
         {
             var sched = await CreateScheduler(null);
@@ -384,7 +392,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        [Category("sqlserver")]
+        [Category("db-sqlserver")]
         public async Task TestGetJobKeysWithEquals()
         {
             var sched = await CreateScheduler(null);
@@ -393,7 +401,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         }
 
         [Test]
-        [Category("sqlserver")]
+        [Category("db-sqlserver")]
         public async Task JobTypeNotFoundShouldNotBlock()
         {
             NameValueCollection properties = new NameValueCollection();
