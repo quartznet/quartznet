@@ -9,12 +9,12 @@
 #
 #     - To trigger manual generation invoke:
 #
-#         nuke --generate-configuration GitHubActions_pr --host GitHubActions
+#         nuke --generate-configuration GitHubActions_pr-tests-unit --host GitHubActions
 #
 # </auto-generated>
 # ------------------------------------------------------------------------------
 
-name: pr
+name: pr-tests-unit
 
 on:
   pull_request:
@@ -41,8 +41,8 @@ jobs:
             .nuke/temp
             ~/.nuget/packages
           key: ${{ runner.os }}-${{ hashFiles('global.json', 'src/**/*.csproj', 'src/**/package.json') }}
-      - name: Run './build.cmd Compile Test Pack'
-        run: ./build.cmd Compile Test Pack
+      - name: Run './build.cmd Compile UnitTest'
+        run: ./build.cmd Compile UnitTest
   ubuntu-latest:
     name: ubuntu-latest
     runs-on: ubuntu-latest
@@ -55,8 +55,8 @@ jobs:
             .nuke/temp
             ~/.nuget/packages
           key: ${{ runner.os }}-${{ hashFiles('global.json', 'src/**/*.csproj', 'src/**/package.json') }}
-      - name: Run './build.cmd Compile Test Pack'
-        run: ./build.cmd Compile Test Pack
+      - name: Run './build.cmd Compile UnitTest'
+        run: ./build.cmd Compile UnitTest
   macos-latest:
     name: macos-latest
     runs-on: macos-latest
@@ -69,5 +69,5 @@ jobs:
             .nuke/temp
             ~/.nuget/packages
           key: ${{ runner.os }}-${{ hashFiles('global.json', 'src/**/*.csproj', 'src/**/package.json') }}
-      - name: Run './build.cmd Compile Test Pack'
-        run: ./build.cmd Compile Test Pack
+      - name: Run './build.cmd Compile UnitTest'
+        run: ./build.cmd Compile UnitTest

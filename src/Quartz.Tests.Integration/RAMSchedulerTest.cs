@@ -1,22 +1,26 @@
-﻿using System.Threading.Tasks;
+using System.Threading.Tasks;
 
-using NUnit.Framework;
+ namespace Quartz.Tests.Integration;
 
-namespace Quartz.Tests.Integration
-{
-    [TestFixture]
-    public class RAMSchedulerTest : AbstractSchedulerTest
-    {
-        protected override Task<IScheduler> CreateScheduler(string name, int threadPoolSize)
-        {
-            var config = SchedulerBuilder.Create("AUTO", name + "Scheduler");
-            
-            config.UseDefaultThreadPool(x =>
-            {
-                x.MaxConcurrency = threadPoolSize;
-            });
+ public class RAMSchedulerTest : AbstractSchedulerTest
+ {
+     public RAMSchedulerTest() : base("memory", "default-serializer")
+     {
+     }
 
-            return config.BuildScheduler();
-        }
-    }
-}
+     protected override Task<IScheduler> CreateScheduler(string name, int threadPoolSize)
+     {
+         var config = SchedulerBuilder.Create("AUTO", name + "Scheduler");
+
+         config.UseDefaultThreadPool(x =>
+         {
+             x.MaxConcurrency = threadPoolSize;
+         });
+
+         return config.BuildScheduler();
+     }
+
+     public RAMSchedulerTest(string provider) : base(provider, "default-serializer")
+     {
+     }
+ }

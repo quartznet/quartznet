@@ -1,7 +1,7 @@
 using Nuke.Common.CI.GitHubActions;
 
-[GitHubActionsAttribute(
-    "pr",
+[GitHubActions(
+    "pr-tests-unit",
     GitHubActionsImage.WindowsLatest,
     GitHubActionsImage.UbuntuLatest,
     GitHubActionsImage.MacOsLatest,
@@ -9,7 +9,17 @@ using Nuke.Common.CI.GitHubActions;
     OnPullRequestIncludePaths = new[] { "**/*" },
     OnPullRequestExcludePaths = new[] { "docs/**/*", "package.json", "readme.md" },
     PublishArtifacts = false,
-    InvokedTargets = new[] { nameof(Compile), nameof(Test), nameof(Pack) },
+    InvokedTargets = new[] { nameof(Compile), nameof(UnitTest) },
+    CacheKeyFiles = new[] { "global.json", "src/**/*.csproj", "src/**/package.json" }),
+]
+[GitHubActions(
+    "pr-tests-integration-postgres",
+    GitHubActionsImage.UbuntuLatest,
+    OnPullRequestBranches = new [] { "main", "v4", "3.x" },
+    OnPullRequestIncludePaths = new[] { "**/*" },
+    OnPullRequestExcludePaths = new[] { "docs/**/*", "package.json", "package-lock.json", "readme.md" },
+    PublishArtifacts = false,
+    InvokedTargets = new[] { nameof(Compile), nameof(IntegrationTest) },
     CacheKeyFiles = new[] { "global.json", "src/**/*.csproj", "src/**/package.json" }),
 ]
 [GitHubActionsAttribute(
@@ -22,7 +32,7 @@ using Nuke.Common.CI.GitHubActions;
     OnPushIncludePaths = new[] { "**/*" },
     OnPushExcludePaths = new[] { "docs/**/*", "package.json", "readme.md" },
     PublishArtifacts = true,
-    InvokedTargets = new[] { nameof(Compile), nameof(Test), nameof(Pack), nameof(Publish) },
+    InvokedTargets = new[] { nameof(Compile), nameof(UnitTest), nameof(IntegrationTest), nameof(Pack), nameof(Publish) },
     ImportSecrets = new [] { "NUGET_API_KEY", "MYGET_API_KEY" },
     CacheKeyFiles = new[] { "global.json", "src/**/*.csproj", "src/**/package.json" })
 ]
