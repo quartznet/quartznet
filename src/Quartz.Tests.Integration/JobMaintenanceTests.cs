@@ -1,6 +1,10 @@
+using System.Data.Common;
+
 using FluentAssertions;
 
 using Microsoft.Data.SqlClient;
+
+using Npgsql;
 
 using NUnit.Framework;
 
@@ -8,12 +12,21 @@ using Quartz.Tests.Integration.TestHelpers;
 
 namespace Quartz.Tests.Integration;
 
+[TestFixture(TestConstants.DefaultSqlServerProvider, Category = "db-sqlserver")]
+[TestFixture(TestConstants.PostgresProvider, Category = "db-postgres")]
 public class JobMaintenanceTests : IntegrationTest
 {
+    private readonly string provider;
+
+    public JobMaintenanceTests(string provider)
+    {
+        this.provider = provider;
+    }
+
     [Test]
     public async Task CanUnscheduleNonConstructableTypeJobs()
     {
-        var scheduler = await GetACleanScheduler();
+        var scheduler = await GetCleanScheduler();
 
         const string jobKey = "CanDeleteUnknownTypeJobs";
         const string triggerKey = "CanDeleteUnknownTypeJobsTrigger";
@@ -46,24 +59,31 @@ public class JobMaintenanceTests : IntegrationTest
         unscheduleResponse.Should().BeTrue();
     }
 
-    private async Task<IScheduler> GetACleanScheduler()
+    private async Task<IScheduler> GetCleanScheduler()
     {
-        var scheduler = await SchedulerHelper.CreateScheduler(nameof(JobMaintenanceTests));
+        var scheduler = await SchedulerHelper.CreateScheduler(provider, nameof(JobMaintenanceTests));
         await scheduler.Clear();
         return scheduler;
     }
 
     // Rename the Job Type ClassName
-    private static void RenameJobClass(string jobClassName)
+    private void RenameJobClass(string jobClassName)
     {
-        using var dbConnection = new SqlConnection(TestConstants.SqlServerConnectionString);
+        using DbConnection dbConnection = provider == TestConstants.DefaultSqlServerProvider
+            ? new SqlConnection(TestConstants.SqlServerConnectionString)
+            : new NpgsqlConnection(TestConstants.PostgresConnectionString);
 
         var sql = $@"
 update {SchedulerHelper.TablePrefix}JOB_DETAILS
 set JOB_CLASS_NAME = '{jobClassName}'
 where SCHED_NAME = 'JobMaintenanceTestsScheduler'";
+
         dbConnection.Open();
-        using var command = new SqlCommand(sql, dbConnection);
+
+        using DbCommand command = provider == TestConstants.DefaultSqlServerProvider
+            ? new SqlCommand(sql, (SqlConnection) dbConnection)
+            : new NpgsqlCommand(sql, (NpgsqlConnection) dbConnection);
+
         command.ExecuteNonQuery();
     }
 

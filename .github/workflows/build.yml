@@ -49,8 +49,8 @@ jobs:
             .nuke/temp
             ~/.nuget/packages
           key: ${{ runner.os }}-${{ hashFiles('global.json', 'src/**/*.csproj', 'src/**/package.json') }}
-      - name: Run './build.cmd Compile Test Pack Publish'
-        run: ./build.cmd Compile Test Pack Publish
+      - name: Run './build.cmd Compile UnitTest IntegrationTest Pack Publish'
+        run: ./build.cmd Compile UnitTest IntegrationTest Pack Publish
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
           MYGET_API_KEY: ${{ secrets.MYGET_API_KEY }}
@@ -76,8 +76,8 @@ jobs:
             .nuke/temp
             ~/.nuget/packages
           key: ${{ runner.os }}-${{ hashFiles('global.json', 'src/**/*.csproj', 'src/**/package.json') }}
-      - name: Run './build.cmd Compile Test Pack Publish'
-        run: ./build.cmd Compile Test Pack Publish
+      - name: Run './build.cmd Compile UnitTest IntegrationTest Pack Publish'
+        run: ./build.cmd Compile UnitTest IntegrationTest Pack Publish
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
           MYGET_API_KEY: ${{ secrets.MYGET_API_KEY }}
@@ -103,8 +103,8 @@ jobs:
             .nuke/temp
             ~/.nuget/packages
           key: ${{ runner.os }}-${{ hashFiles('global.json', 'src/**/*.csproj', 'src/**/package.json') }}
-      - name: Run './build.cmd Compile Test Pack Publish'
-        run: ./build.cmd Compile Test Pack Publish
+      - name: Run './build.cmd Compile UnitTest IntegrationTest Pack Publish'
+        run: ./build.cmd Compile UnitTest IntegrationTest Pack Publish
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
           MYGET_API_KEY: ${{ secrets.MYGET_API_KEY }}

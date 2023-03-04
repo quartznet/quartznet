@@ -4,30 +4,36 @@ using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
-using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Listener;
 using Quartz.Logging;
 using Quartz.Simpl;
+using Quartz.Tests.Integration.Utils;
 using Quartz.Util;
 
 namespace Quartz.Tests.Integration.Core
 {
-    /// <summary>
-    /// </summary>
-    /// <author>https://github.com/eugene-goroschenya</author>
+    [TestFixture(TestConstants.DefaultSqlServerProvider, Category = "db-sqlserver")]
+    [TestFixture(TestConstants.PostgresProvider, Category = "db-postgres")]
     public class RecoverJobsTest
     {
+        private readonly string provider;
+
+        public RecoverJobsTest(string provider)
+        {
+            this.provider = provider;
+        }
+
         [Test]
         public async Task TestRecoveringRepeatJobWhichIsFiredAndMisfiredAtTheSameTime()
         {
-            const string DsName = "recoverJobsTest";
-            DBConnectionManager.Instance.AddConnectionProvider(DsName, new DbProvider(TestConstants.DefaultSqlServerProvider, TestConstants.SqlServerConnectionString));
+            DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType);
 
+            const string dataSourceName = "default";
             var jobStore = new JobStoreTX
             {
-                DataSource = DsName,
+                DataSource = dataSourceName,
                 InstanceId = "SINGLE_NODE_TEST",
-                InstanceName = DsName,
+                InstanceName = dataSourceName,
                 MisfireThreshold = TimeSpan.FromSeconds(1)
             };
 
@@ -61,7 +67,7 @@ namespace Quartz.Tests.Integration.Core
             // emulate fail over situation
             await scheduler.Shutdown(false);
 
-            using (var connection = DBConnectionManager.Instance.GetConnection(DsName))
+            using (var connection = DBConnectionManager.Instance.GetConnection(dataSourceName))
             {
                 connection.Open();
                 using (var command = connection.CreateCommand())

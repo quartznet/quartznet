@@ -84,10 +84,11 @@
               "Clean",
               "Compile",
               "DocsBuild",
+              "IntegrationTest",
               "Pack",
               "Publish",
               "Restore",
-              "Test"
+              "UnitTest"
             ]
           }
         },
@@ -105,10 +106,11 @@
               "Clean",
               "Compile",
               "DocsBuild",
+              "IntegrationTest",
               "Pack",
               "Publish",
               "Restore",
-              "Test"
+              "UnitTest"
             ]
           }
         },

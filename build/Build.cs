@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Linq;
@@ -119,7 +120,7 @@ partial class Build : NukeBuild
         });
 
 
-    Target Test => _ => _
+    Target UnitTest => _ => _
         .After(Compile)
         .Executes(() =>
         {
@@ -142,8 +143,52 @@ partial class Build : NukeBuild
             );
         });
 
+    Target IntegrationTest => _ => _
+        .After(Compile)
+        .OnlyWhenDynamic(() => Host is GitHubActions && RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+        .Executes(() =>
+        {
+            Log.Information("Starting Postgres");
+            ProcessTasks.StartProcess("sudo", "systemctl start postgresql.service").AssertZeroExitCode();
+            ProcessTasks.StartProcess("pg_isready").AssertZeroExitCode();
+
+            static void RunAsPostgresUser(string parameters)
+            {
+                ProcessTasks.StartProcess("sudo", $"-u postgres {parameters}", workingDirectory: Path.GetTempPath()).AssertZeroExitCode();
+            }
+
+            Log.Information("Creating user...");
+            RunAsPostgresUser("psql --command=\"CREATE USER quartznet PASSWORD 'quartznet'\" --command=\"\\du\"");
+
+            Log.Information("Creating database...");
+            RunAsPostgresUser("createdb --owner=quartznet quartznet");
+
+            static void RunPsqlAsQuartznetUser(string parameters)
+            {
+                ProcessTasks.StartProcess("psql", $"--username=quartznet --host=localhost {parameters}", environmentVariables: new Dictionary<string, string> { { "PGPASSWORD", "quartznet" } }).AssertZeroExitCode();
+            }
+
+            RunPsqlAsQuartznetUser("--list quartznet");
+
+            Log.Information("Creating schema...");
+            RunPsqlAsQuartznetUser("-d quartznet -f ./database/tables/tables_postgres.sql");
+
+            var integrationTestProjects = new[] { "Quartz.Tests.Integration" };
+            DotNetTest(s => s
+                .EnableNoRestore()
+                .EnableNoBuild()
+                .SetConfiguration(Configuration)
+                .SetFramework("net6.0")
+                .SetLoggers("GitHubActions")
+                .SetFilter("TestCategory!=db-firebird&TestCategory!=db-oracle&TestCategory!=db-mysql&TestCategory!=db-sqlserver")
+                .CombineWith(integrationTestProjects, (_, testProject) => _
+                    .SetProjectFile(Solution.GetProject(testProject))
+                )
+            );
+        });
+
     Target Pack => _ => _
-        .After(Compile, Test)
+        .After(Compile, UnitTest)
         .Produces(ArtifactsDirectory / "*.*")
         .Executes(() =>
         {
