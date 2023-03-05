@@ -1,6 +1,5 @@
 using NUnit.Framework;
 using Quartz.Core;
-using System.Globalization;
 
 namespace Quartz.Tests.Unit.Core
 {
@@ -27,7 +26,6 @@ namespace Quartz.Tests.Unit.Core
             Assert.LessOrEqual(result, -2);
         }
 
-
         [Test]
         public void TestNextValidatesPositiveNegativeRange()
         {
@@ -46,6 +44,14 @@ namespace Quartz.Tests.Unit.Core
 
             Assert.GreaterOrEqual(result, -1);
             Assert.LessOrEqual(result, int.MaxValue);
+        }
+
+        [Test]
+        public void TestMinimumGreaterThanMaximum()
+        {
+            var rand = new QuartzRandom();
+
+            Assert.Throws<ArgumentOutOfRangeException>(() => rand.Next(3, 2));
         }
     }
 }
