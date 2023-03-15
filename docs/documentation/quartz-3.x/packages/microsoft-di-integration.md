@@ -24,6 +24,10 @@ The configuration building wraps various [configuration properties](../configura
 You can also configure properties using standard .NET Core `appsettings.json` inside configuration section `Quartz`.
 
 ::: tip
+The section should be bound manually to `QuartzOptions` type with `AddOptions` or `Configure` as in [this example](https://github.com/quartznet/quartznet/blob/a4511ef0703206cf483c6331d5b2ac7fb69d26d3/src/Quartz.Examples.AspNetCore/Startup.cs#L71).
+:::
+
+::: tip
 [Quartz.Extensions.Hosting](hosted-services-integration.md) allows you to have a background service for your application that handles starting and stopping the scheduler.
 :::
 
