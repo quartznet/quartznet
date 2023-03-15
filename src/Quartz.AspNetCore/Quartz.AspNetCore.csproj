@@ -3,7 +3,7 @@
   <PropertyGroup>
     <Description>Quartz.NET ASP.NET Core integration; $(Description)</Description>
     <TargetFramework>net6.0</TargetFramework>
-    <RootNamespace>Quartz</RootNamespace>
+    <RootNamespace>Quartz.AspNetCore</RootNamespace>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <Authors>Lewis Zou, Marko Lahma, Quartz.NET</Authors>
   </PropertyGroup>
