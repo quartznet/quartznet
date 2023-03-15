@@ -12,7 +12,7 @@ using Quartz.AspNetCore.HttpApi;
 using Quartz.AspNetCore.HttpApi.Endpoints;
 using Quartz.AspNetCore.HttpApi.Util;
 
-namespace Quartz;
+namespace Quartz.AspNetCore;
 
 public static class QuartzServiceCollectionExtensions
 {

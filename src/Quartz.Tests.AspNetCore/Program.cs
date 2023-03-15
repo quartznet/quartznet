@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Builder;
 
+using Quartz.AspNetCore;
+
 namespace Quartz.Tests.AspNetCore;
 
 // Simple web server used to run endpoints during testing

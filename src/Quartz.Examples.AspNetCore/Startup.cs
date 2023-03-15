@@ -14,7 +14,7 @@ using NSwag.Generation.Processors;
 using NSwag.Generation.Processors.Security;
 
 using OpenTelemetry.Trace;
-
+using Quartz.AspNetCore;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Matchers;
