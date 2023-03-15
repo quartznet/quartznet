@@ -336,7 +336,7 @@ JobStoreTX can be tuned with the following properties:
 |quartz.jobStore.lockHandler.type | no| string| null|
 |quartz.jobStore.driverDelegateInitString|  no  |string|    null|
 
-### `quartz.scheduler.dbRetryInterval`
+### `quartz.jobStore.dbRetryInterval`
 
 Is the amount of time in milliseconds that the scheduler will wait between re-tries when it has detected a loss of connectivity within the JobStore (e.g. to the database).
 This parameter is obviously not very meaningful when using RamJobStore.
