@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -6,7 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Quartz.AspNetCore.HealthChecks;
 #endif
 
-namespace Quartz
+namespace Quartz.AspNetCore
 {
     public static class QuartzServiceCollectionExtensions
     {
