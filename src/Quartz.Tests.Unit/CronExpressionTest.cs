@@ -23,6 +23,8 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 
+using FluentAssertions;
+
 using NUnit.Framework;
 
 using Quartz.Simpl;
@@ -114,6 +116,32 @@ namespace Quartz.Tests.Unit
 
             cal = new DateTime(2010, 10, 29, 10, 15, 0).ToUniversalTime(); // nearest weekday to last day - 1 (29th is a friday in 2010)
             Assert.IsTrue(cronExpression.IsSatisfiedBy(cal));
+        }
+
+        [Test]
+        public void CronExpression_Throw_Error_Contructed_With_Null()
+        {
+            Action act = () => new CronExpression(null);
+            act.Should().Throw<ArgumentException>()
+                .WithMessage("cronExpression cannot be null (Parameter 'cronExpression')");
+        }
+
+        [TestCase('h')]
+        [TestCase('?')]
+        [TestCase('*')]
+        public void Should_Throw_Error_When_Extra_NonWhitespace_Character_After_QuestionMark(char invalidChar)
+        {
+            Action act = () => new CronExpression($"0 0 * * * ?{invalidChar}");
+            act.Should().Throw<FormatException>()
+                .WithMessage("Illegal character after '?':*");
+        }
+
+        [TestCase(' ')]
+        [TestCase('\t')]
+        public void QuestionMark_With_ExtraWhitespace_Should_Be_Valid(char allowedChar)
+        {
+            Action act = () => new CronExpression($"0 0 * * * ?{allowedChar}");
+            act.Should().NotThrow();
         }
 
         [Test]

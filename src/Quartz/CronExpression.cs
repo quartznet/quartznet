@@ -391,7 +391,7 @@ namespace Quartz
         {
             if (cronExpression == null)
             {
-                throw new ArgumentException("cronExpression cannot be null");
+                throw new ArgumentException("cronExpression cannot be null", nameof(cronExpression));
             }
 
             CronExpressionString = CultureInfo.InvariantCulture.TextInfo.ToUpper(cronExpression);
@@ -799,7 +799,7 @@ namespace Quartz
             if (c == '?')
             {
                 i++;
-                if (i + 1 < s.Length && s[i] != ' ' && s[i + 1] != '\t')
+                if (i + 1 <= s.Length && s[i] != ' ' && s[i] != '\t')
                 {
                     throw new FormatException("Illegal character after '?': "
                                               + s[i]);
