@@ -94,7 +94,7 @@ namespace Quartz
                 return connectionString;
             }
 
-            return base.GetNamedConnectionString(connectionString);
+            return base.GetNamedConnectionString(connectionStringName);
         }
 
         protected override T InstantiateType<T>(Type? implementationType)
