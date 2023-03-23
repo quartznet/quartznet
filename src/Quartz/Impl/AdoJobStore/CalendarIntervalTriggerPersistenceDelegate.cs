@@ -69,7 +69,7 @@ namespace Quartz.Impl.AdoJobStore
                 // we moved to use separate column in v 2.6
                 tzId = props.String2;
             }
-            if (!string.IsNullOrEmpty(tzId))
+            if (!string.IsNullOrEmpty(tzId) && tzId != null)
             {
                 tz = TimeZoneUtil.FindTimeZoneById(tzId);
             }

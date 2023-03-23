@@ -77,7 +77,7 @@ namespace Quartz.Impl.AdoJobStore
 
             AddDefaultTriggerPersistenceDelegates();
 
-            if (!string.IsNullOrEmpty(args.InitString))
+            if (!string.IsNullOrEmpty(args.InitString) && args.InitString != null)
             {
                 string[] settings = args.InitString.Split('\\', '|');
 

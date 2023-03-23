@@ -81,8 +81,10 @@ namespace Quartz.Impl
 			lock (syncRoot)
 			{
 				schedulers.TryGetValue(schedName, out var retValue);
-				return Task.FromResult(retValue);
-			}
+#pragma warning disable CS8619 // Nullability of reference types in value doesn't match target type.
+                return Task.FromResult(retValue);
+#pragma warning restore CS8619 // Nullability of reference types in value doesn't match target type.
+            }
 		}
 
 	    /// <summary>

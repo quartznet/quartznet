@@ -232,7 +232,7 @@ namespace Quartz.Xml
                         foreach (string s in command.deletejobsingroup)
                         {
                             var deleteJobGroup = s.NullSafeTrim();
-                            if (!string.IsNullOrEmpty(deleteJobGroup))
+                            if (!string.IsNullOrEmpty(deleteJobGroup) && deleteJobGroup != null)
                             {
                                 jobGroupsToDelete.Add(deleteJobGroup);
                             }
@@ -244,7 +244,7 @@ namespace Quartz.Xml
                         foreach (string s in command.deletetriggersingroup)
                         {
                             var deleteTriggerGroup = s.NullSafeTrim();
-                            if (!string.IsNullOrEmpty(deleteTriggerGroup))
+                            if (!string.IsNullOrEmpty(deleteTriggerGroup) && deleteTriggerGroup != null)
                             {
                                 triggerGroupsToDelete.Add(deleteTriggerGroup);
                             }
@@ -542,7 +542,7 @@ namespace Quartz.Xml
 
         protected virtual IntervalUnit ParseDateIntervalTriggerIntervalUnit(string? intervalUnit)
         {
-            if (string.IsNullOrEmpty(intervalUnit))
+            if (string.IsNullOrEmpty(intervalUnit) || intervalUnit == null)
             {
                 return IntervalUnit.Day;
             }
