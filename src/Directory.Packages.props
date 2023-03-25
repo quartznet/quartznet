@@ -2,18 +2,12 @@
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
-
   <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'net472' ">
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="2.1.1" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="2.1.1" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="2.1.1" />
     <PackageVersion Include="Microsoft.Extensions.Options" Version="2.1.1" />
   </ItemGroup>
-
-  <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'net472' or '$(TargetFramework)' == 'net48' ">
-    <PackageDownload Include="Microsoft.NETCore.App.Ref" Version="[6.0.14]" />
-  </ItemGroup>
-
   <ItemGroup Condition=" '$(TargetFramework)' == 'net6.0' ">
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="6.0.0" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="6.0.0" />
