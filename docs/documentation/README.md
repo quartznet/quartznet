@@ -1,4 +1,5 @@
 ---
+
 title: Documentation
 ---
 
@@ -29,4 +30,3 @@ title: Documentation
 ## Available Documents (Quartz 1.x)
 
 * [Tutorials for Developing with Quartz](quartz-1.x/tutorial/index.html)
-

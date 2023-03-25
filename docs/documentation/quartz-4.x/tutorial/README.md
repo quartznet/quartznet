@@ -1,9 +1,9 @@
 ---
+
 title: Quartz.NET Tutorial
 prev: false
 next: false
 ---
-
 
 <ApplicableVersion />
 

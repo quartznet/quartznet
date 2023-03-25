@@ -1,4 +1,5 @@
 ---
+
 title: 'Lesson 1: Using Quartz'
 ---
 

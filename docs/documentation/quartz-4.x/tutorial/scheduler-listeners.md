@@ -1,11 +1,12 @@
 ---
+
 title: 'Scheduler Listeners'
 ---
 
-SchedulerListeners are much like `ITriggerListener`s and `IJobListener`s, except they receive notification of 
+SchedulerListeners are much like `ITriggerListener`s and `IJobListener`s, except they receive notification of
 events within the scheduler itself - not necessarily events related to a specific trigger or job.
 
-Scheduler-related events include: the addition of a job/trigger, the removal of a job/trigger, a serious error 
+Scheduler-related events include: the addition of a job/trigger, the removal of a job/trigger, a serious error
 within the scheduler, notification of the scheduler being shutdown, and others.
 
 ::: danger
@@ -18,36 +19,36 @@ __The ISchedulerListener Interface__
 ```csharp
 public interface ISchedulerListener
 {
-	Task JobScheduled(Trigger trigger);
+ ValueTask JobScheduled(Trigger trigger);
 
-	Task JobUnscheduled(string triggerName, string triggerGroup);
+ ValueTask JobUnscheduled(string triggerName, string triggerGroup);
 
-	Task TriggerFinalized(Trigger trigger);
+ ValueTask TriggerFinalized(Trigger trigger);
 
-	Task TriggersPaused(string triggerName, string triggerGroup);
+ ValueTask TriggersPaused(string triggerName, string triggerGroup);
 
-	Task TriggersResumed(string triggerName, string triggerGroup);
+ ValueTask TriggersResumed(string triggerName, string triggerGroup);
 
-	Task JobsPaused(string jobName, string jobGroup);
+ ValueTask JobsPaused(string jobName, string jobGroup);
 
-	Task JobsResumed(string jobName, string jobGroup);
+ ValueTask JobsResumed(string jobName, string jobGroup);
 
-	Task SchedulerError(string msg, SchedulerException cause);
+ ValueTask SchedulerError(string msg, SchedulerException cause);
 
-	Task SchedulerShutdown();
+ ValueTask SchedulerShutdown();
 } 
 ```
-	
+
 SchedulerListeners are registered with the scheduler's `ListenerManager`.
 SchedulerListeners can be virtually any object that implements the `ISchedulerListener` interface.
 
-**Adding a SchedulerListener:**
+__Adding a SchedulerListener:__
 
 ```csharp
 scheduler.ListenerManager.AddSchedulerListener(mySchedListener);
 ```
 
-**Removing a SchedulerListener:**
+__Removing a SchedulerListener:__
 
 ```csharp
 scheduler.ListenerManager.RemoveSchedulerListener(mySchedListener);

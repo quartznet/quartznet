@@ -1,4 +1,5 @@
 ---
+
 title: 'Using Quartz'
 ---
 
@@ -48,7 +49,6 @@ await builder.RunAsync();
 ```
 
 Let's add a job to this.
-
 
 ```csharp
 

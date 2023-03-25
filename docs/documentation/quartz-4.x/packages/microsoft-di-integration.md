@@ -1,4 +1,5 @@
 ---
+
 title: Microsoft DI Integration
 ---
 
@@ -13,7 +14,7 @@ Quartz 3.1 or later required.
 
 You need to add NuGet package reference to your project which uses Quartz.
 
-```
+```shell
 Install-Package Quartz.Extensions.DependencyInjection
 ```
 
@@ -51,7 +52,7 @@ Quartz comes with two built-in alternatives for job factory which can be configu
 ::: tip
 As of Quartz.NET 3.3.2 all jobs produced by the default job factory are scoped jobs, you should no longer use `UseMicrosoftDependencyInjectionScopedJobFactory`.
 :::
- 
+
 ### Job instance construction
 
 By default Quartz will try to resolve job's type from container and if there's no explicit registration Quartz will use `ActivatorUtilities` to construct job and inject it's dependencies
@@ -59,7 +60,7 @@ via constructor. Job should have only one public constructor.
 
 ### Persistent job stores
 
-The scheduling configuration will be checked against database and updated accordingly every time your application starts and schedule is being evaluated. 
+The scheduling configuration will be checked against database and updated accordingly every time your application starts and schedule is being evaluated.
 
 ::: warning
 When using persistent job store, make sure you define job and trigger names for your scheduling so that existence checks work correctly against
@@ -67,7 +68,7 @@ the data you already have in your database.
 
 Using API to configure triggers and jobs without explicit job identity configuration will cause jobs and triggers to have different generated name each time configuration is being evaluated.
 
-With persistent job stores it's best practice to always declare at least job and trigger name. Omitting the group for them will produce same default group value for every invocation. 
+With persistent job stores it's best practice to always declare at least job and trigger name. Omitting the group for them will produce same default group value for every invocation.
 :::
 
 **Example Startup.ConfigureServices configuration**
@@ -220,27 +221,27 @@ public void ConfigureServices(IServiceCollection services)
         });
         */
     });
-	
-	// we can use options pattern to support hooking your own configuration
-	// because we don't use service registration api, 
-	// we need to manually ensure the job is present in DI
-	services.AddTransient<ExampleJob>();
-				
-	services.Configure<SampleOptions>(Configuration.GetSection("Sample"));
-	services.AddOptions<QuartzOptions>()
-		.Configure<IOptions<SampleOptions>>((options, dep) =>
-		{
-			if (!string.IsNullOrWhiteSpace(dep.Value.CronSchedule))
-			{
-				var jobKey = new JobKey("options-custom-job", "custom");
-				options.AddJob<ExampleJob>(j => j.WithIdentity(jobKey));
-				options.AddTrigger(trigger => trigger
-					.WithIdentity("options-custom-trigger", "custom")
-					.ForJob(jobKey)
-					.WithCronSchedule(dep.Value.CronSchedule));
-			}
-		});	
-		
+ 
+ // we can use options pattern to support hooking your own configuration
+ // because we don't use service registration api, 
+ // we need to manually ensure the job is present in DI
+ services.AddTransient<ExampleJob>();
+    
+ services.Configure<SampleOptions>(Configuration.GetSection("Sample"));
+ services.AddOptions<QuartzOptions>()
+  .Configure<IOptions<SampleOptions>>((options, dep) =>
+  {
+   if (!string.IsNullOrWhiteSpace(dep.Value.CronSchedule))
+   {
+    var jobKey = new JobKey("options-custom-job", "custom");
+    options.AddJob<ExampleJob>(j => j.WithIdentity(jobKey));
+    options.AddTrigger(trigger => trigger
+     .WithIdentity("options-custom-trigger", "custom")
+     .ForJob(jobKey)
+     .WithCronSchedule(dep.Value.CronSchedule));
+   }
+  }); 
+  
     // Quartz.Extensions.Hosting allows you to fire background service that handles scheduler lifecycle
     services.AddQuartzHostedService(options =>
     {

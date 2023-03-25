@@ -1,25 +1,26 @@
 ---
+
 title: 'More About Triggers'
 ---
 
 # More About Triggers
 
 Like jobs, triggers are relatively easy to work with, but do contain a variety of customizable options that you need to
-be aware of and understand before you can make full use of Quartz.NET. Also, as noted earlier, there are different types of triggers, 
+be aware of and understand before you can make full use of Quartz.NET. Also, as noted earlier, there are different types of triggers,
 that you can select to meet different scheduling needs.
 
 ## Common Trigger Attributes
 
-Aside from the fact that all trigger types have `TriggerKey` properties for tracking their identities, 
+Aside from the fact that all trigger types have `TriggerKey` properties for tracking their identities,
 there are a number of other properties that are common to all trigger types. These common properties are set using the TriggerBuilder
 when you are building the trigger definition (examples of that will follow).
 
 Here is a listing of properties common to all trigger types:
 
 * The `JobKey` property indicates the identity of the job that should be executed when the trigger fires.
-* The `StartTimeUtc` property indicates when the trigger's schedule first comes into affect. 
-The value is a DateTimeOffset object that defines a moment in time on a given calendar date. 
-For some trigger types, the trigger will actually fire at the start time, for others it simply marks the time that the schedule should start being followed. 
+* The `StartTimeUtc` property indicates when the trigger's schedule first comes into affect.
+The value is a DateTimeOffset object that defines a moment in time on a given calendar date.
+For some trigger types, the trigger will actually fire at the start time, for others it simply marks the time that the schedule should start being followed.
 This means you can store a trigger with a schedule such as "every 5th day of the month" during January, and if the StartTimeUtc property is set to April 1st,
  it will be a few months before the first firing.
 * The `EndTimeUtc` property indicates when the trigger's schedule should no longer be in effect.
@@ -46,18 +47,18 @@ When a trigger's job is detected to require recovery, its recovery is scheduled 
 ## Misfire Instructions
 
 Another important property of a Trigger is its "misfire instruction". A misfire occurs if a persistent trigger "misses" its firing time because of the scheduler being shutdown,
-or because there are no available threads in Quartz.NET's thread pool for executing the job. 
-The different trigger types have different misfire instructions available to them. 
-By default they use a 'smart policy' instruction - which has dynamic behavior based on trigger type and configuration. 
-When the scheduler starts, it searches for any persistent triggers that have misfired, and it then updates each of them based on their individually 
+or because there are no available threads in Quartz.NET's thread pool for executing the job.
+The different trigger types have different misfire instructions available to them.
+By default they use a 'smart policy' instruction - which has dynamic behavior based on trigger type and configuration.
+When the scheduler starts, it searches for any persistent triggers that have misfired, and it then updates each of them based on their individually
 configured misfire instructions. When you start using Quartz.NET in your own projects, you should make yourself familiar with the misfire instructions
 that are defined on the given trigger types, and explained in their API documentation. More specific information about misfire instructions will be given within
 the tutorial lessons specific to each trigger type.
 
 ## Calendars
 
-Quartz.NET Calendar objects implementing `ICalendar` interface can be associated with triggers at the time the trigger is stored in the scheduler. 
-Calendars are useful for excluding blocks of time from the trigger's firing schedule. For instance, you could 
+Quartz.NET Calendar objects implementing `ICalendar` interface can be associated with triggers at the time the trigger is stored in the scheduler.
+Calendars are useful for excluding blocks of time from the trigger's firing schedule. For instance, you could
 create a trigger that fires a job every weekday at 9:30 am, but then add a Calendar that excludes all of the business's holidays.
 
 Calendar's can be any serializable objects that implement the ICalendar interface, which looks like this:
@@ -65,25 +66,26 @@ Calendar's can be any serializable objects that implement the ICalendar interfac
 ```csharp
 namespace Quartz
 {
-	public interface ICalendar
-	{
-		string Description { get; set; }
+ public interface ICalendar
+ {
+  string Description { get; set; }
 
-		ICalendar CalendarBase { set; get; }
+  ICalendar CalendarBase { set; get; }
 
-		bool IsTimeIncluded(DateTimeOffset timeUtc);
+  bool IsTimeIncluded(DateTimeOffset timeUtc);
 
-		DateTime GetNextIncludedTimeUtc(DateTimeOffset timeUtc);
+  DateTime GetNextIncludedTimeUtc(DateTimeOffset timeUtc);
 
-		ICalendar Clone();
-	}
+  ICalendar Clone();
+ }
 } 
 ```
-Even though calendars can 'block out' sections of time as narrow as a millisecond, most likely, you'll be interested in 
+
+Even though calendars can 'block out' sections of time as narrow as a millisecond, most likely, you'll be interested in
 'blocking-out' entire days. As a convenience, Quartz.NET includes the class HolidayCalendar, which does just that.
 
-Calendars must be instantiated and registered with the scheduler via the `AddCalendar(..)` method. If you use `HolidayCalendar`, 
-after instantiating it, you should use its `AddExcludedDate(DateTime date)` method in order to populate it with the days you wish 
+Calendars must be instantiated and registered with the scheduler via the `AddCalendar(..)` method. If you use `HolidayCalendar`,
+after instantiating it, you should use its `AddExcludedDate(DateTime date)` method in order to populate it with the days you wish
 to have excluded from scheduling. The same calendar instance can be used with multiple triggers such as this:
 
 __Calendar Example__
@@ -94,25 +96,25 @@ __Calendar Example__
     
     await sched.AddCalendar("myHolidays", cal, false);
     
-	ITrigger t = TriggerBuilder.Create()
-		.WithIdentity("myTrigger")
-		.ForJob("myJob")
-		.WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(9, 30)) // execute job daily at 9:30
-		.ModifiedByCalendar("myHolidays") // but not on holidays
-		.Build();
+ ITrigger t = TriggerBuilder.Create()
+  .WithIdentity("myTrigger")
+  .ForJob("myJob")
+  .WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(9, 30)) // execute job daily at 9:30
+  .ModifiedByCalendar("myHolidays") // but not on holidays
+  .Build();
 
-	// .. schedule job with trigger
+ // .. schedule job with trigger
 
-	ITrigger t2 = TriggerBuilder.Create()
-		.WithIdentity("myTrigger2")
-		.ForJob("myJob2")
-		.WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(11, 30)) // execute job daily at 11:30
-		.ModifiedByCalendar("myHolidays") // but not on holidays
-		.Build();
+ ITrigger t2 = TriggerBuilder.Create()
+  .WithIdentity("myTrigger2")
+  .ForJob("myJob2")
+  .WithSchedule(CronScheduleBuilder.DailyAtHourAndMinute(11, 30)) // execute job daily at 11:30
+  .ModifiedByCalendar("myHolidays") // but not on holidays
+  .Build();
     
     // .. schedule job with trigger2 
 ```
-	
+
 The details of the construction/building of triggers will be given in the next couple lessons.
 For now, just believe that the code above creates two triggers, each scheduled to fire daily.
 However, any of the firings that would have occurred during the period excluded by the calendar will be skipped.

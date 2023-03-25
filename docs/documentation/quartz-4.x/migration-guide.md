@@ -1,4 +1,5 @@
 ---
+
 title: Migration Guide
 ---
 
@@ -10,35 +11,65 @@ If you are a new user starting with the latest version, you don't need to follow
 
 ## Migrating from Version 3.x to 4.x
 
+### Tasks changed to ValueTask
+
+In a majority of interfaces that previously returned or took a `Task` or `Task<T>` parameter, have been changed to a `ValueTask` or `ValueTask<T>`
+
+In most cases, all you will need to do is adjust the signature from a `Task` to be a `ValueTask`
+
+::: info
+Note the following restrictions when working with ValueTask:
+:::
+
+> The following operations should never be performed on a `ValueTask<TResult>` instance:
+>
+> * Awaiting the instance multiple times.
+> * Calling AsTask multiple times.
+> * Using `.Result` or `.GetAwaiter().GetResult()` when the operation hasn't yet completed, or using them multiple times.
+> * Using more than one of these techniques to consume the instance.
+
+For example, to migrate jobs:
+
+```csharp
+public async Task Execute(IJobExecutionContext context)
+```
+
+becomes:
+
+```csharp
+public async ValueTask Execute(IJobExecutionContext context)
+```
+
+For more information on `ValueTasks` please see [Microsoft](https://learn.microsoft.com/en-us/dotnet/api/system.threading.tasks.valuetask-1?view=net-7.0)
+
 ### Logging
 
 LibLog has been replaced with the Microsoft.Logging.Abstraction library.
 Reconfigure logging using a ILoggerFactory, an example, with a Microsoft.Logging.SimpleConsole logger:
 
 ```csharp
- var loggerFactory = LoggerFactory.Create(builder =>
-      {
-          builder
-              .SetMinimumLevel(LogLevel.Debug)
-              .AddSimpleConsole();
-      });
-      LogProvider.SetLogProvider(loggerFactory);
+var loggerFactory = LoggerFactory.Create(builder =>
+    {
+        builder
+            .SetMinimumLevel(LogLevel.Debug)
+            .AddSimpleConsole();
+    });
+LogProvider.SetLogProvider(loggerFactory);
 ```
 
-See the Quartz.Examples project for examples on setting up Serilog and Microsoft.Logging with Quartz.
+See the Quartz.Examples project for examples on setting up [Serilog](https://serilog.net/) and Microsoft.Logging with Quartz.
 
 An alternative approach is to configure the LoggerFactory via a HostBuilder ConfigureServices wire-up:
 
 ```csharp
-
- Host.CreateDefaultBuilder(args)
-  .ConfigureServices((hostContext, services) =>
-  {
-      services.AddQuartz(q =>
-            {
-              q.SetLoggerFactory(loggerFactory);
-            });
-  }
+Host.CreateDefaultBuilder(args)
+.ConfigureServices((hostContext, services) =>
+{
+  services.AddQuartz(q =>
+        {
+          q.SetLoggerFactory(loggerFactory);
+        });
+});
 ```
 
 Further information on configuring Microsoft.Logging can be found [at Microsoft docs](https://docs.microsoft.com/en-us/dotnet/core/extensions/logging?tabs=command-line)

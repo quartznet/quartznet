@@ -1,4 +1,5 @@
 ---
+
 title: 'Jobs And Triggers'
 ---
 
@@ -31,7 +32,7 @@ It is essentially the definition of the job instance, and is discussed in furthe
 
 ## Triggers
 
-Trigger objects are used to trigger the execution (or 'firing') of jobs. When you wish to schedule a job, you instantiate a trigger and use its properties to configure the scheduling you wish to have. Triggers may also have a `JobDataMap` associated with them. - this is useful to passing parameters to a 
+Trigger objects are used to trigger the execution (or 'firing') of jobs. When you wish to schedule a job, you instantiate a trigger and use its properties to configure the scheduling you wish to have. Triggers may also have a `JobDataMap` associated with them. - this is useful to passing parameters to a
 Job that are specific to the firings of the trigger. Quartz ships with a handful of different trigger types, but the most commonly used types are simple trigger (interface `ISimpleTrigger`) and a cron trigger (interface `ICronTrigger`).
 
 :::warning
@@ -53,7 +54,7 @@ var example = TriggerBuilder.Create()
     .Build();
 ```
 
-**CronTrigger** is useful if you wish to have triggering based on calendar-like schedules - 
+**CronTrigger** is useful if you wish to have triggering based on calendar-like schedules -
 such as "every Friday, at noon" or "at 10:15 on the 10th day of every month.". You can use [Cron Maker](http://www.cronmaker.com/) to explore the syntax.
 
 ```csharp
@@ -66,21 +67,21 @@ var example = TriggerBuilder.Create()
 
 ## Why Jobs and Triggers?
 
-Many job schedulers do not have separate notions of jobs and triggers. Some define a 'job' as simply an execution time (or schedule) 
+Many job schedulers do not have separate notions of jobs and triggers. Some define a 'job' as simply an execution time (or schedule)
 along with some small job identifier. Others are much like the union of Quartz's job and trigger objects. While developing Quartz, we decided that it made sense
  to create a separation between the schedule and the work to be performed on that schedule. This has (in our opinion) many benefits.
 
 For example, Jobs can be created and stored in the job scheduler independent of a trigger, and many triggers can be associated with the same job.
-Another benefit of this loose-coupling is the ability to configure jobs that remain in the scheduler after their associated triggers have expired, 
-so that that it can be rescheduled later, without having to re-define it. It also allows you to modify or replace a trigger without having to re-define 
+Another benefit of this loose-coupling is the ability to configure jobs that remain in the scheduler after their associated triggers have expired,
+so that that it can be rescheduled later, without having to re-define it. It also allows you to modify or replace a trigger without having to re-define
 its associated job.
 
 ## Identities
 
-Jobs and Triggers are given identifying keys as they are registered with the Quartz scheduler. 
+Jobs and Triggers are given identifying keys as they are registered with the Quartz scheduler.
 The keys of Jobs and Triggers (`JobKey` and `TriggerKey`) allow them to be placed into 'groups' which can be useful for organizing your jobs and
  triggers into categories such as "reporting jobs" and "maintenance jobs". The name portion of the key of a job or trigger must be unique within the group.
 The complete key (or identifier) of a job or trigger is the compound of the name and group.
 
-You now have a general idea about what Jobs and Triggers are, you can learn more about them in 
+You now have a general idea about what Jobs and Triggers are, you can learn more about them in
 [Lesson 4: More About Jobs & JobDetails](more-about-jobs.md) and [Lesson 5: More About Triggers](more-about-triggers.md)

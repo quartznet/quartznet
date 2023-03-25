@@ -1,0 +1,21 @@
+{
+    "default": true,
+    "first-line-heading": false,
+    "MD005": false,  /* may break vuepress embedded yaml*/
+    "MD007":false, /* may break vuepress embedded yaml*/
+    "MD013": {
+        "line_length": 1000 /* improve in future down to 80? */
+    },
+    "MD025":false, /* title in frontmatter */
+    "MD033": {
+        "allowed_elements": [
+            "BlogExcerpt",
+            "ApplicableVersion",
+            "BlogIndex"
+        ]
+    },
+    "MD036": false,
+    "MD046": {
+        "style": "fenced"
+    }
+}

@@ -1,4 +1,5 @@
 ---
+
 title: Quartz 2 Quick Start
 ---
 
@@ -51,17 +52,17 @@ Full documentation of available properties is available in the [Quartz Configura
 
 To get up and running quickly, a basic quartz.config looks something like this:
 
-	quartz.scheduler.instanceName = MyScheduler
-	quartz.threadPool.threadCount = 3
-	quartz.jobStore.type = Quartz.Simpl.RAMJobStore, Quartz
+ quartz.scheduler.instanceName = MyScheduler
+ quartz.threadPool.threadCount = 3
+ quartz.jobStore.type = Quartz.Simpl.RAMJobStore, Quartz
 
 Remember to set the **Copy to Output Directory** on Visual Studio's file property pages to have value **Copy always**. Otherwise the config will not be seen if it's not in build directory.
-	
+
 The scheduler created by this configuration has the following characteristics:
 
 * quartz.scheduler.instanceName - This scheduler's name will be "MyScheduler".
 * quartz.threadPool.threadCount - There are 3 threads in the thread pool, which means that a maximum of 3 jobs can be run simultaneously.
-* quartz.jobStore.type - All of Quartz's data, such as details of jobs and triggers, is held in memory (rather than in a database). 
+* quartz.jobStore.type - All of Quartz's data, such as details of jobs and triggers, is held in memory (rather than in a database).
 Even if you have a database and want to use it with Quartz, I suggest you get Quartz working with the RamJobStore before you open up a whole new dimension by working with a database.
 
 *Actually you don't need to define these properties if you don't want to, Quartz.NET comes with sane defaults*
@@ -153,10 +154,10 @@ We need a simple test job to test the functionality, lets create HelloJob that o
 ```csharp
 public class HelloJob : IJob
 {
-	public void Execute(IJobExecutionContext context)
-	{
-		Console.WriteLine("Greetings from HelloJob!");
-	}
+ public void Execute(IJobExecutionContext context)
+ {
+  Console.WriteLine("Greetings from HelloJob!");
+ }
 }
 ```
 
@@ -165,17 +166,17 @@ To do something interesting, you need code just after Start() method, before the
 ```csharp
 // define the job and tie it to our HelloJob class
 IJobDetail job = JobBuilder.Create<HelloJob>()
-	.WithIdentity("job1", "group1")
-	.Build();
+ .WithIdentity("job1", "group1")
+ .Build();
 
 // Trigger the job to run now, and then repeat every 10 seconds
 ITrigger trigger = TriggerBuilder.Create()
-	.WithIdentity("trigger1", "group1")
-	.StartNow()
-	.WithSimpleSchedule(x => x
-		.WithIntervalInSeconds(10)
-		.RepeatForever())
-	.Build();
+ .WithIdentity("trigger1", "group1")
+ .StartNow()
+ .WithSimpleSchedule(x => x
+  .WithIntervalInSeconds(10)
+  .RepeatForever())
+ .Build();
 
 // Tell Quartz to schedule the job using our trigger
 scheduler.ScheduleJob(job, trigger);

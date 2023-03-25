@@ -1,4 +1,5 @@
 ---
+
 title: Configuration Reference
 ---
 
@@ -49,14 +50,14 @@ If you are using the clustering features, you must use the same name for every i
 ### `quartz.scheduler.instanceId`
 
 Can be any string, but must be unique for all schedulers working as if they are the same 'logical' Scheduler within a cluster.
-You may use the value "AUTO" as the instanceId if you wish the Id to be generated for you. 
+You may use the value "AUTO" as the instanceId if you wish the Id to be generated for you.
 Or the value "SYS_PROP" if you want the value to come from the system property "quartz.scheduler.instanceId".
 
 ### `quartz.scheduler.instanceIdGenerator.type`
 
 Only used if quartz.scheduler.instanceId is set to "AUTO". Defaults to "Quartz.Simpl.SimpleInstanceIdGenerator",
 which generates an instance id based upon host name and time stamp. Other `InstanceIdGenerator` implementations include `SystemPropertyInstanceIdGenerator`
-(which gets the instance id from the system property "quartz.scheduler.instanceId", and `HostnameInstanceIdGenerator` which uses the local host name (`Dns.GetHostEntry(Dns.GetHostName())`). 
+(which gets the instance id from the system property "quartz.scheduler.instanceId", and `HostnameInstanceIdGenerator` which uses the local host name (`Dns.GetHostEntry(Dns.GetHostName())`).
 You can also implement the InstanceIdGenerator interface your self.
 
 ### `quartz.scheduler.threadName`
@@ -93,8 +94,8 @@ So for example, the setting "quartz.context.key.MyKey = MyValue" would perform t
 ### `quartz.scheduler.batchTriggerAcquisitionMaxCount`
 
 The maximum number of triggers that a scheduler node is allowed to acquire (for firing) at once. Default value is 1.
-The larger the number, the more efficient firing is (in situations where there are very many triggers needing to be fired all at once) - 
-but at the cost of possible imbalanced load between cluster nodes. 
+The larger the number, the more efficient firing is (in situations where there are very many triggers needing to be fired all at once) -
+but at the cost of possible imbalanced load between cluster nodes.
 
 If the value of this property is set to > 1, and AdoJobStore is used, then the property "quartz.jobStore.acquireTriggersWithinLock" must be set to "true" to avoid data corruption.
 
@@ -113,14 +114,13 @@ This may be useful (for performance’s sake) in situations where the scheduler 
 | quartz.threadPool.type                                      | no       | string  | Quartz.Simpl.DefaultThreadPool  |
 | quartz.threadPool.maxConcurrency                             | no       | int     | 10                              |
 
-
 ### `quartz.threadPool.type`
 
 Is the name of the ThreadPool implementation you wish to use.
 The thread pool that ships with Quartz is "Quartz.Simpl.DefaultThreadPool", and should meet the needs of nearly every user.
- 
+
 It has very simple behavior and is very well tested. It dispatches tasks to .NET task queue and ensures that configured max amount of concurrent tasks limit is obeyed.
-You should study [CLR's managed thread pool](https://docs.microsoft.com/en-us/dotnet/standard/threading/the-managed-thread-pool) if you want to fine-tune thread pools on CLR level. 
+You should study [CLR's managed thread pool](https://docs.microsoft.com/en-us/dotnet/standard/threading/the-managed-thread-pool) if you want to fine-tune thread pools on CLR level.
 
 ### `quartz.threadPool.maxConcurrency`
 
@@ -134,6 +134,7 @@ Also note CLR thread pool configuration separate from Quartz itself.
 If you use your own implementation of a thread pool, you can have properties set on it reflectively simply by naming the property as thus:
 
 **Setting Properties on a Custom ThreadPool**
+
 ```
 quartz.threadPool.type = MyLibrary.FooThreadPool, MyLibrary
 quartz.threadPool.somePropOfFooThreadPool = someValue
@@ -150,6 +151,7 @@ The type must have a no-arg constructor, and the properties are set reflectively
 Thus, the general pattern for defining a "global" TriggerListener is:
 
 **Configuring a Global TriggerListener**
+
 ```
 quartz.triggerListener.NAME.type = MyLibrary.MyListenerType, MyLibrary
 quartz.triggerListener.NAME.propName = propValue
@@ -159,6 +161,7 @@ quartz.triggerListener.NAME.prop2Name = prop2Value
 And the general pattern for defining a "global" JobListener is:
 
 **Configuring a Global JobListener**
+
 ```
 quartz.jobListener.NAME.type = MyLibrary.MyListenerType, MyLibrary
 quartz.jobListener.NAME.propName = propValue
@@ -172,13 +175,14 @@ Like listeners configuring plugins through the configuration file consists of gi
 Thus, the general pattern for defining a plug-in is:
 
 **Configuring a Plugin**
+
 ```
 quartz.plugin.NAME.type = MyLibrary.MyPluginType, MyLibrary
 quartz.plugin.NAME.propName = propValue
 quartz.plugin.NAME.prop2Name = prop2Value
 ```
 
-There are several plugins that come with Quartz, that can be found in the [Quartz.Plugins](https://www.nuget.org/packages/Quartz.Plugins) package. 
+There are several plugins that come with Quartz, that can be found in the [Quartz.Plugins](https://www.nuget.org/packages/Quartz.Plugins) package.
 Example of configuring a few of them are as follows:
 
 ### Sample configuration of Logging Trigger History Plugin
@@ -186,6 +190,7 @@ Example of configuring a few of them are as follows:
 The logging trigger history plugin catches trigger events (it is also a trigger listener) and logs then with logging infrastructure.
 
 **Sample configuration of Logging Trigger History Plugin**
+
 ```
 quartz.plugin.triggHistory.type = Quartz.Plugin.History.LoggingTriggerHistoryPlugin, Quartz.Plugins
 quartz.plugin.triggHistory.triggerFiredMessage = Trigger {1}.{0} fired job {6}.{5} at: {4:HH:mm:ss MM/dd/yyyy}
@@ -197,6 +202,7 @@ quartz.plugin.triggHistory.triggerCompleteMessage = Trigger {1}.{0} completed fi
 Job initialization plugin reads a set of jobs and triggers from an XML file, and adds them to the scheduler during initialization. It can also delete exiting data.
 
 **Sample configuration of JobInitializationPlugin**
+
 ```
 quartz.plugin.jobInitializer.type = Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin, Quartz.Plugins
 quartz.plugin.jobInitializer.fileNames = data/my_job_data.xml
@@ -210,6 +216,7 @@ The XML schema definition for the file can be found [here](https://github.com/qu
 The shutdown-hook plugin catches the event of the CLR terminating, and calls shutdown on the scheduler.
 
 **Sample configuration of ShutdownHookPlugin**
+
 ```
 quartz.plugin.shutdownhook.type = Quartz.Plugin.Management.ShutdownHookPlugin, Quartz.Plugins
 quartz.plugin.shutdownhook.cleanShutdown = true
@@ -221,12 +228,11 @@ This plugin catches the event of job running for a long time (more than the conf
 Plugin defaults to signaling interrupt after 5 minutes, but the default van be configured to something different, value is in milliseconds in configuration.
 
 **Sample configuration of JobInterruptMonitorPlugin**
+
 ```
 quartz.plugin.jobAutoInterrupt.type = Quartz.Plugin.Interrupt.JobInterruptMonitorPlugin, Quartz.Plugins
 quartz.plugin.jobAutoInterrupt.defaultMaxRunTime = 3000000
 ```
-
-
 
 ## Remoting Server and Client
 
@@ -273,13 +279,12 @@ Channel name to use when binding to remoting infrastructure.
 The low deserialization level for .NET Framework remoting. It supports types associated with basic remoting functionality
 
 **Full**
- 
+
  The full deserialization level for .NET Framework remoting. It supports all types that remoting supports in all situations
 
 ### `quartz.scheduler.exporter.rejectRemoteRequests`
 
 A boolean value (true or false) that specifies whether to refuse requests from other computers. Specifying true allows only remoting calls from the local computer.
-
 
 ## RAMJobStore
 
@@ -288,6 +293,7 @@ RAMJobStore is used to store scheduling information (job, triggers and calendars
 RAMJobStore is selected by setting the `quartz.jobStore.type` property as such:
 
 **Setting The Scheduler’s JobStore to RAMJobStore**
+
 ```
 quartz.jobStore.type = Quartz.Simpl.RAMJobStore, Quartz
 ```
@@ -313,6 +319,7 @@ This is the job store you should normally be using unless you want to integrate 
 The JobStoreTX is selected by setting the `quartz.jobStore.type` property as such:
 
 **Setting The Scheduler’s JobStore to JobStoreTX**
+
 ```
 quartz.jobStore.type = Quartz.Impl.AdoJobStore.JobStoreTX, Quartz
 ```
@@ -352,10 +359,9 @@ Driver delegates understand the particular 'dialects' of varies database systems
 * Quartz.Impl.AdoJobStore.SQLiteDelegate, Quartz
 * Quartz.Impl.AdoJobStore.MySQLDelegate, Quartz
 
-
 ### `quartz.jobStore.dataSource`
 
-The value of this property must be the name of one the DataSources defined in the configuration properties file. 
+The value of this property must be the name of one the DataSources defined in the configuration properties file.
 
 ### `quartz.jobStore.tablePrefix`
 
@@ -365,6 +371,7 @@ You can have multiple sets of Quartz’s tables within the same database if they
 **Including schema name in tablePrefix**
 
 For backing databases that support schemas (such as Microsoft SQL Server), you may use the tablePrefix to include the schema name.  i.e. for a schema named `foo` the prefix could be set as:
+
 ```
 [foo].QRTZ_
 ```
@@ -384,7 +391,7 @@ The default value (if you don’t make an entry of this property in your configu
 ### `quartz.jobStore.clustered`
 
 Set to "true" in order to turn on clustering features.
-This property must be set to "true" if you are having multiple instances of Quartz use the same set of database tables…​ otherwise you will experience havoc. 
+This property must be set to "true" if you are having multiple instances of Quartz use the same set of database tables…​ otherwise you will experience havoc.
 See the configuration docs for clustering for more information.
 
 ### `quartz.jobStore.clusterCheckinInterval`
@@ -402,7 +409,6 @@ Must be a SQL string that selects a row in the "LOCKS" table and places a lock o
 The "{0}" is replaced during run-time with the TABLE_PREFIX that you configured above.
 The "{1}" is replaced with the scheduler’s name.
 
-
 ### `quartz.jobStore.txIsolationLevelSerializable`
 
 A value of "true" tells Quartz (when using JobStoreTX or CMT) to set transction level to serialize on ADO.NET connections.
@@ -419,7 +425,7 @@ If "quartz.scheduler.batchTriggerAcquisitionMaxCount" is set to > 1, and AdoJobS
 ### `quartz.jobStore.lockHandler.type`
 
 The type name to be used to produce an instance of a `Quartz.Impl.AdoJobStore.ISemaphore` to be used for locking control on the job store data.
-This is an advanced configuration feature, which should not be used by most users. 
+This is an advanced configuration feature, which should not be used by most users.
 
 By default, Quartz will select the most appropriate (pre-bundled) Semaphore implementation to use.
 
@@ -428,6 +434,7 @@ By default, Quartz will select the most appropriate (pre-bundled) Semaphore impl
 If you explicitly choose to use this DB Semaphore, you can customize it further on how frequent to poll for DB locks.
 
 **Example of Using a Custom StdRowLockSemaphore Implementation**
+
 ```
 quartz.jobStore.lockHandler.type = Quartz.Impl.AdoJobStore.StdRowLockSemaphore
 quartz.jobStore.lockHandler.maxRetry = 7     # Default is 3
@@ -444,7 +451,6 @@ The format of the string is as such:
 
 The StdAdoDelegate and all of its descendants (all delegates that ship with Quartz) support a property called 'triggerPersistenceDelegateTypes' which can be set to a comma-separated list of types that implement the `ITriggerPersistenceDelegate` interface for storing custom trigger types.
 See the implementations `SimplePropertiesTriggerPersistenceDelegateSupport` and `SimplePropertiesTriggerPersistenceDelegateSupport` for examples of writing a persistence delegate for a custom trigger.
-
 
 ## DataSources (ADO.NET JobStores)
 
@@ -465,14 +471,14 @@ Quartz-created DataSources are defined with the following properties:
 
 Currently following database providers are supported:
 
-- `SqlServer` - Microsoft SQL Server
-- `OracleODP` - Oracle's Oracle Driver
-- `OracleODPManaged` - Oracle's managed driver for Oracle 11
-- `MySql` - MySQL Connector/.NET
-- `SQLite` - SQLite ADO.NET Provider
-- `SQLite-Microsoft` - Microsoft SQLite ADO.NET Provider
-- `Firebird` - Firebird ADO.NET Provider
-- `Npgsql` - PostgreSQL Npgsql
+* `SqlServer` - Microsoft SQL Server
+* `OracleODP` - Oracle's Oracle Driver
+* `OracleODPManaged` - Oracle's managed driver for Oracle 11
+* `MySql` - MySQL Connector/.NET
+* `SQLite` - SQLite ADO.NET Provider
+* `SQLite-Microsoft` - Microsoft SQLite ADO.NET Provider
+* `Firebird` - Firebird ADO.NET Provider
+* `Npgsql` - PostgreSQL Npgsql
 
 ### `quartz.dataSource.NAME.connectionString`
 
@@ -487,6 +493,7 @@ Connection string name to use. Defined either in app.config or appsettings.json.
 Allows you to define a custom connection provider implementing IDbProvider interface.
 
 **Example of a Quartz-defined DataSource**
+
 ```
 quartz.dataSource.myDS.provider = SqlServer
 quartz.dataSource.myDS.connectionString = Server=localhost;Database=quartznet;User Id=quartznet;Password=quartznet;
@@ -501,19 +508,19 @@ Clustering currently only works with the AdoJobstore (`JobStoreTX` or `JobStoreC
 Load-balancing occurs automatically, with each node of the cluster firing jobs as quickly as it can. When a trigger’s firing time occurs, the first node to acquire it (by placing a lock on it) is the node that will fire it.
 
 Only one node will fire the job for each firing.
-What I mean by that is, if the job has a repeating trigger that tells it to fire every 10 seconds, then at 12:00:00 exactly one node will run the job, and at 12:00:10 exactly one node will run the job, etc. 
+What I mean by that is, if the job has a repeating trigger that tells it to fire every 10 seconds, then at 12:00:00 exactly one node will run the job, and at 12:00:10 exactly one node will run the job, etc.
 It won’t necessarily be the same node each time - it will more or less be random which node runs it.
 The load balancing mechanism is near-random for busy schedulers (lots of triggers) but favors the same node for non-busy (e.g. few triggers) schedulers.
 
-Fail-over occurs when one of the nodes fails while in the midst of executing one or more jobs. When a node fails, the other nodes detect the condition and identify the jobs in the database that were in progress within the failed node. 
+Fail-over occurs when one of the nodes fails while in the midst of executing one or more jobs. When a node fails, the other nodes detect the condition and identify the jobs in the database that were in progress within the failed node.
 Any jobs marked for recovery (with the "requests recovery" property on the JobDetail) will be re-executed by the remaining nodes. Jobs not marked for recovery will simply be freed up for execution at the next time a related trigger fires.
 
 The clustering feature works best for scaling out long-running and/or cpu-intensive jobs (distributing the work-load over multiple nodes).
 If you need to scale out to support thousands of short-running (e.g 1 second) jobs, consider partitioning the set of jobs by using multiple distinct schedulers (including multiple clustered schedulers for HA).
 The scheduler makes use of a cluster-wide lock, a pattern that degrades performance as you add more nodes (when going beyond about three nodes - depending upon your database’s capabilities, etc.).
 
-Enable clustering by setting the `quartz.jobStore.clustered` property to "true". Each instance in the cluster should use the same copy of the quartz.properties file. 
-Exceptions of this would be to use properties files that are identical, with the following allowable exceptions: Different thread pool size, and different value for the `quartz.scheduler.instanceId` property. 
+Enable clustering by setting the `quartz.jobStore.clustered` property to "true". Each instance in the cluster should use the same copy of the quartz.properties file.
+Exceptions of this would be to use properties files that are identical, with the following allowable exceptions: Different thread pool size, and different value for the `quartz.scheduler.instanceId` property.
 Each node in the cluster MUST have a unique instanceId, which is easily done (without needing different properties files) by placing "AUTO" as the value of this property.
 See the info about the configuration properties of AdoJobStore for more information.
 
@@ -523,7 +530,7 @@ See [https://www.nist.gov/pml/time-and-frequency-division/services/internet-time
 :::
 
 ::: danger
-Never start (`scheduler.Start()`) a non-clustered instance against the same set of database tables that any other instance is running (`Start()`ed) against. 
+Never start (`scheduler.Start()`) a non-clustered instance against the same set of database tables that any other instance is running (`Start()`ed) against.
 You may get serious data corruption, and will definitely experience erratic behavior.
 :::
 
@@ -533,6 +540,7 @@ When some nodes are in 100% CPU, they may be unable to update the job store and 
 :::
 
 **Example Properties For A Clustered Scheduler**
+
 ```
 #============================================================================
 # Configure Main Scheduler Properties

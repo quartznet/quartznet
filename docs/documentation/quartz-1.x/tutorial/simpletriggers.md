@@ -1,4 +1,5 @@
 ---
+
 title: 'Lesson 5: SimpleTrigger'
 ---
 
@@ -74,6 +75,7 @@ TimeSpan.FromSeconds(60));
          SimpleTrigger.RepeatIndefinitely,
          TimeSpan.FromSeconds(10));
 ```
+
 __SimpleTrigger Example 4 - Create a trigger that fires on March 17 of the year 2002 at precisely 10:30 am, and repeats 5 times
 (for a total of 6 firings) - with a 30 second delay between each firing__
 

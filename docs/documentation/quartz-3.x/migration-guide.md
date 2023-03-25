@@ -1,4 +1,5 @@
 ---
+
 title: Migration Guide
 ---
 
@@ -9,7 +10,7 @@ If you are a new user starting with the latest version, you don't need to follow
 :::
 
 Quartz jumped to async/await world and added support for .NET Core with 3.0 release so most significant changes
-can be found on APIs and functionality available depending on whether you target full .NET Framework or the .NET Core. 
+can be found on APIs and functionality available depending on whether you target full .NET Framework or the .NET Core.
 
 ## Packaging changes
 
@@ -44,8 +45,8 @@ This will make the serialization use format that is not dependant on precense of
 ### API Changes
 
 Scheduler and job API methods now are based on Tasks. This reflects how you define your jobs and operate with scheduler.
-				
-#### Scheduler 
+
+#### Scheduler
 
 You now need to make sure that you have proper awaits in place when you operate with the scheduler:
 
@@ -76,7 +77,7 @@ If you don't have any async'ness in your job, you can just  return `Task.Complet
 
 ##### IInterruptableJob
 
-`IInterruptableJob` interface has been removed. You need to check for `IJobExecutionContext`'s` CancellationToken.IsCancellationRequested` to determine whether job interruption has been requested.
+`IInterruptableJob` interface has been removed. You need to check for `IJobExecutionContext`'s`CancellationToken.IsCancellationRequested` to determine whether job interruption has been requested.
 
 ##### IStatefulJob
 
@@ -88,10 +89,10 @@ If you have created custom implementations of services used by Quartz, you're go
 
 ### Job store serialization configuration changes
 
-You need to now explicitly state whether you want to use binary or json serialization if you are using persistent job store (AdoJobStore) when you configure your scheduler. 
+You need to now explicitly state whether you want to use binary or json serialization if you are using persistent job store (AdoJobStore) when you configure your scheduler.
 
 * For existing setups you should use the old binary serialization to ensure things work like before (see [Quartz.Serialization.Json documentation](packages/json-serialization.md) for migration path)
-* For new projects the JSON serialization is recommended as it should be marginally faster and more robust as it's not dealing with binary versioning issues 
+* For new projects the JSON serialization is recommended as it should be marginally faster and more robust as it's not dealing with binary versioning issues
 * JSON is more secure and generally the way to use moving forward
 
 If you choose to go with JSON serialization, remember to add NuGet package reference **[Quartz.Serialization.Json](https://www.nuget.org/packages/Quartz.Serialization.Json/)** to your project.
@@ -101,9 +102,9 @@ Configuring binary serialization strategy:
 ```csharp
 var properties = new NameValueCollection
 {
-	["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
-	// "binary" is alias for "Quartz.Simpl.BinaryObjectSerializer, Quartz" 
-	["quartz.serializer.type"] = "binary"
+ ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
+ // "binary" is alias for "Quartz.Simpl.BinaryObjectSerializer, Quartz" 
+ ["quartz.serializer.type"] = "binary"
 };
 ISchedulerFactory sf = new StdSchedulerFactory(properties);
 ```
@@ -113,9 +114,9 @@ Configuring JSON serialization strategy (recommended):
 ```csharp
 var properties = new NameValueCollection
 {
-	["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
-	// "json" is alias for "Quartz.Simpl.JsonObjectSerializer, Quartz.Serialization.Json" 
-	["quartz.serializer.type"] = "json"
+ ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
+ // "json" is alias for "Quartz.Simpl.JsonObjectSerializer, Quartz.Serialization.Json" 
+ ["quartz.serializer.type"] = "json"
 };
 ISchedulerFactory sf = new StdSchedulerFactory(properties);
 ```
