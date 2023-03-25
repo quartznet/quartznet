@@ -29,12 +29,12 @@
     overridden in pair with `Equals(object? obj)` and `GetHashCode()`.
 
   * The **Quartz.Util.DictionaryExtensions** type was removed.
-    
+
   * The 'Get(TKey key)' method of **DirtyFlagMap<TKey,TValue>** has been removed. You can instead use the
     this[TKey key] indexer or `TryGetValue(TKey key, out TValue value)` to obtain the value for a given key.
-    
+
   * (Logging): `LibLog` has been removed and replaced with `Microsoft.Logging.Abstractions` (#1480).
-      
+
   * The following properties of **DirtyFlagMap<TKey,TValue>** are now explicit interface implementations:
     * IsReadOnly
     * IsFixedSize
@@ -63,6 +63,9 @@
 
   * Introduce JobType to allow storing job's type information without actual Type instance (#1610)
 
+* NEW FEATURES
+
+  * Add Cron parser support for 'L' and 'LW' in expression combinations for daysOfMonth (#1939) (#1288)
 
 ## Release 3.6.1, Feb 25 2023
 

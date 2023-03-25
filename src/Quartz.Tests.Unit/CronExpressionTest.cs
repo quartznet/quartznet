@@ -116,6 +116,40 @@ namespace Quartz.Tests.Unit
             Assert.IsTrue(cronExpression.IsSatisfiedBy(cal));
         }
 
+        [TestCase("0 15 10 6,15 * ? 2010", "0 15 10 6,15 * ? 2010")]
+        public void ExpressionToString(string cronExpression, string expected)
+        {
+            var expr = new CronExpression(cronExpression);
+            expr.ToString().Should().Be(expected);
+        }
+
+        [TestCase("0 15 10 L-1,L-2 * ? 2010", new int[] { 31 - 1, 31 - 2 })] //Multiple L Not supported
+        public void CannotUseMultipleLastDayOfMonthInArray(string cronExpression, int[] expectedDays, string scenario = "")
+        {
+            // Limitation of implementation, could be supported but for now we throw an error.
+            Action act = () => new CronExpression(cronExpression); //10:15am <variable days> October 2010
+            act.Should().Throw<FormatException>()
+                .WithMessage("Support for specifying 'L' with other days of the month is limited to one instance of L");
+        }
+
+        [TestCase("0 15 10 6,15,LW * ? 2010", new int[] { 6, 15, 29 })] //31 oct 2010 is a Sunday, working day would be 29
+        [TestCase("0 15 10 6,15,L * ? 2010", new int[] { 6, 15, 31 })]
+        [TestCase("0 15 10 15,L * ? 2010", new int[] { 15, 31 })]
+        [TestCase("0 15 10 15,31 * ? 2010", new int[] { 15, 31 })]
+        [TestCase("0 15 10 15,L-2 * ? 2010", new int[] { 15, 31 - 2 })]
+        [TestCase("0 15 10 31,L-2 * ? 2010", new int[] { 31 }, "duplicate day specified + last are equal")]
+        [TestCase("0 15 10 1,3,6,15,L * ? 2010", new int[] { 1, 3, 6, 15, 31 })]
+        public void CanUseLastDayOfMonthInArray(string cronExpression, int[] expectedDays, string scenario = "")
+        {
+            var expr = new CronExpression(cronExpression); //10:15am <variable days> October 2010
+
+            foreach (var expectedDay in expectedDays)
+            {
+                var date = new DateTime(2010, 10, expectedDay, 10, 15, 0).ToUniversalTime(); // last day
+                expr.IsSatisfiedBy(date).Should().BeTrue($"expected day of {expectedDay}, {scenario}");
+            }
+        }
+
         [Test]
         public void CronExpression_Throw_Error_Contructed_With_Null()
         {
@@ -167,7 +201,7 @@ namespace Quartz.Tests.Unit
         {
             CronExpression cronExpression = new CronExpression("0 0 12 ? * MON-FRI");
             int[] arrJuneDaysThatShouldFire =
-                {1, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 18, 19, 20, 22, 21, 25, 26, 27, 28, 29};
+                { 1, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 18, 19, 20, 22, 21, 25, 26, 27, 28, 29 };
             List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
 
             TestCorrectWeekFireDays(cronExpression, juneDays);
@@ -181,7 +215,7 @@ namespace Quartz.Tests.Unit
             var nextRunTime2 = cronExpression.GetTimeAfter((DateTimeOffset)nextRunTime);
 
             int[] arrJuneDaysThatShouldFire =
-                {1, 8, 15, 22, 29};
+                { 1, 8, 15, 22, 29 };
             List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
 
             TestCorrectWeekFireDays(cronExpression, juneDays);
@@ -195,7 +229,7 @@ namespace Quartz.Tests.Unit
             var nextRunTime2 = cronExpression.GetTimeAfter((DateTimeOffset)nextRunTime);
 
             int[] arrJuneDaysThatShouldFire =
-                {1, 15, 29};
+                { 1, 15, 29 };
             List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
 
             TestCorrectWeekFireDays(cronExpression, juneDays);
@@ -209,7 +243,7 @@ namespace Quartz.Tests.Unit
             var nextRunTime2 = cronExpression.GetTimeAfter((DateTimeOffset)nextRunTime);
 
             int[] arrJuneDaysThatShouldFire =
-                {1, 14, 15, 28, 29};
+                { 1, 14, 15, 28, 29 };
             List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
 
             TestCorrectWeekFireDays(cronExpression, juneDays);
@@ -219,7 +253,7 @@ namespace Quartz.Tests.Unit
         public void TestCronExpressionLastDayOfMonth()
         {
             CronExpression cronExpression = new CronExpression("0 0 12 L * ?");
-            int[] arrJuneDaysThatShouldFire = {30};
+            int[] arrJuneDaysThatShouldFire = { 30 };
             List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
 
             TestCorrectWeekFireDays(cronExpression, juneDays);
@@ -429,18 +463,6 @@ namespace Quartz.Tests.Unit
         {
             try
             {
-                new CronExpression("0 43 9 1,5,29,L * ?");
-                Assert.Fail("Expected FormatException did not fire for L combined with other days of the month");
-            }
-            catch (FormatException fe)
-            {
-                Assert.IsTrue(
-                    fe.Message.StartsWith("Support for specifying 'L' and 'LW' with other days of the month is not implemented"),
-                    "Incorrect FormatException thrown");
-            }
-
-            try
-            {
                 new CronExpression("0 43 9 ? * SAT,SUN,L");
                 Assert.Fail("Expected FormatException did not fire for L combined with other days of the week");
             }
@@ -487,7 +509,7 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
-        public void TestQRTZNET152()
+        public void TestQRTZNET152_Nearest_Weekday_Expression_W_Does_Not_Work_In_CronTrigger()
         {
             CronExpression expression = new CronExpression("0 5 13 5W 1-12 ?");
             DateTimeOffset test = new DateTimeOffset(2009, 3, 8, 0, 0, 0, TimeSpan.Zero);
