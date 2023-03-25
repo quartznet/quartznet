@@ -1,4 +1,5 @@
 ---
+
 title : Plugins
 ---
 
@@ -14,12 +15,11 @@ Install-Package Quartz.Plugins
 
 ## Configuration
 
-Plugins are configured by using either DI configuration extensions or adding required configuration keys. 
+Plugins are configured by using either DI configuration extensions or adding required configuration keys.
 
 Configuration key in in format `quartz.plugin.{name-to-refer-with}.{property}`.
 
 [See configuration reference](../configuration/reference.html#plug-ins) on how to configure each plugin
-
 
 ## Features
 
@@ -38,7 +38,6 @@ This plugin loads XML file(s) to add jobs and schedule them with triggers as the
 ::: warning
 The periodically scanning of files for changes is not currently supported in a clustered environment.
 :::
-
 
 ### JobInterruptMonitorPlugin
 

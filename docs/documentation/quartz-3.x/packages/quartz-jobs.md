@@ -1,4 +1,5 @@
 ---
+
 title : Jobs
 ---
 
@@ -29,6 +30,7 @@ If one or more files have been updated (or created), the job invokes a "call-bac
 Built in job for executing native executables in a separate process.
 
 **Example***
+
 ```csharp
 var job = new JobDetail("dumbJob", null, typeof(Quartz.Jobs.NativeJob));
 job.JobDataMap.Put(Quartz.Jobs.NativeJob.PropertyCommand, "echo \"hi\" >> foobar.txt");

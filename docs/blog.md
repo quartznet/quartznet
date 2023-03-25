@@ -1,7 +1,8 @@
---- 
-blog_index: true 
---- 
+---
 
-# Blog 
+blog_index: true
+---
+
+# Blog
 
 <BlogIndex />

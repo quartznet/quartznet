@@ -1,4 +1,5 @@
 ---
+
 title: Multiple Triggers
 ---
 

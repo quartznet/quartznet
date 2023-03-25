@@ -22,7 +22,9 @@
     "docs:dev": "vuepress-cli dev docs --clean-cache --clean-temp",
     "docs:dev-webpack": "DOCS_BUNDLER=webpack pnpm docs:dev",
     "docs:serve": "anywhere -s -h localhost -d .vuepress/dist",
-    "docs:publish": "cd docs/.vuepress/dist && git init && git fetch https://github.com/quartznet/quartznet.github.io.git && git checkout 9966bc53c0685311bc9199498ef2338629f6ec4d && git checkout -b master && git add . && git commit -am \"Deploy Documentation\" && git push --force --set-upstream https://github.com/quartznet/quartznet.github.io.git master"
+    "docs:publish": "cd docs/.vuepress/dist && git init && git fetch https://github.com/quartznet/quartznet.github.io.git && git checkout 9966bc53c0685311bc9199498ef2338629f6ec4d && git checkout -b master && git add . && git commit -am \"Deploy Documentation\" && git push --force --set-upstream https://github.com/quartznet/quartznet.github.io.git master",
+    "docs:lint": "markdownlint-cli2 docs/**/*.md",
+    "docs:lint-fix": "markdownlint-cli2-fix docs/**/*.md !docs/_posts/**"
   },
   "repository": {
     "type": "git",
@@ -33,5 +35,9 @@
   "bugs": {
     "url": "https://github.com/quartznet/quartznet/issues"
   },
-  "homepage": "https://github.com/quartznet/quartznet"
+  "homepage": "https://github.com/quartznet/quartznet",
+  "devDependencies": {
+    "markdownlint": "^0.28.0",
+    "markdownlint-cli2": "^0.6.0"
+  }
 }

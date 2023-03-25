@@ -1,4 +1,5 @@
 ---
+
 title: OpenTelemetry Integration
 ---
 
@@ -17,7 +18,7 @@ The integration library can still live a bit and thus integration API can have b
 
 You need to add NuGet package reference to your project which uses Quartz.
 
-```
+```shell
 Install-Package Quartz.OpenTelemetry.Instrumentation
 ```
 
@@ -34,7 +35,7 @@ In the next example we will integrate with [Jaeger](https://www.jaegertracing.io
 
 You can run local Jaeger via docker using:
 
-```
+```shell
 $ docker run -d --name jaeger \
   -e COLLECTOR_ZIPKIN_HTTP_PORT=9411 \
   -p 5775:5775/udp \

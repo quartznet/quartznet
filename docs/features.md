@@ -1,4 +1,5 @@
 ---
+
 title: Quartz.NET Features
 ---
 
@@ -22,15 +23,15 @@ Jobs are scheduled to run when a given Trigger occurs. Triggers can be created w
 * repeated indefinitely
 * repeated with a delay interval
 
-Jobs are given names by their creator and can also be organized into named groups. 
-Triggers may also be given names and placed into groups, in order to easily organize them within the scheduler. 
-Jobs can be added to the scheduler once, but registered with multiple Triggers. 
+Jobs are given names by their creator and can also be organized into named groups.
+Triggers may also be given names and placed into groups, in order to easily organize them within the scheduler.
+Jobs can be added to the scheduler once, but registered with multiple Triggers.
 
 ## Job Execution
 
 * Jobs can be any .NET class that implements the simple IJob interface, leaving infinite possibilities for the work Jobs can perform.
 * Job class instances can be instantiated by Quartz.NET, or by your application's framework.
-* When a Trigger occurs, the scheduler notifies zero or more .NET objects implementing the JobListener and TriggerListener interfaces.	These listeners are also notified after the Job has executed.
+* When a Trigger occurs, the scheduler notifies zero or more .NET objects implementing the JobListener and TriggerListener interfaces. These listeners are also notified after the Job has executed.
 * As Jobs are completed, they return a JobCompletionCode which informs the scheduler of success or failure. The JobCompletionCode can also instruct the scheduler of any actions it should take based on the success/fail code - such as immediate re-execution of the Job.
 
 ## Job Persistence
@@ -40,7 +41,7 @@ Jobs can be added to the scheduler once, but registered with multiple Triggers.
 * With the use of the included RAMJobStore, all Jobs and Triggers are stored in RAM and therefore do not persist between program executions - but this has the advantage of not requiring an external database.
 
 ## Clustering
-				
+
 * Fail-over.
 * Load balancing.
 

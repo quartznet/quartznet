@@ -5,11 +5,13 @@ heroImage: quartz-logo-large.png
 tagline: Open-source job scheduling system for .NET
 
 actions:
+
   - text: Get Started
     link: /documentation/quartz-3.x/quick-start
     type: primary
 
 features:
+
    - title: Runtime Environments
      details: Can run embedded within an application or even instantiated as a cluster of stand-alone programs (with load-balance and fail-over capabilities)
    - title: Job Scheduling
@@ -31,4 +33,3 @@ Quartz.NET is a full-featured, open source job scheduling system that can be use
 ### Latest News
 
 <BlogExcerpt />
-

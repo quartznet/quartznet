@@ -45,7 +45,6 @@ public async Task DoSomething(IScheduler scheduler, CancellationToken ct)
 }
 ```
 
-
 ## Dynamic Registration
 
 In this scenario, you may have a dynamic set of jobs and need to

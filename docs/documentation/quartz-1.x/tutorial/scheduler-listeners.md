@@ -1,13 +1,13 @@
 ---
+
 title: 'Lesson 8: SchedulerListeners'
 ---
 
-SchedulerListeners are much like ITriggerListeners and IJobListeners, except they receive notification of 
+SchedulerListeners are much like ITriggerListeners and IJobListeners, except they receive notification of
 events within the scheduler itself - not necessarily events related to a specific trigger or job.
 
-Scheduler-related events include: the addition of a job/trigger, the removal of a job/trigger, a serious error 
+Scheduler-related events include: the addition of a job/trigger, the removal of a job/trigger, a serious error
 within the scheduler, notification of the scheduler being shutdown, and others.
-
 
 __The ISchedulerListener Interface__
 
@@ -33,7 +33,7 @@ __The ISchedulerListener Interface__
         void SchedulerShutdown();
     } 
 ```
-	
-ISchedulerListener instances are created and registered in much the same way as the other listener types, 
-except there is no distinction between global and non-global listeners. Scheduler listeners can be 
+
+ISchedulerListener instances are created and registered in much the same way as the other listener types,
+except there is no distinction between global and non-global listeners. Scheduler listeners can be
 virtually any object that implements the ISchedulerListener interface.

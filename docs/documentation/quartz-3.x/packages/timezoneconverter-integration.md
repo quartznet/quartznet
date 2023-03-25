@@ -1,4 +1,5 @@
 ---
+
 title: TimeZoneConverter Integration
 ---
 
@@ -17,17 +18,19 @@ Install-Package Quartz.Plugins.TimeZoneConverter
 ## Using
 
 **Classic property-based configuration**
+
 ```csharp
 var properties = new NameValueCollection
 {
-	["quartz.plugin.timeZoneConverter.type"] = "Quartz.Plugin.TimeZoneConverter.TimeZoneConverterPlugin, Quartz.Plugins.TimeZoneConverter"
+ ["quartz.plugin.timeZoneConverter.type"] = "Quartz.Plugin.TimeZoneConverter.TimeZoneConverterPlugin, Quartz.Plugins.TimeZoneConverter"
 };
 ISchedulerFactory schedulerFactory = new StdSchedulerFactory(properties);
 ```
 
 **Configuring using scheduler builder**
+
 ```csharp
 var config = SchedulerBuilder.Create()
     .UseTimeZoneConverter();
 ISchedulerFactory schedulerFactory = config.Build();
-``` 
+```

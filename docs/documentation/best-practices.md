@@ -1,4 +1,5 @@
 ---
+
 title: Best Practices
 ---
 
@@ -20,7 +21,7 @@ Storing JobDataMap values on a Trigger can be useful in the case where you have 
 yet with each independent triggering, you want to supply the Job with different data inputs.
 
 We recommend that code within the `IJob.Execute(..)` method should retrieve
-values from the `MergedJobDataMap` on the `JobExecutionContext`, rather than directly 
+values from the `MergedJobDataMap` on the `JobExecutionContext`, rather than directly
 from the JobDetail or Trigger.
 
 ```csharp
@@ -172,12 +173,12 @@ If a listener throws an exception, it may cause other listeners not to be notifi
 
 ## Exposing Scheduler Functionality Through Applications
 
-### Be Careful of Security!
+### Be Careful of Security
 
 Some users expose Quartz's Scheduler functionality through an application user interface. This can be very useful, though it can also be extremely dangerous.
 
-Be sure you don't mistakenly allow users to define jobs of any type they wish, with whatever parameters they wish. 
-For example, Quartz.Jobs package ships with a pre-made job `NativeJob`, which will execute any arbitrary native (operating system) system command that it is defined to. 
+Be sure you don't mistakenly allow users to define jobs of any type they wish, with whatever parameters they wish.
+For example, Quartz.Jobs package ships with a pre-made job `NativeJob`, which will execute any arbitrary native (operating system) system command that it is defined to.
 Malicious users could use this to take control of, or destroy your system.
 
 Likewise other jobs such as `SendEmailJob`, and virtually any others could be used for malicious intent.

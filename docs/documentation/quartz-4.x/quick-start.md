@@ -1,4 +1,5 @@
 ---
+
 title: Quartz 4 Quick Start
 ---
 
@@ -26,7 +27,7 @@ Couldn't get any simpler than this. Just fire up Visual Studio (with NuGet insta
 
 or from NuGet Command-Line:
 
-```
+```shell
 Install-Package Quartz
 ```
 
@@ -99,9 +100,9 @@ Full documentation of available properties is available in the [Quartz Configura
 To get up and running quickly, a basic quartz.config looks something like this:
 
 ```text
-	quartz.scheduler.instanceName = MyScheduler
-	quartz.jobStore.type = Quartz.Simpl.RAMJobStore, Quartz
-    quartz.threadPool.maxConcurrency = 3
+ quartz.scheduler.instanceName = MyScheduler
+ quartz.jobStore.type = Quartz.Simpl.RAMJobStore, Quartz
+ quartz.threadPool.maxConcurrency = 3
 ```
 
 Remember to set the **Copy to Output Directory** on Visual Studio's file property pages to have value **Copy always**. Otherwise the config will not be seen if it's not in build directory.
@@ -110,7 +111,7 @@ The scheduler created by this configuration has the following characteristics:
 
 * `quartz.scheduler.instanceName` - This scheduler's name will be "MyScheduler".
 * `quartz.threadPool.maxConcurrency` - Maximum of 3 jobs can be run simultaneously (default is 10).
-* `quartz.jobStore.type` - All of Quartz's data, such as details of jobs and triggers, is held in memory (rather than in a database). 
+* `quartz.jobStore.type` - All of Quartz's data, such as details of jobs and triggers, is held in memory (rather than in a database).
 
 * Even if you have a database and want to use it with Quartz, I suggest you get Quartz working with the RamJobStore before you open up a whole new dimension by working with a database.
 
@@ -207,10 +208,10 @@ We need a simple test job to test the functionality, lets create HelloJob that o
 ```csharp
 public class HelloJob : IJob
 {
-	public async Task Execute(IJobExecutionContext context)
-	{
-		await Console.Out.WriteLineAsync("Greetings from HelloJob!");
-	}
+ public async Task Execute(IJobExecutionContext context)
+ {
+  await Console.Out.WriteLineAsync("Greetings from HelloJob!");
+ }
 }
 ```
 
@@ -219,17 +220,17 @@ To do something interesting, you need code just after Start() method, before the
 ```csharp
 // define the job and tie it to our HelloJob class
 IJobDetail job = JobBuilder.Create<HelloJob>()
-	.WithIdentity("job1", "group1")
-	.Build();
+ .WithIdentity("job1", "group1")
+ .Build();
 
 // Trigger the job to run now, and then repeat every 10 seconds
 ITrigger trigger = TriggerBuilder.Create()
-	.WithIdentity("trigger1", "group1")
-	.StartNow()
-	.WithSimpleSchedule(x => x
-		.WithIntervalInSeconds(10)
-		.RepeatForever())
-	.Build();
+ .WithIdentity("trigger1", "group1")
+ .StartNow()
+ .WithSimpleSchedule(x => x
+  .WithIntervalInSeconds(10)
+  .RepeatForever())
+ .Build();
 
 // Tell Quartz to schedule the job using our trigger
 await scheduler.ScheduleJob(job, trigger);
@@ -313,12 +314,11 @@ namespace QuartzSampleApp
 
 ## Creating and initializing database
 
-In order to use SQL persistence storage for Quartz and enabling features like clustering, you need to create a database and initialize the schema objects using SQL scripts. 
-First you need to create a database and credentials for Quartz. After you have a database that Quartz will be able to connect to, you also need to create database tables and indexes 
-that Quartz needs for successful operation. 
+In order to use SQL persistence storage for Quartz and enabling features like clustering, you need to create a database and initialize the schema objects using SQL scripts.
+First you need to create a database and credentials for Quartz. After you have a database that Quartz will be able to connect to, you also need to create database tables and indexes
+that Quartz needs for successful operation.
 
 You can find latest DDL scripts in [Quartz's GitHub repository](https://github.com/quartznet/quartznet/tree/main/database/tables) and they are also contained in the ZIP archive distribution.
 There are also thirty party additions to Quartz that enable other types of storage, like NoSQL databases. You can search for them on NuGet.
-
 
 Now go have some fun exploring Quartz.NET! You can continue by reading [the tutorial](tutorial/index.html).

@@ -1,8 +1,9 @@
 ---
+
 title: Quartz.NET 2.x Tutorial
 ---
 
-## Choose a lesson:
+## Choose a lesson
 
 * [Lesson 1: Using Quartz](using-quartz.html)
 * [Lesson 2: Jobs And Triggers](jobs-and-triggers.html)

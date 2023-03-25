@@ -1,4 +1,5 @@
 ---
+
 title: OpenTracing Integration
 ---
 
@@ -26,7 +27,6 @@ Install-Package Quartz.OpenTracing
 ## Using
 
 You can add Quartz configuration by invoking an extension method `AddQuartzOpenTracing` on `IServiceCollection`.
-
 
 **Example Startup.ConfigureServices configuration**
 

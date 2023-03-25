@@ -1,4 +1,5 @@
 ---
+
 title: 'SimpleTrigger'
 ---
 
@@ -73,6 +74,7 @@ ITrigger trigger = TriggerBuilder.Create()
     .EndAt(DateBuilder.DateOf(22, 0, 0))
     .Build();
 ```
+
 __Build a trigger that will fire at the top of the next hour, then repeat every 2 hours, forever:__
 
 ```csharp
@@ -89,7 +91,7 @@ ITrigger trigger = TriggerBuilder.Create()
 await scheduler.scheduleJob(trigger, job);
 ```
 
-Spend some time looking at all of the available methods in the language defined by `TriggerBuilder` and its extension method `WithSimpleSchedule` 
+Spend some time looking at all of the available methods in the language defined by `TriggerBuilder` and its extension method `WithSimpleSchedule`
 so that you can be familiar with options available to you that may not have been demonstrated in the examples above.
 
 ## SimpleTrigger Misfire Instructions

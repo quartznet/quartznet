@@ -1,4 +1,5 @@
 ---
+
 title: 'Lesson 5: SimpleTrigger'
 ---
 
@@ -26,7 +27,7 @@ fire before the end-time arrives).
 
 SimpleTrigger instances are built using **TriggerBuilder** (for the trigger's main properties) and **WithSimpleSchedule** extension method (for the SimpleTrigger-specific properties).
 
-__Build a trigger for a specific moment in time, with no repeats:__
+**Build a trigger for a specific moment in time, with no repeats:**
 
 ```csharp
 // trigger builder creates simple trigger by default, actually an ITrigger is returned
@@ -37,7 +38,7 @@ ISimpleTrigger trigger = (ISimpleTrigger) TriggerBuilder.Create()
     .Build();
 ```
 
-__Build a trigger for a specific moment in time, then repeating every ten seconds ten times:__
+**Build a trigger for a specific moment in time, then repeating every ten seconds ten times:**
 
 ```csharp
 trigger = TriggerBuilder.Create()
@@ -51,7 +52,7 @@ trigger = TriggerBuilder.Create()
 
 ```
 
-__Build a trigger that will fire once, five minutes in the future:__
+**Build a trigger that will fire once, five minutes in the future:**
 
 ```csharp
 trigger = (ISimpleTrigger) TriggerBuilder.Create()
@@ -61,7 +62,7 @@ trigger = (ISimpleTrigger) TriggerBuilder.Create()
     .Build();
 ```
 
-__Build a trigger that will fire now, then repeat every five minutes, until the hour 22:00:__
+**Build a trigger that will fire now, then repeat every five minutes, until the hour 22:00:**
 
 ```csharp
 trigger = TriggerBuilder.Create()
@@ -72,7 +73,8 @@ trigger = TriggerBuilder.Create()
     .EndAt(DateBuilder.DateOf(22, 0, 0))
     .Build();
 ```
-__Build a trigger that will fire at the top of the next hour, then repeat every 2 hours, forever:__
+
+**Build a trigger that will fire at the top of the next hour, then repeat every 2 hours, forever:**
 
 ```csharp
 trigger = TriggerBuilder.Create()
@@ -97,7 +99,7 @@ SimpleTrigger has several instructions that can be used to inform Quartz.NET wha
 These instructions are defined as constants on MisfirePolicy.SimpleTrigger (including API documentation describing their behavior).
 The instructions include:
 
-__Misfire Instruction Constants for SimpleTrigger__
+**Misfire Instruction Constants for SimpleTrigger**
 
 * MisfireInstruction.IgnoreMisfirePolicy
 * MisfirePolicy.SimpleTrigger.FireNow

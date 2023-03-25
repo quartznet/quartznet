@@ -1,4 +1,5 @@
 ---
+
 title: Tuning the Scheduler
 ---
 
@@ -45,5 +46,3 @@ var scheduler = ScheduleBuilder().Create()
     .WithBatchTriggerAcquisitionFireAheadTimeWindow(TimeSpan.FromMilliseconds(1))
     .Build();
 ```
-
-

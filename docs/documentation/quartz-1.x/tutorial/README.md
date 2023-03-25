@@ -1,10 +1,11 @@
 ---
+
 title: Quartz.NET 1.x Tutorial
 prev: false
 next: false
 ---
 
-## Choose a lesson:
+## Choose a lesson
 
 * [Lesson 1: Using Quartz](using-quartz.md)
 * [Lesson 2: Jobs And Triggers](jobs-and-triggers.md)
