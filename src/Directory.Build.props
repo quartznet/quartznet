@@ -37,6 +37,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
 
+    <PolySharpExcludeGeneratedTypes>System.Runtime.CompilerServices.IsExternalInit</PolySharpExcludeGeneratedTypes>
+
   </PropertyGroup>
 
   <!--

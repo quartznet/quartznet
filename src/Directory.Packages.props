@@ -76,11 +76,6 @@
     <GlobalPackageReference Include="Meziantou.Analyzer" Version="1.0.756"/>
     -->
     <GlobalPackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" />
-    <GlobalPackageReference Include="PolySharp" Version="1.8.1" />
-    <GlobalPackageReference Include="Nullable" Version="1.3.1">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-    </GlobalPackageReference>
-    
+    <GlobalPackageReference Include="PolySharp" Version="1.12.1" />
   </ItemGroup>
 </Project>
