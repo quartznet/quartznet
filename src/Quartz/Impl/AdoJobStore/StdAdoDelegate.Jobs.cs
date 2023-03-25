@@ -1,4 +1,4 @@
-﻿using System.Data.Common;
+using System.Data.Common;
 using System.Runtime.Serialization;
 
 using Microsoft.Extensions.Logging;
@@ -15,7 +15,7 @@ namespace Quartz.Impl.AdoJobStore
 
 
         /// <inheritdoc />
-        public virtual async Task<int> UpdateJobDetail(
+        public virtual async ValueTask<int> UpdateJobDetail(
             ConnectionAndTransactionHolder conn,
             IJobDetail job,
             CancellationToken cancellationToken = default)
@@ -38,7 +38,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <inheritdoc />
-        public virtual async Task<IReadOnlyCollection<TriggerKey>> SelectTriggerNamesForJob(
+        public virtual async ValueTask<IReadOnlyCollection<TriggerKey>> SelectTriggerNamesForJob(
             ConnectionAndTransactionHolder conn,
             JobKey jobKey,
             CancellationToken cancellationToken = default)
@@ -60,7 +60,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <inheritdoc />
-        public virtual async Task<int> DeleteJobDetail(
+        public virtual async ValueTask<int> DeleteJobDetail(
             ConnectionAndTransactionHolder conn,
             JobKey jobKey,
             CancellationToken cancellationToken = default)
@@ -78,7 +78,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <inheritdoc />
-        public virtual async Task<bool> JobExists(
+        public virtual async ValueTask<bool> JobExists(
             ConnectionAndTransactionHolder conn,
             JobKey jobKey,
             CancellationToken cancellationToken = default)
@@ -97,7 +97,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <inheritdoc />
-        public virtual async Task<int> UpdateJobData(
+        public virtual async ValueTask<int> UpdateJobData(
             ConnectionAndTransactionHolder conn,
             IJobDetail job,
             CancellationToken cancellationToken = default)
@@ -114,7 +114,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <inheritdoc />
-        public virtual async Task<IJobDetail?> SelectJobDetail(
+        public virtual async ValueTask<IJobDetail?> SelectJobDetail(
             ConnectionAndTransactionHolder conn,
             JobKey jobKey,
             ITypeLoadHelper loadHelper,
@@ -151,7 +151,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <inheritdoc />
-        public virtual async Task<int> SelectNumJobs(
+        public virtual async ValueTask<int> SelectNumJobs(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default)
         {
@@ -167,7 +167,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <inheritdoc />
-        public virtual async Task<IReadOnlyCollection<string>> SelectJobGroups(
+        public virtual async ValueTask<IReadOnlyCollection<string>> SelectJobGroups(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default)
         {
@@ -184,7 +184,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <inheritdoc />
-        public virtual Task<IJobDetail?> SelectJobForTrigger(
+        public virtual ValueTask<IJobDetail?> SelectJobForTrigger(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             ITypeLoadHelper loadHelper,
@@ -194,7 +194,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <inheritdoc />
-        public virtual async Task<IJobDetail?> SelectJobForTrigger(
+        public virtual async ValueTask<IJobDetail?> SelectJobForTrigger(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             ITypeLoadHelper loadHelper,
@@ -231,7 +231,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <inheritdoc />
-        public virtual async Task<int> SelectJobExecutionCount(
+        public virtual async ValueTask<int> SelectJobExecutionCount(
             ConnectionAndTransactionHolder conn,
             JobKey jobKey,
             CancellationToken cancellationToken = default)
@@ -281,7 +281,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="rs">The result set, already queued to the correct row.</param>
         /// <param name="colIndex">The column index for the BLOB.</param>
         /// <returns>The deserialized Object from the ResultSet BLOB.</returns>
-        protected virtual Task<T?> GetJobDataFromBlob<T>(DbDataReader rs, int colIndex) where T : class
+        protected virtual ValueTask<T?> GetJobDataFromBlob<T>(DbDataReader rs, int colIndex) where T : class
         {
             if (CanUseProperties)
             {
@@ -291,7 +291,7 @@ namespace Quartz.Impl.AdoJobStore
                     return GetObjectFromBlob<T>(rs, colIndex);
                 }
 
-                return Task.FromResult<T?>(null);
+                return new ValueTask<T?>((T?)null);
             }
 
             return GetObjectFromBlob<T>(rs, colIndex);
@@ -301,7 +301,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Insert the job detail record.
         /// </summary>
         /// <returns>Number of rows inserted.</returns>
-        public virtual async Task<int> InsertJobDetail(
+        public virtual async ValueTask<int> InsertJobDetail(
             ConnectionAndTransactionHolder conn,
             IJobDetail job,
             CancellationToken cancellationToken = default)

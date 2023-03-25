@@ -65,7 +65,8 @@
   
   * IJobExecutionContext.RecoveringTriggerKey now returns null if IJobExecutionContext.Recovering is false instead of throwing exception.
 
-### NEW FEATURES
+  * `Task` return types and parameters have been changed to `ValueTask`.  Any consumers of Quartz expecting a `Task` will require to update the signatures to `ValueTask`,
+     or use the `AsTask()` Method on ValueTask to Return the `ValueTask` as a `Task`  (#988)
 
 #### Cron Parser
 

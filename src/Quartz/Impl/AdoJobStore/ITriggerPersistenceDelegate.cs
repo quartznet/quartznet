@@ -50,7 +50,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Inserts trigger's special properties.
         /// </summary>
-        Task<int> InsertExtendedTriggerProperties(
+        ValueTask<int> InsertExtendedTriggerProperties(
             ConnectionAndTransactionHolder conn, 
             IOperableTrigger trigger, 
             string state,
@@ -60,7 +60,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Updates trigger's special properties.
         /// </summary>
-        Task<int> UpdateExtendedTriggerProperties(
+        ValueTask<int> UpdateExtendedTriggerProperties(
             ConnectionAndTransactionHolder conn, 
             IOperableTrigger trigger,
             string state, 
@@ -70,15 +70,15 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Deletes trigger's special properties.
         /// </summary>
-        Task<int> DeleteExtendedTriggerProperties(
+        ValueTask<int> DeleteExtendedTriggerProperties(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default);
-        
+
         /// <summary>
         /// Loads trigger's special properties.
         /// </summary>
-        Task<TriggerPropertyBundle> LoadExtendedTriggerProperties(
+        ValueTask<TriggerPropertyBundle> LoadExtendedTriggerProperties(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default);

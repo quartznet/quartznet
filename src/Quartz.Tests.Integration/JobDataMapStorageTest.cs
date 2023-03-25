@@ -1,4 +1,4 @@
-﻿using NUnit.Framework;
+using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
@@ -48,7 +48,7 @@ namespace Quartz.Tests.Integration
             Assert.That(storedTriggerMap.Dirty, Is.False);
         }
 
-        private Task<IScheduler> CreateScheduler(string name)
+        private ValueTask<IScheduler> CreateScheduler(string name)
         {
             DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType);
 

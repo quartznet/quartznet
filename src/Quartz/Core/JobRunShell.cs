@@ -74,10 +74,10 @@ namespace Quartz.Core
             logger = LogProvider.CreateLogger<JobRunShell>();
         }
 
-        public override Task SchedulerShuttingdown(CancellationToken cancellationToken = default)
+        public override ValueTask SchedulerShuttingdown(CancellationToken cancellationToken = default)
         {
             RequestShutdown();
-            return Task.CompletedTask;
+            return default;
         }
 
         /// <summary>
@@ -330,7 +330,7 @@ namespace Quartz.Core
             qs = null;
         }
 
-        private async Task<bool> NotifyListenersBeginning(
+        private async ValueTask<bool> NotifyListenersBeginning(
             IJobExecutionContext ctx,
             CancellationToken cancellationToken = default)
         {
@@ -385,7 +385,7 @@ namespace Quartz.Core
             return true;
         }
 
-        private static async Task<bool> NotifyJobListenersComplete(QuartzScheduler qs,
+        private static async ValueTask<bool> NotifyJobListenersComplete(QuartzScheduler qs,
                                                                    JobExecutionContextImpl ctx,
                                                                    JobExecutionException? jobExEx,
                                                                    CancellationToken cancellationToken = default)
@@ -405,7 +405,7 @@ namespace Quartz.Core
             return true;
         }
 
-        private static Task<bool> NotifyTriggerListenersComplete(QuartzScheduler qs,
+        private static ValueTask<bool> NotifyTriggerListenersComplete(QuartzScheduler qs,
                                                                  JobExecutionContextImpl ctx,
                                                                  SchedulerInstruction instCode,
                                                                  CancellationToken cancellationToken = default)
@@ -416,7 +416,7 @@ namespace Quartz.Core
                 try
                 {
                     var task = qs.NotifyTriggerListenersComplete(ctx, instCode, cancellationToken);
-                    return task.IsCompletedSuccessfully() ? Task.FromResult(true) : DoNotify(task, qs, ctx, cancellationToken);
+                    return task.IsCompletedSuccessfully ? new ValueTask<bool>(true) : DoNotify(task, qs, ctx, cancellationToken);
                 }
                 catch (SchedulerException se)
                 {
@@ -426,7 +426,7 @@ namespace Quartz.Core
 
             return NotifyAwaited(qs, ctx, instCode, cancellationToken);
 
-            static async Task<bool> NotifyAwaited(QuartzScheduler qs,
+            static async ValueTask<bool> NotifyAwaited(QuartzScheduler qs,
                                                   JobExecutionContextImpl ctx,
                                                   SchedulerInstruction instCode,
                                                   CancellationToken cancellationToken)
@@ -437,7 +437,7 @@ namespace Quartz.Core
                 return true;
             }
 
-            static async Task<bool> DoNotify(Task t,
+            static async ValueTask<bool> DoNotify(ValueTask t,
                                              QuartzScheduler qs,
                                              JobExecutionContextImpl ctx,
                                              CancellationToken cancellationToken)
@@ -453,7 +453,7 @@ namespace Quartz.Core
                 }
             }
 
-            static async Task<bool> NotifyError(SchedulerException se,
+            static async ValueTask<bool> NotifyError(SchedulerException se,
                                                 QuartzScheduler qs,
                                                 JobExecutionContextImpl ctx,
                                                 CancellationToken cancellationToken)

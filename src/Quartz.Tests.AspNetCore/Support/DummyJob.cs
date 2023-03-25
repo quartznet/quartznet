@@ -2,5 +2,5 @@
 
 public class DummyJob : IJob
 {
-    public Task Execute(IJobExecutionContext context) => throw new NotImplementedException();
+    public ValueTask Execute(IJobExecutionContext context) => throw new NotImplementedException();
 }

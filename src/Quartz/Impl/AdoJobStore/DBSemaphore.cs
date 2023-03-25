@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -96,7 +96,7 @@ namespace Quartz.Impl.AdoJobStore
         /// until it is available).
         /// </summary>
         /// <returns>true if the lock was obtained.</returns>
-        public async Task<bool> ObtainLock(
+        public async ValueTask<bool> ObtainLock(
             Guid requestorId,
             ConnectionAndTransactionHolder? conn,
             string lockName,
@@ -135,7 +135,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Release the lock on the identified resource if it is held by the calling
         /// thread.
         /// </summary>
-        public Task ReleaseLock(
+        public ValueTask ReleaseLock(
             Guid requestorId,
             string lockName,
             CancellationToken cancellationToken = default)
@@ -156,7 +156,7 @@ namespace Quartz.Impl.AdoJobStore
                 logger.LogWarning("stack-trace of wrongful returner: {Stacktrace}",Environment.StackTrace);
             }
 
-            return Task.CompletedTask;
+            return default;
         }
 
         /// <summary>

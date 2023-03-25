@@ -102,7 +102,7 @@ namespace Quartz.Plugin.Xml
 
         public IReadOnlyCollection<KeyValuePair<string, JobFile>> JobFiles => jobFiles;
 
-        public virtual Task FileUpdated(
+        public virtual ValueTask FileUpdated(
             string fName,
             CancellationToken cancellationToken = default)
         {
@@ -111,14 +111,14 @@ namespace Quartz.Plugin.Xml
                 return ProcessFile(fName, cancellationToken);
             }
 
-            return Task.CompletedTask;
+            return default;
         }
 
         /// <summary>
         /// Called during creation of the <see cref="IScheduler"/> in order to give
         /// the <see cref="ISchedulerPlugin"/> a chance to initialize.
         /// </summary>
-        public virtual async Task Initialize(
+        public virtual async ValueTask Initialize(
             string pluginName,
             IScheduler scheduler,
             CancellationToken cancellationToken = default)
@@ -146,7 +146,7 @@ namespace Quartz.Plugin.Xml
         /// to let the plug-in know it can now make calls into the scheduler if it
         /// needs to.
         /// </summary>
-        public virtual async Task Start(CancellationToken cancellationToken = default)
+        public virtual async ValueTask Start(CancellationToken cancellationToken = default)
         {
             try
             {
@@ -258,13 +258,13 @@ namespace Quartz.Plugin.Xml
         /// should free up all of it's resources because the scheduler is shutting
         /// down.
         /// </summary>
-        public virtual Task Shutdown(CancellationToken cancellationToken = default)
+        public virtual ValueTask Shutdown(CancellationToken cancellationToken = default)
         {
             // nothing to do
-            return Task.CompletedTask;
+            return default;
         }
 
-        private async Task ProcessFile(JobFile? jobFile, CancellationToken cancellationToken = default)
+        private async ValueTask ProcessFile(JobFile? jobFile, CancellationToken cancellationToken = default)
         {
             if (jobFile == null || jobFile.FileFound == false)
             {
@@ -298,7 +298,7 @@ namespace Quartz.Plugin.Xml
             }
         }
 
-        public Task ProcessFile(string filePath, CancellationToken cancellationToken = default)
+        public ValueTask ProcessFile(string filePath, CancellationToken cancellationToken = default)
         {
             JobFile? file = null;
             int idx = jobFiles.FindIndex(pair => pair.Key == filePath);
@@ -331,7 +331,7 @@ namespace Quartz.Plugin.Xml
 
             public string FileBasename { get; private set; } = null!;
 
-            public Task Initialize(CancellationToken cancellationToken = default)
+            public ValueTask Initialize(CancellationToken cancellationToken = default)
             {
                 Stream? f = null;
                 try
@@ -386,7 +386,7 @@ namespace Quartz.Plugin.Xml
                     }
                 }
 
-                return Task.FromResult(true);
+                return default;
             }
         }
     }

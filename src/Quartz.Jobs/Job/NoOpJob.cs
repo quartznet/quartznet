@@ -32,9 +32,9 @@ namespace Quartz.Job
 		/// <summary>
 		/// Do nothing.
 		/// </summary>
-		public Task Execute(IJobExecutionContext context)
-		{
-            return Task.FromResult(true);
+		public ValueTask Execute(IJobExecutionContext context)
+        {
+            return default;
         }
 	}
 }

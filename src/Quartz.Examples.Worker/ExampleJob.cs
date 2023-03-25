@@ -9,7 +9,7 @@ namespace Quartz.Examples.Worker
             this.logger = logger;
         }
 
-        public async Task Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context)
         {
             logger.LogInformation( "{Job} job executing, triggered by {Trigger}", context.JobDetail.Key,context.Trigger.Key);
             await Task.Delay(TimeSpan.FromSeconds(1));

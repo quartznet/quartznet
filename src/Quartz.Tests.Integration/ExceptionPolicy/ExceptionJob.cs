@@ -21,7 +21,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
         /// <see cref="ITriggerListener"/>s that are watching the job's
         /// execution.
         /// </remarks>
-        public Task Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context)
         {
             LaunchCount++;
             if (ThrowsException)
@@ -33,7 +33,7 @@ namespace Quartz.Tests.Integration.ExceptionPolicy
 
                 throw toThrow;
             }
-            return Task.CompletedTask;
+            return default;
         }
     }
 }

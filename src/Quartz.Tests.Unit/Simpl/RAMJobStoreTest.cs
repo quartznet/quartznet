@@ -484,19 +484,19 @@ namespace Quartz.Tests.Unit.Simpl
         {
             internal int fMisfireCount;
 
-            public Task NotifyTriggerListenersMisfired(
+            public ValueTask NotifyTriggerListenersMisfired(
                 ITrigger trigger,
                 CancellationToken cancellationToken = default)
             {
                 fMisfireCount++;
-                return Task.FromResult(true);
+                return default;
             }
 
-            public Task NotifySchedulerListenersFinalized(
+            public ValueTask NotifySchedulerListenersFinalized(
                 ITrigger trigger,
                 CancellationToken cancellationToken = default)
             {
-                return Task.FromResult(true);
+                return default;
             }
 
             public void SignalSchedulingChange(
@@ -505,19 +505,19 @@ namespace Quartz.Tests.Unit.Simpl
             {
             }
 
-            public Task NotifySchedulerListenersError(
+            public ValueTask NotifySchedulerListenersError(
                 string message,
                 SchedulerException jpe,
                 CancellationToken cancellationToken = default)
             {
-                return Task.FromResult(true);
+                return default;
             }
 
-            public Task NotifySchedulerListenersJobDeleted(
+            public ValueTask NotifySchedulerListenersJobDeleted(
                 JobKey jobKey,
                 CancellationToken cancellationToken = default)
             {
-                return Task.FromResult(true);
+                return default;
             }
         }
     }

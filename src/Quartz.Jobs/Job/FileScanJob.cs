@@ -92,7 +92,7 @@ namespace Quartz.Job
 		/// <param name="context">The execution context.</param>
 		/// <seealso cref="IJob">
 		/// </seealso>
-		public virtual async Task Execute(IJobExecutionContext context)
+		public virtual async ValueTask Execute(IJobExecutionContext context)
 		{
 			JobDataMap mergedJobDataMap = context.MergedJobDataMap;
 			SchedulerContext schedCtxt;

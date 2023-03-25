@@ -36,7 +36,7 @@ namespace Quartz.Web
             scheduler.AddCalendar(typeof (MonthlyCalendar).Name, new MonthlyCalendar(), false, false, cancellationToken);
             scheduler.AddCalendar(typeof (WeeklyCalendar).Name, new WeeklyCalendar(), false, false, cancellationToken);
 
-            return Task.CompletedTask;
+            return default;
         }
 
         public Task Start(CancellationToken cancellationToken)

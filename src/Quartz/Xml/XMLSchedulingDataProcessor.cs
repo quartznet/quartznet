@@ -939,7 +939,7 @@ namespace Quartz.Xml
                 trigger.Key);
         }
 
-        private Task DoRescheduleJob(
+        private ValueTask<DateTimeOffset?> DoRescheduleJob(
             IScheduler sched,
             IMutableTrigger trigger,
             ITrigger? oldTrigger,

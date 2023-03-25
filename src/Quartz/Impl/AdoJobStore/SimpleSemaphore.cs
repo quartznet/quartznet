@@ -51,7 +51,7 @@ namespace Quartz.Impl.AdoJobStore
         /// until it is available).
         /// </summary>
         /// <returns>True if the lock was obtained.</returns>
-        public virtual async Task<bool> ObtainLock(
+        public virtual async ValueTask<bool> ObtainLock(
             Guid requestorId,
             ConnectionAndTransactionHolder? conn,
             string lockName,
@@ -103,7 +103,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary> Release the lock on the identified resource if it is held by the calling
         /// thread.
         /// </summary>
-        public virtual Task ReleaseLock(
+        public virtual ValueTask ReleaseLock(
             Guid requestorId,
             string lockName,
             CancellationToken cancellationToken = default)
@@ -124,7 +124,7 @@ namespace Quartz.Impl.AdoJobStore
                 logger.LogWarning("stack-trace of wrongful returner: {Stacktrace}",Environment.StackTrace);
             }
 
-            return Task.CompletedTask;
+            return default;
         }
 
         /// <summary>

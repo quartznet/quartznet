@@ -18,17 +18,17 @@ namespace Quartz.Tests.Unit
         [PersistJobDataAfterExecution]
         public class TestStatefulJob : IJob
         {
-            public Task Execute(IJobExecutionContext context)
+            public ValueTask Execute(IJobExecutionContext context)
             {
-                return Task.CompletedTask;
+                return default;
             }
         }
 
         public class TestJob : IJob
         {
-            public Task Execute(IJobExecutionContext context)
+            public ValueTask Execute(IJobExecutionContext context)
             {
-                return Task.CompletedTask;
+                return default;
             }
         }
 
@@ -48,7 +48,7 @@ namespace Quartz.Tests.Unit
                     };
             }
 
-            public Task Execute(IJobExecutionContext context)
+            public ValueTask Execute(IJobExecutionContext context)
             {
                 if (!context.JobDetail.JobDataMap.TryGetValue(ExecutingWaitHandleKey, out var executing))
                 {
@@ -68,7 +68,7 @@ namespace Quartz.Tests.Unit
                 var signalCompleted = (ManualResetEvent) completed;
                 signalCompleted.Set();
 
-                return Task.CompletedTask;
+                return default;
             }
         }
 
@@ -76,9 +76,9 @@ namespace Quartz.Tests.Unit
         [PersistJobDataAfterExecution]
         public class TestAnnotatedJob : IJob
         {
-            public Task Execute(IJobExecutionContext context)
+            public ValueTask Execute(IJobExecutionContext context)
             {
-                return Task.CompletedTask;
+                return default;
             }
         }
 

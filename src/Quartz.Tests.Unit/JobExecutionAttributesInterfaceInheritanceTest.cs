@@ -1,4 +1,4 @@
-﻿using NUnit.Framework;
+using NUnit.Framework;
 using Quartz.Impl;
 using Quartz.Listener;
 
@@ -29,7 +29,7 @@ namespace Quartz.Tests.Unit
 
         public class TestJob : ITestJob
         {
-            public async Task Execute(IJobExecutionContext context)
+            public async ValueTask Execute(IJobExecutionContext context)
             {
                 jobExecDates.Add(DateTime.UtcNow);
 
@@ -49,7 +49,7 @@ namespace Quartz.Tests.Unit
 
             public override string Name => "TestJobListener";
 
-            public override Task JobWasExecuted(
+            public override ValueTask JobWasExecuted(
                 IJobExecutionContext context,
                 JobExecutionException jobException,
                 CancellationToken cancellationToken = default)
@@ -66,7 +66,7 @@ namespace Quartz.Tests.Unit
                         throw new AssertionException("Await on barrier was interrupted: " + e);
                     }
                 }
-                return Task.FromResult(true);
+                return default;
             }
         }
 

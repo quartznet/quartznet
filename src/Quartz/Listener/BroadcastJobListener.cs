@@ -100,28 +100,28 @@ namespace Quartz.Listener
 
         public IReadOnlyList<IJobListener> Listeners => listeners;
 
-        public Task JobToBeExecuted(
+        public ValueTask JobToBeExecuted(
             IJobExecutionContext context,
             CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.JobToBeExecuted(context, cancellationToken), nameof(JobToBeExecuted));
         }
 
-        public Task JobExecutionVetoed(
+        public ValueTask JobExecutionVetoed(
             IJobExecutionContext context,
             CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.JobExecutionVetoed(context, cancellationToken), nameof(JobExecutionVetoed));
         }
 
-        public Task JobWasExecuted(IJobExecutionContext context,
+        public ValueTask JobWasExecuted(IJobExecutionContext context,
             JobExecutionException? jobException,
             CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.JobWasExecuted(context, jobException, cancellationToken), nameof(JobWasExecuted));
         }
 
-        private async Task IterateListenersInGuard(Func<IJobListener, Task> action, string methodName)
+        private async ValueTask IterateListenersInGuard(Func<IJobListener, ValueTask> action, string methodName)
         {
             foreach (var listener in listeners)
             {

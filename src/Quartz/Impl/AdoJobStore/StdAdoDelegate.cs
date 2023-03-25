@@ -157,7 +157,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <remarks>
         /// </remarks>
-        public virtual async Task ClearData(
+        public virtual async ValueTask ClearData(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default)
         {
@@ -187,7 +187,7 @@ namespace Quartz.Impl.AdoJobStore
             await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
             ps = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteFiredTriggers));
             AddCommandParameter(ps, "schedulerName", schedName);
-            ps.ExecuteNonQuery();
+            await ps.ExecuteNonQueryAsync(cancellationToken);
         }
 
         //---------------------------------------------------------------------------
@@ -278,17 +278,17 @@ namespace Quartz.Impl.AdoJobStore
             return null;
         }
 
-        private Task<IDictionary?> ReadMapFromReader(DbDataReader rs, int colIndex)
+        private ValueTask<IDictionary?> ReadMapFromReader(DbDataReader rs, int colIndex)
         {
             var isDbNullTask = rs.IsDBNullAsync(colIndex);
             if (isDbNullTask.IsCompleted && isDbNullTask.Result)
             {
-                return Task.FromResult<IDictionary?>(null);
+                return new ValueTask<IDictionary?>((IDictionary?)null);
             }
 
             return Awaited(isDbNullTask);
 
-            async Task<IDictionary?> Awaited(Task<bool> isDbNull)
+            async ValueTask<IDictionary?> Awaited(Task<bool> isDbNull)
             {
                 if (await isDbNull.ConfigureAwait(false))
                 {
@@ -342,7 +342,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Build dictionary from serialized NameValueCollection.
         /// </summary>
-        private async Task<IDictionary?> GetMapFromProperties(DbDataReader rs, int idx)
+        private async ValueTask<IDictionary?> GetMapFromProperties(DbDataReader rs, int idx)
         {
             NameValueCollection? properties = await GetJobDataFromBlob<NameValueCollection>(rs, idx).ConfigureAwait(false);
             if (properties == null)
@@ -360,7 +360,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="matcher"></param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>An array of <see cref="String" /> job names.</returns>
-        public virtual async Task<IReadOnlyCollection<JobKey>> SelectJobsInGroup(
+        public virtual async ValueTask<IReadOnlyCollection<JobKey>> SelectJobsInGroup(
             ConnectionAndTransactionHolder conn,
             GroupMatcher<JobKey> matcher,
             CancellationToken cancellationToken = default)
@@ -563,7 +563,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="colIndex">The column index for the BLOB.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The deserialized object from the DataReader BLOB.</returns>
-        protected virtual async Task<T?> GetObjectFromBlob<T>(
+        protected virtual async ValueTask<T?> GetObjectFromBlob<T>(
             DbDataReader rs,
             int colIndex,
             CancellationToken cancellationToken = default) where T : class
@@ -578,7 +578,7 @@ namespace Quartz.Impl.AdoJobStore
             return obj;
         }
 
-        protected virtual async Task<byte[]?> ReadBytesFromBlob(
+        protected virtual async ValueTask<byte[]?> ReadBytesFromBlob(
             IDataReader dr,
             int colIndex,
             CancellationToken cancellationToken)
@@ -615,7 +615,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Validates the persistence schema and returns the number of validates objects.
         /// </summary>
-        public virtual async Task<int> ValidateSchema(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken)
+        public virtual async ValueTask<int> ValidateSchema(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken)
         {
             foreach (var tableName in AllTableNames)
             {

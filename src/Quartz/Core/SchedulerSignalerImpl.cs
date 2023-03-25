@@ -50,7 +50,7 @@ namespace Quartz.Core
         /// </summary>
         /// <param name="trigger">The trigger that misfired.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        public virtual async Task NotifyTriggerListenersMisfired(
+        public virtual async ValueTask NotifyTriggerListenersMisfired(
             ITrigger trigger,
             CancellationToken cancellationToken = default)
         {
@@ -71,7 +71,7 @@ namespace Quartz.Core
         /// </summary>
         /// <param name="trigger">The trigger that has finalized.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        public Task NotifySchedulerListenersFinalized(
+        public ValueTask NotifySchedulerListenersFinalized(
             ITrigger trigger,
             CancellationToken cancellationToken = default)
         {
@@ -88,14 +88,14 @@ namespace Quartz.Core
             schedThread.SignalSchedulingChange(candidateNewNextFireTime);
         }
 
-        public Task NotifySchedulerListenersJobDeleted(
+        public ValueTask NotifySchedulerListenersJobDeleted(
             JobKey jobKey,
             CancellationToken cancellationToken = default)
         {
             return sched.NotifySchedulerListenersJobDeleted(jobKey, cancellationToken);
         }
 
-        public Task NotifySchedulerListenersError(
+        public ValueTask NotifySchedulerListenersError(
             string message,
             SchedulerException jpe,
             CancellationToken cancellationToken = default)

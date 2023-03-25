@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 
 using Quartz.Logging;
 using Quartz.Util;
@@ -83,7 +83,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        private async Task<RecoverMisfiredJobsResult> Manage()
+        private async ValueTask<RecoverMisfiredJobsResult> Manage()
         {
             try
             {

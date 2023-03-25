@@ -1,4 +1,4 @@
-﻿/*
+/*
 * Copyright 2004-2009 James House
 *
 * Licensed under the Apache License, Version 2.0 (the "License"); you may not
@@ -39,14 +39,14 @@ namespace Quartz.Impl.AdoJobStore
             return SqlSelectNextTriggerToAcquire + " LIMIT " + maxCount;
         }
 
-        protected override Task<byte[]?> ReadBytesFromBlob(IDataReader dr, int colIndex, CancellationToken cancellationToken)
+        protected override ValueTask<byte[]?> ReadBytesFromBlob(IDataReader dr, int colIndex, CancellationToken cancellationToken)
         {
 #if NETSTANDARD2_0
             if (dr.GetType().Namespace == "Microsoft.Data.Sqlite")
             {
                 if (dr.IsDBNull(colIndex))
                 {
-                    return Task.FromResult<byte[]?>(null);
+                    return new ValueTask<byte[]?>((byte[]?)null);
                 }
 
                 // workaround for GetBytes not being implemented
@@ -58,7 +58,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 var value = getFieldValueMethod.Invoke(dr, new object[] {colIndex});
                 var byteArray = (byte[]?) value;
-                return Task.FromResult(byteArray);
+                return new ValueTask<byte[]?>(byteArray);
             }
 #endif
             return base.ReadBytesFromBlob(dr, colIndex, cancellationToken);

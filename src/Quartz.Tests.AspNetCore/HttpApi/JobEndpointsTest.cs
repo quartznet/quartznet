@@ -1,4 +1,4 @@
-﻿using FakeItEasy;
+using FakeItEasy;
 
 using FluentAssertions;
 
@@ -264,7 +264,7 @@ public class JobEndpointsTest : WebApiTest
             .OfType("Quartz.Tests.AspNetCore.Support.DummyJob2, Quartz.Tests.AspNetCore")
             .Build();
 
-        Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.AddJob(jobDetailsForUnknownJob, replace: false))!
+        Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.AddJob(jobDetailsForUnknownJob, replace: false).AsTask())!
             .Message.Should().ContainEquivalentOf("unknown job type");
     }
 

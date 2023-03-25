@@ -60,7 +60,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="oldState2">The second old state to update</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>Number of rows updated</returns>
-        Task<int> UpdateTriggerStatesFromOtherStates(
+        ValueTask<int> UpdateTriggerStatesFromOtherStates(
             ConnectionAndTransactionHolder conn, 
             string newState, 
             string oldState1, 
@@ -72,7 +72,7 @@ namespace Quartz.Impl.AdoJobStore
         /// the given timestamp.
         /// </summary>
         /// <returns>An array of <see cref="TriggerKey" /> objects</returns>
-        Task<IReadOnlyCollection<TriggerKey>> SelectMisfiredTriggers(
+        ValueTask<IReadOnlyCollection<TriggerKey>> SelectMisfiredTriggers(
             ConnectionAndTransactionHolder conn, 
             DateTimeOffset timestamp,
             CancellationToken cancellationToken = default);
@@ -86,7 +86,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="ts">The time stamp.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>An array of <see cref="TriggerKey" /> objects</returns>
-        Task<IReadOnlyCollection<TriggerKey>> HasMisfiredTriggersInState(
+        ValueTask<IReadOnlyCollection<TriggerKey>> HasMisfiredTriggersInState(
             ConnectionAndTransactionHolder conn,
             string state, 
             DateTimeOffset ts,
@@ -102,7 +102,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="ts">The timestamp.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>An array of <see cref="TriggerKey" /> objects</returns>
-        Task<IReadOnlyCollection<TriggerKey>> SelectMisfiredTriggersInGroupInState(
+        ValueTask<IReadOnlyCollection<TriggerKey>> SelectMisfiredTriggersInGroupInState(
             ConnectionAndTransactionHolder conn, 
             string groupName, 
             string state,
@@ -124,7 +124,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>An array of <see cref="ITrigger" /> objects</returns>
-        Task<IReadOnlyCollection<IOperableTrigger>> SelectTriggersForRecoveringJobs(
+        ValueTask<IReadOnlyCollection<IOperableTrigger>> SelectTriggersForRecoveringJobs(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default);
 
@@ -134,7 +134,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The number of rows deleted</returns>
-        Task<int> DeleteFiredTriggers(
+        ValueTask<int> DeleteFiredTriggers(
             ConnectionAndTransactionHolder conn, 
             CancellationToken cancellationToken = default);
 
@@ -145,7 +145,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="instanceId">The instance id.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The number of rows deleted</returns>
-        Task<int> DeleteFiredTriggers(
+        ValueTask<int> DeleteFiredTriggers(
             ConnectionAndTransactionHolder conn, 
             string instanceId,
             CancellationToken cancellationToken = default);
@@ -161,7 +161,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="job">The job to insert.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>Number of rows inserted.</returns>
-        Task<int> InsertJobDetail(
+        ValueTask<int> InsertJobDetail(
             ConnectionAndTransactionHolder conn, 
             IJobDetail job,
             CancellationToken cancellationToken = default);
@@ -173,7 +173,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="job">The job to update.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>Number of rows updated.</returns>
-        Task<int> UpdateJobDetail(
+        ValueTask<int> UpdateJobDetail(
             ConnectionAndTransactionHolder conn, 
             IJobDetail job,
             CancellationToken cancellationToken = default);
@@ -184,7 +184,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection</param>
         /// <param name="jobKey">The key identifying the job.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        Task<IReadOnlyCollection<TriggerKey>> SelectTriggerNamesForJob(
+        ValueTask<IReadOnlyCollection<TriggerKey>> SelectTriggerNamesForJob(
             ConnectionAndTransactionHolder conn, 
             JobKey jobKey,
             CancellationToken cancellationToken = default);
@@ -196,7 +196,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="jobKey">The key identifying the job.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>the number of rows deleted</returns>
-        Task<int> DeleteJobDetail(
+        ValueTask<int> DeleteJobDetail(
             ConnectionAndTransactionHolder conn, 
             JobKey jobKey,
             CancellationToken cancellationToken = default);
@@ -208,7 +208,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="jobKey">The key identifying the job.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>true if the job exists, false otherwise</returns>
-        Task<bool> JobExists(
+        ValueTask<bool> JobExists(
             ConnectionAndTransactionHolder conn, 
             JobKey jobKey,
             CancellationToken cancellationToken = default);
@@ -220,7 +220,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="job">The job.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>the number of rows updated</returns>
-        Task<int> UpdateJobData(
+        ValueTask<int> UpdateJobData(
             ConnectionAndTransactionHolder conn, 
             IJobDetail job,
             CancellationToken cancellationToken = default);
@@ -233,7 +233,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="classLoadHelper">The class load helper.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The populated JobDetail object</returns>
-        Task<IJobDetail?> SelectJobDetail(
+        ValueTask<IJobDetail?> SelectJobDetail(
             ConnectionAndTransactionHolder conn, 
             JobKey jobKey,
             ITypeLoadHelper classLoadHelper,
@@ -245,7 +245,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns> the total number of jobs stored</returns>
-        Task<int> SelectNumJobs(
+        ValueTask<int> SelectNumJobs(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default);
 
@@ -255,7 +255,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns> an array of <see cref="String" /> group names</returns>
-        Task<IReadOnlyCollection<string>> SelectJobGroups(
+        ValueTask<IReadOnlyCollection<string>> SelectJobGroups(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default);
 
@@ -266,7 +266,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="matcher"></param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns> an array of <see cref="String" /> job names</returns>
-        Task<IReadOnlyCollection<JobKey>> SelectJobsInGroup(
+        ValueTask<IReadOnlyCollection<JobKey>> SelectJobsInGroup(
             ConnectionAndTransactionHolder conn, 
             GroupMatcher<JobKey> matcher,
             CancellationToken cancellationToken = default);
@@ -284,7 +284,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="jobDetail">The job detail.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The number of rows inserted</returns>
-        Task<int> InsertTrigger(
+        ValueTask<int> InsertTrigger(
             ConnectionAndTransactionHolder conn, 
             IOperableTrigger trigger, 
             string state, 
@@ -298,7 +298,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="trigger">The trigger to insert</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The number of rows inserted</returns>
-        Task<int> InsertBlobTrigger(
+        ValueTask<int> InsertBlobTrigger(
             ConnectionAndTransactionHolder conn, 
             IOperableTrigger trigger,
             CancellationToken cancellationToken = default);
@@ -312,7 +312,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="jobDetail">The job detail.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>the number of rows updated</returns>
-        Task<int> UpdateTrigger(
+        ValueTask<int> UpdateTrigger(
             ConnectionAndTransactionHolder conn, 
             IOperableTrigger trigger, 
             string state, 
@@ -326,7 +326,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="trigger">The trigger.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>the number of rows updated</returns>
-        Task<int> UpdateBlobTrigger(
+        ValueTask<int> UpdateBlobTrigger(
             ConnectionAndTransactionHolder conn, 
             IOperableTrigger trigger,
             CancellationToken cancellationToken = default);
@@ -338,7 +338,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="triggerKey">The key identifying the trigger.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>the number of rows updated</returns>
-        Task<bool> TriggerExists(
+        ValueTask<bool> TriggerExists(
             ConnectionAndTransactionHolder conn, 
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default);
@@ -351,7 +351,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="state">The new state for the trigger.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns> the number of rows updated</returns>
-        Task<int> UpdateTriggerState(
+        ValueTask<int> UpdateTriggerState(
             ConnectionAndTransactionHolder conn, 
             TriggerKey triggerKey, 
             string state,
@@ -367,7 +367,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="oldState">The old state the trigger must be in</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns> int the number of rows updated</returns>
-        Task<int> UpdateTriggerStateFromOtherState(
+        ValueTask<int> UpdateTriggerStateFromOtherState(
             ConnectionAndTransactionHolder conn, 
             TriggerKey triggerKey, 
             string newState,
@@ -388,7 +388,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns> int the number of rows updated
         /// </returns>
         /// <throws>  SQLException </throws>
-        Task<int> UpdateTriggerStateFromOtherStates(
+        ValueTask<int> UpdateTriggerStateFromOtherStates(
             ConnectionAndTransactionHolder conn, 
             TriggerKey triggerKey, 
             string newState,
@@ -408,7 +408,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="nextFireTime">The next fire time the trigger must have</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns> int the number of rows updated</returns>
-        Task<int> UpdateTriggerStateFromOtherStateWithNextFireTime(
+        ValueTask<int> UpdateTriggerStateFromOtherStateWithNextFireTime(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             string newState,
@@ -428,7 +428,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="oldState3">One of the old state the trigger must be in</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The number of rows updated</returns>
-        Task<int> UpdateTriggerGroupStateFromOtherStates(
+        ValueTask<int> UpdateTriggerGroupStateFromOtherStates(
             ConnectionAndTransactionHolder conn, 
             GroupMatcher<TriggerKey> matcher, 
             string newState, 
@@ -447,7 +447,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="oldState">The old state the triggers must be in.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns> int the number of rows updated</returns>
-        Task<int> UpdateTriggerGroupStateFromOtherState(
+        ValueTask<int> UpdateTriggerGroupStateFromOtherState(
             ConnectionAndTransactionHolder conn, 
             GroupMatcher<TriggerKey> matcher, 
             string newState, 
@@ -462,7 +462,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="state">The new state for the triggers.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The number of rows updated</returns>
-        Task<int> UpdateTriggerStatesForJob(
+        ValueTask<int> UpdateTriggerStatesForJob(
             ConnectionAndTransactionHolder conn, 
             JobKey jobKey,
             string state,
@@ -478,7 +478,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="oldState">The old state of the triggers</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns> the number of rows updated</returns>
-        Task<int> UpdateTriggerStatesForJobFromOtherState(
+        ValueTask<int> UpdateTriggerStatesForJobFromOtherState(
             ConnectionAndTransactionHolder conn, 
             JobKey jobKey, 
             string state, 
@@ -492,7 +492,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="triggerKey">The key identifying the trigger.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The number of rows deleted</returns>
-        Task<int> DeleteBlobTrigger(
+        ValueTask<int> DeleteBlobTrigger(
             ConnectionAndTransactionHolder conn, 
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default);
@@ -504,7 +504,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="triggerKey">The key identifying the trigger.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns> the number of rows deleted </returns>
-        Task<int> DeleteTrigger(
+        ValueTask<int> DeleteTrigger(
             ConnectionAndTransactionHolder conn, 
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default);
@@ -516,7 +516,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="jobKey">The key identifying the job.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns> the number of triggers for the given job </returns>
-        Task<int> SelectNumTriggersForJob(
+        ValueTask<int> SelectNumTriggersForJob(
             ConnectionAndTransactionHolder conn, 
             JobKey jobKey,
             CancellationToken cancellationToken = default);
@@ -524,7 +524,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Select the job to which the trigger is associated.
         /// </summary>
-        Task<IJobDetail?> SelectJobForTrigger(ConnectionAndTransactionHolder conn,
+        ValueTask<IJobDetail?> SelectJobForTrigger(ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             ITypeLoadHelper loadHelper,
             CancellationToken cancellationToken = default);
@@ -533,7 +533,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Select the job to which the trigger is associated. Allow option to load actual job class or not. When case of
         /// remove, we do not need to load the type, which in many cases, it's no longer exists.
         /// </summary>
-        Task<IJobDetail?> SelectJobForTrigger(ConnectionAndTransactionHolder conn,
+        ValueTask<IJobDetail?> SelectJobForTrigger(ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             ITypeLoadHelper loadHelper,
             bool loadJobType,
@@ -546,7 +546,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="jobKey">The key identifying the job.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns> an array of <see cref="ITrigger" /> objects associated with a given job. </returns>
-        Task<IReadOnlyCollection<IOperableTrigger>> SelectTriggersForJob(
+        ValueTask<IReadOnlyCollection<IOperableTrigger>> SelectTriggersForJob(
             ConnectionAndTransactionHolder conn, 
             JobKey jobKey,
             CancellationToken cancellationToken = default);
@@ -560,7 +560,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>
         /// An array of <see cref="ITrigger" /> objects associated with a given job.
         /// </returns>
-        Task<IReadOnlyCollection<IOperableTrigger>> SelectTriggersForCalendar(
+        ValueTask<IReadOnlyCollection<IOperableTrigger>> SelectTriggersForCalendar(
             ConnectionAndTransactionHolder conn, 
             string calName,
             CancellationToken cancellationToken = default);
@@ -573,7 +573,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The <see cref="ITrigger" /> object.
         /// </returns>
-        Task<IOperableTrigger?> SelectTrigger(ConnectionAndTransactionHolder conn,
+        ValueTask<IOperableTrigger?> SelectTrigger(ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default);
 
@@ -584,7 +584,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="triggerKey">The key identifying the trigger.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The <see cref="JobDataMap" /> of the Trigger, never null, but possibly empty.</returns>
-        Task<JobDataMap> SelectTriggerJobDataMap(
+        ValueTask<JobDataMap> SelectTriggerJobDataMap(
             ConnectionAndTransactionHolder conn, 
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default);
@@ -596,7 +596,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="triggerKey">The key identifying the trigger.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The <see cref="ITrigger" /> object.</returns>
-        Task<string> SelectTriggerState(
+        ValueTask<string> SelectTriggerState(
             ConnectionAndTransactionHolder conn, 
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default);
@@ -608,7 +608,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="triggerKey">The key identifying the trigger.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>A <see cref="TriggerStatus" /> object, or null</returns>
-        Task<TriggerStatus?> SelectTriggerStatus(ConnectionAndTransactionHolder conn,
+        ValueTask<TriggerStatus?> SelectTriggerStatus(ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default);
 
@@ -618,7 +618,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The total number of triggers stored.</returns>
-        Task<int> SelectNumTriggers(
+        ValueTask<int> SelectNumTriggers(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default);
 
@@ -628,11 +628,11 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>An array of <see cref="String" /> group names.</returns>
-        Task<IReadOnlyCollection<string>> SelectTriggerGroups(
+        ValueTask<IReadOnlyCollection<string>> SelectTriggerGroups(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default);
 
-        Task<IReadOnlyCollection<string>> SelectTriggerGroups(
+        ValueTask<IReadOnlyCollection<string>> SelectTriggerGroups(
             ConnectionAndTransactionHolder conn, 
             GroupMatcher<TriggerKey> matcher,
             CancellationToken cancellationToken = default);
@@ -644,7 +644,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="matcher"></param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>An array of <see cref="String" /> trigger names.</returns>
-        Task<IReadOnlyCollection<TriggerKey>> SelectTriggersInGroup(
+        ValueTask<IReadOnlyCollection<TriggerKey>> SelectTriggersInGroup(
             ConnectionAndTransactionHolder conn, 
             GroupMatcher<TriggerKey> matcher,
             CancellationToken cancellationToken = default);
@@ -656,7 +656,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="state">The state the triggers must be in.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>An array of trigger <see cref="TriggerKey" />s.</returns>
-        Task<IReadOnlyCollection<TriggerKey>> SelectTriggersInState(
+        ValueTask<IReadOnlyCollection<TriggerKey>> SelectTriggersInState(
             ConnectionAndTransactionHolder conn,
             string state,
             CancellationToken cancellationToken = default);
@@ -668,7 +668,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="groupName">Name of the group.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns></returns>
-        Task<int> InsertPausedTriggerGroup(
+        ValueTask<int> InsertPausedTriggerGroup(
             ConnectionAndTransactionHolder conn, 
             string groupName,
             CancellationToken cancellationToken = default);
@@ -680,12 +680,12 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="groupName">Name of the group.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns></returns>
-        Task<int> DeletePausedTriggerGroup(
+        ValueTask<int> DeletePausedTriggerGroup(
             ConnectionAndTransactionHolder conn,
             string groupName,
             CancellationToken cancellationToken = default);
 
-        Task<int> DeletePausedTriggerGroup(
+        ValueTask<int> DeletePausedTriggerGroup(
             ConnectionAndTransactionHolder conn, 
             GroupMatcher<TriggerKey> matcher,
             CancellationToken cancellationToken = default);
@@ -696,7 +696,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The conn.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns></returns>
-        Task<int> DeleteAllPausedTriggerGroups(
+        ValueTask<int> DeleteAllPausedTriggerGroups(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default);
 
@@ -709,7 +709,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>
         /// 	<c>true</c> if trigger group is paused; otherwise, <c>false</c>.
         /// </returns>
-        Task<bool> IsTriggerGroupPaused(
+        ValueTask<bool> IsTriggerGroupPaused(
             ConnectionAndTransactionHolder conn, 
             string groupName,
             CancellationToken cancellationToken = default);
@@ -720,7 +720,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns></returns>
-        Task<IReadOnlyCollection<string>> SelectPausedTriggerGroups(
+        ValueTask<IReadOnlyCollection<string>> SelectPausedTriggerGroups(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default);
 
@@ -733,7 +733,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>
         /// 	<c>true</c> if trigger group exists; otherwise, <c>false</c>.
         /// </returns>
-        Task<bool> IsExistingTriggerGroup(
+        ValueTask<bool> IsExistingTriggerGroup(
             ConnectionAndTransactionHolder conn, 
             string groupName,
             CancellationToken cancellationToken = default);
@@ -750,7 +750,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="calendar">The calendar.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The number of rows inserted.</returns>
-        Task<int> InsertCalendar(
+        ValueTask<int> InsertCalendar(
             ConnectionAndTransactionHolder conn,
             string calendarName, 
             ICalendar calendar,
@@ -764,7 +764,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="calendar">The calendar.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The number of rows updated.</returns>
-        Task<int> UpdateCalendar(
+        ValueTask<int> UpdateCalendar(
             ConnectionAndTransactionHolder conn,
             string calendarName,
             ICalendar calendar,
@@ -777,7 +777,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="calendarName">The name of the calendar.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>true if the trigger exists, false otherwise.</returns>
-        Task<bool> CalendarExists(
+        ValueTask<bool> CalendarExists(
             ConnectionAndTransactionHolder conn,
             string calendarName,
             CancellationToken cancellationToken = default);
@@ -789,7 +789,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="calendarName">The name of the calendar.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The Calendar.</returns>
-        Task<ICalendar?> SelectCalendar(ConnectionAndTransactionHolder conn,
+        ValueTask<ICalendar?> SelectCalendar(ConnectionAndTransactionHolder conn,
             string calendarName,
             CancellationToken cancellationToken = default);
 
@@ -800,7 +800,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="calendarName">The name of the calendar.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>true if any triggers reference the calendar, false otherwise</returns>
-        Task<bool> CalendarIsReferenced(
+        ValueTask<bool> CalendarIsReferenced(
             ConnectionAndTransactionHolder conn, 
             string calendarName,
             CancellationToken cancellationToken = default);
@@ -812,7 +812,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="calendarName">The name of the trigger.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The number of rows deleted.</returns>
-        Task<int> DeleteCalendar(
+        ValueTask<int> DeleteCalendar(
             ConnectionAndTransactionHolder conn, 
             string calendarName,
             CancellationToken cancellationToken = default);
@@ -823,7 +823,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The total number of calendars stored.</returns>
-        Task<int> SelectNumCalendars(
+        ValueTask<int> SelectNumCalendars(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default);
 
@@ -833,7 +833,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The DB Connection</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>An array of <see cref="String" /> calendar names.</returns>
-        Task<IReadOnlyCollection<string>> SelectCalendars(
+        ValueTask<IReadOnlyCollection<string>> SelectCalendars(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default);
 
@@ -852,7 +852,7 @@ namespace Quartz.Impl.AdoJobStore
         /// trigger that will be fired at the given fire time, or null if no
         /// trigger will be fired at that time
         /// </returns>
-        Task<TriggerKey?> SelectTriggerForFireTime(ConnectionAndTransactionHolder conn,
+        ValueTask<TriggerKey?> SelectTriggerForFireTime(ConnectionAndTransactionHolder conn,
             DateTimeOffset fireTime,
             CancellationToken cancellationToken = default);
 
@@ -865,7 +865,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="jobDetail">The job detail.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The number of rows inserted.</returns>
-        Task<int> InsertFiredTrigger(
+        ValueTask<int> InsertFiredTrigger(
             ConnectionAndTransactionHolder conn, 
             IOperableTrigger trigger, 
             string state, 
@@ -881,7 +881,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="groupName">Name of the group.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>A list of FiredTriggerRecord objects.</returns>
-        Task<IReadOnlyCollection<FiredTriggerRecord>> SelectFiredTriggerRecords(
+        ValueTask<IReadOnlyCollection<FiredTriggerRecord>> SelectFiredTriggerRecords(
             ConnectionAndTransactionHolder conn, 
             string triggerName, 
             string groupName,
@@ -896,7 +896,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="groupName">Name of the group.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>A List of FiredTriggerRecord objects.</returns>
-        Task<IReadOnlyCollection<FiredTriggerRecord>> SelectFiredTriggerRecordsByJob(
+        ValueTask<IReadOnlyCollection<FiredTriggerRecord>> SelectFiredTriggerRecordsByJob(
             ConnectionAndTransactionHolder conn,
             string jobName,
             string groupName,
@@ -910,7 +910,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="instanceName">Name of the instance.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>A list of FiredTriggerRecord objects.</returns>
-        Task<IReadOnlyCollection<FiredTriggerRecord>> SelectInstancesFiredTriggerRecords(
+        ValueTask<IReadOnlyCollection<FiredTriggerRecord>> SelectInstancesFiredTriggerRecords(
             ConnectionAndTransactionHolder conn, 
             string instanceName,
             CancellationToken cancellationToken = default);
@@ -922,7 +922,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="entryId">The fired trigger entry to delete.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The number of rows deleted.</returns>
-        Task<int> DeleteFiredTrigger(
+        ValueTask<int> DeleteFiredTrigger(
             ConnectionAndTransactionHolder conn, 
             string entryId,
             CancellationToken cancellationToken = default);
@@ -936,7 +936,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns>
         /// The number instances of the identified job currently executing.
         /// </returns>
-        Task<int> SelectJobExecutionCount(
+        ValueTask<int> SelectJobExecutionCount(
             ConnectionAndTransactionHolder conn, 
             JobKey jobKey,
             CancellationToken cancellationToken = default);
@@ -950,7 +950,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="interval">The interval.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The number of inserted rows.</returns>
-        Task<int> InsertSchedulerState(
+        ValueTask<int> InsertSchedulerState(
             ConnectionAndTransactionHolder conn, 
             string instanceId, 
             DateTimeOffset checkInTime, 
@@ -964,7 +964,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="instanceId">The instance id.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The number of deleted rows.</returns>
-        Task<int> DeleteSchedulerState(
+        ValueTask<int> DeleteSchedulerState(
             ConnectionAndTransactionHolder conn, 
             string instanceId,
             CancellationToken cancellationToken = default);
@@ -977,7 +977,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="checkInTime">The check in time.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The number of updated rows.</returns>
-        Task<int> UpdateSchedulerState(
+        ValueTask<int> UpdateSchedulerState(
             ConnectionAndTransactionHolder conn,
             string instanceId, 
             DateTimeOffset checkInTime,
@@ -994,7 +994,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="instanceName">The instance id.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns></returns>
-        Task<IReadOnlyCollection<SchedulerStateRecord>> SelectSchedulerStateRecords(
+        ValueTask<IReadOnlyCollection<SchedulerStateRecord>> SelectSchedulerStateRecords(
             ConnectionAndTransactionHolder conn,
             string? instanceName,
             CancellationToken cancellationToken = default);
@@ -1009,7 +1009,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="maxCount">maximum number of trigger keys allow to acquired in the returning list.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>A (never null, possibly empty) list of the identifiers (Key objects) of the next triggers to be fired.</returns>
-        Task<IReadOnlyCollection<TriggerAcquireResult>> SelectTriggerToAcquire(
+        ValueTask<IReadOnlyCollection<TriggerAcquireResult>> SelectTriggerToAcquire(
             ConnectionAndTransactionHolder conn, 
             DateTimeOffset noLaterThan, 
             DateTimeOffset noEarlierThan, 
@@ -1026,7 +1026,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn">The conn.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns></returns>
-        Task<IReadOnlyCollection<string>> SelectFiredTriggerInstanceNames(
+        ValueTask<IReadOnlyCollection<string>> SelectFiredTriggerInstanceNames(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default);
 
@@ -1038,7 +1038,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="ts">The ts.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns></returns>
-        Task<int> CountMisfiredTriggersInState(
+        ValueTask<int> CountMisfiredTriggersInState(
             ConnectionAndTransactionHolder conn,
             string state1,
             DateTimeOffset ts,
@@ -1054,7 +1054,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="resultList">The result list.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns></returns>
-        Task<bool> HasMisfiredTriggersInState(
+        ValueTask<bool> HasMisfiredTriggersInState(
             ConnectionAndTransactionHolder conn,
             string state1, 
             DateTimeOffset ts,
@@ -1062,7 +1062,7 @@ namespace Quartz.Impl.AdoJobStore
             ICollection<TriggerKey> resultList,
             CancellationToken cancellationToken = default);
 
-        Task<int> UpdateFiredTrigger(
+        ValueTask<int> UpdateFiredTrigger(
             ConnectionAndTransactionHolder conn, 
             IOperableTrigger trigger, 
             string state,
@@ -1075,7 +1075,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <param name="conn"></param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        Task ClearData(
+        ValueTask ClearData(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default);
     }

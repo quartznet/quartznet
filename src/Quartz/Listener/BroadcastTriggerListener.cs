@@ -101,7 +101,7 @@ using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
         public IReadOnlyList<ITriggerListener> Listeners => listeners;
 
-        public Task TriggerFired(
+        public ValueTask TriggerFired(
             ITrigger trigger,
             IJobExecutionContext context,
             CancellationToken cancellationToken = default)
@@ -109,7 +109,7 @@ using LogLevel = Microsoft.Extensions.Logging.LogLevel;
             return IterateListenersInGuard(l => l.TriggerFired(trigger, context, cancellationToken), nameof(TriggerFired));
         }
 
-        public async Task<bool> VetoJobExecution(
+        public async ValueTask<bool> VetoJobExecution(
             ITrigger trigger,
             IJobExecutionContext context,
             CancellationToken cancellationToken = default)
@@ -125,12 +125,12 @@ using LogLevel = Microsoft.Extensions.Logging.LogLevel;
             return false;
         }
 
-        public Task TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = default)
+        public ValueTask TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.TriggerMisfired(trigger, cancellationToken), nameof(TriggerMisfired));
         }
 
-        public Task TriggerComplete(
+        public ValueTask TriggerComplete(
             ITrigger trigger,
             IJobExecutionContext context,
             SchedulerInstruction triggerInstructionCode,
@@ -139,7 +139,7 @@ using LogLevel = Microsoft.Extensions.Logging.LogLevel;
             return IterateListenersInGuard(l => l.TriggerComplete(trigger, context, triggerInstructionCode, cancellationToken), nameof(TriggerComplete));
         }
 
-        private async Task IterateListenersInGuard(Func<ITriggerListener, Task> action, string methodName)
+        private async ValueTask IterateListenersInGuard(Func<ITriggerListener, ValueTask> action, string methodName)
         {
             foreach (var listener in listeners)
             {

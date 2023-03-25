@@ -58,7 +58,7 @@ namespace Quartz.Impl.AdoJobStore
             return trigger is SimpleTriggerImpl impl && !impl.HasAdditionalProperties;
         }
 
-        public async Task<int> DeleteExtendedTriggerProperties(
+        public async ValueTask<int> DeleteExtendedTriggerProperties(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
@@ -71,7 +71,7 @@ namespace Quartz.Impl.AdoJobStore
             return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        public async Task<int> InsertExtendedTriggerProperties(
+        public async ValueTask<int> InsertExtendedTriggerProperties(
             ConnectionAndTransactionHolder conn,
             IOperableTrigger trigger,
             string state,
@@ -91,7 +91,7 @@ namespace Quartz.Impl.AdoJobStore
             return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }
 
-        public async Task<TriggerPropertyBundle> LoadExtendedTriggerProperties(
+        public async ValueTask<TriggerPropertyBundle> LoadExtendedTriggerProperties(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
@@ -127,7 +127,7 @@ namespace Quartz.Impl.AdoJobStore
             return new TriggerPropertyBundle(sb, statePropertyNames, statePropertyValues);
         }
 
-        public async Task<int> UpdateExtendedTriggerProperties(
+        public async ValueTask<int> UpdateExtendedTriggerProperties(
             ConnectionAndTransactionHolder conn,
             IOperableTrigger trigger,
             string state,

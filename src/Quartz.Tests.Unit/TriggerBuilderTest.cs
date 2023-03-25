@@ -9,17 +9,17 @@ namespace Quartz.Tests.Unit
         [PersistJobDataAfterExecution]
         public class TestStatefulJob : IJob
         {
-            public Task Execute(IJobExecutionContext context)
+            public ValueTask Execute(IJobExecutionContext context)
             {
-                return Task.CompletedTask;
+                return default;
             }
         }
 
         public class TestJob : IJob
         {
-            public Task Execute(IJobExecutionContext context)
+            public ValueTask Execute(IJobExecutionContext context)
             {
-                return Task.CompletedTask;
+                return default;
             }
         }
 
@@ -27,9 +27,9 @@ namespace Quartz.Tests.Unit
         [PersistJobDataAfterExecution]
         public class TestAnnotatedJob : IJob
         {
-            public Task Execute(IJobExecutionContext context)
+            public ValueTask Execute(IJobExecutionContext context)
             {
-                return Task.CompletedTask;
+                return default;
             }
         }
 

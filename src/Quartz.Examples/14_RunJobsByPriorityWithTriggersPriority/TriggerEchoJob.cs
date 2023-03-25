@@ -42,10 +42,10 @@ namespace Quartz.Examples.Example14
         /// 	<param name="context">The execution context.</param>
         /// </summary>
         /// <param name="context"></param>
-        public Task Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context)
         {
             Console.WriteLine("TRIGGER: " + context.Trigger.Key);
-            return Task.CompletedTask;
+            return default;
         }
     }
 }

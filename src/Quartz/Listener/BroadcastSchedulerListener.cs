@@ -75,112 +75,112 @@ namespace Quartz.Listener
             return listeners;
         }
 
-        public Task JobAdded(IJobDetail jobDetail, CancellationToken cancellationToken = default)
+        public ValueTask JobAdded(IJobDetail jobDetail, CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.JobAdded(jobDetail, cancellationToken), nameof(JobAdded));
         }
 
-        public Task JobDeleted(JobKey jobKey, CancellationToken cancellationToken = default)
+        public ValueTask JobDeleted(JobKey jobKey, CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.JobDeleted(jobKey, cancellationToken), nameof(JobDeleted));
         }
 
-        public Task JobScheduled(ITrigger trigger, CancellationToken cancellationToken = default)
+        public ValueTask JobScheduled(ITrigger trigger, CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.JobScheduled(trigger, cancellationToken), nameof(JobScheduled));
         }
 
-        public Task JobUnscheduled(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        public ValueTask JobUnscheduled(TriggerKey triggerKey, CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.JobUnscheduled(triggerKey, cancellationToken), nameof(JobUnscheduled));
         }
 
-        public Task TriggerFinalized(ITrigger trigger, CancellationToken cancellationToken = default)
+        public ValueTask TriggerFinalized(ITrigger trigger, CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.TriggerFinalized(trigger, cancellationToken), nameof(TriggerFinalized));
         }
 
-        public Task TriggersPaused(string? triggerGroup, CancellationToken cancellationToken = default)
+        public ValueTask TriggersPaused(string? triggerGroup, CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.TriggersPaused(triggerGroup, cancellationToken), nameof(TriggersPaused));
         }
 
-        public Task TriggerPaused(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        public ValueTask TriggerPaused(TriggerKey triggerKey, CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.TriggerPaused(triggerKey, cancellationToken), nameof(TriggerPaused));
         }
 
-        public Task TriggersResumed(string? triggerGroup, CancellationToken cancellationToken = default)
+        public ValueTask TriggersResumed(string? triggerGroup, CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.TriggersResumed(triggerGroup, cancellationToken), nameof(TriggerResumed));
         }
 
-        public Task SchedulingDataCleared(CancellationToken cancellationToken = default)
+        public ValueTask SchedulingDataCleared(CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.SchedulingDataCleared(cancellationToken), nameof(SchedulingDataCleared));
         }
 
-        public Task TriggerResumed(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        public ValueTask TriggerResumed(TriggerKey triggerKey, CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.TriggerResumed(triggerKey, cancellationToken), nameof(TriggerResumed));
         }
 
-        public Task JobInterrupted(JobKey jobKey, CancellationToken cancellationToken = new CancellationToken())
+        public ValueTask JobInterrupted(JobKey jobKey, CancellationToken cancellationToken = new CancellationToken())
         {
             return IterateListenersInGuard(l => l.JobInterrupted(jobKey, cancellationToken), nameof(JobInterrupted));
         }
 
-        public Task JobsPaused(string jobGroup, CancellationToken cancellationToken = default)
+        public ValueTask JobsPaused(string jobGroup, CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.JobsPaused(jobGroup, cancellationToken), nameof(JobsPaused));
         }
 
-        public Task JobPaused(JobKey jobKey, CancellationToken cancellationToken = default)
+        public ValueTask JobPaused(JobKey jobKey, CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.JobPaused(jobKey, cancellationToken), nameof(JobPaused));
         }
 
-        public Task JobsResumed(string jobGroup, CancellationToken cancellationToken = default)
+        public ValueTask JobsResumed(string jobGroup, CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.JobsResumed(jobGroup, cancellationToken), nameof(JobsResumed));
         }
 
-        public Task JobResumed(JobKey jobKey, CancellationToken cancellationToken = default)
+        public ValueTask JobResumed(JobKey jobKey, CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.JobResumed(jobKey, cancellationToken), nameof(JobResumed));
         }
 
-        public Task SchedulerError(string msg, SchedulerException cause, CancellationToken cancellationToken = default)
+        public ValueTask SchedulerError(string msg, SchedulerException cause, CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.SchedulerError(msg, cause, cancellationToken), nameof(SchedulerError));
         }
 
-        public Task SchedulerStarted(CancellationToken cancellationToken = default)
+        public ValueTask SchedulerStarted(CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.SchedulerStarted(cancellationToken), nameof(SchedulerStarted));
         }
 
-        public Task SchedulerStarting(CancellationToken cancellationToken = default)
+        public ValueTask SchedulerStarting(CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.SchedulerStarting(cancellationToken), nameof(SchedulerStarting));
         }
 
-        public Task SchedulerInStandbyMode(CancellationToken cancellationToken = default)
+        public ValueTask SchedulerInStandbyMode(CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.SchedulerInStandbyMode(cancellationToken), nameof(SchedulerInStandbyMode));
         }
 
-        public Task SchedulerShutdown(CancellationToken cancellationToken = default)
+        public ValueTask SchedulerShutdown(CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.SchedulerShutdown(cancellationToken), nameof(SchedulerShutdown));
         }
 
-        public Task SchedulerShuttingdown(CancellationToken cancellationToken = default)
+        public ValueTask SchedulerShuttingdown(CancellationToken cancellationToken = default)
         {
             return IterateListenersInGuard(l => l.SchedulerShuttingdown(cancellationToken), nameof(SchedulerShuttingdown));
         }
         
-        private async Task IterateListenersInGuard(Func<ISchedulerListener, Task> action, string methodName)
+        private async ValueTask IterateListenersInGuard(Func<ISchedulerListener, ValueTask> action, string methodName)
         {
             foreach (var listener in listeners)
             {

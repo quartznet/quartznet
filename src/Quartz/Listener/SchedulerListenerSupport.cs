@@ -31,140 +31,140 @@ namespace Quartz.Listener
     /// <seealso cref="ISchedulerListener" />
     public abstract class SchedulerListenerSupport : ISchedulerListener
     {
-        public virtual Task JobScheduled(
+        public virtual ValueTask JobScheduled(
             ITrigger trigger, 
             CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
-        public virtual Task JobUnscheduled(
+        public virtual ValueTask JobUnscheduled(
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
-        public virtual Task TriggerFinalized(
+        public virtual ValueTask TriggerFinalized(
             ITrigger trigger,
             CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
-        public virtual Task TriggersPaused(
+        public virtual ValueTask TriggersPaused(
             string? triggerGroup,
             CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
-        public virtual Task TriggerPaused(
+        public virtual ValueTask TriggerPaused(
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
-        public virtual Task TriggersResumed(
+        public virtual ValueTask TriggersResumed(
             string? triggerGroup,
             CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
-        public virtual Task TriggerResumed(
+        public virtual ValueTask TriggerResumed(
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
-        public virtual Task JobAdded(
+        public virtual ValueTask JobAdded(
             IJobDetail jobDetail,
             CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
-        public virtual Task JobDeleted(
+        public virtual ValueTask JobDeleted(
             JobKey jobKey,
             CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
-        public virtual Task JobInterrupted(
+        public virtual ValueTask JobInterrupted(
             JobKey jobKey,
             CancellationToken cancellationToken = new CancellationToken())
         {
-            return Task.CompletedTask;
+            return default;
         }
 
-        public virtual Task JobsPaused(
+        public virtual ValueTask JobsPaused(
             string jobGroup,
             CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
-        public virtual Task JobPaused(
+        public virtual ValueTask JobPaused(
             JobKey jobKey,
             CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
-        public virtual Task JobsResumed(
+        public virtual ValueTask JobsResumed(
             string jobGroup,
             CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
-        public virtual Task JobResumed(
+        public virtual ValueTask JobResumed(
             JobKey jobKey,
             CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
-        public virtual Task SchedulerError(
+        public virtual ValueTask SchedulerError(
             string msg, 
             SchedulerException cause,
             CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
-        public virtual Task SchedulerInStandbyMode(CancellationToken cancellationToken = default)
+        public virtual ValueTask SchedulerInStandbyMode(CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
-        public virtual Task SchedulerStarted(CancellationToken cancellationToken = default)
+        public virtual ValueTask SchedulerStarted(CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
-        public virtual Task SchedulerStarting(CancellationToken cancellationToken = default)
+        public virtual ValueTask SchedulerStarting(CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
-        public virtual Task SchedulerShutdown(CancellationToken cancellationToken = default)
+        public virtual ValueTask SchedulerShutdown(CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
-        public virtual Task SchedulerShuttingdown(CancellationToken cancellationToken = default)
+        public virtual ValueTask SchedulerShuttingdown(CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
-        public virtual Task SchedulingDataCleared(CancellationToken cancellationToken = default)
+        public virtual ValueTask SchedulingDataCleared(CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
     }
 }

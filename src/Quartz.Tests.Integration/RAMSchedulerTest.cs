@@ -1,4 +1,4 @@
-﻿namespace Quartz.Tests.Integration
+namespace Quartz.Tests.Integration
 {
     public class RAMSchedulerTest : AbstractSchedulerTest
     {
@@ -6,7 +6,7 @@
         {
         }
 
-        protected override Task<IScheduler> CreateScheduler(string name, int threadPoolSize)
+        protected override ValueTask<IScheduler> CreateScheduler(string name, int threadPoolSize)
         {
             var config = SchedulerBuilder.Create("AUTO", name + "Scheduler");
 

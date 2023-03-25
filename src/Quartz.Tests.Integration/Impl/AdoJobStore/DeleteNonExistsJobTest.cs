@@ -1,4 +1,4 @@
-﻿using System.Data;
+using System.Data;
 using System.Data.Common;
 
 using Microsoft.Extensions.Logging;
@@ -137,10 +137,10 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
         public class TestJob : IJob
         {
-            public Task Execute(IJobExecutionContext context)
+            public ValueTask Execute(IJobExecutionContext context)
             {
                 logger.LogInformation("Job is executing {Context}", context);
-                return Task.CompletedTask;
+                return default;
             }
         }
     }

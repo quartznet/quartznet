@@ -536,20 +536,20 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
         public class BadJob : IJob
         {
-            public Task Execute(IJobExecutionContext context)
+            public ValueTask Execute(IJobExecutionContext context)
             {
-                return Task.CompletedTask;
+                return default;
             }
         }
 
         public class GoodJob : IJob
         {
-            public Task Execute(IJobExecutionContext context)
+            public ValueTask Execute(IJobExecutionContext context)
             {
                 try
                 {
                     ((ManualResetEventSlim) context.Scheduler.Context[KeyResetEvent]).Wait(TimeSpan.FromSeconds(20));
-                    return Task.CompletedTask;
+                    return default;
                 }
                 catch (SchedulerException ex)
                 {
@@ -598,7 +598,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         /// <see cref="ITrigger" /> fires that is associated with
         /// the <see cref="IJob" />.
         /// </summary>
-        public virtual async Task Execute(IJobExecutionContext context)
+        public virtual async ValueTask Execute(IJobExecutionContext context)
         {
             // delay for ten seconds
             await Task.Delay(TimeSpan.FromSeconds(10));

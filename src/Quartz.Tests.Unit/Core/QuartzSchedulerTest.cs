@@ -287,7 +287,7 @@ namespace Quartz.Tests.Unit.Core
         {
             private static TimeSpan _delay = TimeSpan.FromMilliseconds(200);
 
-            public async Task Execute(IJobExecutionContext context)
+            public async ValueTask Execute(IJobExecutionContext context)
             {
                 await Task.Delay(_delay).ConfigureAwait(false);
             }

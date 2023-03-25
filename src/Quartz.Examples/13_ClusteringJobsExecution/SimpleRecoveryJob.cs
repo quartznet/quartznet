@@ -35,7 +35,7 @@ namespace Quartz.Examples.Example13
         /// <see cref="ITrigger" /> fires that is associated with
         /// the <see cref="IJob" />.
         /// </summary>
-        public virtual async Task Execute(IJobExecutionContext context)
+        public virtual async ValueTask Execute(IJobExecutionContext context)
         {
             JobKey jobKey = context.JobDetail.Key;
 

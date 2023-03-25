@@ -119,7 +119,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        private async Task<bool> LockViaUpdate(
+        private async ValueTask<bool> LockViaUpdate(
             Guid requestorId,
             ConnectionAndTransactionHolder conn,
             string lockName,

@@ -1,4 +1,4 @@
-﻿using NUnit.Framework;
+using NUnit.Framework;
 
 using Quartz.Simpl;
 
@@ -25,9 +25,9 @@ namespace Quartz.Tests.Unit.Simpl
 
         public class DisposableJob : IJob, IDisposable
         {
-            public Task Execute(IJobExecutionContext context)
+            public ValueTask Execute(IJobExecutionContext context)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
             public void Dispose()

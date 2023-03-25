@@ -118,11 +118,11 @@ namespace Quartz.Tests.Unit
         [PersistJobDataAfterExecution]
         private class TestJob : IJob
         {
-            public Task Execute(IJobExecutionContext context)
+            public ValueTask Execute(IJobExecutionContext context)
             {
                 result.Append(context.Trigger.Key.Name);
                 countdownEvent.Signal();
-                return Task.CompletedTask;
+                return default;
             }
         }
     }

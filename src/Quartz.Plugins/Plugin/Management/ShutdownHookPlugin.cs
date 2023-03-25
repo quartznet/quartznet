@@ -57,7 +57,7 @@ namespace Quartz.Plugin.Management
         /// Called during creation of the <see cref="IScheduler" /> in order to give
         /// the <see cref="ISchedulerPlugin" /> a chance to Initialize.
         /// </summary>
-        public virtual Task Initialize(
+        public virtual ValueTask Initialize(
             string pluginName,
             IScheduler scheduler,
             CancellationToken cancellationToken = default)
@@ -75,7 +75,7 @@ namespace Quartz.Plugin.Management
                     logger.LogError(e,"Error shutting down Quartz: {ErrorMessage}",e.Message);
                 }
             };
-            return Task.CompletedTask;
+            return default;
         }
 
         /// <summary>
@@ -83,10 +83,10 @@ namespace Quartz.Plugin.Management
         /// to let the plug-in know it can now make calls into the scheduler if it
         /// needs to.
         /// </summary>
-        public virtual Task Start(CancellationToken cancellationToken = default)
+        public virtual ValueTask Start(CancellationToken cancellationToken = default)
         {
             // do nothing.
-            return Task.CompletedTask;
+            return default;
         }
 
         /// <summary>
@@ -94,11 +94,11 @@ namespace Quartz.Plugin.Management
         /// should free up all of it's resources because the scheduler is shutting
         /// down.
         /// </summary>
-        public virtual Task Shutdown(CancellationToken cancellationToken = default)
+        public virtual ValueTask Shutdown(CancellationToken cancellationToken = default)
         {
             // nothing to do in this case (since the scheduler is already shutting
             // down)
-            return Task.CompletedTask;
+            return default;
         }
     }
 }
