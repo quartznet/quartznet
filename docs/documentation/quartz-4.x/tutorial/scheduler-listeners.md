@@ -19,23 +19,23 @@ __The ISchedulerListener Interface__
 ```csharp
 public interface ISchedulerListener
 {
- ValueTask JobScheduled(Trigger trigger);
+ Task JobScheduled(Trigger trigger);
 
- ValueTask JobUnscheduled(string triggerName, string triggerGroup);
+ Task JobUnscheduled(string triggerName, string triggerGroup);
 
- ValueTask TriggerFinalized(Trigger trigger);
+ Task TriggerFinalized(Trigger trigger);
 
- ValueTask TriggersPaused(string triggerName, string triggerGroup);
+ Task TriggersPaused(string triggerName, string triggerGroup);
 
- ValueTask TriggersResumed(string triggerName, string triggerGroup);
+ Task TriggersResumed(string triggerName, string triggerGroup);
 
- ValueTask JobsPaused(string jobName, string jobGroup);
+ Task JobsPaused(string jobName, string jobGroup);
 
- ValueTask JobsResumed(string jobName, string jobGroup);
+ Task JobsResumed(string jobName, string jobGroup);
 
- ValueTask SchedulerError(string msg, SchedulerException cause);
+ Task SchedulerError(string msg, SchedulerException cause);
 
- ValueTask SchedulerShutdown();
+ Task SchedulerShutdown();
 } 
 ```
 

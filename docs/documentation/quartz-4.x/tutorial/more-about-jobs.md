@@ -42,7 +42,7 @@ Now consider the job class __HelloJob__  defined as such:
 ```csharp
 public class HelloJob : IJob
 {
- public async ValueTask Execute(IJobExecutionContext context)
+ public async Task Execute(IJobExecutionContext context)
  {
   await Console.Out.WriteLineAsync("HelloJob is executing.");
  }
@@ -85,7 +85,7 @@ __Getting Values from a JobDataMap__
 ```csharp
 public class DumbJob : IJob
 {
- public async ValueTask Execute(IJobExecutionContext context)
+ public async Task Execute(IJobExecutionContext context)
  {
   JobKey key = context.JobDetail.Key;
 
@@ -124,7 +124,7 @@ Here's a quick example of getting data from the JobExecutionContext's merged Job
 ```csharp
 public class DumbJob : IJob
 {
- public async ValueTask Execute(IJobExecutionContext context)
+ public async Task Execute(IJobExecutionContext context)
  {
   JobKey key = context.JobDetail.Key;
 
@@ -148,7 +148,7 @@ public class DumbJob : IJob
  public string JobSays { private get; set; }
  public float FloatValue { private get; set; }
 
- public async ValueTask Execute(IJobExecutionContext context)
+ public async Task Execute(IJobExecutionContext context)
  {
   JobKey key = context.JobDetail.Key;
 

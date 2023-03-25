@@ -65,7 +65,7 @@ namespace Quartz
 {
     public interface IJob
     {
-        ValueTask Execute(JobExecutionContext context);
+        Task Execute(JobExecutionContext context);
     }
 }
 ```

@@ -11,37 +11,6 @@ If you are a new user starting with the latest version, you don't need to follow
 
 ## Migrating from Version 3.x to 4.x
 
-### Tasks changed to ValueTask
-
-In a majority of interfaces that previously returned or took a `Task` or `Task<T>` parameter, have been changed to a `ValueTask` or `ValueTask<T>`
-
-In most cases, all you will need to do is adjust the signature from a `Task` to be a `ValueTask`
-
-::: info
-Note the following restrictions when working with ValueTask:
-:::
-
-> The following operations should never be performed on a `ValueTask<TResult>` instance:
->
-> * Awaiting the instance multiple times.
-> * Calling AsTask multiple times.
-> * Using `.Result` or `.GetAwaiter().GetResult()` when the operation hasn't yet completed, or using them multiple times.
-> * Using more than one of these techniques to consume the instance.
-
-For example, to migrate jobs:
-
-```csharp
-public async Task Execute(IJobExecutionContext context)
-```
-
-becomes:
-
-```csharp
-public async ValueTask Execute(IJobExecutionContext context)
-```
-
-For more information on `ValueTasks` please see [Microsoft](https://learn.microsoft.com/en-us/dotnet/api/system.threading.tasks.valuetask-1?view=net-7.0)
-
 ### Logging
 
 LibLog has been replaced with the Microsoft.Logging.Abstraction library.

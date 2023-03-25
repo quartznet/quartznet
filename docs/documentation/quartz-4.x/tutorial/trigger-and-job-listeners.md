@@ -21,13 +21,13 @@ public interface ITriggerListener
 {
   string Name { get; }
   
-  ValueTask TriggerFired(ITrigger trigger, IJobExecutionContext context);
+  Task TriggerFired(ITrigger trigger, IJobExecutionContext context);
   
-  ValueTask<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context);
+  Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context);
   
-  ValueTask TriggerMisfired(ITrigger trigger);
+  Task TriggerMisfired(ITrigger trigger);
   
-  ValueTask TriggerComplete(ITrigger trigger, IJobExecutionContext context, int triggerInstructionCode);
+  Task TriggerComplete(ITrigger trigger, IJobExecutionContext context, int triggerInstructionCode);
 }
 ```
 
@@ -40,11 +40,11 @@ public interface IJobListener
 {
  string Name { get; }
 
- ValueTask JobToBeExecuted(IJobExecutionContext context);
+ Task JobToBeExecuted(IJobExecutionContext context);
 
- ValueTask JobExecutionVetoed(IJobExecutionContext context);
+ Task JobExecutionVetoed(IJobExecutionContext context);
 
- ValueTask JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException);
+ Task JobWasExecuted(IJobExecutionContext context, JobExecutionException jobException);
 } 
 ```
 
