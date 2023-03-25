@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -106,7 +106,7 @@ namespace Quartz.Impl.AdoJobStore
                 .WithInterval(interval, intervalUnit)
                 .WithRepeatCount(repeatCount);
 
-            if (!string.IsNullOrEmpty(props.TimeZoneId))
+            if (!string.IsNullOrEmpty(props.TimeZoneId) && props.TimeZoneId != null)
             {
                 scheduleBuilder.InTimeZone(TimeZoneUtil.FindTimeZoneById(props.TimeZoneId));
             }

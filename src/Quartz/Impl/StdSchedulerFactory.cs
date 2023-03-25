@@ -213,7 +213,7 @@ namespace Quartz.Impl
         {
             var props = Util.Configuration.GetSection(ConfigurationSectionName);
             var requestedFile = QuartzEnvironment.GetEnvironmentVariable(PropertiesFile);
-            string propFileName = !string.IsNullOrWhiteSpace(requestedFile) ? requestedFile : "~/quartz.config";
+            string propFileName = (requestedFile != null && !string.IsNullOrWhiteSpace(requestedFile)) ? requestedFile : "~/quartz.config";
 
             // check for specials
             propFileName = FileUtil.ResolveFile(propFileName) ?? "quartz.config";
@@ -582,7 +582,7 @@ Please add configuration to your application config file to correctly initialize
                     var dsConnectionString = pp.GetStringProperty(PropertyDataSourceConnectionString, null);
                     var dsConnectionStringName = pp.GetStringProperty(PropertyDataSourceConnectionStringName, null);
 
-                    if (dsConnectionString == null && !string.IsNullOrEmpty(dsConnectionStringName))
+                    if (dsConnectionString == null && !string.IsNullOrEmpty(dsConnectionStringName) && dsConnectionStringName != null)
                     {
                         var connectionString = GetNamedConnectionString(dsConnectionStringName);
                         if (string.IsNullOrWhiteSpace(connectionString))

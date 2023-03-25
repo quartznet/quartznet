@@ -70,8 +70,6 @@
     <GlobalPackageReference Include="Meziantou.Analyzer" Version="1.0.756"/>
     -->
     <GlobalPackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" />
-    <GlobalPackageReference Include="PolySharp" Version="1.8.1" />
-    <GlobalPackageReference Include="TunnelVisionLabs.ReferenceAssemblyAnnotator" Version="1.0.0-alpha.160" />
-    <PackageDownload Include="Microsoft.NETCore.App.Ref" Version="[5.0.0]" />
+    <GlobalPackageReference Include="PolySharp" Version="1.12.1" />
   </ItemGroup>
 </Project>
