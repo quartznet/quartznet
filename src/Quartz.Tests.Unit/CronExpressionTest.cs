@@ -150,8 +150,100 @@ namespace Quartz.Tests.Unit
             }
         }
 
+
+        [TestCase("0 15 10 ? * 1#0 2010", false)]
+        [TestCase("0 15 10 ? * 1#1 2010", true)]
+        [TestCase("0 15 10 ? * 1#2 2010", true)]
+        [TestCase("0 15 10 ? * 1#3 2010", true)]
+        [TestCase("0 15 10 ? * 1#4 2010", true)]
+        [TestCase("0 15 10 ? * 1#5 2010", true)]
+        [TestCase("0 15 10 ? * 1#6 2010", false)]
+
+        public void Ensure_NthWeek_IsBetween1And5(string expression, bool isValid)
+        {
+            Action act = () => new CronExpression(expression); //10:15am <variable days> October 2010
+            if (isValid)
+            {
+                act.Should().NotThrow();
+            }
+            else
+            {
+                act.Should().Throw<FormatException>();
+            }
+        }
+
+        [TestCase("0 15 10 ? * 0#1 2010", false)]
+        [TestCase("0 15 10 ? * 1#1 2010", true, "2010-01-03T10:15:00")]
+        [TestCase("0 15 10 ? * 2#1 2010", true, "2010-01-04T10:15:00")]
+        [TestCase("0 15 10 ? * 3#1 2010", true, "2010-01-05T10:15:00")]
+        [TestCase("0 15 10 ? * 4#1 2010", true, "2010-01-06T10:15:00")]
+        [TestCase("0 15 10 ? * 5#1 2010", true, "2010-01-07T10:15:00")]
+        [TestCase("0 15 10 ? * 6#1 2010", true, "2010-01-01T10:15:00")]
+        [TestCase("0 15 10 ? * 7#1 2010", true, "2010-01-02T10:15:00")]
+        [TestCase("0 15 10 ? * 8#1 2010", false)]
+        [TestCase("0 15 10 ? * 14#1 2010", false)]
+
+        public void Ensure_NthWeek_Day_IsBetween1And7(string expression, bool isValid, string shouldSatisfyDate = null)
+        {
+            Action act = () => new CronExpression(expression);
+            if (isValid)
+            {
+                act.Should().NotThrow();
+                var exp = new CronExpression(expression);
+                if (!string.IsNullOrEmpty(shouldSatisfyDate))
+                {
+                    var dt = DateTime.Parse(shouldSatisfyDate);
+                    exp.IsSatisfiedBy(new DateTimeOffset(dt)).Should().BeTrue();
+                }
+            }
+            else
+            {
+                act.Should().Throw<FormatException>();
+            }
+        }
+
+        [TestCase("0 15 10 6,15,LW * ? 2010")]
+        [TestCase("0 15 10 6,15,L * ? 2010")]
+        [TestCase("0 15 10 15,L * ? 2010")]
+        [TestCase("0 15 10 15,31 * ? 2010")]
+        [TestCase("0 15 10 15,L-2 * ? 2010")]
+        [TestCase("0 15 10 31,L-2 * ? 2010")]
+        [TestCase("0 15 10 1,3,6,15,L * ? 2010")]
+        public void ExpressionEquality(string expression)
+        {
+            var expr1 = new CronExpression(expression);
+            var expr2 = new CronExpression(expression);
+            expr1.Equals(expr2).Should().BeTrue();
+
+            expr1.Equals((object)expr2).Should().BeTrue();
+        }
+
+        [TestCase("0 15 10 15,L-31 * ? 2010")]
+        public void OffSetValue_CannontBe_GreaterThan30(string expression)
+        {
+            Action act = () => new CronExpression(expression);
+            act.Should().Throw<FormatException>()
+                .WithMessage("Offset from last day must be <= 30");
+        }
+
+        [TestCase("L 15 10 15 * ? 2010", false)]
+        [TestCase("0 L 10 15 * ? 2010", false)]
+        [TestCase("0 15 L 15 * ? 2010", false)]
+        [TestCase("0 15 10 L * ? 2010", true,"Valid for day of month")]
+        [TestCase("0 15 10 15 L ? 2010", false)]
+        [TestCase("0 15 10 ? * L 2010", true, "Valid for day of week")]
+        [TestCase("0 15 10 15 * ? L", false)]
+        public void Ensure_L_Token_CanOnlyBeUsedIn_DayOfWeek_ORDayOfMonth(string expression, bool isValid, string description="")
+        {
+            Action act = () => new CronExpression(expression);
+            if (isValid)
+                act.Should().NotThrow(description);
+            else
+                act.Should().Throw<FormatException>(description);
+        }
+
         [Test]
-        public void CronExpression_Throw_Error_Contructed_With_Null()
+        public void CronExpression_Throw_Error_Constructed_With_Null()
         {
             Action act = () => new CronExpression(null);
             act.Should().Throw<ArgumentException>()
@@ -739,6 +831,7 @@ namespace Quartz.Tests.Unit
             Assert.That(e.Message, Is.EqualTo("'/' must be followed by an integer."));
         }
 
+
         [Test]
         public void TestInvalidCharactersAfterAsterisk()
         {
@@ -798,6 +891,60 @@ namespace Quartz.Tests.Unit
             }
 
             Console.WriteLine("{0}ms", sw.ElapsedMilliseconds);
+        }
+
+        [Test]
+        public void GetTimeBefore_IsNotImplement_AndAlwaysReturnsNull()
+        {
+            CronExpression expression = new CronExpression("0 15 15 5 11 ?");
+            var sut = expression.GetTimeBefore(new DateTimeOffset(2010, 12, 1, 1, 1, 1, TimeSpan.Zero));
+            sut.Should().Be(null);
+        }
+
+        [Test]
+        public void GetFinalFireTime_IsNotImplement_AndAlwaysReturnsNull()
+        {
+            CronExpression expression = new CronExpression("0 15 15 5 11 ?");
+            var sut = expression.GetFinalFireTime();
+            sut.Should().Be(null);
+        }
+
+        [Test]
+        public void CanGetNextInvalidTime()
+        {
+            CronExpression expression = new CronExpression("0 15 15 5 11 ?");
+            var sut = expression.GetNextInvalidTimeAfter(new DateTimeOffset(2010, 12, 1, 1, 1, 0, 0, TimeSpan.Zero));
+            sut.Should().NotBeNull();
+        }
+
+        [Test]
+        public void CanGetHashCode()
+        {
+            CronExpression expression = new CronExpression("0 15 15 5 11 ?");
+            CronExpression expression2 = new CronExpression("0 15 15 5 11 ?");
+            expression.GetHashCode().Should().Be(expression2.GetHashCode());
+        }
+
+        [Test]
+        public void CanGetExpressionSummary()
+        {
+            CronExpression expression = new CronExpression("0 15 15 5 11 ?");
+            var sut = expression.GetExpressionSummary();
+            sut.Should().Be(
+                @"seconds: 0
+minutes: 15
+hours: 15
+daysOfMonth: 5
+months: 11
+daysOfWeek: ?
+lastdayOfWeek: False
+nearestWeekday: False
+NthDayOfWeek: 0
+lastdayOfMonth: False
+calendardayOfWeek: False
+calendardayOfMonth: False
+years: *
+");
         }
     }
 }
