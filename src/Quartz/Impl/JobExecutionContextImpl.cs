@@ -207,7 +207,18 @@ namespace Quartz.Impl
         /// interfaces.
         /// </para>
         /// </summary>
-        public virtual IJob JobInstance => (jobInstance as IJobWrapper)?.Target ?? jobInstance;
+        public virtual IJob JobInstance => jobInstance;
+
+        /// <summary>
+        /// Get the instance of the <see cref="IJob" /> that was created for this
+        /// execution.  If the job is wrapped in an IJobWrapper this will unwrap that
+        /// job and return the original job
+        /// <para>
+        /// Note: The Job instance is not available through remote scheduler
+        /// interfaces.
+        /// </para>
+        /// </summary>
+        public virtual IJob JobInstanceUnwrapped => (jobInstance as IJobWrapper)?.Target ?? jobInstance;
 
         /// <summary>
         /// The actual time the trigger fired. For instance the scheduled time may
