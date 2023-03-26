@@ -3,6 +3,8 @@
 title: 'Scheduler Listeners'
 ---
 
+# Scheduler Listeners
+
 SchedulerListeners are much like `ITriggerListener`s and `IJobListener`s, except they receive notification of
 events within the scheduler itself - not necessarily events related to a specific trigger or job.
 

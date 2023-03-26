@@ -14,7 +14,7 @@ If you only need the generic host, [generic host integration](hosted-services-in
 
 You need to add NuGet package reference to your project which uses Quartz.
 
-```
+```shell
 Install-Package Quartz.AspNetCore
 ```
 

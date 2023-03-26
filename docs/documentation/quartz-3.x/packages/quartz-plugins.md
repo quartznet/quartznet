@@ -9,7 +9,7 @@ title : Plugins
 
 You need to add NuGet package reference to your project which uses Quartz.
 
-```
+```shell
 Install-Package Quartz.Plugins
 ```
 

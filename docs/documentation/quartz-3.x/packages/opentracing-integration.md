@@ -20,7 +20,7 @@ The integration library can still live a bit and thus integration API can have b
 
 You need to add NuGet package reference to your project which uses Quartz.
 
-```
+```shell
 Install-Package Quartz.OpenTracing
 ```
 

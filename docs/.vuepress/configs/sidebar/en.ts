@@ -67,6 +67,7 @@ export const sidebarEn: SidebarConfig = [
           "/documentation/quartz-3.x/packages/timezoneconverter-integration",
         ],
       },
+      "/documentation/quartz-3.x/packages/quartz-3rd-party-plugins",
     ],
   },
   {
@@ -102,6 +103,40 @@ export const sidebarEn: SidebarConfig = [
           {
             link: "http://quartznet.sourceforge.net/apidoc/2.0/html",
             text: "API Documentation",
+          },
+          {
+            text: "How To's",
+            children: [
+              "/documentation/quartz-4.x/how-tos/one-off-job",
+              "/documentation/quartz-4.x/how-tos/multiple-triggers",
+              "/documentation/quartz-4.x/how-tos/job-template",
+              "/documentation/quartz-4.x/how-tos/crontrigger",
+            ],
+          },
+          {
+            text: "Packages",
+            children: [
+              {
+                text: "Quartz Core Additions",
+                children: [
+                  "/documentation/quartz-4.x/packages/quartz-jobs",
+                  "/documentation/quartz-4.x/packages/json-serialization",
+                  "/documentation/quartz-4.x/packages/quartz-plugins",
+                ],
+              },
+              {
+                text: "Integrations",
+                children: [
+                  "/documentation/quartz-4.x/packages/aspnet-core-integration",
+                  "/documentation/quartz-4.x/packages/hosted-services-integration",
+                  "/documentation/quartz-4.x/packages/microsoft-di-integration",
+                  "/documentation/quartz-4.x/packages/opentelemetry-integration",
+                  "/documentation/quartz-4.x/packages/opentracing-integration",
+                  "/documentation/quartz-4.x/packages/timezoneconverter-integration",
+                ],
+              },
+              "/documentation/quartz-4.x/packages/quartz-3rd-party-plugins",
+            ],
           },
         ],
       },

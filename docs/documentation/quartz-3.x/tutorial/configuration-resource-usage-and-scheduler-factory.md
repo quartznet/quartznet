@@ -52,13 +52,13 @@ As of Quartz.NET 3.1, you can configure [Microsoft.Extensions.Logging.Abstractio
 
 ### LibLog
 
-Quartz.NET uses <a href="https://github.com/damianh/LibLog">LibLog library</a> for all of its logging needs.
+Quartz.NET uses [LibLog](https://github.com/damianh/LibLog) library for all of its logging needs.
 Quartz does not produce much logging information - generally just some information during initialization, and
 then only messages about serious problems while Jobs are executing. In order to "tune" the logging settings
 (such as the amount of output, and where the output goes), you need to actually configure your logging framework of choice as LibLog mostly delegates the work to
-more full-fledged logging framework like log4net, serilog etc.
+more full-fledged logging framework like log4net, SeriLog etc.
 
-Please see <a href="https://github.com/damianh/LibLog/wiki">LibLog Wiki</a> for more information.
+Please see [LibLog Wiki](https://github.com/damianh/LibLog/wiki) for more information.
 
 ### Microsoft.Extensions.Logging.Abstractions
 

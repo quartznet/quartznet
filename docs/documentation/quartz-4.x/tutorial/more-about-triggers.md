@@ -3,6 +3,8 @@
 title: 'More About Triggers'
 ---
 
+# More About Triggers
+
 Like jobs, triggers are relatively easy to work with, but do contain a variety of customizable options that you need to
 be aware of and understand before you can make full use of Quartz.NET. Also, as noted earlier, there are different types of triggers,
 that you can select to meet different scheduling needs.
@@ -32,7 +34,7 @@ Sometimes, when you have many Triggers (or few worker threads in your Quartz.NET
 of the Triggers that are scheduled to fire at the same time. In this case, you may want to control which of your Triggers get first crack at the available Quartz.NET worker threads.
 For this purpose, you can set the priority property on a Trigger. If N Triggers are to fire at the same time, but there are only Z worker threads currently available,
 then the first Z Triggers with the highest priority will be executed first. If you do not set a priority on a Trigger, then it will use the default priority of 5.
-Any integer value is allowed for priority, positive or negative.
+Any integer value is allowed for priority, positive or negative.  A larger number indicates a higher priority.  i.e. A trigger with a Priority of 7 will have priority over trigger with a value of 5.
 
 ::: tip
 Priorities are only compared when triggers have the same fire time. A trigger scheduled to fire at 10:59 will always fire before one scheduled to fire at 11:00.
@@ -77,13 +79,13 @@ namespace Quartz
   ICalendar Clone();
  }
 } 
+```
 
-
-Even though calendars can 'block out' sections of time as narrow as a millisecond, most likely, you'll be interested in 
+Even though calendars can 'block out' sections of time as narrow as a millisecond, most likely, you'll be interested in
 'blocking-out' entire days. As a convenience, Quartz.NET includes the class HolidayCalendar, which does just that.
 
-Calendars must be instantiated and registered with the scheduler via the `AddCalendar(..)` method. If you use `HolidayCalendar`, 
-after instantiating it, you should use its `AddExcludedDate(DateTime date)` method in order to populate it with the days you wish 
+Calendars must be instantiated and registered with the scheduler via the `AddCalendar(..)` method. If you use `HolidayCalendar`,
+after instantiating it, you should use its `AddExcludedDate(DateTime date)` method in order to populate it with the days you wish
 to have excluded from scheduling. The same calendar instance can be used with multiple triggers such as this:
 
 __Calendar Example__

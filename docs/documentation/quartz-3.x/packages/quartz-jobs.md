@@ -9,7 +9,7 @@ title : Jobs
 
 You need to add NuGet package reference to your project which uses Quartz.
 
-```
+```shell
 Install-Package Quartz.Jobs
 ```
 
@@ -29,7 +29,7 @@ If one or more files have been updated (or created), the job invokes a "call-bac
 
 Built in job for executing native executables in a separate process.
 
-**Example***
+**Example**
 
 ```csharp
 var job = new JobDetail("dumbJob", null, typeof(Quartz.Jobs.NativeJob));
