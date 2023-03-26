@@ -63,18 +63,20 @@ You can also implement the InstanceIdGenerator interface your self.
 ### `quartz.scheduler.threadName`
 
 Can be any string that is a valid name for the main scheduler thread.
-If this property is not specified, the thread will receive the scheduler’s name ("quartz.scheduler.instanceName") plus an the appended string '_QuartzSchedulerThread'.
+If this property is not specified,
+the thread will receive the scheduler’s name ("quartz.scheduler.instanceName") plus an the appended string '_QuartzSchedulerThread'.
 
 ### `quartz.scheduler.makeSchedulerThreadDaemon`
 
 A boolean value ('true' or 'false') that specifies whether the main thread of the scheduler should be a daemon thread or not.
-See also the `quartz.scheduler.makeSchedulerThreadDaemon` property for tuning the `DefaultThreadPool` if that is the thread pool implementation you are using (which is most likely the case).
+See also the `quartz.scheduler.makeSchedulerThreadDaemon` property for tuning the `DefaultThreadPool` if that is the thread pool implementation you are using.
+(which is most likely the case).
 
 ### `quartz.scheduler.idleWaitTime`
 
 Is the amount of time in milliseconds that the scheduler will wait before re-queries for available triggers when the scheduler is otherwise idle.
 Normally you should not have to 'tune' this parameter, unless you’re using XA transactions, and are having problems with delayed firings of triggers that should fire immediately.
-Values less than 5000 ms are not recommended as it will cause excessive database querying. Values less than 1000 are not legal.
+Values less than 5000ms are not recommended as it will cause excessive database querying. Values less than 1000 are not legal.
 
 ### `quartz.scheduler.typeLoadHelper.type`
 
@@ -135,7 +137,7 @@ If you use your own implementation of a thread pool, you can have properties set
 
 **Setting Properties on a Custom ThreadPool**
 
-```
+```text
 quartz.threadPool.type = MyLibrary.FooThreadPool, MyLibrary
 quartz.threadPool.somePropOfFooThreadPool = someValue
 ```
@@ -152,7 +154,7 @@ Thus, the general pattern for defining a "global" TriggerListener is:
 
 **Configuring a Global TriggerListener**
 
-```
+```text
 quartz.triggerListener.NAME.type = MyLibrary.MyListenerType, MyLibrary
 quartz.triggerListener.NAME.propName = propValue
 quartz.triggerListener.NAME.prop2Name = prop2Value
@@ -162,7 +164,7 @@ And the general pattern for defining a "global" JobListener is:
 
 **Configuring a Global JobListener**
 
-```
+```text
 quartz.jobListener.NAME.type = MyLibrary.MyListenerType, MyLibrary
 quartz.jobListener.NAME.propName = propValue
 quartz.jobListener.NAME.prop2Name = prop2Value
@@ -170,13 +172,15 @@ quartz.jobListener.NAME.prop2Name = prop2Value
 
 ## Plug-Ins
 
-Like listeners configuring plugins through the configuration file consists of giving then a name, and then specifying the type name, and any other properties to be set on the instance. The type must have a no-arg constructor, and the properties are set reflectively. Only primitive data type values (including Strings) are supported.
+Like listeners configuring plugins through the configuration file consists of giving then a name, and then specifying the type name, and any other properties to be set on the instance.
+The type must have a no-arg constructor, and the properties are set reflectively.
+Only primitive data type values (including Strings) are supported.
 
 Thus, the general pattern for defining a plug-in is:
 
 **Configuring a Plugin**
 
-```
+```text
 quartz.plugin.NAME.type = MyLibrary.MyPluginType, MyLibrary
 quartz.plugin.NAME.propName = propValue
 quartz.plugin.NAME.prop2Name = prop2Value
@@ -191,7 +195,7 @@ The logging trigger history plugin catches trigger events (it is also a trigger 
 
 **Sample configuration of Logging Trigger History Plugin**
 
-```
+```text
 quartz.plugin.triggHistory.type = Quartz.Plugin.History.LoggingTriggerHistoryPlugin, Quartz.Plugins
 quartz.plugin.triggHistory.triggerFiredMessage = Trigger {1}.{0} fired job {6}.{5} at: {4:HH:mm:ss MM/dd/yyyy}
 quartz.plugin.triggHistory.triggerCompleteMessage = Trigger {1}.{0} completed firing job {6}.{5} at {4:HH:mm:ss MM/dd/yyyy} with resulting trigger instruction code: {9}
@@ -203,7 +207,7 @@ Job initialization plugin reads a set of jobs and triggers from an XML file, and
 
 **Sample configuration of JobInitializationPlugin**
 
-```
+```text
 quartz.plugin.jobInitializer.type = Quartz.Plugin.Xml.XMLSchedulingDataProcessorPlugin, Quartz.Plugins
 quartz.plugin.jobInitializer.fileNames = data/my_job_data.xml
 quartz.plugin.jobInitializer.failOnFileNotFound = true
@@ -217,7 +221,7 @@ The shutdown-hook plugin catches the event of the CLR terminating, and calls shu
 
 **Sample configuration of ShutdownHookPlugin**
 
-```
+```text
 quartz.plugin.shutdownhook.type = Quartz.Plugin.Management.ShutdownHookPlugin, Quartz.Plugins
 quartz.plugin.shutdownhook.cleanShutdown = true
 ```
@@ -229,7 +233,7 @@ Plugin defaults to signaling interrupt after 5 minutes, but the default van be c
 
 **Sample configuration of JobInterruptMonitorPlugin**
 
-```
+```text
 quartz.plugin.jobAutoInterrupt.type = Quartz.Plugin.Interrupt.JobInterruptMonitorPlugin, Quartz.Plugins
 quartz.plugin.jobAutoInterrupt.defaultMaxRunTime = 3000000
 ```
@@ -280,7 +284,7 @@ The low deserialization level for .NET Framework remoting. It supports types ass
 
 **Full**
 
- The full deserialization level for .NET Framework remoting. It supports all types that remoting supports in all situations
+The full deserialization level for .NET Framework remoting. It supports all types that remoting supports in all situations
 
 ### `quartz.scheduler.exporter.rejectRemoteRequests`
 
@@ -294,7 +298,7 @@ RAMJobStore is selected by setting the `quartz.jobStore.type` property as such:
 
 **Setting The Scheduler’s JobStore to RAMJobStore**
 
-```
+```text
 quartz.jobStore.type = Quartz.Simpl.RAMJobStore, Quartz
 ```
 
@@ -311,7 +315,7 @@ The number of milliseconds the scheduler will 'tolerate' a trigger to pass its n
 ## JobStoreTX (ADO.NET)
 
 AdoJobStore is used to store scheduling information (job, triggers and calendars) within a relational database.
-There are actually two seperate AdoJobStore implementations that you can select between, depending on the transactional behaviour you need.
+There are actually two separate AdoJobStore implementations that you can select between, depending on the transactional behaviour you need.
 
 JobStoreTX manages all transactions itself by calling `Commit()` (or `Rollback()`) on the database connection after every action (such as the addition of a job).
 This is the job store you should normally be using unless you want to integrate to some transaction-aware framework.
@@ -320,7 +324,7 @@ The JobStoreTX is selected by setting the `quartz.jobStore.type` property as suc
 
 **Setting The Scheduler’s JobStore to JobStoreTX**
 
-```
+```text
 quartz.jobStore.type = Quartz.Impl.AdoJobStore.JobStoreTX, Quartz
 ```
 
@@ -372,7 +376,7 @@ You can have multiple sets of Quartz’s tables within the same database if they
 
 For backing databases that support schemas (such as Microsoft SQL Server), you may use the tablePrefix to include the schema name.  i.e. for a schema named `foo` the prefix could be set as:
 
-```
+```sql
 [foo].QRTZ_
 ```
 
@@ -411,8 +415,8 @@ The "{1}" is replaced with the scheduler’s name.
 
 ### `quartz.jobStore.txIsolationLevelSerializable`
 
-A value of "true" tells Quartz (when using JobStoreTX or CMT) to set transction level to serialize on ADO.NET connections.
- This can be helpful to prevent lock timeouts with some databases under high load, and "long-lasting" transactions.
+A value of "true" tells Quartz (when using JobStoreTX or CMT) to set transaction level to serialize on ADO.NET connections.
+This can be helpful to prevent lock timeouts with some databases under high load, and "long-lasting" transactions.
 
 ### `quartz.jobStore.acquireTriggersWithinLock`
 
@@ -435,7 +439,7 @@ If you explicitly choose to use this DB Semaphore, you can customize it further 
 
 **Example of Using a Custom StdRowLockSemaphore Implementation**
 
-```
+```text
 quartz.jobStore.lockHandler.type = Quartz.Impl.AdoJobStore.StdRowLockSemaphore
 quartz.jobStore.lockHandler.maxRetry = 7     # Default is 3
 quartz.jobStore.lockHandler.retryPeriod = 3000  # Default is 1000 millis
@@ -494,7 +498,7 @@ Allows you to define a custom connection provider implementing IDbProvider inter
 
 **Example of a Quartz-defined DataSource**
 
-```
+```text
 quartz.dataSource.myDS.provider = SqlServer
 quartz.dataSource.myDS.connectionString = Server=localhost;Database=quartznet;User Id=quartznet;Password=quartznet;
 ```
@@ -541,7 +545,7 @@ When some nodes are in 100% CPU, they may be unable to update the job store and 
 
 **Example Properties For A Clustered Scheduler**
 
-```
+```text
 #============================================================================
 # Configure Main Scheduler Properties
 #============================================================================

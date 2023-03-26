@@ -11,7 +11,7 @@ provides integration with [TimeZoneConverter](https://github.com/mj1856/TimeZone
 
 You need to add NuGet package reference to your project which uses Quartz.
 
-```
+```shell
 Install-Package Quartz.Plugins.TimeZoneConverter
 ```
 

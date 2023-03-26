@@ -15,7 +15,7 @@ You should also strongly consider setting useProperties to true to restrict key-
 
 You need to add NuGet package reference to your project which uses Quartz.
 
-```
+```shell
 Install-Package Quartz.Serialization.Json
 ```
 
@@ -106,7 +106,7 @@ public class MigratorSerializer : IObjectSerializer
 
  If you need to customize JSON.NET settings, you need to inherit custom implementation and override `CreateSerializerSettings`.
 
- ```csharp
+```csharp
 class CustomJsonSerializer : JsonObjectSerializer
 {
     protected override JsonSerializerSettings CreateSerializerSettings()

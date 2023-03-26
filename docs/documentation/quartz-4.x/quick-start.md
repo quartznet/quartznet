@@ -55,7 +55,7 @@ which contains configuration keys and values.
 var properties = new NameValueCollection();
 
 // and override values via builder
-IScheduler sched = await SchedulerBuilder.Create(properties)
+IScheduler scheduler = await SchedulerBuilder.Create(properties)
     // default max concurrency is 10
     .UseDefaultThreadPool(x => x.MaxConcurrency = 5)
     // this is the default 
@@ -185,7 +185,7 @@ var loggerFactory = LoggerFactory.Create(builder =>
 
 Now we should get a lot more information when we start the application.
 
-```text
+```log
 [12.51.10] [Info] Quartz.NET properties loaded from configuration file 'C:\QuartzSampleApp\quartz.config'
 [12.51.10] [Info] Initialized Scheduler Signaller of type: Quartz.Core.SchedulerSignalerImpl
 [12.51.10] [Info] Quartz Scheduler created

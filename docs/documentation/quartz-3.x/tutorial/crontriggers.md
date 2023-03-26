@@ -14,7 +14,7 @@ or even "every 5 minutes between 9:00 am and 10:00 am on every Monday, Wednesday
 Even so, like SimpleTrigger, CronTrigger has a startTime which specifies when the schedule is in force, and an (optional)
 endTime that specifies when the schedule should be discontinued.
 
-### Cron Expressions
+## Cron Expressions
 
 A cron expression is a string comprised of 6 or 7 fields separated by white space.
 Fields can contain any of the allowed values, along with various combinations of the allowed special characters for that field. The fields are as follows:
@@ -47,7 +47,7 @@ Wild-cards (the `*` character) can be used to say "every" possible value of this
 All of the fields have a set of valid values that can be specified. These values should be fairly obvious - such as the numbers
 0 to 59 for seconds and minutes, and the values 0 to 23 for hours. Day-of-Month can be any value 1-31, but you need to be careful
 about how many days are in a given month! Months can be specified as values between 1 and 12, or by using the strings
-JAN, FEB, MAR, APR, MAY, JUN, JUL, AUG, SEP, OCT, NOV and DEC. Days-of-Week can be specified as vaules between 1 and 7 (1 = Sunday)
+JAN, FEB, MAR, APR, MAY, JUN, JUL, AUG, SEP, OCT, NOV and DEC. Days-of-Week can be specified as values between 1 and 7 (1 = Sunday)
 or by using the strings SUN, MON, TUE, WED, THU, FRI and SAT.
 
 The '/' character can be used to specify increments to values. For example, if you put '0/15' in the Minutes field, it means 'every 15 minutes,
@@ -75,20 +75,28 @@ Here are a few more examples of expressions and their meanings - you can find ev
 
 **CronTrigger Example 1 - an expression to create a trigger that simply fires every 5 minutes**
 
+```text
     "0 0/5 * * * ?"
+```
 
 **CronTrigger Example 2 - an expression to create a trigger that fires every 5 minutes, at 10 seconds after the minute (i.e. 10:00:10 am, 10:05:10 am, etc.).**
 
+```text
     "10 0/5 * * * ?"
+```
 
 **CronTrigger Example 3 - an expression to create a trigger that fires at 10:30, 11:30, 12:30, and 13:30, on every Wednesday and Friday.**
 
+```text
     "0 30 10-13 ? * WED,FRI"
+```
 
 **CronTrigger Example 4 - an expression to create a trigger that fires every half hour between the hours of 8 am and 10 am on the 5th and 20th of every month.
 Note that the trigger will NOT fire at 10:00 am, just at 8:00, 8:30, 9:00 and 9:30**
 
+```text
     "0 0/30 8-9 5,20 * ?"
+```
 
 Note that some scheduling requirements are too complicated to express with a single trigger - such as "every 5 minutes between 9:00 am and 10:00 am,
 and every 20 minutes between 1:00 pm and 10:00 pm". The solution in this scenario is to simply create two triggers, and register both of them to run the same job.

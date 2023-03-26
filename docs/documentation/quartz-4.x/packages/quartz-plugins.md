@@ -1,6 +1,6 @@
 ---
 
-title : JSON Serialization
+title : Plugins
 ---
 
 [Quartz.Plugins](https://www.nuget.org/packages/Quartz.Plugins) provides some useful ready-mady plugins for your convenience.

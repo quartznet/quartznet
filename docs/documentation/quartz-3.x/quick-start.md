@@ -99,9 +99,11 @@ Full documentation of available properties is available in the [Quartz Configura
 
 To get up and running quickly, a basic quartz.config looks something like this:
 
+```text
  quartz.scheduler.instanceName = MyScheduler
  quartz.jobStore.type = Quartz.Simpl.RAMJobStore, Quartz
-    quartz.threadPool.maxConcurrency = 3
+ quartz.threadPool.maxConcurrency = 3
+```
 
 Remember to set the **Copy to Output Directory** on Visual Studio's file property pages to have value **Copy always**. Otherwise the config will not be seen if it's not in build directory.
 
