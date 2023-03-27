@@ -24,3 +24,5 @@ Lahma
 markdownlint
 prev
 Autofac
+redis
+Entityframework

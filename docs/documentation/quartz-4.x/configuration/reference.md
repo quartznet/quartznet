@@ -27,20 +27,20 @@ You can also use code-based configuration which essentially builds these keys.
 
 These properties configure the identification of the scheduler, and various other "top level" settings.
 
-| Property Name                                               | Required |    Type |  Default Value                                  |
-|-------------------------------------------------------------|----------|---------|-------------------------------------------------|
-| quartz.scheduler.instanceName                               | no       | string  |'QuartzScheduler'                                |
-| quartz.scheduler.instanceId                                 | no       | string  | 'NON_CLUSTERED'                                 |
-| quartz.scheduler.instanceIdGenerator.type                   | no       | string  | Quartz.Simpl.SimpleInstanceIdGenerator, Quartz  |
-| quartz.scheduler.threadName                                 | no       | string  | instanceName + '_QuartzSchedulerThread'         |
-| quartz.scheduler.makeSchedulerThreadDaemon                  | no       | boolean | false                                           |
-| quartz.scheduler.idleWaitTime                               | no       | long    | 30000                                           |
-| quartz.scheduler.typeLoadHelper.type                        | no       | string  | Quartz.Simpl.SimpleTypeLoadHelper               |
-| quartz.scheduler.jobFactory.type                            | no       | string  | Quartz.Simpl.PropertySettingJobFactory          |
-| quartz.context.key.SOME_KEY                                 | no       | string  | none                                            |
-| quartz.scheduler.wrapJobExecutionInUserTransaction          | no       | boolean | false                                           |
-| quartz.scheduler.batchTriggerAcquisitionMaxCount            | no       | int     | 1                                               |
-| quartz.scheduler.batchTriggerAcquisitionFireAheadTimeWindow | no       | long    | 0                                               |
+| Property Name                                               | Required | Type    | Default Value                                  |
+|-------------------------------------------------------------|----------|---------|------------------------------------------------|
+| quartz.scheduler.instanceName                               | no       | string  | 'QuartzScheduler'                              |
+| quartz.scheduler.instanceId                                 | no       | string  | 'NON_CLUSTERED'                                |
+| quartz.scheduler.instanceIdGenerator.type                   | no       | string  | Quartz.Simpl.SimpleInstanceIdGenerator, Quartz |
+| quartz.scheduler.threadName                                 | no       | string  | instanceName + '_QuartzSchedulerThread'        |
+| quartz.scheduler.makeSchedulerThreadDaemon                  | no       | boolean | false                                          |
+| quartz.scheduler.idleWaitTime                               | no       | long    | 30000                                          |
+| quartz.scheduler.typeLoadHelper.type                        | no       | string  | Quartz.Simpl.SimpleTypeLoadHelper              |
+| quartz.scheduler.jobFactory.type                            | no       | string  | Quartz.Simpl.PropertySettingJobFactory         |
+| quartz.context.key.SOME_KEY                                 | no       | string  | none                                           |
+| quartz.scheduler.wrapJobExecutionInUserTransaction          | no       | boolean | false                                          |
+| quartz.scheduler.batchTriggerAcquisitionMaxCount            | no       | int     | 1                                              |
+| quartz.scheduler.batchTriggerAcquisitionFireAheadTimeWindow | no       | long    | 0                                              |
 
 ### `quartz.scheduler.instanceName`
 
@@ -112,10 +112,10 @@ This may be useful (for performance’s sake) in situations where the scheduler 
 
 ## ThreadPool
 
-|Property Name                                                | Required |    Type |  Default Value                  |
-|-------------------------------------------------------------|----------|---------|---------------------------------|
-| quartz.threadPool.type                                      | no       | string  | Quartz.Simpl.DefaultThreadPool  |
-| quartz.threadPool.maxConcurrency                             | no       | int     | 10                              |
+| Property Name                    | Required | Type   | Default Value                  |
+|----------------------------------|----------|--------|--------------------------------|
+| quartz.threadPool.type           | no       | string | Quartz.Simpl.DefaultThreadPool |
+| quartz.threadPool.maxConcurrency | no       | int    | 10                             |
 
 ### `quartz.threadPool.type`
 
@@ -245,15 +245,15 @@ quartz.plugin.jobAutoInterrupt.defaultMaxRunTime = 3000000
 Remoting only works with .NET Full Framework. It's also considered unsafe.
 :::
 
-|Property Name                                  | Required |    Type |  Default Value  |
-|-----------------------------------------------|----------|---------|-----------------|
-|quartz.scheduler.exporter.type                 | yes      | string  |                 |
-|quartz.scheduler.exporter.port                 | yes      | int     |                 |
-|quartz.scheduler.exporter.bindName             | no       | string  |'QuartzScheduler'|
-|quartz.scheduler.exporter.channelType          | no       | string  |'tcp'            |
-|quartz.scheduler.exporter.channelName          | no       | string  |'http'           |
-|quartz.scheduler.exporter.typeFilterLevel      | no       | string  |'Full'           |
-|quartz.scheduler.exporter.rejectRemoteRequests | no       | boolean | false           |
+| Property Name                                  | Required | Type    | Default Value     |
+|------------------------------------------------|----------|---------|-------------------|
+| quartz.scheduler.exporter.type                 | yes      | string  |                   |
+| quartz.scheduler.exporter.port                 | yes      | int     |                   |
+| quartz.scheduler.exporter.bindName             | no       | string  | 'QuartzScheduler' |
+| quartz.scheduler.exporter.channelType          | no       | string  | 'tcp'             |
+| quartz.scheduler.exporter.channelName          | no       | string  | 'http'            |
+| quartz.scheduler.exporter.typeFilterLevel      | no       | string  | 'Full'            |
+| quartz.scheduler.exporter.rejectRemoteRequests | no       | boolean | false             |
 
 If you want the Quartz Scheduler to export itself via remoting as a server then set the 'quartz.scheduler.exporter.type' to "Quartz.Simpl.RemotingSchedulerExporter, Quartz".
 
@@ -305,9 +305,9 @@ quartz.jobStore.type = Quartz.Simpl.RAMJobStore, Quartz
 
 RAMJobStore can be tuned with the following properties:
 
-|Property Name  | Required| Type    | Default Value|
-|---------------|---------|---------|--------------|
-|quartz.jobStore.misfireThreshold   |no|    int|    60000|
+| Property Name                    | Required | Type | Default Value |
+|----------------------------------|----------|------|---------------|
+| quartz.jobStore.misfireThreshold | no       | int  | 60000         |
 
 ### `quartz.jobStore.misfireThreshold`
 
@@ -331,22 +331,22 @@ quartz.jobStore.type = Quartz.Impl.AdoJobStore.JobStoreTX, Quartz
 
 JobStoreTX can be tuned with the following properties:
 
-|Property Name  | Required| Type    | Default Value|
-|---------------|---------|---------|--------------|
-|quartz.jobStore.dbRetryInterval | no | long    | 15000   (15 seconds) |
-|quartz.jobStore.driverDelegateType|    yes|    string| null|
-|quartz.jobStore.dataSource |yes|   string  |null|
-|quartz.jobStore.tablePrefix    |no|    string  |"QRTZ_"|
-|quartz.jobStore.useProperties| no  |boolean|   false|
-|quartz.jobStore.misfireThreshold|  no| int |60000|
-|quartz.jobStore.clustered|   no  |boolean    |false|
-|quartz.jobStore.clusterCheckinInterval |no |long|  15000|
-|quartz.jobStore.maxMisfiresToHandleAtATime |no|    int|    20|
-|quartz.jobStore.selectWithLockSQL| no| string| "SELECT * FROM {0}LOCKS WHERE SCHED_NAME = {1} AND LOCK_NAME = ? FOR UPDATE"|
-|quartz.jobStore.txIsolationLevelSerializable|  no  |boolean|   false|
-|quartz.jobStore.acquireTriggersWithinLock  |no|    boolean |false (or true - see doc below)|
-|quartz.jobStore.lockHandler.type | no| string| null|
-|quartz.jobStore.driverDelegateInitString|  no  |string|    null|
+| Property Name                                | Required | Type    | Default Value                                                                |
+|----------------------------------------------|----------|---------|------------------------------------------------------------------------------|
+| quartz.jobStore.dbRetryInterval              | no       | long    | 15000   (15 seconds)                                                         |
+| quartz.jobStore.driverDelegateType           | yes      | string  | null                                                                         |
+| quartz.jobStore.dataSource                   | yes      | string  | null                                                                         |
+| quartz.jobStore.tablePrefix                  | no       | string  | "QRTZ_"                                                                      |
+| quartz.jobStore.useProperties                | no       | boolean | false                                                                        |
+| quartz.jobStore.misfireThreshold             | no       | int     | 60000                                                                        |
+| quartz.jobStore.clustered                    | no       | boolean | false                                                                        |
+| quartz.jobStore.clusterCheckinInterval       | no       | long    | 15000                                                                        |
+| quartz.jobStore.maxMisfiresToHandleAtATime   | no       | int     | 20                                                                           |
+| quartz.jobStore.selectWithLockSQL            | no       | string  | "SELECT * FROM {0}LOCKS WHERE SCHED_NAME = {1} AND LOCK_NAME = ? FOR UPDATE" |
+| quartz.jobStore.txIsolationLevelSerializable | no       | boolean | false                                                                        |
+| quartz.jobStore.acquireTriggersWithinLock    | no       | boolean | false (or true - see doc below)                                              |
+| quartz.jobStore.lockHandler.type             | no       | string  | null                                                                         |
+| quartz.jobStore.driverDelegateInitString     | no       | string  | null                                                                         |
 
 ### `quartz.scheduler.dbRetryInterval`
 
@@ -460,12 +460,12 @@ Each DataSource you define (typically one or two) must be given a name, and the 
 
 Quartz-created DataSources are defined with the following properties:
 
-|Property Name                                 | Required| Type            | Default Value|
-|----------------------------------------------|---------|-----------------|--------------|
-|quartz.dataSource.NAME.provider               | yes     | string          |              |
-|quartz.dataSource.NAME.connectionString       |         | string          |              |
-|quartz.dataSource.NAME.connectionStringName   |         | string          |              |
-|quartz.dataSource.NAME.connectionProvider.type|         | string          |              |
+| Property Name                                  | Required | Type   | Default Value |
+|------------------------------------------------|----------|--------|---------------|
+| quartz.dataSource.NAME.provider                | yes      | string |               |
+| quartz.dataSource.NAME.connectionString        |          | string |               |
+| quartz.dataSource.NAME.connectionStringName    |          | string |               |
+| quartz.dataSource.NAME.connectionProvider.type |          | string |               |
 
 ### `quartz.dataSource.NAME.provider`
 
