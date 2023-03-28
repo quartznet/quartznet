@@ -1,6 +1,6 @@
 /*
-Convert the IMAGE data types to VARBINARY(MAX)
-Upgrade SQL Server database from 2.x to 3
+Upgrade Quartz.NET schema for SQL Server database 
+Migration from 2.6 to 3.0
 */
 
 --USE [database_name];
