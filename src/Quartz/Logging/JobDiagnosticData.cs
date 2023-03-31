@@ -2,7 +2,8 @@ using System;
 
 namespace Quartz.Logging
 {
-    internal class JobDiagnosticData : IJobDiagnosticData
+    [Serializable]
+    internal sealed class JobDiagnosticData : IJobDiagnosticData
     {
         public JobDiagnosticData(IJobExecutionContext context)
         {
