@@ -8,7 +8,7 @@ RUN echo "deb http://download.mono-project.com/repo/debian wheezy-libjpeg62-comp
   && apt-get install -y binutils mono-devel nuget referenceassemblies-pcl \
   && rm -rf /var/lib/apt/lists/* /tmp/*
 
-RUN mkdir /app
+WORKDIR /app
 ADD src/Quartz app/src/Quartz
 ADD src/Quartz.Serialization.Json app/src/Quartz.Serialization.Json
 ADD src/Quartz.Examples app/src/Quartz.Examples
@@ -18,7 +18,6 @@ ADD src/Quartz.Tests.Integration app/src/Quartz.Tests.Integration
 COPY tools/NuGet app/tools/NuGet
 COPY ./*.* app/
 
-WORKDIR app
 RUN chmod a+x ./build.sh
 
 # run default units tests only
