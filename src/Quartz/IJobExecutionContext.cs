@@ -43,7 +43,7 @@ namespace Quartz
         /// accessed via the <see cref="SchedulerConstants.FailedJobOriginalTriggerFiretime" />
         /// element of this job's <see cref="JobDataMap" />.
         /// </remarks>
-        TriggerKey RecoveringTriggerKey { get; }
+        TriggerKey? RecoveringTriggerKey { get; }
 
         /// <summary>
         /// Gets the refire count.

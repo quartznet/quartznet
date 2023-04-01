@@ -62,6 +62,8 @@
     receive.
 
   * Introduce JobType to allow storing job's type information without actual Type instance (#1610)
+  
+  * IJobExecutionContext.RecoveringTriggerKey now returns null if IJobExecutionContext.Recovering is false instead of throwing exception.
 
 * NEW FEATURES
 

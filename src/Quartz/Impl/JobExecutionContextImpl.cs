@@ -129,20 +129,19 @@ namespace Quartz.Impl
         /// </summary>
         public virtual bool Recovering { get; }
 
-        public TriggerKey RecoveringTriggerKey
+        public TriggerKey? RecoveringTriggerKey
         {
             get
             {
                 if (Recovering)
                 {
-                    var jobDataMap = MergedJobDataMap;
-
-                    return new TriggerKey(jobDataMap.GetString(SchedulerConstants.FailedJobOriginalTriggerName)!,
-                        jobDataMap.GetString(SchedulerConstants.FailedJobOriginalTriggerGroup)!);
+                    var map = MergedJobDataMap;
+                    var triggerName = map.GetString(SchedulerConstants.FailedJobOriginalTriggerName)!;
+                    var triggerGroup = map.GetString(SchedulerConstants.FailedJobOriginalTriggerGroup)!;
+                    return new TriggerKey(triggerName, triggerGroup);
                 }
 
-                ThrowHelper.ThrowInvalidOperationException("Not a recovering job");
-                return default;
+                return null;
             }
         }
 

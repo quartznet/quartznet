@@ -1,5 +1,3 @@
-using System;
-
 namespace Quartz.Logging
 {
     [Serializable]
@@ -9,7 +7,7 @@ namespace Quartz.Logging
         {
             Trigger = context.Trigger;
             Recovering = context.Recovering;
-            RecoveringTriggerKey = Recovering ? context.RecoveringTriggerKey : null;
+            RecoveringTriggerKey = context.RecoveringTriggerKey;
             RefireCount = context.RefireCount;
             MergedJobDataMap = context.MergedJobDataMap;
             JobDetail = context.JobDetail;

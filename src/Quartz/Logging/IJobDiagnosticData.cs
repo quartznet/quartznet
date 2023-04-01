@@ -1,5 +1,3 @@
-using System;
-
 namespace Quartz.Logging
 {
     public interface IJobDiagnosticData
