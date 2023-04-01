@@ -28,7 +28,7 @@ namespace Quartz.Logging
             activity.AddTag(DiagnosticHeaders.JobGroup, context.JobDetail.Key.Group);
             activity.AddTag(DiagnosticHeaders.JobName, context.JobDetail.Key.Name);
 
-            diagnosticListener.StartActivity(activity, new { context.MergedJobDataMap });
+            diagnosticListener.StartActivity(activity, new JobDiagnosticData(context));
             return activity;
         }
 
@@ -37,7 +37,7 @@ namespace Quartz.Logging
             if (activity != null && diagnosticListener.IsEnabled(name))
             {
                 activity.SetEndTime(endTimeUtc.UtcDateTime);
-                diagnosticListener.StopActivity(activity, new { context.MergedJobDataMap });
+                diagnosticListener.StopActivity(activity, new JobDiagnosticData(context));
             }
         }
 
