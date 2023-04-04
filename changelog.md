@@ -69,6 +69,13 @@
 
   * Add Cron parser support for 'L' and 'LW' in expression combinations for daysOfMonth (#1939) (#1288)
 
+* FIXES
+
+  * Fix for deserializing CronExpression using Json Serializer throwing error calling `GetNextValidTimeAfter`.  (#1996)
+    `IDeserializationCallback` interface was removed from class `CronExpression` and the deserialization logic 
+    added to the constructor `CronExpression(SerializationInfo info, StreamingContext context)`.
+  
+
 ## Release 3.6.1, Feb 25 2023
 
 This bug fix release contains an important fix to anyone configuring jobs using job builder's `DisallowConcurrentExecution()`

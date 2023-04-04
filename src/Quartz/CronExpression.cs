@@ -207,7 +207,7 @@ namespace Quartz
     /// <author>Refactoring from CronTrigger to CronExpression by Aaron Craven</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class CronExpression : IDeserializationCallback, ISerializable
+    public class CronExpression : ISerializable
     {
         private static readonly Dictionary<string, int> monthMap = new Dictionary<string, int>(20);
         private static readonly Dictionary<string, int> dayMap = new Dictionary<string, int>(60);
@@ -378,6 +378,7 @@ namespace Quartz
                     ThrowHelper.ThrowNotSupportedException($"Unknown serialization version {version}");
                     break;
             }
+            BuildExpression(CronExpressionString);
         }
 
         [System.Security.SecurityCritical]
@@ -2151,11 +2152,6 @@ namespace Quartz
             var copy = new CronExpression(CronExpressionString);
             copy.TimeZone = TimeZone;
             return copy;
-        }
-
-        public void OnDeserialization(object? sender)
-        {
-            BuildExpression(CronExpressionString);
         }
 
         /// <summary>

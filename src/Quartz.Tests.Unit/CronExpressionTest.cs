@@ -23,6 +23,8 @@ using System.Diagnostics;
 
 using FluentAssertions;
 
+using Newtonsoft.Json;
+
 using NUnit.Framework;
 
 using Quartz.Simpl;
@@ -266,6 +268,19 @@ namespace Quartz.Tests.Unit
         {
             Action act = () => new CronExpression($"0 0 * * * ?{allowedChar}");
             act.Should().NotThrow();
+        }
+
+
+        [Test]
+        public void CanGetNextTimeAfterExternal_From_JsonDeserializedExpression()
+        {
+            // Scenario where external serialization occurrs outside of the provided Quartz Serializers.
+            var cronExpression = new CronExpression("0 15 23 * * ?");
+            var cal = new DateTime(2005, 6, 1, 23, 16, 0).ToUniversalTime();
+            var nextExpectedFireTime = new DateTime(2005, 6, 2, 23, 15, 0).ToUniversalTime();
+            var jsonCronExpression = JsonConvert.SerializeObject(cronExpression);
+            var deSerializedCron = JsonConvert.DeserializeObject<CronExpression>(jsonCronExpression);
+            deSerializedCron.GetNextValidTimeAfter(cal).Value.Should().Be(nextExpectedFireTime);
         }
 
         [Test]
