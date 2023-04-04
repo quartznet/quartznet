@@ -275,6 +275,7 @@ namespace Quartz
         [NonSerialized] protected bool nearestWeekday;
 
         [NonSerialized] protected int lastdayOffset;
+        [NonSerialized] protected int lastWeekdayOffset;
 
         /// <summary>
         /// Calendar day of week.
@@ -295,7 +296,6 @@ namespace Quartz
 
         private static readonly char[] splitSeparators = { ' ', '\t', '\r', '\n' };
         private static readonly char[] commaSeparator = { ',' };
-        private static readonly Regex regex = new Regex("^L-[0-9]*[W]?", RegexOptions.Compiled);
 
         static CronExpression()
         {
@@ -690,6 +690,15 @@ namespace Quartz
                                 {
                                     nearestWeekday = true;
                                 }
+                                var offsetRegex = new Regex("LW-(?<offset>[0-9]+)",RegexOptions.Compiled);
+                                if (offsetRegex.IsMatch(s))
+                                {
+                                    var offSetGroup = offsetRegex.Match(s).Groups["offset"];
+                                    if (offSetGroup.Success)
+                                    {
+                                        lastWeekdayOffset = int.Parse(offSetGroup.Value);
+                                    }
+                                }
                             }
                         }
                         break;
@@ -834,7 +843,6 @@ namespace Quartz
         /// <param name="pos">The position.</param>
         /// <param name="s">The string to traverse.</param>
         /// <param name="type">The type of value.</param>
-        /// <returns></returns>
         protected virtual void StoreExpressionVals(int pos, string s, int type)
         {
             var i = SkipWhiteSpace(pos, s);
@@ -842,9 +850,12 @@ namespace Quartz
             {
                 return;
             }
+
+            var regex = new Regex("^L(-\\d{1,2})?(W(-\\d{1,2})?)?$", RegexOptions.Compiled); //e.g. LW L-0W L-4 L-12W LW-4 LW-12
+
             switch (s[i])
             {
-                case >= 'A' and <= 'Z' when !s.Equals("L") && !s.Equals("LW") && !regex.IsMatch(s):
+                case >= 'A' and <= 'Z' when !s.Equals("L") && !regex.IsMatch(s):
                     StoreExpressionGeneralValue(type, s, i);
                     break;
 
@@ -1630,24 +1641,30 @@ namespace Quartz
                 if (nearestWeekday)
                 {
                     var checkDay = new DateTimeOffset(dt.Year, dt.Month, lastDayOfMonthWithOffset, dt.Hour, dt.Minute, dt.Second, dt.Millisecond, dt.Offset);
+                    var calculatedDay= lastDayOfMonthWithOffset;
                     switch (checkDay.DayOfWeek)
                     {
-                        case System.DayOfWeek.Saturday when lastDayOfMonthWithOffset == 1:
-                            lastDayOfMonthWithOffset += 2;
+                        case DayOfWeek.Saturday:
+                            calculatedDay -= 1;
                             break;
-                        case System.DayOfWeek.Saturday:
-                            lastDayOfMonthWithOffset -= 1;
-                            break;
-                        case System.DayOfWeek.Sunday when lastDayOfMonthWithOffset == lastDayOfMonth:
-                            lastDayOfMonthWithOffset -= 2;
-                            break;
-                        case System.DayOfWeek.Sunday:
-                            lastDayOfMonthWithOffset += 1;
+                        case DayOfWeek.Sunday:
+                            calculatedDay -= 2;
                             break;
                     }
-                }
 
-                results.Add(lastDayOfMonthWithOffset);
+                    var calculatedLastDayWithOffset = calculatedDay - lastWeekdayOffset;
+                    // If the day has crossed to the prior month, reset to 1st.
+                    if (calculatedLastDayWithOffset <= 0)
+                    {
+                        calculatedLastDayWithOffset = 1;
+                    }
+                        
+                    results.Add(calculatedLastDayWithOffset);
+                }
+                else
+                {
+                    results.Add(lastDayOfMonthWithOffset);
+                }
             }
             else if (nearestWeekday) //AND not lastDay
             {

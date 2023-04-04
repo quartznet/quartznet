@@ -132,13 +132,14 @@ namespace Quartz.Tests.Unit
                 .WithMessage("Support for specifying 'L' with other days of the month is limited to one instance of L");
         }
 
-        [TestCase("0 15 10 6,15,LW * ? 2010", new int[] { 6, 15, 29 })] //31 oct 2010 is a Sunday, working day would be 29
+        [TestCase("0 15 10 6,15,LW * ? 2010", new int[] { 6, 15, 29 })] //31 oct 2010 is a Sunday, week day would be 29
         [TestCase("0 15 10 6,15,L * ? 2010", new int[] { 6, 15, 31 })]
         [TestCase("0 15 10 15,L * ? 2010", new int[] { 15, 31 })]
         [TestCase("0 15 10 15,31 * ? 2010", new int[] { 15, 31 })]
         [TestCase("0 15 10 15,L-2 * ? 2010", new int[] { 15, 31 - 2 })]
         [TestCase("0 15 10 31,L-2 * ? 2010", new int[] { 31 }, "duplicate day specified + last are equal")]
         [TestCase("0 15 10 1,3,6,15,L * ? 2010", new int[] { 1, 3, 6, 15, 31 })]
+        [TestCase("0 15 10 15,LW-2 * ? 2010", new int[] { 15, 29 - 2 })] //29 is last week day
         public void CanUseLastDayOfMonthInArray(string cronExpression, int[] expectedDays, string scenario = "")
         {
             var expr = new CronExpression(cronExpression); //10:15am <variable days> October 2010
@@ -150,6 +151,18 @@ namespace Quartz.Tests.Unit
             }
         }
 
+        [TestCase("0 15 10 LW-2 * ? 2010", 27, "31 Oct 2010 is Sunday, last-weekday (LW) is 29 (FRI) -2 Offset")]
+        [TestCase("0 15 10 LW-5 * ? 2010", 24, "31 Oct 2010 is Sunday, last-weekday (LW) is 29 (FRI) -5 Offset")]
+        [TestCase("0 15 10 LW-7 * ? 2010", 22, "31 Oct 2010 is Sunday, last-weekday (LW) is 29 (FRI) -7 Offset")]
+        [TestCase("0 15 10 LW-28 * ? 2010", 1, "31 Oct 2010 is Sunday, last-weekday (LW) is 29 (FRI) -28 Offset")]
+        [TestCase("0 15 10 LW-29 * ? 2010", 1, "31 Oct 2010 is Sunday, last-weekday (LW) is 29 (FRI) -29 Offset fallback to 1st of month")]
+        [TestCase("0 15 10 LW-30 * ? 2010", 1, "31 Oct 2010 is Sunday, last-weekday (LW) is 29 (FRI) -30 Offset fallback to 1st of month")]
+        public void LastWeekDayWithOffset(string cronExpression, int expectedDay, string reason)
+        {
+            var expr = new CronExpression(cronExpression);
+            var date = new DateTime(2010, 10, expectedDay, 10, 15, 0).ToUniversalTime(); // last day
+            expr.IsSatisfiedBy(date).Should().BeTrue(reason);
+        }
 
         [TestCase("0 15 10 ? * 1#0 2010", false)]
         [TestCase("0 15 10 ? * 1#1 2010", true)]
@@ -201,6 +214,7 @@ namespace Quartz.Tests.Unit
                 act.Should().Throw<FormatException>();
             }
         }
+
 
         [TestCase("0 15 10 6,15,LW * ? 2010")]
         [TestCase("0 15 10 6,15,L * ? 2010")]
