@@ -67,7 +67,16 @@
 
 * NEW FEATURES
 
-  * Add Cron parser support for 'L' and 'LW' in expression combinations for daysOfMonth (#1939) (#1288)
+  * Add cron parser support for 'L' and 'LW' in expression combinations for daysOfMonth (#1939) (#1288)
+  * Add cron parser support for `LW-<OFFSET>`. i.e. `LW-2` (calculate the Last weekday then offset by -2) (#1287)
+    If the calculated day would cross a month boundary it will be reset to the 1st of the month. (e.g. LW-30 in Feb will be 1st Feb)
+
+* FIXES
+
+  * Fix for deserializing CronExpression using Json Serializer throwing error calling `GetNextValidTimeAfter`.  (#1996)
+    `IDeserializationCallback` interface was removed from class `CronExpression` and the deserialization logic 
+    added to the constructor `CronExpression(SerializationInfo info, StreamingContext context)`.
+  
 
 ## Release 3.6.1, Feb 25 2023
 

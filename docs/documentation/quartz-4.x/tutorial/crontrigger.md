@@ -59,7 +59,7 @@ then it will fire on Tuesday the 15th. However if you specify `1W` as the value 
 as it will not 'jump' over the boundary of a month's days. The `W` character can only be specified when the day-of-month is a single day, not a range or list of days.
 
 ::: tip
- The `L` and `W` characters can also be combined in the day-of-month field to yield `LW`, which translates to *"last weekday of the month".  This field can also be used in a list, for example `1,15,LW` meaning 1st, 15th and Last Weekday of the month.
+ The `L` and `W` characters can also be combined in the day-of-month field to yield `LW`, which translates to *"last weekday of the month"*.  This field can also be used in a list, for example `1,15,LW` meaning 1st, 15th and Last Weekday of the month.  `LW` supports an offset value, which will be calculated by first identifying last weekday, then subtracting the offset. for example `LW-2`
 :::
 
 * `#` - used to specify "the nth" XXX day of the month. For example, the value of `6#3` in the day-of-week field means
