@@ -321,6 +321,8 @@ namespace Quartz
 
         private static readonly char[] splitSeparators = { ' ', '\t', '\r', '\n' };
         private static readonly char[] commaSeparator = { ',' };
+        private static Regex regex = new Regex("^L(-\\d{1,2})?(W(-\\d{1,2})?)?$", RegexOptions.Compiled); //e.g. LW L-0W L-4 L-12W LW-4 LW-12
+        private static Regex offsetRegex = new Regex("LW-(?<offset>[0-9]+)", RegexOptions.Compiled);
 
         static CronExpression()
         {
@@ -680,7 +682,7 @@ namespace Quartz
                                 {
                                     nearestWeekday = true;
                                 }
-                                var offsetRegex = new Regex("LW-(?<offset>[0-9]+)",RegexOptions.Compiled);
+                                
                                 if (offsetRegex.IsMatch(s))
                                 {
                                     var offSetGroup = offsetRegex.Match(s).Groups["offset"];
@@ -840,8 +842,6 @@ namespace Quartz
             {
                 return;
             }
-
-            var regex = new Regex("^L(-\\d{1,2})?(W(-\\d{1,2})?)?$", RegexOptions.Compiled); //e.g. LW L-0W L-4 L-12W LW-4 LW-12
 
             switch (s[i])
             {
