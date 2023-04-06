@@ -209,8 +209,32 @@ namespace Quartz
     [Serializable]
     public class CronExpression : ISerializable
     {
-        private static readonly Dictionary<string, int> monthMap = new Dictionary<string, int>(20);
-        private static readonly Dictionary<string, int> dayMap = new Dictionary<string, int>(60);
+        private static readonly Dictionary<string, int> monthMap = new Dictionary<string,int>(12)
+        {
+            {"JAN", 0},
+            {"FEB", 1},
+            {"MAR", 2},
+            {"APR", 3},
+            {"MAY", 4},
+            {"JUN", 5},
+            {"JUL", 6},
+            {"AUG", 7},
+            {"SEP", 8},
+            {"OCT", 9},
+            {"NOV", 10},
+            {"DEC", 11}
+        };
+
+        private static readonly Dictionary<string, int> dayMap = new Dictionary<string, int>(7)
+        {
+            {"SUN", 1},
+            {"MON", 2},
+            {"TUE", 3},
+            {"WED", 4},
+            {"THU", 5},
+            {"FRI", 6},
+            {"SAT", 7}
+        };
 
         private TimeZoneInfo? timeZone;
 
@@ -275,6 +299,7 @@ namespace Quartz
         [NonSerialized] protected bool nearestWeekday;
 
         [NonSerialized] protected int lastdayOffset;
+
         [NonSerialized] protected int lastWeekdayOffset;
 
         /// <summary>
@@ -299,26 +324,6 @@ namespace Quartz
 
         static CronExpression()
         {
-            monthMap.Add("JAN", 0);
-            monthMap.Add("FEB", 1);
-            monthMap.Add("MAR", 2);
-            monthMap.Add("APR", 3);
-            monthMap.Add("MAY", 4);
-            monthMap.Add("JUN", 5);
-            monthMap.Add("JUL", 6);
-            monthMap.Add("AUG", 7);
-            monthMap.Add("SEP", 8);
-            monthMap.Add("OCT", 9);
-            monthMap.Add("NOV", 10);
-            monthMap.Add("DEC", 11);
-
-            dayMap.Add("SUN", 1);
-            dayMap.Add("MON", 2);
-            dayMap.Add("TUE", 3);
-            dayMap.Add("WED", 4);
-            dayMap.Add("THU", 5);
-            dayMap.Add("FRI", 6);
-            dayMap.Add("SAT", 7);
         }
 
         ///<summary>
@@ -487,7 +492,7 @@ namespace Quartz
         {
             try
             {
-                new CronExpression(cronExpression);
+                var _ = new CronExpression(cronExpression);
             }
             catch (FormatException)
             {
@@ -499,7 +504,7 @@ namespace Quartz
 
         public static void ValidateExpression(string cronExpression)
         {
-            new CronExpression(cronExpression);
+            var _ = new CronExpression(cronExpression);
         }
 
         ////////////////////////////////////////////////////////////////////////////
@@ -517,12 +522,12 @@ namespace Quartz
             try
             {
                 seconds ??= new();
-                minutes ??= new ();
-                hours ??= new ();
-                daysOfMonth ??= new ();
-                months ??= new ();
-                daysOfWeek ??= new ();
-                years ??= new ();
+                minutes ??= new();
+                hours ??= new();
+                daysOfMonth ??= new();
+                months ??= new();
+                daysOfWeek ??= new();
+                years ??= new();
 
                 var exprOn = CronExpressionConstants.Second;
 
@@ -567,22 +572,6 @@ namespace Quartz
                 if (exprOn <= CronExpressionConstants.Year)
                 {
                     StoreExpressionVals(0, "*", CronExpressionConstants.Year);
-                }
-
-                var dow = GetSet(CronExpressionConstants.DayOfWeek);
-                var dom = GetSet(CronExpressionConstants.DayOfMonth);
-
-                // Copying the logic from the UnsupportedOperationException below
-                var dayOfMSpec = !dom.Contains(CronExpressionConstants.NoSpec);
-                var dayOfWSpec = !dow.Contains(CronExpressionConstants.NoSpec);
-
-                if ((dayOfMSpec && !dayOfWSpec) || (dayOfWSpec && !dayOfMSpec))
-                {
-                    // skip
-                }
-                else
-                {
-                    ThrowHelper.ThrowFormatException("Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.");
                 }
             }
             catch (FormatException)
@@ -1242,14 +1231,7 @@ namespace Quartz
 
             if ((incr == 0 || incr == -1) && val != CronExpressionConstants.AllSpecInt)
             {
-                if (val != -1)
-                {
-                    data.Add(val);
-                }
-                else
-                {
-                    data.Add(CronExpressionConstants.NoSpec);
-                }
+                data.Add(val != -1 ? val : CronExpressionConstants.NoSpec);
                 return;
             }
 
@@ -1699,265 +1681,294 @@ namespace Quartz
             return results;
         }
 
-        /// <summary>
-        /// Progress next fire time day
-        /// </summary>
-        /// <param name="d">NextFireTimeCheck</param>
-        private NextFireTimeCursor ProgressNextFireTimeDay(DateTimeOffset d)
+        private NextFireTimeCursor ProgressNextFireTimeDayOfMonth(DateTimeOffset d)
         {
             var day = d.Day;
             var mon = d.Month;
             var t = -1;
             var tmon = mon;
 
-            // get day
-            var dayOfMSpec = !daysOfMonth.Contains(CronExpressionConstants.NoSpec);
-            var dayOfWSpec = !daysOfWeek.Contains(CronExpressionConstants.NoSpec);
-            SortedSet<int> tailDays;
-            if (dayOfMSpec && !dayOfWSpec)
+            // get day by day of month rule
+            var daysOfMonthCalculated = CalculateDaysOfMonth(d);
+            var tailDays = daysOfMonthCalculated.TailSet(d.Day);
+            var found = tailDays.Count > 0;
+            if (found)
             {
-                // get day by day of month rule
-                var daysOfMonthCalculated = CalculateDaysOfMonth(d);
-                tailDays = daysOfMonthCalculated.TailSet(d.Day);
-                var found = tailDays.Any();
-                if (found)
-                {
-                    t = day;
-                    day = tailDays.First();
+                t = day;
+                day = tailDays.First();
 
-                    // make sure we don't over-run a short month, such as february
-                    var lastDay = GetLastDayOfMonth(mon, d.Year);
-                    if (day > lastDay)
-                    {
-                        day = daysOfMonthCalculated.First();
-                        mon++;
-                    }
-                }
-                else
+                // make sure we don't over-run a short month, such as february
+                var lastDay = GetLastDayOfMonth(mon, d.Year);
+                if (day > lastDay)
                 {
-                    if (lastdayOfMonth)
-                        day = daysOfMonthCalculated.First(); //for lastDayOfMonth use calculated fields
-                    else
-                        day = daysOfMonth.First(); //if not then initial set of days uncalculated (to avoid issue with stale weekday in wrong month value)
+                    day = daysOfMonthCalculated.First();
                     mon++;
-                }
-
-                if (day != t || mon != tmon)
-                {
-                    if (mon > 12)
-                    {
-                        d = new DateTimeOffset(d.Year, 12, day, 0, 0, 0, d.Offset).AddMonths(mon - 12);
-                    }
-                    else
-                    {
-                        // This is to avoid a bug when moving from a month
-                        //with 30 or 31 days to a month with less. Causes an invalid datetime to be instantiated.
-                        // ex. 0 29 0 30 1 ? 2009 with clock set to 1/30/2009
-                        var lDay = DateTime.DaysInMonth(d.Year, mon);
-                        if (day <= lDay)
-                        {
-                            d = new DateTimeOffset(d.Year, mon, day, 0, 0, 0, d.Offset);
-                        }
-                        else
-                        {
-                            d = new DateTimeOffset(d.Year, mon, lDay, 0, 0, 0, d.Offset).AddDays(day - lDay);
-                        }
-                    }
-
-                    return new NextFireTimeCursor(true, d);
-                }
-            }
-            else if (dayOfWSpec && !dayOfMSpec)
-            {
-                // get day by day of week rule
-                if (lastdayOfWeek)
-                {
-                    // are we looking for the last XXX day of
-                    // the month?
-                    var dow = daysOfWeek.First(); // desired
-                                                  // d-o-w
-                    var cDow = (int)d.DayOfWeek + 1; // current d-o-w
-                    var daysToAdd = 0;
-                    if (cDow < dow)
-                    {
-                        daysToAdd = dow - cDow;
-                    }
-
-                    if (cDow > dow)
-                    {
-                        daysToAdd = dow + (7 - cDow);
-                    }
-
-                    var lDay = GetLastDayOfMonth(mon, d.Year);
-
-                    if (day + daysToAdd > lDay)
-                    {
-                        // did we already miss the
-                        // last one?
-                        if (mon == 12)
-                        {
-                            //will we pass the end of the year?
-                            d = new DateTimeOffset(d.Year, mon - 11, 1, 0, 0, 0, d.Offset).AddYears(1);
-                        }
-                        else
-                        {
-                            d = new DateTimeOffset(d.Year, mon + 1, 1, 0, 0, 0, d.Offset);
-                        }
-
-                        // we are promoting the month
-                        return new NextFireTimeCursor(true, d);
-                    }
-
-                    // find date of last occurrence of this day in this month...
-                    while (day + daysToAdd + 7 <= lDay)
-                    {
-                        daysToAdd += 7;
-                    }
-
-                    day += daysToAdd;
-
-                    if (daysToAdd > 0)
-                    {
-                        // we are not promoting the month
-                        return new NextFireTimeCursor(true, new DateTimeOffset(d.Year, mon, day, 0, 0, 0, d.Offset));
-                    }
-                }
-                else if (nthdayOfWeek != 0)
-                {
-                    // are we looking for the Nth XXX day in the month?
-                    var dow = daysOfWeek.First(); // desired
-                    // d-o-w
-                    var cDow = (int)d.DayOfWeek + 1; // current d-o-w
-                    var daysToAdd = 0;
-                    if (cDow < dow)
-                    {
-                        daysToAdd = dow - cDow;
-                    }
-                    else if (cDow > dow)
-                    {
-                        daysToAdd = dow + (7 - cDow);
-                    }
-
-                    var dayShifted = daysToAdd > 0;
-
-                    day += daysToAdd;
-                    var weekOfMonth = day / 7;
-                    if (day % 7 > 0)
-                    {
-                        weekOfMonth++;
-                    }
-
-                    daysToAdd = (nthdayOfWeek - weekOfMonth) * 7;
-                    day += daysToAdd;
-                    if (daysToAdd < 0 || day > GetLastDayOfMonth(mon, d.Year))
-                    {
-                        if (mon == 12)
-                        {
-                            d = new DateTimeOffset(d.Year, mon - 11, 1, 0, 0, 0, d.Offset).AddYears(1);
-                        }
-                        else
-                        {
-                            d = new DateTimeOffset(d.Year, mon + 1, 1, 0, 0, 0, d.Offset);
-                        }
-
-                        // we are promoting the month
-                        return new NextFireTimeCursor(true, d);
-                    }
-
-                    if (daysToAdd > 0 || dayShifted)
-                    {
-                        // we are NOT promoting the month
-                        return new NextFireTimeCursor(true, new DateTimeOffset(d.Year, mon, day, 0, 0, 0, d.Offset));
-                    }
-                }
-                else if (everyNthWeek != 0)
-                {
-                    var cDow = (int)d.DayOfWeek + 1; // current d-o-w
-                    var dow = daysOfWeek.First(); // desired
-                                                  // d-o-w
-                    tailDays = daysOfWeek.TailSet(cDow);
-                    if (tailDays.Count > 0)
-                    {
-                        dow = tailDays.First();
-                    }
-
-                    var daysToAdd = 0;
-                    if (cDow < dow)
-                    {
-                        daysToAdd = (dow - cDow) + (7 * (everyNthWeek - 1));
-                    }
-
-                    if (cDow > dow)
-                    {
-                        daysToAdd = (dow + (7 - cDow)) + (7 * (everyNthWeek - 1));
-                    }
-
-                    var lDay = GetLastDayOfMonth(mon, d.Year);
-
-                    if (daysToAdd > 0)
-                    {
-                        // are we switching days?
-                        d = new DateTimeOffset(d.Year, mon, day, 0, 0, 0, d.Offset);
-                        d = d.AddDays(daysToAdd);
-                        return new NextFireTimeCursor(true, d);
-                    }
-                }
-                else
-                {
-                    var cDow = (int)d.DayOfWeek + 1; // current d-o-w
-                    var dow = daysOfWeek.First(); // desired
-                    // d-o-w
-                    tailDays = daysOfWeek.TailSet(cDow);
-                    if (tailDays.Count > 0)
-                    {
-                        dow = tailDays.First();
-                    }
-
-                    var daysToAdd = 0;
-                    if (cDow < dow)
-                    {
-                        daysToAdd = dow - cDow;
-                    }
-
-                    if (cDow > dow)
-                    {
-                        daysToAdd = dow + (7 - cDow);
-                    }
-
-                    var lDay = GetLastDayOfMonth(mon, d.Year);
-
-                    if (day + daysToAdd > lDay)
-                    {
-                        // will we pass the end of the month?
-
-                        if (mon == 12)
-                        {
-                            //will we pass the end of the year?
-                            d = new DateTimeOffset(d.Year, mon - 11, 1, 0, 0, 0, d.Offset).AddYears(1);
-                        }
-                        else
-                        {
-                            d = new DateTimeOffset(d.Year, mon + 1, 1, 0, 0, 0, d.Offset);
-                        }
-
-                        // we are promoting the month
-                        return new NextFireTimeCursor(true, d);
-                    }
-
-                    if (daysToAdd > 0)
-                    {
-                        // are we switching days?
-                        return new NextFireTimeCursor(true, new DateTimeOffset(d.Year, mon, day + daysToAdd, 0, 0, 0, d.Offset));
-                    }
                 }
             }
             else
             {
-                // dayOfWSpec && !dayOfMSpec
-                ThrowHelper.ThrowFormatException("Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.");
+                if (lastdayOfMonth)
+                {
+                    day = daysOfMonthCalculated.First(); //for lastDayOfMonth use calculated fields
+                }
+                else
+                {
+                    day = daysOfMonth.First(); //if not then initial set of days uncalculated (to avoid issue with stale weekday in wrong month value)
+                }
+
+                mon++;
+            }
+
+            if (day != t || mon != tmon)
+            {
+                if (mon > 12)
+                {
+                    d = new DateTimeOffset(d.Year, 12, day, 0, 0, 0, d.Offset).AddMonths(mon - 12);
+                }
+                else
+                {
+                    // This is to avoid a bug when moving from a month
+                    // with 30 or 31 days to a month with less. Causes an invalid datetime to be instantiated.
+                    // ex. 0 29 0 30 1 ? 2009 with clock set to 1/30/2009
+                    var lDay = DateTime.DaysInMonth(d.Year, mon);
+                    if (day <= lDay)
+                    {
+                        d = new DateTimeOffset(d.Year, mon, day, 0, 0, 0, d.Offset);
+                    }
+                    else
+                    {
+                        d = new DateTimeOffset(d.Year, mon, lDay, 0, 0, 0, d.Offset).AddDays(day - lDay);
+                    }
+                }
+                return new NextFireTimeCursor(true, d);
+            }
+            return new NextFireTimeCursor(false, d);
+        }
+
+        private NextFireTimeCursor ProgressNextFireTimeDayOfWeek(DateTimeOffset d)
+        {
+            var day = d.Day;
+            var mon = d.Month;
+
+            // get day by day of week rule
+            if (lastdayOfWeek)
+            {
+                // are we looking for the last XXX day of
+                // the month?
+                var dow = daysOfWeek.First(); // desired
+                                              // d-o-w
+                var cDow = (int)d.DayOfWeek + 1; // current d-o-w
+                var daysToAdd = 0;
+                if (cDow < dow)
+                {
+                    daysToAdd = dow - cDow;
+                }
+
+                if (cDow > dow)
+                {
+                    daysToAdd = dow + (7 - cDow);
+                }
+
+                var lDay = GetLastDayOfMonth(mon, d.Year);
+
+                if (day + daysToAdd > lDay)
+                {
+                    // did we already miss the
+                    // last one?
+                    if (mon == 12)
+                    {
+                        //will we pass the end of the year?
+                        d = new DateTimeOffset(d.Year, mon - 11, 1, 0, 0, 0, d.Offset).AddYears(1);
+                    }
+                    else
+                    {
+                        d = new DateTimeOffset(d.Year, mon + 1, 1, 0, 0, 0, d.Offset);
+                    }
+
+                    // we are promoting the month
+                    return new NextFireTimeCursor(true, d);
+                }
+
+                // find date of last occurrence of this day in this month...
+                while (day + daysToAdd + 7 <= lDay)
+                {
+                    daysToAdd += 7;
+                }
+
+                day += daysToAdd;
+
+                if (daysToAdd > 0)
+                {
+                    // we are not promoting the month
+                    return new NextFireTimeCursor(true, new DateTimeOffset(d.Year, mon, day, 0, 0, 0, d.Offset));
+                }
+            }
+            else if (nthdayOfWeek != 0)
+            {
+                // are we looking for the Nth XXX day in the month?
+                var dow = daysOfWeek.First(); // desired
+                                              // d-o-w
+                var cDow = (int)d.DayOfWeek + 1; // current d-o-w
+                var daysToAdd = 0;
+                if (cDow < dow)
+                {
+                    daysToAdd = dow - cDow;
+                }
+                else if (cDow > dow)
+                {
+                    daysToAdd = dow + (7 - cDow);
+                }
+
+                var dayShifted = daysToAdd > 0;
+
+                day += daysToAdd;
+                var weekOfMonth = day / 7;
+                if (day % 7 > 0)
+                {
+                    weekOfMonth++;
+                }
+
+                daysToAdd = (nthdayOfWeek - weekOfMonth) * 7;
+                day += daysToAdd;
+                if (daysToAdd < 0 || day > GetLastDayOfMonth(mon, d.Year))
+                {
+                    if (mon == 12)
+                    {
+                        d = new DateTimeOffset(d.Year, mon - 11, 1, 0, 0, 0, d.Offset).AddYears(1);
+                    }
+                    else
+                    {
+                        d = new DateTimeOffset(d.Year, mon + 1, 1, 0, 0, 0, d.Offset);
+                    }
+
+                    // we are promoting the month
+                    return new NextFireTimeCursor(true, d);
+                }
+
+                if (daysToAdd > 0 || dayShifted)
+                {
+                    // we are NOT promoting the month
+                    return new NextFireTimeCursor(true, new DateTimeOffset(d.Year, mon, day, 0, 0, 0, d.Offset));
+                }
+            }
+            else if (everyNthWeek != 0)
+            {
+                var cDow = (int)d.DayOfWeek + 1; // current d-o-w
+                var dow = daysOfWeek.First(); // desired
+                                              // d-o-w
+                var tailDays = daysOfWeek.TailSet(cDow);
+                if (tailDays.Count > 0)
+                {
+                    dow = tailDays.First();
+                }
+
+                var daysToAdd = 0;
+                if (cDow < dow)
+                {
+                    daysToAdd = (dow - cDow) + (7 * (everyNthWeek - 1));
+                }
+
+                if (cDow > dow)
+                {
+                    daysToAdd = (dow + (7 - cDow)) + (7 * (everyNthWeek - 1));
+                }
+
+                if (daysToAdd > 0)
+                {
+                    // are we switching days?
+                    d = new DateTimeOffset(d.Year, mon, day, 0, 0, 0, d.Offset);
+                    d = d.AddDays(daysToAdd);
+                    return new NextFireTimeCursor(true, d);
+                }
+            }
+            else
+            {
+                var cDow = (int)d.DayOfWeek + 1; // current d-o-w
+                var dow = daysOfWeek.First(); // desired
+                                              // d-o-w
+                var tailDays = daysOfWeek.TailSet(cDow);
+                if (tailDays.Count > 0)
+                {
+                    dow = tailDays.First();
+                }
+
+                var daysToAdd = 0;
+                if (cDow < dow)
+                {
+                    daysToAdd = dow - cDow;
+                }
+
+                if (cDow > dow)
+                {
+                    daysToAdd = dow + (7 - cDow);
+                }
+
+                var lDay = GetLastDayOfMonth(mon, d.Year);
+
+                if (day + daysToAdd > lDay)
+                {
+                    // will we pass the end of the month?
+
+                    if (mon == 12)
+                    {
+                        //will we pass the end of the year?
+                        d = new DateTimeOffset(d.Year, mon - 11, 1, 0, 0, 0, d.Offset).AddYears(1);
+                    }
+                    else
+                    {
+                        d = new DateTimeOffset(d.Year, mon + 1, 1, 0, 0, 0, d.Offset);
+                    }
+
+                    // we are promoting the month
+                    return new NextFireTimeCursor(true, d);
+                }
+
+                if (daysToAdd > 0)
+                {
+                    // are we switching days?
+                    return new NextFireTimeCursor(true, new DateTimeOffset(d.Year, mon, day + daysToAdd, 0, 0, 0, d.Offset));
+                }
             }
 
             return new NextFireTimeCursor(false, new DateTimeOffset(d.Year, d.Month, day, d.Hour, d.Minute, d.Second, d.Offset));
+        }
+
+        /// <summary>
+        /// Progress next fire time day
+        /// </summary>
+        /// <param name="d">NextFireTimeCheck</param>
+        private NextFireTimeCursor ProgressNextFireTimeDay(DateTimeOffset d)
+        {
+            var dayOfMSpec = !daysOfMonth.Contains(CronExpressionConstants.NoSpec);
+            var dayOfWSpec = !daysOfWeek.Contains(CronExpressionConstants.NoSpec);
+            if (dayOfMSpec && !dayOfWSpec)
+            {
+                return ProgressNextFireTimeDayOfMonth(d);
+            }
+            if (dayOfWSpec && !dayOfMSpec)
+            {
+                return ProgressNextFireTimeDayOfWeek(d);
+            }
+
+            var dayOfMonthProgressResult = ProgressNextFireTimeDayOfMonth(d);
+            var dayOfWeekProgressResult = ProgressNextFireTimeDayOfWeek(d);
+            if (dayOfMonthProgressResult.RestartLoop && dayOfWeekProgressResult.RestartLoop)
+            {
+                return dayOfWeekProgressResult.Date < dayOfMonthProgressResult.Date
+                    ? dayOfWeekProgressResult
+                    : dayOfMonthProgressResult;
+            }
+
+            // only 1 result has value then return it
+            if (dayOfWeekProgressResult is { Date: { }, RestartLoop: false })
+                return dayOfWeekProgressResult;
+            if (dayOfMonthProgressResult is { Date: { }, RestartLoop: false })
+                return dayOfMonthProgressResult;
+
+            // both results have value, return earliest
+            return dayOfWeekProgressResult.Date!.Value < dayOfMonthProgressResult.Date!.Value
+                ? dayOfWeekProgressResult
+                : dayOfMonthProgressResult;
         }
 
         /// <summary>
@@ -1982,12 +1993,9 @@ namespace Quartz
                 year++;
             }
 
-            if (mon != t)
-            {
-                return new NextFireTimeCursor(true, new DateTimeOffset(year, mon, 1, 0, 0, 0, d.Offset));
-            }
-
-            return new NextFireTimeCursor(false, new DateTimeOffset(d.Year, mon, d.Day, d.Hour, d.Minute, d.Second, d.Offset));
+            return mon != t 
+                ? new NextFireTimeCursor(true, new DateTimeOffset(year, mon, 1, 0, 0, 0, d.Offset)) 
+                : new NextFireTimeCursor(false, new DateTimeOffset(d.Year, mon, d.Day, d.Hour, d.Minute, d.Second, d.Offset));
         }
 
         /// <summary>

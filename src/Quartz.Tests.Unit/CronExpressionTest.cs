@@ -153,6 +153,43 @@ namespace Quartz.Tests.Unit
             }
         }
 
+        private int[] CreateArrayOfDays(int year, int month)
+        {
+            var daysInMonth = DateTime.DaysInMonth(year, month);
+            var numbers = new List<int>();
+            for (var i = 0; i < daysInMonth; i++)
+            {
+                numbers.Add(i + 1);
+            }
+
+            return numbers.ToArray();
+        }
+
+        [TestCase("0 15 10 5/5 * MON 2010", new int[] { 4,11,18,25,5,10,15,20,25,30 }, "10:15am every 5th day of the month from 5 to 31, and on Mondays in October 2010")]
+        [TestCase("0 15 10 3 * MON,THU,FRI 2010", new int[] { 1,3,4,11,18,25,7,14,21,28,8,15,22,29 }, "10:15am 3rd of month and every mon,thu,fri October 2010")]
+        [TestCase("0 15 10 1,2,3,4,5,6 * MON,THU,FRI 2010", new int[] { 1, 2, 3, 4, 5, 6, 11, 18, 25, 7, 14, 21, 28, 8, 15, 22, 29 }, "10:15am 1-6th of mon and every Mon,Thu,Fri October 2010")]
+        [TestCase("0 15 10 * * MON,THU,FRI 2010", new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,31 }, "10:15am EveryDay of Month October 2010, Wildcard specified")]
+        [TestCase("0 15 10 1 * * 2010", new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31 }, "10:15am Every Day of Month October 2010, Wildcard specified")]
+        public void CanUse_DayOfMonth_And_DayOfWeek_Together(string cronExpression, int[] expectedDays,string scenario = "")
+        {
+            var expr = new CronExpression(cronExpression);
+            var templateDate = new DateTime(2010, 10, 1, 10, 15, 0).ToUniversalTime();
+
+            foreach (var day in expectedDays)
+            {
+                var date = new DateTime(templateDate.Year, templateDate.Month, day, templateDate.Hour, templateDate.Minute, templateDate.Second, templateDate.Kind);
+                expr.IsSatisfiedBy(date).Should().BeTrue($"expected day of {day}, {scenario}");
+            }
+
+            var invalidDays = CreateArrayOfDays(2010,10).Except(expectedDays);
+
+            foreach (var day in invalidDays)
+            {
+                var date = new DateTime(templateDate.Year, templateDate.Month, day, templateDate.Hour, templateDate.Minute, templateDate.Second, templateDate.Kind);
+                expr.IsSatisfiedBy(date).Should().BeFalse($"invalid day of {day}, {scenario}");
+            }
+        }
+
         [TestCase("0 15 10 LW-2 * ? 2010", 27, "31 Oct 2010 is Sunday, last-weekday (LW) is 29 (FRI) -2 Offset")]
         [TestCase("0 15 10 LW-5 * ? 2010", 24, "31 Oct 2010 is Sunday, last-weekday (LW) is 29 (FRI) -5 Offset")]
         [TestCase("0 15 10 LW-7 * ? 2010", 22, "31 Oct 2010 is Sunday, last-weekday (LW) is 29 (FRI) -7 Offset")]
@@ -216,7 +253,6 @@ namespace Quartz.Tests.Unit
                 act.Should().Throw<FormatException>();
             }
         }
-
 
         [TestCase("0 15 10 6,15,LW * ? 2010")]
         [TestCase("0 15 10 6,15,L * ? 2010")]
@@ -283,7 +319,6 @@ namespace Quartz.Tests.Unit
             Action act = () => new CronExpression($"0 0 * * * ?{allowedChar}");
             act.Should().NotThrow();
         }
-
 
         [Test]
         public void CanGetNextTimeAfterExternal_From_JsonDeserializedExpression()
@@ -462,24 +497,6 @@ namespace Quartz.Tests.Unit
 
             // check that all fired
             Assert.IsTrue(correctFireDays.Count == 0, $"CronExpression did not evaluate true for all expected days (count: {correctFireDays.Count}).");
-        }
-
-        [Test]
-        public void TestFormatExceptionWildCardDayOfMonthAndDayOfWeek()
-        {
-            Assert.Throws<FormatException>(() => new CronExpression("0 0 * * * *"), "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.");
-        }
-
-        [Test]
-        public void TestFormatExceptionSpecifiedDayOfMonthAndWildCardDayOfWeek()
-        {
-            Assert.Throws<FormatException>(() => new CronExpression("0 0 * 4 * *"), "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.");
-        }
-
-        [Test]
-        public void TestFormatExceptionWildCardDayOfMonthAndSpecifiedDayOfWeek()
-        {
-            Assert.Throws<FormatException>(() => new CronExpression("0 0 * * * 4"), "Support for specifying both a day-of-week AND a day-of-month parameter is not implemented.");
         }
 
         [Test]

@@ -34,6 +34,8 @@ For easy generation of cron intervals using UI you can use some of these service
 
 - [Cron Expression Generator & Explainer](https://www.freeformatter.com/cron-expression-generator-quartz.html)
 - [CronMaker](http://www.cronmaker.com/)
+
+NOTE: There are many cron standards/implementations. The results from some generators may not always be correct for Quartz.NET
 :::
 
 An example of a complete cron-expression is the string `0 0 12 ? * WED` - which means "every Wednesday at 12:00 pm".
@@ -164,7 +166,7 @@ ITrigger trigger = TriggerBuilder.Create()
 ## CronTrigger Misfire Instructions
 
 The following instructions can be used to inform Quartz what it should do when a misfire occurs for CronTrigger.
-(Misfire situations were introduced in the More About Triggers section of this tutorial). These instructions are defined in  as
+(Misfire situations were introduced in the More About Triggers section of this tutorial). These instructions are defined in as
 constants (and API documentation has description for their behavior). The instructions include:
 
 - `MisfireInstruction.IgnoreMisfirePolicy`
