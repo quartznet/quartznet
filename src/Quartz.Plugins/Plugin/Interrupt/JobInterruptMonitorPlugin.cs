@@ -78,12 +78,12 @@ namespace Quartz.Plugin.Interrupt
                 if (context.JobDetail.JobDataMap.GetBoolean(JobDataMapKeyAutoInterruptable))
                 {
                     JobInterruptMonitorPlugin monitorPlugin = (JobInterruptMonitorPlugin) context.Scheduler.Context.Get(JobInterruptMonitorKey);
-                    // Get the MaxRuntime from Job Data if NOT available use MaxRunTime from Plugin Configuration
+                    // Get the MaxRuntime from MergedJobDataMap if NOT available use MaxRunTime from Plugin Configuration
                     var jobDataDelay = DefaultMaxRunTime;
 
-                    if (context.JobDetail.JobDataMap.GetString(JobDataMapKeyMaxRunTime) != null)
+                    if (context.MergedJobDataMap.GetString(JobDataMapKeyMaxRunTime) != null)
                     {
-                        jobDataDelay = TimeSpan.FromMilliseconds(context.JobDetail.JobDataMap.GetLongValueFromString(JobDataMapKeyMaxRunTime));
+                        jobDataDelay = TimeSpan.FromMilliseconds(context.MergedJobDataMap.GetLongValueFromString(JobDataMapKeyMaxRunTime));
                     }
 
                     monitorPlugin.ScheduleJobInterruptMonitor(context.FireInstanceId, context.JobDetail.Key, jobDataDelay);
