@@ -23,7 +23,6 @@ using System.Globalization;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Text.RegularExpressions;
-
 using Quartz.Util;
 
 namespace Quartz
@@ -1411,8 +1410,8 @@ namespace Quartz
         protected virtual ValueSet GetValue(int v, string s, int i)
         {
             var c = s[i];
-            var s1 = new StringBuilder(v.ToString(CultureInfo.InvariantCulture));
-            while (c >= '0' && c <= '9')
+            var s1 = new StringBuilder(v.ToString(CultureInfo.InvariantCulture),s.Length);
+            while (c is >= '0' and <= '9')
             {
                 s1.Append(c);
                 i++;
@@ -1422,7 +1421,12 @@ namespace Quartz
                 }
                 c = s[i];
             }
-            var val = new ValueSet();
+
+            var val = new ValueSet
+            {
+                theValue = Convert.ToInt32(s1.ToString(), CultureInfo.InvariantCulture)
+            };
+
             if (i < s.Length)
             {
                 val.pos = i;
@@ -1431,7 +1435,6 @@ namespace Quartz
             {
                 val.pos = i + 1;
             }
-            val.theValue = Convert.ToInt32(s1.ToString(), CultureInfo.InvariantCulture);
             return val;
         }
 
@@ -1529,11 +1532,11 @@ namespace Quartz
             var st = seconds.TailSet(sec);
             if (st.Count > 0)
             {
-                sec = st.First();
+                sec = st.Min;
             }
             else
             {
-                sec = seconds.First();
+                sec = seconds.Min;
                 d = d.AddMinutes(1);
             }
 
@@ -1554,11 +1557,11 @@ namespace Quartz
             if (st.Count > 0)
             {
                 t = min;
-                min = st.First();
+                min = st.Min;
             }
             else
             {
-                min = minutes.First();
+                min = minutes.Min;
                 hr++;
             }
 
@@ -1586,11 +1589,11 @@ namespace Quartz
             if (st.Count > 0)
             {
                 t = d.Hour;
-                hour = st.First();
+                hour = st.Min;
             }
             else
             {
-                hour = hours.First();
+                hour = hours.Min;
                 day++;
             }
 
@@ -1651,7 +1654,7 @@ namespace Quartz
             }
             else if (nearestWeekday) //AND not lastDay
             {
-                var day = daysOfMonth.First();
+                var day = daysOfMonth.Min;
                 var tcal = new DateTimeOffset(dt.Year, dt.Month, day, 0, 0, 0, dt.Offset);
                 var lastDayOfMonth = GetLastDayOfMonth(dt.Month, dt.Year);
                 var dayOfWeek = tcal.DayOfWeek;
@@ -1695,13 +1698,13 @@ namespace Quartz
             if (found)
             {
                 t = day;
-                day = tailDays.First();
+                day = tailDays.Min;
 
                 // make sure we don't over-run a short month, such as february
                 var lastDay = GetLastDayOfMonth(mon, d.Year);
                 if (day > lastDay)
                 {
-                    day = daysOfMonthCalculated.First();
+                    day = daysOfMonthCalculated.Min;
                     mon++;
                 }
             }
@@ -1709,11 +1712,11 @@ namespace Quartz
             {
                 if (lastdayOfMonth)
                 {
-                    day = daysOfMonthCalculated.First(); //for lastDayOfMonth use calculated fields
+                    day = daysOfMonthCalculated.Min; //for lastDayOfMonth use calculated fields
                 }
                 else
                 {
-                    day = daysOfMonth.First(); //if not then initial set of days uncalculated (to avoid issue with stale weekday in wrong month value)
+                    day = daysOfMonth.Min; //if not then initial set of days uncalculated (to avoid issue with stale weekday in wrong month value)
                 }
 
                 mon++;
@@ -1755,7 +1758,7 @@ namespace Quartz
             {
                 // are we looking for the last XXX day of
                 // the month?
-                var dow = daysOfWeek.First(); // desired
+                var dow = daysOfWeek.Min; // desired
                                               // d-o-w
                 var cDow = (int)d.DayOfWeek + 1; // current d-o-w
                 var daysToAdd = 0;
@@ -1806,7 +1809,7 @@ namespace Quartz
             else if (nthdayOfWeek != 0)
             {
                 // are we looking for the Nth XXX day in the month?
-                var dow = daysOfWeek.First(); // desired
+                var dow = daysOfWeek.Min; // desired
                                               // d-o-w
                 var cDow = (int)d.DayOfWeek + 1; // current d-o-w
                 var daysToAdd = 0;
@@ -1854,12 +1857,12 @@ namespace Quartz
             else if (everyNthWeek != 0)
             {
                 var cDow = (int)d.DayOfWeek + 1; // current d-o-w
-                var dow = daysOfWeek.First(); // desired
+                var dow = daysOfWeek.Min; // desired
                                               // d-o-w
                 var tailDays = daysOfWeek.TailSet(cDow);
                 if (tailDays.Count > 0)
                 {
-                    dow = tailDays.First();
+                    dow = tailDays.Min;
                 }
 
                 var daysToAdd = 0;
@@ -1884,12 +1887,12 @@ namespace Quartz
             else
             {
                 var cDow = (int)d.DayOfWeek + 1; // current d-o-w
-                var dow = daysOfWeek.First(); // desired
+                var dow = daysOfWeek.Min; // desired
                                               // d-o-w
                 var tailDays = daysOfWeek.TailSet(cDow);
                 if (tailDays.Count > 0)
                 {
-                    dow = tailDays.First();
+                    dow = tailDays.Min;
                 }
 
                 var daysToAdd = 0;
@@ -1985,11 +1988,11 @@ namespace Quartz
             if (st.Count > 0)
             {
                 t = mon;
-                mon = st.First();
+                mon = st.Min;
             }
             else
             {
-                mon = months.First();
+                mon = months.Min;
                 year++;
             }
 
@@ -2010,7 +2013,7 @@ namespace Quartz
             if (st.Count > 0)
             {
                 t = year;
-                year = st.First();
+                year = st.Min;
             }
             else
             {
