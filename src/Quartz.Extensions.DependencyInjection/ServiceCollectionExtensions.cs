@@ -81,9 +81,9 @@ namespace Quartz
         /// </summary>
         public static IServiceCollectionQuartzConfigurator AddJob<T>(
             this IServiceCollectionQuartzConfigurator options,
-            Action<IJobConfigurator>? configure = null) where T : IJob
+            Action<JobBuilder<T>>? configure = null) where T : IJob
         {
-            return AddJob(options,typeof(T), null, configure);
+            return AddJob<T>(options, null, configure);
         }
 
         /// <summary>
@@ -92,9 +92,22 @@ namespace Quartz
         public static IServiceCollectionQuartzConfigurator AddJob<T>(
             this IServiceCollectionQuartzConfigurator options,
             JobKey? jobKey = null,
-            Action<IJobConfigurator>? configure = null) where T : IJob
+            Action<JobBuilder<T>>? configure = null) where T : IJob
         {
-            return AddJob(options, typeof(T), jobKey, configure);
+            var c = new JobBuilder<T>();
+            if (jobKey != null)
+            {
+                c.WithIdentity(jobKey);
+            }
+
+            var jobDetail = ConfigureAndBuildJobDetail<T>(c, configure, hasCustomKey: out _);
+
+            options.Services.Configure<QuartzOptions>(x =>
+            {
+                x.jobDetails.Add(jobDetail);
+            });
+
+            return options;
         }
         /// <summary>
         /// Add job to underlying service collection.jobType shoud be implement `IJob`
@@ -156,15 +169,15 @@ namespace Quartz
         public static IServiceCollectionQuartzConfigurator ScheduleJob<T>(
             this IServiceCollectionQuartzConfigurator options,
             Action<ITriggerConfigurator> trigger,
-            Action<IJobConfigurator>? job = null) where T : IJob
+            Action<JobBuilder<T>>? job = null) where T : IJob
         {
             if (trigger is null)
             {
                 throw new ArgumentNullException(nameof(trigger));
             }
 
-            var jobConfigurator = new JobConfigurator();
-            var jobDetail = ConfigureAndBuildJobDetail(typeof(T), jobConfigurator, job, out var jobHasCustomKey);
+            var jobConfigurator = new JobBuilder<T>();
+            var jobDetail = ConfigureAndBuildJobDetail<T>(jobConfigurator, job, out var jobHasCustomKey);
 
             options.Services.Configure<QuartzOptions>(quartzOptions =>
             {
@@ -209,6 +222,18 @@ namespace Quartz
             out bool hasCustomKey)
         {
             builder.OfType(type);
+            configure?.Invoke(builder);
+            hasCustomKey = builder.Key is not null;
+            var jobDetail = builder.Build();
+            return jobDetail;
+        }
+
+        private static IJobDetail ConfigureAndBuildJobDetail<T>(
+            JobBuilder<T> builder,
+            Action<JobBuilder<T>>? configure,
+            out bool hasCustomKey) where T : IJob
+        {
+            builder.OfType(typeof(T));
             configure?.Invoke(builder);
             hasCustomKey = builder.Key is not null;
             var jobDetail = builder.Build();

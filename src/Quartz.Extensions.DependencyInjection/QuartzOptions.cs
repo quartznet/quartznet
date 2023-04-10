@@ -59,9 +59,9 @@ public class QuartzOptions : Dictionary<string, string?>
         return this;
     }
 
-    public QuartzOptions AddJob<T>(Action<JobBuilder> configure) where T : IJob
+    public QuartzOptions AddJob<T>(Action<JobBuilder<T>> configure) where T : IJob
     {
-        var builder = JobBuilder.Create<T>();
+        var builder = JobBuilder<T>.Create();
         configure(builder);
         jobDetails.Add(builder.Build());
         return this;

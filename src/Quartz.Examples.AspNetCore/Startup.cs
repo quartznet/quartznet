@@ -110,7 +110,8 @@ namespace Quartz.Examples.AspNetCore
                     .WithIdentity("Combined Configuration Trigger")
                     .StartAt(DateBuilder.EvenSecondDate(DateTimeOffset.UtcNow.AddSeconds(7)))
                     .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second))
-                    .WithDescription("my awesome trigger configured for a job with single call")
+                    .WithDescription("my awesome trigger configured for a job with single call"),
+                    job => job.UsingJobData(j => j.Parameter = "Example Parameter")
                 );
 
                 // you can also configure individual jobs and triggers with code
@@ -119,12 +120,14 @@ namespace Quartz.Examples.AspNetCore
                 q.AddJob<ExampleJob>(j => j
                     .StoreDurably() // we need to store durably if no trigger is associated
                     .WithDescription("my awesome job")
+                    .UsingJobData(j1 => j1.Parameter = "Example Parameter")
                 );
 
                 // here's a known job for triggers
                 var jobKey = new JobKey("awesome job", "awesome group");
                 q.AddJob<ExampleJob>(jobKey, j => j
                     .WithDescription("my awesome job")
+                    .UsingJobData(j1 => j1.Parameter = "Example Parameter")
                 );
 
                 q.AddTrigger(t => t
@@ -252,7 +255,8 @@ namespace Quartz.Examples.AspNetCore
                     if (!string.IsNullOrWhiteSpace(dep.Value.CronSchedule))
                     {
                         var jobKey = new JobKey("options-custom-job", "custom");
-                        options.AddJob<ExampleJob>(j => j.WithIdentity(jobKey));
+                        options.AddJob<ExampleJob>(j => j.WithIdentity(jobKey)
+                            .UsingJobData(t => t.Parameter = "Example Parameter"));
                         options.AddTrigger(trigger => trigger
                             .WithIdentity("options-custom-trigger", "custom")
                             .ForJob(jobKey)
