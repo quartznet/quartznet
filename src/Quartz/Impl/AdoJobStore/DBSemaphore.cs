@@ -83,7 +83,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Execute the SQL that will lock the proper database row.
         /// </summary>
-        protected abstract Task ExecuteSQL(
+        protected abstract ValueTask ExecuteSQL(
             Guid requestorId,
             ConnectionAndTransactionHolder conn,
             string lockName,
@@ -260,7 +260,7 @@ namespace Quartz.Impl.AdoJobStore
                 hashCode = (requestorId.GetHashCode() * 397) ^ lockName.GetHashCode();
             }
 
-            public bool Equals(ThreadLockKey other) 
+            public bool Equals(ThreadLockKey other)
                 => requestorId.Equals(other.requestorId) && ReferenceEquals(lockName, other.lockName);
 
             public override bool Equals(object? obj) => obj is ThreadLockKey other && Equals(other);

@@ -164,7 +164,7 @@ namespace Quartz.Impl.AdoJobStore
 
             }
 
-            public async Task Acquire(Guid requestorId, CancellationToken cancellationToken)
+            public async ValueTask Acquire(Guid requestorId, CancellationToken cancellationToken)
             {
                 await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
                 owner = requestorId;

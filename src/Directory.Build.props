@@ -52,7 +52,6 @@
 
   <PropertyGroup Condition=" '$(TargetFramework)' == 'net472' ">
     <DefineConstants>$(DefineConstants);REMOTING</DefineConstants>
-    <FullFramework>true</FullFramework>
   </PropertyGroup>
 
   <PropertyGroup>

@@ -70,7 +70,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public async Task Shutdown()
+        public async ValueTask Shutdown()
         {
             cancellationTokenSource.Cancel();
             try

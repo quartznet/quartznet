@@ -73,7 +73,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Execute the SQL that will lock the proper database row.
         /// </summary>
-        protected override async Task ExecuteSQL(
+        protected override async ValueTask ExecuteSQL(
             Guid requestorId,
             ConnectionAndTransactionHolder conn,
             string lockName,
@@ -137,7 +137,7 @@ namespace Quartz.Impl.AdoJobStore
             return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) >= 1;
         }
 
-        private async Task LockViaInsert(
+        private async ValueTask LockViaInsert(
             Guid requestorId,
             ConnectionAndTransactionHolder conn,
             string lockName,

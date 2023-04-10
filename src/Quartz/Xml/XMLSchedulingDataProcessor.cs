@@ -130,7 +130,7 @@ namespace Quartz.Xml
         /// "quartz_jobs.xml" in the current working directory).
         /// </summary>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        public virtual Task ProcessFile(CancellationToken cancellationToken = default)
+        public virtual ValueTask ProcessFile(CancellationToken cancellationToken = default)
         {
             return ProcessFile(QuartzXmlFileName, cancellationToken);
         }
@@ -140,7 +140,7 @@ namespace Quartz.Xml
         /// </summary>
         /// <param name="fileName">meta data file name.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        public virtual Task ProcessFile(
+        public virtual ValueTask ProcessFile(
             string fileName,
             CancellationToken cancellationToken = default)
         {
@@ -154,7 +154,7 @@ namespace Quartz.Xml
         /// <param name="fileName">Name of the file.</param>
         /// <param name="systemId">The system id.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        public virtual async Task ProcessFile(
+        public virtual async ValueTask ProcessFile(
             string fileName,
             string systemId,
             CancellationToken cancellationToken = default)
@@ -178,7 +178,7 @@ namespace Quartz.Xml
         /// <param name="stream">The stream.</param>
         /// <param name="systemId">The system id.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        public virtual async Task ProcessStream(
+        public virtual async ValueTask ProcessStream(
             Stream stream,
             string? systemId,
             CancellationToken cancellationToken = default)
@@ -622,7 +622,7 @@ namespace Quartz.Xml
         /// Process the xml file in the default location, and schedule all of the jobs defined within it.
         /// </summary>
         /// <remarks>Note that we will set overWriteExistingJobs after the default xml is parsed.</remarks>
-        public async Task ProcessFileAndScheduleJobs(
+        public async ValueTask ProcessFileAndScheduleJobs(
             IScheduler sched,
             bool overWriteExistingJobs,
             CancellationToken cancellationToken = default)
@@ -639,7 +639,7 @@ namespace Quartz.Xml
         /// Process the xml file in the default location, and schedule all of the
         /// jobs defined within it.
         /// </summary>
-        public virtual Task ProcessFileAndScheduleJobs(
+        public virtual ValueTask ProcessFileAndScheduleJobs(
             IScheduler sched,
             CancellationToken cancellationToken = default)
         {
@@ -653,7 +653,7 @@ namespace Quartz.Xml
         /// <param name="fileName">meta data file name.</param>
         /// <param name="sched">The scheduler.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        public virtual Task ProcessFileAndScheduleJobs(
+        public virtual ValueTask ProcessFileAndScheduleJobs(
             string fileName,
             IScheduler sched,
             CancellationToken cancellationToken = default)
@@ -669,7 +669,7 @@ namespace Quartz.Xml
         /// <param name="systemId">The system id.</param>
         /// <param name="sched">The sched.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        public virtual async Task ProcessFileAndScheduleJobs(
+        public virtual async ValueTask ProcessFileAndScheduleJobs(
             string fileName,
             string systemId,
             IScheduler sched,
@@ -687,7 +687,7 @@ namespace Quartz.Xml
         /// <param name="stream">stream to read XML data from.</param>
         /// <param name="sched">The sched.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        public virtual async Task ProcessStreamAndScheduleJobs(
+        public virtual async ValueTask ProcessStreamAndScheduleJobs(
             Stream stream,
             IScheduler sched,
             CancellationToken cancellationToken = default)
@@ -706,7 +706,7 @@ namespace Quartz.Xml
         /// </summary>
         /// <param name="sched">The sched.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        public virtual async Task ScheduleJobs(
+        public virtual async ValueTask ScheduleJobs(
             IScheduler sched,
             CancellationToken cancellationToken = default)
         {
@@ -979,7 +979,7 @@ namespace Quartz.Xml
             return triggersByFQJobName;
         }
 
-        protected async Task ExecutePreProcessCommands(
+        protected async ValueTask ExecutePreProcessCommands(
             IScheduler scheduler,
             CancellationToken cancellationToken = default)
         {
