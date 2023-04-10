@@ -4,10 +4,15 @@ namespace Quartz.Core
 {
     public class QuartzRandom
     {
+#pragma warning disable SYSLIB0023
         private readonly RNGCryptoServiceProvider random;
+#pragma warning restore SYSLIB0023
+
         internal QuartzRandom()
         {
+#pragma warning disable SYSLIB0023
             random = new RNGCryptoServiceProvider();
+#pragma warning restore SYSLIB0023
         }
 
         private double NextDouble()

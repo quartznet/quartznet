@@ -40,7 +40,7 @@ namespace Quartz.Impl.AdoJobStore.Common
 		protected const string PropertyDbProvider = StdSchedulerFactory.PropertyDbProvider;
         protected const string DbProviderSectionName = StdSchedulerFactory.ConfigurationSectionName;
         protected const string DbProviderResourceName =
-#if NETSTANDARD
+#if NETSTANDARD || NET6_0_OR_GREATER
             "Quartz.Impl.AdoJobStore.Common.dbproviders.netstandard.properties";
 #else
             "Quartz.Impl.AdoJobStore.Common.dbproviders.properties";
