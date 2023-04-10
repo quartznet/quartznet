@@ -142,10 +142,10 @@ namespace Quartz.Tests.Unit.Utils
         [DisallowConcurrentExecution]
         private class BaseJob : IJob
         {
-            public Task Execute(IJobExecutionContext context)
+            public ValueTask Execute(IJobExecutionContext context)
             {
                 // Console.WriteLine(GetType().Name);
-                return Task.CompletedTask;
+                return default;
             }
         }
 

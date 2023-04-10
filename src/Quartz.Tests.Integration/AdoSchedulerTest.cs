@@ -1,4 +1,4 @@
-﻿using NUnit.Framework;
+using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
@@ -22,7 +22,7 @@ namespace Quartz.Tests.Integration
             serializer.Initialize();
         }
 
-        protected override Task<IScheduler> CreateScheduler(string name, int threadPoolSize)
+        protected override ValueTask<IScheduler> CreateScheduler(string name, int threadPoolSize)
         {
             DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType);
 

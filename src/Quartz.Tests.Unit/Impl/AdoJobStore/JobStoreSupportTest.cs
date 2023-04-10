@@ -43,12 +43,12 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
                 return new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
             }
 
-            protected override Task<T> ExecuteInLock<T>(
+            protected override ValueTask<T> ExecuteInLock<T>(
                 string lockName,
-                Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
+                Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
                 CancellationToken cancellationToken = default)
             {
-                return Task.FromResult(default(T));
+                return new ValueTask<T>(default(T));
             }
 
             /// <summary>

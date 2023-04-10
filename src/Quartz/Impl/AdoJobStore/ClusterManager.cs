@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 
 using Quartz.Logging;
 using Quartz.Util;
@@ -49,7 +49,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        private async Task<bool> Manage()
+        private async ValueTask<bool> Manage()
         {
             bool res = false;
             try

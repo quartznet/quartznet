@@ -53,7 +53,7 @@ namespace Quartz
         /// </para>
         /// </summary>
         /// <seealso cref="JobExecutionVetoed" />
-        Task JobToBeExecuted(
+        ValueTask JobToBeExecuted(
             IJobExecutionContext context,
             CancellationToken cancellationToken = default);
 
@@ -64,7 +64,7 @@ namespace Quartz
         /// execution.
         /// </summary>
         /// <seealso cref="JobToBeExecuted" />
-        Task JobExecutionVetoed(
+        ValueTask JobExecutionVetoed(
             IJobExecutionContext context,
             CancellationToken cancellationToken = default);
 
@@ -73,7 +73,7 @@ namespace Quartz
         /// has been executed, and be for the associated <see cref="IOperableTrigger" />'s
         /// <see cref="IOperableTrigger.Triggered" /> method has been called.
         /// </summary>
-        Task JobWasExecuted(
+        ValueTask JobWasExecuted(
             IJobExecutionContext context,
             JobExecutionException? jobException,
             CancellationToken cancellationToken = default);

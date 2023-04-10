@@ -11,10 +11,10 @@ namespace Quartz.Examples.AspNetCore
             this.logger = logger;
         }
 
-        public override Task SchedulerStarted(CancellationToken cancellationToken = default)
+        public override ValueTask SchedulerStarted(CancellationToken cancellationToken = default)
         {
             logger.LogInformation("Observed scheduler start");
-            return Task.CompletedTask;
+            return default;
         }
     }
 }

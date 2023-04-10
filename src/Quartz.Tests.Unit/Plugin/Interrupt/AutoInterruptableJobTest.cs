@@ -1,4 +1,4 @@
-﻿using System.Collections.Specialized;
+using System.Collections.Specialized;
 
 using NUnit.Framework;
 
@@ -17,7 +17,7 @@ namespace Quartz.Tests.Unit.Plugin.Interrupt
         {
             internal static bool interrupted;
 
-            public async Task Execute(IJobExecutionContext context)
+            public async ValueTask Execute(IJobExecutionContext context)
             {
                 // Console.WriteLine("TestInterruptableJob is executing.");
                 sync.Release(); // wait for test thread to notice the job is now running

@@ -1,4 +1,4 @@
-﻿using FakeItEasy;
+using FakeItEasy;
 
 using FluentAssertions;
 
@@ -220,7 +220,7 @@ public class TriggerEndpointsTest : WebApiTest
             .OfType("Quartz.Tests.AspNetCore.Support.DummyJob2, Quartz.Tests.AspNetCore")
             .Build();
 
-        Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.ScheduleJob(jobDetailsForUnknownJob, TestData.SimpleTrigger))!
+        Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.ScheduleJob(jobDetailsForUnknownJob, TestData.SimpleTrigger).AsTask())!
             .Message.Should().ContainEquivalentOf("unknown job type");
     }
 
@@ -275,11 +275,11 @@ public class TriggerEndpointsTest : WebApiTest
             .OfType("Quartz.Tests.AspNetCore.Support.DummyJob2, Quartz.Tests.AspNetCore")
             .Build();
 
-        Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.ScheduleJob(jobDetailsForUnknownJob, new[] { TestData.CronTrigger, TestData.SimpleTrigger }, replace: true))!
+        Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.ScheduleJob(jobDetailsForUnknownJob, new[] { TestData.CronTrigger, TestData.SimpleTrigger }, replace: true).AsTask())!
             .Message.Should().ContainEquivalentOf("unknown job type");
 
         var request = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>> { { jobDetailsForUnknownJob, new[] { TestData.CronTrigger } } };
-        Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.ScheduleJobs(request, replace: true))!.Message.Should().ContainEquivalentOf("unknown job type");
+        Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.ScheduleJobs(request, replace: true).AsTask())!.Message.Should().ContainEquivalentOf("unknown job type");
     }
 
     [Test]

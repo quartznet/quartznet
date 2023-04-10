@@ -77,7 +77,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Execute the SQL select for update that will lock the proper database row.
         /// </summary>
-        protected override async Task ExecuteSQL(
+        protected override async ValueTask ExecuteSQL(
             Guid requestorId,
             ConnectionAndTransactionHolder conn,
             string lockName,

@@ -70,10 +70,10 @@ namespace Quartz.Benchmark
         }
 
         /// <summary>
-        /// The primary goal of this benchamrk is to measure memory allocations.
+        /// The primary goal of this benchmark is to measure memory allocations.
         /// </summary>
         /// <remarks>
-        /// Note that this includes the allocations for initializing the threadpool itself.
+        /// Note that this includes the allocations for initializing the ThreadPool itself.
         /// </remarks>
         [Benchmark]
         public void RunInThread_OneShot()

@@ -90,13 +90,13 @@ namespace Quartz.Benchmark
             private static int RunCount = 0;
             private static int _operationsPerRun;
 
-            public Task Execute(IJobExecutionContext context)
+            public ValueTask Execute(IJobExecutionContext context)
             {
                 if (Interlocked.Increment(ref RunCount) == _operationsPerRun)
                 {
                     Done.Set();
                 }
-                return Task.CompletedTask;
+                return default;
             }
 
             public static void Initialize(int operationsPerRun)
@@ -128,257 +128,257 @@ namespace Quartz.Benchmark
             public string InstanceName { set => throw new NotImplementedException(); }
             public int ThreadPoolSize { set => throw new NotImplementedException(); }
 
-            public Task<IReadOnlyCollection<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow, CancellationToken cancellationToken = default)
+            public ValueTask<IReadOnlyCollection<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<bool> CalendarExists(string calName, CancellationToken cancellationToken = default)
+            public ValueTask<bool> CalendarExists(string calName, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<bool> CheckExists(JobKey jobKey, CancellationToken cancellationToken = default)
+            public ValueTask<bool> CheckExists(JobKey jobKey, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<bool> CheckExists(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+            public ValueTask<bool> CheckExists(TriggerKey triggerKey, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task ClearAllSchedulingData(CancellationToken cancellationToken = default)
+            public ValueTask<object> ClearAllSchedulingData(CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<IReadOnlyCollection<string>> GetCalendarNames(CancellationToken cancellationToken = default)
+            public ValueTask<IReadOnlyCollection<string>> GetCalendarNames(CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<IReadOnlyCollection<string>> GetJobGroupNames(CancellationToken cancellationToken = default)
+            public ValueTask<IReadOnlyCollection<string>> GetJobGroupNames(CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<IReadOnlyCollection<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+            public ValueTask<IReadOnlyCollection<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<int> GetNumberOfCalendars(CancellationToken cancellationToken = default)
+            public ValueTask<int> GetNumberOfCalendars(CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<int> GetNumberOfJobs(CancellationToken cancellationToken = default)
+            public ValueTask<int> GetNumberOfJobs(CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<int> GetNumberOfTriggers(CancellationToken cancellationToken = default)
+            public ValueTask<int> GetNumberOfTriggers(CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<IReadOnlyCollection<string>> GetPausedTriggerGroups(CancellationToken cancellationToken = default)
+            public ValueTask<IReadOnlyCollection<string>> GetPausedTriggerGroups(CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<IReadOnlyCollection<string>> GetTriggerGroupNames(CancellationToken cancellationToken = default)
+            public ValueTask<IReadOnlyCollection<string>> GetTriggerGroupNames(CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<IReadOnlyCollection<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+            public ValueTask<IReadOnlyCollection<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<IReadOnlyCollection<IOperableTrigger>> GetTriggersForJob(JobKey jobKey, CancellationToken cancellationToken = default)
+            public ValueTask<IReadOnlyCollection<IOperableTrigger>> GetTriggersForJob(JobKey jobKey, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<TriggerState> GetTriggerState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+            public ValueTask<TriggerState> GetTriggerState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+            public ValueTask<object> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler, CancellationToken cancellationToken = default)
+            public ValueTask Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<bool> IsJobGroupPaused(string groupName, CancellationToken cancellationToken = default)
+            public ValueTask<bool> IsJobGroupPaused(string groupName, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<bool> IsTriggerGroupPaused(string groupName, CancellationToken cancellationToken = default)
+            public ValueTask<bool> IsTriggerGroupPaused(string groupName, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task PauseAll(CancellationToken cancellationToken = default)
+            public ValueTask<object> PauseAll(CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
+            public ValueTask<object> PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<IReadOnlyCollection<string>> PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+            public ValueTask<IReadOnlyCollection<string>> PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+            public ValueTask<object> PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<IReadOnlyCollection<string>> PauseTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+            public ValueTask<IReadOnlyCollection<string>> PauseTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task ReleaseAcquiredTrigger(IOperableTrigger trigger, CancellationToken cancellationToken = default)
+            public ValueTask<object> ReleaseAcquiredTrigger(IOperableTrigger trigger, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<bool> RemoveCalendar(string calName, CancellationToken cancellationToken = default)
+            public ValueTask<bool> RemoveCalendar(string calName, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<bool> RemoveJob(JobKey jobKey, CancellationToken cancellationToken = default)
+            public ValueTask<bool> RemoveJob(JobKey jobKey, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<bool> RemoveJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+            public ValueTask<bool> RemoveJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<bool> RemoveTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+            public ValueTask<bool> RemoveTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<bool> RemoveTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
+            public ValueTask<bool> RemoveTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<bool> ReplaceTrigger(TriggerKey triggerKey, IOperableTrigger newTrigger, CancellationToken cancellationToken = default)
+            public ValueTask<bool> ReplaceTrigger(TriggerKey triggerKey, IOperableTrigger newTrigger, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task ResumeAll(CancellationToken cancellationToken = default)
+            public ValueTask<object> ResumeAll(CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
+            public ValueTask<object> ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<IReadOnlyCollection<string>> ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
+            public ValueTask<IReadOnlyCollection<string>> ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+            public ValueTask<object> ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<IReadOnlyCollection<string>> ResumeTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
+            public ValueTask<IReadOnlyCollection<string>> ResumeTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<ICalendar?> RetrieveCalendar(string calName, CancellationToken cancellationToken = default)
+            public ValueTask<ICalendar?> RetrieveCalendar(string calName, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<IJobDetail?> RetrieveJob(JobKey jobKey, CancellationToken cancellationToken = default)
+            public ValueTask<IJobDetail?> RetrieveJob(JobKey jobKey, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task<IOperableTrigger?> RetrieveTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+            public ValueTask<IOperableTrigger?> RetrieveTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task SchedulerPaused(CancellationToken cancellationToken = default)
+            public ValueTask SchedulerPaused(CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task SchedulerResumed(CancellationToken cancellationToken = default)
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task SchedulerStarted(CancellationToken cancellationToken = default)
+            public ValueTask SchedulerResumed(CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task Shutdown(CancellationToken cancellationToken = default)
-            {
-                return Task.CompletedTask;
-            }
-
-            public Task StoreCalendar(string name, ICalendar calendar, bool replaceExisting, bool updateTriggers, CancellationToken cancellationToken = default)
+            public ValueTask SchedulerStarted(CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task StoreJob(IJobDetail newJob, bool replaceExisting, CancellationToken cancellationToken = default)
+            public ValueTask Shutdown(CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
+
+            public ValueTask StoreCalendar(string name, ICalendar calendar, bool replaceExisting, bool updateTriggers, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task StoreJobAndTrigger(IJobDetail newJob, IOperableTrigger newTrigger, CancellationToken cancellationToken = default)
+            public ValueTask<object> StoreJob(IJobDetail newJob, bool replaceExisting, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task StoreJobsAndTriggers(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
+            public ValueTask StoreJobAndTrigger(IJobDetail newJob, IOperableTrigger newTrigger, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task StoreTrigger(IOperableTrigger newTrigger, bool replaceExisting, CancellationToken cancellationToken = default)
+            public ValueTask<object> StoreJobsAndTriggers(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }
 
-            public Task TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstCode, CancellationToken cancellationToken = default)
+            public ValueTask<object> StoreTrigger(IOperableTrigger newTrigger, bool replaceExisting, CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                throw new NotImplementedException();
             }
 
-            public Task<IReadOnlyCollection<TriggerFiredResult>> TriggersFired(IReadOnlyCollection<IOperableTrigger> triggers, CancellationToken cancellationToken = default)
+            public ValueTask<object> TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstCode, CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
+
+            public ValueTask<IReadOnlyCollection<TriggerFiredResult>> TriggersFired(IReadOnlyCollection<IOperableTrigger> triggers, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }

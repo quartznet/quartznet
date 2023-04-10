@@ -441,11 +441,11 @@ namespace Quartz.Tests.Integration.Impl
     {
         private static readonly ManualResetEventSlim triggered = new ManualResetEventSlim();
 
-        public Task Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context)
         {
             TriggeredCount++;
             triggered.Set();
-            return Task.CompletedTask;
+            return default;
         }
 
         public static int TriggeredCount { get; private set; }

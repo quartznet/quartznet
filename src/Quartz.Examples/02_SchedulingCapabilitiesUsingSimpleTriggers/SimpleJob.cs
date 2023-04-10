@@ -32,13 +32,13 @@ namespace Quartz.Examples.Example02
 		/// <see cref="ITrigger" /> fires that is associated with
 		/// the <see cref="IJob" />.
 		/// </summary>
-		public virtual Task Execute(IJobExecutionContext context)
+		public virtual ValueTask Execute(IJobExecutionContext context)
 		{
 			// This job simply prints out its job name and the
 			// date and time that it is running
 			JobKey jobKey = context.JobDetail.Key;
 			Console.WriteLine("SimpleJob says: {0} executing at {1:r}", jobKey, DateTime.Now);
-	        return Task.CompletedTask;
+	        return default;
 		}
 	}
 }

@@ -38,6 +38,6 @@ namespace Quartz.Spi
 		/// Generate the instance id for a <see cref="IScheduler" />
 		/// </summary>
 		/// <returns> The clusterwide unique instance id.</returns>
-		Task<string?> GenerateInstanceId(CancellationToken cancellationToken = default);
+		ValueTask<string?> GenerateInstanceId(CancellationToken cancellationToken = default);
 	}
 }

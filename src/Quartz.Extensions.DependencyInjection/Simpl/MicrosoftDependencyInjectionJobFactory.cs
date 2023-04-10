@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
 using Quartz.Spi;
@@ -88,7 +88,7 @@ namespace Quartz.Simpl
                 scope.Dispose();
             }
 
-            public Task Execute(IJobExecutionContext context)
+            public ValueTask Execute(IJobExecutionContext context)
             {
                 return InnerJob.Execute(context);
             }

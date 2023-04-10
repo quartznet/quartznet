@@ -77,7 +77,7 @@ namespace Quartz.Job
         /// </summary>
         /// <param name="context">The <see cref="IJobExecutionContext"/> that
         /// the job will use during execution.</param>
-        public Task Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context)
         {
             DirectoryScanJobModel model = DirectoryScanJobModel.GetInstance(context);
 
@@ -127,7 +127,7 @@ namespace Quartz.Job
                     logger.LogDebug("Directory '{Directory}' contents unchanged.", dir);
                 }
             }
-            return Task.CompletedTask;
+            return default;
         }
 
         protected void GetUpdatedOrNewFiles(string dirName, DateTime lastModifiedDate, DateTime maxAgeDate, List<FileInfo> currentFileList,

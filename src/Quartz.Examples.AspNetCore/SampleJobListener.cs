@@ -13,10 +13,10 @@ namespace Quartz.Examples.AspNetCore
 
         public override string Name => "Sample Job Listener";
 
-        public override Task JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        public override ValueTask JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken = default)
         {
             logger.LogInformation("The job is about to be executed, prepare yourself!");
-            return Task.CompletedTask;
+            return default;
         }
     }
 }

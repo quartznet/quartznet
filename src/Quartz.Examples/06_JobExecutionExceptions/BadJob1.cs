@@ -34,7 +34,7 @@ namespace Quartz.Examples.Example06
         /// Called by the <see cref="IScheduler" /> when a Trigger" />
         /// fires that is associated with the <see cref="IJob" />.
         /// </summary>
-        public virtual Task Execute(IJobExecutionContext context)
+        public virtual ValueTask Execute(IJobExecutionContext context)
         {
             JobKey jobKey = context.JobDetail.Key;
             JobDataMap dataMap = context.JobDetail.JobDataMap;
@@ -64,7 +64,7 @@ namespace Quartz.Examples.Example06
             }
 
             Console.WriteLine("---{0} completed at {1:r}", jobKey, DateTime.Now);
-            return Task.CompletedTask;
+            return default;
         }
     }
 }

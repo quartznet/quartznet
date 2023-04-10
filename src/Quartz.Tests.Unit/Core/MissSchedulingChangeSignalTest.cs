@@ -1,4 +1,4 @@
-﻿using System.Collections.Specialized;
+using System.Collections.Specialized;
 
 using Microsoft.Extensions.Logging;
 
@@ -73,7 +73,7 @@ namespace Quartz.Tests.Unit.Core
         private static DateTime? lastFireTime;
         private static readonly ILogger<CollectDurationBetweenFireTimesJob> logger = LogProvider.CreateLogger<CollectDurationBetweenFireTimesJob>();
 
-        public Task Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context)
         {
             DateTime now = DateTime.UtcNow;
             logger.LogInformation("Fire time: {FireTime}",now);
@@ -83,7 +83,7 @@ namespace Quartz.Tests.Unit.Core
             }
 
             lastFireTime = now;
-            return Task.FromResult(true);
+            return default;
         }
 
         public static List<TimeSpan> Durations { get; } = new List<TimeSpan>();

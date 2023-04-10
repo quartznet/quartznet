@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 
 using Microsoft.Extensions.Logging;
 
@@ -33,15 +33,15 @@ namespace Quartz.Plugin.Interrupt
         // active monitors
         private ConcurrentDictionary<string, InterruptMonitor> interruptMonitors = new();
 
-        public Task Start(CancellationToken cancellationToken = default)
+        public ValueTask Start(CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
-        public Task Shutdown(CancellationToken cancellationToken = default)
+        public ValueTask Shutdown(CancellationToken cancellationToken = default)
         {
             taskScheduler.Dispose();
-            return Task.CompletedTask;
+            return default;
         }
 
         private void ScheduleJobInterruptMonitor(string fireInstanceId, JobKey jobkey, TimeSpan delay)
@@ -65,7 +65,7 @@ namespace Quartz.Plugin.Interrupt
 
         public override string Name => name;
 
-        public override Task TriggerFired(
+        public override ValueTask TriggerFired(
             ITrigger trigger,
             IJobExecutionContext context,
             CancellationToken cancellationToken = default)
@@ -95,10 +95,10 @@ namespace Quartz.Plugin.Interrupt
                 logger.LogError(e,"Error scheduling interrupt monitor {ErrorMessage}", e.Message);
             }
 
-            return Task.CompletedTask;
+            return default;
         }
 
-        public override Task TriggerComplete(
+        public override ValueTask TriggerComplete(
             ITrigger trigger,
             IJobExecutionContext context,
             SchedulerInstruction triggerInstructionCode,
@@ -110,10 +110,10 @@ namespace Quartz.Plugin.Interrupt
                 monitor.Cancel();
             }
 
-            return Task.CompletedTask;
+            return default;
         }
 
-        public Task Initialize(string name, IScheduler scheduler, CancellationToken cancellationToken = default)
+        public ValueTask Initialize(string name, IScheduler scheduler, CancellationToken cancellationToken = default)
         {
             logger.LogInformation("Registering Job Interrupt Monitor Plugin");
             this.name = name;
@@ -125,7 +125,7 @@ namespace Quartz.Plugin.Interrupt
             // Set the trigger Listener as this class to the ListenerManager here
             this.scheduler.ListenerManager.AddTriggerListener(this);
 
-            return Task.CompletedTask;
+            return default;
         }
 
         private sealed class InterruptMonitor

@@ -64,8 +64,8 @@ namespace Quartz.Tests.Integration.Xml
             logger = A.Fake<ILogger<XMLSchedulingDataProcessor>>();
             processor = new XMLSchedulingDataProcessor(logger, new SimpleTypeLoadHelper());
             mockScheduler = A.Fake<IScheduler>();
-            A.CallTo(() => mockScheduler.GetJobDetail(A<JobKey>._, A<CancellationToken>._)).Returns(Task.FromResult<IJobDetail>(null));
-            A.CallTo(() => mockScheduler.GetTrigger(A<TriggerKey>._, A<CancellationToken>._)).Returns(Task.FromResult<ITrigger>(null));
+            A.CallTo(() => mockScheduler.GetJobDetail(A<JobKey>._, A<CancellationToken>._)).Returns(new ValueTask<IJobDetail>());
+            A.CallTo(() => mockScheduler.GetTrigger(A<TriggerKey>._, A<CancellationToken>._)).Returns(new ValueTask<ITrigger>());
 
         }
 
@@ -111,7 +111,7 @@ namespace Quartz.Tests.Integration.Xml
             existing.SetPreviousFireTimeUtc(previousFireTime);
             existing.GetNextFireTimeUtc();
 
-            A.CallTo(() => mockScheduler.GetTrigger(existing.Key, A<CancellationToken>._)).Returns(existing);
+            A.CallTo(() => mockScheduler.GetTrigger(existing.Key, A<CancellationToken>._)).Returns(new ValueTask<ITrigger>(existing));
 
             Stream s = ReadJobXmlFromEmbeddedResource("ScheduleRelativeToOldTrigger.xml");
             await processor.ProcessStream(s, null);

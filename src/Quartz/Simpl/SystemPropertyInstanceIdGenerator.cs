@@ -21,7 +21,7 @@ namespace Quartz.Simpl
         /// <summary>
         /// Returns the cluster wide value for this scheduler instance's id, based on a system property.
         /// </summary>
-        public Task<string?> GenerateInstanceId(CancellationToken cancellationToken = default)
+        public ValueTask<string?> GenerateInstanceId(CancellationToken cancellationToken = default)
         {
             var property = Environment.GetEnvironmentVariable(SystemPropertyName);
             if (property == null)
@@ -38,7 +38,7 @@ namespace Quartz.Simpl
                 property += Postpend;
             }
 
-            return Task.FromResult<string?>(property);
+            return new ValueTask<string?>(property);
         }
 
         /// <summary>

@@ -113,7 +113,7 @@ namespace Quartz.Job
 		/// </para>
 		/// </summary>
 		/// <param name="context"></param>
-		public virtual Task Execute(IJobExecutionContext context)
+		public virtual ValueTask Execute(IJobExecutionContext context)
 		{
 			JobDataMap data = context.MergedJobDataMap;
 
@@ -134,7 +134,7 @@ namespace Quartz.Job
             var workingDirectory = data.GetString(PropertyWorkingDirectory);
 			int exitCode = RunNativeCommand(command, parameters, workingDirectory, wait, consumeStreams);
 		    context.Result = exitCode;
-            return Task.FromResult(true);
+            return default;
         }
 
 		private int RunNativeCommand(string command, string parameters, string? workingDirectory, bool wait, bool consumeStreams)
@@ -285,5 +285,7 @@ namespace Quartz.Job
 				}
 			}
 		}
-	}
+
+     
+    }
 }

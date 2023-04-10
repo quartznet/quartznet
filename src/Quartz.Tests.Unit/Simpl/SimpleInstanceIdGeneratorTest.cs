@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -47,10 +47,10 @@ namespace Quartz.Tests.Unit.Simpl
 
         private class TestInstanceIdGenerator : SimpleInstanceIdGenerator
         {
-            protected override Task<IPHostEntry> GetHostAddress(
+            protected override ValueTask<IPHostEntry> GetHostAddress(
                 CancellationToken cancellationToken = default)
             {
-                return Task.FromResult(new IPHostEntry
+                return new ValueTask<IPHostEntry>(new IPHostEntry
                 {
                     HostName = "my-windows-machine-with-long-name.at.azurewebsites.net"
                 });

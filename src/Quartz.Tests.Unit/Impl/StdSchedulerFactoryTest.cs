@@ -21,6 +21,8 @@
 
 using System.Collections.Specialized;
 
+using FluentAssertions;
+
 using NUnit.Framework;
 
 using Quartz.Impl;
@@ -35,12 +37,13 @@ namespace Quartz.Tests.Unit.Impl
     public class StdSchedulerFactoryTest
     {
         [Test]
-        public Task TestFactoryCanBeUsedWithEmptyProperties()
+        public async ValueTask TestFactoryCanBeUsedWithEmptyProperties()
         {
             var props = new NameValueCollection();
             props["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
             StdSchedulerFactory factory = new StdSchedulerFactory(props);
-            return factory.GetScheduler();
+            var result = await factory.GetScheduler();
+            result.Should().NotBeNull();
         }
 
         [Test]

@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -35,14 +35,14 @@ namespace Quartz.Plugin.TimeZoneConverter
         /// Called during creation of the <see cref="IScheduler" /> in order to give
         /// the <see cref="ISchedulerPlugin" /> a chance to Initialize.
         /// </summary>
-        public Task Initialize(
+        public ValueTask Initialize(
             string pluginName,
             IScheduler scheduler,
             CancellationToken cancellationToken = default)
         {
             TimeZoneUtil.CustomResolver = TZConvert.GetTimeZoneInfo;
 
-            return Task.CompletedTask;
+            return default;
         }
 
         /// <summary>
@@ -50,9 +50,9 @@ namespace Quartz.Plugin.TimeZoneConverter
         /// to let the plug-in know it can now make calls into the scheduler if it
         /// needs to.
         /// </summary>
-        public Task Start(CancellationToken cancellationToken = default)
+        public ValueTask Start(CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
         /// <summary>
@@ -60,9 +60,9 @@ namespace Quartz.Plugin.TimeZoneConverter
         /// should free up all of it's resources because the scheduler is shutting
         /// down.
         /// </summary>
-        public Task Shutdown(CancellationToken cancellationToken = default)
+        public ValueTask Shutdown(CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
     }
 }

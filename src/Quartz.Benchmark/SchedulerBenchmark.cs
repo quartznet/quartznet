@@ -606,13 +606,13 @@ namespace Quartz.Benchmark
 
             public static int RunCount => _runCount;
 
-            public Task Execute(IJobExecutionContext context)
+            public ValueTask Execute(IJobExecutionContext context)
             {
                 if (Interlocked.Increment(ref _runCount) == _operationsPerRun)
                 {
                     Done.Set();
                 }
-                return Task.CompletedTask;
+                return default;
             }
 
             public static void Initialize(int operationsPerRun)
@@ -645,13 +645,13 @@ namespace Quartz.Benchmark
 
             public static int RunCount => _runCount;
 
-            public Task Execute(IJobExecutionContext context)
+            public ValueTask Execute(IJobExecutionContext context)
             {
                 if (Interlocked.Increment(ref _runCount) == _operationsPerRun)
                 {
                     Done.Set();
                 }
-                return Task.CompletedTask;
+                return default;
             }
 
             public static void Initialize(int operationsPerRun)
@@ -685,7 +685,7 @@ namespace Quartz.Benchmark
 
             public static int RunCount => _runCount;
 
-            public Task Execute(IJobExecutionContext context)
+            public ValueTask Execute(IJobExecutionContext context)
             {
                 var runs = Interlocked.Increment(ref _runCount);
 
@@ -697,7 +697,7 @@ namespace Quartz.Benchmark
                 {
                     Done.Set();
                 }
-                return Task.CompletedTask;
+                return default;
             }
 
             public static void Initialize(int operationsPerRun)

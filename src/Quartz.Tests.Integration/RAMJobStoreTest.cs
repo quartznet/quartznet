@@ -1,4 +1,4 @@
-﻿using NUnit.Framework;
+using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
@@ -17,17 +17,17 @@ namespace Quartz.Tests.Integration
         [PersistJobDataAfterExecution]
         public class TestStatefulJob : IJob
         {
-            public Task Execute(IJobExecutionContext context)
+            public ValueTask Execute(IJobExecutionContext context)
             {
-                return Task.CompletedTask;
+                return default;
             }
         }
 
         public class TestJob : IJob
         {
-            public Task Execute(IJobExecutionContext context)
+            public ValueTask Execute(IJobExecutionContext context)
             {
-                return Task.CompletedTask;
+                return default;
             }
         }
 
@@ -41,7 +41,7 @@ namespace Quartz.Tests.Integration
 
         public class TestJobWithSync : IJob
         {
-            public Task Execute(IJobExecutionContext context)
+            public ValueTask Execute(IJobExecutionContext context)
             {
                 try
                 {
@@ -51,14 +51,14 @@ namespace Quartz.Tests.Integration
                     jobExecTimestamps.Add(DateTime.UtcNow);
 
                     barrier.SignalAndWait(testTimeout);
-                    return Task.CompletedTask;
+                    return default;
                 }
                 catch (Exception e)
                 {
                     Console.Write(e);
                     Assert.Fail("Await on barrier was interrupted: " + e);
                 }
-                return Task.CompletedTask;
+                return default;
             }
         }
 
@@ -66,13 +66,13 @@ namespace Quartz.Tests.Integration
         [PersistJobDataAfterExecution]
         public class TestAnnotatedJob : IJob
         {
-            public Task Execute(IJobExecutionContext context)
+            public ValueTask Execute(IJobExecutionContext context)
             {
-                return Task.CompletedTask;
+                return default;
             }
         }
 
-        protected abstract Task<IScheduler> CreateScheduler(string name, int threadPoolSize);
+        protected abstract ValueTask<IScheduler> CreateScheduler(string name, int threadPoolSize);
 
         [Test]
         [Category("db-sqlserver")]

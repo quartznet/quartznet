@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -10,7 +10,7 @@ namespace Quartz.HttpClient;
 
 internal static class HttpClientExtensions
 {
-    public static async Task<TResponse> Get<TResponse>(
+    public static async ValueTask<TResponse> Get<TResponse>(
         this System.Net.Http.HttpClient client,
         string requestUri,
         JsonSerializerOptions serializerOptions,
@@ -22,7 +22,7 @@ internal static class HttpClientExtensions
         return await response.Content.ReadOrThrow<TResponse>(serializerOptions, cancellationToken).ConfigureAwait(false);
     }
 
-    public static async Task<TResponse?> GetWithNullForNotFound<TResponse>(
+    public static async ValueTask<TResponse?> GetWithNullForNotFound<TResponse>(
         this System.Net.Http.HttpClient client,
         string requestUri,
         JsonSerializerOptions serializerOptions,
@@ -38,7 +38,7 @@ internal static class HttpClientExtensions
         return await response.Content.ReadOrThrow<TResponse>(serializerOptions, cancellationToken).ConfigureAwait(false);
     }
 
-    public static async Task Post(
+    public static async ValueTask Post(
         this System.Net.Http.HttpClient client,
         string requestUri,
         JsonSerializerOptions serializerOptions,
@@ -48,7 +48,7 @@ internal static class HttpClientExtensions
         await response.CheckResponseStatusCode(serializerOptions, cancellationToken).ConfigureAwait(false);
     }
 
-    public static async Task Post<TRequest>(
+    public static async ValueTask Post<TRequest>(
         this System.Net.Http.HttpClient client,
         string requestUri,
         TRequest value,
@@ -106,7 +106,7 @@ internal static class HttpClientExtensions
         return await response.Content.ReadOrThrow<TResponse>(serializerOptions, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task<bool> CheckResponseStatusCode(
+    private static async ValueTask<bool> CheckResponseStatusCode(
         this HttpResponseMessage response,
         JsonSerializerOptions serializerOptions,
         CancellationToken cancellationToken,

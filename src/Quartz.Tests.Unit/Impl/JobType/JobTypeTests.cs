@@ -43,10 +43,10 @@ public class JobTypeTests
 
     public sealed class LoggerJob : IJob
     {
-        public Task Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context)
         {
             Console.WriteLine("TestJobExecuted");
-            return Task.CompletedTask;
+            return default;
         }
     }
 

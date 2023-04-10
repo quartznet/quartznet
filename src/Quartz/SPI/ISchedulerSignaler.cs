@@ -29,12 +29,12 @@ namespace Quartz.Spi
     /// <author>Marko Lahma (.NET)</author>
     public interface ISchedulerSignaler
 	{
-		/// <summary>
-		/// Notifies the scheduler about misfired trigger.
-		/// </summary>
-		/// <param name="trigger">The trigger that misfired.</param>
-		/// <param name="cancellationToken">The cancellation instruction.</param>
-		Task NotifyTriggerListenersMisfired(
+        /// <summary>
+        /// Notifies the scheduler about misfired trigger.
+        /// </summary>
+        /// <param name="trigger">The trigger that misfired.</param>
+        /// <param name="cancellationToken">The cancellation instruction.</param>
+        ValueTask NotifyTriggerListenersMisfired(
 			ITrigger trigger,
 			CancellationToken cancellationToken = default);
 
@@ -43,11 +43,11 @@ namespace Quartz.Spi
 		/// </summary>
 		/// <param name="trigger">The trigger that has finalized.</param>
 		/// <param name="cancellationToken">The cancellation instruction.</param>
-		Task NotifySchedulerListenersFinalized(
+		ValueTask NotifySchedulerListenersFinalized(
 	        ITrigger trigger,
 	        CancellationToken cancellationToken = default);
 
-        Task NotifySchedulerListenersJobDeleted(
+        ValueTask NotifySchedulerListenersJobDeleted(
 	        JobKey jobKey,
 	        CancellationToken cancellationToken = default);
 
@@ -61,7 +61,7 @@ namespace Quartz.Spi
         /// <summary>
         /// Informs scheduler listeners about an exception that has occurred.
         /// </summary>
-        Task NotifySchedulerListenersError(
+        ValueTask NotifySchedulerListenersError(
 	        string message,
 	        SchedulerException jpe,
 	        CancellationToken cancellationToken = default);

@@ -1,4 +1,4 @@
-﻿#if REMOTING
+#if REMOTING
 
 using System.Collections.Specialized;
 
@@ -87,7 +87,7 @@ namespace Quartz.Tests.Unit
         /// execution.
         /// </remarks>
         /// <param name="context">The execution context.</param>
-        public async Task Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context)
         {
             Console.WriteLine("SampleJob running...");
             await Task.Delay(TimeSpan.FromSeconds(3600));

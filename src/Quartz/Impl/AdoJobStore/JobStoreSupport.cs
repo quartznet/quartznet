@@ -446,7 +446,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Called by the QuartzScheduler before the <see cref="IJobStore" /> is
         /// used, in order to give it a chance to Initialize.
         /// </summary>
-        public virtual async Task Initialize(
+        public virtual async ValueTask Initialize(
             ITypeLoadHelper loadHelper,
             ISchedulerSignaler signaler,
             CancellationToken cancellationToken = default)
@@ -542,7 +542,7 @@ namespace Quartz.Impl.AdoJobStore
             {
                 try
                 {
-                    var objectCount = await ExecuteWithoutLock(conn => adoDelegate.ValidateSchema(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
+                    var objectCount = await ExecuteWithoutLock<int>(conn => adoDelegate.ValidateSchema(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
                     Logger.LogInformation("Successfully validated presence of {SchemaObjectCount} schema objects", objectCount);
                 }
                 catch (Exception ex)
@@ -557,7 +557,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <seealso cref="IJobStore.SchedulerStarted(CancellationToken)" />
-        public virtual async Task SchedulerStarted(
+        public virtual async ValueTask SchedulerStarted(
             CancellationToken cancellationToken = default)
         {
             if (Clustered)
@@ -587,20 +587,20 @@ namespace Quartz.Impl.AdoJobStore
         /// Called by the QuartzScheduler to inform the JobStore that
         /// the scheduler has been paused.
         /// </summary>
-        public Task SchedulerPaused(CancellationToken cancellationToken = default)
+        public ValueTask SchedulerPaused(CancellationToken cancellationToken = default)
         {
             schedulerRunning = false;
-            return Task.CompletedTask;
+            return default;
         }
 
         /// <summary>
         /// Called by the QuartzScheduler to inform the JobStore that
         /// the scheduler has resumed after being paused.
         /// </summary>
-        public Task SchedulerResumed(CancellationToken cancellationToken = default)
+        public ValueTask SchedulerResumed(CancellationToken cancellationToken = default)
         {
             schedulerRunning = true;
-            return Task.CompletedTask;
+            return default;
         }
 
         /// <summary>
@@ -608,7 +608,7 @@ namespace Quartz.Impl.AdoJobStore
         /// it should free up all of it's resources because the scheduler is
         /// shutting down.
         /// </summary>
-        public virtual async Task Shutdown(CancellationToken cancellationToken = default)
+        public virtual async ValueTask Shutdown(CancellationToken cancellationToken = default)
         {
             shutdown = true;
 
@@ -639,7 +639,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <returns></returns>
         public virtual bool SupportsPersistence => true;
 
-        protected virtual async Task ReleaseLock(
+        protected virtual async ValueTask ReleaseLock(
             Guid requestorId,
             string lockName,
             bool doIt,
@@ -662,7 +662,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Will recover any failed or misfired jobs and clean up the data store as
         /// appropriate.
         /// </summary>
-        protected virtual Task RecoverJobs(CancellationToken cancellationToken)
+        protected virtual ValueTask<bool> RecoverJobs(CancellationToken cancellationToken)
         {
             return ExecuteInNonManagedTXLock(
                 LockTriggerAccess,
@@ -674,7 +674,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Will recover any failed or misfired jobs and clean up the data store as
         /// appropriate.
         /// </summary>
-        protected virtual async Task RecoverJobs(
+        protected virtual async ValueTask RecoverJobs(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default)
         {
@@ -730,7 +730,7 @@ namespace Quartz.Impl.AdoJobStore
 
         //private int lastRecoverCount = 0;
 
-        public virtual async Task<RecoverMisfiredJobsResult> RecoverMisfiredJobs(
+        public virtual async ValueTask<RecoverMisfiredJobsResult> RecoverMisfiredJobs(
             ConnectionAndTransactionHolder conn,
             bool recovering,
             CancellationToken cancellationToken = default)
@@ -803,7 +803,7 @@ namespace Quartz.Impl.AdoJobStore
             return new RecoverMisfiredJobsResult(hasMoreMisfiredTriggers, misfiredTriggers.Count, earliestNewTime);
         }
 
-        protected virtual async Task<bool> UpdateMisfiredTrigger(
+        protected virtual async ValueTask<bool> UpdateMisfiredTrigger(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             string newStateIfNotComplete,
@@ -836,7 +836,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        private async Task DoUpdateOfMisfiredTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trig,
+        private async ValueTask DoUpdateOfMisfiredTrigger(ConnectionAndTransactionHolder conn, IOperableTrigger trig,
             bool forceState, string newStateIfNotComplete, bool recovering)
         {
             ICalendar? cal = null;
@@ -866,7 +866,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="newJob">Job to be stored.</param>
         /// <param name="newTrigger">Trigger to be stored.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        public async Task StoreJobAndTrigger(
+        public async ValueTask StoreJobAndTrigger(
             IJobDetail newJob,
             IOperableTrigger newTrigger,
             CancellationToken cancellationToken = default)
@@ -885,12 +885,12 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="groupName"></param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns></returns>
-        public Task<bool> IsJobGroupPaused(
+        public ValueTask<bool> IsJobGroupPaused(
             string groupName,
             CancellationToken cancellationToken = default)
         {
             ThrowHelper.ThrowNotImplementedException();
-            return Task.FromResult(false);
+            return new ValueTask<bool>(false);
         }
 
         /// <summary>
@@ -899,12 +899,12 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="groupName"></param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns></returns>
-        public Task<bool> IsTriggerGroupPaused(
+        public ValueTask<bool> IsTriggerGroupPaused(
             string groupName,
             CancellationToken cancellationToken = default)
         {
             ThrowHelper.ThrowNotImplementedException();
-            return Task.FromResult(false);
+            return new ValueTask<bool>(false);
         }
 
         /// <summary>
@@ -916,7 +916,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <see cref="IJobStore" /> with the same name &amp; group should be over-written.
         /// </param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        public Task StoreJob(
+        public ValueTask<object> StoreJob(
             IJobDetail newJob,
             bool replaceExisting,
             CancellationToken cancellationToken = default)
@@ -931,7 +931,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Insert or update a job.
         /// </para>
         /// </summary>
-        protected virtual async Task StoreJob(
+        protected virtual async ValueTask StoreJob(
             ConnectionAndTransactionHolder conn,
             IJobDetail newJob,
             bool replaceExisting,
@@ -966,7 +966,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Check existence of a given job.
         /// </summary>
-        protected virtual async Task<bool> JobExists(
+        protected virtual async ValueTask<bool> JobExists(
             ConnectionAndTransactionHolder conn,
             JobKey jobKey,
             CancellationToken cancellationToken = default)
@@ -996,7 +996,7 @@ namespace Quartz.Impl.AdoJobStore
         /// if a <see cref="ITrigger" /> with the same name/group already
         /// exists, and replaceExisting is set to false.
         /// </exception>
-        public Task StoreTrigger(
+        public ValueTask<object> StoreTrigger(
             IOperableTrigger newTrigger,
             bool replaceExisting,
             CancellationToken cancellationToken = default)
@@ -1010,7 +1010,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Insert or update a trigger.
         /// </summary>
-        protected virtual async Task StoreTrigger(
+        protected virtual async ValueTask StoreTrigger(
             ConnectionAndTransactionHolder conn,
             IOperableTrigger newTrigger,
             IJobDetail? job,
@@ -1081,7 +1081,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Check existence of a given trigger.
         /// </summary>
-        protected virtual async Task<bool> TriggerExists(
+        protected virtual async ValueTask<bool> TriggerExists(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
@@ -1112,12 +1112,12 @@ namespace Quartz.Impl.AdoJobStore
         /// <see langword="true" /> if a <see cref="IJob" /> with the given name &amp;
         /// group was found and removed from the store.
         /// </returns>
-        public Task<bool> RemoveJob(JobKey jobKey, CancellationToken cancellationToken = default)
+        public ValueTask<bool> RemoveJob(JobKey jobKey, CancellationToken cancellationToken = default)
         {
             return ExecuteInLock(LockTriggerAccess, conn => RemoveJob(conn, jobKey, true, cancellationToken), cancellationToken);
         }
 
-        protected virtual async Task<bool> RemoveJob(
+        protected virtual async ValueTask<bool> RemoveJob(
             ConnectionAndTransactionHolder conn,
             JobKey jobKey,
             bool activeDeleteSafe,
@@ -1141,7 +1141,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public Task<bool> RemoveJobs(
+        public ValueTask<bool> RemoveJobs(
             IReadOnlyCollection<JobKey> jobKeys,
             CancellationToken cancellationToken = default)
         {
@@ -1160,7 +1160,7 @@ namespace Quartz.Impl.AdoJobStore
                 }, cancellationToken);
         }
 
-        public Task<bool> RemoveTriggers(
+        public ValueTask<bool> RemoveTriggers(
             IReadOnlyCollection<TriggerKey> triggerKeys,
             CancellationToken cancellationToken = default)
         {
@@ -1180,7 +1180,7 @@ namespace Quartz.Impl.AdoJobStore
                 }, cancellationToken);
         }
 
-        public Task StoreJobsAndTriggers(
+        public ValueTask<object> StoreJobsAndTriggers(
             IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs,
             bool replace,
             CancellationToken cancellationToken = default)
@@ -1207,7 +1207,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <seealso cref="JobStoreSupport.RemoveJob(ConnectionAndTransactionHolder, JobKey, bool, CancellationToken)" />
         /// <seealso cref="RemoveTrigger(ConnectionAndTransactionHolder, TriggerKey, IJobDetail, CancellationToken)" />
-        private async Task<bool> DeleteJobAndChildren(
+        private async ValueTask<bool> DeleteJobAndChildren(
             ConnectionAndTransactionHolder conn,
             JobKey key,
             CancellationToken cancellationToken)
@@ -1221,7 +1221,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <seealso cref="RemoveJob(ConnectionAndTransactionHolder, JobKey, bool, CancellationToken)" />
         /// <seealso cref="RemoveTrigger(ConnectionAndTransactionHolder, TriggerKey, IJobDetail, CancellationToken)" />
         /// <seealso cref="ReplaceTrigger(ConnectionAndTransactionHolder, TriggerKey, IOperableTrigger, CancellationToken)" />
-        private async Task<bool> DeleteTriggerAndChildren(
+        private async ValueTask<bool> DeleteTriggerAndChildren(
             ConnectionAndTransactionHolder conn,
             TriggerKey key,
             CancellationToken cancellationToken)
@@ -1236,7 +1236,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="jobKey">The key identifying the job.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The desired <see cref="IJob" />, or null if there is no match.</returns>
-        public Task<IJobDetail?> RetrieveJob(
+        public ValueTask<IJobDetail?> RetrieveJob(
             JobKey jobKey,
             CancellationToken cancellationToken = default)
         {
@@ -1244,7 +1244,7 @@ namespace Quartz.Impl.AdoJobStore
             return ExecuteWithoutLock(conn => RetrieveJob(conn, jobKey, cancellationToken), cancellationToken);
         }
 
-        protected virtual async Task<IJobDetail?> RetrieveJob(
+        protected virtual async ValueTask<IJobDetail?> RetrieveJob(
             ConnectionAndTransactionHolder conn,
             JobKey jobKey,
             CancellationToken cancellationToken = default)
@@ -1295,7 +1295,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <see langword="true" /> if a <see cref="ITrigger" /> with the given
         /// name &amp; group was found and removed from the store.
         ///</returns>
-        public Task<bool> RemoveTrigger(
+        public ValueTask<bool> RemoveTrigger(
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
         {
@@ -1305,7 +1305,7 @@ namespace Quartz.Impl.AdoJobStore
                 cancellationToken);
         }
 
-        protected virtual Task<bool> RemoveTrigger(
+        protected virtual ValueTask<bool> RemoveTrigger(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
@@ -1313,7 +1313,7 @@ namespace Quartz.Impl.AdoJobStore
             return RemoveTrigger(conn, triggerKey, null, cancellationToken);
         }
 
-        protected virtual async Task<bool> RemoveTrigger(
+        protected virtual async ValueTask<bool> RemoveTrigger(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             IJobDetail? job,
@@ -1367,7 +1367,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <see cref="IJobStore.ReplaceTrigger(TriggerKey, IOperableTrigger, CancellationToken)" />
-        public Task<bool> ReplaceTrigger(
+        public ValueTask<bool> ReplaceTrigger(
             TriggerKey triggerKey,
             IOperableTrigger newTrigger,
             CancellationToken cancellationToken = default)
@@ -1377,7 +1377,7 @@ namespace Quartz.Impl.AdoJobStore
                 cancellationToken);
         }
 
-        protected virtual async Task<bool> ReplaceTrigger(
+        protected virtual async ValueTask<bool> ReplaceTrigger(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             IOperableTrigger newTrigger,
@@ -1417,7 +1417,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="triggerKey">The key identifying the trigger.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The desired <see cref="ITrigger" />, or null if there is no match.</returns>
-        public Task<IOperableTrigger?> RetrieveTrigger(TriggerKey triggerKey,
+        public ValueTask<IOperableTrigger?> RetrieveTrigger(TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
         {
             return ExecuteWithoutLock( // no locks necessary for read...
@@ -1425,7 +1425,7 @@ namespace Quartz.Impl.AdoJobStore
                 cancellationToken);
         }
 
-        protected virtual async Task<IOperableTrigger?> RetrieveTrigger(
+        protected virtual async ValueTask<IOperableTrigger?> RetrieveTrigger(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
@@ -1450,7 +1450,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <seealso cref="TriggerState.Complete" />
         /// <seealso cref="TriggerState.Error" />
         /// <seealso cref="TriggerState.None" />
-        public Task<TriggerState> GetTriggerState(
+        public ValueTask<TriggerState> GetTriggerState(
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
         {
@@ -1465,7 +1465,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="triggerKey">The key identifying the trigger.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns></returns>
-        protected virtual async Task<TriggerState> GetTriggerState(
+        protected virtual async ValueTask<TriggerState> GetTriggerState(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
@@ -1518,7 +1518,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public Task ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+        public ValueTask<object> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
         {
             return ExecuteInLock(
                 LockTriggerAccess,
@@ -1526,7 +1526,7 @@ namespace Quartz.Impl.AdoJobStore
                 cancellationToken);
         }
 
-        private async Task ResetTriggerFromErrorState(
+        private async ValueTask ResetTriggerFromErrorState(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
@@ -1566,7 +1566,7 @@ namespace Quartz.Impl.AdoJobStore
         ///           if a <see cref="ICalendar" /> with the same name already
         ///           exists, and replaceExisting is set to false.
         /// </exception>
-        public Task StoreCalendar(
+        public ValueTask StoreCalendar(
             string calName,
             ICalendar calendar,
             bool replaceExisting,
@@ -1576,10 +1576,10 @@ namespace Quartz.Impl.AdoJobStore
             return ExecuteInLock(
                 LockOnInsert || updateTriggers ? LockTriggerAccess : null,
                 conn => StoreCalendar(conn, calName, calendar, replaceExisting, updateTriggers, cancellationToken),
-                cancellationToken);
+                cancellationToken).AsValueTask();
         }
 
-        protected virtual async Task StoreCalendar(
+        protected virtual async ValueTask StoreCalendar(
             ConnectionAndTransactionHolder conn,
             string calName,
             ICalendar calendar,
@@ -1637,7 +1637,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        protected virtual async Task<bool> CalendarExists(
+        protected virtual async ValueTask<bool> CalendarExists(
             ConnectionAndTransactionHolder conn,
             string calName,
             CancellationToken cancellationToken = default)
@@ -1667,14 +1667,14 @@ namespace Quartz.Impl.AdoJobStore
         /// <see langword="true" /> if a <see cref="ICalendar" /> with the given name
         /// was found and removed from the store.
         ///</returns>
-        public Task<bool> RemoveCalendar(
+        public ValueTask<bool> RemoveCalendar(
             string calName,
             CancellationToken cancellationToken = default)
         {
             return ExecuteInLock(LockTriggerAccess, conn => RemoveCalendar(conn, calName, cancellationToken), cancellationToken);
         }
 
-        protected virtual async Task<bool> RemoveCalendar(
+        protected virtual async ValueTask<bool> RemoveCalendar(
             ConnectionAndTransactionHolder conn,
             string calName,
             CancellationToken cancellationToken = default)
@@ -1706,14 +1706,14 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="calName">The name of the <see cref="ICalendar" /> to be retrieved.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>The desired <see cref="ICalendar" />, or null if there is no match.</returns>
-        public Task<ICalendar?> RetrieveCalendar(string calName, CancellationToken cancellationToken = default)
+        public ValueTask<ICalendar?> RetrieveCalendar(string calName, CancellationToken cancellationToken = default)
         {
             return ExecuteWithoutLock( // no locks necessary for read...
                 conn => RetrieveCalendar(conn, calName, cancellationToken),
                 cancellationToken);
         }
 
-        protected virtual async Task<ICalendar?> RetrieveCalendar(
+        protected virtual async ValueTask<ICalendar?> RetrieveCalendar(
             ConnectionAndTransactionHolder conn,
             string calName,
             CancellationToken cancellationToken = default)
@@ -1755,13 +1755,13 @@ namespace Quartz.Impl.AdoJobStore
         /// Get the number of <see cref="IJob" /> s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
-        public Task<int> GetNumberOfJobs(CancellationToken cancellationToken = default)
+        public ValueTask<int> GetNumberOfJobs(CancellationToken cancellationToken = default)
         {
             // no locks necessary for read...
             return ExecuteWithoutLock(conn => GetNumberOfJobs(conn, cancellationToken), cancellationToken);
         }
 
-        protected virtual async Task<int> GetNumberOfJobs(
+        protected virtual async ValueTask<int> GetNumberOfJobs(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default)
         {
@@ -1780,13 +1780,13 @@ namespace Quartz.Impl.AdoJobStore
         /// Get the number of <see cref="ITrigger" /> s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
-        public Task<int> GetNumberOfTriggers(CancellationToken cancellationToken = default)
+        public ValueTask<int> GetNumberOfTriggers(CancellationToken cancellationToken = default)
         {
             return ExecuteWithoutLock( // no locks necessary for read...
                 conn => GetNumberOfTriggers(conn, cancellationToken), cancellationToken);
         }
 
-        protected virtual async Task<int> GetNumberOfTriggers(
+        protected virtual async ValueTask<int> GetNumberOfTriggers(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default)
         {
@@ -1805,13 +1805,13 @@ namespace Quartz.Impl.AdoJobStore
         /// Get the number of <see cref="ICalendar" /> s that are
         /// stored in the <see cref="IJobStore" />.
         /// </summary>
-        public Task<int> GetNumberOfCalendars(CancellationToken cancellationToken = default)
+        public ValueTask<int> GetNumberOfCalendars(CancellationToken cancellationToken = default)
         {
             // no locks necessary for read...
             return ExecuteWithoutLock(conn => GetNumberOfCalendars(conn, cancellationToken), cancellationToken);
         }
 
-        protected virtual async Task<int> GetNumberOfCalendars(
+        protected virtual async ValueTask<int> GetNumberOfCalendars(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default)
         {
@@ -1834,7 +1834,7 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no jobs in the given group name, the result should be a
         /// zero-length array (not <see langword="null" />).
         /// </remarks>
-        public Task<IReadOnlyCollection<JobKey>> GetJobKeys(
+        public ValueTask<IReadOnlyCollection<JobKey>> GetJobKeys(
             GroupMatcher<JobKey> matcher,
             CancellationToken cancellationToken = default)
         {
@@ -1842,7 +1842,7 @@ namespace Quartz.Impl.AdoJobStore
             return ExecuteWithoutLock(conn => GetJobNames(conn, matcher, cancellationToken), cancellationToken);
         }
 
-        protected virtual async Task<IReadOnlyCollection<JobKey>> GetJobNames(
+        protected virtual async ValueTask<IReadOnlyCollection<JobKey>> GetJobNames(
             ConnectionAndTransactionHolder conn,
             GroupMatcher<JobKey> matcher,
             CancellationToken cancellationToken = default)
@@ -1867,7 +1867,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="calName">the identifier to check for</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>true if a calendar exists with the given identifier</returns>
-        public Task<bool> CalendarExists(
+        public ValueTask<bool> CalendarExists(
             string calName,
             CancellationToken cancellationToken = default)
         {
@@ -1876,7 +1876,7 @@ namespace Quartz.Impl.AdoJobStore
                 cancellationToken);
         }
 
-        protected async Task<bool> CheckExists(
+        protected async ValueTask<bool> CheckExists(
             ConnectionAndTransactionHolder conn,
             string calName,
             CancellationToken cancellationToken = default)
@@ -1901,7 +1901,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="jobKey">the identifier to check for</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>true if a Job exists with the given identifier</returns>
-        public Task<bool> CheckExists(
+        public ValueTask<bool> CheckExists(
             JobKey jobKey,
             CancellationToken cancellationToken = default)
         {
@@ -1909,7 +1909,7 @@ namespace Quartz.Impl.AdoJobStore
                 conn => CheckExists(conn, jobKey, cancellationToken), cancellationToken);
         }
 
-        protected async Task<bool> CheckExists(
+        protected async ValueTask<bool> CheckExists(
             ConnectionAndTransactionHolder conn,
             JobKey jobKey,
             CancellationToken cancellationToken = default)
@@ -1934,7 +1934,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="triggerKey">the identifier to check for</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>true if a Trigger exists with the given identifier</returns>
-        public Task<bool> CheckExists(
+        public ValueTask<bool> CheckExists(
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
         {
@@ -1942,7 +1942,7 @@ namespace Quartz.Impl.AdoJobStore
                 conn => CheckExists(conn, triggerKey, cancellationToken), cancellationToken);
         }
 
-        protected async Task<bool> CheckExists(
+        protected async ValueTask<bool> CheckExists(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
@@ -1964,12 +1964,12 @@ namespace Quartz.Impl.AdoJobStore
         /// </summary>
         /// <remarks>
         /// </remarks>
-        public Task ClearAllSchedulingData(CancellationToken cancellationToken = default)
+        public ValueTask<object> ClearAllSchedulingData(CancellationToken cancellationToken = default)
         {
             return ExecuteInLock(LockTriggerAccess, conn => ClearAllSchedulingData(conn, cancellationToken), cancellationToken);
         }
 
-        protected async Task ClearAllSchedulingData(
+        protected async ValueTask ClearAllSchedulingData(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default)
         {
@@ -1991,7 +1991,7 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no triggers in the given group name, the result should be a
         /// zero-length array (not <see langword="null" />).
         /// </remarks>
-        public Task<IReadOnlyCollection<TriggerKey>> GetTriggerKeys(
+        public ValueTask<IReadOnlyCollection<TriggerKey>> GetTriggerKeys(
             GroupMatcher<TriggerKey> matcher,
             CancellationToken cancellationToken = default)
         {
@@ -1999,7 +1999,7 @@ namespace Quartz.Impl.AdoJobStore
             return ExecuteWithoutLock(conn => GetTriggerNames(conn, matcher, cancellationToken), cancellationToken);
         }
 
-        protected virtual async Task<IReadOnlyCollection<TriggerKey>> GetTriggerNames(
+        protected virtual async ValueTask<IReadOnlyCollection<TriggerKey>> GetTriggerNames(
             ConnectionAndTransactionHolder conn,
             GroupMatcher<TriggerKey> matcher,
             CancellationToken cancellationToken = default)
@@ -2024,14 +2024,14 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no known group names, the result should be a zero-length
         /// array (not <see langword="null" />).
         /// </remarks>
-        public Task<IReadOnlyCollection<string>> GetJobGroupNames(
+        public ValueTask<IReadOnlyCollection<string>> GetJobGroupNames(
             CancellationToken cancellationToken = default)
         {
             // no locks necessary for read...
             return ExecuteWithoutLock(conn => GetJobGroupNames(conn, cancellationToken), cancellationToken);
         }
 
-        protected virtual async Task<IReadOnlyCollection<string>> GetJobGroupNames(
+        protected virtual async ValueTask<IReadOnlyCollection<string>> GetJobGroupNames(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default)
         {
@@ -2055,14 +2055,14 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no known group names, the result should be a zero-length
         /// array (not <see langword="null" />).
         /// </remarks>
-        public Task<IReadOnlyCollection<string>> GetTriggerGroupNames(
+        public ValueTask<IReadOnlyCollection<string>> GetTriggerGroupNames(
             CancellationToken cancellationToken = default)
         {
             // no locks necessary for read...
             return ExecuteWithoutLock(conn => GetTriggerGroupNames(conn, cancellationToken), cancellationToken);
         }
 
-        protected virtual async Task<IReadOnlyCollection<string>> GetTriggerGroupNames(
+        protected virtual async ValueTask<IReadOnlyCollection<string>> GetTriggerGroupNames(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default)
         {
@@ -2085,14 +2085,14 @@ namespace Quartz.Impl.AdoJobStore
         /// If there are no Calendars in the given group name, the result should be
         /// a zero-length array (not <see langword="null" />).
         /// </remarks>
-        public Task<IReadOnlyCollection<string>> GetCalendarNames(
+        public ValueTask<IReadOnlyCollection<string>> GetCalendarNames(
             CancellationToken cancellationToken = default)
         {
             // no locks necessary for read...
             return ExecuteWithoutLock(conn => GetCalendarNames(conn, cancellationToken), cancellationToken);
         }
 
-        protected virtual async Task<IReadOnlyCollection<string>> GetCalendarNames(
+        protected virtual async ValueTask<IReadOnlyCollection<string>> GetCalendarNames(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default)
         {
@@ -2113,7 +2113,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <remarks>
         /// If there are no matches, a zero-length array should be returned.
         /// </remarks>
-        public Task<IReadOnlyCollection<IOperableTrigger>> GetTriggersForJob(
+        public ValueTask<IReadOnlyCollection<IOperableTrigger>> GetTriggersForJob(
             JobKey jobKey,
             CancellationToken cancellationToken = default)
         {
@@ -2121,7 +2121,7 @@ namespace Quartz.Impl.AdoJobStore
             return ExecuteWithoutLock(conn => GetTriggersForJob(conn, jobKey, cancellationToken), cancellationToken);
         }
 
-        protected virtual async Task<IReadOnlyCollection<IOperableTrigger>> GetTriggersForJob(
+        protected virtual async ValueTask<IReadOnlyCollection<IOperableTrigger>> GetTriggersForJob(
             ConnectionAndTransactionHolder conn,
             JobKey jobKey,
             CancellationToken cancellationToken = default)
@@ -2140,7 +2140,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Pause the <see cref="ITrigger" /> with the given name.
         /// </summary>
-        public Task PauseTrigger(
+        public ValueTask<object> PauseTrigger(
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
         {
@@ -2150,7 +2150,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Pause the <see cref="ITrigger" /> with the given name.
         /// </summary>
-        public virtual async Task PauseTrigger(
+        public virtual async ValueTask PauseTrigger(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
@@ -2180,7 +2180,7 @@ namespace Quartz.Impl.AdoJobStore
         /// pausing all of its current <see cref="ITrigger" />s.
         /// </summary>
         /// <seealso cref="ResumeJob(JobKey,CancellationToken)" />
-        public virtual Task PauseJob(
+        public virtual ValueTask<object> PauseJob(
             JobKey jobKey,
             CancellationToken cancellationToken = default)
         {
@@ -2199,7 +2199,7 @@ namespace Quartz.Impl.AdoJobStore
         /// group - by pausing all of their <see cref="ITrigger" />s.
         /// </summary>
         /// <seealso cref="ResumeJobs" />
-        public virtual Task<IReadOnlyCollection<string>> PauseJobs(
+        public virtual ValueTask<IReadOnlyCollection<string>> PauseJobs(
             GroupMatcher<JobKey> matcher,
             CancellationToken cancellationToken = default)
         {
@@ -2228,7 +2228,7 @@ namespace Quartz.Impl.AdoJobStore
         /// StatePaused/StateWaiting respectively.
         /// </summary>
         /// <returns>StatePausedBlocked, StateBlocked, or the currentState. </returns>
-        protected virtual async Task<string> CheckBlockedState(
+        protected virtual async ValueTask<string> CheckBlockedState(
             ConnectionAndTransactionHolder conn,
             JobKey jobKey,
             string currentState,
@@ -2262,7 +2262,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public virtual Task ResumeTrigger(
+        public virtual ValueTask<object> ResumeTrigger(
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
         {
@@ -2277,7 +2277,7 @@ namespace Quartz.Impl.AdoJobStore
         /// If the <see cref="ITrigger" /> missed one or more fire-times, then the
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </remarks>
-        public virtual async Task ResumeTrigger(
+        public virtual async ValueTask ResumeTrigger(
             ConnectionAndTransactionHolder conn,
             TriggerKey triggerKey,
             CancellationToken cancellationToken = default)
@@ -2330,7 +2330,7 @@ namespace Quartz.Impl.AdoJobStore
         /// instruction will be applied.
         /// </remarks>
         /// <seealso cref="PauseJob(JobKey,CancellationToken)" />
-        public virtual Task ResumeJob(
+        public virtual ValueTask<object> ResumeJob(
             JobKey jobKey,
             CancellationToken cancellationToken = default)
         {
@@ -2354,7 +2354,7 @@ namespace Quartz.Impl.AdoJobStore
         /// misfire instruction will be applied.
         /// </remarks>
         /// <seealso cref="PauseJobs" />
-        public virtual Task<IReadOnlyCollection<string>> ResumeJobs(
+        public virtual ValueTask<IReadOnlyCollection<string>> ResumeJobs(
             GroupMatcher<JobKey> matcher,
             CancellationToken cancellationToken = default)
         {
@@ -2380,7 +2380,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Pause all of the <see cref="ITrigger" />s in the given group.
         /// </summary>
         /// <seealso cref="ResumeTriggers(Quartz.Impl.Matchers.GroupMatcher{Quartz.TriggerKey}, CancellationToken)" />
-        public virtual Task<IReadOnlyCollection<string>> PauseTriggers(
+        public virtual ValueTask<IReadOnlyCollection<string>> PauseTriggers(
             GroupMatcher<TriggerKey> matcher,
             CancellationToken cancellationToken = default)
         {
@@ -2393,7 +2393,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Pause all of the <see cref="ITrigger" />s in the given group.
         /// </summary>
-        public virtual async Task<IReadOnlyCollection<string>> PauseTriggerGroup(
+        public virtual async ValueTask<IReadOnlyCollection<string>> PauseTriggerGroup(
             ConnectionAndTransactionHolder conn,
             GroupMatcher<TriggerKey> matcher,
             CancellationToken cancellationToken = default)
@@ -2433,7 +2433,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public Task<IReadOnlyCollection<string>> GetPausedTriggerGroups(CancellationToken cancellationToken = default)
+        public ValueTask<IReadOnlyCollection<string>> GetPausedTriggerGroups(CancellationToken cancellationToken = default)
         {
             // no locks necessary for read...
             return ExecuteWithoutLock(conn => GetPausedTriggerGroups(conn, cancellationToken), cancellationToken);
@@ -2443,7 +2443,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Pause all of the <see cref="ITrigger" />s in the
         /// given group.
         /// </summary>
-        public virtual async Task<IReadOnlyCollection<string>> GetPausedTriggerGroups(
+        public virtual async ValueTask<IReadOnlyCollection<string>> GetPausedTriggerGroups(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default)
         {
@@ -2458,7 +2458,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public virtual Task<IReadOnlyCollection<string>> ResumeTriggers(
+        public virtual ValueTask<IReadOnlyCollection<string>> ResumeTriggers(
             GroupMatcher<TriggerKey> matcher,
             CancellationToken cancellationToken = default)
         {
@@ -2475,7 +2475,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </para>
         /// </summary>
-        public virtual async Task<IReadOnlyCollection<string>> ResumeTriggers(
+        public virtual async ValueTask<IReadOnlyCollection<string>> ResumeTriggers(
             ConnectionAndTransactionHolder conn,
             GroupMatcher<TriggerKey> matcher,
             CancellationToken cancellationToken = default)
@@ -2535,7 +2535,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public virtual Task PauseAll(CancellationToken cancellationToken = default)
+        public virtual ValueTask<object> PauseAll(CancellationToken cancellationToken = default)
         {
             return ExecuteInLock(LockTriggerAccess, conn => PauseAll(conn, cancellationToken), cancellationToken);
         }
@@ -2549,7 +2549,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </para>
         /// </summary>
         /// <seealso cref="ResumeAll(CancellationToken)" />
-        public virtual async Task PauseAll(
+        public virtual async ValueTask PauseAll(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default)
         {
@@ -2582,7 +2582,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <see cref="ITrigger" />'s misfire instruction will be applied.
         /// </remarks>
         /// <seealso cref="PauseAll(CancellationToken)" />
-        public virtual Task ResumeAll(CancellationToken cancellationToken = default)
+        public virtual ValueTask<object> ResumeAll(CancellationToken cancellationToken = default)
         {
             return ExecuteInLock(LockTriggerAccess, conn => ResumeAll(conn, cancellationToken), cancellationToken);
         }
@@ -2596,7 +2596,7 @@ namespace Quartz.Impl.AdoJobStore
         /// </para>
         /// </summary>
         /// <seealso cref="PauseAll(CancellationToken)" />
-        public virtual async Task ResumeAll(
+        public virtual async ValueTask ResumeAll(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default)
         {
@@ -2624,7 +2624,7 @@ namespace Quartz.Impl.AdoJobStore
         /// by the calling scheduler.
         /// </summary>
         /// <seealso cref="ReleaseAcquiredTrigger(IOperableTrigger, CancellationToken)" />
-        public virtual Task<IReadOnlyCollection<IOperableTrigger>> AcquireNextTriggers(
+        public virtual ValueTask<IReadOnlyCollection<IOperableTrigger>> AcquireNextTriggers(
             DateTimeOffset noLaterThan,
             int maxCount,
             TimeSpan timeWindow,
@@ -2673,7 +2673,7 @@ namespace Quartz.Impl.AdoJobStore
         // TODO: this really ought to return something like a FiredTriggerBundle,
         // so that the fireInstanceId doesn't have to be on the trigger...
 
-        protected virtual async Task<IReadOnlyCollection<IOperableTrigger>> AcquireNextTrigger(
+        protected virtual async ValueTask<IReadOnlyCollection<IOperableTrigger>> AcquireNextTrigger(
             ConnectionAndTransactionHolder conn,
             DateTimeOffset noLaterThan,
             int maxCount,
@@ -2811,7 +2811,7 @@ namespace Quartz.Impl.AdoJobStore
         /// fire the given <see cref="ITrigger" />, that it had previously acquired
         /// (reserved).
         /// </summary>
-        public Task ReleaseAcquiredTrigger(
+        public ValueTask<object> ReleaseAcquiredTrigger(
             IOperableTrigger trigger,
             CancellationToken cancellationToken = default)
         {
@@ -2821,7 +2821,7 @@ namespace Quartz.Impl.AdoJobStore
                 cancellationToken);
         }
 
-        protected virtual async Task ReleaseAcquiredTrigger(
+        protected virtual async ValueTask ReleaseAcquiredTrigger(
             ConnectionAndTransactionHolder conn,
             IOperableTrigger trigger,
             CancellationToken cancellationToken = default)
@@ -2838,7 +2838,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public virtual Task<IReadOnlyCollection<TriggerFiredResult>> TriggersFired(
+        public virtual ValueTask<IReadOnlyCollection<TriggerFiredResult>> TriggersFired(
             IReadOnlyCollection<IOperableTrigger> triggers,
             CancellationToken cancellationToken = default)
         {
@@ -2908,7 +2908,7 @@ namespace Quartz.Impl.AdoJobStore
                 cancellationToken);
         }
 
-        protected virtual async Task<TriggerFiredBundle?> TriggerFired(
+        protected virtual async ValueTask<TriggerFiredBundle?> TriggerFired(
             ConnectionAndTransactionHolder conn,
             IOperableTrigger trigger,
             CancellationToken cancellationToken = default)
@@ -3023,7 +3023,7 @@ namespace Quartz.Impl.AdoJobStore
         /// in the given <see cref="IJobDetail" /> should be updated if the <see cref="IJob" />
         /// is stateful.
         /// </summary>
-        public virtual Task TriggeredJobComplete(
+        public virtual ValueTask<object> TriggeredJobComplete(
             IOperableTrigger trigger,
             IJobDetail jobDetail,
             SchedulerInstruction triggerInstCode,
@@ -3035,7 +3035,7 @@ namespace Quartz.Impl.AdoJobStore
                 cancellationToken);
         }
 
-        protected virtual async Task TriggeredJobComplete(
+        protected virtual async ValueTask TriggeredJobComplete(
             ConnectionAndTransactionHolder conn,
             IOperableTrigger trigger,
             IJobDetail jobDetail,
@@ -3129,7 +3129,7 @@ namespace Quartz.Impl.AdoJobStore
         // Management methods
         //---------------------------------------------------------------------------
 
-        protected internal async Task<RecoverMisfiredJobsResult> DoRecoverMisfires(
+        protected internal async ValueTask<RecoverMisfiredJobsResult> DoRecoverMisfires(
             Guid requestorId,
             CancellationToken cancellationToken)
         {
@@ -3198,7 +3198,7 @@ namespace Quartz.Impl.AdoJobStore
 
         protected internal DateTimeOffset LastCheckin { get; set; } = SystemTime.UtcNow();
 
-        protected internal virtual async Task<bool> DoCheckin(
+        protected internal virtual async ValueTask<bool> DoCheckin(
             Guid requestorId,
             CancellationToken cancellationToken = default)
         {
@@ -3282,7 +3282,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Get a list of all scheduler instances in the cluster that may have failed.
         /// This includes this scheduler if it is checking in for the first time.
         /// </summary>
-        protected virtual async Task<IReadOnlyList<SchedulerStateRecord>> FindFailedInstances(
+        protected virtual async ValueTask<IReadOnlyList<SchedulerStateRecord>> FindFailedInstances(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default)
         {
@@ -3349,7 +3349,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <param name="conn"></param>
         /// <param name="schedulerStateRecords">List of all current <see cref="SchedulerStateRecord" />s</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        private async Task<IReadOnlyList<SchedulerStateRecord>> FindOrphanedFailedInstances(
+        private async ValueTask<IReadOnlyList<SchedulerStateRecord>> FindOrphanedFailedInstances(
             ConnectionAndTransactionHolder conn,
             IReadOnlyCollection<SchedulerStateRecord> schedulerStateRecords,
             CancellationToken cancellationToken)
@@ -3386,7 +3386,7 @@ namespace Quartz.Impl.AdoJobStore
             return rec.CheckinTimestamp.Add(ts).Add(ClusterCheckinMisfireThreshold);
         }
 
-        protected virtual async Task<IReadOnlyList<SchedulerStateRecord>> ClusterCheckIn(
+        protected virtual async ValueTask<IReadOnlyList<SchedulerStateRecord>> ClusterCheckIn(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default)
         {
@@ -3410,7 +3410,7 @@ namespace Quartz.Impl.AdoJobStore
             return failedInstances;
         }
 
-        protected virtual async Task ClusterRecover(
+        protected virtual async ValueTask ClusterRecover(
             ConnectionAndTransactionHolder conn,
             IReadOnlyList<SchedulerStateRecord> failedInstances,
             CancellationToken cancellationToken = default)
@@ -3799,16 +3799,16 @@ namespace Quartz.Impl.AdoJobStore
         /// <remarks>
         /// This method just forwards to ExecuteInLock() with a null lockName.
         /// </remarks>
-        protected Task<T> ExecuteWithoutLock<T>(
-            Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
+        protected ValueTask<T> ExecuteWithoutLock<T>(
+            Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
             CancellationToken cancellationToken = default)
         {
             return ExecuteInLock(null, txCallback, cancellationToken);
         }
 
-        protected Task ExecuteInLock(
+        protected ValueTask<object> ExecuteInLock(
             string? lockName,
-            Func<ConnectionAndTransactionHolder, Task> txCallback,
+            Func<ConnectionAndTransactionHolder, ValueTask> txCallback,
             CancellationToken cancellationToken = default)
         {
             return ExecuteInLock<object>(lockName, async conn =>
@@ -3832,14 +3832,14 @@ namespace Quartz.Impl.AdoJobStore
         /// The callback to execute after having acquired the given lock.
         /// </param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        protected abstract Task<T> ExecuteInLock<T>(
+        protected abstract ValueTask<T> ExecuteInLock<T>(
             string? lockName,
-            Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
+            Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
             CancellationToken cancellationToken = default);
 
-        protected virtual Task RetryExecuteInNonManagedTXLock(
+        protected virtual ValueTask<object> RetryExecuteInNonManagedTXLock(
             string? lockName,
-            Func<ConnectionAndTransactionHolder, Task> txCallback,
+            Func<ConnectionAndTransactionHolder, ValueTask> txCallback,
             CancellationToken cancellationToken = default)
         {
             return RetryExecuteInNonManagedTXLock<object>(lockName, async holder =>
@@ -3849,9 +3849,9 @@ namespace Quartz.Impl.AdoJobStore
             }, requestorId: null, cancellationToken);
         }
 
-        protected virtual async Task<T> RetryExecuteInNonManagedTXLock<T>(
+        protected virtual async ValueTask<T> RetryExecuteInNonManagedTXLock<T>(
             string? lockName,
-            Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
+            Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
             Guid? requestorId,
             CancellationToken cancellationToken = default)
         {
@@ -3881,9 +3881,9 @@ namespace Quartz.Impl.AdoJobStore
             return default;
         }
 
-        protected Task ExecuteInNonManagedTXLock(
+        protected ValueTask<bool> ExecuteInNonManagedTXLock(
             string lockName,
-            Func<ConnectionAndTransactionHolder, Task> txCallback,
+            Func<ConnectionAndTransactionHolder, ValueTask> txCallback,
             CancellationToken cancellationToken)
         {
             return ExecuteInNonManagedTXLock(lockName, async conn =>
@@ -3893,9 +3893,9 @@ namespace Quartz.Impl.AdoJobStore
             }, cancellationToken);
         }
 
-        protected Task<T> ExecuteInNonManagedTXLock<T>(
+        protected ValueTask<T> ExecuteInNonManagedTXLock<T>(
             string? lockName,
-            Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
+            Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
             CancellationToken cancellationToken)
         {
             return ExecuteInNonManagedTXLock(lockName, txCallback, null, cancellationToken);
@@ -3915,16 +3915,16 @@ namespace Quartz.Impl.AdoJobStore
         /// </param>
         /// <param name="txValidator"></param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        protected Task<T> ExecuteInNonManagedTXLock<T>(
+        protected ValueTask<T> ExecuteInNonManagedTXLock<T>(
             string? lockName,
-            Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
-            Func<ConnectionAndTransactionHolder, T, Task<bool>>? txValidator,
+            Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
+            Func<ConnectionAndTransactionHolder, T, ValueTask<bool>>? txValidator,
             CancellationToken cancellationToken) => ExecuteInNonManagedTXLock(lockName, txCallback, txValidator, requestorId: null, cancellationToken);
 
-        protected async Task<T> ExecuteInNonManagedTXLock<T>(
+        protected async ValueTask<T> ExecuteInNonManagedTXLock<T>(
             string? lockName,
-            Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
-            Func<ConnectionAndTransactionHolder, T, Task<bool>>? txValidator,
+            Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
+            Func<ConnectionAndTransactionHolder, T, ValueTask<bool>>? txValidator,
             Guid? requestorId,
             CancellationToken cancellationToken)
         {

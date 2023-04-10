@@ -33,12 +33,12 @@ namespace Quartz.Examples.Example01
         /// <see cref="ITrigger" /> fires that is associated with
         /// the <see cref="IJob" />.
         /// </summary>
-        public virtual Task Execute(IJobExecutionContext context)
+        public virtual ValueTask Execute(IJobExecutionContext context)
         {
             // Say Hello to the World and display the date/time
             var timestamp = DateTime.Now;
             Console.WriteLine($"Hello World! - {timestamp:yyyy-MM-dd HH:mm:ss.fff}");
-            return Task.CompletedTask;
+            return default;
         }
     }
 }

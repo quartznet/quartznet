@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Text;
 
 using FakeItEasy;
@@ -18,10 +18,10 @@ public class CommonEndpointTest : WebApiTest
     public void HttpSchedulerShouldThrowIfSchedulerIsNotFound()
     {
         var nonExistingHttpScheduler = new HttpScheduler(TestData.SchedulerName + "_non_existing", WebApplicationFactory.CreateClient());
-        Assert.ThrowsAsync<HttpClientException>(() => nonExistingHttpScheduler.GetMetaData())!.Message.Should().ContainEquivalentOf("Scheduler not found");
+        Assert.ThrowsAsync<HttpClientException>(() => nonExistingHttpScheduler.GetMetaData().AsTask())!.Message.Should().ContainEquivalentOf("Scheduler not found");
 
         // Getting non existing job returns null, but should throw if scheduler is not found
-        Assert.ThrowsAsync<HttpClientException>(() => nonExistingHttpScheduler.GetJobDetail(new JobKey("non", "existing")))!.Message.Should().ContainEquivalentOf("Scheduler not found");
+        Assert.ThrowsAsync<HttpClientException>(() => nonExistingHttpScheduler.GetJobDetail(new JobKey("non", "existing")).AsTask())!.Message.Should().ContainEquivalentOf("Scheduler not found");
     }
 
     [Test]
@@ -30,15 +30,15 @@ public class CommonEndpointTest : WebApiTest
         A.CallTo(() => FakeScheduler.Start(A<CancellationToken>._)).Throws(_ => new SchedulerException("Test exception"));
         A.CallTo(() => FakeScheduler.Standby(A<CancellationToken>._)).Throws(_ => new JobExecutionException("Second test exception"));
 
-        Assert.ThrowsAsync<SchedulerException>(() => HttpScheduler.Start())!.Message.Should().ContainEquivalentOf("Test exception");
-        Assert.ThrowsAsync<JobExecutionException>(() => HttpScheduler.Standby())!.Message.Should().ContainEquivalentOf("Second test exception");
+        Assert.ThrowsAsync<SchedulerException>(() => HttpScheduler.Start().AsTask())!.Message.Should().ContainEquivalentOf("Test exception");
+        Assert.ThrowsAsync<JobExecutionException>(() => HttpScheduler.Standby().AsTask())!.Message.Should().ContainEquivalentOf("Second test exception");
     }
 
     [Test]
     public void ShouldNotPropagateNonSchedulerExceptions()
     {
         A.CallTo(() => FakeScheduler.PauseAll(A<CancellationToken>._)).Throws(_ => new Exception("Non scheduler exception"));
-        Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.PauseAll())!.Message.Should().ContainEquivalentOf("Non scheduler exception");
+        Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.PauseAll().AsTask())!.Message.Should().ContainEquivalentOf("Non scheduler exception");
     }
 
     [Test]

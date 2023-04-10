@@ -46,28 +46,28 @@ namespace Quartz.Benchmark
 
             private int numJobsFired;
 
-            public Task JobToBeExecuted(
+            public ValueTask JobToBeExecuted(
                 IJobExecutionContext context,
                 CancellationToken cancellationToken = default)
             {
                 Interlocked.Increment(ref numJobsFired);
                 executingJobs[((IOperableTrigger)context.Trigger).FireInstanceId] = context;
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task JobWasExecuted(IJobExecutionContext context,
+            public ValueTask JobWasExecuted(IJobExecutionContext context,
                 JobExecutionException? jobException,
                 CancellationToken cancellationToken = default)
             {
                 executingJobs.TryRemove(((IOperableTrigger)context.Trigger).FireInstanceId, out _);
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task JobExecutionVetoed(
+            public ValueTask JobExecutionVetoed(
                 IJobExecutionContext context,
                 CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
         }
     }

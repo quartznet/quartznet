@@ -9,7 +9,7 @@ public class SchedulerHelper
 {
     public const string TablePrefix = "QRTZ_";
 
-    public static Task<IScheduler> CreateScheduler(string provider, string name)
+    public static ValueTask<IScheduler> CreateScheduler(string provider, string name)
     {
         DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType);
 

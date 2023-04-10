@@ -476,9 +476,9 @@ namespace Quartz.Benchmark
             /// <summary>
             /// Do nothing.
             /// </summary>
-            public Task Execute(IJobExecutionContext context)
+            public ValueTask Execute(IJobExecutionContext context)
             {
-                return Task.FromResult(true);
+                return default;
             }
         }
 
@@ -487,32 +487,32 @@ namespace Quartz.Benchmark
             /// <summary>
             /// Do nothing.
             /// </summary>
-            public Task Execute(IJobExecutionContext context)
+            public ValueTask Execute(IJobExecutionContext context)
             {
-                return Task.FromResult(true);
+                return default;
             }
         }
 
         public class NoOpSignaler : ISchedulerSignaler
         {
-            public Task NotifySchedulerListenersError(string message, SchedulerException jpe, CancellationToken cancellationToken = default)
+            public ValueTask NotifySchedulerListenersError(string message, SchedulerException jpe, CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task NotifySchedulerListenersFinalized(ITrigger trigger, CancellationToken cancellationToken = default)
+            public ValueTask NotifySchedulerListenersFinalized(ITrigger trigger, CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task NotifySchedulerListenersJobDeleted(JobKey jobKey, CancellationToken cancellationToken = default)
+            public ValueTask NotifySchedulerListenersJobDeleted(JobKey jobKey, CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task NotifyTriggerListenersMisfired(ITrigger trigger, CancellationToken cancellationToken = default)
+            public ValueTask NotifyTriggerListenersMisfired(ITrigger trigger, CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
             public void SignalSchedulingChange(DateTimeOffset? candidateNewNextFireTimeUtc, CancellationToken cancellationToken = default)

@@ -38,7 +38,7 @@ namespace Quartz.Tests.Unit
         {
             public static bool interrupted;
 
-            public async Task Execute(IJobExecutionContext context)
+            public async ValueTask Execute(IJobExecutionContext context)
             {
                 // Console.WriteLine("TestInterruptableJob is executing.");
                 try

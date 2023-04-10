@@ -89,9 +89,9 @@ where SCHED_NAME = 'JobMaintenanceTestsScheduler'";
 
     public class KnownJobType : IJob
     {
-        public Task Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context)
         {
-            return Task.CompletedTask;
+            return default;
         }
     }
 }

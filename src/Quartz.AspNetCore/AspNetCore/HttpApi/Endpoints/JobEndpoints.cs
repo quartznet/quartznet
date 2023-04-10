@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
@@ -155,7 +155,7 @@ internal static class JobEndpoints
         string jobName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithOkResponse(schedulerName, scheduler => scheduler.PauseJob(new JobKey(jobName, jobGroup), cancellationToken));
+        return endpointHelper.ExecuteWithOkResponse(schedulerName, scheduler => scheduler.PauseJob(new JobKey(jobName, jobGroup), cancellationToken).AsTask());
     }
 
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -183,7 +183,7 @@ internal static class JobEndpoints
         string jobName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithOkResponse(schedulerName, scheduler => scheduler.ResumeJob(new JobKey(jobName, jobGroup), cancellationToken));
+        return endpointHelper.ExecuteWithOkResponse(schedulerName, scheduler => scheduler.ResumeJob(new JobKey(jobName, jobGroup), cancellationToken).AsTask());
     }
 
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -214,10 +214,10 @@ internal static class JobEndpoints
     {
         if (request?.JobData != null)
         {
-            return endpointHelper.ExecuteWithOkResponse(schedulerName, scheduler => scheduler.TriggerJob(new JobKey(jobName, jobGroup), request.JobData, cancellationToken));
+            return endpointHelper.ExecuteWithOkResponse(schedulerName, scheduler => scheduler.TriggerJob(new JobKey(jobName, jobGroup), request.JobData, cancellationToken).AsTask());
         }
 
-        return endpointHelper.ExecuteWithOkResponse(schedulerName, scheduler => scheduler.TriggerJob(new JobKey(jobName, jobGroup), cancellationToken));
+        return endpointHelper.ExecuteWithOkResponse(schedulerName, scheduler => scheduler.TriggerJob(new JobKey(jobName, jobGroup), cancellationToken).AsTask());
     }
 
     [ProducesResponseType(typeof(InterruptResponse), StatusCodes.Status200OK)]

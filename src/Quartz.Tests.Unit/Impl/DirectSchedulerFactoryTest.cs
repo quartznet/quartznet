@@ -419,23 +419,23 @@ namespace Quartz.Tests.Unit.Impl
 				this.result = result;
 			}
 
-			public Task Initialize(string name, IScheduler scheduler, CancellationToken cancellationToken)
+			public ValueTask Initialize(string name, IScheduler scheduler, CancellationToken cancellationToken)
 			{
 				result.Append(name).Append("|").Append(scheduler.SchedulerName);
-                return Task.FromResult(true);
+                return default;
             }
 
-            Task ISchedulerPlugin.Start(CancellationToken cancellationToken)
+            ValueTask ISchedulerPlugin.Start(CancellationToken cancellationToken)
 		    {
 		        result.Append("|Start");
-                return Task.FromResult(true);
+                return default;
 		    }
 
-			public Task Shutdown(CancellationToken cancellationToken)
+			public ValueTask Shutdown(CancellationToken cancellationToken)
 			{
 				result.Append("|Shutdown");
-                return Task.FromResult(true);
-			}
+                return default;
+            }
 		}
 
         class NoOpSchedulerExporter : ISchedulerExporter
