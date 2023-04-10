@@ -38,22 +38,12 @@ internal static class CronExpressionConstants
     public const int Year = 6;
 
     /// <summary>
-    /// Field specification for all wildcard value '*'.
-    /// </summary>
-    public const int AllSpecInt = 99; // '*'
-
-    /// <summary>
-    /// Field specification for not specified value '?'.
-    /// </summary>
-    public const int NoSpecInt = 98; // '?'
-
-    /// <summary>
     /// Field specification for wildcard '*'.
     /// </summary>
-    public const int AllSpec = AllSpecInt;
+    public const int AllSpec = 99;
 
     /// <summary>
     /// Field specification for no specification at all '?'.
     /// </summary>
-    public const int NoSpec = NoSpecInt;
+    public const int NoSpec = 98;
 }
