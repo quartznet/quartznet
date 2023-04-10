@@ -19,10 +19,12 @@
 
 #endregion
 
+using System.Collections;
 using System.Globalization;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Text.RegularExpressions;
+
 using Quartz.Util;
 
 namespace Quartz
@@ -240,37 +242,37 @@ namespace Quartz
         /// <summary>
         /// Seconds.
         /// </summary>
-        [NonSerialized] protected SortedSet<int> seconds = null!;
+        [NonSerialized] private CronField seconds = new();
 
         /// <summary>
         /// minutes.
         /// </summary>
-        [NonSerialized] protected SortedSet<int> minutes = null!;
+        [NonSerialized] private CronField minutes = new();
 
         /// <summary>
         /// Hours.
         /// </summary>
-        [NonSerialized] protected SortedSet<int> hours = null!;
+        [NonSerialized] private CronField hours = new();
 
         /// <summary>
         /// Days of month.
         /// </summary>
-        [NonSerialized] protected SortedSet<int> daysOfMonth = null!;
+        [NonSerialized] private CronField daysOfMonth = new();
 
         /// <summary>
         /// Months.
         /// </summary>
-        [NonSerialized] protected SortedSet<int> months = null!;
+        [NonSerialized] private CronField months = new();
 
         /// <summary>
         /// Days of week.
         /// </summary>
-        [NonSerialized] protected SortedSet<int> daysOfWeek = null!;
+        [NonSerialized] private CronField daysOfWeek = new();
 
         /// <summary>
         /// Years.
         /// </summary>
-        [NonSerialized] protected SortedSet<int> years = null!;
+        [NonSerialized] private CronField years = new();
 
         /// <summary>
         /// Last day of week.
@@ -522,13 +524,13 @@ namespace Quartz
         {
             try
             {
-                seconds ??= new();
-                minutes ??= new();
-                hours ??= new();
-                daysOfMonth ??= new();
-                months ??= new();
-                daysOfWeek ??= new();
-                years ??= new();
+                seconds.Clear();
+                minutes.Clear();
+                hours.Clear();
+                daysOfMonth.Clear();
+                months.Clear();
+                daysOfWeek.Clear();
+                years.Clear();
 
                 var exprOn = CronExpressionConstants.Second;
 
@@ -594,20 +596,18 @@ namespace Quartz
             }
             if (type != CronExpressionConstants.DayOfWeek && type != CronExpressionConstants.DayOfMonth)
             {
-                ThrowHelper.ThrowFormatException(
-                    "'?' can only be specified for Day-of-Month or Day-of-Week.");
+                ThrowHelper.ThrowFormatException("'?' can only be specified for Day-of-Month or Day-of-Week.");
             }
             if (type == CronExpressionConstants.DayOfWeek && !lastdayOfMonth)
             {
                 var val = daysOfMonth.LastOrDefault();
-                if (val == CronExpressionConstants.NoSpecInt)
+                if (val == CronExpressionConstants.NoSpec)
                 {
-                    ThrowHelper.ThrowFormatException(
-                        "'?' can only be specified for Day-of-Month -OR- Day-of-Week.");
+                    ThrowHelper.ThrowFormatException("'?' can only be specified for Day-of-Month -OR- Day-of-Week.");
                 }
             }
 
-            AddToSet(CronExpressionConstants.NoSpecInt, -1, 0, type);
+            AddToSet(CronExpressionConstants.NoSpec, -1, 0, type);
         }
 
         private void StoreExpressionStarOrSlash(int type, string s, int i)
@@ -617,7 +617,7 @@ namespace Quartz
             var startsWithAsterisk = c == '*';
             if (startsWithAsterisk && i + 1 >= s.Length)
             {
-                AddToSet(CronExpressionConstants.AllSpecInt, -1, incr, type);
+                AddToSet(CronExpressionConstants.AllSpec, -1, incr, type);
                 return;
             }
             if (c == '/' && (i + 1 >= s.Length || s[i + 1] == ' ' || s[i + 1] == '\t'))
@@ -650,7 +650,7 @@ namespace Quartz
                 incr = 1;
             }
 
-            AddToSet(CronExpressionConstants.AllSpecInt, -1, incr, type);
+            AddToSet(CronExpressionConstants.AllSpec, -1, incr, type);
         }
 
         private void StoreExpressionL(int type, string s, int i)
@@ -681,7 +681,7 @@ namespace Quartz
                                 {
                                     nearestWeekday = true;
                                 }
-                                
+
                                 if (offsetRegex.IsMatch(s))
                                 {
                                     var offSetGroup = offsetRegex.Match(s).Groups["offset"];
@@ -1192,43 +1192,43 @@ namespace Quartz
 
             if (type == CronExpressionConstants.Second || type == CronExpressionConstants.Minute)
             {
-                if ((val < 0 || val > 59 || end > 59) && val != CronExpressionConstants.AllSpecInt)
+                if ((val < 0 || val > 59 || end > 59) && val != CronExpressionConstants.AllSpec)
                 {
                     ThrowHelper.ThrowFormatException("Minute and CronExpressionConstants.Second values must be between 0 and 59");
                 }
             }
             else if (type == CronExpressionConstants.Hour)
             {
-                if ((val < 0 || val > 23 || end > 23) && val != CronExpressionConstants.AllSpecInt)
+                if ((val < 0 || val > 23 || end > 23) && val != CronExpressionConstants.AllSpec)
                 {
                     ThrowHelper.ThrowFormatException("Hour values must be between 0 and 23");
                 }
             }
             else if (type == CronExpressionConstants.DayOfMonth)
             {
-                if ((val < 1 || val > 31 || end > 31) && val != CronExpressionConstants.AllSpecInt
-                                                      && val != CronExpressionConstants.NoSpecInt)
+                if ((val < 1 || val > 31 || end > 31) && val != CronExpressionConstants.AllSpec
+                                                      && val != CronExpressionConstants.NoSpec)
                 {
                     ThrowHelper.ThrowFormatException("Day of month values must be between 1 and 31");
                 }
             }
             else if (type == CronExpressionConstants.Month)
             {
-                if ((val < 1 || val > 12 || end > 12) && val != CronExpressionConstants.AllSpecInt)
+                if ((val < 1 || val > 12 || end > 12) && val != CronExpressionConstants.AllSpec)
                 {
                     ThrowHelper.ThrowFormatException("Month values must be between 1 and 12");
                 }
             }
             else if (type == CronExpressionConstants.DayOfWeek)
             {
-                if ((val == 0 || val > 7 || end > 7) && val != CronExpressionConstants.AllSpecInt
-                                                     && val != CronExpressionConstants.NoSpecInt)
+                if ((val == 0 || val > 7 || end > 7) && val != CronExpressionConstants.AllSpec
+                                                     && val != CronExpressionConstants.NoSpec)
                 {
                     ThrowHelper.ThrowFormatException("Day-of-Week values must be between 1 and 7");
                 }
             }
 
-            if ((incr == 0 || incr == -1) && val != CronExpressionConstants.AllSpecInt)
+            if ((incr == 0 || incr == -1) && val != CronExpressionConstants.AllSpec)
             {
                 data.Add(val != -1 ? val : CronExpressionConstants.NoSpec);
                 return;
@@ -1237,10 +1237,11 @@ namespace Quartz
             var startAt = val;
             var stopAt = end;
 
-            if (val == CronExpressionConstants.AllSpecInt && incr <= 0)
+            if (val == CronExpressionConstants.AllSpec && incr <= 0)
             {
-                incr = 1;
-                data.Add(CronExpressionConstants.AllSpec); // put in a marker, but also fill values
+                data.Add(CronExpressionConstants.AllSpec);
+                // skip adding other data, we check this wildcard in TryGetMinValueStartingFrom
+                return;
             }
 
             if (type == CronExpressionConstants.Second || type == CronExpressionConstants.Minute)
@@ -1249,7 +1250,7 @@ namespace Quartz
                 {
                     stopAt = 59;
                 }
-                if (startAt == -1 || startAt == CronExpressionConstants.AllSpecInt)
+                if (startAt == -1 || startAt == CronExpressionConstants.AllSpec)
                 {
                     startAt = 0;
                 }
@@ -1260,7 +1261,7 @@ namespace Quartz
                 {
                     stopAt = 23;
                 }
-                if (startAt == -1 || startAt == CronExpressionConstants.AllSpecInt)
+                if (startAt == -1 || startAt == CronExpressionConstants.AllSpec)
                 {
                     startAt = 0;
                 }
@@ -1271,7 +1272,7 @@ namespace Quartz
                 {
                     stopAt = 31;
                 }
-                if (startAt == -1 || startAt == CronExpressionConstants.AllSpecInt)
+                if (startAt == -1 || startAt == CronExpressionConstants.AllSpec)
                 {
                     startAt = 1;
                 }
@@ -1282,7 +1283,7 @@ namespace Quartz
                 {
                     stopAt = 12;
                 }
-                if (startAt == -1 || startAt == CronExpressionConstants.AllSpecInt)
+                if (startAt == -1 || startAt == CronExpressionConstants.AllSpec)
                 {
                     startAt = 1;
                 }
@@ -1293,7 +1294,7 @@ namespace Quartz
                 {
                     stopAt = 7;
                 }
-                if (startAt == -1 || startAt == CronExpressionConstants.AllSpecInt)
+                if (startAt == -1 || startAt == CronExpressionConstants.AllSpec)
                 {
                     startAt = 1;
                 }
@@ -1304,7 +1305,7 @@ namespace Quartz
                 {
                     stopAt = MaxYear;
                 }
-                if (startAt == -1 || startAt == CronExpressionConstants.AllSpecInt)
+                if (startAt is -1 or CronExpressionConstants.AllSpec)
                 {
                     startAt = 1970;
                 }
@@ -1359,8 +1360,8 @@ namespace Quartz
                     var i2 = i % max;
 
                     // 1-indexed ranges should not include 0, and should include their max
-                    if (i2 == 0 && (type == CronExpressionConstants.Month 
-                                    || type == CronExpressionConstants.DayOfWeek 
+                    if (i2 == 0 && (type == CronExpressionConstants.Month
+                                    || type == CronExpressionConstants.DayOfWeek
                                     || type == CronExpressionConstants.DayOfMonth))
                     {
                         i2 = max;
@@ -1374,9 +1375,7 @@ namespace Quartz
         /// <summary>
         /// Gets the set of given type.
         /// </summary>
-        /// <param name="type">The type of set to get.</param>
-        /// <returns></returns>
-        protected virtual SortedSet<int> GetSet(int type)
+        internal CronField GetSet(int type)
         {
             switch (type)
             {
@@ -1400,13 +1399,6 @@ namespace Quartz
             }
         }
 
-        /// <summary>
-        /// Gets the value.
-        /// </summary>
-        /// <param name="v">The v.</param>
-        /// <param name="s">The s.</param>
-        /// <param name="i">The i.</param>
-        /// <returns></returns>
         protected virtual ValueSet GetValue(int v, string s, int i)
         {
             var c = s[i];
@@ -1525,14 +1517,12 @@ namespace Quartz
         /// <summary>
         /// Progress next fire time seconds
         /// </summary>
-        /// <param name="d">NextFireTimeCheck</param>
         private NextFireTimeCursor ProgressNextFireTimeSecond(DateTimeOffset d)
         {
             var sec = d.Second;
-            var st = seconds.TailSet(sec);
-            if (st.Count > 0)
+            if (seconds.TryGetMinValueStartingFrom(sec, out var min))
             {
-                sec = st.Min;
+                sec = min;
             }
             else
             {
@@ -1549,30 +1539,29 @@ namespace Quartz
         /// <param name="d">NextFireTimeCheck</param>
         private NextFireTimeCursor ProgressNextFireTimeMinute(DateTimeOffset d)
         {
-            var min = d.Minute;
+            var minute = d.Minute;
             var hr = d.Hour;
             var t = -1;
 
-            var st = minutes.TailSet(min);
-            if (st.Count > 0)
+            if (minutes.TryGetMinValueStartingFrom(minute, out var min))
             {
-                t = min;
-                min = st.Min;
+                t = minute;
+                minute = min;
             }
             else
             {
-                min = minutes.Min;
+                minute = minutes.Min;
                 hr++;
             }
 
-            if (min != t)
+            if (minute != t)
             {
-                d = new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, min, 0, d.Millisecond, d.Offset);
+                d = new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, minute, 0, d.Millisecond, d.Offset);
                 d = SetCalendarHour(d, hr);
                 return new NextFireTimeCursor(true, d);
             }
 
-            return new NextFireTimeCursor(false, new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, min, d.Second, d.Millisecond, d.Offset));
+            return new NextFireTimeCursor(false, new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, minute, d.Second, d.Millisecond, d.Offset));
         }
 
         /// <summary>
@@ -1585,11 +1574,10 @@ namespace Quartz
             var day = d.Day;
             var t = -1;
 
-            var st = hours.TailSet(d.Hour);
-            if (st.Count > 0)
+            if (hours.TryGetMinValueStartingFrom(d.Hour, out var min))
             {
                 t = d.Hour;
-                hour = st.Min;
+                hour = min;
             }
             else
             {
@@ -1644,7 +1632,7 @@ namespace Quartz
                     {
                         calculatedLastDayWithOffset = 1;
                     }
-                        
+
                     results.Add(calculatedLastDayWithOffset);
                 }
                 else
@@ -1693,12 +1681,10 @@ namespace Quartz
 
             // get day by day of month rule
             var daysOfMonthCalculated = CalculateDaysOfMonth(d);
-            var tailDays = daysOfMonthCalculated.TailSet(d.Day);
-            var found = tailDays.Count > 0;
-            if (found)
+            if (daysOfMonthCalculated.TryGetMinValueStartingFrom(d.Day, out var min))
             {
                 t = day;
-                day = tailDays.Min;
+                day = min;
 
                 // make sure we don't over-run a short month, such as february
                 var lastDay = GetLastDayOfMonth(mon, d.Year);
@@ -1857,12 +1843,10 @@ namespace Quartz
             else if (everyNthWeek != 0)
             {
                 var cDow = (int)d.DayOfWeek + 1; // current d-o-w
-                var dow = daysOfWeek.Min; // desired
-                                              // d-o-w
-                var tailDays = daysOfWeek.TailSet(cDow);
-                if (tailDays.Count > 0)
+                var dow = daysOfWeek.Min; // desired d-o-w
+                if (daysOfWeek.TryGetMinValueStartingFrom(cDow, out var min))
                 {
-                    dow = tailDays.Min;
+                    dow = min;
                 }
 
                 var daysToAdd = 0;
@@ -1887,12 +1871,10 @@ namespace Quartz
             else
             {
                 var cDow = (int)d.DayOfWeek + 1; // current d-o-w
-                var dow = daysOfWeek.Min; // desired
-                                              // d-o-w
-                var tailDays = daysOfWeek.TailSet(cDow);
-                if (tailDays.Count > 0)
+                var dow = daysOfWeek.Min; // desired d-o-w
+                if (daysOfWeek.TryGetMinValueStartingFrom(cDow, out var min))
                 {
-                    dow = tailDays.Min;
+                    dow = min;
                 }
 
                 var daysToAdd = 0;
@@ -1984,11 +1966,10 @@ namespace Quartz
             var year = d.Year;
             var t = -1;
 
-            var st = months.TailSet(mon);
-            if (st.Count > 0)
+            if (months.TryGetMinValueStartingFrom(mon, out var min))
             {
                 t = mon;
-                mon = st.Min;
+                mon = min;
             }
             else
             {
@@ -1996,8 +1977,8 @@ namespace Quartz
                 year++;
             }
 
-            return mon != t 
-                ? new NextFireTimeCursor(true, new DateTimeOffset(year, mon, 1, 0, 0, 0, d.Offset)) 
+            return mon != t
+                ? new NextFireTimeCursor(true, new DateTimeOffset(year, mon, 1, 0, 0, 0, d.Offset))
                 : new NextFireTimeCursor(false, new DateTimeOffset(d.Year, mon, d.Day, d.Hour, d.Minute, d.Second, d.Offset));
         }
 
@@ -2008,12 +1989,11 @@ namespace Quartz
         private NextFireTimeCursor ProgressNextFireTimeYear(DateTimeOffset d)
         {
             var year = d.Year;
-            var st = years.TailSet(d.Year);
             int t;
-            if (st.Count > 0)
+            if (years.TryGetMinValueStartingFrom(d.Year, out var min))
             {
                 t = year;
-                year = st.Min;
+                year = min;
             }
             else
             {
@@ -2260,5 +2240,177 @@ namespace Quartz
         /// NextFireDate calculated progress result
         /// </summary>
         public DateTimeOffset? Date { get; set; }
+    }
+
+    /// <summary>
+    /// Optimized structure to hold either one value or multiple.
+    /// </summary>
+    internal sealed class CronField : IEnumerable<int>
+    {
+        // null == not set, all spec or individual value
+        private int? singleValue;
+        private SortedSet<int>? values;
+        private bool hasAllOrNoSpec;
+
+        public CronField()
+        {
+            Clear();
+        }
+
+        internal int Count
+        {
+            get
+            {
+                if (singleValue is not null)
+                {
+                    return 1;
+                }
+
+                return values?.Count ?? 0;
+            }
+        }
+
+        internal int Min
+        {
+            get
+            {
+                if (singleValue is not null)
+                {
+                    return hasAllOrNoSpec  ? 0 : singleValue.Value;
+                }
+
+                if (values is not null)
+                {
+                    return hasAllOrNoSpec ? 0 : values.Min;
+                }
+
+                return 0;
+            }
+        }
+
+        internal void Clear()
+        {
+            singleValue = null;
+            values = null;
+            hasAllOrNoSpec = false;
+        }
+
+        internal bool TryGetMinValueStartingFrom(int start, out int min)
+        {
+            min = 0;
+
+            if (singleValue == CronExpressionConstants.AllSpec)
+            {
+                min = start;
+                return true;
+            }
+
+            if (singleValue != null)
+            {
+                if (singleValue >= start)
+                {
+                    min = singleValue.Value;
+                    return true;
+                }
+
+                // didn't match
+                return false;
+            }
+
+            var set = values;
+
+            if (set == null)
+            {
+                return false;
+            }
+
+            min = set.Min;
+
+            if (set.Contains(start))
+            {
+                min = start;
+                return true;
+            }
+
+            if (set.Count == 0 || set.Max < start)
+            {
+                return false;
+            }
+
+            if (set.Min >= start)
+            {
+                // value is contained and would be returned from view
+                return true;
+            }
+
+            // slow path
+            var view = set.GetViewBetween(start, int.MaxValue);
+            if (view.Count > 0)
+            {
+                min = view.Min;
+                return true;
+            }
+
+            return false;
+        }
+
+        public void Add(int value)
+        {
+            hasAllOrNoSpec = value is CronExpressionConstants.AllSpec or CronExpressionConstants.NoSpec;
+
+            if (singleValue is null)
+            {
+                if (values is null)
+                {
+                    singleValue = value;
+                }
+                else
+                {
+                    values.Add(value);
+                }
+            }
+            else if (singleValue != value)
+            {
+                values = new SortedSet<int>
+                {
+                    singleValue.Value,
+                    value
+                };
+                singleValue = null;
+            }
+        }
+
+        public bool Contains(int value)
+        {
+            if (singleValue == value
+                || (value != CronExpressionConstants.AllSpec && value != CronExpressionConstants.NoSpec && hasAllOrNoSpec))
+            {
+                return true;
+            }
+
+            return values != null && values.Contains(value);
+        }
+
+        public IEnumerator<int> GetEnumerator()
+        {
+            if (singleValue is not null)
+            {
+                yield return singleValue.Value;
+                yield break;
+            }
+
+            if (values is not null)
+            {
+                foreach (var value in values)
+                {
+                    yield return value;
+                }
+            }
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
     }
 }

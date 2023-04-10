@@ -5,15 +5,6 @@ namespace Quartz.Benchmark;
 [MemoryDiagnoser]
 public class CronExpressionBenchmark
 {
-    [ParamsSource(nameof(DateValues))]
-    public DateTime Date { get; set; }
-
-    public IEnumerable<DateTime> DateValues => new[]
-    {
-        new DateTime(2005, 6, 1, 22, 15, 0),
-        new DateTime(2005, 12, 31, 23, 59, 59),
-    };
-
     [ParamsSource(nameof(CronExpressionValues))]
     public string CronExpression { get; set; } = "";
 
@@ -38,6 +29,7 @@ public class CronExpressionBenchmark
     public void CreateExpressionsAndCalculateFireTimeAfter()
     {
         var expression = new CronExpression(CronExpression);
-        expression.GetNextValidTimeAfter(Date);
+        expression.GetNextValidTimeAfter(new DateTime(2005, 6, 1, 22, 15, 0));
+        expression.GetNextValidTimeAfter(new DateTime(2005, 12, 31, 23, 59, 59));
     }
 }

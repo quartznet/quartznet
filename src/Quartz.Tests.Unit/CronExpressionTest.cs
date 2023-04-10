@@ -583,8 +583,8 @@ namespace Quartz.Tests.Unit
         {
             try
             {
-                SimpleCronExpression cronExpression = new SimpleCronExpression(expression);
-                ICollection<int> set = cronExpression.GetSetPublic(constant);
+                var cronExpression = new CronExpression(expression);
+                var set = cronExpression.GetSet(constant);
                 if (set.Count == 0)
                 {
                     Assert.Fail("Empty field [" + constant + "] returned for " + expression);
@@ -902,19 +902,6 @@ namespace Quartz.Tests.Unit
         public void TestHourRangeAndSlash()
         {
             CronExpression.ValidateExpression("0 0 18-21/1 ? * MON,TUE,WED,THU,FRI,SAT,SUN");
-        }
-
-        private class SimpleCronExpression : CronExpression
-        {
-            public SimpleCronExpression(string cronExpression)
-                : base(cronExpression)
-            {
-            }
-
-            public ISet<int> GetSetPublic(int constant)
-            {
-                return GetSet(constant);
-            }
         }
 
         [Test]

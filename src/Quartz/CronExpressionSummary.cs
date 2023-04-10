@@ -24,11 +24,11 @@ using System.Text;
 
 namespace Quartz
 {
-    internal struct CronExpressionSummary
+    internal readonly struct CronExpressionSummary
     {
-        public CronExpressionSummary(SortedSet<int> seconds, SortedSet<int> minutes, SortedSet<int> hours, SortedSet<int> daysOfMonth,
-            SortedSet<int> months, SortedSet<int> daysOfWeek, bool lastDayOfWeek, bool nearestWeekday, int nthDayOfWeek,
-            bool lastDayOfMonth, bool calendarDayOfWeek, bool calendarDayOfMonth, SortedSet<int> years)
+        public CronExpressionSummary(CronField seconds, CronField minutes, CronField hours, CronField daysOfMonth,
+            CronField months, CronField daysOfWeek, bool lastDayOfWeek, bool nearestWeekday, int nthDayOfWeek,
+            bool lastDayOfMonth, bool calendarDayOfWeek, bool calendarDayOfMonth, CronField years)
         {
             Seconds = seconds;
             Minutes = minutes;
@@ -45,26 +45,24 @@ namespace Quartz
             Years = years;
         }
 
-        public SortedSet<int> Seconds { get; set; }
-        public SortedSet<int> Minutes { get; set; }
-        public SortedSet<int> Hours { get; set; }
-        public SortedSet<int> DaysOfMonth { get; set; }
-        public SortedSet<int> Months { get; set; }
-        public SortedSet<int> DaysOfWeek { get; set; }
-        public bool LastDayOfWeek { get; set; }
-        public bool NearestWeekday { get; set; }
-        public int NthDayOfWeek { get; set; }
-        public bool LastDayOfMonth { get; set; }
-        public bool CalendarDayOfWeek { get; set; }
-        public bool CalendarDayOfMonth { get; set; }
-        public SortedSet<int> Years { get; set; }
+        public CronField Seconds { get; }
+        public CronField Minutes { get; }
+        public CronField Hours { get; }
+        public CronField DaysOfMonth { get; }
+        public CronField Months { get; }
+        public CronField DaysOfWeek { get; }
+        public bool LastDayOfWeek { get; }
+        public bool NearestWeekday { get; }
+        public int NthDayOfWeek { get; }
+        public bool LastDayOfMonth { get; }
+        public bool CalendarDayOfWeek { get; }
+        public bool CalendarDayOfMonth { get; }
+        public CronField Years { get; }
 
         /// <summary>
         /// Gets the expression set summary.
         /// </summary>
-        /// <param name="data">The data.</param>
-        /// <returns></returns>
-        private string GetExpressionSetSummary(ICollection<int> data)
+        private static string GetExpressionSetSummary(CronField data)
         {
             if (data.Contains(CronExpressionConstants.NoSpec))
             {
