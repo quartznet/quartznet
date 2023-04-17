@@ -457,13 +457,13 @@ namespace Quartz.Benchmark
             private static int RunCount = 0;
             private static int _operationsPerRun;
 
-            public Task Execute(IJobExecutionContext context)
+            public ValueTask Execute(IJobExecutionContext context)
             {
                 if (Interlocked.Increment(ref RunCount) == _operationsPerRun)
                 {
                     Done.Set();
                 }
-                return Task.CompletedTask;
+                return default;
             }
 
             public static void Initialize(int operationsPerRun)
@@ -492,144 +492,144 @@ namespace Quartz.Benchmark
 
             public string Name { get; }
 
-            public Task JobExecutionVetoed(IJobExecutionContext context, CancellationToken cancellationToken = default)
+            public ValueTask JobExecutionVetoed(IJobExecutionContext context, CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken = default)
+            public ValueTask JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task JobUnscheduled(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+            public ValueTask JobUnscheduled(TriggerKey triggerKey, CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task JobWasExecuted(IJobExecutionContext context, JobExecutionException? jobException, CancellationToken cancellationToken = default)
+            public ValueTask JobWasExecuted(IJobExecutionContext context, JobExecutionException? jobException, CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task SchedulerError(string msg, SchedulerException cause, CancellationToken cancellationToken = default)
+            public ValueTask SchedulerError(string msg, SchedulerException cause, CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task SchedulerInStandbyMode(CancellationToken cancellationToken = default)
+            public ValueTask SchedulerInStandbyMode(CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task SchedulerShutdown(CancellationToken cancellationToken = default)
+            public ValueTask SchedulerShutdown(CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task SchedulerShuttingdown(CancellationToken cancellationToken = default)
+            public ValueTask SchedulerShuttingdown(CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task SchedulerStarted(CancellationToken cancellationToken = default)
+            public ValueTask SchedulerStarted(CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task SchedulerStarting(CancellationToken cancellationToken = default)
+            public ValueTask SchedulerStarting(CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task SchedulingDataCleared(CancellationToken cancellationToken = default)
+            public ValueTask SchedulingDataCleared(CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default)
+            public ValueTask TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task TriggerFinalized(ITrigger trigger, CancellationToken cancellationToken = default)
+            public ValueTask TriggerFinalized(ITrigger trigger, CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task TriggerFired(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default)
+            public ValueTask TriggerFired(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = default)
+            public ValueTask TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task TriggerPaused(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+            public ValueTask TriggerPaused(TriggerKey triggerKey, CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task TriggerResumed(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+            public ValueTask TriggerResumed(TriggerKey triggerKey, CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task TriggersPaused(string? triggerGroup, CancellationToken cancellationToken = default)
+            public ValueTask TriggersPaused(string? triggerGroup, CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task TriggersResumed(string? triggerGroup, CancellationToken cancellationToken = default)
+            public ValueTask TriggersResumed(string? triggerGroup, CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default)
+            public ValueTask<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default)
             {
-                return Task.FromResult(false);
+                return new ValueTask<bool>(false);
             }
 
-            public Task JobAdded(IJobDetail jobDetail, CancellationToken cancellationToken = default)
+            public ValueTask JobAdded(IJobDetail jobDetail, CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task JobDeleted(JobKey jobKey, CancellationToken cancellationToken = default)
+            public ValueTask JobDeleted(JobKey jobKey, CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task JobInterrupted(JobKey jobKey, CancellationToken cancellationToken = default)
+            public ValueTask JobInterrupted(JobKey jobKey, CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task JobPaused(JobKey jobKey, CancellationToken cancellationToken = default)
+            public ValueTask JobPaused(JobKey jobKey, CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task JobResumed(JobKey jobKey, CancellationToken cancellationToken = default)
+            public ValueTask JobResumed(JobKey jobKey, CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task JobScheduled(ITrigger trigger, CancellationToken cancellationToken = default)
+            public ValueTask JobScheduled(ITrigger trigger, CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task JobsPaused(string jobGroup, CancellationToken cancellationToken = default)
+            public ValueTask JobsPaused(string jobGroup, CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
-            public Task JobsResumed(string jobGroup, CancellationToken cancellationToken = default)
+            public ValueTask JobsResumed(string jobGroup, CancellationToken cancellationToken = default)
             {
-                return Task.CompletedTask;
+                return default;
             }
         }
     }

@@ -295,14 +295,14 @@ namespace Quartz.Plugin.History
         /// Called during creation of the <see cref="IScheduler" /> in order to give
         /// the <see cref="ISchedulerPlugin" /> a chance to Initialize.
         /// </summary>
-        public virtual Task Initialize(
+        public virtual ValueTask Initialize(
             string pluginName,
             IScheduler scheduler,
             CancellationToken cancellationToken = default)
         {
             Name = pluginName;
             scheduler.ListenerManager.AddJobListener(this, EverythingMatcher<JobKey>.AllJobs());
-            return Task.CompletedTask;
+            return default;
         }
 
         /// <summary>
@@ -310,10 +310,10 @@ namespace Quartz.Plugin.History
         /// to let the plug-in know it can now make calls into the scheduler if it
         /// needs to.
         /// </summary>
-        public virtual Task Start(CancellationToken cancellationToken = default)
+        public virtual ValueTask Start(CancellationToken cancellationToken = default)
         {
             // do nothing...
-            return Task.CompletedTask;
+            return default;
         }
 
         /// <summary>
@@ -321,10 +321,10 @@ namespace Quartz.Plugin.History
         /// should free up all of it's resources because the scheduler is shutting
         /// down.
         /// </summary>
-        public virtual Task Shutdown(CancellationToken cancellationToken = default)
+        public virtual ValueTask Shutdown(CancellationToken cancellationToken = default)
         {
             // nothing to do...
-            return Task.CompletedTask;
+            return default;
         }
 
         /// <summary>
@@ -336,13 +336,13 @@ namespace Quartz.Plugin.History
         ///     </para>
         /// </summary>
         /// <seealso cref="JobExecutionVetoed"/>
-        public virtual Task JobToBeExecuted(
+        public virtual ValueTask JobToBeExecuted(
             IJobExecutionContext context,
             CancellationToken cancellationToken = default)
         {
             if (!IsInfoEnabled)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
             ITrigger trigger = context.Trigger;
@@ -360,7 +360,7 @@ namespace Quartz.Plugin.History
             };
 
             WriteInfo(string.Format(CultureInfo.InvariantCulture, JobToBeFiredMessage, args));
-            return Task.CompletedTask;
+            return default;
         }
 
         /// <summary>
@@ -368,7 +368,7 @@ namespace Quartz.Plugin.History
         /// has been executed, and be for the associated <see cref="ITrigger" />'s
         /// <see cref="IOperableTrigger.Triggered" /> method has been called.
         /// </summary>
-        public virtual Task JobWasExecuted(IJobExecutionContext context,
+        public virtual ValueTask JobWasExecuted(IJobExecutionContext context,
             JobExecutionException? jobException,
             CancellationToken cancellationToken = default)
         {
@@ -380,7 +380,7 @@ namespace Quartz.Plugin.History
             {
                 if (!IsWarnEnabled)
                 {
-                    return Task.CompletedTask;
+                    return default;
                 }
 
                 string errMsg = jobException.Message;
@@ -396,7 +396,7 @@ namespace Quartz.Plugin.History
             {
                 if (!IsInfoEnabled)
                 {
-                    return Task.CompletedTask;
+                    return default;
                 }
 
                 var result = Convert.ToString(context.Result, CultureInfo.InvariantCulture);
@@ -408,7 +408,7 @@ namespace Quartz.Plugin.History
 
                 WriteInfo(string.Format(CultureInfo.InvariantCulture, JobSuccessMessage, args));
             }
-            return Task.CompletedTask;
+            return default;
         }
 
         /// <summary>
@@ -418,13 +418,13 @@ namespace Quartz.Plugin.History
         /// execution.
         /// </summary>
         /// <seealso cref="JobToBeExecuted"/>
-        public virtual Task JobExecutionVetoed(
+        public virtual ValueTask JobExecutionVetoed(
             IJobExecutionContext context,
             CancellationToken cancellationToken = default)
         {
             if (!IsInfoEnabled)
             {
-                return Task.CompletedTask;
+                return default;
             }
 
             ITrigger trigger = context.Trigger;
@@ -442,7 +442,7 @@ namespace Quartz.Plugin.History
             };
 
             WriteInfo(string.Format(CultureInfo.InvariantCulture, JobWasVetoedMessage, args));
-            return Task.CompletedTask;
+            return default;
         }
 
         protected virtual bool IsInfoEnabled => logger.IsEnabled(LogLevel.Information);

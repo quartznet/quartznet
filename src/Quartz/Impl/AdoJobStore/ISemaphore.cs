@@ -33,16 +33,16 @@ namespace Quartz.Impl.AdoJobStore
 		/// </summary>
 		/// <returns> true if the lock was obtained.
 		/// </returns>
-		Task<bool> ObtainLock(
+		ValueTask<bool> ObtainLock(
 			Guid requestorId,
 			ConnectionAndTransactionHolder? conn,
 			string lockName,
 			CancellationToken cancellationToken = default);
 
-		/// <summary> Release the lock on the identified resource if it is held by the calling
-		/// thread.
-		/// </summary>
-		Task ReleaseLock(
+        /// <summary> Release the lock on the identified resource if it is held by the calling
+        /// thread.
+        /// </summary>
+        ValueTask ReleaseLock(
 			Guid requestorId, 
 			string lockName, 
 			CancellationToken cancellationToken = default);

@@ -320,7 +320,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
 
         private class TestJob : IJob
         {
-            public Task Execute(IJobExecutionContext context) => throw new NotSupportedException();
+            public ValueTask Execute(IJobExecutionContext context) => throw new NotSupportedException();
         }
 
         [Test]

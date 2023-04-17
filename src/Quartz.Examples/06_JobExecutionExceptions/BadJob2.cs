@@ -43,7 +43,7 @@ namespace Quartz.Examples.Example06
         /// </para>
         /// </summary>
         /// <param name="context">Execution context.</param>
-        public virtual Task Execute(IJobExecutionContext context)
+        public virtual ValueTask Execute(IJobExecutionContext context)
         {
             JobKey jobKey = context.JobDetail.Key;
             Console.WriteLine("---{0} executing at {1:r}", jobKey, DateTime.Now);
@@ -68,7 +68,7 @@ namespace Quartz.Examples.Example06
             }
 
             Console.WriteLine("---{0} completed at {1:r}", jobKey, DateTime.Now);
-            return Task.CompletedTask;
+            return default;
         }
     }
 }

@@ -28,7 +28,7 @@ namespace Quartz
             this.processor = processor;
         }
 
-        public override async Task<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
+        public override async ValueTask<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
         {
             base.Initialize(options.Value.ToNameValueCollection());
             var scheduler = await base.GetScheduler(cancellationToken);

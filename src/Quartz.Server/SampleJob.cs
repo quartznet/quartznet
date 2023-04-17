@@ -24,7 +24,7 @@ namespace Quartz.Server
         /// execution.
         /// </remarks>
         /// <param name="context">The execution context.</param>
-        public async Task Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context)
         {
             logger.LogInformation("SampleJob running...");
             await Task.Delay(TimeSpan.FromSeconds(5));

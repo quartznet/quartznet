@@ -31,6 +31,6 @@ namespace Quartz.Job
 	    /// <summary>
 	    /// Informs that certain file has been updated.
 	    /// </summary>
-	    Task FileUpdated(string fileName, CancellationToken cancellationToken = default);
+	    ValueTask FileUpdated(string fileName, CancellationToken cancellationToken = default);
 	}
 }

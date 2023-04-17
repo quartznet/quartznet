@@ -45,7 +45,7 @@ namespace Quartz.Server
         /// Gets the scheduler with which this server should operate with.
         /// </summary>
         /// <returns></returns>
-	    protected virtual Task<IScheduler> GetScheduler()
+	    protected virtual ValueTask<IScheduler> GetScheduler()
 	    {
 	        return schedulerFactory.GetScheduler();
 	    }

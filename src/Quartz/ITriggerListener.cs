@@ -56,7 +56,7 @@ namespace Quartz
         ///     The <see cref="IJobExecutionContext" /> that will be passed to the <see cref="IJob" />'s<see cref="IJob.Execute" /> method.
         /// </param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        Task TriggerFired(
+        ValueTask TriggerFired(
             ITrigger trigger,
             IJobExecutionContext context,
             CancellationToken cancellationToken = default);
@@ -76,7 +76,7 @@ namespace Quartz
         /// the <see cref="IJob"/>'s<see cref="IJob.Execute"/> method.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <returns>Returns true if job execution should be vetoed, false otherwise.</returns>
-        Task<bool> VetoJobExecution(
+        ValueTask<bool> VetoJobExecution(
             ITrigger trigger,
             IJobExecutionContext context,
             CancellationToken cancellationToken = default);
@@ -93,7 +93,7 @@ namespace Quartz
         /// </summary>
         /// <param name="trigger">The <see cref="ITrigger" /> that has misfired.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        Task TriggerMisfired(
+        ValueTask TriggerMisfired(
             ITrigger trigger,
             CancellationToken cancellationToken = default);
 
@@ -112,7 +112,7 @@ namespace Quartz
         /// The result of the call on the <see cref="ITrigger" />'s<see cref="IOperableTrigger.Triggered" />  method.
         /// </param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        Task TriggerComplete(
+        ValueTask TriggerComplete(
             ITrigger trigger,
             IJobExecutionContext context,
             SchedulerInstruction triggerInstructionCode,

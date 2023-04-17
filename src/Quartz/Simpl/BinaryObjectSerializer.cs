@@ -24,7 +24,9 @@ namespace Quartz.Simpl
         {
             using MemoryStream ms = new MemoryStream();
             BinaryFormatter bf = new BinaryFormatter();
+#pragma warning disable SYSLIB0011
             bf.Serialize(ms, obj);
+#pragma warning restore SYSLIB0011
             return ms.ToArray();
         }
 
@@ -36,7 +38,9 @@ namespace Quartz.Simpl
         {
             using MemoryStream ms = new MemoryStream(data);
             BinaryFormatter bf = new BinaryFormatter();
+#pragma warning disable SYSLIB0011
             return (T) bf.Deserialize(ms);
+#pragma warning restore SYSLIB0011
         }
     }
 }

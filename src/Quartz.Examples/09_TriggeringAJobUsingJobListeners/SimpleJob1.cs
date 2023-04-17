@@ -41,13 +41,13 @@ namespace Quartz.Examples.Example09
         /// </para>
         /// </summary>
         /// <param name="context"></param>
-        public virtual Task Execute(IJobExecutionContext context)
+        public virtual ValueTask Execute(IJobExecutionContext context)
         {
             // This job simply prints out its job name and the
             // date and time that it is running
             JobKey jobKey = context.JobDetail.Key;
             Console.WriteLine("SimpleJob1 says: {0} executing at {1:r}", jobKey, DateTime.Now);
-            return Task.CompletedTask;
+            return default;
         }
     }
 }

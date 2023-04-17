@@ -9,7 +9,7 @@ namespace Quartz.Examples.AspNetCore
             this.logger = logger;
         }
 
-        public async Task Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context)
         {
             logger.LogInformation(context.JobDetail.Key + " job executing, triggered by " + context.Trigger.Key);
             await Task.Delay(TimeSpan.FromSeconds(1));

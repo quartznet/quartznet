@@ -27,23 +27,23 @@ namespace Quartz.Examples.Example09
     {
         public virtual string Name => "job1_to_job2";
 
-        public virtual Task JobToBeExecuted(
+        public virtual ValueTask JobToBeExecuted(
             IJobExecutionContext inContext, 
             CancellationToken cancellationToken)
         {
             Console.WriteLine("Job1Listener says: Job Is about to be executed.");
-            return Task.CompletedTask;
+            return default;
         }
 
-        public virtual Task JobExecutionVetoed(
+        public virtual ValueTask JobExecutionVetoed(
             IJobExecutionContext inContext,
             CancellationToken canncellationToken)
         {
             Console.WriteLine("Job1Listener says: Job Execution was vetoed.");
-            return Task.CompletedTask;
+            return default;
         }
 
-        public virtual async Task JobWasExecuted(IJobExecutionContext inContext,
+        public virtual async ValueTask JobWasExecuted(IJobExecutionContext inContext,
             JobExecutionException? inException,
             CancellationToken cancellationToken = default)
         {

@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <AssemblyTitle>Quartz.NET</AssemblyTitle>
-    <TargetFrameworks>net472;netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>net472;netstandard2.0;net6.0</TargetFrameworks>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
   </PropertyGroup>
 
@@ -10,17 +10,18 @@
     <EmbeddedResource Include="quartz.config;Impl\AdoJobStore\Common\dbproviders.properties;Impl\AdoJobStore\Common\dbproviders.netstandard.properties;Xml\job_scheduling_data_2_0.xsd" />
   </ItemGroup>
 
-  <ItemGroup Condition=" '$(FullFramework)' == 'true' ">
+  <ItemGroup Condition=" '$(TargetFramework)' == 'net472' ">
     <Reference Include="System.Configuration" />
     <Reference Include="System.Runtime.Remoting" />
+  </ItemGroup>
+
+  <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'net472' ">
+    <PackageReference Include="System.Threading.Tasks.Extensions" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="System.Diagnostics.DiagnosticSource" />
-  </ItemGroup>
-
-  <ItemGroup>
   </ItemGroup>
 
 </Project>

@@ -57,11 +57,11 @@ namespace Quartz.Listener
         /// <param name="context"></param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <seealso cref="JobExecutionVetoed"/>
-        public virtual Task JobToBeExecuted(
+        public virtual ValueTask JobToBeExecuted(
             IJobExecutionContext context, 
             CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
         /// <summary>
@@ -73,11 +73,11 @@ namespace Quartz.Listener
         /// <param name="context"></param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
         /// <seealso cref="JobToBeExecuted"/>
-        public virtual Task JobExecutionVetoed(
+        public virtual ValueTask JobExecutionVetoed(
             IJobExecutionContext context,
             CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
         /// <summary>
@@ -88,11 +88,11 @@ namespace Quartz.Listener
         /// <param name="context"></param>
         /// <param name="jobException"></param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        public virtual Task JobWasExecuted(IJobExecutionContext context,
+        public virtual ValueTask JobWasExecuted(IJobExecutionContext context,
             JobExecutionException? jobException,
             CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
     }
 }

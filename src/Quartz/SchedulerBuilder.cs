@@ -152,7 +152,7 @@ namespace Quartz
         /// <summary>
         /// Finalizes the configuration and builds the actual scheduler.
         /// </summary>
-        public Task<IScheduler> BuildScheduler()
+        public ValueTask<IScheduler> BuildScheduler()
         {
             var schedulerFactory = new StdSchedulerFactory(Properties);
             return schedulerFactory.GetScheduler();

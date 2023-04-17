@@ -146,7 +146,7 @@ namespace Quartz.Impl
         /// </summary>
         /// <seealso cref="Initialize()">
         /// </seealso>
-        public static Task<IScheduler> GetDefaultScheduler(
+        public static ValueTask<IScheduler> GetDefaultScheduler(
             CancellationToken cancellationToken = default)
         {
             StdSchedulerFactory fact = new StdSchedulerFactory();
@@ -158,7 +158,7 @@ namespace Quartz.Impl
         /// StdSchedulerFactory instance.).
         /// </para>
         /// </summary>
-        public virtual Task<IReadOnlyList<IScheduler>> GetAllSchedulers(
+        public virtual ValueTask<IReadOnlyList<IScheduler>> GetAllSchedulers(
             CancellationToken cancellationToken = default)
         {
             return SchedulerRepository.Instance.LookupAll(cancellationToken);
@@ -340,7 +340,7 @@ Please add configuration to your application config file to correctly initialize
         }
 
         /// <summary>  </summary>
-        private async Task<IScheduler> Instantiate()
+        private async ValueTask<IScheduler> Instantiate()
         {
             if (cfg == null)
             {
@@ -1052,7 +1052,7 @@ Please add configuration to your application config file to correctly initialize
             return ObjectUtils.InstantiateType<T>(implementationType);
         }
 
-        private async Task ShutdownFromInstantiateException(IThreadPool? tp, QuartzScheduler? qs, bool tpInited, bool qsInited)
+        private async ValueTask ShutdownFromInstantiateException(IThreadPool? tp, QuartzScheduler? qs, bool tpInited, bool qsInited)
         {
             try
             {
@@ -1100,7 +1100,7 @@ Please add configuration to your application config file to correctly initialize
         /// called, then the default (no-arg) <see cref="Initialize()" /> method
         /// will be called by this method.
         /// </remarks>
-        public virtual async Task<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
+        public virtual async ValueTask<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
         {
             if (cfg == null)
             {
@@ -1133,7 +1133,7 @@ Please add configuration to your application config file to correctly initialize
         /// it has already been instantiated).
         /// </para>
         /// </summary>
-        public virtual Task<IScheduler?> GetScheduler(string schedName,
+        public virtual ValueTask<IScheduler?> GetScheduler(string schedName,
             CancellationToken cancellationToken = default)
         {
             return SchedulerRepository.Instance.Lookup(schedName, cancellationToken);

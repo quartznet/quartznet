@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -83,7 +83,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Execute the SQL that will lock the proper database row.
         /// </summary>
-        protected abstract Task ExecuteSQL(
+        protected abstract ValueTask ExecuteSQL(
             Guid requestorId,
             ConnectionAndTransactionHolder conn,
             string lockName,
@@ -96,7 +96,7 @@ namespace Quartz.Impl.AdoJobStore
         /// until it is available).
         /// </summary>
         /// <returns>true if the lock was obtained.</returns>
-        public async Task<bool> ObtainLock(
+        public async ValueTask<bool> ObtainLock(
             Guid requestorId,
             ConnectionAndTransactionHolder? conn,
             string lockName,
@@ -135,7 +135,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Release the lock on the identified resource if it is held by the calling
         /// thread.
         /// </summary>
-        public Task ReleaseLock(
+        public ValueTask ReleaseLock(
             Guid requestorId,
             string lockName,
             CancellationToken cancellationToken = default)
@@ -156,7 +156,7 @@ namespace Quartz.Impl.AdoJobStore
                 logger.LogWarning("stack-trace of wrongful returner: {Stacktrace}",Environment.StackTrace);
             }
 
-            return Task.CompletedTask;
+            return default;
         }
 
         /// <summary>
@@ -260,7 +260,7 @@ namespace Quartz.Impl.AdoJobStore
                 hashCode = (requestorId.GetHashCode() * 397) ^ lockName.GetHashCode();
             }
 
-            public bool Equals(ThreadLockKey other) 
+            public bool Equals(ThreadLockKey other)
                 => requestorId.Equals(other.requestorId) && ReferenceEquals(lockName, other.lockName);
 
             public override bool Equals(object? obj) => obj is ThreadLockKey other && Equals(other);

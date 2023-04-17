@@ -15,10 +15,10 @@ namespace Quartz.Examples.AspNetCore
 
         public override string Name => "Second Sample Trigger Listener";
 
-        public override Task TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default)
+        public override ValueTask TriggerComplete(ITrigger trigger, IJobExecutionContext context, SchedulerInstruction triggerInstructionCode, CancellationToken cancellationToken = default)
         {
             logger.LogInformation("Trigger {TriggerKey} fired (example value '{ExampleValue}')", trigger.Key, exampleValue);
-            return Task.CompletedTask;
+            return default;
         }
     }
 }

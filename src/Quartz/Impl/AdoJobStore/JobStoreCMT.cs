@@ -51,7 +51,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Called by the QuartzScheduler before the <see cref="IJobStore"/> is
         /// used, in order to give the it a chance to Initialize.
         /// </summary>
-        public override async Task Initialize(
+        public override async ValueTask Initialize(
             ITypeLoadHelper loadHelper,
             ISchedulerSignaler signaler,
             CancellationToken cancellationToken = default)
@@ -72,7 +72,7 @@ namespace Quartz.Impl.AdoJobStore
         /// it should free up all of it's resources because the scheduler is
         /// shutting down.
         /// </summary>
-        public override async Task Shutdown(CancellationToken cancellationToken = default)
+        public override async ValueTask Shutdown(CancellationToken cancellationToken = default)
         {
             await base.Shutdown(cancellationToken).ConfigureAwait(false);
 
@@ -127,9 +127,9 @@ namespace Quartz.Impl.AdoJobStore
         /// </param>
         /// <param name="txCallback">Callback to execute.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        protected override async Task<T> ExecuteInLock<T>(
+        protected override async ValueTask<T> ExecuteInLock<T>(
             string? lockName,
-            Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
+            Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
             CancellationToken cancellationToken = default)
         {
             bool transOwner = false;

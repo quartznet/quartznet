@@ -1,4 +1,4 @@
-﻿using System.Data.Common;
+using System.Data.Common;
 
 using Quartz.Util;
 
@@ -7,7 +7,7 @@ namespace Quartz.Impl.AdoJobStore
     public partial class StdAdoDelegate
     {
         /// <inheritdoc />
-        public virtual async Task<int> InsertSchedulerState(
+        public virtual async ValueTask<int> InsertSchedulerState(
             ConnectionAndTransactionHolder conn,
             string instanceName,
             DateTimeOffset checkInTime,
@@ -24,7 +24,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <inheritdoc />
-        public virtual async Task<int> DeleteSchedulerState(
+        public virtual async ValueTask<int> DeleteSchedulerState(
             ConnectionAndTransactionHolder conn,
             string instanceName,
             CancellationToken cancellationToken = default)
@@ -37,7 +37,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <inheritdoc />
-        public virtual async Task<int> UpdateSchedulerState(
+        public virtual async ValueTask<int> UpdateSchedulerState(
             ConnectionAndTransactionHolder conn,
             string instanceName,
             DateTimeOffset checkInTime,
@@ -52,7 +52,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <inheritdoc />
-        public virtual async Task<IReadOnlyCollection<SchedulerStateRecord>> SelectSchedulerStateRecords(
+        public virtual async ValueTask<IReadOnlyCollection<SchedulerStateRecord>> SelectSchedulerStateRecords(
             ConnectionAndTransactionHolder conn,
             string? instanceName,
             CancellationToken cancellationToken = default)

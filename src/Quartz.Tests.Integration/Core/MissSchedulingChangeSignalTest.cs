@@ -1,4 +1,4 @@
-﻿using System.Collections.Specialized;
+using System.Collections.Specialized;
 
 using Microsoft.Extensions.Logging;
 
@@ -75,7 +75,7 @@ namespace Quartz.Tests.Integration.Core
         private static DateTime? lastFireTime;
         private static readonly ILogger<CollectDurationBetweenFireTimesJob> logger = LogProvider.CreateLogger<CollectDurationBetweenFireTimesJob>();
 
-        public Task Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context)
         {
             DateTime now = DateTime.UtcNow;
             logger.LogInformation("Fire time: {FireTime}",now);
@@ -85,7 +85,7 @@ namespace Quartz.Tests.Integration.Core
             }
 
             lastFireTime = now;
-            return Task.CompletedTask;
+            return default;
         }
 
         public static List<TimeSpan> Durations { get; } = new List<TimeSpan>();
@@ -96,7 +96,7 @@ namespace Quartz.Tests.Integration.Core
     /// </summary>
     public class SlowRAMJobStore : RAMJobStore
     {
-        public override async Task<IReadOnlyCollection<IOperableTrigger>> AcquireNextTriggers(
+        public override async ValueTask<IReadOnlyCollection<IOperableTrigger>> AcquireNextTriggers(
             DateTimeOffset noLaterThan, 
             int maxCount, 
             TimeSpan timeWindow,

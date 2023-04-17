@@ -49,9 +49,9 @@ namespace Quartz.Simpl
         /// <param name="cancellationToken"></param>
         /// <returns> The clusterwide unique instance id.
         /// </returns>
-        public abstract Task<string?> GenerateInstanceId(CancellationToken cancellationToken = default);
+        public abstract ValueTask<string?> GenerateInstanceId(CancellationToken cancellationToken = default);
 
-        protected async Task<string?> GetHostName(
+        protected async ValueTask<string?> GetHostName(
             int maxLength,
             CancellationToken cancellationToken = default)
         {
@@ -74,10 +74,10 @@ namespace Quartz.Simpl
             }
         }
 
-        protected virtual Task<IPHostEntry> GetHostAddress(
+        protected virtual ValueTask<IPHostEntry> GetHostAddress(
             CancellationToken cancellationToken = default)
         {
-            return Task.FromResult(new IPHostEntry
+            return new ValueTask<IPHostEntry>(new IPHostEntry
             {
                 HostName = Dns.GetHostName()
             });

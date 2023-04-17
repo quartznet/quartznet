@@ -65,7 +65,7 @@ namespace Quartz.Spi
         /// The scheduler to which the plugin is registered.
         /// </param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        Task Initialize(
+        ValueTask Initialize(
             string pluginName,
             IScheduler scheduler, 
             CancellationToken cancellationToken = default);
@@ -75,13 +75,13 @@ namespace Quartz.Spi
         /// to let the plug-in know it can now make calls into the scheduler if it
         /// needs to.
         /// </summary>
-        Task Start(CancellationToken cancellationToken = default);
+        ValueTask Start(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called in order to inform the <see cref="ISchedulerPlugin" /> that it
         /// should free up all of it's resources because the scheduler is shutting
         /// down.
         /// </summary>
-        Task Shutdown(CancellationToken cancellationToken = default);
+        ValueTask Shutdown(CancellationToken cancellationToken = default);
     }
 }

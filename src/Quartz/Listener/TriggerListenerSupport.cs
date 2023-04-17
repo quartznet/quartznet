@@ -47,36 +47,36 @@ namespace Quartz.Listener
         /// <value></value>
         public abstract string Name { get; }
 
-        public virtual Task TriggerFired(
+        public virtual ValueTask TriggerFired(
             ITrigger trigger,
             IJobExecutionContext context,
             CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
-        public virtual Task<bool> VetoJobExecution(
+        public virtual ValueTask<bool> VetoJobExecution(
             ITrigger trigger,
             IJobExecutionContext context,
             CancellationToken cancellationToken = default)
         {
-            return Task.FromResult(false);
+            return new ValueTask<bool>(false);
         }
 
-        public virtual Task TriggerMisfired(
+        public virtual ValueTask TriggerMisfired(
             ITrigger trigger,
             CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
 
-        public virtual Task TriggerComplete(
+        public virtual ValueTask TriggerComplete(
             ITrigger trigger, 
             IJobExecutionContext context, 
             SchedulerInstruction triggerInstructionCode,
             CancellationToken cancellationToken = default)
         {
-            return Task.CompletedTask;
+            return default;
         }
     }
 }

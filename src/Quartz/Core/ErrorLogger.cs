@@ -12,13 +12,13 @@ namespace Quartz.Core
     {
         private readonly ILogger<ErrorLogger> logger = LogProvider.CreateLogger<ErrorLogger>();
 
-        public override Task SchedulerError(
+        public override ValueTask SchedulerError(
             string msg,
             SchedulerException cause,
             CancellationToken cancellationToken = default)
         {
             logger.LogError(cause,msg);
-            return Task.CompletedTask;
+            return default;
         }
     }
 }

@@ -40,7 +40,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                 throw new NotImplementedException();
             }
 
-            protected override Task<T> ExecuteInLock<T>(string lockName, Func<ConnectionAndTransactionHolder, Task<T>> txCallback, CancellationToken cancellationToken = default)
+            protected override ValueTask<T> ExecuteInLock<T>(string lockName, Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback, CancellationToken cancellationToken = default)
             {
                 throw new NotImplementedException();
             }

@@ -13,10 +13,10 @@ namespace Quartz.Examples.AspNetCore
 
         public override string Name => "Sample Trigger Listener";
 
-        public override Task TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = default)
+        public override ValueTask TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = default)
         {
             logger.LogInformation("Observed trigger fire by trigger {TriggerKey}", trigger.Key);
-            return Task.CompletedTask;
+            return default;
         }
     }
 }

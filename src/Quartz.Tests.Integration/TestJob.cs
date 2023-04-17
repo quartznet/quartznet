@@ -37,10 +37,10 @@ namespace Quartz.Tests.Integration
         /// execution.
         /// </remarks>
         /// <param name="context">The execution context.</param>
-        public Task Execute(IJobExecutionContext context)
+        public ValueTask Execute(IJobExecutionContext context)
         {
             JobHasFired = true;
-            return Task.CompletedTask;
+            return default;
         }
 
         /// <summary>

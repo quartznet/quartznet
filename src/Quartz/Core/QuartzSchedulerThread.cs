@@ -524,7 +524,7 @@ namespace Quartz.Core
             return delay;
         }
         
-        private async Task<bool> ReleaseIfScheduleChangedSignificantly(List<IOperableTrigger> triggers, DateTimeOffset triggerTime)
+        private async ValueTask<bool> ReleaseIfScheduleChangedSignificantly(List<IOperableTrigger> triggers, DateTimeOffset triggerTime)
         {
             if (IsCandidateNewTimeEarlierWithinReason(triggerTime, true))
             {

@@ -33,7 +33,7 @@ namespace Quartz.Examples.Example10
         /// <see cref="ITrigger" /> fires that is associated with
         /// the <see cref="IJob" />.
         /// </summary>
-        public virtual Task Execute(IJobExecutionContext context)
+        public virtual ValueTask Execute(IJobExecutionContext context)
         {
             // This job simply prints out its job name and the
             // date and time that it is running
@@ -51,7 +51,7 @@ namespace Quartz.Examples.Example10
             }
 
             context.Result = "hello";
-            return Task.CompletedTask;
+            return default;
         }
     }
 }

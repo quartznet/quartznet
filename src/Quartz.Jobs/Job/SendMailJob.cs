@@ -81,7 +81,7 @@ namespace Quartz.Job
         /// Executes the job.
         /// </summary>
         /// <param name="context">The job execution context.</param>
-        public virtual Task Execute(IJobExecutionContext context)
+        public virtual ValueTask Execute(IJobExecutionContext context)
         {
             JobDataMap data = context.MergedJobDataMap;
 
@@ -110,7 +110,8 @@ namespace Quartz.Job
             {
                 throw new JobExecutionException($"Unable to send mail: {GetMessageDescription(message)}", ex, false);
             }
-            return Task.FromResult(true);
+
+            return default;
         }
 
         protected virtual MailMessage BuildMessageFromParameters(JobDataMap data)
@@ -190,8 +191,7 @@ namespace Quartz.Job
 
         private static string GetMessageDescription(MailMessage message)
         {
-            string mailDesc = $"'{message.Subject}' to: {string.Join(", ", message.To.Select(x => x.Address).ToArray())}";
-            return mailDesc;
+            return $"'{message.Subject}' to: {string.Join(", ", message.To.Select(x => x.Address).ToArray())}";
         }
 
         public class MailInfo

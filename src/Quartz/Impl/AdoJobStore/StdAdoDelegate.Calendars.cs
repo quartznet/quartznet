@@ -1,11 +1,11 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace Quartz.Impl.AdoJobStore
 {
     public partial class StdAdoDelegate
     {
         /// <inheritdoc />
-        public virtual async Task<int> InsertCalendar(
+        public virtual async ValueTask<int> InsertCalendar(
             ConnectionAndTransactionHolder conn,
             string calendarName,
             ICalendar calendar,
@@ -22,7 +22,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <inheritdoc />
-        public virtual async Task<int> UpdateCalendar(
+        public virtual async ValueTask<int> UpdateCalendar(
             ConnectionAndTransactionHolder conn,
             string calendarName,
             ICalendar calendar,
@@ -39,7 +39,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <inheritdoc />
-        public virtual async Task<bool> CalendarExists(
+        public virtual async ValueTask<bool> CalendarExists(
             ConnectionAndTransactionHolder conn,
             string calendarName,
             CancellationToken cancellationToken = default)
@@ -57,7 +57,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <inheritdoc />
-        public virtual async Task<ICalendar?> SelectCalendar(ConnectionAndTransactionHolder conn,
+        public virtual async ValueTask<ICalendar?> SelectCalendar(ConnectionAndTransactionHolder conn,
             string calendarName,
             CancellationToken cancellationToken = default)
         {
@@ -80,7 +80,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <inheritdoc />
-        public virtual async Task<bool> CalendarIsReferenced(
+        public virtual async ValueTask<bool> CalendarIsReferenced(
             ConnectionAndTransactionHolder conn,
             string calendarName,
             CancellationToken cancellationToken = default)
@@ -98,7 +98,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <inheritdoc />
-        public virtual async Task<int> DeleteCalendar(
+        public virtual async ValueTask<int> DeleteCalendar(
             ConnectionAndTransactionHolder conn,
             string calendarName,
             CancellationToken cancellationToken = default)
@@ -110,7 +110,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <inheritdoc />
-        public virtual async Task<int> SelectNumCalendars(
+        public virtual async ValueTask<int> SelectNumCalendars(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default)
         {
@@ -122,7 +122,7 @@ namespace Quartz.Impl.AdoJobStore
         }
 
         /// <inheritdoc />
-        public virtual async Task<IReadOnlyCollection<string>> SelectCalendars(
+        public virtual async ValueTask<IReadOnlyCollection<string>> SelectCalendars(
             ConnectionAndTransactionHolder conn,
             CancellationToken cancellationToken = default)
         {

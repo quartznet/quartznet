@@ -38,25 +38,25 @@ namespace Quartz
         /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
         /// is scheduled.
         /// </summary>
-        Task JobScheduled(ITrigger trigger, CancellationToken cancellationToken = default);
+        ValueTask JobScheduled(ITrigger trigger, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
         /// is unscheduled.
         /// </summary>
         /// <seealso cref="SchedulingDataCleared"/>
-        Task JobUnscheduled(TriggerKey triggerKey, CancellationToken cancellationToken = default);
+        ValueTask JobUnscheduled(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
         /// has reached the condition in which it will never fire again.
         /// </summary>
-        Task TriggerFinalized(ITrigger trigger, CancellationToken cancellationToken = default);
+        ValueTask TriggerFinalized(ITrigger trigger, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler"/> a <see cref="ITrigger"/>s has been paused.
         /// </summary>
-        Task TriggerPaused(TriggerKey triggerKey, CancellationToken cancellationToken = default);
+        ValueTask TriggerPaused(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler"/> a group of
@@ -68,13 +68,13 @@ namespace Quartz
         /// </remarks>
         /// <param name="triggerGroup">The trigger group.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        Task TriggersPaused(string? triggerGroup, CancellationToken cancellationToken = default);
+        ValueTask TriggersPaused(string? triggerGroup, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler"/> when a <see cref="ITrigger"/>
         /// has been un-paused.
         /// </summary>
-        Task TriggerResumed(TriggerKey triggerKey, CancellationToken cancellationToken = default);
+        ValueTask TriggerResumed(TriggerKey triggerKey, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler"/> when a
@@ -86,31 +86,31 @@ namespace Quartz
         /// </remarks>
         /// <param name="triggerGroup">The trigger group.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        Task TriggersResumed(string? triggerGroup, CancellationToken cancellationToken = default);
+        ValueTask TriggersResumed(string? triggerGroup, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
         /// has been added.
         /// </summary>
-        Task JobAdded(IJobDetail jobDetail, CancellationToken cancellationToken = default);
+        ValueTask JobAdded(IJobDetail jobDetail, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
         /// has been deleted.
         /// </summary>
-        Task JobDeleted(JobKey jobKey, CancellationToken cancellationToken = default);
+        ValueTask JobDeleted(JobKey jobKey, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler"/> when a <see cref="IJobDetail"/>
         /// has been  paused.
         /// </summary>
-        Task JobPaused(JobKey jobKey, CancellationToken cancellationToken = default);
+        ValueTask JobPaused(JobKey jobKey, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler"/> when a <see cref="IJobDetail"/>
         /// has been interrupted.
         /// </summary>
-        Task JobInterrupted(JobKey jobKey, CancellationToken cancellationToken = default);
+        ValueTask JobInterrupted(JobKey jobKey, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler"/> when a
@@ -122,13 +122,13 @@ namespace Quartz
         /// </summary>
         /// <param name="jobGroup">The job group.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        Task JobsPaused(string jobGroup, CancellationToken cancellationToken = default);
+        ValueTask JobsPaused(string jobGroup, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
         /// has been  un-paused.
         /// </summary>
-        Task JobResumed(JobKey jobKey, CancellationToken cancellationToken = default);
+        ValueTask JobResumed(JobKey jobKey, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a <see cref="IJobDetail" />
@@ -136,7 +136,7 @@ namespace Quartz
         /// </summary>
         /// <param name="jobGroup">The job group.</param>
         /// <param name="cancellationToken">The cancellation instruction.</param>
-        Task JobsResumed(string jobGroup, CancellationToken cancellationToken = default);
+        ValueTask JobsResumed(string jobGroup, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> when a serious error has
@@ -144,7 +144,7 @@ namespace Quartz
         /// or the inability to instantiate a <see cref="IJob" /> instance when its
         /// <see cref="ITrigger" /> has fired.
         /// </summary>
-        Task SchedulerError(
+        ValueTask SchedulerError(
             string msg,
             SchedulerException cause,
             CancellationToken cancellationToken = default);
@@ -153,35 +153,35 @@ namespace Quartz
         /// Called by the <see cref="IScheduler" /> to inform the listener
         /// that it has move to standby mode.
         /// </summary>
-        Task SchedulerInStandbyMode(CancellationToken cancellationToken = default);
+        ValueTask SchedulerInStandbyMode(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> to inform the listener
         /// that it has started.
         /// </summary>
-        Task SchedulerStarted(CancellationToken cancellationToken = default);
+        ValueTask SchedulerStarted(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> to inform the listener that it is starting.
         /// </summary>
-        Task SchedulerStarting(CancellationToken cancellationToken = default);
+        ValueTask SchedulerStarting(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> to inform the listener
         /// that it has Shutdown.
         /// </summary>
-        Task SchedulerShutdown(CancellationToken cancellationToken = default);
+        ValueTask SchedulerShutdown(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> to inform the listener
         /// that it has begun the shutdown sequence.
         /// </summary>
-        Task SchedulerShuttingdown(CancellationToken cancellationToken = default);
+        ValueTask SchedulerShuttingdown(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Called by the <see cref="IScheduler" /> to inform the listener
         /// that all jobs, triggers and calendars were deleted.
         /// </summary>
-        Task SchedulingDataCleared(CancellationToken cancellationToken = default);
+        ValueTask SchedulingDataCleared(CancellationToken cancellationToken = default);
     }
 }

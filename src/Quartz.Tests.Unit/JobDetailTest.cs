@@ -108,7 +108,7 @@ namespace Quartz.Tests.Unit
 
         public class GenericJob<T> : IJob
         {
-            public Task Execute(IJobExecutionContext context) => Task.CompletedTask;
+            public ValueTask Execute(IJobExecutionContext context) => default;
         }
 
         public interface IJobSubType { }

@@ -35,16 +35,16 @@ namespace Quartz
 		/// Returns handles to all known Schedulers (made by any SchedulerFactory
 		/// within this app domain.).
 		/// </summary>
-		Task<IReadOnlyList<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default);
+		ValueTask<IReadOnlyList<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Returns a client-usable handle to a <see cref="IScheduler" />.
 		/// </summary>
-		Task<IScheduler> GetScheduler(CancellationToken cancellationToken = default);
+		ValueTask<IScheduler> GetScheduler(CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Returns a handle to the Scheduler with the given name, if it exists.
         /// </summary>
-        Task<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default);
+        ValueTask<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default);
 	}
 }

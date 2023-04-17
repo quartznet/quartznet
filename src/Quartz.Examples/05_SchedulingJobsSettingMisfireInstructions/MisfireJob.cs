@@ -38,7 +38,7 @@ namespace Quartz.Examples.Example05
         /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
         /// fires that is associated with the <see cref="IJob" />.
         /// </summary>
-        public virtual async Task Execute(IJobExecutionContext context)
+        public virtual async ValueTask Execute(IJobExecutionContext context)
         {
             JobKey jobKey = context.JobDetail.Key;
             Console.WriteLine($"---{jobKey} executing at {DateTime.Now:r}");

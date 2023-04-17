@@ -36,7 +36,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Called by the QuartzScheduler before the <see cref="IJobStore"/> is
         /// used, in order to give the it a chance to Initialize.
         /// </summary>
-        public override async Task Initialize(
+        public override async ValueTask Initialize(
             ITypeLoadHelper loadHelper,
             ISchedulerSignaler signaler,
             CancellationToken cancellationToken = default)
@@ -72,9 +72,9 @@ namespace Quartz.Impl.AdoJobStore
         /// <seealso cref="JobStoreSupport.ExecuteInNonManagedTXLock" />
         /// <seealso cref="JobStoreSupport.GetNonManagedTXConnection()" />
         /// <seealso cref="JobStoreSupport.GetConnection()" />
-        protected override Task<T> ExecuteInLock<T>(
+        protected override ValueTask<T> ExecuteInLock<T>(
             string? lockName,
-            Func<ConnectionAndTransactionHolder, Task<T>> txCallback,
+            Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
             CancellationToken cancellationToken = default)
         {
             return ExecuteInNonManagedTXLock(lockName, txCallback, cancellationToken);

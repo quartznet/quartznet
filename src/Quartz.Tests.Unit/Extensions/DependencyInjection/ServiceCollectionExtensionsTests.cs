@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
 
@@ -102,9 +102,9 @@ namespace Quartz.Tests.Unit.Extensions.DependencyInjection
 
         private sealed class DummyJob : IJob
         {
-            public Task Execute(IJobExecutionContext context)
+            public ValueTask Execute(IJobExecutionContext context)
             {
-                return Task.CompletedTask;
+                return default;
             }
         }
     }

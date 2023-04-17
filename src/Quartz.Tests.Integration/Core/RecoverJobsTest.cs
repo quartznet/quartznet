@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 
 using NUnit.Framework;
 
@@ -118,12 +118,12 @@ namespace Quartz.Tests.Integration.Core
 
             public override string Name => typeof(RecoverJobsTest).Name;
 
-            public override Task JobToBeExecuted(
+            public override ValueTask JobToBeExecuted(
                 IJobExecutionContext context,
                 CancellationToken cancellationToken = new CancellationToken())
             {
                 isJobRecovered.Set();
-                return Task.CompletedTask;
+                return default;
             }
         }
 
@@ -134,7 +134,7 @@ namespace Quartz.Tests.Integration.Core
 
             internal static bool runForever = true;
 
-            public async Task Execute(IJobExecutionContext context)
+            public async ValueTask Execute(IJobExecutionContext context)
             {
                 long now = DateTime.UtcNow.Ticks;
                 int tic = 0;

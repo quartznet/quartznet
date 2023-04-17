@@ -51,6 +51,6 @@ namespace Quartz
 		/// execution.
 		/// </remarks>
 		/// <param name="context">The execution context.</param>
-        Task Execute(IJobExecutionContext context);
+        ValueTask Execute(IJobExecutionContext context);
 	}
 }
