@@ -250,6 +250,8 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
                 .Returns(true);
             A.CallTo(() => dataReader[AdoConstants.ColumnIsNonConcurrent])
                 .Returns(true);
+            A.CallTo(() => dataReader[AdoConstants.ColumnIsUpdateData])
+                .Returns(true);
 
             var command = A.Fake<StubCommand>();
 
