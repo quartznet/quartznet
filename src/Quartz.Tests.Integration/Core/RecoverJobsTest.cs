@@ -78,7 +78,7 @@ namespace Quartz.Tests.Integration.Core
                     // check that trigger is blocked after fail over situation
                     Assert.AreEqual("BLOCKED", triggerState);
 
-                    command.CommandText = "SELECT count(*) from QRTZ_FIRED_TRIGGERS";
+                    command.CommandText = $"SELECT count(*) from QRTZ_FIRED_TRIGGERS WHERE SCHED_NAME = '{scheduler.SchedulerName}' AND TRIGGER_NAME='test'";
                     int count = Convert.ToInt32(command.ExecuteScalar());
 
                     // check that fired trigger remains after fail over situation
