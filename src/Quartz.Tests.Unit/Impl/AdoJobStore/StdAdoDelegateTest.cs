@@ -253,6 +253,8 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
                 .Returns(true);
             A.CallTo(() => dataReader[AdoConstants.ColumnIsNonConcurrent])
                 .Returns(true);
+            A.CallTo(() => dataReader[AdoConstants.ColumnIsUpdateData])
+                .Returns(true);
 
             var command = A.Fake<StubCommand>();
 
@@ -312,7 +314,8 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
                 + "IS_DURABLE,"
                 + "REQUESTS_RECOVERY,"
                 + "JOB_DATA,"
-                + "IS_NONCONCURRENT "
+                + "IS_NONCONCURRENT,"
+                + "IS_UPDATE_DATA "
                 + "FROM QRTZ_JOB_DETAILS "
                 + "WHERE SCHED_NAME = @schedulerName "
                 + "AND JOB_NAME = @jobName "
