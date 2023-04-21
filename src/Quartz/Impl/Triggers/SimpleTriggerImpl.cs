@@ -557,8 +557,15 @@ namespace Quartz.Impl.Triggers
         /// </returns>
         public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? cal)
         {
-            nextFireTimeUtc = GetFireTimeAfter(StartTimeUtc);
-
+            if (RepeatInterval.Ticks > 0)
+            {
+                nextFireTimeUtc = GetFireTimeAfter(StartTimeUtc);
+            }
+            else
+            {
+                nextFireTimeUtc = StartTimeUtc;
+            }
+            
             while (nextFireTimeUtc != null && cal != null && !cal.IsTimeIncluded(nextFireTimeUtc.Value))
             {
                 nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
