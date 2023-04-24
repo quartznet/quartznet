@@ -654,7 +654,7 @@ namespace Quartz.Impl.Triggers
                 return startMillis;
             }
 
-            long numberOfTimesExecuted = ((afterMillis - startMillis).Ticks / repeatInterval.Ticks) + 1;
+            long numberOfTimesExecuted = ((afterMillis - startMillis).Ticks / repeatInterval.Ticks);
 
             if (numberOfTimesExecuted > repeatCount &&
                 repeatCount != RepeatIndefinitely)
@@ -662,7 +662,7 @@ namespace Quartz.Impl.Triggers
                 return null;
             }
 
-            DateTimeOffset time = startMillis.AddTicks(numberOfTimesExecuted * repeatInterval.Ticks);
+            DateTimeOffset time = startMillis.AddTicks((numberOfTimesExecuted + 1) * repeatInterval.Ticks);
 
             if (endMillis <= time)
             {
