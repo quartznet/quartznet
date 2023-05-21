@@ -15,4 +15,26 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageVersion Update="GitHubActionsTestLogger" Version="2.2.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="GitHubActionsTestLogger">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageVersion Update="PolySharp" Version="1.13.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="PolySharp">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+
 </Project>

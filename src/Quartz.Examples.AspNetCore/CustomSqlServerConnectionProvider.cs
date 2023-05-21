@@ -1,10 +1,7 @@
-using System;
 using System.Data;
 using System.Data.Common;
 
 using Microsoft.Data.SqlClient;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 
 using Quartz.Impl.AdoJobStore.Common;
 
@@ -53,7 +50,7 @@ public class CustomSqlServerConnectionProvider : IDbProvider
         return new SqlConnection(ConnectionString);
     }
 
-    public string ConnectionString
+    public string? ConnectionString
     {
         get => configuration.GetConnectionString("Quartz");
         set => throw new NotImplementedException();

@@ -49,21 +49,23 @@ namespace Quartz.Examples.AspNetCore
                 loggingBuilder.AddSerilog(dispose: true);
             });
 
-            services.AddOpenTelemetryTracing(builder =>
-            {
-                builder
-                    .AddQuartzInstrumentation()
-                    .AddZipkinExporter(o =>
-                    {
-                        o.Endpoint = new Uri("http://localhost:9411/api/v2/spans");
-                    })
-                    .AddJaegerExporter(o =>
-                    {
-                        // these are the defaults
-                        o.AgentHost = "localhost";
-                        o.AgentPort = 6831;
-                    });
-            });
+            // TODO : Fix me !!!
+
+            //services.AddOpenTelemetryTracing(builder =>
+            //{
+            //    builder
+            //        .AddQuartzInstrumentation()
+            //        .AddZipkinExporter(o =>
+            //        {
+            //            o.Endpoint = new Uri("http://localhost:9411/api/v2/spans");
+            //        })
+            //        .AddJaegerExporter(o =>
+            //        {
+            //            // these are the defaults
+            //            o.AgentHost = "localhost";
+            //            o.AgentPort = 6831;
+            //        });
+            //});
 
             services.AddRazorPages();
 

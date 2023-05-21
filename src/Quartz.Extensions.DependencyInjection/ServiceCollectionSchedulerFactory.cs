@@ -16,7 +16,7 @@ namespace Quartz
         private readonly IOptions<QuartzOptions> options;
         private readonly ContainerConfigurationProcessor processor;
         private bool initialized;
-        private readonly SemaphoreSlim initializationLock = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim initializationLock = new(1, 1);
 
         public ServiceCollectionSchedulerFactory(
             IServiceProvider serviceProvider,
@@ -30,7 +30,7 @@ namespace Quartz
 
         public override async ValueTask<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
         {
-            base.Initialize(options.Value.ToNameValueCollection());
+            Initialize(options.Value.ToNameValueCollection());
             var scheduler = await base.GetScheduler(cancellationToken);
             if (initialized)
             {
@@ -88,22 +88,13 @@ namespace Quartz
         protected override string? GetNamedConnectionString(string connectionStringName)
         {
             var configuration = serviceProvider.GetService<IConfiguration>();
-            var connectionString = configuration.GetConnectionString(connectionStringName);
-            if (!string.IsNullOrWhiteSpace(connectionString))
-            {
-                return connectionString;
-            }
-
-            return base.GetNamedConnectionString(connectionStringName);
+            var connectionString = configuration?.GetConnectionString(connectionStringName);
+            return !string.IsNullOrWhiteSpace(connectionString) ? connectionString : base.GetNamedConnectionString(connectionStringName);
         }
 
         protected override T InstantiateType<T>(Type? implementationType)
         {
-            var service = serviceProvider.GetService<T>();
-            if (service is null)
-            {
-                service = ObjectUtils.InstantiateType<T>(implementationType);
-            }
+            var service = serviceProvider.GetService<T>() ?? ObjectUtils.InstantiateType<T>(implementationType);
             return service;
         }
     }

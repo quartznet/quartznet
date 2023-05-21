@@ -70,7 +70,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// </summary>
         /// <param name="dbProviderName">Name of the db provider.</param>
         /// <param name="connectionString">The connection string.</param>
-        public DbProvider(string dbProviderName, string connectionString)
+        public DbProvider(string dbProviderName, string? connectionString)
         {
             ConnectionString = connectionString;
             Metadata = GetDbMetadata(dbProviderName);
@@ -168,7 +168,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         }
 
         /// <inheritdoc />
-        public string ConnectionString { get; set; }
+        public string? ConnectionString { get; set; }
 
         /// <inheritdoc />
         public DbMetadata Metadata { get; }

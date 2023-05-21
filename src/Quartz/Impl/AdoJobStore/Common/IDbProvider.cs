@@ -51,7 +51,7 @@ namespace Quartz.Impl.AdoJobStore.Common
         /// <summary>
         /// Connection string used to create connections.
         /// </summary>
-        string ConnectionString { set; get; }
+        string? ConnectionString { set; get; }
 
         DbMetadata Metadata { get; }
 

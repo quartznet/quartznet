@@ -10,8 +10,7 @@ namespace Quartz.OpenTelemetry.Instrumentation
     {
         private readonly DiagnosticSourceSubscriber diagnosticSourceSubscriber;
 
-        public QuartzJobInstrumentation(ActivitySourceAdapter activitySource)
-            : this(activitySource, new QuartzInstrumentationOptions())
+        public QuartzJobInstrumentation(ActivitySourceAdapter activitySource) : this(activitySource, new QuartzInstrumentationOptions())
         {
         }
 
