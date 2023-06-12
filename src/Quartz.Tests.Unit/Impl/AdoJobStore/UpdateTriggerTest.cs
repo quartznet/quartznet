@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.Common;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 
 using FakeItEasy;
@@ -76,10 +77,25 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             cronTriggerImpl.JobKey = new JobKey("JobKey", "JobKeyGroup");
             cronTriggerImpl.Priority = 1;
 
+            // Support getting the existing trigger type.
+            var selectTypeReader = A.Fake<DbDataReader>();
+            A.CallTo(() => selectTypeReader.ReadAsync(CancellationToken.None))
+                .Returns(true);
+            A.CallTo(() => selectTypeReader[AdoConstants.ColumnTriggerType])
+                .Returns(AdoConstants.TriggerTypeCron);
+
+            var selectTypeCommand = A.Fake<DbCommand>();
+            A.CallTo(selectTypeCommand)
+                .Where(x => x.Method.Name == "ExecuteDbDataReaderAsync")
+                .WithReturnType<Task<DbDataReader>>()
+                .Returns(selectTypeReader);
+
             var dbProvider = A.Fake<IDbProvider>();
             var dbCommand = A.Fake<DbCommand>();
+            A.CallTo(() => dbProvider.CreateCommand()).ReturnsNextFromSequence(selectTypeCommand, dbCommand);
+
             var dataParameterCollection = A.Fake<DbParameterCollection>();
-            A.CallTo(() => dbProvider.CreateCommand()).Returns(dbCommand);
+
             Func<DbParameter> dataParam = () => new SqlParameter();
             A.CallTo(dbProvider)
                 .Where(x => x.Method.Name == "CreateDbParameter")
