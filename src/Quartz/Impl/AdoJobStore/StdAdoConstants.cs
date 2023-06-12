@@ -291,6 +291,9 @@ namespace Quartz.Impl.AdoJobStore
         public static readonly string SqlSelectTriggersInState =
             $"SELECT {ColumnTriggerName}, {ColumnTriggerGroup} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerState} = @state";
 
+        public static readonly string SqlSelectTriggerType =
+            $"SELECT {ColumnTriggerType} FROM {TablePrefixSubst}{TableTriggers} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnTriggerName} = @triggerName AND {ColumnTriggerGroup} = @triggerGroup";
+
         // UPDATE
 
         public static readonly string SqlUpdateBlobTrigger =

@@ -2,6 +2,7 @@ using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
+using Quartz.Impl.Triggers;
 
 namespace Quartz.Tests.Integration
 {
@@ -234,6 +235,113 @@ namespace Quartz.Tests.Integration
 
             Assert.That(jobKeys.Count, Is.EqualTo(1), "Number of jobs expected in default group was 1 "); // job should have been left in place, because it is non-durable
             Assert.That(triggerKeys, Is.Empty, "Number of triggers expected in default group was 0 ");
+
+            await sched.Shutdown();
+        }
+
+        [Test]
+        [Category("db-sqlserver")]
+        public async Task TestUpdatingTriggerTypes()
+        {
+            var sched = await CreateScheduler("testUpdatingTriggerTypes", 2);
+            await sched.Clear();
+
+            // test basic storage functions of scheduler...
+            var job = JobBuilder.Create<TestJob>()
+                .WithIdentity("j1")
+                .StoreDurably()
+                .Build();
+
+            var trigger = TriggerBuilder.Create()
+                .WithIdentity("t1")
+                .ForJob(job)
+                .StartNow()
+                .WithSimpleSchedule(x => x
+                    .RepeatForever()
+                    .WithIntervalInSeconds(5))
+                .Build();
+
+            await sched.ScheduleJob(job, trigger);
+
+            trigger = await sched.GetTrigger(new TriggerKey("t1"));
+
+            Assert.That(trigger, Is.Not.Null);
+            Assert.That(trigger, Is.InstanceOf<SimpleTriggerImpl>());
+            var simpleTrigger = (SimpleTriggerImpl) trigger;
+            Assert.That(simpleTrigger.RepeatCount, Is.EqualTo(-1));
+            Assert.That(simpleTrigger.RepeatInterval, Is.EqualTo(TimeSpan.FromSeconds(5)));
+
+
+            trigger = TriggerBuilder.Create()
+                .WithIdentity("t1")
+                .ForJob(job)
+                .StartNow()
+                .WithCronSchedule("0/5 * * * * ?")
+                .Build();
+
+            await sched.ScheduleJob(job, new[] { trigger }, true);
+
+            trigger = await sched.GetTrigger(new TriggerKey("t1"));
+
+            Assert.That(trigger, Is.Not.Null);
+            Assert.That(trigger, Is.InstanceOf<CronTriggerImpl>());
+            var cronTrigger = (CronTriggerImpl) trigger;
+            Assert.That(cronTrigger.CronExpressionString, Is.EqualTo("0/5 * * * * ?"));
+
+
+            var blobTrigger = new TestBlobCronTriggerImpl
+            {
+                StartTimeUtc = DateTimeOffset.UtcNow,
+                Key = new TriggerKey("t1"),
+                CronExpression = new CronExpression("0/10 * * * * ?")
+            };
+
+            await sched.ScheduleJob(job, new[] { blobTrigger }, true);
+
+            trigger = await sched.GetTrigger(new TriggerKey("t1"));
+
+            Assert.That(trigger, Is.Not.Null);
+            Assert.That(trigger, Is.InstanceOf<TestBlobCronTriggerImpl>());
+            blobTrigger = (TestBlobCronTriggerImpl) trigger;
+            Assert.That(blobTrigger.CronExpressionString, Is.EqualTo("0/10 * * * * ?"));
+
+
+            trigger = TriggerBuilder.Create()
+                .WithIdentity("t1")
+                .ForJob(job)
+                .StartNow()
+                .WithCalendarIntervalSchedule(x =>
+                    x.WithInterval(5, IntervalUnit.Day))
+                .Build();
+
+            await sched.ScheduleJob(job, new[] { trigger }, true);
+
+            trigger = await sched.GetTrigger(new TriggerKey("t1"));
+
+            Assert.That(trigger, Is.Not.Null);
+            Assert.That(trigger, Is.InstanceOf<CalendarIntervalTriggerImpl>());
+            var calendarTrigger = (CalendarIntervalTriggerImpl) trigger;
+            Assert.That(calendarTrigger.RepeatInterval, Is.EqualTo(5));
+            Assert.That(calendarTrigger.RepeatIntervalUnit, Is.EqualTo(IntervalUnit.Day));
+
+
+            trigger = TriggerBuilder.Create()
+                .WithIdentity("t1")
+                .ForJob(job)
+                .StartNow()
+                .WithDailyTimeIntervalSchedule(x =>
+                    x.WithInterval(30, IntervalUnit.Minute))
+                .Build();
+
+            await sched.ScheduleJob(job, new[] { trigger }, true);
+
+            trigger = await sched.GetTrigger(new TriggerKey("t1"));
+
+            Assert.That(trigger, Is.Not.Null);
+            Assert.That(trigger, Is.InstanceOf<DailyTimeIntervalTriggerImpl>());
+            var dailyTimeIntervalTrigger = (DailyTimeIntervalTriggerImpl) trigger;
+            Assert.That(dailyTimeIntervalTrigger.RepeatInterval, Is.EqualTo(30));
+            Assert.That(dailyTimeIntervalTrigger.RepeatIntervalUnit, Is.EqualTo(IntervalUnit.Minute));
 
             await sched.Shutdown();
         }
@@ -473,6 +581,11 @@ namespace Quartz.Tests.Integration
         protected string CreateSchedulerName(string name)
         {
             return $"{name}_Scheduler_{provider}_{serializerType}";
+        }
+
+        public class TestBlobCronTriggerImpl : CronTriggerImpl
+        {
+            public override bool HasAdditionalProperties => true;
         }
     }
 }
