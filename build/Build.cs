@@ -72,8 +72,8 @@ partial class Build : NukeBuild
         .Before(Restore)
         .Executes(() =>
         {
-            SourceDirectory.GlobDirectories("**/bin", "**/obj").ForEach(DeleteDirectory);
-            EnsureCleanDirectory(ArtifactsDirectory);
+            SourceDirectory.GlobDirectories("**/bin", "**/obj").ForEach(x => x.DeleteDirectory());
+            ArtifactsDirectory.CreateOrCleanDirectory();
         });
 
     Target Restore => _ => _
@@ -138,7 +138,7 @@ partial class Build : NukeBuild
                 .SetFramework(framework)
                 .SetLoggers(GitHubActions.Instance is not null ? new [] { "GitHubActions" }  : Array.Empty<string>())
                 .CombineWith(testProjects, (_, testProject) => _
-                    .SetProjectFile(Solution.GetProject(testProject))
+                    .SetProjectFile(Solution.GetAllProjects(testProject).First())
                 )
             );
         });
@@ -154,7 +154,8 @@ partial class Build : NukeBuild
 
             static void RunAsPostgresUser(string parameters)
             {
-                ProcessTasks.StartProcess("sudo", $"-u postgres {parameters}", workingDirectory: Path.GetTempPath()).AssertZeroExitCode();
+                // Warn: Be careful refactoring this to concatenation. 
+                ProcessTasks.StartProcess("sudo", "-u postgres " + parameters, workingDirectory: Path.GetTempPath()).AssertZeroExitCode();
             }
 
             Log.Information("Creating user...");
@@ -165,7 +166,8 @@ partial class Build : NukeBuild
 
             static void RunPsqlAsQuartznetUser(string parameters)
             {
-                ProcessTasks.StartProcess("psql", $"--username=quartznet --host=localhost {parameters}", environmentVariables: new Dictionary<string, string> { { "PGPASSWORD", "quartznet" } }).AssertZeroExitCode();
+                // Warn: Be careful refactoring this to concatenation
+                ProcessTasks.StartProcess("psql", $"--username=quartznet --host=localhost " + parameters, environmentVariables: new Dictionary<string, string> { { "PGPASSWORD", "quartznet" } }).AssertZeroExitCode();
             }
 
             RunPsqlAsQuartznetUser("--list quartznet");
@@ -182,7 +184,7 @@ partial class Build : NukeBuild
                 .SetLoggers("GitHubActions")
                 .SetFilter("TestCategory!=db-firebird&TestCategory!=db-oracle&TestCategory!=db-mysql&TestCategory!=db-sqlserver")
                 .CombineWith(integrationTestProjects, (_, testProject) => _
-                    .SetProjectFile(Solution.GetProject(testProject))
+                    .SetProjectFile(Solution.GetAllProjects(testProject).First())
                 )
             );
         });
@@ -192,7 +194,7 @@ partial class Build : NukeBuild
         .Produces(ArtifactsDirectory / "*.*")
         .Executes(() =>
         {
-            EnsureCleanDirectory(ArtifactsDirectory);
+            ArtifactsDirectory.CreateOrCleanDirectory();
 
             var packTargetProjects = new[]
             {
@@ -243,7 +245,7 @@ partial class Build : NukeBuild
                 ;
 
             var zipTempDirectory = RootDirectory / "temp" / "package";
-            EnsureCleanDirectory(zipTempDirectory);
+            zipTempDirectory.CreateOrCleanDirectory();
 
             CopyDirectoryRecursively(
                 source: SourceDirectory,
@@ -258,7 +260,7 @@ partial class Build : NukeBuild
 
             CopyDirectoryRecursively(source: RootDirectory / "database", target: zipTempDirectory / "database");
 
-            var binaries = Solution.GetProjects("*")
+            var binaries = Solution.Projects
                 .Where(x => x.GetProperty("IsPackable") != "false" || x.Name.Contains("Example") || x.Name == "Quartz.Server");
 
             foreach (var project in binaries)
