@@ -267,15 +267,12 @@ partial class Build : NukeBuild
             {
                 CopyDirectoryRecursively(source: SourceDirectory / project.Name / "bin" / Configuration, target: zipTempDirectory / "bin" / Configuration / project.Name);
             }
-
-            CopyFileToDirectory("README.md", zipTempDirectory);
-            CopyFileToDirectory("Quartz.sln", zipTempDirectory);
-            CopyFileToDirectory("quartz.net.snk", zipTempDirectory);
-            CopyFileToDirectory("license.txt", zipTempDirectory);
-            CopyFileToDirectory("changelog.md", zipTempDirectory);
-            CopyFileToDirectory("build.cmd", zipTempDirectory);
-            CopyFileToDirectory("build.sh", zipTempDirectory);
-            CopyFileToDirectory("build.ps1", zipTempDirectory);
+            
+            var rootFilesToCopy = new []{"README.md","Quartz.sln","quartz.net.snk","license.txt", "changelog.md","build.cmd","build.sh","build.ps1"};
+            foreach (var file in rootFilesToCopy)
+            {
+                CopyFileToDirectory(RootDirectory / file, zipTempDirectory);
+            }
 
             var props = File.ReadAllText(SourceDirectory / "Directory.Build.props");
             var baseVersion = Regex.Match(props, "<VersionPrefix>(.+)</VersionPrefix>").Groups[1].Captures[0].Value;
