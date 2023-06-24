@@ -31,10 +31,10 @@
     <ProjectReference Include="..\Quartz.Serialization.Json\Quartz.Serialization.Json.csproj" />
   </ItemGroup>
   <ItemGroup Condition=" '$(TargetFramework)' == 'net6.0' ">
-    <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="2.19.70" />
+    <PackageReference Include="Oracle.ManagedDataAccess.Core" Version="2.19.190" />
   </ItemGroup>
   <ItemGroup Condition=" '$(TargetFramework)' == 'net472' ">
     <Reference Include="Microsoft.CSharp" />
-    <PackageReference Include="Oracle.ManagedDataAccess" Version="19.7.0" />
+    <PackageReference Include="Oracle.ManagedDataAccess" Version="19.19.0" />
   </ItemGroup>
 </Project>
