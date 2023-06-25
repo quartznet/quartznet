@@ -135,6 +135,7 @@ namespace Quartz.Impl.AdoJobStore
                     .OfType(rs.GetString(ColumnJobClass)!)
                     .RequestRecovery(GetBooleanFromDbValue(rs[ColumnRequestsRecovery]))
                     .StoreDurably(GetBooleanFromDbValue(rs[ColumnIsDurable]))
+                    .PersistJobDataAfterExecution(GetBooleanFromDbValue(rs[ColumnIsUpdateData]))
                     .DisallowConcurrentExecution(GetBooleanFromDbValue(rs[ColumnIsNonConcurrent]));
 
                 var map = await ReadMapFromReader(rs, 6).ConfigureAwait(false);
