@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.Common;
 using System.Globalization;
 using System.Threading;
@@ -304,7 +305,7 @@ namespace Quartz.Impl.AdoJobStore
             AddCommandParameter(cmd, "triggerCalendarName", trigger.CalendarName);
             AddCommandParameter(cmd, "triggerMisfireInstruction", trigger.MisfireInstruction);
             AddCommandParameter(cmd, "triggerJobJobDataMap", jobData, DbProvider.Metadata.DbBinaryType);
-            
+
             AddCommandParameter(cmd, "triggerPriority", trigger.Priority);
 
             int insertResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
@@ -698,7 +699,7 @@ namespace Quartz.Impl.AdoJobStore
                     previousFireTimeUtc = GetDateTimeFromDbValue(rs[ColumnPreviousFireTime]);
                     startTimeUtc = GetDateTimeFromDbValue(rs[ColumnStartTime]) ?? DateTimeOffset.MinValue;
                     endTimeUtc = GetDateTimeFromDbValue(rs[ColumnEndTime]);
-                    
+
                     // check if we access fast path
                     if (triggerType.Equals(TriggerTypeCron) || triggerType.Equals(TriggerTypeSimple))
                     {
@@ -715,7 +716,7 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd2, "schedulerName", schedName);
                 AddCommandParameter(cmd2, "triggerName", triggerKey.Name);
                 AddCommandParameter(cmd2, "triggerGroup", triggerKey.Group);
-                using var rs2 = await cmd2.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+                using var rs2 = await cmd2.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
                 if (await rs2.ReadAsync(cancellationToken).ConfigureAwait(false))
                 {
                     trigger = await GetObjectFromBlob<IOperableTrigger>(rs2, 0, cancellationToken).ConfigureAwait(false);
@@ -812,7 +813,7 @@ namespace Quartz.Impl.AdoJobStore
             AddCommandParameter(cmd, "triggerName", triggerKey.Name);
             AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
-            using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            using var rs = await cmd.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
             if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
                 var map = await ReadMapFromReader(rs, 0).ConfigureAwait(false);
