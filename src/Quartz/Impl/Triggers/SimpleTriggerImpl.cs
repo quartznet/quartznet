@@ -557,16 +557,9 @@ namespace Quartz.Impl.Triggers
         /// </returns>
         public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? cal)
         {
-            if (RepeatInterval.Ticks > 0)
-            {
-                nextFireTimeUtc = GetFireTimeAfter(StartTimeUtc);
-            }
-            else
-            {
-                nextFireTimeUtc = StartTimeUtc;
-            }
-            
-            while (nextFireTimeUtc != null && cal != null && !cal.IsTimeIncluded(nextFireTimeUtc.Value))
+            nextFireTimeUtc = StartTimeUtc;
+
+            while (cal != null && !cal.IsTimeIncluded(nextFireTimeUtc.Value))
             {
                 nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 
@@ -654,7 +647,7 @@ namespace Quartz.Impl.Triggers
                 return startMillis;
             }
 
-            long numberOfTimesExecuted = ((afterMillis - startMillis).Ticks / repeatInterval.Ticks);
+            long numberOfTimesExecuted = ((afterMillis - startMillis).Ticks / repeatInterval.Ticks) + 1;
 
             if (numberOfTimesExecuted > repeatCount &&
                 repeatCount != RepeatIndefinitely)
@@ -662,7 +655,7 @@ namespace Quartz.Impl.Triggers
                 return null;
             }
 
-            DateTimeOffset time = startMillis.AddTicks((numberOfTimesExecuted + 1) * repeatInterval.Ticks);
+            DateTimeOffset time = startMillis.AddTicks(numberOfTimesExecuted * repeatInterval.Ticks);
 
             if (endMillis <= time)
             {
