@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Data;
 using System.Data.Common;
 using System.IO;
 using System.Runtime.Serialization;
@@ -136,25 +137,32 @@ namespace Quartz.Impl.AdoJobStore
             AddCommandParameter(cmd, "schedulerName", schedName);
             AddCommandParameter(cmd, "jobName", jobKey.Name);
             AddCommandParameter(cmd, "jobGroup", jobKey.Group);
-            using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            using var rs = await cmd.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
             JobDetailImpl? job = null;
 
             if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
+                // Due to CommandBehavior.SequentialAccess, columns must be read in order.
+                var jobName = rs.GetString(ColumnJobName)!;
+                var jobGroup = rs.GetString(ColumnJobGroup);
+                var description = rs.GetString(ColumnDescription);
+                var jobType = loadHelper.LoadType(rs.GetString(ColumnJobClass)!)!;
+                var isDurable = GetBooleanFromDbValue(rs[ColumnIsDurable]);
+                var requestsRecovery = GetBooleanFromDbValue(rs[ColumnRequestsRecovery]);
                 var map = await ReadMapFromReader(rs, 6).ConfigureAwait(false);
                 var jobDataMap = map != null ? new JobDataMap(map) : null;
+                var disallowConcurrentExecution = GetBooleanFromDbValue(rs[ColumnIsNonConcurrent]);
+                var persistJobDataAfterExecution = GetBooleanFromDbValue(rs[ColumnIsUpdateData]);
 
                 job = new JobDetailImpl(
-                    new JobKey(
-                        rs.GetString(ColumnJobName)!,
-                        rs.GetString(ColumnJobGroup)),
-                    jobType: loadHelper.LoadType(rs.GetString(ColumnJobClass)!)!,
-                    description: rs.GetString(ColumnDescription),
-                    isDurable: GetBooleanFromDbValue(rs[ColumnIsDurable]),
-                    requestsRecovery: GetBooleanFromDbValue(rs[ColumnRequestsRecovery]),
+                    new JobKey(jobName, jobGroup),
+                    description: description,
+                    jobType: jobType,
+                    isDurable: isDurable,
+                    requestsRecovery: requestsRecovery,
                     jobDataMap: jobDataMap,
-                    disallowConcurrentExecution: GetBooleanFromDbValue(rs[ColumnIsNonConcurrent]),
-                    persistJobDataAfterExecution: GetBooleanFromDbValue(rs[ColumnIsUpdateData]));
+                    disallowConcurrentExecution: disallowConcurrentExecution,
+                    persistJobDataAfterExecution: persistJobDataAfterExecution);
             }
 
             return job;
