@@ -3,6 +3,23 @@
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
 
+## Release 3.6.3, Jun 25 2023
+
+To celebrate my daughter's 8th birthday, let's have a maintenance release. This release bring important fix to scoped 
+job dependency disposal which had regressed in 3.6.1 release.
+
+* FIXES
+
+  * Performance issues reading large job objects from AdoJobStore on SQL Server (#2054)
+  * ScopedJob is no longer disposed when using MS DI (#1954)
+  * Persistence of extended properties not working when the trigger type is changed (#2040)
+  * PersistJobDataAfterExecution not set when loading job detail data from database (#2014)
+  * JobInterruptMonitor Plugin should read MaxRunTime from MergedJobDataMap (#2004)
+  * Fix unable to get any job related information when using IObserver (#1966)
+  * ServiceCollectionSchedulerFactory.GetNamedConnectionString passes wrong value to base (#1960)
+  * CronExpression.BuildExpression() fails to catch this invalid expression: 0 0 * * * ?h (#1953)
+  * QuartzServiceCollectionExtensions is ambiguous between Quartz.AspNetCore and Quartz.Extensions.Hosting (#1948)
+
 ## Release 3.6.2, Feb 25 2023
 
 This is fix to a fix release, 3.6.1 introduced a regression to job selection logic when using persistent job store. 
