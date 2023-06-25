@@ -154,7 +154,7 @@ namespace Quartz.Impl.AdoJobStore
                     requestsRecovery: GetBooleanFromDbValue(rs[ColumnRequestsRecovery]),
                     jobDataMap: jobDataMap,
                     disallowConcurrentExecution: GetBooleanFromDbValue(rs[ColumnIsNonConcurrent]),
-                    persistJobDataAfterExecution: null);
+                    persistJobDataAfterExecution: GetBooleanFromDbValue(rs[ColumnIsUpdateData]));
             }
 
             return job;

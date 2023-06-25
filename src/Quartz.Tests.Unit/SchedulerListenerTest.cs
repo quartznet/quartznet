@@ -32,20 +32,20 @@ namespace Quartz.Tests.Unit
 
         public class Qtz205TriggerListener : ITriggerListener
         {
-            public int FireCount { get; private set; }
+            public int FireCount;
 
             public string Name => "Qtz205TriggerListener";
 
             public Task TriggerFired(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken)
             {
-                FireCount++;
+                Interlocked.Increment(ref FireCount);
                 logger.Info("Trigger fired. count " + FireCount);
                 return Task.FromResult(true);
             }
 
             public Task<bool> VetoJobExecution(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken)
             {
-                if (FireCount >= 3)
+                if (FireCount > 3)
                 {
                     return Task.FromResult(true);
                 }
@@ -196,14 +196,15 @@ namespace Quartz.Tests.Unit
                 .WithIdentity("test")
                 .WithSchedule(SimpleScheduleBuilder.RepeatSecondlyForTotalCount(3))
                 .Build();
-
+            
             await scheduler.ScheduleJob(job, trigger);
             await scheduler.Start();
             await Task.Delay(5000);
 
             await scheduler.Shutdown(true);
-
-            Assert.AreEqual(2, jobExecutionCount);
+            
+            //RepeatSecondlyForTotalCount(3) means that the total Execution times is 3
+            Assert.AreEqual(3, jobExecutionCount);
             Assert.AreEqual(3, triggerListener.FireCount);
             Assert.AreEqual(1, schedulerListener.TriggerFinalizedCount);
         }

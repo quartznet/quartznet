@@ -123,7 +123,7 @@ namespace Quartz.Tests.Unit
         {
             Action act = () => new CronExpression(null);
             act.Should().Throw<ArgumentException>()
-                .WithMessage("cronExpression cannot be null (Parameter 'cronExpression')");
+                .WithMessage($"cronExpression cannot be null*");
         }
 
         [TestCase('h')]

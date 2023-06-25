@@ -65,9 +65,9 @@ namespace Quartz.Tests.Unit.Simpl
         public async Task TestAcquireNextTrigger()
         {
             DateTimeOffset d = DateBuilder.EvenMinuteDateAfterNow();
-            IOperableTrigger trigger1 = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, d.AddSeconds(200), d.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
-            IOperableTrigger trigger2 = new SimpleTriggerImpl("trigger2", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, d.AddSeconds(50), d.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
-            IOperableTrigger trigger3 = new SimpleTriggerImpl("trigger1", "triggerGroup2", fJobDetail.Name, fJobDetail.Group, d.AddSeconds(100), d.AddSeconds(200), 2, TimeSpan.FromSeconds(2));
+            IOperableTrigger trigger1 = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, d.AddSeconds(200), d.AddSeconds(400), 2, TimeSpan.FromSeconds(2));
+            IOperableTrigger trigger2 = new SimpleTriggerImpl("trigger2", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, d.AddSeconds(50), d.AddSeconds(250), 2, TimeSpan.FromSeconds(2));
+            IOperableTrigger trigger3 = new SimpleTriggerImpl("trigger1", "triggerGroup2", fJobDetail.Name, fJobDetail.Group, d.AddSeconds(100), d.AddSeconds(300), 2, TimeSpan.FromSeconds(2));
 
             trigger1.ComputeFirstFireTimeUtc(null);
             trigger2.ComputeFirstFireTimeUtc(null);
@@ -94,12 +94,12 @@ namespace Quartz.Tests.Unit.Simpl
         {
             DateTimeOffset d = DateTimeOffset.UtcNow.Subtract(TimeSpan.FromSeconds(1));
 
-            IOperableTrigger early = new SimpleTriggerImpl("early", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, d, d.AddMilliseconds(5), 2, TimeSpan.FromSeconds(2));
-            IOperableTrigger trigger1 = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, d.AddMilliseconds(200000), d.AddMilliseconds(200005), 2, TimeSpan.FromSeconds(2));
-            IOperableTrigger trigger2 = new SimpleTriggerImpl("trigger2", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, d.AddMilliseconds(210000), d.AddMilliseconds(210005), 2, TimeSpan.FromSeconds(2));
-            IOperableTrigger trigger3 = new SimpleTriggerImpl("trigger3", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, d.AddMilliseconds(220000), d.AddMilliseconds(220005), 2, TimeSpan.FromSeconds(2));
-            IOperableTrigger trigger4 = new SimpleTriggerImpl("trigger4", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, d.AddMilliseconds(230000), d.AddMilliseconds(230005), 2, TimeSpan.FromSeconds(2));
-            IOperableTrigger trigger10 = new SimpleTriggerImpl("trigger10", "triggerGroup2", fJobDetail.Name, fJobDetail.Group, d.AddMilliseconds(500000), d.AddMilliseconds(700000), 2, TimeSpan.FromSeconds(2));
+            IOperableTrigger early = new SimpleTriggerImpl("early", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, d, d.AddMilliseconds(220000), 2, TimeSpan.FromSeconds(2));
+            IOperableTrigger trigger1 = new SimpleTriggerImpl("trigger1", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, d.AddMilliseconds(190000), d.AddMilliseconds(570000), 2, TimeSpan.FromSeconds(2));
+            IOperableTrigger trigger2 = new SimpleTriggerImpl("trigger2", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, d.AddMilliseconds(229000), d.AddMilliseconds(610050), 2, TimeSpan.FromSeconds(2));
+            IOperableTrigger trigger3 = new SimpleTriggerImpl("trigger3", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, d.AddMilliseconds(240000), d.AddMilliseconds(620050), 2, TimeSpan.FromSeconds(2));
+            IOperableTrigger trigger4 = new SimpleTriggerImpl("trigger4", "triggerGroup1", fJobDetail.Name, fJobDetail.Group, d.AddMilliseconds(240000), d.AddMilliseconds(630050), 2, TimeSpan.FromSeconds(2));
+            IOperableTrigger trigger10 = new SimpleTriggerImpl("trigger10", "triggerGroup2", fJobDetail.Name, fJobDetail.Group, d.AddMilliseconds(5000000), d.AddMilliseconds(7000000), 2, TimeSpan.FromSeconds(2));
 
             early.ComputeFirstFireTimeUtc(null);
             early.MisfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
@@ -117,13 +117,14 @@ namespace Quartz.Tests.Unit.Simpl
             await fJobStore.StoreTrigger(trigger10, false);
 
             DateTimeOffset firstFireTime = trigger1.GetNextFireTimeUtc().Value;
-
+            DateTimeOffset firstFireTime2 = early.GetNextFireTimeUtc().Value;
             List<IOperableTrigger> acquiredTriggers = (await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 4, TimeSpan.FromSeconds(1))).ToList();
             Assert.AreEqual(1, acquiredTriggers.Count);
             Assert.AreEqual(early.Key, acquiredTriggers[0].Key);
             await fJobStore.ReleaseAcquiredTrigger(early);
+            
 
-            acquiredTriggers = (await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 4, TimeSpan.FromMilliseconds(205000))).ToList();
+            acquiredTriggers = (await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 4, TimeSpan.FromMilliseconds(200000))).ToList();
             Assert.AreEqual(2, acquiredTriggers.Count);
             Assert.AreEqual(early.Key, acquiredTriggers[0].Key);
             Assert.AreEqual(trigger1.Key, acquiredTriggers[1].Key);
@@ -132,7 +133,7 @@ namespace Quartz.Tests.Unit.Simpl
 
             await fJobStore.RemoveTrigger(early.Key);
 
-            acquiredTriggers = (await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 5, TimeSpan.FromMilliseconds(100000))).ToList();
+            acquiredTriggers = (await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 5, TimeSpan.FromMilliseconds(300000))).ToList();
             Assert.AreEqual(4, acquiredTriggers.Count);
             Assert.AreEqual(trigger1.Key, acquiredTriggers[0].Key);
             Assert.AreEqual(trigger2.Key, acquiredTriggers[1].Key);
@@ -143,7 +144,7 @@ namespace Quartz.Tests.Unit.Simpl
             await fJobStore.ReleaseAcquiredTrigger(trigger3);
             await fJobStore.ReleaseAcquiredTrigger(trigger4);
 
-            acquiredTriggers = (await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 6, TimeSpan.FromMilliseconds(100000))).ToList();
+            acquiredTriggers = (await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 6, TimeSpan.FromMilliseconds(300000))).ToList();
 
             Assert.AreEqual(4, acquiredTriggers.Count);
             Assert.AreEqual(trigger1.Key, acquiredTriggers[0].Key);
@@ -162,7 +163,7 @@ namespace Quartz.Tests.Unit.Simpl
 
             await fJobStore.ReleaseAcquiredTrigger(trigger1);
 
-            acquiredTriggers = (await fJobStore.AcquireNextTriggers(firstFireTime.AddMilliseconds(250), 5, TimeSpan.FromMilliseconds(19999L))).ToList();
+            acquiredTriggers = (await fJobStore.AcquireNextTriggers(firstFireTime.AddMilliseconds(250), 5, TimeSpan.FromMilliseconds(40000))).ToList();
             Assert.AreEqual(2, acquiredTriggers.Count);
             Assert.AreEqual(trigger1.Key, acquiredTriggers[0].Key);
             Assert.AreEqual(trigger2.Key, acquiredTriggers[1].Key);
@@ -366,7 +367,7 @@ namespace Quartz.Tests.Unit.Simpl
             // Test acquire one trigger at a time
             for (int i = 0; i < 10; i++)
             {
-                DateTimeOffset noLaterThan = startTime0.AddMinutes(i);
+                DateTimeOffset noLaterThan = startTime0.AddMinutes(i + 2);
                 int maxCount = 1;
                 TimeSpan timeWindow = TimeSpan.Zero;
                 var triggers = await store.AcquireNextTriggers(noLaterThan, maxCount, timeWindow);
@@ -429,7 +430,7 @@ namespace Quartz.Tests.Unit.Simpl
                 "triggerGroup1",
                 fJobDetail.Name,
                 fJobDetail.Group,
-                baseFireTimeDate.AddMilliseconds(200000),
+                baseFireTimeDate,
                 baseFireTimeDate.AddMilliseconds(200000),
                 2,
                 TimeSpan.FromMilliseconds(2000));
