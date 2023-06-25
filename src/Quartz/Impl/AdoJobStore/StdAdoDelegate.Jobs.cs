@@ -152,6 +152,7 @@ namespace Quartz.Impl.AdoJobStore
                 var map = await ReadMapFromReader(rs, 6).ConfigureAwait(false);
                 var jobDataMap = map != null ? new JobDataMap(map) : null;
                 var disallowConcurrentExecution = GetBooleanFromDbValue(rs[ColumnIsNonConcurrent]);
+                var persistJobDataAfterExecution = GetBooleanFromDbValue(rs[ColumnIsUpdateData]);
 
                 job = new JobDetailImpl(
                     new JobKey(jobName, jobGroup),
@@ -161,7 +162,7 @@ namespace Quartz.Impl.AdoJobStore
                     requestsRecovery: requestsRecovery,
                     jobDataMap: jobDataMap,
                     disallowConcurrentExecution: disallowConcurrentExecution,
-                    persistJobDataAfterExecution: null);
+                    persistJobDataAfterExecution: persistJobDataAfterExecution);
             }
 
             return job;
