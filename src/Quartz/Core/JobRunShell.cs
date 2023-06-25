@@ -137,7 +137,7 @@ namespace Quartz.Core
                 do
                 {
                     JobExecutionException? jobExEx = null;
-                    IJob job = jec.JobInstance;
+                    IJob job = jec.jobInstance;
 
                     try
                     {
@@ -303,9 +303,10 @@ namespace Quartz.Core
                 qs.RemoveInternalSchedulerListener(this);
                 if (jec != null)
                 {
-                    if (jec.JobInstance != null)
+                    var jobInstance = jec.jobInstance;
+                    if (jobInstance != null)
                     {
-                        qs.JobFactory.ReturnJob(jec.JobInstance);
+                        qs.JobFactory.ReturnJob(jobInstance);
                     }
 
                     jec.Dispose();
