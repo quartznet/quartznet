@@ -131,25 +131,26 @@ namespace Quartz.Impl.AdoJobStore
             if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
                 // Due to CommandBehavior.SequentialAccess, columns must be read in order.
-
-                var jobBuilder = JobBuilder.Create()
-                    .WithIdentity(new JobKey(rs.GetString(ColumnJobName)!, rs.GetString(ColumnJobGroup)!))
-                    .WithDescription(rs.GetString(ColumnDescription))
-                    .OfType(rs.GetString(ColumnJobClass)!)
-                    .StoreDurably(GetBooleanFromDbValue(rs[ColumnIsDurable]))
-                    .RequestRecovery(GetBooleanFromDbValue(rs[ColumnRequestsRecovery]));
-
+                var jobName = rs.GetString(ColumnJobName)!;
+                var jobGroup = rs.GetString(ColumnJobGroup)!;
+                var description = rs.GetString(ColumnDescription);
+                var jobType = rs.GetString(ColumnJobClass)!;
+                var isDurable = GetBooleanFromDbValue(rs[ColumnIsDurable]);
+                var requestsRecovery = GetBooleanFromDbValue(rs[ColumnRequestsRecovery]);
                 var map = await ReadMapFromReader(rs, 6).ConfigureAwait(false);
+                var jobDataMap = map != null ? new JobDataMap(map) : null;
+                var disallowConcurrentExecution = GetBooleanFromDbValue(rs[ColumnIsNonConcurrent]);
+                var persistJobDataAfterExecution = GetBooleanFromDbValue(rs[ColumnIsUpdateData]);
 
-                if (map != null)
-                {
-                    jobBuilder.SetJobData(new JobDataMap(map));
-                }
-
-                jobBuilder.DisallowConcurrentExecution(GetBooleanFromDbValue(rs[ColumnIsNonConcurrent]))
-                    .PersistJobDataAfterExecution(GetBooleanFromDbValue(rs[ColumnIsUpdateData]));
-
-                job = jobBuilder.Build();
+                job = new JobDetailImpl(
+                    new JobKey(jobName, jobGroup),
+                    description: description,
+                    jobType: new JobType(jobType),
+                    isDurable: isDurable,
+                    requestsRecovery: requestsRecovery,
+                    jobDataMap: jobDataMap,
+                    disallowConcurrentExecution: disallowConcurrentExecution,
+                    persistJobDataAfterExecution: persistJobDataAfterExecution);
             }
 
             return job;
