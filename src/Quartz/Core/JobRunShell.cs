@@ -129,7 +129,7 @@ namespace Quartz.Core
             Context.CallerId.Value = Guid.NewGuid();
             qs!.AddInternalSchedulerListener(this);
 
-            IJob job = jec!.JobInstance;
+            IJob job = jec!.jobInstance;
 
             try
             {

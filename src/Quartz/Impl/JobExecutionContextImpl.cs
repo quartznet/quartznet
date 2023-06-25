@@ -65,7 +65,7 @@ namespace Quartz.Impl
     /// <author>James House</author>
     /// <author>Marko Lahma (.NET)</author>
     [Serializable]
-    public class JobExecutionContextImpl : ICancellableJobExecutionContext, IDisposable
+    public sealed class JobExecutionContextImpl : ICancellableJobExecutionContext, IDisposable
     {
         private readonly ITrigger trigger;
         private readonly IJobDetail jobDetail;
@@ -78,10 +78,12 @@ namespace Quartz.Impl
 
         [NonSerialized]
         private Dictionary<object, object>? data;
+
         [NonSerialized]
         private CancellationTokenSource? cancellationTokenSource;
-        [NonSerialized]
-        private readonly IJob jobInstance;
+
+        [NonSerialized] internal readonly IJob jobInstance;
+
         [NonSerialized]
         private readonly object lazyInitLock = new object();
 
@@ -106,28 +108,25 @@ namespace Quartz.Impl
         /// Get a handle to the <see cref="IScheduler" /> instance that fired the
         /// <see cref="IJob" />.
         /// </summary>
-        public virtual IScheduler Scheduler
-        {
-            get { return scheduler; }
-        }
+        public IScheduler Scheduler => scheduler;
 
         /// <summary>
         /// Get a handle to the <see cref="ITrigger" /> instance that fired the
         /// <see cref="IJob" />.
         /// </summary>
-        public virtual ITrigger Trigger => trigger;
+        public ITrigger Trigger => trigger;
 
         /// <summary>
         /// Get a handle to the <see cref="ICalendar" /> referenced by the <see cref="ITrigger" />
         /// instance that fired the <see cref="IJob" />.
         /// </summary>
-        public virtual ICalendar? Calendar { get; }
+        public ICalendar? Calendar { get; }
 
         /// <summary>
         /// If the <see cref="IJob" /> is being re-executed because of a 'recovery'
         /// situation, this method will return <see langword="true" />.
         /// </summary>
-        public virtual bool Recovering { get; }
+        public bool Recovering { get; }
 
         public TriggerKey? RecoveringTriggerKey
         {
@@ -149,7 +148,7 @@ namespace Quartz.Impl
         /// Gets the refire count.
         /// </summary>
         /// <value>The refire count.</value>
-        public virtual int RefireCount => numRefires;
+        public int RefireCount => numRefires;
 
         /// <summary>
         /// Get the convenience <see cref="JobDataMap" /> of this execution context.
@@ -172,7 +171,7 @@ namespace Quartz.Impl
         /// illegal state.
         /// </para>
         /// </remarks>
-        public virtual JobDataMap MergedJobDataMap
+        public JobDataMap MergedJobDataMap
         {
             get
             {
@@ -196,7 +195,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Get the <see cref="JobDetail" /> associated with the <see cref="IJob" />.
         /// </summary>
-        public virtual IJobDetail JobDetail => jobDetail;
+        public IJobDetail JobDetail => jobDetail;
 
         /// <summary>
         /// Get the instance of the <see cref="IJob" /> that was created for this
@@ -206,7 +205,7 @@ namespace Quartz.Impl
         /// interfaces.
         /// </para>
         /// </summary>
-        public virtual IJob JobInstance => (jobInstance as IJobWrapper)?.Target ?? jobInstance;
+        public IJob JobInstance => (jobInstance as IJobWrapper)?.Target ?? jobInstance;
 
         /// <summary>
         /// The actual time the trigger fired. For instance the scheduled time may
@@ -261,7 +260,7 @@ namespace Quartz.Impl
         /// execution.
         /// </para>
         /// </remarks>
-        public virtual object? Result { get; set; }
+        public object? Result { get; set; }
 
         /// <summary>
         /// The amount of time the job ran for.  The returned
@@ -269,7 +268,7 @@ namespace Quartz.Impl
         /// exception), and is therefore generally only useful to
         /// <see cref="IJobListener" />s and <see cref="ITriggerListener" />s.
         /// </summary>
-        public virtual TimeSpan JobRunTime
+        public TimeSpan JobRunTime
         {
             get
             {
@@ -287,7 +286,7 @@ namespace Quartz.Impl
         /// <summary>
         /// Increments the refire count.
         /// </summary>
-        public virtual void IncrementRefireCount()
+        public void IncrementRefireCount()
         {
             Interlocked.Increment(ref numRefires);
         }
@@ -317,7 +316,7 @@ namespace Quartz.Impl
         /// </param>
         /// <param name="objectValue">
         /// </param>
-        public virtual void Put(object key, object objectValue)
+        public void Put(object key, object objectValue)
         {
             Data[key] = objectValue;
         }
@@ -327,7 +326,7 @@ namespace Quartz.Impl
         /// </summary>
         /// <param name="key">
         /// </param>
-        public virtual object? Get(object key)
+        public object? Get(object key)
         {
             if (Data.TryGetValue(key, out var retValue))
             {
@@ -336,7 +335,7 @@ namespace Quartz.Impl
             return null;
         }
 
-        public virtual void Cancel()
+        public void Cancel()
         {
             CancellationTokenSource.Cancel();
         }
