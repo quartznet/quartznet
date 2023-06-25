@@ -342,20 +342,17 @@ namespace Quartz.Impl.AdoJobStore
             IJobDetail jobDetail,
             CancellationToken cancellationToken = default)
         {
+            var existingType = await SelectTriggerType(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+ 
+            // No need to continue if the trigger type is not found - there's nothing to update.
+            if (existingType == null) return 0;
+
             // save some clock cycles by unnecessarily writing job data blob ...
             var updateJobData = trigger.JobDataMap.Dirty;
             var jobData = updateJobData ? SerializeJobData(trigger.JobDataMap) : null;
 
-            DbCommand cmd;
-
-            if (updateJobData)
-            {
-                cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTrigger));
-            }
-            else
-            {
-                cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateTriggerSkipData));
-            }
+            var sqlUpdate = updateJobData ? SqlUpdateTrigger : SqlUpdateTriggerSkipData;
+            using var cmd = PrepareCommand(conn, ReplaceTablePrefix(sqlUpdate));
 
             AddCommandParameter(cmd, "schedulerName", schedName);
             AddCommandParameter(cmd, "triggerJobName", trigger.JobKey.Name);
@@ -395,18 +392,43 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
             }
 
-            int insertResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            var updateResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
-            if (tDel == null)
+            if (type == existingType)
             {
-                await UpdateBlobTrigger(conn, trigger, cancellationToken).ConfigureAwait(false);
+                if (tDel == null)
+                {
+                    await UpdateBlobTrigger(conn, trigger, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    await tDel.UpdateExtendedTriggerProperties(conn, trigger, state, jobDetail, cancellationToken).ConfigureAwait(false);
+                }
             }
             else
             {
-                await tDel.UpdateExtendedTriggerProperties(conn, trigger, state, jobDetail, cancellationToken).ConfigureAwait(false);
+                var existingDel = FindTriggerPersistenceDelegate(existingType);
+
+                if (existingDel == null)
+                {
+                    await DeleteBlobTrigger(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    await existingDel.DeleteExtendedTriggerProperties(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
+                }
+
+                if (tDel == null)
+                {
+                    await InsertBlobTrigger(conn, trigger, cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    await tDel.InsertExtendedTriggerProperties(conn, trigger, state, jobDetail, cancellationToken).ConfigureAwait(false);
+                }
             }
 
-            return insertResult;
+            return updateResult;
         }
 
         /// <inheritdoc />
@@ -842,6 +864,24 @@ namespace Quartz.Impl.AdoJobStore
             }
 
             return status;
+        }
+
+        private async ValueTask<string?> SelectTriggerType(
+            ConnectionAndTransactionHolder conn,
+            TriggerKey triggerKey,
+            CancellationToken cancellationToken = default)
+        {
+            using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectTriggerType));
+            AddCommandParameter(cmd, "schedulerName", schedName);
+            AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+            AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+
+            using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                return rs.GetString(ColumnTriggerType)!;
+            }
+            return null;
         }
 
         /// <inheritdoc />
