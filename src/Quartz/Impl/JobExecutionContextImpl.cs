@@ -74,8 +74,10 @@ namespace Quartz.Impl
         private readonly ITrigger trigger;
         private readonly IJobDetail jobDetail;
         private readonly JobDataMap jobDataMap;
+
         [NonSerialized]
         private readonly IScheduler scheduler;
+
         [NonSerialized]
         private readonly CancellationToken cancellationToken;
 
@@ -84,10 +86,12 @@ namespace Quartz.Impl
 
         [NonSerialized]
         private readonly Dictionary<object, object> data = new Dictionary<object, object>();
+
         [NonSerialized]
         private readonly CancellationTokenSource cancellationTokenSource;
-        [NonSerialized]
-        private readonly IJob jobInstance;
+
+        [NonSerialized] 
+        internal readonly IJob jobInstance;
 
         /// <summary>
         /// Create a JobExecutionContext with the given context data.
