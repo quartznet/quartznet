@@ -75,8 +75,10 @@ namespace Quartz
         {
             schedulerBuilder.UsePersistentStore(configure);
         }
-        public void UsePersistentStore<T>(Action<SchedulerBuilder.PersistentStoreOptions> configure) where T : IJobStore
+
+        public void UsePersistentStore<T>(Action<SchedulerBuilder.PersistentStoreOptions> configure) where T : class, IJobStore
         {
+            services.AddSingleton<IJobStore, T>();
             schedulerBuilder.UsePersistentStore<T>(configure);
         }
 
@@ -91,7 +93,7 @@ namespace Quartz
             UseJobFactory<MicrosoftDependencyInjectionJobFactory>(configure);
         }
 
-        public void UseJobFactory<T>(Action<JobFactoryOptions>? configure = null) where T : IJobFactory
+        public void UseJobFactory<T>(Action<JobFactoryOptions>? configure = null) where T : class, IJobFactory
         {
             schedulerBuilder.UseJobFactory<T>();
             services.Replace(ServiceDescriptor.Singleton(typeof(IJobFactory), typeof(T)));
@@ -110,7 +112,7 @@ namespace Quartz
             services.Replace(ServiceDescriptor.Singleton(typeof(ITypeLoadHelper), typeof(T)));
         }
 
-        public void UseThreadPool<T>(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null) where T : IThreadPool
+        public void UseThreadPool<T>(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null) where T : class, IThreadPool
         {
             schedulerBuilder.UseThreadPool<T>(configure);
         }
