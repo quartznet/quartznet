@@ -203,6 +203,11 @@ namespace Quartz.Examples.AspNetCore
                     options.IncludeStackTraceInProblemDetails = true;
                 });
 
+                q.UsePersistentStore<CustomJobStore>(options =>
+                {
+                    options.UseJsonSerializer();
+                });
+
                 // example of persistent job store using JSON serializer as an example
                 /*
                 q.UsePersistentStore(s =>
@@ -212,7 +217,7 @@ namespace Quartz.Examples.AspNetCore
                     s.RetryInterval = TimeSpan.FromSeconds(15);
                     s.UseSqlServer(sqlServer =>
                     {
-                    	// if needed, could create a custom strategy for handling connections
+                        // if needed, could create a custom strategy for handling connections
                         //sqlServer.UseConnectionProvider<CustomSqlServerConnectionProvider>();
 
                         sqlServer.ConnectionString = "some connection string";
