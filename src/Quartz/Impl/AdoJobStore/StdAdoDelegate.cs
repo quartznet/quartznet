@@ -578,23 +578,21 @@ namespace Quartz.Impl.AdoJobStore
             return obj;
         }
 
-        protected virtual async ValueTask<byte[]?> ReadBytesFromBlob(
+        protected virtual ValueTask<byte[]?> ReadBytesFromBlob(
             IDataReader dr,
             int colIndex,
             CancellationToken cancellationToken)
         {
             if (dr.IsDBNull(colIndex))
             {
-                return null;
+                return new ValueTask<byte[]?>();
             }
 
             // If you pass a buffer that is null, GetBytes returns the length of the entire field in bytes, not the remaining size based on the buffer offset parameter.
             var length = dr.GetBytes(colIndex, 0, null!, 0, int.MaxValue);
             byte[] outbyte = new byte[length];
             dr.GetBytes(colIndex, 0, outbyte, 0, outbyte.Length);
-            using MemoryStream stream = new MemoryStream();
-            await stream.WriteAsync(outbyte, 0, outbyte.Length, cancellationToken).ConfigureAwait(false);
-            return outbyte;
+            return new ValueTask<byte[]?>(outbyte);
         }
 
         public virtual DbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText)
