@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using System.Data;
 
 namespace Quartz.Impl.AdoJobStore
 {
@@ -65,7 +64,7 @@ namespace Quartz.Impl.AdoJobStore
             using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectCalendar));
             AddCommandParameter(cmd, "schedulerName", schedName);
             AddCommandParameter(cmd, "calendarName", calendarName);
-            using var rs = await cmd.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
+            using var rs = await cmd.ExecuteReaderAsync(System.Data.CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
             ICalendar? cal = null;
             if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
