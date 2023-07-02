@@ -236,14 +236,35 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             var jobName = $"TestJobName-{Guid.NewGuid()}";
             A.CallTo(() => dataReader[AdoConstants.ColumnJobName])
                 .Returns(jobName);
+            A.CallTo(() => dataReader.GetOrdinal(AdoConstants.ColumnJobName))
+                .Returns(0);
+            A.CallTo(() => dataReader.GetString(0))
+                .Returns(jobName);
+
             var jobGroup = $"TestGroup-{Guid.NewGuid()}";
             A.CallTo(() => dataReader[AdoConstants.ColumnJobGroup])
                 .Returns(jobGroup);
+            A.CallTo(() => dataReader.GetOrdinal(AdoConstants.ColumnJobGroup))
+                .Returns(1);
+            A.CallTo(() => dataReader.GetString(1))
+                .Returns(jobGroup);
+
             var jobDescription = $"TestDescription-{Guid.NewGuid()}";
             A.CallTo(() => dataReader[AdoConstants.ColumnDescription])
                 .Returns(jobDescription);
+            A.CallTo(() => dataReader.GetOrdinal(AdoConstants.ColumnDescription))
+                .Returns(2);
+            A.CallTo(() => dataReader.GetString(2))
+                .Returns(jobDescription);
+
+            var jobClass = typeof(TestJob).AssemblyQualifiedNameWithoutVersion();
             A.CallTo(() => dataReader[AdoConstants.ColumnJobClass])
-                .Returns(typeof(TestJob).AssemblyQualifiedNameWithoutVersion());
+                .Returns(jobClass);
+            A.CallTo(() => dataReader.GetOrdinal(AdoConstants.ColumnJobClass))
+                .Returns(3);
+            A.CallTo(() => dataReader.GetString(3))
+                .Returns(jobClass);
+
             A.CallTo(() => dataReader[AdoConstants.ColumnRequestsRecovery])
                 .Returns(true);
             A.CallTo(() => dataReader[AdoConstants.ColumnIsDurable])
