@@ -76,7 +76,7 @@ in which case it may then be the right decision not to use Quartz.NET.
 
 This is a tough question to answer... the answer is basically "it depends".
 
-I know you hate that answer, to here's some information about what it depends "on".
+I know you hate that answer, so here's some information about what it depends "on".
 
 First off, the JobStore that you use plays a significant factor.
 The RAM-based JobStore is MUCH (1000x) faster than the ADO.NET-based JobStore.
