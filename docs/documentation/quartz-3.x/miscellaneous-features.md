@@ -20,7 +20,7 @@ of JobFactory to accomplish things such as having your application's IoC or DI c
 See the `IJobFactory` interface, and the associated `IScheduler.JobFactory` setter property.
 
 ::: tip
-Since Quartz 3.1, there's [built-in support for integrating with Microsoft Dependency Injection](../packages/microsoft-di-integration) which in
+Since Quartz 3.1, there's [built-in support for integrating with Microsoft Dependency Injection](./packages/microsoft-di-integration) which in
 turn allows to use different IoC container implementations.
 :::
 
