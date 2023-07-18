@@ -79,7 +79,7 @@ namespace Quartz.Examples.Example13
                     x.UseProperties = true;
                     x.UseClustering();
                     x.UseSqlServer(TestConstants.SqlServerConnectionString);
-                    x.UseJsonSerializer();
+                    x.UseNewtonsoftJsonSerializer();
                 })
                 .BuildScheduler();
 
