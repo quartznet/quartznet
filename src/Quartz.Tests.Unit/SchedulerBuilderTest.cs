@@ -36,7 +36,7 @@ namespace Quartz.Tests.Unit
             var config = SchedulerBuilder.Create();
             config.UsePersistentStore(js =>
             {
-                js.UseJsonSerializer();
+                js.UseNewtonsoftJsonSerializer();
                 js.RetryInterval = TimeSpan.FromSeconds(20);
                 js.PerformSchemaValidation = true;
                 js.UseClustering(c =>

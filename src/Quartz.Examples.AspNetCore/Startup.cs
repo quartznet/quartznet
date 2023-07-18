@@ -195,7 +195,7 @@ namespace Quartz.Examples.AspNetCore
 
                 q.UsePersistentStore<CustomJobStore>(options =>
                 {
-                    options.UseJsonSerializer();
+                    options.UseNewtonsoftJsonSerializer();
                 });
 
                 // example of persistent job store using JSON serializer as an example

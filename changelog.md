@@ -2,6 +2,12 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+## Release 3.7.0, xxx xx 2023
+
+* CHANGES
+
+  * Mark UseJsonSerializer as obsolete, one should use UseNewtonsoftJsonSerializer
+
 
 ## Release 3.6.3, Jun 25 2023
 

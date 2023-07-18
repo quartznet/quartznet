@@ -226,7 +226,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
                 if (serializerType == "json")
                 {
-                    store.UseJsonSerializer(j =>
+                    store.UseNewtonsoftJsonSerializer(j =>
                     {
                         j.AddCalendarSerializer<CustomCalendar>(new CustomCalendarSerializer());
                     });
