@@ -201,7 +201,7 @@ partial class Build : NukeBuild
                 "Quartz",
                 "Quartz.Extensions.DependencyInjection",
                 "Quartz.Extensions.Hosting",
-                "Quartz.Serialization.Json",
+                "Quartz.Serialization.Newtonsoft",
                 "Quartz.AspNetCore",
                 "Quartz.Jobs",
                 "Quartz.Plugins",

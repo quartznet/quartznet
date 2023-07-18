@@ -406,7 +406,7 @@ namespace Quartz
             }
 
             /// <summary>
-            /// Configure binary serialization, consider using JSON instead which requires extra package Quartz.Serialization.Json.
+            /// Configure binary serialization, consider using JSON instead which requires extra package Quartz.Serialization.Newtonsoft.
             /// </summary>
             public void UseBinarySerializer()
             {

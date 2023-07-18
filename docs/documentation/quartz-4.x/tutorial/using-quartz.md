@@ -61,8 +61,8 @@ var sched = await SchedulerBuilder.Create()
         x.UseProperties = true;
         x.UseClustering();
         x.UseSqlServer("my connection string");
-        // this requires Quartz.Serialization.Json NuGet package
-        x.UseJsonSerializer();
+        // this requires Quartz.Serialization.Newtonsoft NuGet package
+        x.UseNewtonsoftJsonSerializer();
     })
     // job initialization plugin handles our xml reading, without it defaults are used
     // requires Quartz.Plugins NuGet package

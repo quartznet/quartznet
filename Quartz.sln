@@ -25,7 +25,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Tests.Integration", 
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Examples", "src\Quartz.Examples\Quartz.Examples.csproj", "{E84E25C9-B291-4F51-9599-EFB63EB59569}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Serialization.Json", "src\Quartz.Serialization.Json\Quartz.Serialization.Json.csproj", "{CBDA9E9D-5C24-4597-96EC-C930A5F452AC}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Serialization.Newtonsoft", "src\Quartz.Serialization.Newtonsoft\Quartz.Serialization.Newtonsoft.csproj", "{CBDA9E9D-5C24-4597-96EC-C930A5F452AC}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Server", "src\Quartz.Server\Quartz.Server.csproj", "{09082B9A-906C-4A17-A2E5-6C947DAC7C85}"
 EndProject
