@@ -73,3 +73,9 @@ Host.CreateDefaultBuilder(args)
 ```
 
 Further information on configuring Microsoft.Logging can be found [at Microsoft docs](https://docs.microsoft.com/en-us/dotnet/core/extensions/logging?tabs=command-line)
+
+### JSON Serialization
+
+To configure JSON serialization to be used in job store instead of old `UseJsonSerializer` you should now use `UseNewtonsoftJsonSerializer`
+and replace old package reference `Quartz.Serialization.Json` with `Quartz.Serialization.Newtonsoft`. Change was made to distinguish the two common
+serializers that are being used (System.Text.Json and JSON.NET).

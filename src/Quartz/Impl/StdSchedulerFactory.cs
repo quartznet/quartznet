@@ -644,7 +644,7 @@ Please add configuration to your application config file to correctly initialize
                 // some aliases
                 if (objectSerializerType.Equals("json", StringComparison.OrdinalIgnoreCase))
                 {
-                    objectSerializerType = "Quartz.Simpl.JsonObjectSerializer, Quartz.Serialization.Json";
+                    objectSerializerType = "Quartz.Simpl.JsonObjectSerializer, Quartz.Serialization.Newtonsoft";
                 }
                 if (objectSerializerType.Equals("binary", StringComparison.OrdinalIgnoreCase))
                 {

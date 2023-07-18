@@ -8,18 +8,20 @@ JSON is recommended persistent format to store data in database for greenfield p
 You should also strongly consider setting useProperties to true to restrict key-values to be strings.
 :::
 
-[Quartz.Serialization.Json](https://www.nuget.org/packages/Quartz.Serialization.Json) provides JSON serialization support for job stores using
+## JSON.NET
+
+[Quartz.Serialization.Newtonsoft](https://www.nuget.org/packages/Quartz.Serialization.Newtonsoft) provides JSON serialization support for job stores using
 [Json.NET](https://www.newtonsoft.com/json) to handle the actual serialization process.
 
-## Installation
+### Installation
 
 You need to add NuGet package reference to your project which uses Quartz.
 
 ```shell
-Install-Package Quartz.Serialization.Json
+Install-Package Quartz.Serialization.Newtonsoft
 ```
 
-## Configuring
+### Configuring
 
 **Classic property-based configuration**
 
@@ -27,7 +29,6 @@ Install-Package Quartz.Serialization.Json
 var properties = new NameValueCollection
 {
  ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
- // "json" is alias for "Quartz.Simpl.JsonObjectSerializer, Quartz.Serialization.Json" 
  ["quartz.serializer.type"] = "json"
 };
 ISchedulerFactory schedulerFactory = new StdSchedulerFactory(properties);
@@ -46,12 +47,12 @@ config.UsePersistentStore(store =>
         db.ConnectionString = "my connection string"
     );
 
-    store.UseJsonSerializer();
+    store.UseNewtonsoftJsonSerializer();
 });
 ISchedulerFactory schedulerFactory = config.Build();
 ```
 
-## Migrating from binary serialization
+### Migrating from binary serialization
 
 There's now official solution for migration as there can be quirks in every setup, but there's a recipe that can work for you.
 
@@ -102,7 +103,7 @@ public class MigratorSerializer : IObjectSerializer
 }
 ```
 
-## Customizing JSON.NET
+### Customizing JSON.NET
 
  If you need to customize JSON.NET settings, you need to inherit custom implementation and override `CreateSerializerSettings`.
 
@@ -126,7 +127,7 @@ store.UseSerializer<CustomJsonSerializer>();
 "quartz.serializer.type" = "MyProject.CustomJsonSerializer, MyProject"
 ```
 
-## Customizing calendar serialization
+### Customizing calendar serialization
 
 If you have implemented a custom calendar, you need to implement a `ICalendarSerializer` for it.
 There's a convenience base class `CalendarSerializer` that you can use the get strongly-typed experience.
@@ -184,7 +185,7 @@ class CustomCalendarSerializer : CalendarSerializer<CustomCalendar>
 var config = SchedulerBuilder.Create();
 config.UsePersistentStore(store =>
 {
-    store.UseJsonSerializer(json =>
+    store.UseNewtonsoftJsonSerializer(json =>
     {
         json.AddCalendarSerializer<CustomCalendar>(new CustomCalendarSerializer());
     });

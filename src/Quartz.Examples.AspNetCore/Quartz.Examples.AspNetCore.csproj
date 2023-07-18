@@ -10,7 +10,7 @@
       <ProjectReference Include="..\Quartz.AspNetCore\Quartz.AspNetCore.csproj" />
       <ProjectReference Include="..\Quartz.Plugins.TimeZoneConverter\Quartz.Plugins.TimeZoneConverter.csproj" />
       <ProjectReference Include="..\Quartz.Plugins\Quartz.Plugins.csproj" />
-      <ProjectReference Include="..\Quartz.Serialization.Json\Quartz.Serialization.Json.csproj" />
+      <ProjectReference Include="..\Quartz.Serialization.Newtonsoft\Quartz.Serialization.Newtonsoft.csproj" />
     </ItemGroup>
 
     <ItemGroup>

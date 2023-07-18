@@ -205,7 +205,7 @@ namespace Quartz.Examples.AspNetCore
 
                 q.UsePersistentStore<CustomJobStore>(options =>
                 {
-                    options.UseJsonSerializer();
+                    options.UseNewtonsoftJsonSerializer();
                 });
 
                 // example of persistent job store using JSON serializer as an example
@@ -228,7 +228,7 @@ namespace Quartz.Examples.AspNetCore
                         // this is the default
                         sqlServer.TablePrefix = "QRTZ_";
                     });
-                    s.UseJsonSerializer();
+                    s.UseNewtonsoftJsonSerializer();
                     s.UseClustering(c =>
                     {
                         c.CheckinMisfireThreshold = TimeSpan.FromSeconds(20);
