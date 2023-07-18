@@ -1,0 +1,864 @@
+<Examples>
+    <Holiday>
+        <HelpEx name="Ex1">
+<example>
+This example demonstrates the use of the holiday classes and their methods.
+<code language="cs">
+DateTime testDate;
+int yearFrom = 1998, yearTo = 2006;
+
+// Create a set of fixed and floating holidays
+HolidayCollection holidays = new HolidayCollection();
+
+holidays.AddFixed(1, 1, true, "New Year's Day");
+holidays.AddFloating(DayOccurrence.Third, DayOfWeek.Monday, 1, 0, "Martin Luther King Day");
+holidays.AddFloating(DayOccurrence.Third, DayOfWeek.Monday, 2, 0, "President's Day");
+holidays.AddFloating(DayOccurrence.Last, DayOfWeek.Monday, 5, 0, "Memorial Day");
+holidays.AddFixed(7, 4, true, "Independence Day");
+holidays.AddFloating(DayOccurrence.First, DayOfWeek.Monday, 9, 0, "Labor Day");
+holidays.AddFixed(11, 11, true, "Veteran's Day");
+holidays.AddFloating(DayOccurrence.Fourth, DayOfWeek.Thursday, 11, 0, "Thanksgiving Day");
+holidays.AddFloating(DayOccurrence.Fourth, DayOfWeek.Thursday, 11, 1, "Day After Thanksgiving");
+holidays.AddFixed(12, 25, true, "Christmas Day");
+
+// Display the holidays added to the list
+Console.WriteLine("Holidays on file.  Is Holiday should be true for all.");
+
+foreach(Holiday hol in holidays)
+    Console.WriteLine("Holiday Date: {0:d}   Is Holiday: {1}  Description: {2}",
+        hol.ToDateTime(yearFrom), holidays.IsHoliday(hol.ToDateTime(yearFrom)),
+        hol.Description);
+
+// Display holidays found in each year specified using the IsHoliday method
+Console.WriteLine("Looking for holidays using the IsHoliday method");
+
+testDate = new DateTime(yearFrom, 1, 1);
+
+while(testDate.Year &lt;= yearTo)
+{
+    if(holidays.IsHoliday(testDate))
+        Console.WriteLine("Found holiday: {0:d}", testDate);
+
+    testDate = testDate.AddDays(1);
+}
+
+// One more time, but use a hash set using the dates returned by the HolidaysBetween()
+// method.  For bulk comparisons, this is faster than the above procedure using the
+// IsHoliday method.
+Console.WriteLine("Looking for holidays using HolidaysBetween");
+
+var holidayDates = new HashSet&lt;DateTime&gt;(holidays.HolidaysBetween(yearFrom, yearTo));
+
+if(holidayDates.Count != 0)
+{
+    testDate = new DateTime(yearFrom, 1, 1);
+
+    while(testDate.Year &lt;= yearTo)
+    {
+        if(holidayDates.Contains(testDate))
+            Console.WriteLine("Found holiday: {0:d} {1}", testDate,
+                holidays.HolidayDescription(testDate));
+
+        testDate = testDate.AddDays(1);
+    }
+}
+</code>
+<code language="vbnet">
+Dim testDate As DateTime
+Dim holidayDates As HashSet(Of DateTime)
+Dim yearFrom As Integer = 1998
+Dim yearTo As Integer = 2006
+Dim hol As Holiday
+
+' Create a set of fixed and floating holidays
+Dim holidays As New HolidayCollection()
+
+holidays.AddFixed(1, 1, True, "New Year's Day")
+holidays.AddFloating(DayOccurrence.Third, DayOfWeek.Monday, 1, 0, "Martin Luther King Day")
+holidays.AddFloating(DayOccurrence.Third, DayOfWeek.Monday, 2, 0, "President's Day")
+holidays.AddFloating(DayOccurrence.Last, DayOfWeek.Monday, 5, 0, "Memorial Day")
+holidays.AddFixed(7, 4, True, "Independence Day")
+holidays.AddFloating(DayOccurrence.First, DayOfWeek.Monday, 9, 0, "Labor Day")
+holidays.AddFixed(11, 11, True, "Veteran's Day")
+holidays.AddFloating(DayOccurrence.Fourth, DayOfWeek.Thursday, 11, 0, "Thanksgiving Day")
+holidays.AddFloating(DayOccurrence.Fourth, DayOfWeek.Thursday, 11, 1, "Day After Thanksgiving")
+holidays.AddFixed(12, 25, True, "Christmas Day")
+
+' Display the holidays added to the list
+Console.WriteLine("Holidays on file.  Is Holiday should be true for all.")
+
+For Each hol In holidays
+    Console.WriteLine("Holiday Date: {0:d}   Is Holiday: {1}  Description: {2}",
+        hol.ToDateTime(yearFrom), holidays.IsHoliday(hol.ToDateTime(yearFrom)),
+        hol.Description)
+Next
+
+' Display holidays found in each year specified using the IsHoliday method
+Console.WriteLine("Looking for holidays using the IsHoliday method")
+
+testDate = New DateTime(yearFrom, 1, 1)
+
+Do While testDate.Year &lt;= yearTo
+    If holidays.IsHoliday(testDate) = True Then
+        Console.WriteLine("Found holiday: {0:d}", testDate)
+    End If
+
+    testDate = testDate.AddDays(1)
+Loop
+
+' One more time, but use a hash set using the dates returned by the HolidaysBetween()
+' method.  For bulk comparisons, this is faster than the above procedure using the
+' IsHoliday method.
+Console.WriteLine("Looking for holidays using HolidaysBetween")
+
+var holidayDates = new HashSet(Of DateTime)(holidays.HolidaysBetween(yearFrom, yearTo));
+
+If holidayDates.Count != 0 Then
+    testDate = New DateTime(yearFrom, 1, 1)
+
+    Do While testDate.Year &lt;= yearTo
+        If holidayDates.Contains(testDate) = True Then
+            Console.WriteLine("Found holiday: {0:d} {1}", testDate,
+                holidays.HolidayDescription(testDate))
+        End If
+
+        testDate = testDate.AddDays(1)
+    Loop
+End If
+</code>
+</example>
+        </HelpEx>
+        <HelpEx name="Ex2">
+<example>
+This example demonstrates serializing and deserializing a holiday collection.
+<code language="cs">
+// Create a set of fixed and floating holidays
+HolidayCollection holidays = new HolidayCollection();
+
+holidays.AddFixed(1, 1, True, "New Year's Day");
+holidays.AddFloating(DayOccurrence.Third, DayOfWeek.Monday, 1, 0, "Martin Luther King Day");
+holidays.AddFloating(DayOccurrence.Third, DayOfWeek.Monday, 2, 0, "President's Day");
+holidays.AddFloating(DayOccurrence.Last, DayOfWeek.Monday, 5, 0, "Memorial Day");
+holidays.AddFixed(7, 4, True, "Independence Day");
+holidays.AddFloating(DayOccurrence.First, DayOfWeek.Monday, 9, 0, "Labor Day");
+holidays.AddFixed(11, 11, True, "Veteran's Day");
+holidays.AddFloating(DayOccurrence.Fourth, DayOfWeek.Thursday, 11, 0, "Thanksgiving Day");
+holidays.AddFloating(DayOccurrence.Fourth, DayOfWeek.Thursday, 11, 1, "Day After Thanksgiving");
+holidays.AddFixed(12, 25, True, "Christmas Day");
+
+// Serialize the holidays to an XML file
+try
+{
+    using(var fs = new FileStream("Holidays.xml", FileMode.Create))
+    {
+        XmlSerializer xs = new XmlSerializer(typeof(HolidayCollection));
+        xs.Serialize(fs, holidays);
+    }
+
+    Console.WriteLine("Holidays saved to Holidays.xml");
+}
+catch(Exception ex)
+{
+    Console.WriteLine("Unable to save holidays:\n{0}", ex.Message);
+
+    if(ex.InnerException != null)
+    {
+        Console.WriteLine(ex.InnerException.Message);
+
+        if(ex.InnerException.InnerException != null)
+            Console.WriteLine(ex.InnerException.InnerException.Message);
+    }
+}
+
+// Delete the collection and read it back in
+holidays = null;
+
+try
+{
+    using(var fs = new FileStream("Holidays.xml", FileMode.Open))
+    {
+        XmlSerializer xs = new XmlSerializer(typeof(HolidayCollection));
+        holidays = (HolidayCollection)xs.Deserialize(fs);
+    }
+
+    Console.WriteLine("Holidays retrieved from Holidays.xml");
+}
+catch(Exception ex)
+{
+    Console.WriteLine("Unable to load holidays:\n{0}", ex.Message);
+
+    if(ex.InnerException != null)
+    {
+        Console.WriteLine(ex.InnerException.Message);
+        if(ex.InnerException.InnerException != null)
+            Console.WriteLine(ex.InnerException.InnerException.Message);
+    }
+}
+</code>
+<code language="vbnet">
+' Create a set of fixed and floating holidays
+Dim holidays As New HolidayCollection()
+
+holidays.AddFixed(1, 1, True, "New Year's Day")
+holidays.AddFloating(DayOccurrence.Third, DayOfWeek.Monday, 1, 0, "Martin Luther King Day")
+holidays.AddFloating(DayOccurrence.Third, DayOfWeek.Monday, 2, 0, "President's Day")
+holidays.AddFloating(DayOccurrence.Last, DayOfWeek.Monday, 5, 0, "Memorial Day")
+holidays.AddFixed(7, 4, True, "Independence Day")
+holidays.AddFloating(DayOccurrence.First, DayOfWeek.Monday, 9, 0, "Labor Day")
+holidays.AddFixed(11, 11, True, "Veteran's Day")
+holidays.AddFloating(DayOccurrence.Fourth, DayOfWeek.Thursday, 11, 0, "Thanksgiving Day")
+holidays.AddFloating(DayOccurrence.Fourth, DayOfWeek.Thursday, 11, 1, "Day After Thanksgiving")
+holidays.AddFixed(12, 25, True, "Christmas Day")
+
+' Serialize the holidays to an XML file
+Try
+    Using fs As New FileStream("Holidays.xml", FileMode.Create)
+        Dim xs As New XmlSerializer(GetType(HolidayCollection))
+        xs.Serialize(fs, holidays)
+    End Using
+
+    Console.WriteLine("Holidays saved to Holidays.xml")
+
+Catch ex As Exception
+    Console.WriteLine("Unable to save holidays: {0}", ex.Message)
+
+    If Not (ex.InnerException Is Nothing) Then
+        Console.WriteLine(ex.InnerException.Message)
+        If Not (ex.InnerException.InnerException Is Nothing) Then
+            Console.WriteLine(ex.InnerException.InnerException.Message)
+        End If
+    End If
+End Try
+
+' Delete the collection and read it back in
+holidays = Nothing
+
+Try
+    Using fs As new FileStream("Holidays.xml", FileMode.Open)
+        Dim xs As New XmlSerializer(GetType(HolidayCollection))
+        holidays = CType(xs.Deserialize(fs), HolidayCollection)
+    End Using
+
+    Console.WriteLine("Holidays retrieved from Holidays.xml")
+
+Catch ex As Exception
+    Console.WriteLine("Unable to load holidays: {0}", ex.Message)
+
+    If Not (ex.InnerException Is Nothing) Then
+        Console.WriteLine(ex.InnerException.Message)
+        If Not (ex.InnerException.InnerException Is Nothing) Then
+            Console.WriteLine(ex.InnerException.InnerException.Message)
+        End If
+    End If
+End Try
+</code>
+</example>
+        </HelpEx>
+    </Holiday>
+    <Recurrence>
+        <HelpEx name="Ex1">
+<example>
+This example shows one way to add holidays to the recurrence to prevent instances
+from occurring on them.
+<code language="cs">
+// Create a set of fixed and floating holidays.  The recurrence holiday collection
+// is static.
+Recurrence.Holidays.Clear();
+
+Recurrence.Holidays.AddFixed(1, 1, true, "New Year's Day");
+Recurrence.Holidays.AddFloating(DayOccurrence.Third, DayOfWeek.Monday, 1, 0,
+    "Martin Luther King Day");
+Recurrence.Holidays.AddFloating(DayOccurrence.Third, DayOfWeek.Monday, 2, 0,
+    "President's Day");
+Recurrence.Holidays.AddFloating(DayOccurrence.Last, DayOfWeek.Monday, 5, 0,
+    "Memorial Day");
+Recurrence.Holidays.AddFixed(7, 4, True, "Independence Day");
+Recurrence.Holidays.AddFloating(DayOccurrence.First, DayOfWeek.Monday, 9, 0,
+    "Labor Day");
+Recurrence.Holidays.AddFixed(11, 11, True, "Veteran's Day");
+Recurrence.Holidays.AddFloating(DayOccurrence.Fourth, DayOfWeek.Thursday, 11, 0,
+    "Thanksgiving Day");
+Recurrence.Holidays.AddFloating(DayOccurrence.Fourth, DayOfWeek.Thursday, 11, 1,
+    "Day After Thanksgiving");
+Recurrence.Holidays.AddFixed(12, 25, true, "Christmas Day");
+
+// Create a recurrence
+Recurrence rRecur = new Recurrence();
+
+// Set it to recur daily but disallow occurrences on any of the defined holidays
+rRecur.CanOccurOnHoliday = false;
+rRecur.RecurDaily(1);
+
+rRecur.MaximumOccurrences = 365;
+
+DateTimeCollection dc = rRecur.AllInstances();
+</code>
+<code language="vbnet">
+' Create a set of fixed and floating holidays.  The recurrence holiday collection
+' is static.
+Recurrence.Holidays.Clear()
+
+Recurrence.Holidays.AddFixed(1, 1, True, "New Year's Day")
+Recurrence.Holidays.AddFloating(DayOccurrence.Third, DayOfWeek.Monday, 1, 0,
+    "Martin Luther King Day")
+Recurrence.Holidays.AddFloating(DayOccurrence.Third, DayOfWeek.Monday, 2, 0,
+    "President's Day")
+Recurrence.Holidays.AddFloating(DayOccurrence.Last, DayOfWeek.Monday, 5, 0,
+    "Memorial Day")
+Recurrence.Holidays.AddFixed(7, 4, True, "Independence Day")
+Recurrence.Holidays.AddFloating(DayOccurrence.First, DayOfWeek.Monday, 9, 0,
+    "Labor Day")
+Recurrence.Holidays.AddFixed(11, 11, True, "Veteran's Day")
+Recurrence.Holidays.AddFloating(DayOccurrence.Fourth, DayOfWeek.Thursday, 11, 0,
+    "Thanksgiving Day")
+Recurrence.Holidays.AddFloating(DayOccurrence.Fourth, DayOfWeek.Thursday, 11, 1,
+    "Day After Thanksgiving")
+Recurrence.Holidays.AddFixed(12, 25, True, "Christmas Day")
+
+' Create a recurrence
+Dim rRecur As New Recurrence()
+
+' Set it to recur daily but disallow occurrences on any of the defined holidays
+rRecur.CanOccurOnHoliday = False
+rRecur.RecurDaily(1)
+
+rRecur.MaximumOccurrences = 365
+
+Dim dc As DateTimeCollection = rRecur.AllInstances()
+</code>
+</example>
+        </HelpEx>
+        <HelpEx name="Ex2">
+<example>
+This example shows the use of the <c>RecurUntil</c> and the <c>AllInstances</c>
+methods for data binding.  The <c>InstancesBetween</c> method could be used in
+place of <c>AllInstances</c> if the recurrence was set to never end.
+<code language="cs">
+protected System.Web.UI.WebControls.DropDownList cboNewDate;
+
+DateTime dtFirstDate = DateTime.Today;
+
+// Only let the user pick a date that falls on a Monday that is between 1 week and
+// 6 months from today.
+Recurrence rRecur = new Recurrence();
+
+rRecur.RecurWeekly(1, DaysOfWeek.Monday);
+rRecur.StartDateTime = dtFirstDate.AddDays(7);
+rRecur.RecurUntil = dtFirstDate.AddMonths(6);
+
+cboNewDate.DataTextFormatString = "{0:d}";
+cboNewDate.DataSource = rRecur.AllInstances();
+cboNewDate.DataBind();
+</code>
+<code language="vbnet">
+Protected WithEvents cboNewDate As System.Web.UI.WebControls.DropDownList
+
+Dim dtFirstDate As DateTime = DateTime.Today
+
+' Only let the user pick a date that falls on a Monday that is between 1 week and
+' 6 months from today.
+Dim rRecur As New Recurrence()
+
+rRecur.RecurWeekly(1, DaysOfWeek.Monday)
+rRecur.StartDateTime = dtFirstDate.AddDays(7)
+rRecur.RecurUntil = dtFirstDate.AddMonths(6)
+
+cboNewDate.DataTextFormatString = "{0:d}"
+cboNewDate.DataSource = rRecur.AllInstances()
+cboNewDate.DataBind()
+</code>
+</example>
+        </HelpEx>
+        <HelpEx name="Ex3">
+<example>
+<code language="cs">
+// End after the 10th weekly occurrence from today's date.  Instances occur on Monday
+// and Wednesday each week and each day counts as one occurrence (two per week).
+Recurrence rRecur = new Recurrence();
+
+rRecur.RecurWeekly(1, DaysOfWeek.Monday | DaysOfWeek.Wednesday);
+rRecur.StartDateTime = DateTime.Today;
+rRecur.MaximumOccurrences = 10;
+</code>
+<code language="vbnet">
+' End after the 10th weekly occurrence from today's date.  Instances occur on Monday
+' and Wednesday each week and each day counts as one occurrence (two per week).
+Dim rRecur As New Recurrence()
+
+rRecur.RecurWeekly(1, DaysOfWeek.Monday Or DaysOfWeek.Wednesday)
+rRecur.StartDateTime = DateTime.Today
+rRecur.MaximumOccurrences = 10
+</code>
+</example>
+        </HelpEx>
+        <HelpEx name="Ex4">
+<example>
+<code language="cs">
+// Set up an instance that recurs on the third Tuesday every two months and ends in
+// three years.
+Recurrence rRecur = new Recurrence();
+
+rRecur.RecurMonthly(DayOccurrence.Third, DaysOfWeek.Tuesday, 2);
+rRecur.StartDateTime = DateTime.Today;
+rRecur.RecurUntil = DateTime.Today.AddYears(3);
+
+// Get all instances that occur between 12 and 24 months from now
+DateTimeCollection recurDates = rRecur.InstancesBetween(
+    DateTime.Today.AddMonths(12), DateTime.Today.AddMonths(24);
+</code>
+<code language="vbnet">
+' Set up an instance that recurs on the third Tuesday every two months and ends in
+' three years.
+Dim rRecur As New Recurrence()
+
+rRecur.RecurMonthly(DayOccurrence.Third, DaysOfWeek.Tuesday, 2)
+rRecur.StartDateTime = DateTime.Today
+rRecur.RecurUntil = DateTime.Today.AddYears(3)
+
+' Get all instances that occur between 12 and 24 months from now
+Dim recurDates As DateTimeCollection = rRecur.InstancesBetween(
+    DateTime.Today.AddMonths(12), DateTime.Today.AddMonths(24)
+</code>
+</example>
+        </HelpEx>
+        <HelpEx name="Ex5">
+<example>
+<code language="cs">
+// Test daily recurrence
+rRecur.RecurDaily(2);
+rRecur.StartDateTime = DateTime.Today;
+rRecur.RecurUntil = DateTime.Today.AddMonths(1);
+
+// With a collection
+DateTimeCollection recurDates = rRecur.InstancesBetween(DateTime.Today,
+    DateTime.Today.AddMonths(1));
+
+foreach(DateTime dt in recurDates)
+    Console.WriteLine("Daily recurrence on: {0:d}", dt);
+
+// Using the enumerator
+foreach(DateTime dt in rRecur)
+    Console.WriteLine("Daily recurrence on: {0:d}", dt);
+</code>
+<code language="vbnet">
+' Test daily recurrence
+rRecur.RecurDaily(2)
+rRecur.StartDateTime = DateTime.Today
+rRecur.RecurUntil = DateTime.Today.AddMonths(1)
+
+' With a collection
+Dim recurDates As DateTimeCollection = rRecur.InstancesBetween(DateTime.Today,
+    DateTime.Today.AddMonths(1))
+
+For Each dt In recurDates
+    Console.WriteLine("Daily recurrence on: {0:d}", dt)
+Next
+
+' Using the enumerator
+For Each dt In rRecur
+    Console.WriteLine("Daily recurrence on: {0:d}", dt)
+Next
+</code>
+</example>
+        </HelpEx>
+        <HelpEx name="Ex6">
+<example>
+<code language="cs">
+// Test monthly recurrence
+rRecur.RecurMonthly(15, 2);
+rRecur.StartDateTime = DateTime.Today;
+rRecur.RecurUntil = DateTime.Today.AddMonths(12);
+
+// With a collection
+DateTimeCollection recurDates = rRecur.InstancesBetween(DateTime.Today,
+    DateTime.Today.AddMonths(12));
+
+foreach(DateTime dt in recurDates)
+    Console.WriteLine("Monthly recurrence on: {0:d}", dt);
+
+// Using the enumerator
+foreach(DateTime dt in rRecur)
+    Console.WriteLine("Monthly recurrence on: {0:d}", dt);
+
+// Test monthly recurrence
+rRecur.RecurMonthly(DayOccurrence.Third, DaysOfWeek.Thursday, 3);
+rRecur.StartDateTime = DateTime.Today;
+
+// With a collection
+Dim recurDates As DateTimeCollection = rRecur.InstancesBetween(DateTime.Today,
+    DateTime.Today.AddMonths(12));
+
+foreach(DateTime dt in recurDates)
+    Console.WriteLine("Monthly recurrence on: {0:d}", dt);
+
+// Using the enumerator
+foreach(DateTime dt in rRecur)
+    Console.WriteLine("Monthly recurrence on: {0:d}", dt);
+</code>
+<code language="vbnet">
+' Test monthly recurrence
+rRecur.RecurMonthly(15, 2)
+rRecur.StartDateTime = DateTime.Today
+rRecur.RecurUntil = DateTime.Today.AddMonths(12);
+
+' With a collection
+DateTimeCollection recurDates = rRecur.InstancesBetween(DateTime.Today,
+    DateTime.Today.AddMonths(12))
+
+For Each dt In recurDates
+    Console.WriteLine("Monthly recurrence on: {0:d}", dt)
+Next
+
+' Using the enumerator
+For Each dt In rRecur
+    Console.WriteLine("Monthly recurrence on: {0:d}", dt)
+Next
+
+' Test monthly recurrence
+rRecur.RecurMonthly(DayOccurrence.Third, DaysOfWeek.Thursday, 3)
+rRecur.StartDateTime = DateTime.Today
+
+' With a collection
+Dim recurDates As DateTimeCollection = rRecur.InstancesBetween(DateTime.Today,
+    DateTime.Today.AddMonths(12))
+
+For Each dt In recurDates
+    Console.WriteLine("Monthly recurrence on: {0:d}", dt)
+Next
+
+' Using the enumerator
+For Each dt In rRecur
+    Console.WriteLine("Monthly recurrence on: {0:d}", dt)
+Next
+</code>
+</example>
+        </HelpEx>
+        <HelpEx name="Ex7">
+<example>
+<code language="cs">
+// Test weekly recurrence
+rRecur.RecurWeekly(1, DaysOfWeek.Monday | DaysOfWeek.Wednesday);
+rRecur.StartDateTime = DateTime.Today;
+rRecur.RecurUntil = DateTime.Today.AddMonths(1);
+
+// With a collection
+DateTimeCollection recurDates = rRecur.InstancesBetween(DateTime.Today,
+    DateTime.Today.AddMonths(1));
+
+foreach(DateTime dt in recurDates)
+    Console.WriteLine("Weekly recurrence on: {0:d}", dt);
+
+// Using the enumerator
+foreach(DateTime dt in rRecur)
+    Console.WriteLine("Weekly recurrence on: {0:d}", dt);
+</code>
+<code language="vbnet">
+' Test weekly recurrence
+rRecur.RecurWeekly(1, DaysOfWeek.Monday Or DaysOfWeek.Wednesday)
+rRecur.StartDateTime = DateTime.Today
+rRecur.RecurUntil = DateTime.Today.AddMonths(1)
+
+' With a collection
+Dim recurDates As DateTimeCollection = rRecur.InstancesBetween(DateTime.Today,
+    DateTime.Today.AddMonths(1))
+
+For Each dt In recurDates
+    Console.WriteLine("Weekly recurrence on: {0:d}", dt)
+Next
+
+' Using the enumerator
+For Each dt In rRecur
+    Console.WriteLine("Weekly recurrence on: {0:d}", dt)
+Next
+</code>
+</example>
+        </HelpEx>
+        <HelpEx name="Ex8">
+<example>
+<code language="cs">
+// Test yearly recurrence
+rRecur.RecurYearly(5, 24, 1);
+rRecur.StartDateTime = DateTime.Today;
+rRecur.RecurUntil = DateTime.Today.AddYears(5);
+
+// With a collection
+Dim recurDates = rRecur.InstancesBetween(DateTime.Today,
+    DateTime.Today.AddYears(5));
+
+// Using the enumerator
+foreach(DateTime dt in recurDates)
+    Console.WriteLine("Yearly recurrence on: {0:d}", dt);
+
+foreach(DateTime dt in rRecur)
+    Console.WriteLine("Yearly recurrence on: {0:d}", dt);
+
+// Test yearly recurrence
+rRecur.RecurYearly(DayOccurrence.Last, DaysOfWeek.Sunday, 9, 2);
+rRecur.StartDateTime = DateTime.Today;
+
+// With a collection
+recurDates = rRecur.InstancesBetween(DateTime.Today, DateTime.Today.AddYears(5));
+
+foreach(DateTime dt in recurDates)
+    Console.WriteLine("Yearly recurrence on: {0:d}", dt);
+
+// Using the enumerator
+foreach(DateTime dt in rRecur)
+    Console.WriteLine("Yearly recurrence on: {0:d}", dt);
+</code>
+<code language="vbnet">
+' Test yearly recurrence
+rRecur.RecurYearly(5, 24, 1)
+rRecur.StartDateTime = DateTime.Today
+rRecur.RecurUntil = DateTime.Today.AddYears(5)
+
+' With a collection
+Dim recurDates As DateTimeCollection = rRecur.InstancesBetween(DateTime.Today,
+    DateTime.Today.AddYears(5))
+
+' Using the enumerator
+For Each dt In recurDates
+    Console.WriteLine("Yearly recurrence on: {0:d}", dt)
+Next
+
+For Each dt In rRecur
+    Console.WriteLine("Yearly recurrence on: {0:d}", dt)
+Next
+
+' Test yearly recurrence
+rRecur.RecurYearly(DayOccurrence.Last, DaysOfWeek.Sunday, 9, 2)
+rRecur.StartDateTime = DateTime.Today
+
+' With a collection
+recurDates = rRecur.InstancesBetween(DateTime.Today, DateTime.Today.AddYears(5))
+
+For Each dt In recurDates
+    Console.WriteLine("Yearly recurrence on: {0:d}", dt)
+Next
+
+' Using the enumerator
+For Each dt In rRecur
+    Console.WriteLine("Yearly recurrence on: {0:d}", dt)
+Next
+</code>
+</example>
+        </HelpEx>
+        <HelpEx name="Ex9">
+<example>
+<code language="cs">
+Recurrence r = new Recurrence();
+
+// Set the properties
+r.Frequency = RecurFrequency.Monthly;
+r.StartDateTime = DateTime.Today;
+r.Count = 20;
+r.ByMonth.AddRange(new int[] { 1, 5, 10 });
+
+// Get all instances generated by the recurrence
+DateTimeCollection dc = r.AllInstances();
+</code>
+<code language="vbnet">
+Dim r As New Recurrence()
+
+' Set the properties
+r.Frequency = RecurFrequency.Monthly
+r.StartDateTime = DateTime.Today
+r.Count = 20
+r.ByMonth.AddRange(New Integer() { 1, 5, 10 })
+
+' Get all instances generated by the recurrence
+Dim dc As DateTimeCollection = r.AllInstances()
+</code>
+</example>
+        </HelpEx>
+        <HelpEx name="Ex10">
+<example>
+<code language="cs">
+Recurrence r = new Recurrence();
+
+// Set the properties
+r.Frequency = RecurFrequency.Yearly;
+r.StartDateTime = DateTime.Today;
+r.Count = 20;
+r.ByWeekNo.AddRange(new int[] { 10, 20, -50, -35 });
+
+// Get all instances generated by the recurrence
+DateTimeCollection dc = r.AllInstances();
+</code>
+<code language="vbnet">
+Dim r As New Recurrence()
+
+' Set the properties
+r.Frequency = RecurFrequency.Yearly
+r.StartDateTime = DateTime.Today
+r.Count = 20
+r.ByWeekNo.AddRange(New Integer() { 10, 20, -50, -35 })
+
+' Get all instances generated by the recurrence
+Dim dc As DateTimeCollection = r.AllInstances()
+</code>
+</example>
+        </HelpEx>
+        <HelpEx name="Ex11">
+<example>
+<code language="cs">
+Recurrence r = new Recurrence();
+
+// Set the properties
+r.Frequency = RecurFrequency.Yearly;
+r.StartDateTime = DateTime.Today;
+r.Count = 20;
+r.ByYearDay.AddRange(new int[] { 50, 300, -25, -210 });
+
+// Get all instances generated by the recurrence
+DateTimeCollection dc = r.AllInstances();
+</code>
+<code language="vbnet">
+Dim r As New Recurrence()
+
+' Set the properties
+r.Frequency = RecurFrequency.Yearly
+r.StartDateTime = DateTime.Today
+r.Count = 20
+r.ByYearDay.AddRange(New Integer() { 50, 300, -25, -210 })
+
+' Get all instances generated by the recurrence
+Dim dc As DateTimeCollection = r.AllInstances()
+</code>
+</example>
+        </HelpEx>
+        <HelpEx name="Ex12">
+<example>
+<code language="cs">
+Recurrence r = new Recurrence();
+
+// Set the properties
+r.Frequency = RecurFrequency.Monthly;
+r.StartDateTime = DateTime.Today;
+r.Count = 20;
+r.ByMonthDay.AddRange(new int[] { 1, 10, 15, -1, -5, -25 });
+
+// Get all instances generated by the recurrence
+DateTimeCollection dc = r.AllInstances();
+</code>
+<code language="vbnet">
+Dim r As New Recurrence()
+
+' Set the properties
+r.Frequency = RecurFrequency.Monthly
+r.StartDateTime = DateTime.Today
+r.Count = 20
+r.ByMonthDay.AddRange(New Integer() { 1, 10, 15, -1, -5, -25 })
+
+' Get all instances generated by the recurrence
+Dim dc As DateTimeCollection = r.AllInstances()
+</code>
+</example>
+        </HelpEx>
+        <HelpEx name="Ex13">
+<example>
+<code language="cs">
+Recurrence r = new Recurrence();
+
+// Set the properties
+r.Frequency = RecurFrequency.Daily;
+r.StartDateTime = DateTime.Today;
+r.Count = 20;
+r.ByHour.AddRange(new int[] { 7, 10, 15 });
+r.ByMinute.AddRange(new int[] { 30, 45 });
+r.BySecond.AddRange(new int[] { 15, 30, 45 });
+
+// Get all instances generated by the recurrence
+DateTimeCollection dc = r.AllInstances();
+</code>
+<code language="vbnet">
+Dim r As New Recurrence()
+
+' Set the properties
+r.Frequency = RecurFrequency.Monthly
+r.StartDateTime = DateTime.Today
+r.Count = 20
+r.ByHour.AddRange(New Integer() { 7, 10, 15 })
+r.ByMinute.AddRange(New Integer() { 30, 45 })
+r.BySecond.AddRange(New Integer() { 15, 30, 45 })
+
+' Get all instances generated by the recurrence
+Dim dc As DateTimeCollection = r.AllInstances()
+</code>
+</example>
+        </HelpEx>
+        <HelpEx name="Ex14">
+<example>
+<code language="cs">
+Recurrence r = new Recurrence();
+
+// Set the properties
+r.Frequency = RecurFrequency.Monthly;
+r.StartDateTime = DateTime.Today;
+r.Count = 20;
+
+// Any Monday, Wednesday, or Friday
+r.ByDay.AddRange(new DayOfWeek[] { DayOfWeek.Monday, DayOfWeek.Wednesday,
+    DayOfWeek.Friday });
+
+// Limit to the first and last in the set
+r.BySetPos.AddRange(new int[] { 1, -1 });
+
+// Get all instances generated by the recurrence
+DateTimeCollection dc = r.AllInstances();
+</code>
+<code language="vbnet">
+Dim r As New Recurrence()
+
+' Set the properties
+r.Frequency = RecurFrequency.Monthly
+r.StartDateTime = DateTime.Today
+r.Count = 20
+r.Frequency = RecurFrequency.Monthly
+r.StartDateTime = DateTime.Today
+r.Count = 20
+
+' Any Monday, Wednesday, or Friday
+r.ByDay.AddRange(New DayOfWeek() { DayOfWeek.Monday, DayOfWeek.Wednesday,
+    DayOfWeek.Friday })
+
+' Limit to the first and last in the set
+r.BySetPos.AddRange(New Integer() { 1, -1 })
+
+' Get all instances generated by the recurrence
+Dim dc As DateTimeCollection = r.AllInstances()
+</code>
+</example>
+        </HelpEx>
+        <HelpEx name="Ex15">
+<example>
+<code language="cs">
+Recurrence r = new Recurrence("FREQ=DAILY;COUNT=30;INTERVAL=5");
+
+// The above is equivalent to:
+// Recurrence r = new Recurrence();
+// r.Parse("FREQ=DAILY;COUNT=30;INTERVAL=5");
+
+// Set the start date
+r.StartDateTime = DateTime.Today;
+
+// Get all instances generated by the recurrence
+DateTimeCollection dc = r.AllInstances();
+</code>
+<code language="vbnet">
+Dim r As New Recurrence("FREQ=DAILY;COUNT=30;INTERVAL=5");
+
+' The above is equivalent to:
+' Dim r As New Recurrence()
+' r.Parse("FREQ=DAILY;COUNT=30;INTERVAL=5")
+
+' Set the start date
+r.StartDateTime = DateTime.Today;
+
+' Get all instances generated by the recurrence
+Dim dc As DateTimeCollection = r.AllInstances();
+</code>
+</example>
+        </HelpEx>
+    </Recurrence>
+</Examples>
