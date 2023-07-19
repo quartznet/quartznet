@@ -88,11 +88,6 @@ namespace Quartz.Configuration
             schedulerBuilder.UsePersistentStore<T>(configure);
         }
 
-        public void UseMicrosoftDependencyInjectionJobFactory(Action<JobFactoryOptions>? configure = null)
-        {
-            UseJobFactory<MicrosoftDependencyInjectionJobFactory>(configure);
-        }
-
         public void UseJobFactory<T>(Action<JobFactoryOptions>? configure = null) where T : class, IJobFactory
         {
             schedulerBuilder.UseJobFactory<T>();

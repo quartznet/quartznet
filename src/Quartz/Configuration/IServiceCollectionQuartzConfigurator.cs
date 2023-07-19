@@ -41,11 +41,6 @@ namespace Quartz
         /// </summary>
         void UseJobFactory<T>(Action<JobFactoryOptions>? configure = null) where T : class, IJobFactory;
 
-        /// <summary>
-        /// Use <see cref="MicrosoftDependencyInjectionJobFactory"/> to produce Quartz jobs.
-        /// </summary>
-        void UseMicrosoftDependencyInjectionJobFactory(Action<JobFactoryOptions>? configure = null);
-
         void UseInMemoryStore(Action<SchedulerBuilder.InMemoryStoreOptions>? configure = null);
         void UsePersistentStore(Action<SchedulerBuilder.PersistentStoreOptions> configure);
         void UsePersistentStore<T>(Action<SchedulerBuilder.PersistentStoreOptions> configure) where T : class, IJobStore;

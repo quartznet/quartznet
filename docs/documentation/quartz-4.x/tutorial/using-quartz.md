@@ -34,7 +34,7 @@ var builder = Host.CreateDefaultBuilder()
     {
         services.AddQuartz(q =>
         {
-            q.UseMicrosoftDependencyInjectionJobFactory();
+            // your options and configuration against the q here
         });
         services.AddQuartzHostedService(opt =>
         {
@@ -58,7 +58,7 @@ var builder = Host.CreateDefaultBuilder()
     {
         services.AddQuartz(q =>
         {
-            q.UseMicrosoftDependencyInjectionJobFactory();
+            // your options and configuration against q here
         });
         services.AddQuartzHostedService(opt =>
         {
@@ -110,7 +110,7 @@ public class Program
             {
                 services.AddQuartz(q =>
                 {
-                    q.UseMicrosoftDependencyInjectionJobFactory();
+                    // your options and configuration against q here
                 });
                 services.AddQuartzHostedService(opt =>
                 {
