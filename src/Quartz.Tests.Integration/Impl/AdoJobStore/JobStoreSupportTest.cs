@@ -35,7 +35,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
         private class TestJobStoreSupport : JobStoreSupport
         {
-            protected override ConnectionAndTransactionHolder GetNonManagedTXConnection()
+            protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
             {
                 throw new NotImplementedException();
             }

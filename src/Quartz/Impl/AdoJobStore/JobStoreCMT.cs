@@ -90,7 +90,7 @@ namespace Quartz.Impl.AdoJobStore
         /// Gets the non managed TX connection.
         /// </summary>
         /// <returns></returns>
-        protected override ConnectionAndTransactionHolder GetNonManagedTXConnection()
+        protected override async ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
         {
             DbConnection conn;
             try
@@ -98,7 +98,7 @@ namespace Quartz.Impl.AdoJobStore
                 conn = ConnectionManager.GetConnection(DataSource);
                 if (OpenConnection)
                 {
-                    conn.Open();
+                    await conn.OpenAsync();
                 }
             }
             catch (Exception e)
@@ -143,7 +143,7 @@ namespace Quartz.Impl.AdoJobStore
                     // until after acquiring the lock since it isn't needed.
                     if (LockHandler.RequiresConnection)
                     {
-                        conn = GetNonManagedTXConnection();
+                        conn = await GetNonManagedTXConnection();
                     }
 
                     transOwner = await LockHandler.ObtainLock(requestorId, conn!, lockName, cancellationToken).ConfigureAwait(false);
@@ -151,7 +151,7 @@ namespace Quartz.Impl.AdoJobStore
 
                 if (conn == null)
                 {
-                    conn = GetNonManagedTXConnection();
+                    conn = await GetNonManagedTXConnection();
                 }
 
                 return await txCallback(conn).ConfigureAwait(false);

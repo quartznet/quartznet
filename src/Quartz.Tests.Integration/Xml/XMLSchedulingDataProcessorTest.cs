@@ -342,7 +342,7 @@ namespace Quartz.Tests.Integration.Xml
                 Assert.That(jobDetail2.JobDataMap.GetString("foo"), Is.EqualTo("foo"));
                 Assert.That(trigger2, Is.InstanceOf<ICronTrigger>());
 
-                ModifyStoredJobType();
+                await ModifyStoredJobType();
 
                 XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(logger, new SimpleTypeLoadHelper());
 
@@ -400,7 +400,7 @@ namespace Quartz.Tests.Integration.Xml
                 Assert.That(jobDetail2.JobDataMap.GetString("foo"), Is.EqualTo("foo"));
                 Assert.That(trigger2, Is.InstanceOf<ICronTrigger>());
 
-                ModifyStoredJobType();
+                await ModifyStoredJobType();
 
                 XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(logger, new SimpleTypeLoadHelper());
 
@@ -417,19 +417,17 @@ namespace Quartz.Tests.Integration.Xml
             }
         }
 
-        private void ModifyStoredJobType()
+        private static async Task ModifyStoredJobType()
         {
-            using (var conn = DBConnectionManager.Instance.GetConnection("default"))
+            using var conn = DBConnectionManager.Instance.GetConnection("default");
+            await conn.OpenAsync();
+            using (IDbCommand dbCommand = conn.CreateCommand())
             {
-                conn.Open();
-                using (IDbCommand dbCommand = conn.CreateCommand())
-                {
-                    dbCommand.CommandType = CommandType.Text;
-                    dbCommand.CommandText = "update qrtz_job_details set job_class_name='com.FakeNonExistsJob'";
-                    dbCommand.ExecuteNonQuery();
-                }
-                conn.Close();
+                dbCommand.CommandType = CommandType.Text;
+                dbCommand.CommandText = "update qrtz_job_details set job_class_name='com.FakeNonExistsJob'";
+                dbCommand.ExecuteNonQuery();
             }
+            conn.Close();
         }
 
         [Test]

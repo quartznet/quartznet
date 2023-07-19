@@ -39,7 +39,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
 
             jobStore.ExecuteGetNonManagedConnection();
 
-            A.CallTo(() => mock.Open()).MustNotHaveHappened();
+            A.CallTo(() => mock.OpenAsync(CancellationToken.None)).MustNotHaveHappened();
         }
 
         [Test]
@@ -51,7 +51,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
 
             jobStore.ExecuteGetNonManagedConnection();
 
-            A.CallTo(() => mock.Open()).MustHaveHappened();
+            A.CallTo(() => mock.OpenAsync(CancellationToken.None)).MustHaveHappened();
         }
     }
 }

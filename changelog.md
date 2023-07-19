@@ -72,6 +72,8 @@
     and replace old package reference `Quartz.Serialization.Json` with `Quartz.Serialization.Newtonsoft`
 
   * `Quartz.Extensions.DependencyInjection` and `Quartz.Extensions.Hosting` were merged to be part of main Quartz package, you can now remove those package references
+ 
+  * `JobStoreSupport`'s `GetNonManagedTXConnection` and `GetConnection` return signatures changed from `ConnectionAndTransactionHolder` to `ValueTask<ConnectionAndTransactionHolder>`
 
 #### Cron Parser
 

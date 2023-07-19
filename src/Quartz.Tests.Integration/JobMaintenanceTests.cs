@@ -43,7 +43,7 @@ public class JobMaintenanceTests : IntegrationTest
 
         await scheduler.ScheduleJob(jobDetail, trigger);
 
-        RenameJobClass("Quartz.Tests.Integration.JobMaintenanceTests+UnKnownJobType");
+        await RenameJobType("Quartz.Tests.Integration.JobMaintenanceTests+UnKnownJobType");
 
         // assert job is stored
         var storedJobDetail = await scheduler.GetJobDetail(new JobKey(jobKey));
@@ -67,7 +67,7 @@ public class JobMaintenanceTests : IntegrationTest
     }
 
     // Rename the Job Type ClassName
-    private void RenameJobClass(string jobClassName)
+    private async Task RenameJobType(string jobClassName)
     {
         using DbConnection dbConnection = provider == TestConstants.DefaultSqlServerProvider
             ? new SqlConnection(TestConstants.SqlServerConnectionString)
@@ -78,13 +78,13 @@ update {SchedulerHelper.TablePrefix}JOB_DETAILS
 set JOB_CLASS_NAME = '{jobClassName}'
 where SCHED_NAME = 'JobMaintenanceTestsScheduler'";
 
-        dbConnection.Open();
+        await dbConnection.OpenAsync();
 
         using DbCommand command = provider == TestConstants.DefaultSqlServerProvider
             ? new SqlCommand(sql, (SqlConnection) dbConnection)
             : new NpgsqlCommand(sql, (NpgsqlConnection) dbConnection);
 
-        command.ExecuteNonQuery();
+        await command.ExecuteNonQueryAsync();
     }
 
     public class KnownJobType : IJob

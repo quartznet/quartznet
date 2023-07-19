@@ -38,9 +38,9 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
 
         public class TestJobStoreSupport : JobStoreSupport
         {
-            protected override ConnectionAndTransactionHolder GetNonManagedTXConnection()
+            protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
             {
-                return new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null);
+                return new ValueTask<ConnectionAndTransactionHolder>(new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null));
             }
 
             protected override ValueTask<T> ExecuteInLock<T>(

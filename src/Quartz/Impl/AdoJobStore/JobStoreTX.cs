@@ -50,7 +50,7 @@ namespace Quartz.Impl.AdoJobStore
         /// the normal connection because it is not CMT.
         /// </summary>
         /// <seealso cref="JobStoreSupport.GetConnection()" />
-        protected override ConnectionAndTransactionHolder GetNonManagedTXConnection()
+        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
         {
             return GetConnection();
         }

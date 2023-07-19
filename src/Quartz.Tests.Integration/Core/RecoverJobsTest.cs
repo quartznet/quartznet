@@ -69,7 +69,7 @@ namespace Quartz.Tests.Integration.Core
 
             using (var connection = DBConnectionManager.Instance.GetConnection(dataSourceName))
             {
-                connection.Open();
+                await connection.OpenAsync();
                 using (var command = connection.CreateCommand())
                 {
                     command.CommandText = $"SELECT TRIGGER_STATE from QRTZ_TRIGGERS WHERE SCHED_NAME = '{scheduler.SchedulerName}' AND TRIGGER_NAME='test'";
