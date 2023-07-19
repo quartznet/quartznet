@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 
+using Quartz.Configuration;
 using Quartz.Impl;
 using Quartz.Simpl;
 using Quartz.Spi;

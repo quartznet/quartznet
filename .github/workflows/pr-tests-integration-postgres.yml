@@ -21,7 +21,7 @@ on:
     branches:
       - main
       - v4
-      - 3.x
+      - '3.x'
     paths:
       - '**/*'
       - '!docs/**/*'
@@ -41,12 +41,12 @@ jobs:
           echo "Adding GNU tar to PATH"
           echo C:\Program Files\Git\usr\bin>>"%GITHUB_PATH%"
       - uses: actions/checkout@v3
-      - name: Cache .nuke/temp, ~/.nuget/packages
+      - name: 'Cache: .nuke/temp, ~/.nuget/packages'
         uses: actions/cache@v3
         with:
           path: |
             .nuke/temp
             ~/.nuget/packages
           key: ${{ runner.os }}-${{ hashFiles('global.json', 'src/**/*.csproj', 'src/**/package.json') }}
-      - name: Run './build.cmd Compile IntegrationTest'
+      - name: 'Run: Compile, IntegrationTest'
         run: ./build.cmd Compile IntegrationTest

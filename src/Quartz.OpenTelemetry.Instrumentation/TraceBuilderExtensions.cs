@@ -1,6 +1,5 @@
 using Quartz.OpenTelemetry.Instrumentation;
 
-// ReSharper disable once CheckNamespace
 namespace OpenTelemetry.Trace
 {
     public static class TraceBuilderExtensions

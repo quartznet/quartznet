@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Options;
 
-namespace Quartz
+namespace Quartz.Configuration
 {
     /// <summary>
     /// This class is responsible for ensuring that configuration is valid.

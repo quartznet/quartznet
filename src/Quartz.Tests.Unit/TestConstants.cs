@@ -1,5 +1,4 @@
-﻿// ReSharper disable once CheckNamespace
-namespace Quartz
+﻿namespace Quartz
 {
     public static class TestConstants
     {
