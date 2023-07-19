@@ -82,13 +82,8 @@ namespace Quartz
             schedulerBuilder.UsePersistentStore<T>(configure);
         }
 
+        [Obsolete("MicrosoftDependencyInjectionJobFactory is the default for DI configuration, this method will be removed later on")]
         public void UseMicrosoftDependencyInjectionJobFactory(Action<JobFactoryOptions>? configure = null)
-        {
-            UseJobFactory<MicrosoftDependencyInjectionJobFactory>(configure);
-        }
-
-        [Obsolete("Jobs are always created with scope, use UseMicrosoftDependencyInjectionJobFactory")]
-        public void UseMicrosoftDependencyInjectionScopedJobFactory(Action<JobFactoryOptions>? configure = null)
         {
             UseJobFactory<MicrosoftDependencyInjectionJobFactory>(configure);
         }

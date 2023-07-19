@@ -96,9 +96,6 @@ namespace Quartz.Examples.AspNetCore
                 // we take this from appsettings.json, just show it's possible
                 // q.SchedulerName = "Quartz ASP.NET Core Sample Scheduler";
 
-                // this is default configuration if you don't alter it
-                q.UseMicrosoftDependencyInjectionJobFactory();
-
                 // these are the defaults
                 q.UseSimpleTypeLoader();
                 q.UseInMemoryStore();

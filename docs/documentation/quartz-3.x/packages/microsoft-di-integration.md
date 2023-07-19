@@ -43,7 +43,7 @@ You can also configure properties using standard .NET Core `appsettings.json` in
 Quartz comes with two built-in alternatives for job factory which can be configured via either calling `UseMicrosoftDependencyInjectionJobFactory` or `UseMicrosoftDependencyInjectionScopedJobFactory` (deprecated).
 
 ::: tip
-As of Quartz.NET 3.3.2 all jobs produced by the default job factory are scoped jobs, you should no longer use `UseMicrosoftDependencyInjectionScopedJobFactory`.
+As of Quartz.NET 3.7 all jobs are created as scoped and MS DI is configured by default. There shouldn't be need to call `UseMicrosoftDependencyInjection*` overloads.
 :::
  
 ### Job instance construction
@@ -87,9 +87,6 @@ public void ConfigureServices(IServiceCollection services)
         // we take this from appsettings.json, just show it's possible
         // q.SchedulerName = "Quartz ASP.NET Core Sample Scheduler";
         
-        // as of 3.3.2 this also injects scoped services (like EF DbContext) without problems
-        q.UseMicrosoftDependencyInjectionJobFactory();
-
         // or for scoped service support like EF Core DbContext
         // q.UseMicrosoftDependencyInjectionScopedJobFactory();
         
