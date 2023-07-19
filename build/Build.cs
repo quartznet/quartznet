@@ -199,8 +199,6 @@ partial class Build : NukeBuild
             var packTargetProjects = new[]
             {
                 "Quartz",
-                "Quartz.Extensions.DependencyInjection",
-                "Quartz.Extensions.Hosting",
                 "Quartz.Serialization.Newtonsoft",
                 "Quartz.AspNetCore",
                 "Quartz.Jobs",
