@@ -8,6 +8,7 @@ using Quartz.Configuration;
 using Quartz.Impl;
 using Quartz.Simpl;
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz
 {
@@ -50,6 +51,7 @@ namespace Quartz
             if (string.IsNullOrWhiteSpace(properties[StdSchedulerFactory.PropertySchedulerJobFactoryType]))
             {
                 // there's no explicit job factory defined, use MS version
+                properties[StdSchedulerFactory.PropertySchedulerJobFactoryType] = typeof(MicrosoftDependencyInjectionJobFactory).AssemblyQualifiedNameWithoutVersion();
                 services.TryAddSingleton(typeof(IJobFactory), typeof(MicrosoftDependencyInjectionJobFactory));
             }
 

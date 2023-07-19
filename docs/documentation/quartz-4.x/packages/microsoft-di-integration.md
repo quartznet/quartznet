@@ -39,11 +39,7 @@ You can also configure properties using standard .NET Core `appsettings.json` in
 
 ## DI aware job factories
 
-Quartz comes with two built-in alternatives for job factory which can be configured via either calling `UseMicrosoftDependencyInjectionJobFactory` or `UseMicrosoftDependencyInjectionScopedJobFactory` (deprecated).
-
-::: tip
-As of Quartz.NET 3.3.2 all jobs produced by the default job factory are scoped jobs, you should no longer use `UseMicrosoftDependencyInjectionScopedJobFactory`.
-:::
+Quartz uses Microsoft's DI construction by default and the jobs produced by the default job factory are scoped jobs.
 
 ### Job instance construction
 
