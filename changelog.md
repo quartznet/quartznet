@@ -93,7 +93,12 @@
 
 * CHANGES
 
-    * Mark UseJsonSerializer as obsolete, one should use UseNewtonsoftJsonSerializer
+    * Mark UseJsonSerializer as obsolete, one should use UseNewtonsoftJsonSerializer (#2077)
+    * Removed obsolete UseMicrosoftDependencyInjectionScopedJobFactory(), mark UseMicrosoftDependencyInjectionJobFactory() obsolete (#2085)
+
+* FIXES
+
+    * Now omitting UseMicrosoftDependencyInjectionJobFactory() should actually work as it will be the default (#2085)
 
 
 ## Release 3.6.3, Jun 25 2023
