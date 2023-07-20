@@ -19,34 +19,33 @@
 
 #endregion
 
-namespace Quartz.Tests.Integration
-{
-    /// <author>Marko Lahma (.NET)</author>
-    public class TestJob : IJob
-    {
-        /// <summary>
-        /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
-        /// fires that is associated with the <see cref="IJob" />.
-        /// </summary>
-        /// <remarks>
-        /// The implementation may wish to set a  result object on the 
-        /// JobExecutionContext before this method exits.  The result itself
-        /// is meaningless to Quartz, but may be informative to 
-        /// <see cref="IJobListener" />s or 
-        /// <see cref="ITriggerListener" />s that are watching the job's 
-        /// execution.
-        /// </remarks>
-        /// <param name="context">The execution context.</param>
-        public ValueTask Execute(IJobExecutionContext context)
-        {
-            JobHasFired = true;
-            return default;
-        }
+namespace Quartz.Tests.Integration;
 
-        /// <summary>
-        /// Gets or sets a value indicating whether job has fired.
-        /// </summary>
-        /// <value><c>true</c> if job has fired; otherwise, <c>false</c>.</value>
-        public static bool JobHasFired { get; set; }
+/// <author>Marko Lahma (.NET)</author>
+public class TestJob : IJob
+{
+    /// <summary>
+    /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
+    /// fires that is associated with the <see cref="IJob" />.
+    /// </summary>
+    /// <remarks>
+    /// The implementation may wish to set a  result object on the
+    /// JobExecutionContext before this method exits.  The result itself
+    /// is meaningless to Quartz, but may be informative to
+    /// <see cref="IJobListener" />s or
+    /// <see cref="ITriggerListener" />s that are watching the job's
+    /// execution.
+    /// </remarks>
+    /// <param name="context">The execution context.</param>
+    public ValueTask Execute(IJobExecutionContext context)
+    {
+        JobHasFired = true;
+        return default;
     }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether job has fired.
+    /// </summary>
+    /// <value><c>true</c> if job has fired; otherwise, <c>false</c>.</value>
+    public static bool JobHasFired { get; set; }
 }

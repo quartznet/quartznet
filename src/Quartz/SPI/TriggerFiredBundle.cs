@@ -21,97 +21,96 @@
 
 using Quartz.Core;
 
-namespace Quartz.Spi
+namespace Quartz.Spi;
+
+/// <summary>
+/// A simple class (structure) used for returning execution-time data from the
+/// JobStore to the <see cref="QuartzSchedulerThread" />.
+/// </summary>
+/// <seealso cref="QuartzScheduler" />
+/// <author>James House</author>
+/// <author>Marko Lahma (.NET)</author>
+[Serializable]
+public class TriggerFiredBundle
 {
     /// <summary>
-    /// A simple class (structure) used for returning execution-time data from the
-    /// JobStore to the <see cref="QuartzSchedulerThread" />.
+    /// Initializes a new instance of the <see cref="TriggerFiredBundle"/> class.
     /// </summary>
-    /// <seealso cref="QuartzScheduler" />
-    /// <author>James House</author>
-    /// <author>Marko Lahma (.NET)</author>
-    [Serializable]
-    public class TriggerFiredBundle
+    /// <param name="job">The job.</param>
+    /// <param name="trigger">The trigger.</param>
+    /// <param name="cal">The calendar.</param>
+    /// <param name="jobIsRecovering">if set to <c>true</c> [job is recovering].</param>
+    /// <param name="fireTimeUtc">The fire time.</param>
+    /// <param name="scheduledFireTimeUtc">The scheduled fire time.</param>
+    /// <param name="prevFireTimeUtc">The previous fire time.</param>
+    /// <param name="nextFireTimeUtc">The next fire time.</param>
+    public TriggerFiredBundle(
+        IJobDetail job,
+        IOperableTrigger trigger,
+        ICalendar? cal,
+        bool jobIsRecovering,
+        DateTimeOffset fireTimeUtc,
+        DateTimeOffset? scheduledFireTimeUtc,
+        DateTimeOffset? prevFireTimeUtc,
+        DateTimeOffset? nextFireTimeUtc)
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="TriggerFiredBundle"/> class.
-        /// </summary>
-        /// <param name="job">The job.</param>
-        /// <param name="trigger">The trigger.</param>
-        /// <param name="cal">The calendar.</param>
-        /// <param name="jobIsRecovering">if set to <c>true</c> [job is recovering].</param>
-        /// <param name="fireTimeUtc">The fire time.</param>
-        /// <param name="scheduledFireTimeUtc">The scheduled fire time.</param>
-        /// <param name="prevFireTimeUtc">The previous fire time.</param>
-        /// <param name="nextFireTimeUtc">The next fire time.</param>
-        public TriggerFiredBundle(
-            IJobDetail job,
-            IOperableTrigger trigger,
-            ICalendar? cal,
-            bool jobIsRecovering,
-            DateTimeOffset fireTimeUtc,
-            DateTimeOffset? scheduledFireTimeUtc,
-            DateTimeOffset? prevFireTimeUtc,
-            DateTimeOffset? nextFireTimeUtc)
-        {
-            JobDetail = job;
-            Trigger = trigger;
-            Calendar = cal;
-            Recovering = jobIsRecovering;
-            FireTimeUtc = fireTimeUtc;
-            ScheduledFireTimeUtc = scheduledFireTimeUtc;
-            PrevFireTimeUtc = prevFireTimeUtc;
-            NextFireTimeUtc = nextFireTimeUtc;
-        }
-
-        // JsonProperty attributes are used since Json.Net's default behavior is to serialize public members and the properties wrapping these fields are read-only
-
-        /// <summary>
-        /// Gets the job detail.
-        /// </summary>
-        /// <value>The job detail.</value>
-        public virtual IJobDetail JobDetail { get; }
-
-        /// <summary>
-        /// Gets the trigger.
-        /// </summary>
-        /// <value>The trigger.</value>
-        public virtual IOperableTrigger Trigger { get; }
-
-        /// <summary>
-        /// Gets the calendar.
-        /// </summary>
-        /// <value>The calendar.</value>
-        public virtual ICalendar? Calendar { get; }
-
-        /// <summary>
-        /// Gets a value indicating whether this <see cref="TriggerFiredBundle"/> is recovering.
-        /// </summary>
-        /// <value><c>true</c> if recovering; otherwise, <c>false</c>.</value>
-        public virtual bool Recovering { get; }
-
-        /// <returns>
-        /// Returns the UTC fire time.
-        /// </returns>
-        public virtual DateTimeOffset FireTimeUtc { get; }
-
-        /// <summary>
-        /// Gets the next UTC fire time.
-        /// </summary>
-        /// <value>The next fire time.</value>
-        /// <returns> Returns the nextFireTimeUtc.</returns>
-        public virtual DateTimeOffset? NextFireTimeUtc { get; }
-
-        /// <summary>
-        /// Gets the previous UTC fire time.
-        /// </summary>
-        /// <value>The previous fire time.</value>
-        /// <returns> Returns the previous fire time. </returns>
-        public virtual DateTimeOffset? PrevFireTimeUtc { get; }
-
-        /// <returns>
-        /// Returns the scheduled UTC fire time.
-        /// </returns>
-        public virtual DateTimeOffset? ScheduledFireTimeUtc { get; }
+        JobDetail = job;
+        Trigger = trigger;
+        Calendar = cal;
+        Recovering = jobIsRecovering;
+        FireTimeUtc = fireTimeUtc;
+        ScheduledFireTimeUtc = scheduledFireTimeUtc;
+        PrevFireTimeUtc = prevFireTimeUtc;
+        NextFireTimeUtc = nextFireTimeUtc;
     }
+
+    // JsonProperty attributes are used since Json.Net's default behavior is to serialize public members and the properties wrapping these fields are read-only
+
+    /// <summary>
+    /// Gets the job detail.
+    /// </summary>
+    /// <value>The job detail.</value>
+    public virtual IJobDetail JobDetail { get; }
+
+    /// <summary>
+    /// Gets the trigger.
+    /// </summary>
+    /// <value>The trigger.</value>
+    public virtual IOperableTrigger Trigger { get; }
+
+    /// <summary>
+    /// Gets the calendar.
+    /// </summary>
+    /// <value>The calendar.</value>
+    public virtual ICalendar? Calendar { get; }
+
+    /// <summary>
+    /// Gets a value indicating whether this <see cref="TriggerFiredBundle"/> is recovering.
+    /// </summary>
+    /// <value><c>true</c> if recovering; otherwise, <c>false</c>.</value>
+    public virtual bool Recovering { get; }
+
+    /// <returns>
+    /// Returns the UTC fire time.
+    /// </returns>
+    public virtual DateTimeOffset FireTimeUtc { get; }
+
+    /// <summary>
+    /// Gets the next UTC fire time.
+    /// </summary>
+    /// <value>The next fire time.</value>
+    /// <returns> Returns the nextFireTimeUtc.</returns>
+    public virtual DateTimeOffset? NextFireTimeUtc { get; }
+
+    /// <summary>
+    /// Gets the previous UTC fire time.
+    /// </summary>
+    /// <value>The previous fire time.</value>
+    /// <returns> Returns the previous fire time. </returns>
+    public virtual DateTimeOffset? PrevFireTimeUtc { get; }
+
+    /// <returns>
+    /// Returns the scheduled UTC fire time.
+    /// </returns>
+    public virtual DateTimeOffset? ScheduledFireTimeUtc { get; }
 }

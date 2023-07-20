@@ -19,20 +19,19 @@
 
 using Quartz.Spi;
 
-namespace Quartz
+namespace Quartz;
+
+/// <summary>
+/// Base class for <see cref="IScheduleBuilder" /> implementors.
+/// </summary>
+/// <typeparam name="T"></typeparam>
+public abstract class ScheduleBuilder<T> : IScheduleBuilder where T : ITrigger
 {
     /// <summary>
-    /// Base class for <see cref="IScheduleBuilder" /> implementors.
+    /// Build the actual Trigger -- NOT intended to be invoked by end users,
+    /// but will rather be invoked by a TriggerBuilder which this
+    /// ScheduleBuilder is given to.
     /// </summary>
-    /// <typeparam name="T"></typeparam>
-    public abstract class ScheduleBuilder<T> : IScheduleBuilder where T : ITrigger
-    {
-        /// <summary>
-        /// Build the actual Trigger -- NOT intended to be invoked by end users,
-        /// but will rather be invoked by a TriggerBuilder which this
-        /// ScheduleBuilder is given to.
-        /// </summary>
-        /// <seealso cref="TriggerBuilder.WithSchedule" />
-        public abstract IMutableTrigger Build();
-    }
+    /// <seealso cref="TriggerBuilder.WithSchedule" />
+    public abstract IMutableTrigger Build();
 }

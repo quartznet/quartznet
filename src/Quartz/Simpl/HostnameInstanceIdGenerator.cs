@@ -19,31 +19,30 @@
 
 using Quartz.Spi;
 
-namespace Quartz.Simpl
+namespace Quartz.Simpl;
+
+/// <summary>
+/// <see cref="IInstanceIdGenerator" /> that names the scheduler instance using
+/// just the machine hostname.
+/// </summary>
+/// <remarks>
+/// This class is useful when you know that your scheduler instance will be the
+/// only one running on a particular machine.  Each time the scheduler is
+/// restarted, it will get the same instance id as long as the machine is not
+/// renamed.
+/// </remarks>
+/// <author>Marko Lahma (.NET)</author>
+/// <seealso cref="IInstanceIdGenerator" />
+/// <seealso cref="SimpleInstanceIdGenerator" />
+public class HostnameInstanceIdGenerator : HostNameBasedIdGenerator
 {
-	/// <summary>
-	/// <see cref="IInstanceIdGenerator" /> that names the scheduler instance using 
-	/// just the machine hostname.
-	/// </summary>
-	/// <remarks>
-	/// This class is useful when you know that your scheduler instance will be the 
-	/// only one running on a particular machine.  Each time the scheduler is 
-	/// restarted, it will get the same instance id as long as the machine is not 
-	/// renamed.
-	/// </remarks>
-    /// <author>Marko Lahma (.NET)</author>
-    /// <seealso cref="IInstanceIdGenerator" />
-	/// <seealso cref="SimpleInstanceIdGenerator" />
-	public class HostnameInstanceIdGenerator : HostNameBasedIdGenerator
-	{
-		/// <summary>
-		/// Generate the instance id for a <see cref="IScheduler"/>
-		/// </summary>
-		/// <param name="cancellationToken"></param>
-		/// <returns>The clusterwide unique instance id.</returns>
-		public override ValueTask<string?> GenerateInstanceId(CancellationToken cancellationToken = default)
-		{
-		    return GetHostName(IdMaxLength, cancellationToken);
-		}
-	}
+    /// <summary>
+    /// Generate the instance id for a <see cref="IScheduler"/>
+    /// </summary>
+    /// <param name="cancellationToken"></param>
+    /// <returns>The clusterwide unique instance id.</returns>
+    public override ValueTask<string?> GenerateInstanceId(CancellationToken cancellationToken = default)
+    {
+        return GetHostName(IdMaxLength, cancellationToken);
+    }
 }

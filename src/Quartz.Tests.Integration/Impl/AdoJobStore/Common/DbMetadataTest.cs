@@ -23,32 +23,32 @@ using NUnit.Framework;
 
 using Quartz.Impl.AdoJobStore.Common;
 
-namespace Quartz.Tests.Integration.Impl.AdoJobStore.Common
+namespace Quartz.Tests.Integration.Impl.AdoJobStore.Common;
+
+/// <author>Marko Lahma (.NET)</author>
+[TestFixture]
+public class DbMetadataTest
 {
-    /// <author>Marko Lahma (.NET)</author>
-    [TestFixture]
-    public class DbMetadataTest
+    [Test]
+    [Category("db-sqlserver")]
+    public void TestDbMetadataSqlServer20()
     {
-        [Test]
-        [Category("db-sqlserver")]
-        public void TestDbMetadataSqlServer20()
-        {
-            TestDbMetadata(TestConstants.DefaultSqlServerProvider);
-        }
+        TestDbMetadata(TestConstants.DefaultSqlServerProvider);
+    }
 
-        [Test]
-        [Category("db-firebird")]
-        public void TestDbMetadataFirebird()
-        {
-            TestDbMetadata("Firebird", hashCustomBinaryType: false);
-        }
+    [Test]
+    [Category("db-firebird")]
+    public void TestDbMetadataFirebird()
+    {
+        TestDbMetadata("Firebird", hashCustomBinaryType: false);
+    }
 
-        [Test]
-        [Category("db-mysql")]
-        public void TestDbMetadataMySql()
-        {
-            TestDbMetadata("MySqlConnector");
-        }
+    [Test]
+    [Category("db-mysql")]
+    public void TestDbMetadataMySql()
+    {
+        TestDbMetadata("MySqlConnector");
+    }
 
 #if !NETCORE
         
@@ -69,21 +69,20 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore.Common
         }
 #endif
 
-        private static DbProvider TestDbMetadata(string dbname, bool hashCustomBinaryType = true)
+    private static DbProvider TestDbMetadata(string dbname, bool hashCustomBinaryType = true)
+    {
+        DbProvider dbp = new DbProvider(dbname, "foo");
+        DbMetadata md = dbp.Metadata;
+        Assert.IsNotNull(md.AssemblyName);
+        Assert.IsNotNull(md.BindByName);
+        Assert.IsNotNull(md.CommandType);
+        Assert.IsNotNull(md.ConnectionType);
+        Assert.IsNotNull(md.ParameterType);
+        if (hashCustomBinaryType)
         {
-            DbProvider dbp = new DbProvider(dbname, "foo");
-            DbMetadata md = dbp.Metadata;
-            Assert.IsNotNull(md.AssemblyName);
-            Assert.IsNotNull(md.BindByName);
-            Assert.IsNotNull(md.CommandType);
-            Assert.IsNotNull(md.ConnectionType);
-            Assert.IsNotNull(md.ParameterType);
-            if (hashCustomBinaryType)
-            {
-                Assert.IsNotNull(md.DbBinaryType);
-                Assert.IsNotNull(md.ParameterDbTypeProperty);
-            }
-            return dbp;
+            Assert.IsNotNull(md.DbBinaryType);
+            Assert.IsNotNull(md.ParameterDbTypeProperty);
         }
+        return dbp;
     }
 }

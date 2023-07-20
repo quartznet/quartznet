@@ -17,60 +17,59 @@
 
 using System.Data;
 
-namespace Quartz.Impl.AdoJobStore
+namespace Quartz.Impl.AdoJobStore;
+
+/// <summary>
+/// This is a driver delegate for the SQLiteDelegate ADO.NET driver.
+/// </summary>
+/// <author>Marko Lahma</author>
+public class SQLiteDelegate : StdAdoDelegate
 {
+#if NETSTANDARD2_0
+    private System.Reflection.MethodInfo? getFieldValueMethod;
+#endif
+
     /// <summary>
-    /// This is a driver delegate for the SQLiteDelegate ADO.NET driver.
+    /// Gets the select next trigger to acquire SQL clause.
+    /// SQLite version with LIMIT support.
     /// </summary>
-    /// <author>Marko Lahma</author>
-    public class SQLiteDelegate : StdAdoDelegate
+    /// <returns></returns>
+    protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
+    {
+        return SqlSelectNextTriggerToAcquire + " LIMIT " + maxCount;
+    }
+
+    protected override ValueTask<byte[]?> ReadBytesFromBlob(IDataReader dr, int colIndex, CancellationToken cancellationToken)
     {
 #if NETSTANDARD2_0
-        private System.Reflection.MethodInfo? getFieldValueMethod;
-#endif
-
-        /// <summary>
-        /// Gets the select next trigger to acquire SQL clause.
-        /// SQLite version with LIMIT support.
-        /// </summary>
-        /// <returns></returns>
-        protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
+        if (dr.GetType().Namespace == "Microsoft.Data.Sqlite")
         {
-            return SqlSelectNextTriggerToAcquire + " LIMIT " + maxCount;
-        }
-
-        protected override ValueTask<byte[]?> ReadBytesFromBlob(IDataReader dr, int colIndex, CancellationToken cancellationToken)
-        {
-#if NETSTANDARD2_0
-            if (dr.GetType().Namespace == "Microsoft.Data.Sqlite")
+            if (dr.IsDBNull(colIndex))
             {
-                if (dr.IsDBNull(colIndex))
-                {
-                    return new ValueTask<byte[]?>((byte[]?)null);
-                }
-
-                // workaround for GetBytes not being implemented
-                if (getFieldValueMethod == null)
-                {
-                    var method = dr.GetType().GetMethod("GetFieldValue");
-                    getFieldValueMethod = method!.MakeGenericMethod(typeof(byte[]));
-                }
-
-                var value = getFieldValueMethod.Invoke(dr, new object[] {colIndex});
-                var byteArray = (byte[]?) value;
-                return new ValueTask<byte[]?>(byteArray);
+                return new ValueTask<byte[]?>((byte[]?)null);
             }
-#endif
-            return base.ReadBytesFromBlob(dr, colIndex, cancellationToken);
-        }
 
-        protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
-        {
-            if (count != -1)
+            // workaround for GetBytes not being implemented
+            if (getFieldValueMethod == null)
             {
-                return SqlSelectHasMisfiredTriggersInState + " LIMIT " + count;
+                var method = dr.GetType().GetMethod("GetFieldValue");
+                getFieldValueMethod = method!.MakeGenericMethod(typeof(byte[]));
             }
-            return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
+
+            var value = getFieldValueMethod.Invoke(dr, new object[] {colIndex});
+            var byteArray = (byte[]?) value;
+            return new ValueTask<byte[]?>(byteArray);
         }
+#endif
+        return base.ReadBytesFromBlob(dr, colIndex, cancellationToken);
+    }
+
+    protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
+    {
+        if (count != -1)
+        {
+            return SqlSelectHasMisfiredTriggersInState + " LIMIT " + count;
+        }
+        return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
     }
 }

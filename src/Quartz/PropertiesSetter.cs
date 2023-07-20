@@ -1,23 +1,22 @@
-namespace Quartz
+namespace Quartz;
+
+public abstract class PropertiesSetter : IPropertySetter
 {
-    public abstract class PropertiesSetter : IPropertySetter
+    private readonly string prefix;
+    private readonly IPropertySetter parent;
+
+    protected PropertiesSetter(IPropertySetter parent, string prefix = "")
     {
-        private readonly string prefix;
-        private readonly IPropertySetter parent;
+        this.parent = parent;
+        this.prefix = prefix.TrimEnd('.');
+    }
 
-        protected PropertiesSetter(IPropertySetter parent, string prefix = "")
+    public void SetProperty(string name, string value)
+    {
+        if (name.IndexOf('.') < 0 && !string.IsNullOrWhiteSpace(prefix))
         {
-            this.parent = parent;
-            this.prefix = prefix.TrimEnd('.');
+            name = prefix + '.' + name;
         }
-
-        public void SetProperty(string name, string value)
-        {
-            if (name.IndexOf('.') < 0 && !string.IsNullOrWhiteSpace(prefix))
-            {
-                name = prefix + '.' + name;
-            }
-            parent.SetProperty(name, value);
-        }
+        parent.SetProperty(name, value);
     }
 }

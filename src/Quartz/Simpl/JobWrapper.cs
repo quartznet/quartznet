@@ -1,32 +1,31 @@
-namespace Quartz.Simpl
+namespace Quartz.Simpl;
+
+internal sealed class JobWrapper
 {
-    internal sealed class JobWrapper
+    public JobKey Key { get; }
+    public IJobDetail JobDetail { get; set; }
+
+    internal JobWrapper(IJobDetail jobDetail)
     {
-        public JobKey Key { get; }
-        public IJobDetail JobDetail { get; set; }
+        JobDetail = jobDetail;
+        Key = jobDetail.Key;
+    }
 
-        internal JobWrapper(IJobDetail jobDetail)
+    public override bool Equals(object? obj)
+    {
+        if (obj is JobWrapper jobWrapper)
         {
-            JobDetail = jobDetail;
-            Key = jobDetail.Key;
-        }
-
-        public override bool Equals(object? obj)
-        {
-            if (obj is JobWrapper jobWrapper)
+            if (jobWrapper.Key.Equals(Key))
             {
-                if (jobWrapper.Key.Equals(Key))
-                {
-                    return true;
-                }
+                return true;
             }
-
-            return false;
         }
 
-        public override int GetHashCode()
-        {
-            return Key.GetHashCode();
-        }
+        return false;
+    }
+
+    public override int GetHashCode()
+    {
+        return Key.GetHashCode();
     }
 }

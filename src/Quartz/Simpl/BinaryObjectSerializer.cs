@@ -2,45 +2,44 @@
 
 using Quartz.Spi;
 
-namespace Quartz.Simpl
+namespace Quartz.Simpl;
+
+/// <summary>
+/// Default object serialization strategy that uses <see cref="BinaryFormatter" />
+/// under the hood.
+/// </summary>
+/// <author>Marko Lahma</author>
+public class BinaryObjectSerializer : IObjectSerializer
 {
-    /// <summary>
-    /// Default object serialization strategy that uses <see cref="BinaryFormatter" />
-    /// under the hood.
-    /// </summary>
-    /// <author>Marko Lahma</author>
-    public class BinaryObjectSerializer : IObjectSerializer
+    public void Initialize()
     {
-        public void Initialize()
-        {
-        }
+    }
 
-        /// <summary>
-        /// Serializes given object as bytes
-        /// that can be stored to permanent stores.
-        /// </summary>
-        /// <param name="obj">Object to serialize.</param>
-        public byte[] Serialize<T>(T obj) where T : class
-        {
-            using MemoryStream ms = new MemoryStream();
-            BinaryFormatter bf = new BinaryFormatter();
+    /// <summary>
+    /// Serializes given object as bytes
+    /// that can be stored to permanent stores.
+    /// </summary>
+    /// <param name="obj">Object to serialize.</param>
+    public byte[] Serialize<T>(T obj) where T : class
+    {
+        using MemoryStream ms = new MemoryStream();
+        BinaryFormatter bf = new BinaryFormatter();
 #pragma warning disable SYSLIB0011
-            bf.Serialize(ms, obj);
+        bf.Serialize(ms, obj);
 #pragma warning restore SYSLIB0011
-            return ms.ToArray();
-        }
+        return ms.ToArray();
+    }
 
-        /// <summary>
-        /// Deserializes object from byte array presentation.
-        /// </summary>
-        /// <param name="data">Data to deserialize object from.</param>
-        public T? DeSerialize<T>(byte[] data) where T : class
-        {
-            using MemoryStream ms = new MemoryStream(data);
-            BinaryFormatter bf = new BinaryFormatter();
+    /// <summary>
+    /// Deserializes object from byte array presentation.
+    /// </summary>
+    /// <param name="data">Data to deserialize object from.</param>
+    public T? DeSerialize<T>(byte[] data) where T : class
+    {
+        using MemoryStream ms = new MemoryStream(data);
+        BinaryFormatter bf = new BinaryFormatter();
 #pragma warning disable SYSLIB0011
-            return (T) bf.Deserialize(ms);
+        return (T) bf.Deserialize(ms);
 #pragma warning restore SYSLIB0011
-        }
     }
 }

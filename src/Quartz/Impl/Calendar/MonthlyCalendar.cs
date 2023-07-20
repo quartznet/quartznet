@@ -23,278 +23,277 @@ using System.Runtime.Serialization;
 
 using Quartz.Util;
 
-namespace Quartz.Impl.Calendar
+namespace Quartz.Impl.Calendar;
+
+/// <summary>
+/// This implementation of the Calendar excludes a set of days of the month. You
+/// may use it to exclude every 1. of each month for example. But you may define
+/// any day of a month.
+/// </summary>
+/// <seealso cref="ICalendar" />
+/// <seealso cref="BaseCalendar" />
+/// <author>Juergen Donnerstag</author>
+/// <author>Marko Lahma (.NET)</author>
+[Serializable]
+public class MonthlyCalendar : BaseCalendar
 {
+    private const int MaxDaysInMonth = 31;
+
+    // An array to store a months days which are to be excluded.
+    // Day as index.
+    private bool[] excludeDays = new bool[MaxDaysInMonth];
+
+    // Will be set to true, if all week days are excluded
+    private bool excludeAll;
+
     /// <summary>
-    /// This implementation of the Calendar excludes a set of days of the month. You
-    /// may use it to exclude every 1. of each month for example. But you may define
-    /// any day of a month.
+    /// Initializes a new instance of the <see cref="MonthlyCalendar"/> class.
     /// </summary>
-    /// <seealso cref="ICalendar" />
-    /// <seealso cref="BaseCalendar" />
-    /// <author>Juergen Donnerstag</author>
-    /// <author>Marko Lahma (.NET)</author>
-    [Serializable]
-    public class MonthlyCalendar : BaseCalendar
+    public MonthlyCalendar()
     {
-        private const int MaxDaysInMonth = 31;
+        Init();
+    }
 
-        // An array to store a months days which are to be excluded.
-        // Day as index.
-        private bool[] excludeDays = new bool[MaxDaysInMonth];
+    /// <summary>
+    /// Constructor
+    /// </summary>
+    /// <param name="baseCalendar">The base calendar.</param>
+    public MonthlyCalendar(ICalendar baseCalendar) : base(baseCalendar)
+    {
+        Init();
+    }
 
-        // Will be set to true, if all week days are excluded
-        private bool excludeAll;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="MonthlyCalendar"/> class.
-        /// </summary>
-        public MonthlyCalendar()
+    /// <summary>
+    /// Serialization constructor.
+    /// </summary>
+    /// <param name="info"></param>
+    /// <param name="context"></param>
+    protected MonthlyCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
+    {
+        int version;
+        try
         {
-            Init();
+            version = info.GetInt32("version");
+        }
+        catch
+        {
+            version = 0;
         }
 
-        /// <summary>
-        /// Constructor
-        /// </summary>
-        /// <param name="baseCalendar">The base calendar.</param>
-        public MonthlyCalendar(ICalendar baseCalendar) : base(baseCalendar)
+        switch (version)
         {
-            Init();
+            case 0:
+            case 1:
+                excludeDays = (bool[]) info.GetValue("excludeDays", typeof(bool[]))!;
+                excludeAll = (bool) info.GetValue("excludeAll", typeof(bool))!;
+                break;
+            default:
+                ThrowHelper.ThrowNotSupportedException("Unknown serialization version");
+                break;
         }
+    }
 
-        /// <summary>
-        /// Serialization constructor.
-        /// </summary>
-        /// <param name="info"></param>
-        /// <param name="context"></param>
-        protected MonthlyCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
+    [System.Security.SecurityCritical]
+    public override void GetObjectData(SerializationInfo info, StreamingContext context)
+    {
+        base.GetObjectData(info, context);
+
+        info.AddValue("version", 1);
+        info.AddValue("excludeDays", excludeDays);
+        info.AddValue("excludeAll", excludeAll);
+    }
+
+    /// <summary>
+    /// Initialize internal variables
+    /// </summary>
+    private void Init()
+    {
+        // all days are included by default
+        excludeAll = AreAllDaysExcluded();
+    }
+
+    /// <summary>
+    /// Get or set the array which defines the exclude-value of each day of month
+    /// Setting will redefine the array of days excluded. The array must of size greater or
+    /// equal 31.
+    /// </summary>
+    public virtual bool[] DaysExcluded
+    {
+        get => excludeDays;
+
+        set
         {
-            int version;
-            try
+            if (value == null)
             {
-                version = info.GetInt32("version");
-            }
-            catch
-            {
-                version = 0;
+                return;
             }
 
-            switch (version)
-            {
-                case 0:
-                case 1:
-                    excludeDays = (bool[]) info.GetValue("excludeDays", typeof(bool[]))!;
-                    excludeAll = (bool) info.GetValue("excludeAll", typeof(bool))!;
-                    break;
-                default:
-                    ThrowHelper.ThrowNotSupportedException("Unknown serialization version");
-                    break;
-            }
-        }
-
-        [System.Security.SecurityCritical]
-        public override void GetObjectData(SerializationInfo info, StreamingContext context)
-        {
-            base.GetObjectData(info, context);
-
-            info.AddValue("version", 1);
-            info.AddValue("excludeDays", excludeDays);
-            info.AddValue("excludeAll", excludeAll);
-        }
-
-        /// <summary>
-        /// Initialize internal variables
-        /// </summary>
-        private void Init()
-        {
-            // all days are included by default
+            excludeDays = value;
             excludeAll = AreAllDaysExcluded();
         }
+    }
 
-        /// <summary>
-        /// Get or set the array which defines the exclude-value of each day of month
-        /// Setting will redefine the array of days excluded. The array must of size greater or
-        /// equal 31.
-        /// </summary>
-        public virtual bool[] DaysExcluded
+    /// <summary>
+    /// Return true, if day is defined to be excluded.
+    /// </summary>
+    public virtual bool IsDayExcluded(int day)
+    {
+        if (day < 1 || day > MaxDaysInMonth)
         {
-            get => excludeDays;
-
-            set
-            {
-                if (value == null)
-                {
-                    return;
-                }
-
-                excludeDays = value;
-                excludeAll = AreAllDaysExcluded();
-            }
+            ThrowHelper.ThrowArgumentException(
+                $"The day parameter must be in the range of 1 to {MaxDaysInMonth}");
         }
+        return excludeDays[day - 1];
+    }
 
-        /// <summary>
-        /// Return true, if day is defined to be excluded.
-        /// </summary>
-        public virtual bool IsDayExcluded(int day)
+    /// <summary>
+    /// Redefine a certain day of the month to be excluded (true) or included
+    /// (false).
+    /// </summary>
+    public virtual void SetDayExcluded(int day, bool exclude)
+    {
+        excludeDays[day - 1] = exclude;
+        excludeAll = AreAllDaysExcluded();
+    }
+
+    /// <summary>
+    /// Check if all days are excluded. That is no day is included.
+    /// </summary>
+    /// <returns> boolean
+    /// </returns>
+    public virtual bool AreAllDaysExcluded()
+    {
+        for (int i = 1; i <= 31; i++)
         {
-            if (day < 1 || day > MaxDaysInMonth)
-            {
-                ThrowHelper.ThrowArgumentException(
-                    $"The day parameter must be in the range of 1 to {MaxDaysInMonth}");
-            }
-            return excludeDays[day - 1];
-        }
-
-        /// <summary>
-        /// Redefine a certain day of the month to be excluded (true) or included
-        /// (false).
-        /// </summary>
-        public virtual void SetDayExcluded(int day, bool exclude)
-        {
-            excludeDays[day - 1] = exclude;
-            excludeAll = AreAllDaysExcluded();
-        }
-
-        /// <summary>
-        /// Check if all days are excluded. That is no day is included.
-        /// </summary>
-        /// <returns> boolean
-        /// </returns>
-        public virtual bool AreAllDaysExcluded()
-        {
-            for (int i = 1; i <= 31; i++)
-            {
-                if (IsDayExcluded(i) == false)
-                {
-                    return false;
-                }
-            }
-
-            return true;
-        }
-
-        /// <summary>
-        /// Determine whether the given time (in milliseconds) is 'included' by the
-        /// Calendar.
-        /// <para>
-        /// Note that this Calendar is only has full-day precision.
-        /// </para>
-        /// </summary>
-        public override bool IsTimeIncluded(DateTimeOffset timeStampUtc)
-        {
-            if (excludeAll)
+            if (IsDayExcluded(i) == false)
             {
                 return false;
             }
-
-            // Test the base calendar first. Only if the base calendar not already
-            // excludes the time/date, continue evaluating this calendar instance.
-            if (!base.IsTimeIncluded(timeStampUtc))
-            {
-                return false;
-            }
-
-            timeStampUtc = TimeZoneUtil.ConvertTime(timeStampUtc, TimeZone); //apply the timezone
-            int day = timeStampUtc.Day;
-
-            return !IsDayExcluded(day);
         }
 
-        /// <summary>
-        /// Determine the next time (in milliseconds) that is 'included' by the
-        /// Calendar after the given time. Return the original value if timeStamp is
-        /// included. Return DateTime.MinValue if all days are excluded.
-        /// <para>
-        /// Note that this Calendar is only has full-day precision.
-        /// </para>
-        /// </summary>
-        public override DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc)
+        return true;
+    }
+
+    /// <summary>
+    /// Determine whether the given time (in milliseconds) is 'included' by the
+    /// Calendar.
+    /// <para>
+    /// Note that this Calendar is only has full-day precision.
+    /// </para>
+    /// </summary>
+    public override bool IsTimeIncluded(DateTimeOffset timeStampUtc)
+    {
+        if (excludeAll)
         {
-            if (excludeAll)
-            {
-                return DateTimeOffset.MinValue;
-            }
+            return false;
+        }
 
-            // Call base calendar implementation first
-            DateTimeOffset baseTime = base.GetNextIncludedTimeUtc(timeUtc);
-            if (baseTime != DateTimeOffset.MinValue && baseTime > timeUtc)
-            {
-                timeUtc = baseTime;
-            }
+        // Test the base calendar first. Only if the base calendar not already
+        // excludes the time/date, continue evaluating this calendar instance.
+        if (!base.IsTimeIncluded(timeStampUtc))
+        {
+            return false;
+        }
 
-            //apply the timezone
-            timeUtc = TimeZoneUtil.ConvertTime(timeUtc, TimeZone);
+        timeStampUtc = TimeZoneUtil.ConvertTime(timeStampUtc, TimeZone); //apply the timezone
+        int day = timeStampUtc.Day;
 
-            // Get timestamp for 00:00:00, in the correct timezone offset
-            DateTimeOffset newTimeStamp = new DateTimeOffset(timeUtc.Date, timeUtc.Offset);
+        return !IsDayExcluded(day);
+    }
 
-            int day = newTimeStamp.Day;
+    /// <summary>
+    /// Determine the next time (in milliseconds) that is 'included' by the
+    /// Calendar after the given time. Return the original value if timeStamp is
+    /// included. Return DateTime.MinValue if all days are excluded.
+    /// <para>
+    /// Note that this Calendar is only has full-day precision.
+    /// </para>
+    /// </summary>
+    public override DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc)
+    {
+        if (excludeAll)
+        {
+            return DateTimeOffset.MinValue;
+        }
 
-            if (!IsDayExcluded(day))
-            {
-                return newTimeStamp;
-            } // return the original value with the correct offset time.
+        // Call base calendar implementation first
+        DateTimeOffset baseTime = base.GetNextIncludedTimeUtc(timeUtc);
+        if (baseTime != DateTimeOffset.MinValue && baseTime > timeUtc)
+        {
+            timeUtc = baseTime;
+        }
 
-            while (IsDayExcluded(day))
-            {
-                newTimeStamp = newTimeStamp.AddDays(1);
-                day = newTimeStamp.Day;
-            }
+        //apply the timezone
+        timeUtc = TimeZoneUtil.ConvertTime(timeUtc, TimeZone);
 
+        // Get timestamp for 00:00:00, in the correct timezone offset
+        DateTimeOffset newTimeStamp = new DateTimeOffset(timeUtc.Date, timeUtc.Offset);
+
+        int day = newTimeStamp.Day;
+
+        if (!IsDayExcluded(day))
+        {
             return newTimeStamp;
-        }
+        } // return the original value with the correct offset time.
 
-        /// <summary>
-        /// Creates a new object that is a copy of the current instance.
-        /// </summary>
-        /// <returns>A new object that is a copy of this instance.</returns>
-        public override ICalendar Clone()
+        while (IsDayExcluded(day))
         {
-            MonthlyCalendar clone = new MonthlyCalendar();
-            CloneFields(clone);
-            bool[] excludeCopy = new bool[excludeDays.Length];
-            Array.Copy(excludeDays, excludeCopy, excludeDays.Length);
-            clone.excludeDays = excludeCopy;
-            return clone;
+            newTimeStamp = newTimeStamp.AddDays(1);
+            day = newTimeStamp.Day;
         }
 
-        public override int GetHashCode()
+        return newTimeStamp;
+    }
+
+    /// <summary>
+    /// Creates a new object that is a copy of the current instance.
+    /// </summary>
+    /// <returns>A new object that is a copy of this instance.</returns>
+    public override ICalendar Clone()
+    {
+        MonthlyCalendar clone = new MonthlyCalendar();
+        CloneFields(clone);
+        bool[] excludeCopy = new bool[excludeDays.Length];
+        Array.Copy(excludeDays, excludeCopy, excludeDays.Length);
+        clone.excludeDays = excludeCopy;
+        return clone;
+    }
+
+    public override int GetHashCode()
+    {
+        int baseHash = 0;
+        if (CalendarBase != null)
         {
-            int baseHash = 0;
-            if (CalendarBase != null)
-            {
-                baseHash = CalendarBase.GetHashCode();
-            }
-
-            return DaysExcluded.GetHashCode() + 5 * baseHash;
+            baseHash = CalendarBase.GetHashCode();
         }
 
-        public bool Equals(MonthlyCalendar obj)
+        return DaysExcluded.GetHashCode() + 5 * baseHash;
+    }
+
+    public bool Equals(MonthlyCalendar obj)
+    {
+        //a little trick here : Monthly calendar knows nothing
+        //about the precise month it is dealing with, so
+        //FebruaryCalendars will be only equal if their
+        //31st days are equally included
+        //but that's not going to be a problem since
+        //there's no need to redefine default value of false
+        //for such days
+        if (obj == null)
         {
-            //a little trick here : Monthly calendar knows nothing
-            //about the precise month it is dealing with, so
-            //FebruaryCalendars will be only equal if their
-            //31st days are equally included
-            //but that's not going to be a problem since
-            //there's no need to redefine default value of false
-            //for such days
-            if (obj == null)
-            {
-                return false;
-            }
-            bool baseEqual = CalendarBase == null || CalendarBase.Equals(obj.CalendarBase);
-
-            return baseEqual && DaysExcluded.SequenceEqual(obj.DaysExcluded);
+            return false;
         }
+        bool baseEqual = CalendarBase == null || CalendarBase.Equals(obj.CalendarBase);
 
-        public override bool Equals(object? obj)
+        return baseEqual && DaysExcluded.SequenceEqual(obj.DaysExcluded);
+    }
+
+    public override bool Equals(object? obj)
+    {
+        if (!(obj is MonthlyCalendar))
         {
-            if (!(obj is MonthlyCalendar))
-            {
-                return false;
-            }
-            return Equals((MonthlyCalendar) obj);
+            return false;
         }
+        return Equals((MonthlyCalendar) obj);
     }
 }

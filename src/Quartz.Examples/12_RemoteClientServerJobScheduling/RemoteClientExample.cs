@@ -23,56 +23,54 @@
 
 using Quartz.Impl.Matchers;
 
-namespace Quartz.Examples.Example12
+namespace Quartz.Examples.Example12;
+
+/// <summary>
+/// This example is a client program that will remotely
+/// talk to the scheduler to schedule a job.   In this
+/// example, we will need to use the JDBC Job Store.  The
+/// client will connect to the JDBC Job Store remotely to
+/// schedule the job.
+/// </summary>
+/// <author>James House</author>
+/// <author>Bill Kratzer</author>
+/// <author>Marko Lahma (.NET)</author>
+public class RemoteClientJobSchedulingExample : IExample
 {
-    /// <summary>
-    /// This example is a client program that will remotely
-    /// talk to the scheduler to schedule a job.   In this
-    /// example, we will need to use the JDBC Job Store.  The
-    /// client will connect to the JDBC Job Store remotely to
-    /// schedule the job.
-    /// </summary>
-    /// <author>James House</author>
-    /// <author>Bill Kratzer</author>
-    /// <author>Marko Lahma (.NET)</author>
-    public class RemoteClientJobSchedulingExample : IExample
+    public virtual async Task Run()
     {
-        public virtual async Task Run()
+        // First we must get a reference to a scheduler
+        IScheduler sched = await SchedulerBuilder.Create()
+            .WithName("RemoteClient")
+            .UseDefaultThreadPool(x => x.MaxConcurrency = 5)
+            .ProxyToRemoteScheduler("tcp://127.0.0.1:555/QuartzScheduler")
+            .BuildScheduler();
+
+        // define the job and ask it to run
+
+        IJobDetail job = JobBuilder.Create<SimpleJob>()
+            .WithIdentity("remotelyAddedJob", "default")
+            .Build();
+
+        JobDataMap map = job.JobDataMap;
+        map.Put("msg", "Your remotely added job has executed!");
+
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity("remotelyAddedTrigger", "default")
+            .ForJob(job.Key)
+            .WithCronSchedule("/5 * * ? * *")
+            .Build();
+
+        // schedule the job
+        await sched.ScheduleJob(job, trigger);
+
+        Console.WriteLine("Remote job scheduled, scheduler now has following jobs:");
+
+        var keys = await sched.GetJobKeys(GroupMatcher<JobKey>.AnyGroup());
+        foreach (var key in keys)
         {
-            // First we must get a reference to a scheduler
-            IScheduler sched = await SchedulerBuilder.Create()
-                .WithName("RemoteClient")
-                .UseDefaultThreadPool(x => x.MaxConcurrency = 5)
-                .ProxyToRemoteScheduler("tcp://127.0.0.1:555/QuartzScheduler")
-                .BuildScheduler();
-
-            // define the job and ask it to run
-
-            IJobDetail job = JobBuilder.Create<SimpleJob>()
-                .WithIdentity("remotelyAddedJob", "default")
-                .Build();
-
-            JobDataMap map = job.JobDataMap;
-            map.Put("msg", "Your remotely added job has executed!");
-
-            ITrigger trigger = TriggerBuilder.Create()
-                .WithIdentity("remotelyAddedTrigger", "default")
-                .ForJob(job.Key)
-                .WithCronSchedule("/5 * * ? * *")
-                .Build();
-
-            // schedule the job
-            await sched.ScheduleJob(job, trigger);
-
-            Console.WriteLine("Remote job scheduled, scheduler now has following jobs:");
-
-            var keys = await sched.GetJobKeys(GroupMatcher<JobKey>.AnyGroup());
-            foreach (var key in keys)
-            {
-                Console.WriteLine("\t " + key);
-            }
+            Console.WriteLine("\t " + key);
         }
     }
-
 }
 #endif

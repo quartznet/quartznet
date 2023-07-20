@@ -17,31 +17,30 @@
  */
 #endregion
 
-namespace Quartz.Impl.AdoJobStore
+namespace Quartz.Impl.AdoJobStore;
+
+/// <summary>
+/// This is a driver delegate for the MySQL ADO.NET driver.
+/// </summary>
+/// <author>Marko Lahma</author>
+public class MySQLDelegate : StdAdoDelegate
 {
     /// <summary>
-    /// This is a driver delegate for the MySQL ADO.NET driver.
+    /// Gets the select next trigger to acquire SQL clause.
+    /// MySQL version with LIMIT support.
     /// </summary>
-    /// <author>Marko Lahma</author>
-    public class MySQLDelegate : StdAdoDelegate
+    /// <returns></returns>
+    protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
     {
-        /// <summary>
-        /// Gets the select next trigger to acquire SQL clause.
-        /// MySQL version with LIMIT support.
-        /// </summary>
-        /// <returns></returns>
-        protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
-        {
-            return SqlSelectNextTriggerToAcquire + " LIMIT " + maxCount;
-        }
+        return SqlSelectNextTriggerToAcquire + " LIMIT " + maxCount;
+    }
 
-        protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
+    protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
+    {
+        if (count != -1)
         {
-            if (count != -1)
-            {
-                return SqlSelectHasMisfiredTriggersInState + " LIMIT " + count;
-            }
-            return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
+            return SqlSelectHasMisfiredTriggersInState + " LIMIT " + count;
         }
+        return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
     }
 }

@@ -2,62 +2,61 @@
 
 using Newtonsoft.Json;
 
-namespace Quartz.Converters
+namespace Quartz.Converters;
+
+/// <summary>
+/// Custom converter for (de)serializing <see cref="NameValueCollection" />.
+/// </summary>
+public class NameValueCollectionConverter : JsonConverter
 {
-    /// <summary>
-    /// Custom converter for (de)serializing <see cref="NameValueCollection" />.
-    /// </summary>
-    public class NameValueCollectionConverter : JsonConverter
+    public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
     {
-        public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
+        if (value is not NameValueCollection collection)
         {
-            if (value is not NameValueCollection collection)
-            {
-                return;
-            }
-
-            writer.WriteStartObject();
-            foreach (var key in collection.AllKeys)
-            {
-                if (key is null)
-                {
-                    continue;
-                }
-                writer.WritePropertyName(key);
-                writer.WriteValue(collection.Get(key));
-            }
-            writer.WriteEndObject();
+            return;
         }
 
-        public override object ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
+        writer.WriteStartObject();
+        foreach (var key in collection.AllKeys)
         {
-            var nameValueCollection = new NameValueCollection();
-            var key = "";
-            while (reader.Read())
+            if (key is null)
             {
-                if (reader.TokenType == JsonToken.StartObject)
-                {
-                    nameValueCollection = new NameValueCollection();
-                }
-                if (reader.TokenType == JsonToken.EndObject)
-                {
-                    return nameValueCollection;
-                }
-                if (reader.TokenType == JsonToken.PropertyName)
-                {
-                    key = reader.Value!.ToString()!;
-                }
-                if (reader.TokenType == JsonToken.String || reader.TokenType == JsonToken.Null)
-                {
-                    nameValueCollection.Add(key, reader.Value?.ToString());
-                }
+                continue;
             }
-            return nameValueCollection;
+            writer.WritePropertyName(key);
+            writer.WriteValue(collection.Get(key));
         }
+        writer.WriteEndObject();
+    }
 
-        public override bool CanConvert(Type objectType)
+    public override object ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
+    {
+        var nameValueCollection = new NameValueCollection();
+        var key = "";
+        while (reader.Read())
         {
-            return objectType == typeof(NameValueCollection);
+            if (reader.TokenType == JsonToken.StartObject)
+            {
+                nameValueCollection = new NameValueCollection();
+            }
+            if (reader.TokenType == JsonToken.EndObject)
+            {
+                return nameValueCollection;
+            }
+            if (reader.TokenType == JsonToken.PropertyName)
+            {
+                key = reader.Value!.ToString()!;
+            }
+            if (reader.TokenType == JsonToken.String || reader.TokenType == JsonToken.Null)
+            {
+                nameValueCollection.Add(key, reader.Value?.ToString());
+            }
         }
+        return nameValueCollection;
+    }
+
+    public override bool CanConvert(Type objectType)
+    {
+        return objectType == typeof(NameValueCollection);
     }
 }

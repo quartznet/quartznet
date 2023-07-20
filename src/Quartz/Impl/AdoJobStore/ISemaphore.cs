@@ -17,42 +17,41 @@
  */
 #endregion
 
-namespace Quartz.Impl.AdoJobStore
+namespace Quartz.Impl.AdoJobStore;
+
+/// <summary>
+/// An interface for providing thread/resource locking in order to protect
+/// resources from being altered by multiple threads at the same time.
+/// </summary>
+/// <author>James House</author>
+/// <author>Marko Lahma (.NET)</author>
+public interface ISemaphore
 {
-	/// <summary>
-	/// An interface for providing thread/resource locking in order to protect
-	/// resources from being altered by multiple threads at the same time.
-	/// </summary>
-	/// <author>James House</author>
-	/// <author>Marko Lahma (.NET)</author>
-	public interface ISemaphore
-	{
-		/// <summary>
-		/// Grants a lock on the identified resource to the calling thread (blocking
-		/// until it is available).
-		/// </summary>
-		/// <returns> true if the lock was obtained.
-		/// </returns>
-		ValueTask<bool> ObtainLock(
-			Guid requestorId,
-			ConnectionAndTransactionHolder? conn,
-			string lockName,
-			CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Grants a lock on the identified resource to the calling thread (blocking
+    /// until it is available).
+    /// </summary>
+    /// <returns> true if the lock was obtained.
+    /// </returns>
+    ValueTask<bool> ObtainLock(
+        Guid requestorId,
+        ConnectionAndTransactionHolder? conn,
+        string lockName,
+        CancellationToken cancellationToken = default);
 
-        /// <summary> Release the lock on the identified resource if it is held by the calling
-        /// thread.
-        /// </summary>
-        ValueTask ReleaseLock(
-			Guid requestorId, 
-			string lockName, 
-			CancellationToken cancellationToken = default);
+    /// <summary> Release the lock on the identified resource if it is held by the calling
+    /// thread.
+    /// </summary>
+    ValueTask ReleaseLock(
+        Guid requestorId, 
+        string lockName, 
+        CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Whether this Semaphore implementation requires a database connection for
-        /// its lock management operations.
-        /// </summary>
-        /// <seealso cref="ObtainLock" />
-        /// <seealso cref="ReleaseLock" />
-        bool RequiresConnection {  get; }
-	}
+    /// <summary>
+    /// Whether this Semaphore implementation requires a database connection for
+    /// its lock management operations.
+    /// </summary>
+    /// <seealso cref="ObtainLock" />
+    /// <seealso cref="ReleaseLock" />
+    bool RequiresConnection {  get; }
 }

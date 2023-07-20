@@ -19,14 +19,13 @@
 
 #endregion
 
-namespace Quartz.Examples
+namespace Quartz.Examples;
+
+/// <summary>
+/// Interface for examples.
+/// </summary>
+/// <author>Marko Lahma (.NET)</author>
+public interface IExample
 {
-    /// <summary>
-    /// Interface for examples.
-    /// </summary>
-    /// <author>Marko Lahma (.NET)</author>
-    public interface IExample
-    {
-        Task Run();
-    }
+    Task Run();
 }

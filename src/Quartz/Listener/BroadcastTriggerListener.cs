@@ -25,8 +25,8 @@ using Quartz.Logging;
 
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
-    namespace Quartz.Listener
-{
+    namespace Quartz.Listener; 
+
     /// <summary>
     /// Holds a List of references to TriggerListener instances and broadcasts all
     /// events to them (in order).
@@ -158,4 +158,3 @@ using LogLevel = Microsoft.Extensions.Logging.LogLevel;
             }
         }
     }
-}

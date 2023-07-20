@@ -7,61 +7,60 @@ using NUnit.Framework;
 
 using Quartz.Impl.AdoJobStore;
 
-namespace Quartz.Tests.Unit.Impl.AdoJobStore
+namespace Quartz.Tests.Unit.Impl.AdoJobStore;
+
+public class JobStoreSupportTest
 {
-    public class JobStoreSupportTest
+    private TestJobStoreSupport jobStoreSupport;
+    private IDriverDelegate driverDelegate;
+
+    [SetUp]
+    public void SetUp()
     {
-        private TestJobStoreSupport jobStoreSupport;
-        private IDriverDelegate driverDelegate;
+        jobStoreSupport = new TestJobStoreSupport();
+        driverDelegate = A.Fake<IDriverDelegate>();
+        jobStoreSupport.DirectDelegate = driverDelegate;
+    }
 
-        [SetUp]
-        public void SetUp()
+    [Test]
+    public async Task TestRecoverMisfiredJobs_ShouldCheckForMisfiredTriggersInStateWaiting()
+    {
+        await jobStoreSupport.RecoverMisfiredJobs(null, false);
+
+        A.CallTo(() => driverDelegate.HasMisfiredTriggersInState(
+            A<ConnectionAndTransactionHolder>.Ignored,
+            A<string>.That.IsEqualTo(AdoConstants.StateWaiting),
+            A<DateTimeOffset>.Ignored,
+            A<int>.Ignored,
+            A<IList<TriggerKey>>.Ignored,
+            CancellationToken.None)).MustHaveHappened();
+    }
+
+    public class TestJobStoreSupport : JobStoreSupport
+    {
+        protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
         {
-            jobStoreSupport = new TestJobStoreSupport();
-            driverDelegate = A.Fake<IDriverDelegate>();
-            jobStoreSupport.DirectDelegate = driverDelegate;
+            return new ValueTask<ConnectionAndTransactionHolder>(new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null));
         }
 
-        [Test]
-        public async Task TestRecoverMisfiredJobs_ShouldCheckForMisfiredTriggersInStateWaiting()
+        protected override ValueTask<T> ExecuteInLock<T>(
+            string lockName,
+            Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
+            CancellationToken cancellationToken = default)
         {
-            await jobStoreSupport.RecoverMisfiredJobs(null, false);
-
-            A.CallTo(() => driverDelegate.HasMisfiredTriggersInState(
-                A<ConnectionAndTransactionHolder>.Ignored,
-                A<string>.That.IsEqualTo(AdoConstants.StateWaiting),
-                A<DateTimeOffset>.Ignored,
-                A<int>.Ignored,
-                A<IList<TriggerKey>>.Ignored,
-                CancellationToken.None)).MustHaveHappened();
+            return new ValueTask<T>(default(T));
         }
 
-        public class TestJobStoreSupport : JobStoreSupport
+        /// <summary>
+        /// sets delegate directly
+        /// </summary>
+        internal IDriverDelegate DirectDelegate
         {
-            protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
+            set
             {
-                return new ValueTask<ConnectionAndTransactionHolder>(new ConnectionAndTransactionHolder(A.Fake<DbConnection>(), null));
-            }
-
-            protected override ValueTask<T> ExecuteInLock<T>(
-                string lockName,
-                Func<ConnectionAndTransactionHolder, ValueTask<T>> txCallback,
-                CancellationToken cancellationToken = default)
-            {
-                return new ValueTask<T>(default(T));
-            }
-
-            /// <summary>
-            /// sets delegate directly
-            /// </summary>
-            internal IDriverDelegate DirectDelegate
-            {
-                set
-                {
-                    FieldInfo fieldInfo = typeof(JobStoreSupport).GetField("driverDelegate", BindingFlags.Instance | BindingFlags.NonPublic);
-                    Assert.IsNotNull(fieldInfo);
-                    fieldInfo.SetValue(this, value);
-                }
+                FieldInfo fieldInfo = typeof(JobStoreSupport).GetField("driverDelegate", BindingFlags.Instance | BindingFlags.NonPublic);
+                Assert.IsNotNull(fieldInfo);
+                fieldInfo.SetValue(this, value);
             }
         }
     }

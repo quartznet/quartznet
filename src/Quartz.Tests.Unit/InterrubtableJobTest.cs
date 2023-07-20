@@ -23,98 +23,97 @@ using NUnit.Framework;
 
 using Quartz.Impl;
 
-namespace Quartz.Tests.Unit
+namespace Quartz.Tests.Unit;
+
+/// <summary>
+/// Test job interruption.
+/// </summary>
+[TestFixture]
+public class InterruptableJobTest
 {
-    /// <summary>
-    /// Test job interruption.
-    /// </summary>
-    [TestFixture]
-    public class InterruptableJobTest
+    private static readonly ManualResetEvent started = new ManualResetEvent(false);
+    private static readonly ManualResetEvent ended = new ManualResetEvent(false);
+
+    public class TestInterruptableJob : IJob
     {
-        private static readonly ManualResetEvent started = new ManualResetEvent(false);
-        private static readonly ManualResetEvent ended = new ManualResetEvent(false);
+        public static bool interrupted;
 
-        public class TestInterruptableJob : IJob
+        public async ValueTask Execute(IJobExecutionContext context)
         {
-            public static bool interrupted;
-
-            public async ValueTask Execute(IJobExecutionContext context)
+            // Console.WriteLine("TestInterruptableJob is executing.");
+            try
             {
-                // Console.WriteLine("TestInterruptableJob is executing.");
-                try
-                {
-                    started.Set(); // wait for test thread to notice the job is now running
-                }
-                catch (ThreadInterruptedException)
-                {
-                }
+                started.Set(); // wait for test thread to notice the job is now running
+            }
+            catch (ThreadInterruptedException)
+            {
+            }
 
-                interrupted = false;
-                for (int i = 0; i < 100; i++)
+            interrupted = false;
+            for (int i = 0; i < 100; i++)
+            {
+                if (context.CancellationToken.IsCancellationRequested)
                 {
-                    if (context.CancellationToken.IsCancellationRequested)
-                    {
-                        interrupted = true;
-                        break;
-                    }
-                    await Task.Delay(50); // simulate being busy for a while, then checking interrupted flag...
+                    interrupted = true;
+                    break;
                 }
-                try
-                {
-                    // Console.WriteLine("TestInterruptableJob exiting with interrupted = " + interrupted);
-                    ended.Set();
-                }
-                catch (ThreadInterruptedException)
-                {
-                }
+                await Task.Delay(50); // simulate being busy for a while, then checking interrupted flag...
+            }
+            try
+            {
+                // Console.WriteLine("TestInterruptableJob exiting with interrupted = " + interrupted);
+                ended.Set();
+            }
+            catch (ThreadInterruptedException)
+            {
             }
         }
+    }
 
-        [Test]
-        public async Task TestJobInterruption()
-        {
-            // create a simple scheduler
+    [Test]
+    public async Task TestJobInterruption()
+    {
+        // create a simple scheduler
 
-            NameValueCollection config = new NameValueCollection();
-            config["quartz.scheduler.instanceName"] = "InterruptableJobTest_Scheduler";
-            config["quartz.scheduler.instanceId"] = "AUTO";
-            config["quartz.threadPool.threadCount"] = "2";
-            config["quartz.threadPool.type"] = "Quartz.Simpl.DefaultThreadPool";
-            config["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
-            IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();
-            await sched.Start();
+        NameValueCollection config = new NameValueCollection();
+        config["quartz.scheduler.instanceName"] = "InterruptableJobTest_Scheduler";
+        config["quartz.scheduler.instanceId"] = "AUTO";
+        config["quartz.threadPool.threadCount"] = "2";
+        config["quartz.threadPool.type"] = "Quartz.Simpl.DefaultThreadPool";
+        config["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
+        IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();
+        await sched.Start();
 
-            // add a job with a trigger that will fire immediately
+        // add a job with a trigger that will fire immediately
 
-            IJobDetail job = JobBuilder.Create<TestInterruptableJob>()
-                .WithIdentity("j1")
-                .Build();
+        IJobDetail job = JobBuilder.Create<TestInterruptableJob>()
+            .WithIdentity("j1")
+            .Build();
 
-            ITrigger trigger = TriggerBuilder.Create()
-                .WithIdentity("t1")
-                .ForJob(job)
-                .StartNow()
-                .Build();
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity("t1")
+            .ForJob(job)
+            .StartNow()
+            .Build();
 
-            await sched.ScheduleJob(job, trigger);
+        await sched.ScheduleJob(job, trigger);
 
-            started.WaitOne(); // make sure the job starts running...
+        started.WaitOne(); // make sure the job starts running...
 
-            var executingJobs = await sched.GetCurrentlyExecutingJobs();
+        var executingJobs = await sched.GetCurrentlyExecutingJobs();
 
-            Assert.AreEqual(1, executingJobs.Count, "Number of executing jobs should be 1 ");
+        Assert.AreEqual(1, executingJobs.Count, "Number of executing jobs should be 1 ");
 
-            IJobExecutionContext jec = executingJobs.First();
+        IJobExecutionContext jec = executingJobs.First();
 
-            bool interruptResult = await sched.Interrupt(jec.FireInstanceId);
+        bool interruptResult = await sched.Interrupt(jec.FireInstanceId);
 
-            ended.WaitOne(); // wait for the job to terminate
+        ended.WaitOne(); // wait for the job to terminate
 
-            Assert.IsTrue(interruptResult, "Expected successful result from interruption of job ");
-            Assert.IsTrue(TestInterruptableJob.interrupted, "Expected interrupted flag to be set on job class ");
+        Assert.IsTrue(interruptResult, "Expected successful result from interruption of job ");
+        Assert.IsTrue(TestInterruptableJob.interrupted, "Expected interrupted flag to be set on job class ");
 
-            await sched.Clear();
-            await sched.Shutdown();
-        }
+        await sched.Clear();
+        await sched.Shutdown();
     }
 }

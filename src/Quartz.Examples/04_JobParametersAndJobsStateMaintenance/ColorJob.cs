@@ -19,58 +19,57 @@
 
 #endregion
 
-namespace Quartz.Examples.Example04
+namespace Quartz.Examples.Example04;
+
+/// <summary>
+/// This is just a simple job that receives parameters and
+/// maintains state.
+/// </summary>
+/// <author>Bill Kratzer</author>
+/// <author>Marko Lahma (.NET)</author>
+[PersistJobDataAfterExecution]
+[DisallowConcurrentExecution]
+public class ColorJob : IJob
 {
+    // parameter names specific to this job
+    public const string FavoriteColor = "favorite color";
+    public const string ExecutionCount = "count";
+
+    // Since Quartz will re-instantiate a class every time it
+    // gets executed, members non-static member variables can
+    // not be used to maintain state!
+    private int counter = 1;
+
     /// <summary>
-    /// This is just a simple job that receives parameters and
-    /// maintains state.
+    /// Called by the <see cref="IScheduler" /> when a
+    /// <see cref="ITrigger" /> fires that is associated with
+    /// the <see cref="IJob" />.
     /// </summary>
-    /// <author>Bill Kratzer</author>
-    /// <author>Marko Lahma (.NET)</author>
-    [PersistJobDataAfterExecution]
-    [DisallowConcurrentExecution]
-    public class ColorJob : IJob
+    public virtual ValueTask Execute(IJobExecutionContext context)
     {
-        // parameter names specific to this job
-        public const string FavoriteColor = "favorite color";
-        public const string ExecutionCount = "count";
+        // This job simply prints out its job name and the
+        // date and time that it is running
+        JobKey jobKey = context.JobDetail.Key;
 
-        // Since Quartz will re-instantiate a class every time it
-        // gets executed, members non-static member variables can
-        // not be used to maintain state!
-        private int counter = 1;
+        // Grab and print passed parameters
+        JobDataMap data = context.JobDetail.JobDataMap;
+        var favoriteColor = data.GetString(FavoriteColor);
+        int count = data.GetInt(ExecutionCount);
+        Console.WriteLine(
+            "ColorJob: {0} executing at {1:r}\n  favorite color is {2}\n  execution count (from job map) is {3}\n  execution count (from job member variable) is {4}",
+            jobKey, DateTime.Now,
+            favoriteColor,
+            count, counter);
 
-        /// <summary>
-        /// Called by the <see cref="IScheduler" /> when a
-        /// <see cref="ITrigger" /> fires that is associated with
-        /// the <see cref="IJob" />.
-        /// </summary>
-        public virtual ValueTask Execute(IJobExecutionContext context)
-        {
-            // This job simply prints out its job name and the
-            // date and time that it is running
-            JobKey jobKey = context.JobDetail.Key;
+        // increment the count and store it back into the
+        // job map so that job state can be properly maintained
+        count++;
+        data.Put(ExecutionCount, count);
 
-            // Grab and print passed parameters
-            JobDataMap data = context.JobDetail.JobDataMap;
-            var favoriteColor = data.GetString(FavoriteColor);
-            int count = data.GetInt(ExecutionCount);
-            Console.WriteLine(
-                "ColorJob: {0} executing at {1:r}\n  favorite color is {2}\n  execution count (from job map) is {3}\n  execution count (from job member variable) is {4}",
-                jobKey, DateTime.Now,
-                favoriteColor,
-                count, counter);
-
-            // increment the count and store it back into the
-            // job map so that job state can be properly maintained
-            count++;
-            data.Put(ExecutionCount, count);
-
-            // Increment the local member variable
-            // This serves no real purpose since job state can not
-            // be maintained via member variables!
-            counter++;
-            return default;
-        }
+        // Increment the local member variable
+        // This serves no real purpose since job state can not
+        // be maintained via member variables!
+        counter++;
+        return default;
     }
 }

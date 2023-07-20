@@ -21,29 +21,28 @@
 
 using Quartz.Spi;
 
-namespace Quartz.Simpl
-{
-    /// <summary> 
-    /// The default InstanceIdGenerator used by Quartz when instance id is to be
-    /// automatically generated.  Instance id is of the form HOSTNAME + CURRENT_TIME.
-    /// </summary>
-    /// <author>Marko Lahma (.NET)</author>
-    /// <seealso cref="IInstanceIdGenerator" />
-    /// <seealso cref="HostnameInstanceIdGenerator" />
-    public class SimpleInstanceIdGenerator : HostNameBasedIdGenerator
-    {
-        // assume ticks to be at most 20 chars long
-        private const int HostNameMaxLength = IdMaxLength - 20;
+namespace Quartz.Simpl;
 
-        /// <summary>
-        /// Generate the instance id for a <see cref="IScheduler" />
-        /// </summary>
-        /// <param name="cancellationToken"></param>
-        /// <returns>The clusterwide unique instance id.</returns>
-        public override async ValueTask<string?> GenerateInstanceId(CancellationToken cancellationToken = default)
-        {
-            var hostName = await GetHostName(HostNameMaxLength, cancellationToken).ConfigureAwait(false);
-            return hostName + SystemTime.UtcNow().Ticks;
-        }
+/// <summary>
+/// The default InstanceIdGenerator used by Quartz when instance id is to be
+/// automatically generated.  Instance id is of the form HOSTNAME + CURRENT_TIME.
+/// </summary>
+/// <author>Marko Lahma (.NET)</author>
+/// <seealso cref="IInstanceIdGenerator" />
+/// <seealso cref="HostnameInstanceIdGenerator" />
+public class SimpleInstanceIdGenerator : HostNameBasedIdGenerator
+{
+    // assume ticks to be at most 20 chars long
+    private const int HostNameMaxLength = IdMaxLength - 20;
+
+    /// <summary>
+    /// Generate the instance id for a <see cref="IScheduler" />
+    /// </summary>
+    /// <param name="cancellationToken"></param>
+    /// <returns>The clusterwide unique instance id.</returns>
+    public override async ValueTask<string?> GenerateInstanceId(CancellationToken cancellationToken = default)
+    {
+        var hostName = await GetHostName(HostNameMaxLength, cancellationToken).ConfigureAwait(false);
+        return hostName + SystemTime.UtcNow().Ticks;
     }
 }

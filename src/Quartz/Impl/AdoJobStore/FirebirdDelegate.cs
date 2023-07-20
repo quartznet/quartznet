@@ -1,27 +1,26 @@
-﻿namespace Quartz.Impl.AdoJobStore
+﻿namespace Quartz.Impl.AdoJobStore;
+
+/// <summary>
+/// Delegate implementation for Firebird.
+/// </summary>
+public class FirebirdDelegate : StdAdoDelegate
 {
     /// <summary>
-    /// Delegate implementation for Firebird.
+    /// Gets the select next trigger to acquire SQL clause.
+    /// FireBird version with ROWS support.
     /// </summary>
-    public class FirebirdDelegate : StdAdoDelegate
+    /// <returns></returns>
+    protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
     {
-        /// <summary>
-        /// Gets the select next trigger to acquire SQL clause.
-        /// FireBird version with ROWS support.
-        /// </summary>
-        /// <returns></returns>
-        protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
-        {
-            return SqlSelectNextTriggerToAcquire + " ROWS " + maxCount;
-        }
+        return SqlSelectNextTriggerToAcquire + " ROWS " + maxCount;
+    }
 
-        protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
+    protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
+    {
+        if (count != -1)
         {
-            if (count != -1)
-            {
-                return SqlSelectHasMisfiredTriggersInState + " ROWS " + count;
-            }
-            return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
+            return SqlSelectHasMisfiredTriggersInState + " ROWS " + count;
         }
+        return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
     }
 }

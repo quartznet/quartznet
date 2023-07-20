@@ -19,80 +19,79 @@
 
 using Quartz.Spi;
 
-namespace Quartz.Listener
+namespace Quartz.Listener;
+
+/// <summary>
+/// A helpful abstract base class for implementors of <see cref="IJobListener" />.
+/// </summary>
+/// <remarks>
+/// <para>
+/// The methods in this class are empty so you only need to override the  
+/// subset for the <see cref="IJobListener" /> events you care about.
+/// </para>
+/// 
+/// <para>
+/// You are required to implement <see cref="IJobListener.Name" /> 
+/// to return the unique name of your <see cref="IJobListener" />.  
+/// </para>
+/// </remarks>
+/// <author>Marko Lahma (.NET)</author>
+/// <seealso cref="IJobListener" />
+public abstract class JobListenerSupport : IJobListener
 {
     /// <summary>
-    /// A helpful abstract base class for implementors of <see cref="IJobListener" />.
+    /// Get the name of the <see cref="IJobListener"/>.
     /// </summary>
-    /// <remarks>
+    /// <value></value>
+    public abstract string Name { get; }
+
+    /// <summary>
+    /// Called by the <see cref="IScheduler"/> when a <see cref="IJobDetail"/>
+    /// is about to be executed (an associated <see cref="ITrigger"/>
+    /// has occurred).
     /// <para>
-    /// The methods in this class are empty so you only need to override the  
-    /// subset for the <see cref="IJobListener" /> events you care about.
+    /// This method will not be invoked if the execution of the Job was vetoed
+    /// by a <see cref="ITriggerListener"/>.
     /// </para>
-    /// 
-    /// <para>
-    /// You are required to implement <see cref="IJobListener.Name" /> 
-    /// to return the unique name of your <see cref="IJobListener" />.  
-    /// </para>
-    /// </remarks>
-    /// <author>Marko Lahma (.NET)</author>
-    /// <seealso cref="IJobListener" />
-    public abstract class JobListenerSupport : IJobListener
+    /// </summary>
+    /// <param name="context"></param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <seealso cref="JobExecutionVetoed"/>
+    public virtual ValueTask JobToBeExecuted(
+        IJobExecutionContext context, 
+        CancellationToken cancellationToken = default)
     {
-        /// <summary>
-        /// Get the name of the <see cref="IJobListener"/>.
-        /// </summary>
-        /// <value></value>
-        public abstract string Name { get; }
+        return default;
+    }
 
-        /// <summary>
-        /// Called by the <see cref="IScheduler"/> when a <see cref="IJobDetail"/>
-        /// is about to be executed (an associated <see cref="ITrigger"/>
-        /// has occurred).
-        /// <para>
-        /// This method will not be invoked if the execution of the Job was vetoed
-        /// by a <see cref="ITriggerListener"/>.
-        /// </para>
-        /// </summary>
-        /// <param name="context"></param>
-        /// <param name="cancellationToken">The cancellation instruction.</param>
-        /// <seealso cref="JobExecutionVetoed"/>
-        public virtual ValueTask JobToBeExecuted(
-            IJobExecutionContext context, 
-            CancellationToken cancellationToken = default)
-        {
-            return default;
-        }
+    /// <summary>
+    /// Called by the <see cref="IScheduler"/> when a <see cref="IJobDetail"/>
+    /// was about to be executed (an associated <see cref="ITrigger"/>
+    /// has occurred), but a <see cref="ITriggerListener"/> vetoed it's
+    /// execution.
+    /// </summary>
+    /// <param name="context"></param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <seealso cref="JobToBeExecuted"/>
+    public virtual ValueTask JobExecutionVetoed(
+        IJobExecutionContext context,
+        CancellationToken cancellationToken = default)
+    {
+        return default;
+    }
 
-        /// <summary>
-        /// Called by the <see cref="IScheduler"/> when a <see cref="IJobDetail"/>
-        /// was about to be executed (an associated <see cref="ITrigger"/>
-        /// has occurred), but a <see cref="ITriggerListener"/> vetoed it's
-        /// execution.
-        /// </summary>
-        /// <param name="context"></param>
-        /// <param name="cancellationToken">The cancellation instruction.</param>
-        /// <seealso cref="JobToBeExecuted"/>
-        public virtual ValueTask JobExecutionVetoed(
-            IJobExecutionContext context,
-            CancellationToken cancellationToken = default)
-        {
-            return default;
-        }
-
-        /// <summary>
-        /// Called by the <see cref="IScheduler"/> after a <see cref="IJobDetail"/>
-        /// has been executed, and be for the associated <see cref="ITrigger"/>'s
-        /// <see cref="IOperableTrigger.Triggered"/> method has been called.
-        /// </summary>
-        /// <param name="context"></param>
-        /// <param name="jobException"></param>
-        /// <param name="cancellationToken">The cancellation instruction.</param>
-        public virtual ValueTask JobWasExecuted(IJobExecutionContext context,
-            JobExecutionException? jobException,
-            CancellationToken cancellationToken = default)
-        {
-            return default;
-        }
+    /// <summary>
+    /// Called by the <see cref="IScheduler"/> after a <see cref="IJobDetail"/>
+    /// has been executed, and be for the associated <see cref="ITrigger"/>'s
+    /// <see cref="IOperableTrigger.Triggered"/> method has been called.
+    /// </summary>
+    /// <param name="context"></param>
+    /// <param name="jobException"></param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    public virtual ValueTask JobWasExecuted(IJobExecutionContext context,
+        JobExecutionException? jobException,
+        CancellationToken cancellationToken = default)
+    {
+        return default;
     }
 }

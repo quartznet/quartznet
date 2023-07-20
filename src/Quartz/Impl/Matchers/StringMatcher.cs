@@ -21,80 +21,79 @@
 
 using Quartz.Util;
 
-namespace Quartz.Impl.Matchers
+namespace Quartz.Impl.Matchers;
+
+/// <summary>
+/// An abstract base class for some types of matchers.
+/// </summary>
+/// <author>James House</author>
+/// <author>Marko Lahma (.NET)</author>
+[Serializable]
+public abstract class StringMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
 {
-    /// <summary>
-    /// An abstract base class for some types of matchers.
-    /// </summary>
-    /// <author>James House</author>
-    /// <author>Marko Lahma (.NET)</author>
-    [Serializable]
-    public abstract class StringMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
+    protected StringMatcher()
     {
-        protected StringMatcher()
+    }
+
+    protected StringMatcher(string compareTo, StringOperator compareWith)
+    {
+        if (compareTo is null)
         {
+            ThrowHelper.ThrowArgumentNullException(nameof(compareTo), "CompareTo value cannot be null!");
         }
+        CompareToValue = compareTo;
+        CompareWithOperator = compareWith;
+    }
 
-        protected StringMatcher(string compareTo, StringOperator compareWith)
+    protected abstract string GetValue(TKey key);
+
+    public bool IsMatch(TKey key)
+    {
+        return CompareWithOperator.Evaluate(GetValue(key), CompareToValue);
+    }
+
+    public override int GetHashCode()
+    {
+        const int Prime = 31;
+        int result = 1;
+        result = Prime * result + (CompareToValue?.GetHashCode() ?? 0);
+        result = Prime * result + CompareWithOperator.GetHashCode();
+        return result;
+    }
+
+    public override bool Equals(object? obj)
+    {
+        if (this == obj)
         {
-            if (compareTo is null)
-            {
-                ThrowHelper.ThrowArgumentNullException(nameof(compareTo), "CompareTo value cannot be null!");
-            }
-            CompareToValue = compareTo;
-            CompareWithOperator = compareWith;
-        }
-
-        protected abstract string GetValue(TKey key);
-
-        public bool IsMatch(TKey key)
-        {
-            return CompareWithOperator.Evaluate(GetValue(key), CompareToValue);
-        }
-
-        public override int GetHashCode()
-        {
-            const int Prime = 31;
-            int result = 1;
-            result = Prime * result + (CompareToValue?.GetHashCode() ?? 0);
-            result = Prime * result + CompareWithOperator.GetHashCode();
-            return result;
-        }
-
-        public override bool Equals(object? obj)
-        {
-            if (this == obj)
-            {
-                return true;
-            }
-            if (obj == null)
-            {
-                return false;
-            }
-            if (GetType() != obj.GetType())
-            {
-                return false;
-            }
-            StringMatcher<TKey> other = (StringMatcher<TKey>) obj;
-            if (CompareToValue == null)
-            {
-                if (other.CompareToValue != null)
-                {
-                    return false;
-                }
-            }
-            else if (!CompareToValue.Equals(other.CompareToValue))
-            {
-                return false;
-            }
-            if (!CompareWithOperator.Equals(other.CompareWithOperator))
-            {
-                return false;
-            }
             return true;
         }
-
-        public string CompareToValue { get; private set; } = null!;
-        public StringOperator CompareWithOperator { get; private set; } = null!;
+        if (obj == null)
+        {
+            return false;
+        }
+        if (GetType() != obj.GetType())
+        {
+            return false;
+        }
+        StringMatcher<TKey> other = (StringMatcher<TKey>) obj;
+        if (CompareToValue == null)
+        {
+            if (other.CompareToValue != null)
+            {
+                return false;
+            }
+        }
+        else if (!CompareToValue.Equals(other.CompareToValue))
+        {
+            return false;
+        }
+        if (!CompareWithOperator.Equals(other.CompareWithOperator))
+        {
+            return false;
+        }
+        return true;
     }
+
+    public string CompareToValue { get; private set; } = null!;
+    public StringOperator CompareWithOperator { get; private set; } = null!;
 }

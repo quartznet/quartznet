@@ -1,23 +1,22 @@
 using System.Collections;
 
-namespace Quartz.Collections
+namespace Quartz.Collections;
+
+internal sealed class EmptyEnumerator<T> : IEnumerator<T>
 {
-    internal sealed class EmptyEnumerator<T> : IEnumerator<T>
+    public static EmptyEnumerator<T> Instance = new EmptyEnumerator<T>();
+
+    public bool MoveNext() => false;
+
+    public void Reset()
     {
-        public static EmptyEnumerator<T> Instance = new EmptyEnumerator<T>();
+    }
 
-        public bool MoveNext() => false;
+    public T Current => default!;
 
-        public void Reset()
-        {
-        }
+    object? IEnumerator.Current => Current;
 
-        public T Current => default!;
-
-        object? IEnumerator.Current => Current;
-
-        public void Dispose()
-        {
-        }
+    public void Dispose()
+    {
     }
 }

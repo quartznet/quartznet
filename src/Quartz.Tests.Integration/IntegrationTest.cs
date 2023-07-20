@@ -21,28 +21,27 @@ using Microsoft.Extensions.Logging;
 
 using Quartz.Logging;
 
-namespace Quartz.Tests.Integration
+namespace Quartz.Tests.Integration;
+
+/// <summary>
+/// Base class for integration tests.
+/// </summary>
+/// <author>Marko Lahma (.NET)</author>
+public abstract class IntegrationTest
 {
+    protected IScheduler sched;
+
     /// <summary>
-    /// Base class for integration tests.
+    /// Initializes a new instance of the <see cref="IntegrationTest"/> class.
     /// </summary>
-    /// <author>Marko Lahma (.NET)</author>
-    public abstract class IntegrationTest
+    protected IntegrationTest()
     {
-        protected IScheduler sched;
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="IntegrationTest"/> class.
-        /// </summary>
-        protected IntegrationTest()
-        {
-            logger = LogProvider.CreateLogger<IntegrationTest>();
-        }
-
-        /// <summary>
-        /// Gets the log.
-        /// </summary>
-        /// <value>The log.</value>
-        internal ILogger<IntegrationTest> logger { get; }
+        logger = LogProvider.CreateLogger<IntegrationTest>();
     }
+
+    /// <summary>
+    /// Gets the log.
+    /// </summary>
+    /// <value>The log.</value>
+    internal ILogger<IntegrationTest> logger { get; }
 }

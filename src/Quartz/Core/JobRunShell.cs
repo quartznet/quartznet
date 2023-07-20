@@ -28,451 +28,450 @@ using Quartz.Spi;
 
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
-namespace Quartz.Core
+namespace Quartz.Core;
+
+/// <summary>
+/// JobRunShell instances are responsible for providing the 'safe' environment
+/// for <see cref="IJob" /> s to run in, and for performing all of the work of
+/// executing the <see cref="IJob" />, catching ANY thrown exceptions, updating
+/// the <see cref="ITrigger" /> with the <see cref="IJob" />'s completion code,
+/// etc.
+/// <para>
+/// A <see cref="JobRunShell" /> instance is created by a <see cref="IJobRunShellFactory" />
+/// on behalf of the <see cref="QuartzSchedulerThread" /> which then runs the
+/// shell in a thread from the configured thread pool when the
+/// scheduler determines that a <see cref="IJob" /> has been triggered.
+/// </para>
+/// </summary>
+/// <seealso cref="IJobRunShellFactory" />
+/// <seealso cref="QuartzSchedulerThread" />
+/// <seealso cref="IJob" />
+/// <seealso cref="ITrigger" />
+/// <author>James House</author>
+/// <author>Marko Lahma (.NET)</author>
+public class JobRunShell : SchedulerListenerSupport
 {
+    private readonly ILogger<JobRunShell> logger;
+#if DIAGNOSTICS_SOURCE
+    private readonly JobDiagnosticsWriter jobExecutionJobDiagnostics = new JobDiagnosticsWriter();
+#endif
+
+    private JobExecutionContextImpl? jec;
+    private QuartzScheduler? qs;
+    private readonly IScheduler scheduler;
+    private readonly TriggerFiredBundle firedTriggerBundle;
+
     /// <summary>
-    /// JobRunShell instances are responsible for providing the 'safe' environment
-    /// for <see cref="IJob" /> s to run in, and for performing all of the work of
-    /// executing the <see cref="IJob" />, catching ANY thrown exceptions, updating
-    /// the <see cref="ITrigger" /> with the <see cref="IJob" />'s completion code,
-    /// etc.
-    /// <para>
-    /// A <see cref="JobRunShell" /> instance is created by a <see cref="IJobRunShellFactory" />
-    /// on behalf of the <see cref="QuartzSchedulerThread" /> which then runs the
-    /// shell in a thread from the configured thread pool when the
-    /// scheduler determines that a <see cref="IJob" /> has been triggered.
-    /// </para>
+    /// Create a JobRunShell instance with the given settings.
     /// </summary>
-    /// <seealso cref="IJobRunShellFactory" />
-    /// <seealso cref="QuartzSchedulerThread" />
-    /// <seealso cref="IJob" />
-    /// <seealso cref="ITrigger" />
-    /// <author>James House</author>
-    /// <author>Marko Lahma (.NET)</author>
-    public class JobRunShell : SchedulerListenerSupport
+    /// <param name="scheduler">The <see cref="IScheduler" /> instance that should be made
+    /// available within the <see cref="IJobExecutionContext" />.</param>
+    /// <param name="bundle"></param>
+    public JobRunShell(IScheduler scheduler, TriggerFiredBundle bundle)
     {
-        private readonly ILogger<JobRunShell> logger;
-#if DIAGNOSTICS_SOURCE
-        private readonly JobDiagnosticsWriter jobExecutionJobDiagnostics = new JobDiagnosticsWriter();
-#endif
+        this.scheduler = scheduler;
+        firedTriggerBundle = bundle;
+        logger = LogProvider.CreateLogger<JobRunShell>();
+    }
 
-        private JobExecutionContextImpl? jec;
-        private QuartzScheduler? qs;
-        private readonly IScheduler scheduler;
-        private readonly TriggerFiredBundle firedTriggerBundle;
+    public override ValueTask SchedulerShuttingdown(CancellationToken cancellationToken = default)
+    {
+        RequestShutdown();
+        return default;
+    }
 
-        /// <summary>
-        /// Create a JobRunShell instance with the given settings.
-        /// </summary>
-        /// <param name="scheduler">The <see cref="IScheduler" /> instance that should be made
-        /// available within the <see cref="IJobExecutionContext" />.</param>
-        /// <param name="bundle"></param>
-        public JobRunShell(IScheduler scheduler, TriggerFiredBundle bundle)
+    /// <summary>
+    /// Initializes the job execution context with given scheduler and bundle.
+    /// </summary>
+    /// <param name="sched">The scheduler.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    public virtual async Task Initialize(
+        QuartzScheduler sched,
+        CancellationToken cancellationToken = default)
+    {
+        qs = sched;
+
+        IJob job;
+
+        try
         {
-            this.scheduler = scheduler;
-            firedTriggerBundle = bundle;
-            logger = LogProvider.CreateLogger<JobRunShell>();
+            job = sched.JobFactory.NewJob(firedTriggerBundle, scheduler);
+        }
+        catch (SchedulerException se)
+        {
+            await sched.NotifySchedulerListenersError($"An error occurred instantiating job to be executed. job= '{firedTriggerBundle.JobDetail.Key}'", se, cancellationToken).ConfigureAwait(false);
+            throw;
+        }
+        catch (Exception e)
+        {
+            SchedulerException se = new SchedulerException($"Problem instantiating type '{firedTriggerBundle.JobDetail.JobType.FullName}: {e.Message}'", e);
+            await sched.NotifySchedulerListenersError($"An error occurred instantiating job to be executed. job= '{firedTriggerBundle.JobDetail.Key}, message={e.Message}'", se, cancellationToken).ConfigureAwait(false);
+            throw se;
         }
 
-        public override ValueTask SchedulerShuttingdown(CancellationToken cancellationToken = default)
+        jec = new JobExecutionContextImpl(scheduler, firedTriggerBundle, job);
+    }
+
+    /// <summary>
+    /// Requests the Shutdown.
+    /// </summary>
+    public virtual void RequestShutdown()
+    {
+    }
+
+    /// <summary>
+    /// This method has to be implemented in order that starting of the thread causes the object's
+    /// run method to be called in that separately executing thread.
+    /// </summary>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    public virtual async Task Run(CancellationToken cancellationToken = default)
+    {
+        Context.CallerId.Value = Guid.NewGuid();
+        qs!.AddInternalSchedulerListener(this);
+
+        IJob job = jec!.jobInstance;
+
+        try
         {
-            RequestShutdown();
-            return default;
-        }
-
-        /// <summary>
-        /// Initializes the job execution context with given scheduler and bundle.
-        /// </summary>
-        /// <param name="sched">The scheduler.</param>
-        /// <param name="cancellationToken">The cancellation instruction.</param>
-        public virtual async Task Initialize(
-            QuartzScheduler sched,
-            CancellationToken cancellationToken = default)
-        {
-            qs = sched;
-
-            IJob job;
-
-            try
+            IOperableTrigger trigger = (IOperableTrigger) jec.Trigger;
+            IJobDetail jobDetail = jec.JobDetail;
+            do
             {
-                job = sched.JobFactory.NewJob(firedTriggerBundle, scheduler);
-            }
-            catch (SchedulerException se)
-            {
-                await sched.NotifySchedulerListenersError($"An error occurred instantiating job to be executed. job= '{firedTriggerBundle.JobDetail.Key}'", se, cancellationToken).ConfigureAwait(false);
-                throw;
-            }
-            catch (Exception e)
-            {
-                SchedulerException se = new SchedulerException($"Problem instantiating type '{firedTriggerBundle.JobDetail.JobType.FullName}: {e.Message}'", e);
-                await sched.NotifySchedulerListenersError($"An error occurred instantiating job to be executed. job= '{firedTriggerBundle.JobDetail.Key}, message={e.Message}'", se, cancellationToken).ConfigureAwait(false);
-                throw se;
-            }
+                JobExecutionException? jobExEx = null;
 
-            jec = new JobExecutionContextImpl(scheduler, firedTriggerBundle, job);
-        }
-
-        /// <summary>
-        /// Requests the Shutdown.
-        /// </summary>
-        public virtual void RequestShutdown()
-        {
-        }
-
-        /// <summary>
-        /// This method has to be implemented in order that starting of the thread causes the object's
-        /// run method to be called in that separately executing thread.
-        /// </summary>
-        /// <param name="cancellationToken">The cancellation instruction.</param>
-        public virtual async Task Run(CancellationToken cancellationToken = default)
-        {
-            Context.CallerId.Value = Guid.NewGuid();
-            qs!.AddInternalSchedulerListener(this);
-
-            IJob job = jec!.jobInstance;
-
-            try
-            {
-                IOperableTrigger trigger = (IOperableTrigger) jec.Trigger;
-                IJobDetail jobDetail = jec.JobDetail;
-                do
+                try
                 {
-                    JobExecutionException? jobExEx = null;
+                    Begin();
+                }
+                catch (SchedulerException se)
+                {
+                    string msg = $"Error executing Job {jec.JobDetail.Key}: couldn't begin execution.";
+                    await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
+                    break;
+                }
 
-                    try
-                    {
-                        Begin();
-                    }
-                    catch (SchedulerException se)
-                    {
-                        string msg = $"Error executing Job {jec.JobDetail.Key}: couldn't begin execution.";
-                        await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
-                        break;
-                    }
-
-                    // notify job & trigger listeners...
-                    SchedulerInstruction instCode;
-                    try
-                    {
-                        if (!await NotifyListenersBeginning(jec, cancellationToken).ConfigureAwait(false))
-                        {
-                            break;
-                        }
-                    }
-                    catch (VetoedException)
-                    {
-                        try
-                        {
-                            instCode = trigger.ExecutionComplete(jec, null);
-                            await qs.NotifyJobStoreJobVetoed(trigger, jobDetail, instCode, cancellationToken).ConfigureAwait(false);
-
-                            // Even if trigger got vetoed, we still needs to check to see if it's the trigger's finalized run or not.
-                            if (!trigger.GetMayFireAgain())
-                            {
-                                await qs.NotifySchedulerListenersFinalized(jec.Trigger, cancellationToken).ConfigureAwait(false);
-                            }
-                            Complete(true);
-                        }
-                        catch (SchedulerException se)
-                        {
-                            string msg = $"Error during veto of Job {jec.JobDetail.Key}: couldn't finalize execution.";
-                            await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
-                        }
-                        break;
-                    }
-
-                    DateTimeOffset startTime = SystemTime.UtcNow();
-                    DateTimeOffset endTime;
-
-#if DIAGNOSTICS_SOURCE
-                    System.Diagnostics.Activity? activity = null;
-#endif
-
-                    // Execute the job
-                    try
-                    {
-                        if (logger.IsEnabled(LogLevel.Debug))
-                        {
-                            logger.LogDebug("Calling Execute on job {JobKey}", jobDetail.Key);
-                        }
-
-#if DIAGNOSTICS_SOURCE
-                        activity = jobExecutionJobDiagnostics.WriteStarted(jec, startTime);
-#endif
-
-                        await job.Execute(jec).ConfigureAwait(false);
-
-                        endTime = SystemTime.UtcNow();
-                    }
-                    catch (OperationCanceledException)
-                    when (jec.CancellationToken.IsCancellationRequested)
-                    {
-                        endTime = SystemTime.UtcNow();
-                        logger.LogInformation("Job {JobDetailKey} was cancelled", jobDetail.Key);
-                    }
-                    catch (JobExecutionException jee)
-                    {
-                        endTime = SystemTime.UtcNow();
-                        jobExEx = jee;
-#if DIAGNOSTICS_SOURCE
-                        jobExecutionJobDiagnostics.WriteException(activity, jobExEx);
-#endif
-                        logger.LogError(jobExEx,"Job {JobDetailKey} threw a JobExecutionException: ", jobDetail.Key);
-                    }
-                    catch (Exception e)
-                    {
-                        endTime = SystemTime.UtcNow();
-                        logger.LogError(e,"Job {JobDetailKey} threw an unhandled Exception: ", jobDetail.Key);
-                        SchedulerException se = new SchedulerException("Job threw an unhandled exception.", e);
-                        string msg = $"Job {jec.JobDetail.Key} threw an exception.";
-                        await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
-                        jobExEx = new JobExecutionException(se, false);
-                    }
-
-                    jec.JobRunTime = endTime - startTime;
-
-#if DIAGNOSTICS_SOURCE
-                    jobExecutionJobDiagnostics.WriteStopped(activity, endTime, jec);
-#endif
-
-                    // notify all job listeners
-                    if (!await NotifyJobListenersComplete(qs, jec, jobExEx, cancellationToken).ConfigureAwait(false))
+                // notify job & trigger listeners...
+                SchedulerInstruction instCode;
+                try
+                {
+                    if (!await NotifyListenersBeginning(jec, cancellationToken).ConfigureAwait(false))
                     {
                         break;
                     }
-
-                    instCode = SchedulerInstruction.NoInstruction;
-
-                    // update the trigger
+                }
+                catch (VetoedException)
+                {
                     try
                     {
-                        instCode = trigger.ExecutionComplete(jec, jobExEx);
-                        if (logger.IsEnabled(LogLevel.Debug))
-                        {
-                            logger.LogDebug("Trigger instruction : {InstCode}", instCode);
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        // If this happens, there's a bug in the trigger...
-                        SchedulerException se = new SchedulerException("Trigger threw an unhandled exception.", e);
-                        await qs.NotifySchedulerListenersError("Please report this error to the Quartz developers.", se, cancellationToken).ConfigureAwait(false);
-                    }
+                        instCode = trigger.ExecutionComplete(jec, null);
+                        await qs.NotifyJobStoreJobVetoed(trigger, jobDetail, instCode, cancellationToken).ConfigureAwait(false);
 
-                    // notify all trigger listeners
-                    if (!await NotifyTriggerListenersComplete(qs, jec, instCode, cancellationToken).ConfigureAwait(false))
-                    {
-                        break;
-                    }
-                    // update job/trigger or re-Execute job
-                    if (instCode == SchedulerInstruction.ReExecuteJob)
-                    {
-                        if (logger.IsEnabled(LogLevel.Debug))
+                        // Even if trigger got vetoed, we still needs to check to see if it's the trigger's finalized run or not.
+                        if (!trigger.GetMayFireAgain())
                         {
-                            logger.LogDebug("Rescheduling trigger to reexecute");
+                            await qs.NotifySchedulerListenersFinalized(jec.Trigger, cancellationToken).ConfigureAwait(false);
                         }
-                        jec.IncrementRefireCount();
-                        try
-                        {
-                            Complete(false);
-                        }
-                        catch (SchedulerException se)
-                        {
-                            await qs.NotifySchedulerListenersError($"Error executing Job {jec.JobDetail.Key}: couldn't finalize execution.", se, cancellationToken).ConfigureAwait(false);
-                        }
-                        continue;
-                    }
-
-                    try
-                    {
                         Complete(true);
                     }
                     catch (SchedulerException se)
                     {
-                        await qs.NotifySchedulerListenersError($"Error executing Job {jec.JobDetail.Key}: couldn't finalize execution.", se, cancellationToken).ConfigureAwait(false);
-                        continue;
+                        string msg = $"Error during veto of Job {jec.JobDetail.Key}: couldn't finalize execution.";
+                        await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
                     }
-
-                    await qs.NotifyJobStoreJobComplete(trigger, jobDetail, instCode, cancellationToken).ConfigureAwait(false);
-
                     break;
-                } while (true);
-            }
-            finally
-            {
-                qs.RemoveInternalSchedulerListener(this);
-                qs.JobFactory.ReturnJob(job);
-                jec.Dispose();
-            }
-        }
+                }
 
-        /// <summary>
-        /// Runs begin procedures on this instance.
-        /// </summary>
-        protected virtual void Begin()
-        {
-        }
+                DateTimeOffset startTime = SystemTime.UtcNow();
+                DateTimeOffset endTime;
 
-        /// <summary>
-        /// Completes the execution.
-        /// </summary>
-        /// <param name="successfulExecution">if set to <c>true</c> [successful execution].</param>
-        protected virtual void Complete(bool successfulExecution)
-        {
-        }
-
-        /// <summary>
-        /// Passivates this instance.
-        /// </summary>
-        public virtual void Passivate()
-        {
-            jec = null;
-            qs = null;
-        }
-
-        private async ValueTask<bool> NotifyListenersBeginning(
-            IJobExecutionContext ctx,
-            CancellationToken cancellationToken = default)
-        {
-            bool vetoed;
-
-            // notify all trigger listeners
-            try
-            {
-                vetoed = await qs!.NotifyTriggerListenersFired(ctx, cancellationToken).ConfigureAwait(false);
-            }
-            catch (SchedulerException se)
-            {
-                var msg = $"Unable to notify TriggerListener(s) while firing trigger (Trigger and Job will NOT be fired!). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
-                await qs!.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
-                return false;
-            }
-
-            if (vetoed)
-            {
-                try
-                {
 #if DIAGNOSTICS_SOURCE
-                    if (LogProvider.Cached.Default.Value.IsEnabled(OperationName.Job.Veto))
-                    {
-                        LogProvider.Cached.Default.Value.Write(OperationName.Job.Veto, ctx);
-                    }
+                System.Diagnostics.Activity? activity = null;
 #endif
 
-                    await qs.NotifyJobListenersWasVetoed(ctx, cancellationToken).ConfigureAwait(false);
-                }
-                catch (SchedulerException se)
-                {
-                    var msg = $"Unable to notify JobListener(s) of vetoed execution while firing trigger (Trigger and Job will NOT be fired!). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
-                    await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
-                }
-                throw new VetoedException(this);
-            }
-
-            // notify all job listeners
-            try
-            {
-                await qs.NotifyJobListenersToBeExecuted(ctx, cancellationToken).ConfigureAwait(false);
-            }
-            catch (SchedulerException se)
-            {
-                string msg = $"Unable to notify JobListener(s) of Job to be executed: (Job will NOT be executed!). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
-                await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
-
-                return false;
-            }
-
-            return true;
-        }
-
-        private static async ValueTask<bool> NotifyJobListenersComplete(QuartzScheduler qs,
-                                                                   JobExecutionContextImpl ctx,
-                                                                   JobExecutionException? jobExEx,
-                                                                   CancellationToken cancellationToken = default)
-        {
-            try
-            {
-                await qs.NotifyJobListenersWasExecuted(ctx, jobExEx, cancellationToken).ConfigureAwait(false);
-            }
-            catch (SchedulerException se)
-            {
-                string msg = $"Unable to notify JobListener(s) of Job that was executed: (error will be ignored). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
-                await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
-
-                return false;
-            }
-
-            return true;
-        }
-
-        private static ValueTask<bool> NotifyTriggerListenersComplete(QuartzScheduler qs,
-                                                                 JobExecutionContextImpl ctx,
-                                                                 SchedulerInstruction instCode,
-                                                                 CancellationToken cancellationToken = default)
-        {
-            // check if we can do quick path
-            if (ctx.Trigger.GetMayFireAgain())
-            {
+                // Execute the job
                 try
                 {
-                    var task = qs.NotifyTriggerListenersComplete(ctx, instCode, cancellationToken);
-                    return task.IsCompletedSuccessfully ? new ValueTask<bool>(true) : DoNotify(task, qs, ctx, cancellationToken);
+                    if (logger.IsEnabled(LogLevel.Debug))
+                    {
+                        logger.LogDebug("Calling Execute on job {JobKey}", jobDetail.Key);
+                    }
+
+#if DIAGNOSTICS_SOURCE
+                    activity = jobExecutionJobDiagnostics.WriteStarted(jec, startTime);
+#endif
+
+                    await job.Execute(jec).ConfigureAwait(false);
+
+                    endTime = SystemTime.UtcNow();
+                }
+                catch (OperationCanceledException)
+                    when (jec.CancellationToken.IsCancellationRequested)
+                {
+                    endTime = SystemTime.UtcNow();
+                    logger.LogInformation("Job {JobDetailKey} was cancelled", jobDetail.Key);
+                }
+                catch (JobExecutionException jee)
+                {
+                    endTime = SystemTime.UtcNow();
+                    jobExEx = jee;
+#if DIAGNOSTICS_SOURCE
+                    jobExecutionJobDiagnostics.WriteException(activity, jobExEx);
+#endif
+                    logger.LogError(jobExEx,"Job {JobDetailKey} threw a JobExecutionException: ", jobDetail.Key);
+                }
+                catch (Exception e)
+                {
+                    endTime = SystemTime.UtcNow();
+                    logger.LogError(e,"Job {JobDetailKey} threw an unhandled Exception: ", jobDetail.Key);
+                    SchedulerException se = new SchedulerException("Job threw an unhandled exception.", e);
+                    string msg = $"Job {jec.JobDetail.Key} threw an exception.";
+                    await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
+                    jobExEx = new JobExecutionException(se, false);
+                }
+
+                jec.JobRunTime = endTime - startTime;
+
+#if DIAGNOSTICS_SOURCE
+                jobExecutionJobDiagnostics.WriteStopped(activity, endTime, jec);
+#endif
+
+                // notify all job listeners
+                if (!await NotifyJobListenersComplete(qs, jec, jobExEx, cancellationToken).ConfigureAwait(false))
+                {
+                    break;
+                }
+
+                instCode = SchedulerInstruction.NoInstruction;
+
+                // update the trigger
+                try
+                {
+                    instCode = trigger.ExecutionComplete(jec, jobExEx);
+                    if (logger.IsEnabled(LogLevel.Debug))
+                    {
+                        logger.LogDebug("Trigger instruction : {InstCode}", instCode);
+                    }
+                }
+                catch (Exception e)
+                {
+                    // If this happens, there's a bug in the trigger...
+                    SchedulerException se = new SchedulerException("Trigger threw an unhandled exception.", e);
+                    await qs.NotifySchedulerListenersError("Please report this error to the Quartz developers.", se, cancellationToken).ConfigureAwait(false);
+                }
+
+                // notify all trigger listeners
+                if (!await NotifyTriggerListenersComplete(qs, jec, instCode, cancellationToken).ConfigureAwait(false))
+                {
+                    break;
+                }
+                // update job/trigger or re-Execute job
+                if (instCode == SchedulerInstruction.ReExecuteJob)
+                {
+                    if (logger.IsEnabled(LogLevel.Debug))
+                    {
+                        logger.LogDebug("Rescheduling trigger to reexecute");
+                    }
+                    jec.IncrementRefireCount();
+                    try
+                    {
+                        Complete(false);
+                    }
+                    catch (SchedulerException se)
+                    {
+                        await qs.NotifySchedulerListenersError($"Error executing Job {jec.JobDetail.Key}: couldn't finalize execution.", se, cancellationToken).ConfigureAwait(false);
+                    }
+                    continue;
+                }
+
+                try
+                {
+                    Complete(true);
                 }
                 catch (SchedulerException se)
                 {
-                    return NotifyError(se, qs, ctx, cancellationToken);
+                    await qs.NotifySchedulerListenersError($"Error executing Job {jec.JobDetail.Key}: couldn't finalize execution.", se, cancellationToken).ConfigureAwait(false);
+                    continue;
                 }
-            }
 
-            return NotifyAwaited(qs, ctx, instCode, cancellationToken);
+                await qs.NotifyJobStoreJobComplete(trigger, jobDetail, instCode, cancellationToken).ConfigureAwait(false);
 
-            static async ValueTask<bool> NotifyAwaited(QuartzScheduler qs,
-                                                  JobExecutionContextImpl ctx,
-                                                  SchedulerInstruction instCode,
-                                                  CancellationToken cancellationToken)
+                break;
+            } while (true);
+        }
+        finally
+        {
+            qs.RemoveInternalSchedulerListener(this);
+            qs.JobFactory.ReturnJob(job);
+            jec.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Runs begin procedures on this instance.
+    /// </summary>
+    protected virtual void Begin()
+    {
+    }
+
+    /// <summary>
+    /// Completes the execution.
+    /// </summary>
+    /// <param name="successfulExecution">if set to <c>true</c> [successful execution].</param>
+    protected virtual void Complete(bool successfulExecution)
+    {
+    }
+
+    /// <summary>
+    /// Passivates this instance.
+    /// </summary>
+    public virtual void Passivate()
+    {
+        jec = null;
+        qs = null;
+    }
+
+    private async ValueTask<bool> NotifyListenersBeginning(
+        IJobExecutionContext ctx,
+        CancellationToken cancellationToken = default)
+    {
+        bool vetoed;
+
+        // notify all trigger listeners
+        try
+        {
+            vetoed = await qs!.NotifyTriggerListenersFired(ctx, cancellationToken).ConfigureAwait(false);
+        }
+        catch (SchedulerException se)
+        {
+            var msg = $"Unable to notify TriggerListener(s) while firing trigger (Trigger and Job will NOT be fired!). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
+            await qs!.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
+            return false;
+        }
+
+        if (vetoed)
+        {
+            try
             {
-                await DoNotify(qs.NotifyTriggerListenersComplete(ctx, instCode, cancellationToken), qs, ctx, cancellationToken).ConfigureAwait(false);
-                await qs.NotifySchedulerListenersFinalized(ctx.Trigger, cancellationToken).ConfigureAwait(false);
+#if DIAGNOSTICS_SOURCE
+                if (LogProvider.Cached.Default.Value.IsEnabled(OperationName.Job.Veto))
+                {
+                    LogProvider.Cached.Default.Value.Write(OperationName.Job.Veto, ctx);
+                }
+#endif
 
+                await qs.NotifyJobListenersWasVetoed(ctx, cancellationToken).ConfigureAwait(false);
+            }
+            catch (SchedulerException se)
+            {
+                var msg = $"Unable to notify JobListener(s) of vetoed execution while firing trigger (Trigger and Job will NOT be fired!). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
+                await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
+            }
+            throw new VetoedException(this);
+        }
+
+        // notify all job listeners
+        try
+        {
+            await qs.NotifyJobListenersToBeExecuted(ctx, cancellationToken).ConfigureAwait(false);
+        }
+        catch (SchedulerException se)
+        {
+            string msg = $"Unable to notify JobListener(s) of Job to be executed: (Job will NOT be executed!). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
+            await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private static async ValueTask<bool> NotifyJobListenersComplete(QuartzScheduler qs,
+        JobExecutionContextImpl ctx,
+        JobExecutionException? jobExEx,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await qs.NotifyJobListenersWasExecuted(ctx, jobExEx, cancellationToken).ConfigureAwait(false);
+        }
+        catch (SchedulerException se)
+        {
+            string msg = $"Unable to notify JobListener(s) of Job that was executed: (error will be ignored). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
+            await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private static ValueTask<bool> NotifyTriggerListenersComplete(QuartzScheduler qs,
+        JobExecutionContextImpl ctx,
+        SchedulerInstruction instCode,
+        CancellationToken cancellationToken = default)
+    {
+        // check if we can do quick path
+        if (ctx.Trigger.GetMayFireAgain())
+        {
+            try
+            {
+                var task = qs.NotifyTriggerListenersComplete(ctx, instCode, cancellationToken);
+                return task.IsCompletedSuccessfully ? new ValueTask<bool>(true) : DoNotify(task, qs, ctx, cancellationToken);
+            }
+            catch (SchedulerException se)
+            {
+                return NotifyError(se, qs, ctx, cancellationToken);
+            }
+        }
+
+        return NotifyAwaited(qs, ctx, instCode, cancellationToken);
+
+        static async ValueTask<bool> NotifyAwaited(QuartzScheduler qs,
+            JobExecutionContextImpl ctx,
+            SchedulerInstruction instCode,
+            CancellationToken cancellationToken)
+        {
+            await DoNotify(qs.NotifyTriggerListenersComplete(ctx, instCode, cancellationToken), qs, ctx, cancellationToken).ConfigureAwait(false);
+            await qs.NotifySchedulerListenersFinalized(ctx.Trigger, cancellationToken).ConfigureAwait(false);
+
+            return true;
+        }
+
+        static async ValueTask<bool> DoNotify(ValueTask t,
+            QuartzScheduler qs,
+            JobExecutionContextImpl ctx,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                await t.ConfigureAwait(false);
                 return true;
             }
-
-            static async ValueTask<bool> DoNotify(ValueTask t,
-                                             QuartzScheduler qs,
-                                             JobExecutionContextImpl ctx,
-                                             CancellationToken cancellationToken)
+            catch (SchedulerException se)
             {
-                try
-                {
-                    await t.ConfigureAwait(false);
-                    return true;
-                }
-                catch (SchedulerException se)
-                {
-                    return await NotifyError(se, qs, ctx, cancellationToken).ConfigureAwait(false);
-                }
-            }
-
-            static async ValueTask<bool> NotifyError(SchedulerException se,
-                                                QuartzScheduler qs,
-                                                JobExecutionContextImpl ctx,
-                                                CancellationToken cancellationToken)
-            {
-                string msg = $"Unable to notify TriggerListener(s) of Job that was executed: (error will be ignored). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
-                await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
-                return false;
+                return await NotifyError(se, qs, ctx, cancellationToken).ConfigureAwait(false);
             }
         }
 
-        [Serializable]
-        internal sealed class VetoedException : Exception
+        static async ValueTask<bool> NotifyError(SchedulerException se,
+            QuartzScheduler qs,
+            JobExecutionContextImpl ctx,
+            CancellationToken cancellationToken)
         {
-            public VetoedException(JobRunShell shell)
-            {
-                EnclosingInstance = shell;
-            }
-
-            public JobRunShell EnclosingInstance { get; }
+            string msg = $"Unable to notify TriggerListener(s) of Job that was executed: (error will be ignored). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
+            await qs.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
+            return false;
         }
+    }
+
+    [Serializable]
+    internal sealed class VetoedException : Exception
+    {
+        public VetoedException(JobRunShell shell)
+        {
+            EnclosingInstance = shell;
+        }
+
+        public JobRunShell EnclosingInstance { get; }
     }
 }

@@ -17,24 +17,23 @@
  */
 #endregion
 
-namespace Quartz.Spi
-{
-	/// <summary>
-	/// An interface for classes wishing to provide the service of loading classes
-	/// and resources within the scheduler...
-	/// </summary>
-	/// <author>James House</author>
-    /// <author>Marko Lahma (.NET)</author>
-    public interface ITypeLoadHelper
-	{
-		/// <summary>
-		/// Called to give the implementation a chance to initialize itself.
-		/// </summary>
-		void Initialize();
+namespace Quartz.Spi;
 
-		/// <summary>
-		/// Return the class with the given name.
-		/// </summary>
-		Type? LoadType(string? name);
-	}
+/// <summary>
+/// An interface for classes wishing to provide the service of loading classes
+/// and resources within the scheduler...
+/// </summary>
+/// <author>James House</author>
+/// <author>Marko Lahma (.NET)</author>
+public interface ITypeLoadHelper
+{
+    /// <summary>
+    /// Called to give the implementation a chance to initialize itself.
+    /// </summary>
+    void Initialize();
+
+    /// <summary>
+    /// Return the class with the given name.
+    /// </summary>
+    Type? LoadType(string? name);
 }

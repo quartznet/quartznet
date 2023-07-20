@@ -19,22 +19,21 @@
 
 #endregion
 
-namespace Quartz.Examples.Example09
+namespace Quartz.Examples.Example09;
+
+/// <summary>
+/// This is just a simple job that gets fired off by example 9.
+/// </summary>
+/// <author>Bill Kratzer</author>
+/// <author>Marko Lahma (.NET)</author>
+public class SimpleJob2 : IJob
 {
-    /// <summary>
-    /// This is just a simple job that gets fired off by example 9.
-    /// </summary>
-    /// <author>Bill Kratzer</author>
-    /// <author>Marko Lahma (.NET)</author>
-    public class SimpleJob2 : IJob
+    public virtual ValueTask Execute(IJobExecutionContext context)
     {
-        public virtual ValueTask Execute(IJobExecutionContext context)
-        {
-            // This job simply prints out its job name and the
-            // date and time that it is running
-            JobKey jobKey = context.JobDetail.Key;
-            Console.WriteLine("SimpleJob2 says: {0} executing at {1:r}", jobKey, DateTime.Now);
-            return default;
-        }
+        // This job simply prints out its job name and the
+        // date and time that it is running
+        JobKey jobKey = context.JobDetail.Key;
+        Console.WriteLine("SimpleJob2 says: {0} executing at {1:r}", jobKey, DateTime.Now);
+        return default;
     }
 }

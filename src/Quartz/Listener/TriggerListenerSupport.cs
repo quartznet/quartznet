@@ -19,64 +19,63 @@
 
 #endregion
 
-namespace Quartz.Listener
+namespace Quartz.Listener;
+
+/// <summary>
+///  A helpful abstract base class for implementors of 
+/// <see cref="ITriggerListener" />.
+///  </summary>
+/// <remarks>
+/// <para>
+/// The methods in this class are empty so you only need to override the  
+/// subset for the <see cref="ITriggerListener" /> events
+/// you care about.
+/// </para>
+/// 
+/// <para>
+/// You are required to implement <see cref="ITriggerListener.Name" /> 
+/// to return the unique name of your <see cref="ITriggerListener" />.  
+/// </para>
+///</remarks>
+/// <author>Marko Lahma (.NET)</author>
+/// <seealso cref="ITriggerListener" />
+public abstract class TriggerListenerSupport : ITriggerListener
 {
     /// <summary>
-    ///  A helpful abstract base class for implementors of 
-    /// <see cref="ITriggerListener" />.
-    ///  </summary>
-    /// <remarks>
-    /// <para>
-    /// The methods in this class are empty so you only need to override the  
-    /// subset for the <see cref="ITriggerListener" /> events
-    /// you care about.
-    /// </para>
-    /// 
-    /// <para>
-    /// You are required to implement <see cref="ITriggerListener.Name" /> 
-    /// to return the unique name of your <see cref="ITriggerListener" />.  
-    /// </para>
-    ///</remarks>
-    /// <author>Marko Lahma (.NET)</author>
-    /// <seealso cref="ITriggerListener" />
-    public abstract class TriggerListenerSupport : ITriggerListener
+    /// Get the name of the <see cref="ITriggerListener"/>.
+    /// </summary>
+    /// <value></value>
+    public abstract string Name { get; }
+
+    public virtual ValueTask TriggerFired(
+        ITrigger trigger,
+        IJobExecutionContext context,
+        CancellationToken cancellationToken = default)
     {
-        /// <summary>
-        /// Get the name of the <see cref="ITriggerListener"/>.
-        /// </summary>
-        /// <value></value>
-        public abstract string Name { get; }
+        return default;
+    }
 
-        public virtual ValueTask TriggerFired(
-            ITrigger trigger,
-            IJobExecutionContext context,
-            CancellationToken cancellationToken = default)
-        {
-            return default;
-        }
+    public virtual ValueTask<bool> VetoJobExecution(
+        ITrigger trigger,
+        IJobExecutionContext context,
+        CancellationToken cancellationToken = default)
+    {
+        return new ValueTask<bool>(false);
+    }
 
-        public virtual ValueTask<bool> VetoJobExecution(
-            ITrigger trigger,
-            IJobExecutionContext context,
-            CancellationToken cancellationToken = default)
-        {
-            return new ValueTask<bool>(false);
-        }
+    public virtual ValueTask TriggerMisfired(
+        ITrigger trigger,
+        CancellationToken cancellationToken = default)
+    {
+        return default;
+    }
 
-        public virtual ValueTask TriggerMisfired(
-            ITrigger trigger,
-            CancellationToken cancellationToken = default)
-        {
-            return default;
-        }
-
-        public virtual ValueTask TriggerComplete(
-            ITrigger trigger, 
-            IJobExecutionContext context, 
-            SchedulerInstruction triggerInstructionCode,
-            CancellationToken cancellationToken = default)
-        {
-            return default;
-        }
+    public virtual ValueTask TriggerComplete(
+        ITrigger trigger, 
+        IJobExecutionContext context, 
+        SchedulerInstruction triggerInstructionCode,
+        CancellationToken cancellationToken = default)
+    {
+        return default;
     }
 }

@@ -25,150 +25,149 @@ using NUnit.Framework;
 
 using Quartz.Job;
 
-namespace Quartz.Tests.Unit.Job
+namespace Quartz.Tests.Unit.Job;
+
+/// <summary>
+/// Tests for SendMailJob.
+/// </summary>
+/// <author>Christian Crowhurst</author>
+/// <author>Marko Lahma (.NET)</author>
+[TestFixture]
+public class SendMailJobTest
 {
-    /// <summary>
-    /// Tests for SendMailJob.
-    /// </summary>
-    /// <author>Christian Crowhurst</author>
-    /// <author>Marko Lahma (.NET)</author>
-    [TestFixture]
-    public class SendMailJobTest
+    [Test]
+    public void ShouldSendMailWithMandatoryProperties()
     {
-        [Test]
-        public void ShouldSendMailWithMandatoryProperties()
-        {
-            //Given
-            var expectedMail = new ExpectedMail("christian@acca.co.uk", "katie@acca.co.uk", "test mail", "test mail body");
-            var job = new TestSendMailJob();
+        //Given
+        var expectedMail = new ExpectedMail("christian@acca.co.uk", "katie@acca.co.uk", "test mail", "test mail body");
+        var job = new TestSendMailJob();
 
-            var context = TestUtil.NewJobExecutionContextFor(job);
-            context.MergedJobDataMap.Put("smtp_host", "someserver");
-            context.MergedJobDataMap.Put("recipient", expectedMail.recipient);
-            context.MergedJobDataMap.Put("sender", expectedMail.sender);
-            context.MergedJobDataMap.Put("subject", expectedMail.subject);
-            context.MergedJobDataMap.Put("message", expectedMail.message);
+        var context = TestUtil.NewJobExecutionContextFor(job);
+        context.MergedJobDataMap.Put("smtp_host", "someserver");
+        context.MergedJobDataMap.Put("recipient", expectedMail.recipient);
+        context.MergedJobDataMap.Put("sender", expectedMail.sender);
+        context.MergedJobDataMap.Put("subject", expectedMail.subject);
+        context.MergedJobDataMap.Put("message", expectedMail.message);
 
-            //When
-            job.Execute(context);
+        //When
+        job.Execute(context);
 
-            //Then
-            expectedMail.IsEqualTo(job.actualMailSent);
-            Assert.AreEqual("someserver", job.actualSmtpHost);
-        }
-
-        [Test]
-        public void ShouldSendMailWithOptionalProperties()
-        {
-            //Given
-            var expectedMail = new ExpectedMail("christian@acca.co.uk", "katie@acca.co.uk", "test mail", "test mail body");
-
-            //optional properties
-            expectedMail.ccRecipient = "anthony@acca.co.uk";
-            expectedMail.replyTo = "therese@acca.co.uk";
-
-            var job = new TestSendMailJob();
-
-            var context = TestUtil.NewJobExecutionContextFor(job);
-            context.MergedJobDataMap.Put("smtp_host", "someserver");
-            context.MergedJobDataMap.Put("recipient", expectedMail.recipient);
-            context.MergedJobDataMap.Put("cc_recipient", expectedMail.ccRecipient);
-            context.MergedJobDataMap.Put("sender", expectedMail.sender);
-            context.MergedJobDataMap.Put("reply_to", expectedMail.replyTo);
-            context.MergedJobDataMap.Put("subject", expectedMail.subject);
-            context.MergedJobDataMap.Put("message", expectedMail.message);
-
-            //When
-            job.Execute(context);
-
-            //Then
-            expectedMail.IsEqualTo(job.actualMailSent);
-            Assert.AreEqual("someserver", job.actualSmtpHost);
-        }
-
-        [Test]
-        public void ShouldSetNetworkProperties()
-        {
-            //Given
-            var expectedMail = new ExpectedMail("christian@acca.co.uk", "katie@acca.co.uk", "test mail", "test mail body");
-
-            //optional properties
-            expectedMail.ccRecipient = "anthony@acca.co.uk";
-            expectedMail.replyTo = "therese@acca.co.uk";
-
-            var job = new TestSendMailJob();
-
-            var context = TestUtil.NewJobExecutionContextFor(job);
-            context.MergedJobDataMap.Put("smtp_host", "someserver");
-            context.MergedJobDataMap.Put("recipient", expectedMail.recipient);
-            context.MergedJobDataMap.Put("sender", expectedMail.sender);
-            context.MergedJobDataMap.Put("subject", expectedMail.subject);
-            context.MergedJobDataMap.Put("message", expectedMail.message);
-            context.MergedJobDataMap.Put("smtp_username", "user 123");
-            context.MergedJobDataMap.Put("smtp_password", "pass 321");
-            context.MergedJobDataMap.Put("smtp_port", "123");
-
-            //When
-            job.Execute(context);
-
-            //Then
-            Assert.AreEqual("someserver", job.actualSmtpHost);
-            Assert.AreEqual("user 123", job.actualSmtpUserName);
-            Assert.AreEqual("pass 321", job.actualSmtpPassword);
-            Assert.AreEqual(123, job.actualSmtpPort);
-        }
+        //Then
+        expectedMail.IsEqualTo(job.actualMailSent);
+        Assert.AreEqual("someserver", job.actualSmtpHost);
     }
 
-    internal sealed class ExpectedMail
+    [Test]
+    public void ShouldSendMailWithOptionalProperties()
     {
-        public readonly string recipient;
-        public readonly string sender;
-        public readonly string subject;
-        public readonly string message;
-        public string ccRecipient;
-        public string replyTo;
+        //Given
+        var expectedMail = new ExpectedMail("christian@acca.co.uk", "katie@acca.co.uk", "test mail", "test mail body");
 
-        public ExpectedMail(string recipient, string sender, string subject, string message)
-        {
-            this.recipient = recipient;
-            this.sender = sender;
-            this.subject = subject;
-            this.message = message;
-        }
+        //optional properties
+        expectedMail.ccRecipient = "anthony@acca.co.uk";
+        expectedMail.replyTo = "therese@acca.co.uk";
 
-        public void IsEqualTo(MailMessage actualMail)
-        {
-            Assert.Contains(new MailAddress(recipient), actualMail.To, "Recipient equals");
-            Assert.AreEqual(new MailAddress(sender), actualMail.From, "Sender equals");
-            Assert.AreEqual(subject, actualMail.Subject, "Subject equals");
-            Assert.AreEqual(message, actualMail.Body, "Message equals");
-            if (!string.IsNullOrEmpty(ccRecipient))
-            {
-                Assert.Contains(new MailAddress(ccRecipient), actualMail.CC, "CC equals");
-            }
-            if (!string.IsNullOrEmpty(replyTo))
-            {
-                Assert.AreEqual(1, actualMail.ReplyToList.Count);
-                Assert.AreEqual(new MailAddress(replyTo), actualMail.ReplyToList[0]);
-            }
-        }
+        var job = new TestSendMailJob();
+
+        var context = TestUtil.NewJobExecutionContextFor(job);
+        context.MergedJobDataMap.Put("smtp_host", "someserver");
+        context.MergedJobDataMap.Put("recipient", expectedMail.recipient);
+        context.MergedJobDataMap.Put("cc_recipient", expectedMail.ccRecipient);
+        context.MergedJobDataMap.Put("sender", expectedMail.sender);
+        context.MergedJobDataMap.Put("reply_to", expectedMail.replyTo);
+        context.MergedJobDataMap.Put("subject", expectedMail.subject);
+        context.MergedJobDataMap.Put("message", expectedMail.message);
+
+        //When
+        job.Execute(context);
+
+        //Then
+        expectedMail.IsEqualTo(job.actualMailSent);
+        Assert.AreEqual("someserver", job.actualSmtpHost);
     }
 
-    internal sealed class TestSendMailJob : SendMailJob
+    [Test]
+    public void ShouldSetNetworkProperties()
     {
-        public MailMessage actualMailSent = new MailMessage();
-        public string actualSmtpHost = "ad";
-        public string actualSmtpUserName;
-        public string actualSmtpPassword;
-        public int? actualSmtpPort;
+        //Given
+        var expectedMail = new ExpectedMail("christian@acca.co.uk", "katie@acca.co.uk", "test mail", "test mail body");
 
-        protected override void Send(MailInfo info)
+        //optional properties
+        expectedMail.ccRecipient = "anthony@acca.co.uk";
+        expectedMail.replyTo = "therese@acca.co.uk";
+
+        var job = new TestSendMailJob();
+
+        var context = TestUtil.NewJobExecutionContextFor(job);
+        context.MergedJobDataMap.Put("smtp_host", "someserver");
+        context.MergedJobDataMap.Put("recipient", expectedMail.recipient);
+        context.MergedJobDataMap.Put("sender", expectedMail.sender);
+        context.MergedJobDataMap.Put("subject", expectedMail.subject);
+        context.MergedJobDataMap.Put("message", expectedMail.message);
+        context.MergedJobDataMap.Put("smtp_username", "user 123");
+        context.MergedJobDataMap.Put("smtp_password", "pass 321");
+        context.MergedJobDataMap.Put("smtp_port", "123");
+
+        //When
+        job.Execute(context);
+
+        //Then
+        Assert.AreEqual("someserver", job.actualSmtpHost);
+        Assert.AreEqual("user 123", job.actualSmtpUserName);
+        Assert.AreEqual("pass 321", job.actualSmtpPassword);
+        Assert.AreEqual(123, job.actualSmtpPort);
+    }
+}
+
+internal sealed class ExpectedMail
+{
+    public readonly string recipient;
+    public readonly string sender;
+    public readonly string subject;
+    public readonly string message;
+    public string ccRecipient;
+    public string replyTo;
+
+    public ExpectedMail(string recipient, string sender, string subject, string message)
+    {
+        this.recipient = recipient;
+        this.sender = sender;
+        this.subject = subject;
+        this.message = message;
+    }
+
+    public void IsEqualTo(MailMessage actualMail)
+    {
+        Assert.Contains(new MailAddress(recipient), actualMail.To, "Recipient equals");
+        Assert.AreEqual(new MailAddress(sender), actualMail.From, "Sender equals");
+        Assert.AreEqual(subject, actualMail.Subject, "Subject equals");
+        Assert.AreEqual(message, actualMail.Body, "Message equals");
+        if (!string.IsNullOrEmpty(ccRecipient))
         {
-            actualMailSent = info.MailMessage;
-            actualSmtpHost = info.SmtpHost;
-            actualSmtpUserName = info.SmtpUserName;
-            actualSmtpPassword = info.SmtpPassword;
-            actualSmtpPort = info.SmtpPort;
+            Assert.Contains(new MailAddress(ccRecipient), actualMail.CC, "CC equals");
         }
+        if (!string.IsNullOrEmpty(replyTo))
+        {
+            Assert.AreEqual(1, actualMail.ReplyToList.Count);
+            Assert.AreEqual(new MailAddress(replyTo), actualMail.ReplyToList[0]);
+        }
+    }
+}
+
+internal sealed class TestSendMailJob : SendMailJob
+{
+    public MailMessage actualMailSent = new MailMessage();
+    public string actualSmtpHost = "ad";
+    public string actualSmtpUserName;
+    public string actualSmtpPassword;
+    public int? actualSmtpPort;
+
+    protected override void Send(MailInfo info)
+    {
+        actualMailSent = info.MailMessage;
+        actualSmtpHost = info.SmtpHost;
+        actualSmtpUserName = info.SmtpUserName;
+        actualSmtpPassword = info.SmtpPassword;
+        actualSmtpPort = info.SmtpPort;
     }
 }

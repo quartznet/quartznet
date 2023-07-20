@@ -6,106 +6,105 @@ using Quartz.Configuration;
 using Quartz.Impl;
 using Quartz.Util;
 
-namespace Quartz
+namespace Quartz;
+
+/// <summary>
+/// Wrapper to initialize registered jobs.
+/// </summary>
+internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
 {
-    /// <summary>
-    /// Wrapper to initialize registered jobs.
-    /// </summary>
-    internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
+    private readonly IServiceProvider serviceProvider;
+    private readonly IOptions<QuartzOptions> options;
+    private readonly ContainerConfigurationProcessor processor;
+    private bool initialized;
+    private readonly SemaphoreSlim initializationLock = new SemaphoreSlim(1, 1);
+
+    public ServiceCollectionSchedulerFactory(
+        IServiceProvider serviceProvider,
+        IOptions<QuartzOptions> options,
+        ContainerConfigurationProcessor processor)
     {
-        private readonly IServiceProvider serviceProvider;
-        private readonly IOptions<QuartzOptions> options;
-        private readonly ContainerConfigurationProcessor processor;
-        private bool initialized;
-        private readonly SemaphoreSlim initializationLock = new SemaphoreSlim(1, 1);
+        this.serviceProvider = serviceProvider;
+        this.options = options;
+        this.processor = processor;
+    }
 
-        public ServiceCollectionSchedulerFactory(
-            IServiceProvider serviceProvider,
-            IOptions<QuartzOptions> options,
-            ContainerConfigurationProcessor processor)
+    public override async ValueTask<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
+    {
+        base.Initialize(options.Value.ToNameValueCollection());
+        var scheduler = await base.GetScheduler(cancellationToken);
+        if (initialized)
         {
-            this.serviceProvider = serviceProvider;
-            this.options = options;
-            this.processor = processor;
-        }
-
-        public override async ValueTask<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
-        {
-            base.Initialize(options.Value.ToNameValueCollection());
-            var scheduler = await base.GetScheduler(cancellationToken);
-            if (initialized)
-            {
-                return scheduler;
-            }
-
-            await initializationLock.WaitAsync(cancellationToken);
-            try
-            {
-                if (!initialized)
-                {
-                    await InitializeScheduler(scheduler, cancellationToken);
-                    initialized = true;
-                }
-            }
-            finally
-            {
-                initializationLock.Release();
-            }
             return scheduler;
         }
 
-        private async Task InitializeScheduler(IScheduler scheduler, CancellationToken cancellationToken)
+        await initializationLock.WaitAsync(cancellationToken);
+        try
         {
-            foreach (var listener in serviceProvider.GetServices<ISchedulerListener>())
+            if (!initialized)
             {
-                scheduler.ListenerManager.AddSchedulerListener(listener);
+                await InitializeScheduler(scheduler, cancellationToken);
+                initialized = true;
             }
+        }
+        finally
+        {
+            initializationLock.Release();
+        }
+        return scheduler;
+    }
 
-            var jobListeners = serviceProvider.GetServices<IJobListener>();
-            var jobListenerConfigurations = serviceProvider.GetServices<JobListenerConfiguration>().ToArray();
-            foreach (var listener in jobListeners)
-            {
-                var configuration = jobListenerConfigurations.SingleOrDefault(x => x.ListenerType == listener.GetType());
-                scheduler.ListenerManager.AddJobListener(listener, configuration?.Matchers ?? Array.Empty<IMatcher<JobKey>>());
-            }
-
-            var triggerListeners = serviceProvider.GetServices<ITriggerListener>();
-            var triggerListenerConfigurations = serviceProvider.GetServices<TriggerListenerConfiguration>().ToArray();
-            foreach (var listener in triggerListeners)
-            {
-                var configuration = triggerListenerConfigurations.SingleOrDefault(x => x.ListenerType == listener.GetType());
-                scheduler.ListenerManager.AddTriggerListener(listener, configuration?.Matchers ?? Array.Empty<IMatcher<TriggerKey>>());
-            }
-
-            var calendars = serviceProvider.GetServices<CalendarConfiguration>();
-            foreach (var configuration in calendars)
-            {
-                await scheduler.AddCalendar(configuration.Name, configuration.Calendar, configuration.Replace, configuration.UpdateTriggers, cancellationToken);
-            }
-
-            await processor.ScheduleJobs(scheduler, cancellationToken);
+    private async Task InitializeScheduler(IScheduler scheduler, CancellationToken cancellationToken)
+    {
+        foreach (var listener in serviceProvider.GetServices<ISchedulerListener>())
+        {
+            scheduler.ListenerManager.AddSchedulerListener(listener);
         }
 
-        protected override string? GetNamedConnectionString(string connectionStringName)
+        var jobListeners = serviceProvider.GetServices<IJobListener>();
+        var jobListenerConfigurations = serviceProvider.GetServices<JobListenerConfiguration>().ToArray();
+        foreach (var listener in jobListeners)
         {
-            var configuration = serviceProvider.GetService<IConfiguration>();
-            var connectionString = configuration.GetConnectionString(connectionStringName);
-            if (!string.IsNullOrWhiteSpace(connectionString))
-            {
-                return connectionString;
-            }
-
-            return base.GetNamedConnectionString(connectionStringName);
+            var configuration = jobListenerConfigurations.SingleOrDefault(x => x.ListenerType == listener.GetType());
+            scheduler.ListenerManager.AddJobListener(listener, configuration?.Matchers ?? Array.Empty<IMatcher<JobKey>>());
         }
 
-        protected override T InstantiateType<T>(Type? implementationType)
+        var triggerListeners = serviceProvider.GetServices<ITriggerListener>();
+        var triggerListenerConfigurations = serviceProvider.GetServices<TriggerListenerConfiguration>().ToArray();
+        foreach (var listener in triggerListeners)
         {
-            var service = serviceProvider.GetService<T>();
-            if (service is null)
-            {
-                service = ObjectUtils.InstantiateType<T>(implementationType);
-            }
-            return service;
+            var configuration = triggerListenerConfigurations.SingleOrDefault(x => x.ListenerType == listener.GetType());
+            scheduler.ListenerManager.AddTriggerListener(listener, configuration?.Matchers ?? Array.Empty<IMatcher<TriggerKey>>());
         }
+
+        var calendars = serviceProvider.GetServices<CalendarConfiguration>();
+        foreach (var configuration in calendars)
+        {
+            await scheduler.AddCalendar(configuration.Name, configuration.Calendar, configuration.Replace, configuration.UpdateTriggers, cancellationToken);
+        }
+
+        await processor.ScheduleJobs(scheduler, cancellationToken);
+    }
+
+    protected override string? GetNamedConnectionString(string connectionStringName)
+    {
+        var configuration = serviceProvider.GetService<IConfiguration>();
+        var connectionString = configuration.GetConnectionString(connectionStringName);
+        if (!string.IsNullOrWhiteSpace(connectionString))
+        {
+            return connectionString;
+        }
+
+        return base.GetNamedConnectionString(connectionStringName);
+    }
+
+    protected override T InstantiateType<T>(Type? implementationType)
+    {
+        var service = serviceProvider.GetService<T>();
+        if (service is null)
+        {
+            service = ObjectUtils.InstantiateType<T>(implementationType);
+        }
+        return service;
     }
 }
