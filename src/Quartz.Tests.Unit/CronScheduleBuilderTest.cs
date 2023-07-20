@@ -17,7 +17,7 @@ public class CronScheduleBuilderTest
         trigger = (ICronTrigger) TriggerBuilder.Create().WithIdentity("test")
             .WithSchedule(CronScheduleBuilder.AtHourAndMinuteOnGivenDaysOfWeek(10, 0, DayOfWeek.Wednesday))
             .Build();
-            
+
         Assert.AreEqual("0 0 10 ? * 4", trigger.CronExpressionString);
     }
 }

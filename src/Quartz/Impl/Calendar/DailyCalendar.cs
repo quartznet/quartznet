@@ -852,10 +852,10 @@ public class DailyCalendar : BaseCalendar
             baseHash = CalendarBase.GetHashCode();
 
         return rangeStartingHourOfDay.GetHashCode() + rangeEndingHourOfDay.GetHashCode() +
-               2*(rangeStartingMinute.GetHashCode() + rangeEndingMinute.GetHashCode()) +
-               3*(rangeStartingSecond.GetHashCode() + rangeEndingSecond.GetHashCode()) +
-               4*(rangeStartingMillis.GetHashCode() + rangeEndingMillis.GetHashCode())
-               + 5*baseHash;
+               2 * (rangeStartingMinute.GetHashCode() + rangeEndingMinute.GetHashCode()) +
+               3 * (rangeStartingSecond.GetHashCode() + rangeEndingSecond.GetHashCode()) +
+               4 * (rangeStartingMillis.GetHashCode() + rangeEndingMillis.GetHashCode())
+               + 5 * baseHash;
     }
 
     public bool Equals(DailyCalendar obj)

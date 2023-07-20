@@ -261,7 +261,7 @@ public class CronCalendar : BaseCalendar
             baseHash = CalendarBase.GetHashCode();
         }
 
-        return CronExpression.GetHashCode() + 5*baseHash;
+        return CronExpression.GetHashCode() + 5 * baseHash;
     }
 
     public bool Equals(CronCalendar obj)

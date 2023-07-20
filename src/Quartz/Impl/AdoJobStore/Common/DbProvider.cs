@@ -82,7 +82,7 @@ public class DbProvider : IDbProvider
 
         // check if command supports direct setting of BindByName property, needed for Oracle Managed ODP diver at least
         var property = Metadata.CommandType?.GetProperty("BindByName", BindingFlags.Instance | BindingFlags.Public);
-        if (property != null && property.PropertyType == typeof (bool) && property.CanWrite)
+        if (property != null && property.PropertyType == typeof(bool) && property.CanWrite)
         {
             commandBindByNamePropertySetter = property.GetSetMethod()!;
         }

@@ -306,7 +306,7 @@ public class DateBuilder
             case IntervalUnit.Millisecond:
                 return date.AddMilliseconds(amountToAdd);
             case IntervalUnit.Week:
-                return date.AddDays(amountToAdd*7);
+                return date.AddDays(amountToAdd * 7);
             case IntervalUnit.Year:
                 return date.AddYears(amountToAdd);
             default:
@@ -644,9 +644,9 @@ public class DateBuilder
 
         int minute = c.Minute;
 
-        int arItr = minute/minuteBase;
+        int arItr = minute / minuteBase;
 
-        int nextMinuteOccurance = minuteBase*(arItr + 1);
+        int nextMinuteOccurance = minuteBase * (arItr + 1);
 
         if (nextMinuteOccurance < 60)
         {
@@ -684,9 +684,9 @@ public class DateBuilder
 
         int second = c.Second;
 
-        int arItr = second/secondBase;
+        int arItr = second / secondBase;
 
-        int nextSecondOccurance = secondBase*(arItr + 1);
+        int nextSecondOccurance = secondBase * (arItr + 1);
 
         if (nextSecondOccurance < 60)
         {

@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 
 namespace Quartz.Triggers;
 
@@ -17,7 +17,7 @@ internal abstract class TriggerSerializer<TTrigger> : ITriggerSerializer where T
 
     public abstract IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement);
 
-    void ITriggerSerializer.SerializeFields(Utf8JsonWriter writer, ITrigger trigger) => SerializeFields(writer, (TTrigger)trigger);
+    void ITriggerSerializer.SerializeFields(Utf8JsonWriter writer, ITrigger trigger) => SerializeFields(writer, (TTrigger) trigger);
 
     protected abstract void SerializeFields(Utf8JsonWriter writer, TTrigger trigger);
 }

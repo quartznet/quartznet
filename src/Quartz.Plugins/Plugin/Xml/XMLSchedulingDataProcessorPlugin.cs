@@ -199,7 +199,7 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
             {
                 throw;
             }
-            logger.LogError(se,"Error starting background-task for watching jobs file.");
+            logger.LogError(se, "Error starting background-task for watching jobs file.");
         }
         finally
         {
@@ -293,7 +293,7 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
             }
             else
             {
-                logger.LogError(e,message);
+                logger.LogError(e, message);
             }
         }
     }
@@ -364,7 +364,7 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
                     }
                     else
                     {
-                        plugin.logger.LogWarning("File named '{FileName}' does not exist.",FileName);
+                        plugin.logger.LogWarning("File named '{FileName}' does not exist.", FileName);
                     }
                 }
                 else
@@ -382,7 +382,7 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
                 }
                 catch (IOException ioe)
                 {
-                    plugin.logger.LogWarning(ioe,"Error closing jobs file {FileName}",FileName);
+                    plugin.logger.LogWarning(ioe, "Error closing jobs file {FileName}", FileName);
                 }
             }
 

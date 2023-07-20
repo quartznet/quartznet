@@ -1,4 +1,4 @@
-﻿using System.Reflection;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 
 using NUnit.Framework;
@@ -15,7 +15,7 @@ public class QualityTest
     public void EnsureNoAsyncVoidMethods()
     {
         AssertNoAsyncVoidMethods(GetType().Assembly);
-        AssertNoAsyncVoidMethods(typeof (IJob).Assembly);
+        AssertNoAsyncVoidMethods(typeof(IJob).Assembly);
         // AssertNoAsyncVoidMethods(typeof (TriggersController).Assembly);
     }
 
@@ -59,11 +59,11 @@ public static class ReflectionUtils
                 | BindingFlags.Static
                 | BindingFlags.DeclaredOnly))
             .Where(method => method.HasAttribute<AsyncStateMachineAttribute>())
-            .Where(method => method.ReturnType == typeof (void));
+            .Where(method => method.ReturnType == typeof(void));
     }
 
     private static bool HasAttribute<TAttribute>(this MethodInfo method) where TAttribute : Attribute
     {
-        return method.GetCustomAttributes(typeof (TAttribute), false).Any();
+        return method.GetCustomAttributes(typeof(TAttribute), false).Any();
     }
 }

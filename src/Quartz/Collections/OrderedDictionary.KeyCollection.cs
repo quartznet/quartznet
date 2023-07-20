@@ -1,4 +1,4 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
@@ -30,7 +30,7 @@ internal partial class OrderedDictionary<TKey, TValue>
         /// <param name="index">The zero-based index of the key to get.</param>
         /// <returns>The key at the specified index.</returns>
         /// <exception cref="ArgumentOutOfRangeException"><paramref name="index" /> is less than 0.-or-<paramref name="index" /> is equal to or greater than <see cref="OrderedDictionary{TKey, TValue}.KeyCollection.Count" />.</exception>
-        public TKey this[int index] => ((IList<KeyValuePair<TKey, TValue>>)_orderedDictionary)[index].Key;
+        public TKey this[int index] => ((IList<KeyValuePair<TKey, TValue>>) _orderedDictionary)[index].Key;
 
         TKey IList<TKey>.this[int index]
         {
@@ -73,7 +73,7 @@ internal partial class OrderedDictionary<TKey, TValue>
             {
                 ThrowHelper.ThrowArgumentNullException(nameof(array));
             }
-            if ((uint)arrayIndex > (uint)array.Length)
+            if ((uint) arrayIndex > (uint) array.Length)
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException(nameof(arrayIndex));
             }

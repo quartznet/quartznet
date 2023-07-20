@@ -1,4 +1,4 @@
-﻿namespace Quartz.HttpApiContract;
+namespace Quartz.HttpApiContract;
 
 internal record SchedulerHeaderDto(string Name, string SchedulerInstanceId, SchedulerStatus Status)
 {

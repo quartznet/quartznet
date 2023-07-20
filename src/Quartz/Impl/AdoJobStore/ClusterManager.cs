@@ -63,7 +63,7 @@ internal sealed class ClusterManager
         {
             if (numFails % jobStoreSupport.RetryableActionErrorLogThreshold == 0)
             {
-                logger.LogError(e,"Error managing cluster: {ExceptionMessage}",e.Message);
+                logger.LogError(e, "Error managing cluster: {ExceptionMessage}", e.Message);
             }
             numFails++;
         }

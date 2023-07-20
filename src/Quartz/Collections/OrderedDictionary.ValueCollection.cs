@@ -1,4 +1,4 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
@@ -78,7 +78,7 @@ internal partial class OrderedDictionary<TKey, TValue>
 
         void ICollection<TValue>.Clear() => ThrowHelper.ThrowNotSupportedException();
 
-        bool ICollection<TValue>.Contains(TValue item) => ((IList<TValue>)this).IndexOf(item) >= 0;
+        bool ICollection<TValue>.Contains(TValue item) => ((IList<TValue>) this).IndexOf(item) >= 0;
 
         void ICollection<TValue>.CopyTo(TValue[] array, int arrayIndex)
         {
@@ -86,7 +86,7 @@ internal partial class OrderedDictionary<TKey, TValue>
             {
                 ThrowHelper.ThrowArgumentNullException(nameof(array));
             }
-            if ((uint)arrayIndex > (uint)array.Length)
+            if ((uint) arrayIndex > (uint) array.Length)
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException(nameof(arrayIndex));
             }

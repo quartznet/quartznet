@@ -1,4 +1,4 @@
-﻿// ReSharper disable ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract - Can be null when received from Web API
+// ReSharper disable ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract - Can be null when received from Web API
 
 namespace Quartz.HttpApiContract;
 
@@ -60,13 +60,13 @@ internal record SchedulerContextDto(Dictionary<string, string> Context)
             throw new NotSupportedException("Only string values are supported in SchedulerContext");
         }
 
-        var data = context.ToDictionary(x => x.Key, x => (string)x.Value);
+        var data = context.ToDictionary(x => x.Key, x => (string) x.Value);
         return new SchedulerContextDto(data);
     }
 
     public SchedulerContext AsContext()
     {
-        return new SchedulerContext(Context.ToDictionary(x => x.Key, x => (object)x.Value));
+        return new SchedulerContext(Context.ToDictionary(x => x.Key, x => (object) x.Value));
     }
 }
 

@@ -101,7 +101,7 @@ public class DailyTimeIntervalTriggerPersistenceDelegate : SimplePropertiesTrigg
         var daysOfWeekStr = props.String2;
         var timeOfDayStr = props.String3;
 
-        IntervalUnit intervalUnit = (IntervalUnit) Enum.Parse(typeof (IntervalUnit), intervalUnitStr!, true);
+        IntervalUnit intervalUnit = (IntervalUnit) Enum.Parse(typeof(IntervalUnit), intervalUnitStr!, true);
         DailyTimeIntervalScheduleBuilder scheduleBuilder = DailyTimeIntervalScheduleBuilder.Create()
             .WithInterval(interval, intervalUnit)
             .WithRepeatCount(repeatCount);
@@ -114,7 +114,7 @@ public class DailyTimeIntervalTriggerPersistenceDelegate : SimplePropertiesTrigg
         if (daysOfWeekStr != null)
         {
             var daysOfWeek = new HashSet<DayOfWeek>();
-            string[] nums = daysOfWeekStr.Split(new[] {','}, StringSplitOptions.RemoveEmptyEntries);
+            string[] nums = daysOfWeekStr.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
             if (nums.Length > 0)
             {
                 foreach (string num in nums)
@@ -168,8 +168,8 @@ public class DailyTimeIntervalTriggerPersistenceDelegate : SimplePropertiesTrigg
 
 
         int timesTriggered = props.Int2;
-        string[] statePropertyNames = {"timesTriggered"};
-        object[] statePropertyValues = {timesTriggered};
+        string[] statePropertyNames = { "timesTriggered" };
+        object[] statePropertyValues = { timesTriggered };
 
         return new TriggerPropertyBundle(scheduleBuilder, statePropertyNames, statePropertyValues);
     }

@@ -17,7 +17,7 @@ internal sealed class ErrorLogger : SchedulerListenerSupport
         SchedulerException cause,
         CancellationToken cancellationToken = default)
     {
-        logger.LogError(cause,msg);
+        logger.LogError(cause, msg);
         return default;
     }
 }

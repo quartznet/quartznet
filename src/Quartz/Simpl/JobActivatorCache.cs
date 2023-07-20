@@ -22,6 +22,6 @@ internal sealed class JobActivatorCache
         }
 
         var factory = activatorCache.GetOrAdd(jobType, createFactory);
-        return (IJob)factory(serviceProvider, null);
+        return (IJob) factory(serviceProvider, null);
     }
 }

@@ -77,7 +77,7 @@ public class QuartzScheduler :
     /// </summary>
     static QuartzScheduler()
     {
-        var asm = typeof (QuartzScheduler).Assembly;
+        var asm = typeof(QuartzScheduler).Assembly;
         version = asm.GetName().Version!;
     }
 
@@ -237,7 +237,7 @@ public class QuartzScheduler :
                 ThrowHelper.ThrowArgumentException("JobFactory cannot be set to null!");
             }
 
-            logger.LogInformation("JobFactory set to: {Value}",value);
+            logger.LogInformation("JobFactory set to: {Value}", value);
 
             jobFactory = value;
         }
@@ -371,7 +371,7 @@ public class QuartzScheduler :
             }
             catch (SchedulerException se)
             {
-                logger.LogError(se,"Unable to start scheduler after startup delay.");
+                logger.LogError(se, "Unable to start scheduler after startup delay.");
             }
         }, cancellationToken);
 
@@ -1761,8 +1761,8 @@ public class QuartzScheduler :
             }
             catch (Exception e)
             {
-                logger.LogError(e,"Error while notifying SchedulerListener of error");
-                logger.LogError(se,"  Original error (for notification) was: {Message}",msg);
+                logger.LogError(e, "Error while notifying SchedulerListener of error");
+                logger.LogError(se, "  Original error (for notification) was: {Message}", msg);
             }
         }
     }
@@ -1845,7 +1845,7 @@ public class QuartzScheduler :
             }
             catch (Exception e)
             {
-                logger.LogError(e,"Error while notifying SchedulerListener of paused group: {group}", group);
+                logger.LogError(e, "Error while notifying SchedulerListener of paused group: {group}", group);
             }
         }
     }
@@ -1869,7 +1869,7 @@ public class QuartzScheduler :
             }
             catch (Exception e)
             {
-                logger.LogError(e,"Error while notifying SchedulerListener of paused trigger. Trigger={TriggerKey}",triggerKey);
+                logger.LogError(e, "Error while notifying SchedulerListener of paused trigger. Trigger={TriggerKey}", triggerKey);
             }
         }
     }
@@ -1905,7 +1905,7 @@ public class QuartzScheduler :
             }
             catch (Exception e)
             {
-                logger.LogError(e,"Error while notifying SchedulerListener of resumed trigger. Trigger={TriggerKey}", triggerKey);
+                logger.LogError(e, "Error while notifying SchedulerListener of resumed trigger. Trigger={TriggerKey}", triggerKey);
             }
         }
     }
@@ -1929,7 +1929,7 @@ public class QuartzScheduler :
             }
             catch (Exception e)
             {
-                logger.LogError(e,"Error while notifying SchedulerListener of paused job. Job={JobKey}", jobKey);
+                logger.LogError(e, "Error while notifying SchedulerListener of paused job. Job={JobKey}", jobKey);
             }
         }
     }
@@ -1953,7 +1953,7 @@ public class QuartzScheduler :
             }
             catch (Exception e)
             {
-                logger.LogError(e,"Error while notifying SchedulerListener of paused group: {Group}", group);
+                logger.LogError(e, "Error while notifying SchedulerListener of paused group: {Group}", group);
             }
         }
     }
@@ -1977,7 +1977,7 @@ public class QuartzScheduler :
             }
             catch (Exception e)
             {
-                logger.LogError(e,"Error while notifying SchedulerListener of resumed job: {JobKey}", jobKey);
+                logger.LogError(e, "Error while notifying SchedulerListener of resumed job: {JobKey}", jobKey);
             }
         }
     }
@@ -2001,7 +2001,7 @@ public class QuartzScheduler :
             }
             catch (Exception e)
             {
-                logger.LogError(e,"Error while notifying SchedulerListener of resumed group: {Group}", group);
+                logger.LogError(e, "Error while notifying SchedulerListener of resumed group: {Group}", group);
             }
         }
     }
@@ -2067,7 +2067,7 @@ public class QuartzScheduler :
             }
             catch (Exception e)
             {
-                logger.LogError(e,"Error while notifying SchedulerListener of {Action}",action);
+                logger.LogError(e, "Error while notifying SchedulerListener of {Action}", action);
             }
         }
     }

@@ -1,8 +1,7 @@
-using NUnit.Framework;
-using Quartz.Impl.Matchers;
-
 using System.Runtime.Serialization.Formatters;
 using System.Runtime.Serialization.Formatters.Binary;
+using NUnit.Framework;
+using Quartz.Impl.Matchers;
 
 namespace Quartz.Tests.Unit.Impl.Matchers;
 
@@ -278,7 +277,7 @@ public class StringOperatorTest
     public void Equality_CanBeDeserialized()
     {
         var op = Deserialize<StringOperator>("StringOperator_Equality");
-            
+
         Assert.IsNotNull(op);
         Equality_Evaluate(op);
     }

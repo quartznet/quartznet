@@ -43,8 +43,8 @@ public interface ISemaphore
     /// thread.
     /// </summary>
     ValueTask ReleaseLock(
-        Guid requestorId, 
-        string lockName, 
+        Guid requestorId,
+        string lockName,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -53,5 +53,5 @@ public interface ISemaphore
     /// </summary>
     /// <seealso cref="ObtainLock" />
     /// <seealso cref="ReleaseLock" />
-    bool RequiresConnection {  get; }
+    bool RequiresConnection { get; }
 }

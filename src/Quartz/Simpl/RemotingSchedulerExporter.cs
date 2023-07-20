@@ -75,20 +75,20 @@ public class RemotingSchedulerExporter : ISchedulerExporter
 
         try
         {
-            RemotingServices.Marshal((MarshalByRefObject)scheduler, BindName);
-            Log.LogInformation("Successfully marshalled remotable scheduler under name '{BindName}'",BindName);
+            RemotingServices.Marshal((MarshalByRefObject) scheduler, BindName);
+            Log.LogInformation("Successfully marshalled remotable scheduler under name '{BindName}'", BindName);
         }
         catch (RemotingException ex)
         {
-            Log.LogError(ex,"RemotingException during Bind");
+            Log.LogError(ex, "RemotingException during Bind");
         }
         catch (SecurityException ex)
         {
-            Log.LogError(ex,"SecurityException during Bind");
+            Log.LogError(ex, "SecurityException during Bind");
         }
         catch (Exception ex)
         {
-            Log.LogError(ex,"Exception during Bind");
+            Log.LogError(ex, "Exception during Bind");
         }
     }
 
@@ -112,7 +112,7 @@ public class RemotingSchedulerExporter : ISchedulerExporter
             if (registeredChannels.ContainsKey(channelRegistrationKey))
             {
                 Log.LogWarning("Channel '{ChannelType}' already registered for port {Port}, not registering again",
-                    ChannelType,Port);
+                    ChannelType, Port);
                 return;
             }
             IChannel chan;
@@ -198,20 +198,20 @@ public class RemotingSchedulerExporter : ISchedulerExporter
 
         try
         {
-            RemotingServices.Disconnect((MarshalByRefObject)scheduler);
+            RemotingServices.Disconnect((MarshalByRefObject) scheduler);
             Log.LogInformation("Successfully disconnected remotable scheduler");
         }
         catch (ArgumentException ex)
         {
-            Log.LogError(ex,"ArgumentException during Unbind");
+            Log.LogError(ex, "ArgumentException during Unbind");
         }
         catch (SecurityException ex)
         {
-            Log.LogError(ex,"SecurityException during Unbind");
+            Log.LogError(ex, "SecurityException during Unbind");
         }
         catch (Exception ex)
         {
-            Log.LogError(ex,"Exception during Unbind");
+            Log.LogError(ex, "Exception during Unbind");
         }
     }
 

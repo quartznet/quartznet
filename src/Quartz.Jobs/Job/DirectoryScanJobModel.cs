@@ -59,11 +59,11 @@ internal sealed class DirectoryScanJobModel
             DirectoriesToScan = GetDirectoriesToScan(schedCtxt, mergedJobDataMap)
                 .Distinct().ToList(),
             CurrentFileList = mergedJobDataMap.ContainsKey(DirectoryScanJob.CurrentFileList) ?
-                (List<FileInfo>)mergedJobDataMap[DirectoryScanJob.CurrentFileList]
+                (List<FileInfo>) mergedJobDataMap[DirectoryScanJob.CurrentFileList]
                 : new List<FileInfo>(),
             SearchPattern = mergedJobDataMap.ContainsKey(DirectoryScanJob.SearchPattern) ?
                 mergedJobDataMap.GetString(DirectoryScanJob.SearchPattern)! : "*",
-            IncludeSubDirectories = mergedJobDataMap.ContainsKey(DirectoryScanJob.IncludeSubDirectories) 
+            IncludeSubDirectories = mergedJobDataMap.ContainsKey(DirectoryScanJob.IncludeSubDirectories)
                                     && mergedJobDataMap.GetBooleanValue(DirectoryScanJob.IncludeSubDirectories)
         };
 

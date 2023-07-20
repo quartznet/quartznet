@@ -58,7 +58,7 @@ public abstract class JobListenerSupport : IJobListener
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <seealso cref="JobExecutionVetoed"/>
     public virtual ValueTask JobToBeExecuted(
-        IJobExecutionContext context, 
+        IJobExecutionContext context,
         CancellationToken cancellationToken = default)
     {
         return default;

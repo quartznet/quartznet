@@ -53,7 +53,7 @@ public class QuartzRandom
             ThrowHelper.ThrowArgumentOutOfRangeException(nameof(maxValue), "maxValue must be larger then minValue");
         }
 
-        long range = (long)maxValue - minValue;
+        long range = (long) maxValue - minValue;
         return (int) Math.Floor(NextDouble() * range) + minValue;
     }
 }

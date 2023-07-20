@@ -419,7 +419,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
     /// In the default implementation of <see cref="DirtyFlagMap{TKey,TValue}"/>, this property always returns
     /// <see langword="false"/>.
     /// </value>
-    bool ICollection<KeyValuePair<TKey,TValue>>.IsReadOnly => false;
+    bool ICollection<KeyValuePair<TKey, TValue>>.IsReadOnly => false;
 
     /// <summary>
     /// Gets a value indicating whether the <see cref="DirtyFlagMap{TKey,TValue}"/> has a fixed size.

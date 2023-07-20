@@ -61,7 +61,7 @@ public class SimpleSemaphore : ISemaphore
 
         if (isDebugEnabled)
         {
-            logger.LogDebug("Lock '{LockName}' is desired by: {RequestorId}", lockName,requestorId);
+            logger.LogDebug("Lock '{LockName}' is desired by: {RequestorId}", lockName, requestorId);
         }
 
         var gotLock = false;
@@ -70,7 +70,7 @@ public class SimpleSemaphore : ISemaphore
         {
             if (isDebugEnabled)
             {
-                logger.LogDebug("Lock '{LockName}' is being obtained: {RequestorId}", lockName,requestorId);
+                logger.LogDebug("Lock '{LockName}' is being obtained: {RequestorId}", lockName, requestorId);
             }
 
             try
@@ -82,18 +82,18 @@ public class SimpleSemaphore : ISemaphore
             {
                 if (isDebugEnabled)
                 {
-                    logger.LogDebug("Lock '{LockName}' was not obtained by: {RequestorId}", lockName,requestorId);
+                    logger.LogDebug("Lock '{LockName}' was not obtained by: {RequestorId}", lockName, requestorId);
                 }
             }
 
             if (isDebugEnabled)
             {
-                logger.LogDebug("Lock '{LockName}' given to: {RequestorId}", lockName,requestorId);
+                logger.LogDebug("Lock '{LockName}' given to: {RequestorId}", lockName, requestorId);
             }
         }
         else if (isDebugEnabled)
         {
-            logger.LogDebug("Lock '{LockName}' already owned by: {RequestorId} -- but not owner!",lockName, requestorId);
+            logger.LogDebug("Lock '{LockName}' already owned by: {RequestorId} -- but not owner!", lockName, requestorId);
             logger.LogDebug("stack-trace of wrongful returner: {StackTrace}", Environment.StackTrace);
         }
 
@@ -115,13 +115,13 @@ public class SimpleSemaphore : ISemaphore
 
             if (logger.IsEnabled(LogLevel.Debug))
             {
-                logger.LogDebug("Lock '{LockName}' returned by: {RequestorId}",lockName, requestorId);
+                logger.LogDebug("Lock '{LockName}' returned by: {RequestorId}", lockName, requestorId);
             }
         }
         else if (logger.IsEnabled(LogLevel.Warning))
         {
-            logger.LogWarning("Lock '{LockName}' attempt to return by: {RequestorId} -- but not owner!", lockName,requestorId);
-            logger.LogWarning("stack-trace of wrongful returner: {Stacktrace}",Environment.StackTrace);
+            logger.LogWarning("Lock '{LockName}' attempt to return by: {RequestorId} -- but not owner!", lockName, requestorId);
+            logger.LogWarning("stack-trace of wrongful returner: {Stacktrace}", Environment.StackTrace);
         }
 
         return default;

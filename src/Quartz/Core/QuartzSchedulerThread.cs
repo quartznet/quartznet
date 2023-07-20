@@ -247,12 +247,12 @@ public class QuartzSchedulerThread
                         break;
                     }
                 }
-                    
+
                 // wait a bit, if reading from job store is consistently
                 // failing (e.g. DB is down or restarting)..
-                if (acquiresFailed > 1) 
+                if (acquiresFailed > 1)
                 {
-                    try 
+                    try
                     {
                         var delay = ComputeDelayForRepeatedErrors(qsRsrcs.JobStore, acquiresFailed);
                         await Task.Delay(delay).ConfigureAwait(false);
@@ -403,7 +403,7 @@ public class QuartzSchedulerThread
                             // TODO SQL exception?
                             if (exception != null && (exception is DbException || exception.InnerException is DbException))
                             {
-                                logger.LogError(exception,"DbException while firing trigger {Trigger}",trigger);
+                                logger.LogError(exception, "DbException while firing trigger {Trigger}", trigger);
                                 await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger, CancellationToken.None).ConfigureAwait(false);
                                 continue;
                             }
@@ -481,7 +481,7 @@ public class QuartzSchedulerThread
             }
             catch (Exception re)
             {
-                logger.LogError(re,"Runtime error occurred in main trigger firing loop.");
+                logger.LogError(re, "Runtime error occurred in main trigger firing loop.");
             }
         } // while (!halted)
     }
@@ -489,7 +489,7 @@ public class QuartzSchedulerThread
     private static readonly TimeSpan minDelay = TimeSpan.FromMilliseconds(20);
     private static readonly TimeSpan maxDelay = TimeSpan.FromMinutes(10);
 
-    private static TimeSpan ComputeDelayForRepeatedErrors(IJobStore jobStore, int acquiresFailed) 
+    private static TimeSpan ComputeDelayForRepeatedErrors(IJobStore jobStore, int acquiresFailed)
     {
         var delay = TimeSpan.FromMilliseconds(100);
         try
@@ -523,7 +523,7 @@ public class QuartzSchedulerThread
 
         return delay;
     }
-        
+
     private async ValueTask<bool> ReleaseIfScheduleChangedSignificantly(List<IOperableTrigger> triggers, DateTimeOffset triggerTime)
     {
         if (IsCandidateNewTimeEarlierWithinReason(triggerTime, true))

@@ -121,8 +121,8 @@ public class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelegate
             .WithRepeatCount(repeatCount)
             .WithInterval(repeatInterval);
 
-        string[] statePropertyNames = {"timesTriggered"};
-        object[] statePropertyValues = {timesTriggered};
+        string[] statePropertyNames = { "timesTriggered" };
+        object[] statePropertyValues = { timesTriggered };
 
         return new TriggerPropertyBundle(sb, statePropertyNames, statePropertyValues);
     }

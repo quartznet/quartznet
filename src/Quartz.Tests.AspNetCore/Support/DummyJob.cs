@@ -1,4 +1,4 @@
-﻿namespace Quartz.Tests.AspNetCore.Support;
+namespace Quartz.Tests.AspNetCore.Support;
 
 public class DummyJob : IJob
 {

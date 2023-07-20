@@ -1344,7 +1344,7 @@ public partial class StdAdoDelegate
 
     public virtual void AddTriggerPersistenceDelegate(ITriggerPersistenceDelegate del)
     {
-        logger.LogDebug("Adding TriggerPersistenceDelegate of type: {Type}",del.GetType());
+        logger.LogDebug("Adding TriggerPersistenceDelegate of type: {Type}", del.GetType());
         del.Initialize(tablePrefix, schedName, this);
         triggerPersistenceDelegates.Add(del);
     }

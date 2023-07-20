@@ -1,4 +1,4 @@
-﻿namespace Quartz;
+namespace Quartz;
 
 public static class TestConstants
 {

@@ -21,7 +21,7 @@ public class MissSchedulingChangeSignalTest
     {
         NameValueCollection properties = new NameValueCollection();
         // Use a custom RAMJobStore to produce context switches leading to the race condition
-        properties["quartz.jobStore.type"] = typeof (SlowRAMJobStore).AssemblyQualifiedName;
+        properties["quartz.jobStore.type"] = typeof(SlowRAMJobStore).AssemblyQualifiedName;
         properties["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
         ISchedulerFactory sf = new StdSchedulerFactory(properties);
         IScheduler sched = await sf.GetScheduler();
@@ -78,7 +78,7 @@ public class CollectDurationBetweenFireTimesJob : IJob
     public ValueTask Execute(IJobExecutionContext context)
     {
         DateTime now = DateTime.UtcNow;
-        logger.LogInformation("Fire time: {FireTime}",now);
+        logger.LogInformation("Fire time: {FireTime}", now);
         if (lastFireTime != null)
         {
             Durations.Add(now - lastFireTime.Value);
@@ -97,8 +97,8 @@ public class CollectDurationBetweenFireTimesJob : IJob
 public class SlowRAMJobStore : RAMJobStore
 {
     public override async ValueTask<IReadOnlyCollection<IOperableTrigger>> AcquireNextTriggers(
-        DateTimeOffset noLaterThan, 
-        int maxCount, 
+        DateTimeOffset noLaterThan,
+        int maxCount,
         TimeSpan timeWindow,
         CancellationToken cancellationToken = default)
     {

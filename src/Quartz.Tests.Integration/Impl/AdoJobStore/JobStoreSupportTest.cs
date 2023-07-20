@@ -8,14 +8,14 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 
 public class JobStoreSupportTest
 {
-        
+
     [Test]
     public void CanDetectTransientException()
     {
         var jobStoreSupport = new TestJobStoreSupport();
         var npgsqlException = new NpgsqlException("timeout", new TimeoutException());
         Assert.That(jobStoreSupport.IsTransientPublic(npgsqlException), Is.True);
-            
+
         var sqlException = new SqlExceptionSimulator();
         Assert.That(jobStoreSupport.IsTransientPublic(sqlException), Is.True);
     }

@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -105,11 +105,11 @@ public class DailyTimeIntervalTriggerImplTest
         Assert.Throws<SchedulerException>(trigger.Validate, "repeatInterval can not exceed 24 hours. Given 25 hours.");
 
         trigger.RepeatIntervalUnit = IntervalUnit.Minute;
-        trigger.RepeatInterval = 60*25;
+        trigger.RepeatInterval = 60 * 25;
         Assert.Throws<SchedulerException>(trigger.Validate, "repeatInterval can not exceed 24 hours (86400 seconds). Given 90000");
 
         trigger.RepeatIntervalUnit = IntervalUnit.Second;
-        trigger.RepeatInterval = 60*60*25;
+        trigger.RepeatInterval = 60 * 60 * 25;
 
         Assert.Throws<SchedulerException>(trigger.Validate, "repeatInterval can not exceed 24 hours (86400 seconds). Given 90000");
 
@@ -963,7 +963,7 @@ public class DailyTimeIntervalTriggerImplTest
             )
             .Build();
 
-        ((DailyTimeIntervalTriggerImpl)myTrigger).EndTimeOfDay = new TimeOfDay(16, 0, 0);
+        ((DailyTimeIntervalTriggerImpl) myTrigger).EndTimeOfDay = new TimeOfDay(16, 0, 0);
     }
 
     [Test]

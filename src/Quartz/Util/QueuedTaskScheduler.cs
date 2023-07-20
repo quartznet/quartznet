@@ -1,4 +1,4 @@
-﻿//--------------------------------------------------------------------------
+//--------------------------------------------------------------------------
 //
 //  Copyright (c) Microsoft Corporation.  All rights reserved.
 //
@@ -14,7 +14,7 @@ namespace Quartz.Util;
 /// <summary>
 /// Provides a TaskScheduler that provides control over the underlying threads utilized.
 /// </summary>
-[DebuggerTypeProxy(typeof (QueuedTaskSchedulerDebugView))]
+[DebuggerTypeProxy(typeof(QueuedTaskSchedulerDebugView))]
 [DebuggerDisplay("Id={Id}, ScheduledTasks = {DebugTaskCount}")]
 internal sealed class QueuedTaskScheduler : TaskScheduler, IDisposable
 {

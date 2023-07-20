@@ -72,7 +72,7 @@ public class ShutdownHookPlugin : ISchedulerPlugin
             }
             catch (SchedulerException e)
             {
-                logger.LogError(e,"Error shutting down Quartz: {ErrorMessage}",e.Message);
+                logger.LogError(e, "Error shutting down Quartz: {ErrorMessage}", e.Message);
             }
         };
         return default;

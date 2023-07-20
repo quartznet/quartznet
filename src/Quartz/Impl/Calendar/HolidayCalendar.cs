@@ -203,7 +203,7 @@ public class HolidayCalendar : BaseCalendar
             baseHash = CalendarBase.GetHashCode();
         }
 
-        return ExcludedDates.GetHashCode() + 5*baseHash;
+        return ExcludedDates.GetHashCode() + 5 * baseHash;
     }
 
     public bool Equals(HolidayCalendar obj)

@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 
 using Quartz.Logging;
 
@@ -119,7 +119,7 @@ public static class TimeZoneUtil
                 catch
                 {
                     var logger = LogProvider.CreateLogger(nameof(TimeZoneUtil));
-                    logger.LogError("Could not find time zone using alias id {AliasId}",aliasedId);
+                    logger.LogError("Could not find time zone using alias id {AliasId}", aliasedId);
                 }
             }
 

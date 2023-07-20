@@ -10,7 +10,7 @@ public class CronExpressionBenchmark
 
     public IEnumerable<string> CronExpressionValues => new[]
     {
-		"0 15 10 * * ?",
+        "0 15 10 * * ?",
         "0 0/5 10 6,15 * ? *",
         "0 15 10 15 * ? *",
         "0 15 10 15,31 * ? *",

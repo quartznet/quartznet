@@ -1,4 +1,4 @@
-﻿#if REMOTING
+#if REMOTING
 
 using Quartz.Core;
 using Quartz.Impl;
@@ -29,7 +29,7 @@ public class RemotingSchedulerProxyFactory : IRemotableSchedulerProxyFactory
         }
 
         string uid = QuartzSchedulerResources.GetUniqueIdentifier(schedulerName, schedulerInstanceId);
-        var remoteScheduler = new RemoteScheduler(uid, () => (IRemotableQuartzScheduler)System.Activator.GetObject(typeof(IRemotableQuartzScheduler), Address));
+        var remoteScheduler = new RemoteScheduler(uid, () => (IRemotableQuartzScheduler) System.Activator.GetObject(typeof(IRemotableQuartzScheduler), Address));
 
         return remoteScheduler;
     }

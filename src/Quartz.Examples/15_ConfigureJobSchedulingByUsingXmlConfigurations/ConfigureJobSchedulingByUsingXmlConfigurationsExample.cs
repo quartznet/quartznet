@@ -67,7 +67,7 @@ public class ConfigureJobSchedulingByUsingXmlConfigurationsExample : IExample
         // fire the triggers
         Console.WriteLine("------- Waiting 30 seconds... -------------");
 
-        await Task.Delay(30*1000);
+        await Task.Delay(30 * 1000);
 
         // shut down the scheduler
         Console.WriteLine("------- Shutting Down ---------------------");

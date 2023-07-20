@@ -1,4 +1,4 @@
-﻿namespace Quartz.Util;
+namespace Quartz.Util;
 
 internal static class SortedSetExtensions
 {

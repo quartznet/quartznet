@@ -1,4 +1,4 @@
-    #region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -19,142 +19,142 @@
 
 #endregion
 
-    using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 
 using Quartz.Logging;
 
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
-    namespace Quartz.Listener; 
+namespace Quartz.Listener;
+
+/// <summary>
+/// Holds a List of references to TriggerListener instances and broadcasts all
+/// events to them (in order).
+/// </summary>
+/// <remarks>
+/// <para>The broadcasting behavior of this listener to delegate listeners may be
+/// more convenient than registering all of the listeners directly with the
+/// Scheduler, and provides the flexibility of easily changing which listeners
+/// get notified.</para>
+/// </remarks>
+/// <seealso cref="AddListener(ITriggerListener)" />
+/// <seealso cref="RemoveListener(ITriggerListener)" />
+/// <seealso cref="RemoveListener(string)" />
+/// <author>James House (jhouse AT revolition DOT net)</author>
+public class BroadcastTriggerListener : ITriggerListener
+{
+    private readonly List<ITriggerListener> listeners;
+    private readonly ILogger<BroadcastTriggerListener> logger;
 
     /// <summary>
-    /// Holds a List of references to TriggerListener instances and broadcasts all
-    /// events to them (in order).
+    /// Construct an instance with the given name.
     /// </summary>
     /// <remarks>
-    /// <para>The broadcasting behavior of this listener to delegate listeners may be
-    /// more convenient than registering all of the listeners directly with the
-    /// Scheduler, and provides the flexibility of easily changing which listeners
-    /// get notified.</para>
+    /// (Remember to add some delegate listeners!)
     /// </remarks>
-    /// <seealso cref="AddListener(ITriggerListener)" />
-    /// <seealso cref="RemoveListener(ITriggerListener)" />
-    /// <seealso cref="RemoveListener(string)" />
-    /// <author>James House (jhouse AT revolition DOT net)</author>
-    public class BroadcastTriggerListener : ITriggerListener
+    /// <param name="name">the name of this instance</param>
+    public BroadcastTriggerListener(string name)
     {
-        private readonly List<ITriggerListener> listeners;
-        private readonly ILogger<BroadcastTriggerListener> logger;
-
-        /// <summary>
-        /// Construct an instance with the given name.
-        /// </summary>
-        /// <remarks>
-        /// (Remember to add some delegate listeners!)
-        /// </remarks>
-        /// <param name="name">the name of this instance</param>
-        public BroadcastTriggerListener(string name)
+        if (name is null)
         {
-            if (name is null)
+            ThrowHelper.ThrowArgumentNullException(nameof(name), "Listener name cannot be null!");
+        }
+        Name = name;
+        listeners = new List<ITriggerListener>();
+        logger = LogProvider.CreateLogger<BroadcastTriggerListener>();
+    }
+
+    /// <summary>
+    /// Construct an instance with the given name, and List of listeners.
+    /// </summary>
+    /// <remarks>
+    /// </remarks>
+    /// <param name="name">the name of this instance</param>
+    /// <param name="listeners">the initial List of TriggerListeners to broadcast to.</param>
+    public BroadcastTriggerListener(string name, IReadOnlyCollection<ITriggerListener> listeners) : this(name)
+    {
+        this.listeners.AddRange(listeners);
+    }
+
+    public string Name { get; }
+
+    public void AddListener(ITriggerListener listener)
+    {
+        listeners.Add(listener);
+    }
+
+    public bool RemoveListener(ITriggerListener listener)
+    {
+        return listeners.Remove(listener);
+    }
+
+    public bool RemoveListener(string listenerName)
+    {
+        ITriggerListener? listener = listeners.Find(x => x.Name == listenerName);
+        if (listener != null)
+        {
+            listeners.Remove(listener);
+            return true;
+        }
+        return false;
+    }
+
+    public IReadOnlyList<ITriggerListener> Listeners => listeners;
+
+    public ValueTask TriggerFired(
+        ITrigger trigger,
+        IJobExecutionContext context,
+        CancellationToken cancellationToken = default)
+    {
+        return IterateListenersInGuard(l => l.TriggerFired(trigger, context, cancellationToken), nameof(TriggerFired));
+    }
+
+    public async ValueTask<bool> VetoJobExecution(
+        ITrigger trigger,
+        IJobExecutionContext context,
+        CancellationToken cancellationToken = default)
+    {
+        foreach (var listener in listeners)
+        {
+            if (await listener.VetoJobExecution(trigger, context, cancellationToken).ConfigureAwait(false))
             {
-                ThrowHelper.ThrowArgumentNullException(nameof(name), "Listener name cannot be null!");
-            }
-            Name = name;
-            listeners = new List<ITriggerListener>();
-            logger = LogProvider.CreateLogger<BroadcastTriggerListener>();
-        }
-
-        /// <summary>
-        /// Construct an instance with the given name, and List of listeners.
-        /// </summary>
-        /// <remarks>
-        /// </remarks>
-        /// <param name="name">the name of this instance</param>
-        /// <param name="listeners">the initial List of TriggerListeners to broadcast to.</param>
-        public BroadcastTriggerListener(string name, IReadOnlyCollection<ITriggerListener> listeners) : this(name)
-        {
-            this.listeners.AddRange(listeners);
-        }
-
-        public string Name { get; }
-
-        public void AddListener(ITriggerListener listener)
-        {
-            listeners.Add(listener);
-        }
-
-        public bool RemoveListener(ITriggerListener listener)
-        {
-            return listeners.Remove(listener);
-        }
-
-        public bool RemoveListener(string listenerName)
-        {
-            ITriggerListener? listener = listeners.Find(x => x.Name == listenerName);
-            if (listener != null)
-            {
-                listeners.Remove(listener);
                 return true;
             }
-            return false;
         }
 
-        public IReadOnlyList<ITriggerListener> Listeners => listeners;
+        return false;
+    }
 
-        public ValueTask TriggerFired(
-            ITrigger trigger,
-            IJobExecutionContext context,
-            CancellationToken cancellationToken = default)
-        {
-            return IterateListenersInGuard(l => l.TriggerFired(trigger, context, cancellationToken), nameof(TriggerFired));
-        }
+    public ValueTask TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = default)
+    {
+        return IterateListenersInGuard(l => l.TriggerMisfired(trigger, cancellationToken), nameof(TriggerMisfired));
+    }
 
-        public async ValueTask<bool> VetoJobExecution(
-            ITrigger trigger,
-            IJobExecutionContext context,
-            CancellationToken cancellationToken = default)
+    public ValueTask TriggerComplete(
+        ITrigger trigger,
+        IJobExecutionContext context,
+        SchedulerInstruction triggerInstructionCode,
+        CancellationToken cancellationToken = default)
+    {
+        return IterateListenersInGuard(l => l.TriggerComplete(trigger, context, triggerInstructionCode, cancellationToken), nameof(TriggerComplete));
+    }
+
+    private async ValueTask IterateListenersInGuard(Func<ITriggerListener, ValueTask> action, string methodName)
+    {
+        foreach (var listener in listeners)
         {
-            foreach (var listener in listeners)
+            try
             {
-                if (await listener.VetoJobExecution(trigger, context, cancellationToken).ConfigureAwait(false))
-                {
-                    return true;
-                }
+                await action(listener).ConfigureAwait(false);
             }
-
-            return false;
-        }
-
-        public ValueTask TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = default)
-        {
-            return IterateListenersInGuard(l => l.TriggerMisfired(trigger, cancellationToken), nameof(TriggerMisfired));
-        }
-
-        public ValueTask TriggerComplete(
-            ITrigger trigger,
-            IJobExecutionContext context,
-            SchedulerInstruction triggerInstructionCode,
-            CancellationToken cancellationToken = default)
-        {
-            return IterateListenersInGuard(l => l.TriggerComplete(trigger, context, triggerInstructionCode, cancellationToken), nameof(TriggerComplete));
-        }
-
-        private async ValueTask IterateListenersInGuard(Func<ITriggerListener, ValueTask> action, string methodName)
-        {
-            foreach (var listener in listeners)
+            catch (Exception e)
             {
-                try
+                if (logger.IsEnabled(LogLevel.Error))
                 {
-                    await action(listener).ConfigureAwait(false);
-                }
-                catch (Exception e)
-                {
-                    if (logger.IsEnabled(LogLevel.Error))
-                    {
-                        logger.LogError(e,"Listener {ListenerName} - method {MethodName} raised an exception: {ExceptionMessage}",
-                            listener.Name,methodName,e.Message);
-                    }
+                    logger.LogError(e, "Listener {ListenerName} - method {MethodName} raised an exception: {ExceptionMessage}",
+                        listener.Name, methodName, e.Message);
                 }
             }
         }
     }
+}

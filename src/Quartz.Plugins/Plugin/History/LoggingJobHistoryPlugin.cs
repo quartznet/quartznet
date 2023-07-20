@@ -456,6 +456,6 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
 
     protected virtual void WriteWarning(string message, Exception ex)
     {
-        logger.LogWarning(ex,message);
+        logger.LogWarning(ex, message);
     }
 }

@@ -86,7 +86,7 @@ public static class ServiceCollectionExtensions
         this IServiceCollectionQuartzConfigurator options,
         Action<IJobConfigurator>? configure = null) where T : IJob
     {
-        return AddJob(options,typeof(T), null, configure);
+        return AddJob(options, typeof(T), null, configure);
     }
 
     /// <summary>
@@ -184,10 +184,10 @@ public static class ServiceCollectionExtensions
         // If no job key was specified, have the job key match the trigger key
         if (!jobHasCustomKey)
         {
-            ((JobDetailImpl)jobDetail).Key = new JobKey(t.Key.Name, t.Key.Group);
+            ((JobDetailImpl) jobDetail).Key = new JobKey(t.Key.Name, t.Key.Group);
 
             // Keep ITrigger.JobKey in sync with IJobDetail.Key
-            ((IMutableTrigger)t).JobKey = jobDetail.Key;
+            ((IMutableTrigger) t).JobKey = jobDetail.Key;
         }
 
         if (t.JobKey is null || !t.JobKey.Equals(jobDetail.Key))

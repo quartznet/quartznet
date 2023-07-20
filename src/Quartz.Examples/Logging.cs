@@ -1,12 +1,8 @@
 using Microsoft.Extensions.Logging;
-
-using Quartz.Logging;
-
-using Serilog;
-
-using LogLevel = Microsoft.Extensions.Logging.LogLevel;
-
 using NLog.Extensions.Logging;
+using Quartz.Logging;
+using Serilog;
+using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace Quartz.Examples;
 

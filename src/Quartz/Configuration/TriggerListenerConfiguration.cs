@@ -9,5 +9,5 @@ internal sealed class TriggerListenerConfiguration
     }
 
     public Type ListenerType { get; }
-    public IMatcher<TriggerKey>[] Matchers  {  get;  }
+    public IMatcher<TriggerKey>[] Matchers { get; }
 }

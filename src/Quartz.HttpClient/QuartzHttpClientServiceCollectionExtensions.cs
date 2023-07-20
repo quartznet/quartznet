@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -127,7 +127,7 @@ public static class QuartzHttpClientServiceCollectionExtensions
             }
 
             SchedulerRepository.Instance.Bind(scheduler);
-            return (TScheduler)scheduler;
+            return (TScheduler) scheduler;
         });
 
         return services;

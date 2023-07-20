@@ -28,7 +28,7 @@ public class XMLSchedulingDataProcessorPluginTest
         await dataProcessor.Initialize("something", mockScheduler);
 
         Assert.That(dataProcessor.JobFiles.Count(), Is.EqualTo(2));
-        Assert.That(dataProcessor.JobFiles.Select(x => x.Key), Is.EqualTo(new[] {fp1, fp2}));
+        Assert.That(dataProcessor.JobFiles.Select(x => x.Key), Is.EqualTo(new[] { fp1, fp2 }));
     }
 
     [Test]
@@ -56,7 +56,7 @@ public class XMLSchedulingDataProcessorPluginTest
         await dataProcessor.Initialize("something", mockScheduler);
 
         Assert.That(dataProcessor.JobFiles.Count(), Is.EqualTo(2));
-        Assert.That(dataProcessor.JobFiles.Select(x => x.Key).ToArray(), Is.EqualTo(new[] {expectedPathFile1, expectedPathFile2}));
+        Assert.That(dataProcessor.JobFiles.Select(x => x.Key).ToArray(), Is.EqualTo(new[] { expectedPathFile1, expectedPathFile2 }));
     }
 
     [Test]

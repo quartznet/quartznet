@@ -41,7 +41,7 @@ public class SchedulerSignalerImpl : ISchedulerSignaler
         this.sched = sched;
         this.schedThread = schedThread;
 
-        logger.LogInformation("Initialized Scheduler Signaller of type: {Type}",GetType());
+        logger.LogInformation("Initialized Scheduler Signaller of type: {Type}", GetType());
     }
 
 
@@ -60,7 +60,7 @@ public class SchedulerSignalerImpl : ISchedulerSignaler
         }
         catch (SchedulerException se)
         {
-            logger.LogError(se,"Error notifying listeners of trigger misfire.");
+            logger.LogError(se, "Error notifying listeners of trigger misfire.");
             await sched.NotifySchedulerListenersError("Error notifying listeners of trigger misfire.", se, cancellationToken).ConfigureAwait(false);
         }
     }

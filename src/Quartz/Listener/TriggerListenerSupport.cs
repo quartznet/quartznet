@@ -71,8 +71,8 @@ public abstract class TriggerListenerSupport : ITriggerListener
     }
 
     public virtual ValueTask TriggerComplete(
-        ITrigger trigger, 
-        IJobExecutionContext context, 
+        ITrigger trigger,
+        IJobExecutionContext context,
         SchedulerInstruction triggerInstructionCode,
         CancellationToken cancellationToken = default)
     {

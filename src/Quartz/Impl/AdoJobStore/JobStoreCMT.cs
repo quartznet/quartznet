@@ -82,7 +82,7 @@ public class JobStoreCMT : JobStoreSupport
         }
         catch (Exception ex)
         {
-            Logger.LogWarning(ex,"Database connection shutdown unsuccessful.");
+            Logger.LogWarning(ex, "Database connection shutdown unsuccessful.");
         }
     }
 

@@ -1,4 +1,4 @@
-﻿namespace Quartz.Impl.AdoJobStore;
+namespace Quartz.Impl.AdoJobStore;
 
 /// <summary>
 /// Delegate implementation for Firebird.

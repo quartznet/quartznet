@@ -87,12 +87,12 @@ public class JobInterruptMonitorPlugin : TriggerListenerSupport, ISchedulerPlugi
                 }
 
                 monitorPlugin.ScheduleJobInterruptMonitor(context.FireInstanceId, context.JobDetail.Key, jobDataDelay);
-                logger.LogDebug("Job's Interrupt Monitor has been scheduled to interrupt with the delay :{Delay}",jobDataDelay);
+                logger.LogDebug("Job's Interrupt Monitor has been scheduled to interrupt with the delay :{Delay}", jobDataDelay);
             }
         }
         catch (SchedulerException e)
         {
-            logger.LogError(e,"Error scheduling interrupt monitor {ErrorMessage}", e.Message);
+            logger.LogError(e, "Error scheduling interrupt monitor {ErrorMessage}", e.Message);
         }
 
         return default;
@@ -157,7 +157,7 @@ public class JobInterruptMonitorPlugin : TriggerListenerSupport, ISchedulerPlugi
                 await Task.Delay(delay, cancellationTokenSource.Token);
 
                 // Interrupt the job here - using Scheduler API that gets propagated to Job's interrupt
-                logger.LogInformation("Interrupting Job as it ran more than the configured max time. Job Details [{JobName}:{JobGroup}]",jobKey.Name, jobKey.Group);
+                logger.LogInformation("Interrupting Job as it ran more than the configured max time. Job Details [{JobName}:{JobGroup}]", jobKey.Name, jobKey.Group);
                 await scheduler.Interrupt(jobKey, cancellationTokenSource.Token);
             }
             catch (TaskCanceledException)
@@ -166,7 +166,7 @@ public class JobInterruptMonitorPlugin : TriggerListenerSupport, ISchedulerPlugi
             }
             catch (SchedulerException ex)
             {
-                logger.LogError(ex,"Error interrupting Job: {ExceptionMessage}",ex.Message);
+                logger.LogError(ex, "Error interrupting Job: {ExceptionMessage}", ex.Message);
             }
         }
 
@@ -178,7 +178,7 @@ public class JobInterruptMonitorPlugin : TriggerListenerSupport, ISchedulerPlugi
             }
             catch (Exception ex)
             {
-                logger.LogError(ex,"Error cancelling monitor: {ExceptionMessage}", ex.Message);
+                logger.LogError(ex, "Error cancelling monitor: {ExceptionMessage}", ex.Message);
             }
         }
     }

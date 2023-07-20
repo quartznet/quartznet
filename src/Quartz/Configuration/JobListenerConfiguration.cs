@@ -9,5 +9,5 @@ internal sealed class JobListenerConfiguration
     }
 
     public Type ListenerType { get; }
-    public IMatcher<JobKey>[] Matchers  {  get;  }
+    public IMatcher<JobKey>[] Matchers { get; }
 }

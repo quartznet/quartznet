@@ -48,7 +48,7 @@ public class DumbInterruptableJob : IJob
 
             for (int i = 0; i < 4; i++)
             {
-                await Task.Delay(10*1000);
+                await Task.Delay(10 * 1000);
 
                 // periodically check if we've been interrupted...
                 if (context.CancellationToken.IsCancellationRequested)

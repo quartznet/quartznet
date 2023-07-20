@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * Copyright 2009- Marko Lahma

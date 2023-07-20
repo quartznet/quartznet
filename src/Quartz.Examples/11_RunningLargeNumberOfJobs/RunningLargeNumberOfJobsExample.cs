@@ -54,16 +54,16 @@ public class RunningLargeNumberOfJobsExample : IExample
                 .Build();
 
             // tell the job to delay some small amount... to simulate work...
-            long timeDelay = (long) (r.NextDouble()*2500);
+            long timeDelay = (long) (r.NextDouble() * 2500);
             job.JobDataMap.Put(SimpleJob.DelayTime, timeDelay);
 
             ITrigger trigger = TriggerBuilder.Create()
                 .WithIdentity("trigger_" + count, "group_1")
-                .StartAt(DateBuilder.FutureDate(10000 + count*100, IntervalUnit.Millisecond)) // space fire times a small bit
+                .StartAt(DateBuilder.FutureDate(10000 + count * 100, IntervalUnit.Millisecond)) // space fire times a small bit
                 .Build();
 
             await sched.ScheduleJob(job, trigger);
-            if (count%25 == 0)
+            if (count % 25 == 0)
             {
                 Console.WriteLine("...scheduled " + count + " jobs");
             }

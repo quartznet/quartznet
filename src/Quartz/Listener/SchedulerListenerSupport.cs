@@ -32,7 +32,7 @@ namespace Quartz.Listener;
 public abstract class SchedulerListenerSupport : ISchedulerListener
 {
     public virtual ValueTask JobScheduled(
-        ITrigger trigger, 
+        ITrigger trigger,
         CancellationToken cancellationToken = default)
     {
         return default;
@@ -130,7 +130,7 @@ public abstract class SchedulerListenerSupport : ISchedulerListener
     }
 
     public virtual ValueTask SchedulerError(
-        string msg, 
+        string msg,
         SchedulerException cause,
         CancellationToken cancellationToken = default)
     {

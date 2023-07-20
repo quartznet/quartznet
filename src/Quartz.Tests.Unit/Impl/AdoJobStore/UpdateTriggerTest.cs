@@ -104,7 +104,7 @@ public class UpdateTriggerTest
 
         var dataParameterCollectionOutputs = new List<object>();
 
-        A.CallTo(() => dataParameterCollection.Add(A<object>._)).Invokes(x=>
+        A.CallTo(() => dataParameterCollection.Add(A<object>._)).Invokes(x =>
         {
             dataParameterCollectionOutputs.Add(x.Arguments.Single());
         });

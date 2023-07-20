@@ -138,7 +138,7 @@ public class RecoverJobsTest
         {
             long now = DateTime.UtcNow.Ticks;
             int tic = 0;
-            logger.LogInformation("Started - {StartTime}",now);
+            logger.LogInformation("Started - {StartTime}", now);
             try
             {
                 while (runForever)
@@ -146,11 +146,11 @@ public class RecoverJobsTest
                     await Task.Delay(1000);
                     logger.LogInformation("Tic " + ++tic + "- " + now);
                 }
-                logger.LogInformation("Stopped - {StopTime}",now);
+                logger.LogInformation("Stopped - {StopTime}", now);
             }
             catch (ThreadInterruptedException)
             {
-                logger.LogInformation("Interrupted - {InterruptionTime}",now);
+                logger.LogInformation("Interrupted - {InterruptionTime}", now);
             }
         }
     }

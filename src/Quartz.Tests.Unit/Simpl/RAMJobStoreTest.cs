@@ -325,7 +325,7 @@ public class RAMJobStoreTest
             await store.StoreJob(job, true);
             SimpleScheduleBuilder schedule = SimpleScheduleBuilder.Create();
             ITrigger trigger = TriggerBuilder.Create().WithIdentity("job" + i).WithSchedule(schedule).ForJob(job).Build();
-            await store.StoreTrigger((IOperableTrigger)trigger, true);
+            await store.StoreTrigger((IOperableTrigger) trigger, true);
         }
         // Retrieve job and trigger.
         for (int i = 0; i < 10; i++)
@@ -354,7 +354,7 @@ public class RAMJobStoreTest
         DateTime startTime0 = DateTime.UtcNow.AddMinutes(1).ToUniversalTime(); // a min from now.
         for (int i = 0; i < 10; i++)
         {
-            DateTime startTime = startTime0.AddMinutes(i*1); // a min apart
+            DateTime startTime = startTime0.AddMinutes(i * 1); // a min apart
             IJobDetail job = JobBuilder.Create<NoOpJob>().WithIdentity("job" + i).Build();
             SimpleScheduleBuilder schedule = SimpleScheduleBuilder.RepeatMinutelyForever(2);
             IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create().WithIdentity("job" + i).WithSchedule(schedule).ForJob(job).StartAt(startTime).Build();

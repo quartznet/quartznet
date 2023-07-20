@@ -1,4 +1,4 @@
-﻿using BenchmarkDotNet.Attributes;
+using BenchmarkDotNet.Attributes;
 using Quartz.Util;
 
 namespace Quartz.Benchmark;
@@ -321,7 +321,7 @@ public class KeyBenchmark
             {
                 return false;
             }
-            KeyLegacy<T> other = (KeyLegacy<T>)obj;
+            KeyLegacy<T> other = (KeyLegacy<T>) obj;
             if (group == null)
             {
                 if (other.group != null)

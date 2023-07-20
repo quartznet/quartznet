@@ -1,4 +1,4 @@
-﻿namespace Quartz.Simpl;
+namespace Quartz.Simpl;
 
 /// <summary>
 /// An implementation of the TaskSchedulerThreadPool using the default task scheduler

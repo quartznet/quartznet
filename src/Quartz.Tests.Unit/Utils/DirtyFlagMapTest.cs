@@ -37,7 +37,7 @@ public class DirtyFlagMapTest
     [Test]
     public void EmptyAndDirty_V1_CanBeDeserialized()
     {
-        var map = Deserialize<DirtyFlagMap<string,int>>("DirtyFlagMap_EmptyAndDirty_V1");
+        var map = Deserialize<DirtyFlagMap<string, int>>("DirtyFlagMap_EmptyAndDirty_V1");
 
         Assert.IsNotNull(map);
         Assert.AreEqual(0, map.Count);
@@ -1953,7 +1953,7 @@ public class DirtyFlagMapTest
     public void ICollectionKeyValuePairOfTKeyAndTValue_IsReadOnly()
     {
         var dirtyFlagMap = new DirtyFlagMap<string, string>();
-        var collection = (ICollection<KeyValuePair<string,string>>) dirtyFlagMap;
+        var collection = (ICollection<KeyValuePair<string, string>>) dirtyFlagMap;
         Assert.IsFalse(collection.IsReadOnly);
     }
 

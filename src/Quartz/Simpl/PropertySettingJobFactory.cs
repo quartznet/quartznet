@@ -186,7 +186,7 @@ public class PropertySettingJobFactory : SimpleJobFactory
                 ? ObjectUtils.GetTimeSpanValueForProperty(prop, o)
                 : ConvertValueIfNecessary(paramType, o);
 
-            prop.GetSetMethod()!.Invoke(job, new[] {goodValue});
+            prop.GetSetMethod()!.Invoke(job, new[] { goodValue });
         }
         catch (FormatException nfe)
         {
@@ -234,7 +234,7 @@ public class PropertySettingJobFactory : SimpleJobFactory
             }
             else
             {
-                logger.LogWarning(e,message);
+                logger.LogWarning(e, message);
             }
         }
     }
