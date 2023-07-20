@@ -12,7 +12,7 @@ using Lifetime = Microsoft.Extensions.Hosting.IApplicationLifetime;
 
 namespace Quartz
 {
-    internal class QuartzHostedService : IHostedService
+    public sealed class QuartzHostedService : IHostedService
     {
         private readonly Lifetime applicationLifetime;
         private readonly ISchedulerFactory schedulerFactory;
