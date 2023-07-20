@@ -27,78 +27,77 @@ using Quartz.Job;
 using Quartz.Plugin.History;
 using Quartz.Spi;
 
-namespace Quartz.Tests.Unit.Plugin.History
+namespace Quartz.Tests.Unit.Plugin.History;
+
+/// <author>Marko Lahma (.NET)</author>
+[TestFixture]
+public class LoggingJobHistoryPluginTest
 {
-    /// <author>Marko Lahma (.NET)</author>
-    [TestFixture]
-    public class LoggingJobHistoryPluginTest
+    private RecordingLoggingJobHistoryPlugin plugin;
+
+    [SetUp]
+    public void SetUp()
     {
-        private RecordingLoggingJobHistoryPlugin plugin;
+        plugin = new RecordingLoggingJobHistoryPlugin();
+    }
 
-        [SetUp]
-        public void SetUp()
+    [Test]
+    public async Task TestJobFailedMessage()
+    {
+        JobExecutionException ex = new JobExecutionException("test error");
+        await plugin.JobWasExecuted(CreateJobExecutionContext(), ex);
+
+        Assert.That(plugin.WarnMessages.Count, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task TestJobSuccessMessage()
+    {
+        await plugin.JobWasExecuted(CreateJobExecutionContext(), null);
+
+        Assert.That(plugin.InfoMessages.Count, Is.EqualTo(1));
+    }
+
+    [Test]
+    public async Task TestJobToBeFiredMessage()
+    {
+        await plugin.JobToBeExecuted(CreateJobExecutionContext());
+
+        Assert.That(plugin.InfoMessages.Count, Is.EqualTo(1));
+    }
+
+    [Test]
+    public void TestJobWasVetoedMessage()
+    {
+        plugin.JobExecutionVetoed(CreateJobExecutionContext());
+
+        Assert.That(plugin.InfoMessages.Count, Is.EqualTo(1));
+    }
+
+    protected virtual ICancellableJobExecutionContext CreateJobExecutionContext()
+    {
+        IOperableTrigger t = new SimpleTriggerImpl("name", "group");
+        TriggerFiredBundle firedBundle = TestUtil.CreateMinimalFiredBundleWithTypedJobDetail(typeof(NoOpJob), t);
+        ICancellableJobExecutionContext ctx = new JobExecutionContextImpl(null, firedBundle, null);
+        return ctx;
+    }
+
+    private class RecordingLoggingJobHistoryPlugin : LoggingJobHistoryPlugin
+    {
+        public List<string> InfoMessages { get; } = new List<string>();
+        public List<string> WarnMessages { get; } = new List<string>();
+
+        protected override bool IsInfoEnabled => true;
+        protected override bool IsWarnEnabled => true;
+
+        protected override void WriteInfo(string message)
         {
-            plugin = new RecordingLoggingJobHistoryPlugin();
+            InfoMessages.Add(message);
         }
 
-        [Test]
-        public async Task TestJobFailedMessage()
+        protected override void WriteWarning(string message, Exception ex)
         {
-            JobExecutionException ex = new JobExecutionException("test error");
-            await plugin.JobWasExecuted(CreateJobExecutionContext(), ex);
-
-            Assert.That(plugin.WarnMessages.Count, Is.EqualTo(1));
-        }
-
-        [Test]
-        public async Task TestJobSuccessMessage()
-        {
-            await plugin.JobWasExecuted(CreateJobExecutionContext(), null);
-
-            Assert.That(plugin.InfoMessages.Count, Is.EqualTo(1));
-        }
-
-        [Test]
-        public async Task TestJobToBeFiredMessage()
-        {
-            await plugin.JobToBeExecuted(CreateJobExecutionContext());
-
-            Assert.That(plugin.InfoMessages.Count, Is.EqualTo(1));
-        }
-
-        [Test]
-        public void TestJobWasVetoedMessage()
-        {
-            plugin.JobExecutionVetoed(CreateJobExecutionContext());
-
-            Assert.That(plugin.InfoMessages.Count, Is.EqualTo(1));
-        }
-
-        protected virtual ICancellableJobExecutionContext CreateJobExecutionContext()
-        {
-            IOperableTrigger t = new SimpleTriggerImpl("name", "group");
-            TriggerFiredBundle firedBundle = TestUtil.CreateMinimalFiredBundleWithTypedJobDetail(typeof(NoOpJob), t);
-            ICancellableJobExecutionContext ctx = new JobExecutionContextImpl(null, firedBundle, null);
-            return ctx;
-        }
-
-        private class RecordingLoggingJobHistoryPlugin : LoggingJobHistoryPlugin
-        {
-            public List<string> InfoMessages { get; } = new List<string>();
-            public List<string> WarnMessages { get; } = new List<string>();
-
-            protected override bool IsInfoEnabled => true;
-            protected override bool IsWarnEnabled => true;
-
-            protected override void WriteInfo(string message)
-            {
-                InfoMessages.Add(message);
-            }
-
-            protected override void WriteWarning(string message, Exception ex)
-            {
-                WarnMessages.Add(message);
-            }
+            WarnMessages.Add(message);
         }
     }
 }

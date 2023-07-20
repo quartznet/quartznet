@@ -1,6 +1,5 @@
-namespace Quartz.Configuration
+namespace Quartz.Configuration;
+
+internal sealed class JobConfigurator : JobBuilder
 {
-    internal sealed class JobConfigurator : JobBuilder
-    {
-    }
 }

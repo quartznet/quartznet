@@ -22,42 +22,41 @@
 using System.Data;
 using System.Data.Common;
 
-namespace Quartz.Impl.AdoJobStore.Common
+namespace Quartz.Impl.AdoJobStore.Common;
+
+/// <summary>
+/// Data access provider interface.
+/// </summary>
+/// <author>Marko Lahma</author>
+public interface IDbProvider
 {
     /// <summary>
-    /// Data access provider interface.
+    /// Initializes the db provider implementation.
     /// </summary>
-    /// <author>Marko Lahma</author>
-    public interface IDbProvider
-    {
-        /// <summary>
-        /// Initializes the db provider implementation.
-        /// </summary>
-        void Initialize();
+    void Initialize();
 
-        /// <summary>
-        /// Returns a new command object for executing SQL statements/Stored Procedures
-        /// against the database.
-        /// </summary>
-        /// <returns>An new <see cref="IDbCommand"/></returns>
-        DbCommand CreateCommand();
+    /// <summary>
+    /// Returns a new command object for executing SQL statements/Stored Procedures
+    /// against the database.
+    /// </summary>
+    /// <returns>An new <see cref="IDbCommand"/></returns>
+    DbCommand CreateCommand();
 
-        /// <summary>
-        /// Returns a new connection object to communicate with the database.
-        /// </summary>
-        /// <returns>A new <see cref="IDbConnection"/></returns>
-        DbConnection CreateConnection();
+    /// <summary>
+    /// Returns a new connection object to communicate with the database.
+    /// </summary>
+    /// <returns>A new <see cref="IDbConnection"/></returns>
+    DbConnection CreateConnection();
 
-        /// <summary>
-        /// Connection string used to create connections.
-        /// </summary>
-        string ConnectionString { set; get; }
+    /// <summary>
+    /// Connection string used to create connections.
+    /// </summary>
+    string ConnectionString { set; get; }
 
-        DbMetadata Metadata { get; }
+    DbMetadata Metadata { get; }
 
-        /// <summary>
-        /// Shutdowns this instance.
-        /// </summary>
-        void Shutdown();
-    }
+    /// <summary>
+    /// Shutdowns this instance.
+    /// </summary>
+    void Shutdown();
 }

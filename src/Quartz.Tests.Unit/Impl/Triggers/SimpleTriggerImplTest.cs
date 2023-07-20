@@ -1,378 +1,377 @@
 using NUnit.Framework;
 using Quartz.Impl.Triggers;
 
-namespace Quartz.Tests.Unit.Impl.Triggers
+namespace Quartz.Tests.Unit.Impl.Triggers;
+
+[TestFixture]
+public class SimpleTriggerImplTest
 {
-    [TestFixture]
-    public class SimpleTriggerImplTest
+    private Random _random;
+
+    public SimpleTriggerImplTest()
     {
-        private Random _random;
+        _random = new Random();
+    }
 
-        public SimpleTriggerImplTest()
+    [Test]
+    public void GetFireTimeAfter_AfterTimeUtcIsNull_StartTimeUtcIsMinValue_RepeatCountIsZero_TimesTriggeredEqualsRepeatCount_EndTimeUtcIsNull()
+    {
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl
         {
-            _random = new Random();
-        }
+            EndTimeUtc = null,
+            RepeatCount = 0,
+            StartTimeUtc = DateTimeOffset.MinValue,
+            RepeatInterval = TimeSpan.FromDays(1),
+            TimesTriggered = 0
+        };
 
-        [Test]
-        public void GetFireTimeAfter_AfterTimeUtcIsNull_StartTimeUtcIsMinValue_RepeatCountIsZero_TimesTriggeredEqualsRepeatCount_EndTimeUtcIsNull()
+        DateTimeOffset? afterTimeUtc = null;
+
+        var actual = trigger.GetFireTimeAfter(afterTimeUtc);
+
+        Assert.IsNull(actual);
+    }
+
+    [Test]
+    public void GetFireTimeAfter_AfterTimeUtcIsNull_StartTimeUtcIsBeforeNow_RepeatCountIsZero_TimesTriggeredIsGreaterThanRepeatCount_EndTimeUtcIsNull()
+    {
+        var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
+        DateTimeOffset? endTimeUtc = null;
+        DateTimeOffset? afterTimeUtc = null;
+
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl
         {
-            SimpleTriggerImpl trigger = new SimpleTriggerImpl
-                {
-                    EndTimeUtc = null,
-                    RepeatCount = 0,
-                    StartTimeUtc = DateTimeOffset.MinValue,
-                    RepeatInterval = TimeSpan.FromDays(1),
-                    TimesTriggered = 0
-                };
+            EndTimeUtc = endTimeUtc,
+            RepeatCount = 0,
+            StartTimeUtc = startTimeUtc,
+            RepeatInterval = TimeSpan.FromDays(1),
+            TimesTriggered = 1
+        };
 
-            DateTimeOffset? afterTimeUtc = null;
+        var actual = trigger.GetFireTimeAfter(afterTimeUtc);
 
-            var actual = trigger.GetFireTimeAfter(afterTimeUtc);
+        Assert.IsNull(actual);
+    }
 
-            Assert.IsNull(actual);
-        }
+    [Test]
+    public void GetFireTimeAfter_AfterTimeUtcIsGreaterThanStartTimeUtc_RepeatCountIsRepeatIndefinitely_EndTimeUtcIsNull()
+    {
+        var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
+        DateTimeOffset? endTimeUtc = null;
+        var afterTimeUtc = startTimeUtc.AddDays(1);
 
-        [Test]
-        public void GetFireTimeAfter_AfterTimeUtcIsNull_StartTimeUtcIsBeforeNow_RepeatCountIsZero_TimesTriggeredIsGreaterThanRepeatCount_EndTimeUtcIsNull()
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl
         {
-            var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
-            DateTimeOffset? endTimeUtc = null;
-            DateTimeOffset? afterTimeUtc = null;
+            EndTimeUtc = endTimeUtc,
+            RepeatCount = SimpleTriggerImpl.RepeatIndefinitely,
+            StartTimeUtc = startTimeUtc,
+            RepeatInterval = TimeSpan.FromDays(1),
+            TimesTriggered = 0
+        };
 
-            SimpleTriggerImpl trigger = new SimpleTriggerImpl
-                {
-                    EndTimeUtc = endTimeUtc,
-                    RepeatCount = 0,
-                    StartTimeUtc = startTimeUtc,
-                    RepeatInterval = TimeSpan.FromDays(1),
-                    TimesTriggered = 1
-                };
+        var actual = trigger.GetFireTimeAfter(afterTimeUtc);
 
-            var actual = trigger.GetFireTimeAfter(afterTimeUtc);
+        Assert.IsNotNull(actual);
+        Assert.AreEqual(startTimeUtc.AddDays(2), actual);
+    }
 
-            Assert.IsNull(actual);
-        }
+    [Test]
+    public void GetFireTimeAfter_AfterTimeUtcIsGreaterThanStartTimeUtc_RepeatCountIsRepeatIndefinitely_EndTimeUtcEqualsAfterTimeUtc()
+    {
+        var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
+        var endTimeUtc = startTimeUtc.AddDays(1);
+        var afterTimeUtc = endTimeUtc;
 
-        [Test]
-        public void GetFireTimeAfter_AfterTimeUtcIsGreaterThanStartTimeUtc_RepeatCountIsRepeatIndefinitely_EndTimeUtcIsNull()
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl
         {
-            var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
-            DateTimeOffset? endTimeUtc = null;
-            var afterTimeUtc = startTimeUtc.AddDays(1);
+            EndTimeUtc = endTimeUtc,
+            RepeatCount = SimpleTriggerImpl.RepeatIndefinitely,
+            StartTimeUtc = startTimeUtc,
+            RepeatInterval = TimeSpan.FromDays(1),
+            TimesTriggered = 0
+        };
 
-            SimpleTriggerImpl trigger = new SimpleTriggerImpl
-                {
-                    EndTimeUtc = endTimeUtc,
-                    RepeatCount = SimpleTriggerImpl.RepeatIndefinitely,
-                    StartTimeUtc = startTimeUtc,
-                    RepeatInterval = TimeSpan.FromDays(1),
-                    TimesTriggered = 0
-                };
 
-            var actual = trigger.GetFireTimeAfter(afterTimeUtc);
+        var actual = trigger.GetFireTimeAfter(afterTimeUtc);
 
-            Assert.IsNotNull(actual);
-            Assert.AreEqual(startTimeUtc.AddDays(2), actual);
-        }
+        Assert.IsNull(actual);
+    }
 
-        [Test]
-        public void GetFireTimeAfter_AfterTimeUtcIsGreaterThanStartTimeUtc_RepeatCountIsRepeatIndefinitely_EndTimeUtcEqualsAfterTimeUtc()
+    [Test]
+    public void GetFireTimeAfter_AfterTimeUtcIsGreaterThanStartTimeUtc_RepeatCountIsRepeatIndefinitely_EndTimeUtcIsGreaterThanAfterTimeUtc()
+    {
+        var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
+        var afterTimeUtc = startTimeUtc.AddDays(5);
+        var endTimeUtc = afterTimeUtc.AddDays(1);
+
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl
         {
-            var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
-            var endTimeUtc = startTimeUtc.AddDays(1);
-            var afterTimeUtc = endTimeUtc;
+            EndTimeUtc = endTimeUtc,
+            RepeatCount = SimpleTriggerImpl.RepeatIndefinitely,
+            StartTimeUtc = startTimeUtc,
+            RepeatInterval = TimeSpan.FromDays(1),
+            TimesTriggered = 0
+        };
 
-            SimpleTriggerImpl trigger = new SimpleTriggerImpl
-                {
-                    EndTimeUtc = endTimeUtc,
-                    RepeatCount = SimpleTriggerImpl.RepeatIndefinitely,
-                    StartTimeUtc = startTimeUtc,
-                    RepeatInterval = TimeSpan.FromDays(1),
-                    TimesTriggered = 0
-                };
+        var actual = trigger.GetFireTimeAfter(afterTimeUtc);
 
+        Assert.IsNull(actual);
+    }
 
-            var actual = trigger.GetFireTimeAfter(afterTimeUtc);
+    [Test]
+    public void GetFireTimeAfter_AfterTimeUtcIsGreaterThanStartTimeUtc_RepeatCountIsRepeatIndefinitely_EndTimeUtcIsLessThanAfterTimeUtc()
+    {
+        var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
+        var endTimeUtc = startTimeUtc.AddDays(1);
+        var afterTimeUtc = endTimeUtc.AddDays(5);
 
-            Assert.IsNull(actual);
-        }
-
-        [Test]
-        public void GetFireTimeAfter_AfterTimeUtcIsGreaterThanStartTimeUtc_RepeatCountIsRepeatIndefinitely_EndTimeUtcIsGreaterThanAfterTimeUtc()
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl
         {
-            var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
-            var afterTimeUtc = startTimeUtc.AddDays(5);
-            var endTimeUtc = afterTimeUtc.AddDays(1);
+            EndTimeUtc = endTimeUtc,
+            RepeatCount = SimpleTriggerImpl.RepeatIndefinitely,
+            StartTimeUtc = startTimeUtc,
+            RepeatInterval = TimeSpan.FromDays(1),
+            TimesTriggered = 0
+        };
 
-            SimpleTriggerImpl trigger = new SimpleTriggerImpl
-                {
-                    EndTimeUtc = endTimeUtc,
-                    RepeatCount = SimpleTriggerImpl.RepeatIndefinitely,
-                    StartTimeUtc = startTimeUtc,
-                    RepeatInterval = TimeSpan.FromDays(1),
-                    TimesTriggered = 0
-                };
+        var actual = trigger.GetFireTimeAfter(afterTimeUtc);
 
-            var actual = trigger.GetFireTimeAfter(afterTimeUtc);
+        Assert.IsNull(actual);
+    }
 
-            Assert.IsNull(actual);
-        }
+    [Test]
+    public void GetFireTimeAfter_AfterTimeUtcIsGreaterThanStartTimeUtc_RepeatCountIsZero_TimesTriggeredEqualsRepeatCount_EndTimeUtcIsNull()
+    {
+        var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
+        DateTimeOffset? endTimeUtc = null;
+        var afterTimeUtc = startTimeUtc.AddDays(5);
 
-        [Test]
-        public void GetFireTimeAfter_AfterTimeUtcIsGreaterThanStartTimeUtc_RepeatCountIsRepeatIndefinitely_EndTimeUtcIsLessThanAfterTimeUtc()
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl
         {
-            var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
-            var endTimeUtc = startTimeUtc.AddDays(1);
-            var afterTimeUtc = endTimeUtc.AddDays(5);
+            EndTimeUtc = endTimeUtc,
+            RepeatCount = 0,
+            StartTimeUtc = startTimeUtc,
+            RepeatInterval = TimeSpan.FromDays(1),
+            TimesTriggered = 0
+        };
 
-            SimpleTriggerImpl trigger = new SimpleTriggerImpl
-                {
-                    EndTimeUtc = endTimeUtc,
-                    RepeatCount = SimpleTriggerImpl.RepeatIndefinitely,
-                    StartTimeUtc = startTimeUtc,
-                    RepeatInterval = TimeSpan.FromDays(1),
-                    TimesTriggered = 0
-                };
+        var actual = trigger.GetFireTimeAfter(afterTimeUtc);
 
-            var actual = trigger.GetFireTimeAfter(afterTimeUtc);
+        Assert.IsNull(actual);
+    }
 
-            Assert.IsNull(actual);
-        }
+    [Test]
+    public void GetFireTimeAfter_EndTimeUtcIsLessThanAfterTimeUtc_RepeatCountIsGreaterThanZero_TimesTriggeredIsLessThanRepeatCount()
+    {
+        var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
+        var endTimeUtc = startTimeUtc.AddMinutes(5);
+        var afterTimeUtc = endTimeUtc.AddDays(1);
 
-        [Test]
-        public void GetFireTimeAfter_AfterTimeUtcIsGreaterThanStartTimeUtc_RepeatCountIsZero_TimesTriggeredEqualsRepeatCount_EndTimeUtcIsNull()
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl
         {
-            var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
-            DateTimeOffset? endTimeUtc = null;
-            var afterTimeUtc = startTimeUtc.AddDays(5);
+            EndTimeUtc = startTimeUtc.AddMinutes(5),
+            RepeatCount = 1,
+            StartTimeUtc = startTimeUtc,
+            RepeatInterval = TimeSpan.FromDays(1),
+            TimesTriggered = 0
+        };
 
-            SimpleTriggerImpl trigger = new SimpleTriggerImpl
-                {
-                    EndTimeUtc = endTimeUtc,
-                    RepeatCount = 0,
-                    StartTimeUtc = startTimeUtc,
-                    RepeatInterval = TimeSpan.FromDays(1),
-                    TimesTriggered = 0
-                };
+        var actual = trigger.GetFireTimeAfter(afterTimeUtc);
 
-            var actual = trigger.GetFireTimeAfter(afterTimeUtc);
+        Assert.IsNull(actual);
+    }
 
-            Assert.IsNull(actual);
-        }
+    [Test]
+    public void GetFireTimeAfter_AfterTimeUtcIsLessThanStartTimeUtc_RepeatCountIsGreaterThanZero_TimesTriggeredIsLessThanRepeatCount_EndTimeUtcIsNull()
+    {
+        var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
 
-        [Test]
-        public void GetFireTimeAfter_EndTimeUtcIsLessThanAfterTimeUtc_RepeatCountIsGreaterThanZero_TimesTriggeredIsLessThanRepeatCount()
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl
         {
-            var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
-            var endTimeUtc = startTimeUtc.AddMinutes(5);
-            var afterTimeUtc = endTimeUtc.AddDays(1);
+            EndTimeUtc = null,
+            RepeatCount = 1,
+            StartTimeUtc = startTimeUtc,
+            RepeatInterval = TimeSpan.FromDays(1),
+            TimesTriggered = 0
+        };
 
-            SimpleTriggerImpl trigger = new SimpleTriggerImpl
-                {
-                    EndTimeUtc = startTimeUtc.AddMinutes(5),
-                    RepeatCount = 1,
-                    StartTimeUtc = startTimeUtc,
-                    RepeatInterval = TimeSpan.FromDays(1),
-                    TimesTriggered = 0
-                };
+        DateTimeOffset? afterTimeUtc = startTimeUtc.AddMinutes(-1);
 
-            var actual = trigger.GetFireTimeAfter(afterTimeUtc);
+        var actual = trigger.GetFireTimeAfter(afterTimeUtc);
 
-            Assert.IsNull(actual);
-        }
+        Assert.IsNotNull(actual);
+        Assert.AreEqual(startTimeUtc, actual);
+    }
 
-        [Test]
-        public void GetFireTimeAfter_AfterTimeUtcIsLessThanStartTimeUtc_RepeatCountIsGreaterThanZero_TimesTriggeredIsLessThanRepeatCount_EndTimeUtcIsNull()
+    [Test]
+    public void GetFireTimeAfter_AfterTimeUtcIsLessThanStartTimeUtc_RepeatCountIsGreaterThanZero_TimesTriggeredEqualsRepeatCount_EndTimeUtcIsNull()
+    {
+        var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
+
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl
         {
-            var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
+            EndTimeUtc = null,
+            RepeatCount = 1,
+            StartTimeUtc = startTimeUtc,
+            RepeatInterval = TimeSpan.FromDays(1),
+            TimesTriggered = 1
+        };
 
-            SimpleTriggerImpl trigger = new SimpleTriggerImpl
-                {
-                    EndTimeUtc = null,
-                    RepeatCount = 1,
-                    StartTimeUtc = startTimeUtc,
-                    RepeatInterval = TimeSpan.FromDays(1),
-                    TimesTriggered = 0
-                };
+        DateTimeOffset? afterTimeUtc = startTimeUtc.AddMinutes(-1);
 
-            DateTimeOffset? afterTimeUtc = startTimeUtc.AddMinutes(-1);
+        var actual = trigger.GetFireTimeAfter(afterTimeUtc);
 
-            var actual = trigger.GetFireTimeAfter(afterTimeUtc);
+        Assert.IsNotNull(actual);
+        Assert.AreEqual(startTimeUtc, actual);
+    }
 
-            Assert.IsNotNull(actual);
-            Assert.AreEqual(startTimeUtc, actual);
-        }
+    [Test]
+    public void GetFireTimeAfter_AfterTimeUtcIsLessThanStartTimeUtc_RepeatCountIsGreaterThanZero_TimesTriggeredIsGreaterThanRepeatCount_EndTimeUtcIsNull()
+    {
+        var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
 
-        [Test]
-        public void GetFireTimeAfter_AfterTimeUtcIsLessThanStartTimeUtc_RepeatCountIsGreaterThanZero_TimesTriggeredEqualsRepeatCount_EndTimeUtcIsNull()
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl
         {
-            var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
+            EndTimeUtc = null,
+            RepeatCount = 1,
+            StartTimeUtc = startTimeUtc,
+            RepeatInterval = TimeSpan.FromDays(1),
+            TimesTriggered = 2
+        };
 
-            SimpleTriggerImpl trigger = new SimpleTriggerImpl
-                {
-                    EndTimeUtc = null,
-                    RepeatCount = 1,
-                    StartTimeUtc = startTimeUtc,
-                    RepeatInterval = TimeSpan.FromDays(1),
-                    TimesTriggered = 1
-                };
+        DateTimeOffset? afterTimeUtc = startTimeUtc.AddMinutes(-1);
 
-            DateTimeOffset? afterTimeUtc = startTimeUtc.AddMinutes(-1);
+        var actual = trigger.GetFireTimeAfter(afterTimeUtc);
 
-            var actual = trigger.GetFireTimeAfter(afterTimeUtc);
+        Assert.IsNull(actual);
+    }
 
-            Assert.IsNotNull(actual);
-            Assert.AreEqual(startTimeUtc, actual);
-        }
+    [Test]
+    public void GetFireTimeAfter_AfterTimeUtcIsGreaterThanStartTimeUtc_RepeatCountIsGreaterThanZero_TimesTriggeredIsLessThanRepeatCount_EndTimeUtcIsNull_CalculatedNumberOfTimesExecutedIsGreaterThanRepeatCount()
+    {
+        var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
 
-        [Test]
-        public void GetFireTimeAfter_AfterTimeUtcIsLessThanStartTimeUtc_RepeatCountIsGreaterThanZero_TimesTriggeredIsGreaterThanRepeatCount_EndTimeUtcIsNull()
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl
         {
-            var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
+            EndTimeUtc = null,
+            RepeatCount = 2,
+            StartTimeUtc = startTimeUtc,
+            RepeatInterval = TimeSpan.FromDays(1),
+            TimesTriggered = 0
+        };
 
-            SimpleTriggerImpl trigger = new SimpleTriggerImpl
-                {
-                    EndTimeUtc = null,
-                    RepeatCount = 1,
-                    StartTimeUtc = startTimeUtc,
-                    RepeatInterval = TimeSpan.FromDays(1),
-                    TimesTriggered = 2
-                };
+        DateTimeOffset? afterTimeUtc = startTimeUtc.AddDays(4);
 
-            DateTimeOffset? afterTimeUtc = startTimeUtc.AddMinutes(-1);
+        var actual = trigger.GetFireTimeAfter(afterTimeUtc);
 
-            var actual = trigger.GetFireTimeAfter(afterTimeUtc);
+        Assert.IsNull(actual);
+    }
 
-            Assert.IsNull(actual);
-        }
+    [Test]
+    public void GetFireTimeAfter_AfterTimeUtcIsGreaterThanStartTimeUtc_RepeatCountIsGreaterThanZero_TimesTriggeredIsLessThanRepeatCount_EndTimeUtcIsNull_CalculatedNumberOfTimesExecutedIsLessThanRepeatCount()
+    {
+        var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
 
-        [Test]
-        public void GetFireTimeAfter_AfterTimeUtcIsGreaterThanStartTimeUtc_RepeatCountIsGreaterThanZero_TimesTriggeredIsLessThanRepeatCount_EndTimeUtcIsNull_CalculatedNumberOfTimesExecutedIsGreaterThanRepeatCount()
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl
         {
-            var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
+            EndTimeUtc = null,
+            RepeatCount = 2,
+            StartTimeUtc = startTimeUtc,
+            RepeatInterval = TimeSpan.FromDays(1),
+            TimesTriggered = 0
+        };
 
-            SimpleTriggerImpl trigger = new SimpleTriggerImpl
-                {
-                    EndTimeUtc = null,
-                    RepeatCount = 2,
-                    StartTimeUtc = startTimeUtc,
-                    RepeatInterval = TimeSpan.FromDays(1),
-                    TimesTriggered = 0
-                };
+        DateTimeOffset? afterTimeUtc = startTimeUtc.AddMinutes(1);
 
-            DateTimeOffset? afterTimeUtc = startTimeUtc.AddDays(4);
+        var actual = trigger.GetFireTimeAfter(afterTimeUtc);
 
-            var actual = trigger.GetFireTimeAfter(afterTimeUtc);
+        Assert.IsNotNull(actual);
+        Assert.AreEqual(startTimeUtc.Add(TimeSpan.FromDays(1)), actual);
+    }
 
-            Assert.IsNull(actual);
-        }
+    [Test]
+    public void GetFireTimeAfter_AfterTimeUtcIsGreaterThanStartTimeUtc_RepeatCountIsGreaterThanZero_TimesTriggeredIsLessThanRepeatCount_EndTimeUtcIsNull_CalculatedNumberOfTimesExecutedEqualsThanRepeatCount()
+    {
+        var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
 
-        [Test]
-        public void GetFireTimeAfter_AfterTimeUtcIsGreaterThanStartTimeUtc_RepeatCountIsGreaterThanZero_TimesTriggeredIsLessThanRepeatCount_EndTimeUtcIsNull_CalculatedNumberOfTimesExecutedIsLessThanRepeatCount()
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl
         {
-            var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
+            EndTimeUtc = null,
+            RepeatCount = 2,
+            StartTimeUtc = startTimeUtc,
+            RepeatInterval = TimeSpan.FromDays(1),
+            TimesTriggered = 0
+        };
 
-            SimpleTriggerImpl trigger = new SimpleTriggerImpl
-                {
-                    EndTimeUtc = null,
-                    RepeatCount = 2,
-                    StartTimeUtc = startTimeUtc,
-                    RepeatInterval = TimeSpan.FromDays(1),
-                    TimesTriggered = 0
-                };
+        DateTimeOffset? afterTimeUtc = startTimeUtc.AddDays(1);
 
-            DateTimeOffset? afterTimeUtc = startTimeUtc.AddMinutes(1);
+        var actual = trigger.GetFireTimeAfter(afterTimeUtc);
 
-            var actual = trigger.GetFireTimeAfter(afterTimeUtc);
+        Assert.IsNotNull(actual);
+        Assert.AreEqual(startTimeUtc.Add(TimeSpan.FromDays(2)), actual);
+    }
 
-            Assert.IsNotNull(actual);
-            Assert.AreEqual(startTimeUtc.Add(TimeSpan.FromDays(1)), actual);
-        }
+    [Test]
+    public void GetFireTimeAfter_AfterTimeUtcIsGreaterThanStartTimeUtc_RepeatCountIsGreaterThanZero_TimesTriggeredIsLessThanRepeatCount_CalculatedNumberOfTimesExecutedEqualsThanRepeatCount_CalculatedTimeIsGreaterThanEndTimeUtc()
+    {
+        var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
 
-        [Test]
-        public void GetFireTimeAfter_AfterTimeUtcIsGreaterThanStartTimeUtc_RepeatCountIsGreaterThanZero_TimesTriggeredIsLessThanRepeatCount_EndTimeUtcIsNull_CalculatedNumberOfTimesExecutedEqualsThanRepeatCount()
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl
         {
-            var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
+            EndTimeUtc = startTimeUtc.AddDays(1).AddMinutes(5),
+            RepeatCount = 2,
+            StartTimeUtc = startTimeUtc,
+            RepeatInterval = TimeSpan.FromDays(1),
+            TimesTriggered = 0
+        };
 
-            SimpleTriggerImpl trigger = new SimpleTriggerImpl
-                {
-                    EndTimeUtc = null,
-                    RepeatCount = 2,
-                    StartTimeUtc = startTimeUtc,
-                    RepeatInterval = TimeSpan.FromDays(1),
-                    TimesTriggered = 0
-                };
+        DateTimeOffset? afterTimeUtc = startTimeUtc.AddDays(1);
 
-            DateTimeOffset? afterTimeUtc = startTimeUtc.AddDays(1);
+        var actual = trigger.GetFireTimeAfter(afterTimeUtc);
 
-            var actual = trigger.GetFireTimeAfter(afterTimeUtc);
+        Assert.IsNull(actual);
+    }
 
-            Assert.IsNotNull(actual);
-            Assert.AreEqual(startTimeUtc.Add(TimeSpan.FromDays(2)), actual);
-        }
+    [Test]
+    public void GetFireTimeAfter_AfterTimeUtcIsGreaterThanStartTimeUtc_RepeatCountIsGreaterThanZero_TimesTriggeredIsLessThanRepeatCount_CalculatedNumberOfTimesExecutedEqualsThanRepeatCount_CalculatedTimeIsLessThanEndTimeUtc()
+    {
+        var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
 
-        [Test]
-        public void GetFireTimeAfter_AfterTimeUtcIsGreaterThanStartTimeUtc_RepeatCountIsGreaterThanZero_TimesTriggeredIsLessThanRepeatCount_CalculatedNumberOfTimesExecutedEqualsThanRepeatCount_CalculatedTimeIsGreaterThanEndTimeUtc()
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl
         {
-            var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
+            EndTimeUtc = startTimeUtc.AddDays(3),
+            RepeatCount = 2,
+            StartTimeUtc = startTimeUtc,
+            RepeatInterval = TimeSpan.FromDays(1),
+            TimesTriggered = 0
+        };
 
-            SimpleTriggerImpl trigger = new SimpleTriggerImpl
-                {
-                    EndTimeUtc = startTimeUtc.AddDays(1).AddMinutes(5),
-                    RepeatCount = 2,
-                    StartTimeUtc = startTimeUtc,
-                    RepeatInterval = TimeSpan.FromDays(1),
-                    TimesTriggered = 0
-                };
+        DateTimeOffset? afterTimeUtc = startTimeUtc.AddDays(1);
 
-            DateTimeOffset? afterTimeUtc = startTimeUtc.AddDays(1);
+        var actual = trigger.GetFireTimeAfter(afterTimeUtc);
 
-            var actual = trigger.GetFireTimeAfter(afterTimeUtc);
+        Assert.IsNotNull(actual);
+        Assert.AreEqual(startTimeUtc.AddDays(2), actual);
+    }
 
-            Assert.IsNull(actual);
-        }
+    [Test]
+    public void GetFireTimeAfter_AfterTimeUtcIsGreaterThanStartTimeUtc_RepeatCountIsGreaterThanZero_TimesTriggeredIsLessThanRepeatCount_CalculatedNumberOfTimesExecutedEqualsThanRepeatCount_CalculatedTimeEqualsEndTimeUtc()
+    {
+        var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
 
-        [Test]
-        public void GetFireTimeAfter_AfterTimeUtcIsGreaterThanStartTimeUtc_RepeatCountIsGreaterThanZero_TimesTriggeredIsLessThanRepeatCount_CalculatedNumberOfTimesExecutedEqualsThanRepeatCount_CalculatedTimeIsLessThanEndTimeUtc()
+        SimpleTriggerImpl trigger = new SimpleTriggerImpl
         {
-            var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
+            EndTimeUtc = startTimeUtc.AddDays(2),
+            RepeatCount = 2,
+            StartTimeUtc = startTimeUtc,
+            RepeatInterval = TimeSpan.FromDays(1),
+            TimesTriggered = 0
+        };
 
-            SimpleTriggerImpl trigger = new SimpleTriggerImpl
-                {
-                    EndTimeUtc = startTimeUtc.AddDays(3),
-                    RepeatCount = 2,
-                    StartTimeUtc = startTimeUtc,
-                    RepeatInterval = TimeSpan.FromDays(1),
-                    TimesTriggered = 0
-                };
+        DateTimeOffset? afterTimeUtc = startTimeUtc.AddDays(1);
 
-            DateTimeOffset? afterTimeUtc = startTimeUtc.AddDays(1);
+        var actual = trigger.GetFireTimeAfter(afterTimeUtc);
 
-            var actual = trigger.GetFireTimeAfter(afterTimeUtc);
-
-            Assert.IsNotNull(actual);
-            Assert.AreEqual(startTimeUtc.AddDays(2), actual);
-        }
-
-        [Test]
-        public void GetFireTimeAfter_AfterTimeUtcIsGreaterThanStartTimeUtc_RepeatCountIsGreaterThanZero_TimesTriggeredIsLessThanRepeatCount_CalculatedNumberOfTimesExecutedEqualsThanRepeatCount_CalculatedTimeEqualsEndTimeUtc()
-        {
-            var startTimeUtc = DateTimeOffset.MinValue.AddDays(_random.Next(1, 10));
-
-            SimpleTriggerImpl trigger = new SimpleTriggerImpl
-                {
-                    EndTimeUtc = startTimeUtc.AddDays(2),
-                    RepeatCount = 2,
-                    StartTimeUtc = startTimeUtc,
-                    RepeatInterval = TimeSpan.FromDays(1),
-                    TimesTriggered = 0
-                };
-
-            DateTimeOffset? afterTimeUtc = startTimeUtc.AddDays(1);
-
-            var actual = trigger.GetFireTimeAfter(afterTimeUtc);
-
-            Assert.IsNull(actual);
-        }
+        Assert.IsNull(actual);
     }
 }

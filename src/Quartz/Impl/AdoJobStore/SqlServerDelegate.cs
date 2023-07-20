@@ -21,69 +21,68 @@
 
 using System.Data.Common;
 
-namespace Quartz.Impl.AdoJobStore
+namespace Quartz.Impl.AdoJobStore;
+
+/// <summary>
+/// A SQL Server specific driver delegate.
+/// </summary>
+/// <author>Marko Lahma</author>
+public class SqlServerDelegate : StdAdoDelegate
 {
     /// <summary>
-    /// A SQL Server specific driver delegate.
+    /// Gets the select next trigger to acquire SQL clause.
+    /// SQL Server specific version with TOP functionality
     /// </summary>
-    /// <author>Marko Lahma</author>
-    public class SqlServerDelegate : StdAdoDelegate
+    /// <returns></returns>
+    protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
     {
-        /// <summary>
-        /// Gets the select next trigger to acquire SQL clause.
-        /// SQL Server specific version with TOP functionality
-        /// </summary>
-        /// <returns></returns>
-        protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
+        string sqlSelectNextTriggerToAcquire = SqlSelectNextTriggerToAcquire;
+
+        // add limit clause to correct place
+        sqlSelectNextTriggerToAcquire = "SELECT TOP " + maxCount + " " + sqlSelectNextTriggerToAcquire.Substring(6);
+
+        return sqlSelectNextTriggerToAcquire;
+    }
+
+    protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
+    {
+        if (count != -1)
         {
-            string sqlSelectNextTriggerToAcquire = SqlSelectNextTriggerToAcquire;
+            var sqlSelectHasMisfiredTriggersInState = SqlSelectHasMisfiredTriggersInState;
 
             // add limit clause to correct place
-            sqlSelectNextTriggerToAcquire = "SELECT TOP " + maxCount + " " + sqlSelectNextTriggerToAcquire.Substring(6);
+            sqlSelectHasMisfiredTriggersInState = "SELECT TOP " + count + " " + sqlSelectHasMisfiredTriggersInState.Substring(6);
 
-            return sqlSelectNextTriggerToAcquire;
+            return sqlSelectHasMisfiredTriggersInState;
         }
+        return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
+    }
 
-        protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
+    public override void AddCommandParameter(
+        DbCommand cmd,
+        string paramName,
+        object? paramValue,
+        Enum? dataType = null,
+        int? size = null)
+    {
+        // deeded for SQL Server CE
+        if (paramValue is bool && dataType == null)
         {
-            if (count != -1)
-            {
-                var sqlSelectHasMisfiredTriggersInState = SqlSelectHasMisfiredTriggersInState;
-
-                // add limit clause to correct place
-                sqlSelectHasMisfiredTriggersInState = "SELECT TOP " + count + " " + sqlSelectHasMisfiredTriggersInState.Substring(6);
-
-                return sqlSelectHasMisfiredTriggersInState;
-            }
-            return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
+            paramValue = (bool) paramValue ? 1 : 0;
         }
 
-        public override void AddCommandParameter(
-            DbCommand cmd,
-            string paramName,
-            object? paramValue,
-            Enum? dataType = null,
-            int? size = null)
+        // varbinary support
+        if (size == null && dataType != null && dataType.Equals(DbProvider.Metadata.DbBinaryType))
         {
-            // deeded for SQL Server CE
-            if (paramValue is bool && dataType == null)
-            {
-                paramValue = (bool) paramValue ? 1 : 0;
-            }
-
-            // varbinary support
-            if (size == null && dataType != null && dataType.Equals(DbProvider.Metadata.DbBinaryType))
-            {
-                size = -1;
-            }
-
-            // avoid size inferred from value that cause multiple query plans
-            if (size == null && paramValue is string)
-            {
-                size = 4000;
-            }
-
-            base.AddCommandParameter(cmd, paramName, paramValue, dataType, size);
+            size = -1;
         }
+
+        // avoid size inferred from value that cause multiple query plans
+        if (size == null && paramValue is string)
+        {
+            size = 4000;
+        }
+
+        base.AddCommandParameter(cmd, paramName, paramValue, dataType, size);
     }
 }

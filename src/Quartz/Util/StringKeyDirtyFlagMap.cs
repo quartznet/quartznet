@@ -23,552 +23,551 @@ using System.Collections;
 using System.Globalization;
 using System.Runtime.Serialization;
 
-namespace Quartz.Util
+namespace Quartz.Util;
+
+/// <summary>
+/// An implementation of <see cref="IDictionary" /> that wraps another <see cref="IDictionary" />
+/// and flags itself 'dirty' when it is modified, enforces that all keys are
+/// strings.
+/// </summary>
+/// <author>Marko Lahma (.NET)</author>
+[Serializable]
+public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
 {
     /// <summary>
-    /// An implementation of <see cref="IDictionary" /> that wraps another <see cref="IDictionary" />
-    /// and flags itself 'dirty' when it is modified, enforces that all keys are
-    /// strings.
+    /// Initializes a new instance of the <see cref="StringKeyDirtyFlagMap"/> class.
     /// </summary>
-    /// <author>Marko Lahma (.NET)</author>
-    [Serializable]
-    public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
+    public StringKeyDirtyFlagMap()
     {
-        /// <summary>
-        /// Initializes a new instance of the <see cref="StringKeyDirtyFlagMap"/> class.
-        /// </summary>
-        public StringKeyDirtyFlagMap()
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="StringKeyDirtyFlagMap"/> class.
+    /// </summary>
+    /// <param name="initialCapacity">The initial capacity.</param>
+    public StringKeyDirtyFlagMap(int initialCapacity) : base(initialCapacity)
+    {
+    }
+
+    // TODO (NetCore Port) - When serialized in an object collection, Json.Net deserializes all integer types as longs and all real number types
+    //                       as doubles. If needed, we could do some 'fix-ups' here if a different default was preferable (return numeric types as the
+    //                       smallest type they fit in, for example). For now, let's use the default Json.Net behavior and re-evaluate later if any
+    //                       cleanup is needed here.
+    //[OnDeserialized]
+    //private void CleanupDeserializedMap(StreamingContext ctx)
+    //{
+    //    foreach (var key in GetKeys())
+    //    {
+    //        var val = this[key];
+    //        if (val is long)
+    //        {
+    //            long longVal = (long)val;
+    //            if (longVal <= int.MaxValue && longVal >= int.MinValue)
+    //            {
+    //                Put(key, (int)longVal);
+    //                continue;
+    //            }
+    //        }
+    //    }
+    //}
+
+    /// <summary>
+    /// Serialization constructor.
+    /// </summary>
+    /// <param name="info"></param>
+    /// <param name="context"></param>
+    protected StringKeyDirtyFlagMap(SerializationInfo info, StreamingContext context) : base(info, context)
+    {
+    }
+
+    /// <summary>
+    /// Determines whether the specified <see cref="T:System.Object"/> is equal to the current <see cref="T:System.Object"/>.
+    /// </summary>
+    /// <param name="obj">The <see cref="T:System.Object"/> to compare with the current <see cref="T:System.Object"/>.</param>
+    /// <returns>
+    /// 	<see langword="true"/> if the specified <see cref="T:System.Object"/> is equal to the
+    /// current <see cref="T:System.Object"/>; otherwise, <see langword="false"/>.
+    /// </returns>
+    public override bool Equals(object? obj)
+    {
+        return base.Equals(obj);
+    }
+
+    /// <summary>
+    /// Serves as a hash function for a particular type, suitable
+    /// for use in hashing algorithms and data structures like a hash table.
+    /// </summary>
+    /// <returns>
+    /// A hash code for the current <see cref="T:System.Object"/>.
+    /// </returns>
+    public override int GetHashCode()
+    {
+        return WrappedMap.GetHashCode();
+    }
+
+    /// <summary>
+    /// Gets the keys.
+    /// </summary>
+    /// <returns></returns>
+    public virtual IList<string> GetKeys()
+    {
+        return new List<string>(KeySet());
+    }
+
+    /// <summary>
+    /// Adds the name-value pairs in the given <see cref="IDictionary" /> to the <see cref="JobDataMap" />.
+    /// <para>
+    /// All keys must be <see cref="string" />s, and all values must be serializable.
+    /// </para>
+    /// </summary>
+    public override void PutAll(IDictionary<string, object> map)
+    {
+        foreach (KeyValuePair<string, object> pair in map)
         {
+            Put(pair.Key, pair.Value);
+            // will throw ArgumentException if value not serializable
         }
+    }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="StringKeyDirtyFlagMap"/> class.
-        /// </summary>
-        /// <param name="initialCapacity">The initial capacity.</param>
-        public StringKeyDirtyFlagMap(int initialCapacity) : base(initialCapacity)
+    /// <summary>
+    /// Adds the given <see cref="int" /> value to the <see cref="IJob" />'s
+    /// data map.
+    /// </summary>
+    public virtual void Put(string key, int value)
+    {
+        base.Put(key, value);
+    }
+
+    /// <summary>
+    /// Adds the given <see cref="long" /> value to the <see cref="IJob" />'s
+    /// data map.
+    /// </summary>
+    public virtual void Put(string key, long value)
+    {
+        base.Put(key, value);
+    }
+
+    /// <summary>
+    /// Adds the given <see cref="float" /> value to the <see cref="IJob" />'s
+    /// data map.
+    /// </summary>
+    public virtual void Put(string key, float value)
+    {
+        base.Put(key, value);
+    }
+
+    /// <summary>
+    /// Adds the given <see cref="double" /> value to the <see cref="IJob" />'s
+    /// data map.
+    /// </summary>
+    public virtual void Put(string key, double value)
+    {
+        base.Put(key, value);
+    }
+
+    /// <summary>
+    /// Adds the given <see cref="bool" /> value to the <see cref="IJob" />'s
+    /// data map.
+    /// </summary>
+    public virtual void Put(string key, bool value)
+    {
+        base.Put(key, value);
+    }
+
+    /// <summary>
+    /// Adds the given <see cref="char" /> value to the <see cref="IJob" />'s
+    /// data map.
+    /// </summary>
+    public virtual void Put(string key, char value)
+    {
+        base.Put(key, value);
+    }
+
+    /// <summary>
+    /// Adds the given <see cref="string" /> value to the <see cref="IJob" />'s
+    /// data map.
+    /// </summary>
+    public virtual void Put(string key, string? value)
+    {
+        base.Put(key, value!);
+    }
+
+    /// <summary>
+    /// Adds the given <see cref="Guid" /> value to the <see cref="IJob" />'s
+    /// data map.
+    /// </summary>
+    public virtual void Put(string key, Guid value)
+    {
+        base.Put(key, value);
+    }
+
+    /// <summary>
+    /// Retrieve the identified <see cref="int" /> value from the <see cref="JobDataMap" />.
+    /// </summary>
+    public virtual int GetInt(string key)
+    {
+        var obj = this[key];
+
+        try
         {
+            return Convert.ToInt32(obj);
         }
-
-        // TODO (NetCore Port) - When serialized in an object collection, Json.Net deserializes all integer types as longs and all real number types
-        //                       as doubles. If needed, we could do some 'fix-ups' here if a different default was preferable (return numeric types as the
-        //                       smallest type they fit in, for example). For now, let's use the default Json.Net behavior and re-evaluate later if any
-        //                       cleanup is needed here.
-        //[OnDeserialized]
-        //private void CleanupDeserializedMap(StreamingContext ctx)
-        //{
-        //    foreach (var key in GetKeys())
-        //    {
-        //        var val = this[key];
-        //        if (val is long)
-        //        {
-        //            long longVal = (long)val;
-        //            if (longVal <= int.MaxValue && longVal >= int.MinValue)
-        //            {
-        //                Put(key, (int)longVal);
-        //                continue;
-        //            }
-        //        }
-        //    }
-        //}
-
-        /// <summary>
-        /// Serialization constructor.
-        /// </summary>
-        /// <param name="info"></param>
-        /// <param name="context"></param>
-        protected StringKeyDirtyFlagMap(SerializationInfo info, StreamingContext context) : base(info, context)
+        catch (Exception)
         {
+            ThrowHelper.ThrowInvalidCastException("Identified object is not an Integer.");
+            return default;
         }
+    }
 
-        /// <summary>
-        /// Determines whether the specified <see cref="T:System.Object"/> is equal to the current <see cref="T:System.Object"/>.
-        /// </summary>
-        /// <param name="obj">The <see cref="T:System.Object"/> to compare with the current <see cref="T:System.Object"/>.</param>
-        /// <returns>
-        /// 	<see langword="true"/> if the specified <see cref="T:System.Object"/> is equal to the
-        /// current <see cref="T:System.Object"/>; otherwise, <see langword="false"/>.
-        /// </returns>
-        public override bool Equals(object? obj)
+    /// <summary>
+    /// Retrieve the identified <see cref="long" /> value from the <see cref="JobDataMap" />.
+    /// </summary>
+    public virtual long GetLong(string key)
+    {
+        var obj = this[key];
+
+        try
         {
-            return base.Equals(obj);
+            return Convert.ToInt64(obj);
         }
-
-        /// <summary>
-        /// Serves as a hash function for a particular type, suitable
-        /// for use in hashing algorithms and data structures like a hash table.
-        /// </summary>
-        /// <returns>
-        /// A hash code for the current <see cref="T:System.Object"/>.
-        /// </returns>
-        public override int GetHashCode()
+        catch (Exception)
         {
-            return WrappedMap.GetHashCode();
+            ThrowHelper.ThrowInvalidCastException("Identified object is not a Long.");
+            return default;
         }
+    }
 
-        /// <summary>
-        /// Gets the keys.
-        /// </summary>
-        /// <returns></returns>
-        public virtual IList<string> GetKeys()
+    /// <summary>
+    /// Retrieve the identified <see cref="float" /> value from the <see cref="JobDataMap" />.
+    /// </summary>
+    public virtual float GetFloat(string key)
+    {
+        var obj = this[key];
+
+        try
         {
-            return new List<string>(KeySet());
+            return Convert.ToSingle(obj);
         }
-
-        /// <summary>
-        /// Adds the name-value pairs in the given <see cref="IDictionary" /> to the <see cref="JobDataMap" />.
-        /// <para>
-        /// All keys must be <see cref="string" />s, and all values must be serializable.
-        /// </para>
-        /// </summary>
-        public override void PutAll(IDictionary<string, object> map)
+        catch (Exception)
         {
-            foreach (KeyValuePair<string, object> pair in map)
-            {
-                Put(pair.Key, pair.Value);
-                // will throw ArgumentException if value not serializable
-            }
+            ThrowHelper.ThrowInvalidCastException("Identified object is not a Float.");
+            return default;
         }
+    }
 
-        /// <summary>
-        /// Adds the given <see cref="int" /> value to the <see cref="IJob" />'s
-        /// data map.
-        /// </summary>
-        public virtual void Put(string key, int value)
+    /// <summary>
+    /// Retrieve the identified <see cref="double" /> value from the <see cref="JobDataMap" />.
+    /// </summary>
+    public virtual double GetDouble(string key)
+    {
+        var obj = this[key];
+
+        try
         {
-            base.Put(key, value);
+            return Convert.ToDouble(obj);
         }
-
-        /// <summary>
-        /// Adds the given <see cref="long" /> value to the <see cref="IJob" />'s
-        /// data map.
-        /// </summary>
-        public virtual void Put(string key, long value)
+        catch (Exception)
         {
-            base.Put(key, value);
+            ThrowHelper.ThrowInvalidCastException("Identified object is not a Double.");
+            return default;
         }
+    }
 
-        /// <summary>
-        /// Adds the given <see cref="float" /> value to the <see cref="IJob" />'s
-        /// data map.
-        /// </summary>
-        public virtual void Put(string key, float value)
+    /// <summary>
+    /// Retrieve the identified <see cref="bool" /> value from the <see cref="JobDataMap" />.
+    /// </summary>
+    public virtual bool GetBoolean(string key)
+    {
+        var obj = this[key];
+
+        try
         {
-            base.Put(key, value);
+            return Convert.ToBoolean(obj);
         }
-
-        /// <summary>
-        /// Adds the given <see cref="double" /> value to the <see cref="IJob" />'s
-        /// data map.
-        /// </summary>
-        public virtual void Put(string key, double value)
+        catch (Exception)
         {
-            base.Put(key, value);
+            ThrowHelper.ThrowInvalidCastException("Identified object is not a Boolean.");
+            return default;
         }
+    }
 
-        /// <summary>
-        /// Adds the given <see cref="bool" /> value to the <see cref="IJob" />'s
-        /// data map.
-        /// </summary>
-        public virtual void Put(string key, bool value)
+    /// <summary>
+    /// Retrieve the identified <see cref="char" /> value from the <see cref="JobDataMap" />.
+    /// </summary>
+    public virtual char GetChar(string key)
+    {
+        var obj = this[key];
+
+        try
         {
-            base.Put(key, value);
+            return Convert.ToChar(obj);
         }
-
-        /// <summary>
-        /// Adds the given <see cref="char" /> value to the <see cref="IJob" />'s
-        /// data map.
-        /// </summary>
-        public virtual void Put(string key, char value)
+        catch (Exception)
         {
-            base.Put(key, value);
+            ThrowHelper.ThrowInvalidCastException("Identified object is not a Character.");
+            return default;
         }
+    }
 
-        /// <summary>
-        /// Adds the given <see cref="string" /> value to the <see cref="IJob" />'s
-        /// data map.
-        /// </summary>
-        public virtual void Put(string key, string? value)
+    /// <summary>
+    /// Retrieve the identified <see cref="string" /> value from the <see cref="JobDataMap" />.
+    /// </summary>
+    public virtual string? GetString(string key)
+    {
+        var obj = this[key];
+
+        try
         {
-            base.Put(key, value!);
+            return (string?) obj;
         }
-
-        /// <summary>
-        /// Adds the given <see cref="Guid" /> value to the <see cref="IJob" />'s
-        /// data map.
-        /// </summary>
-        public virtual void Put(string key, Guid value)
+        catch (Exception)
         {
-            base.Put(key, value);
+            ThrowHelper.ThrowInvalidCastException("Identified object is not a String.");
+            return default;
         }
+    }
 
-        /// <summary>
-        /// Retrieve the identified <see cref="int" /> value from the <see cref="JobDataMap" />.
-        /// </summary>
-        public virtual int GetInt(string key)
+    /// <summary>
+    /// Retrieve the identified <see cref="DateTime" /> value from the <see cref="JobDataMap" />.
+    /// </summary>
+    public virtual DateTime GetDateTime(string key)
+    {
+        var obj = this[key];
+
+        try
         {
-            var obj = this[key];
-
-            try
-            {
-                return Convert.ToInt32(obj);
-            }
-            catch (Exception)
-            {
-                ThrowHelper.ThrowInvalidCastException("Identified object is not an Integer.");
-                return default;
-            }
+            return
+                obj is DateTimeOffset dto
+                    ? dto.DateTime
+                    : Convert.ToDateTime(obj, CultureInfo.InvariantCulture);
         }
-
-        /// <summary>
-        /// Retrieve the identified <see cref="long" /> value from the <see cref="JobDataMap" />.
-        /// </summary>
-        public virtual long GetLong(string key)
+        catch (Exception)
         {
-            var obj = this[key];
-
-            try
-            {
-                return Convert.ToInt64(obj);
-            }
-            catch (Exception)
-            {
-                ThrowHelper.ThrowInvalidCastException("Identified object is not a Long.");
-                return default;
-            }
+            ThrowHelper.ThrowInvalidCastException("Identified object is not a DateTime.");
+            return default;
         }
+    }
 
-        /// <summary>
-        /// Retrieve the identified <see cref="float" /> value from the <see cref="JobDataMap" />.
-        /// </summary>
-        public virtual float GetFloat(string key)
+    /// <summary>
+    /// Retrieve the identified <see cref="DateTimeOffset" /> value from the <see cref="JobDataMap" />.
+    /// </summary>
+    public virtual DateTimeOffset GetDateTimeOffset(string key)
+    {
+        var obj = this[key];
+        return (DateTimeOffset) obj!;
+    }
+
+    /// <summary>
+    /// Retrieve the identified <see cref="TimeSpan" /> value from the <see cref="JobDataMap" />.
+    /// </summary>
+    public virtual TimeSpan GetTimeSpan(string key)
+    {
+        var obj = this[key];
+        return (TimeSpan) obj!;
+    }
+
+    /// <summary>
+    /// Retrieve the identified <see cref="Guid" /> value from the <see cref="JobDataMap" />.
+    /// </summary>
+    public virtual Guid GetGuid(string key)
+    {
+        var obj = this[key];
+        return (Guid) obj!;
+    }
+
+    /// <summary>
+    /// Retrieve the identified <see cref="Guid" /> value from the <see cref="JobDataMap" />.
+    /// </summary>
+    public virtual Guid? GetNullableGuid(string key)
+    {
+        var obj = this[key];
+        return (Guid?) obj;
+    }
+
+    /// <summary>
+    /// Try to retrieve the identified <see cref="int" /> value from the <see cref="JobDataMap" />.
+    /// </summary>
+    public virtual bool TryGetInt(string key, out int value)
+    {
+        try
         {
-            var obj = this[key];
-
-            try
-            {
-                return Convert.ToSingle(obj);
-            }
-            catch (Exception)
-            {
-                ThrowHelper.ThrowInvalidCastException("Identified object is not a Float.");
-                return default;
-            }
+            value = GetInt(key);
+            return true;
         }
-
-        /// <summary>
-        /// Retrieve the identified <see cref="double" /> value from the <see cref="JobDataMap" />.
-        /// </summary>
-        public virtual double GetDouble(string key)
+        catch
         {
-            var obj = this[key];
-
-            try
-            {
-                return Convert.ToDouble(obj);
-            }
-            catch (Exception)
-            {
-                ThrowHelper.ThrowInvalidCastException("Identified object is not a Double.");
-                return default;
-            }
+            value = default;
+            return false;
         }
+    }
 
-        /// <summary>
-        /// Retrieve the identified <see cref="bool" /> value from the <see cref="JobDataMap" />.
-        /// </summary>
-        public virtual bool GetBoolean(string key)
+    /// <summary>
+    /// Try to retrieve the identified <see cref="bool" /> value from the <see cref="JobDataMap" />.
+    /// </summary>
+    public virtual bool TryGetBoolean(string key, out bool value)
+    {
+        try
         {
-            var obj = this[key];
-
-            try
-            {
-                return Convert.ToBoolean(obj);
-            }
-            catch (Exception)
-            {
-                ThrowHelper.ThrowInvalidCastException("Identified object is not a Boolean.");
-                return default;
-            }
+            value = GetBoolean(key);
+            return true;
         }
-
-        /// <summary>
-        /// Retrieve the identified <see cref="char" /> value from the <see cref="JobDataMap" />.
-        /// </summary>
-        public virtual char GetChar(string key)
+        catch
         {
-            var obj = this[key];
-
-            try
-            {
-                return Convert.ToChar(obj);
-            }
-            catch (Exception)
-            {
-                ThrowHelper.ThrowInvalidCastException("Identified object is not a Character.");
-                return default;
-            }
+            value = default;
+            return false;
         }
+    }
 
-        /// <summary>
-        /// Retrieve the identified <see cref="string" /> value from the <see cref="JobDataMap" />.
-        /// </summary>
-        public virtual string? GetString(string key)
+    /// <summary>
+    /// Try to retrieve the identified <see cref="double" /> value from the <see cref="JobDataMap" />.
+    /// </summary>
+    public virtual bool TryGetDouble(string key, out double value)
+    {
+        try
         {
-            var obj = this[key];
-
-            try
-            {
-                return (string?) obj;
-            }
-            catch (Exception)
-            {
-                ThrowHelper.ThrowInvalidCastException("Identified object is not a String.");
-                return default;
-            }
+            value = GetDouble(key);
+            return true;
         }
-
-        /// <summary>
-        /// Retrieve the identified <see cref="DateTime" /> value from the <see cref="JobDataMap" />.
-        /// </summary>
-        public virtual DateTime GetDateTime(string key)
+        catch
         {
-            var obj = this[key];
-
-            try
-            {
-                return
-                    obj is DateTimeOffset dto
-                        ? dto.DateTime
-                        : Convert.ToDateTime(obj, CultureInfo.InvariantCulture);
-            }
-            catch (Exception)
-            {
-                ThrowHelper.ThrowInvalidCastException("Identified object is not a DateTime.");
-                return default;
-            }
+            value = default;
+            return false;
         }
+    }
 
-        /// <summary>
-        /// Retrieve the identified <see cref="DateTimeOffset" /> value from the <see cref="JobDataMap" />.
-        /// </summary>
-        public virtual DateTimeOffset GetDateTimeOffset(string key)
+    /// <summary>
+    /// Try to retrieve the identified <see cref="float" /> value from the <see cref="JobDataMap" />.
+    /// </summary>
+    public virtual bool TryGetFloat(string key, out float value)
+    {
+        try
         {
-            var obj = this[key];
-            return (DateTimeOffset) obj!;
+            value = GetFloat(key);
+            return true;
         }
-
-        /// <summary>
-        /// Retrieve the identified <see cref="TimeSpan" /> value from the <see cref="JobDataMap" />.
-        /// </summary>
-        public virtual TimeSpan GetTimeSpan(string key)
+        catch
         {
-            var obj = this[key];
-            return (TimeSpan) obj!;
+            value = default;
+            return false;
         }
+    }
 
-        /// <summary>
-        /// Retrieve the identified <see cref="Guid" /> value from the <see cref="JobDataMap" />.
-        /// </summary>
-        public virtual Guid GetGuid(string key)
+    /// <summary>
+    /// Try to retrieve the identified <see cref="long" /> value from the <see cref="JobDataMap" />.
+    /// </summary>
+    public virtual bool TryGetLong(string key, out long value)
+    {
+        try
         {
-            var obj = this[key];
-            return (Guid) obj!;
+            value = GetLong(key);
+            return true;
         }
-
-        /// <summary>
-        /// Retrieve the identified <see cref="Guid" /> value from the <see cref="JobDataMap" />.
-        /// </summary>
-        public virtual Guid? GetNullableGuid(string key)
+        catch
         {
-            var obj = this[key];
-            return (Guid?) obj;
+            value = default;
+            return false;
         }
+    }
 
-        /// <summary>
-        /// Try to retrieve the identified <see cref="int" /> value from the <see cref="JobDataMap" />.
-        /// </summary>
-        public virtual bool TryGetInt(string key, out int value)
+    /// <summary>
+    /// Try to retrieve the identified <see cref="DateTime" /> value from the <see cref="JobDataMap" />.
+    /// </summary>
+    public virtual bool TryGetDateTime(string key, out DateTime value)
+    {
+        try
         {
-            try
-            {
-                value = GetInt(key);
-                return true;
-            }
-            catch
-            {
-                value = default;
-                return false;
-            }
+            value = GetDateTime(key);
+            return true;
         }
-
-        /// <summary>
-        /// Try to retrieve the identified <see cref="bool" /> value from the <see cref="JobDataMap" />.
-        /// </summary>
-        public virtual bool TryGetBoolean(string key, out bool value)
+        catch
         {
-            try
-            {
-                value = GetBoolean(key);
-                return true;
-            }
-            catch
-            {
-                value = default;
-                return false;
-            }
+            value = default;
+            return false;
         }
+    }
 
-        /// <summary>
-        /// Try to retrieve the identified <see cref="double" /> value from the <see cref="JobDataMap" />.
-        /// </summary>
-        public virtual bool TryGetDouble(string key, out double value)
+    /// <summary>
+    /// Try to retrieve the identified <see cref="DateTimeOffset" /> value from the <see cref="JobDataMap" />.
+    /// </summary>
+    public virtual bool TryGetDateTimeOffset(string key, out DateTimeOffset value)
+    {
+        try
         {
-            try
-            {
-                value = GetDouble(key);
-                return true;
-            }
-            catch
-            {
-                value = default;
-                return false;
-            }
+            value = GetDateTimeOffset(key);
+            return true;
         }
-
-        /// <summary>
-        /// Try to retrieve the identified <see cref="float" /> value from the <see cref="JobDataMap" />.
-        /// </summary>
-        public virtual bool TryGetFloat(string key, out float value)
+        catch
         {
-            try
-            {
-                value = GetFloat(key);
-                return true;
-            }
-            catch
-            {
-                value = default;
-                return false;
-            }
+            value = default;
+            return false;
         }
+    }
 
-        /// <summary>
-        /// Try to retrieve the identified <see cref="long" /> value from the <see cref="JobDataMap" />.
-        /// </summary>
-        public virtual bool TryGetLong(string key, out long value)
+    /// <summary>
+    /// Try to retrieve the identified <see cref="TimeSpan" /> value from the <see cref="JobDataMap" />.
+    /// </summary>
+    public virtual bool TryGetTimeSpan(string key, out TimeSpan value)
+    {
+        try
         {
-            try
-            {
-                value = GetLong(key);
-                return true;
-            }
-            catch
-            {
-                value = default;
-                return false;
-            }
+            value = GetTimeSpan(key);
+            return true;
         }
-
-        /// <summary>
-        /// Try to retrieve the identified <see cref="DateTime" /> value from the <see cref="JobDataMap" />.
-        /// </summary>
-        public virtual bool TryGetDateTime(string key, out DateTime value)
+        catch
         {
-            try
-            {
-                value = GetDateTime(key);
-                return true;
-            }
-            catch
-            {
-                value = default;
-                return false;
-            }
+            value = default;
+            return false;
         }
+    }
 
-        /// <summary>
-        /// Try to retrieve the identified <see cref="DateTimeOffset" /> value from the <see cref="JobDataMap" />.
-        /// </summary>
-        public virtual bool TryGetDateTimeOffset(string key, out DateTimeOffset value)
+    /// <summary>
+    /// Try to retrieve the identified <see cref="Guid" /> value from the <see cref="JobDataMap" />.
+    /// </summary>
+    public virtual bool TryGetGuid(string key, out Guid value)
+    {
+        try
         {
-            try
-            {
-                value = GetDateTimeOffset(key);
-                return true;
-            }
-            catch
-            {
-                value = default;
-                return false;
-            }
+            value = GetGuid(key);
+            return true;
         }
-
-        /// <summary>
-        /// Try to retrieve the identified <see cref="TimeSpan" /> value from the <see cref="JobDataMap" />.
-        /// </summary>
-        public virtual bool TryGetTimeSpan(string key, out TimeSpan value)
+        catch
         {
-            try
-            {
-                value = GetTimeSpan(key);
-                return true;
-            }
-            catch
-            {
-                value = default;
-                return false;
-            }
+            value = default;
+            return false;
         }
+    }
 
-        /// <summary>
-        /// Try to retrieve the identified <see cref="Guid" /> value from the <see cref="JobDataMap" />.
-        /// </summary>
-        public virtual bool TryGetGuid(string key, out Guid value)
+    /// <summary>
+    /// Try to retrieve the identified Nullable <see cref="Guid" /> value from the <see cref="JobDataMap" />.
+    /// </summary>
+    public virtual bool TryGetNullableGuid(string key, out Guid? value)
+    {
+        try
         {
-            try
-            {
-                value = GetGuid(key);
-                return true;
-            }
-            catch
-            {
-                value = default;
-                return false;
-            }
+            value = GetNullableGuid(key);
+            return true;
         }
-
-        /// <summary>
-        /// Try to retrieve the identified Nullable <see cref="Guid" /> value from the <see cref="JobDataMap" />.
-        /// </summary>
-        public virtual bool TryGetNullableGuid(string key, out Guid? value)
+        catch
         {
-            try
-            {
-                value = GetNullableGuid(key);
-                return true;
-            }
-            catch
-            {
-                value = default;
-                return false;
-            }
+            value = default;
+            return false;
         }
+    }
 
-        /// <summary>
-        /// Try to retrieve the identified <see cref="char" /> value from the <see cref="JobDataMap" />.
-        /// </summary>
-        public virtual bool TryGetChar(string key, out char value)
+    /// <summary>
+    /// Try to retrieve the identified <see cref="char" /> value from the <see cref="JobDataMap" />.
+    /// </summary>
+    public virtual bool TryGetChar(string key, out char value)
+    {
+        try
         {
-            try
-            {
-                value = GetChar(key);
-                return true;
-            }
-            catch
-            {
-                value = default;
-                return false;
-            }
+            value = GetChar(key);
+            return true;
+        }
+        catch
+        {
+            value = default;
+            return false;
         }
     }
 }

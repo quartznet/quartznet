@@ -19,51 +19,50 @@
 
 #endregion
 
-namespace Quartz.Examples.Example07
+namespace Quartz.Examples.Example07;
+
+/// <summary>
+/// A dumb implementation of an InterruptableJob, for unit testing purposes.
+/// </summary>
+/// <author>  <a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
+/// <author>Bill Kratzer</author>
+/// <author>Marko Lahma (.NET)</author>
+public class DumbInterruptableJob : IJob
 {
+    // job name
+    private JobKey? jobKey;
+
     /// <summary>
-    /// A dumb implementation of an InterruptableJob, for unit testing purposes.
+    /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
+    /// fires that is associated with the <see cref="IJob" />.
     /// </summary>
-    /// <author>  <a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
-    /// <author>Bill Kratzer</author>
-    /// <author>Marko Lahma (.NET)</author>
-    public class DumbInterruptableJob : IJob
+    public virtual async ValueTask Execute(IJobExecutionContext context)
     {
-        // job name
-        private JobKey? jobKey;
+        jobKey = context.JobDetail.Key;
+        Console.WriteLine("---- {0} executing at {1:r}", jobKey, DateTime.Now);
 
-        /// <summary>
-        /// Called by the <see cref="IScheduler" /> when a <see cref="ITrigger" />
-        /// fires that is associated with the <see cref="IJob" />.
-        /// </summary>
-        public virtual async ValueTask Execute(IJobExecutionContext context)
+        try
         {
-            jobKey = context.JobDetail.Key;
-            Console.WriteLine("---- {0} executing at {1:r}", jobKey, DateTime.Now);
+            // main job loop...
+            // do some work... in this example we are 'simulating' work by sleeping...
 
-            try
+            for (int i = 0; i < 4; i++)
             {
-                // main job loop...
-                // do some work... in this example we are 'simulating' work by sleeping...
+                await Task.Delay(10*1000);
 
-                for (int i = 0; i < 4; i++)
+                // periodically check if we've been interrupted...
+                if (context.CancellationToken.IsCancellationRequested)
                 {
-                    await Task.Delay(10*1000);
-
-                    // periodically check if we've been interrupted...
-                    if (context.CancellationToken.IsCancellationRequested)
-                    {
-                        Console.WriteLine("--- {0}  -- Interrupted... bailing out!", jobKey);
-                        return; // could also choose to throw a JobExecutionException
-                        // if that made for sense based on the particular
-                        // job's responsibilities/behaviors
-                    }
+                    Console.WriteLine("--- {0}  -- Interrupted... bailing out!", jobKey);
+                    return; // could also choose to throw a JobExecutionException
+                    // if that made for sense based on the particular
+                    // job's responsibilities/behaviors
                 }
             }
-            finally
-            {
-                Console.WriteLine("---- {0} completed at {1:r}", jobKey, DateTime.Now);
-            }
+        }
+        finally
+        {
+            Console.WriteLine("---- {0} completed at {1:r}", jobKey, DateTime.Now);
         }
     }
 }

@@ -19,56 +19,55 @@
 
 #endregion
 
-namespace Quartz.Examples.Example09
+namespace Quartz.Examples.Example09;
+
+/// <author>wkratzer</author>
+/// <author>Marko Lahma (.NET)</author>
+public class SimpleJob1Listener : IJobListener
 {
-    /// <author>wkratzer</author>
-    /// <author>Marko Lahma (.NET)</author>
-    public class SimpleJob1Listener : IJobListener
+    public virtual string Name => "job1_to_job2";
+
+    public virtual ValueTask JobToBeExecuted(
+        IJobExecutionContext inContext, 
+        CancellationToken cancellationToken)
     {
-        public virtual string Name => "job1_to_job2";
+        Console.WriteLine("Job1Listener says: Job Is about to be executed.");
+        return default;
+    }
 
-        public virtual ValueTask JobToBeExecuted(
-            IJobExecutionContext inContext, 
-            CancellationToken cancellationToken)
+    public virtual ValueTask JobExecutionVetoed(
+        IJobExecutionContext inContext,
+        CancellationToken canncellationToken)
+    {
+        Console.WriteLine("Job1Listener says: Job Execution was vetoed.");
+        return default;
+    }
+
+    public virtual async ValueTask JobWasExecuted(IJobExecutionContext inContext,
+        JobExecutionException? inException,
+        CancellationToken cancellationToken = default)
+    {
+        Console.WriteLine("Job1Listener says: Job was executed.");
+
+        // Simple job #2
+        IJobDetail job2 = JobBuilder.Create<SimpleJob2>()
+            .WithIdentity("job2")
+            .Build();
+
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity("job2Trigger")
+            .StartNow()
+            .Build();
+
+        try
         {
-            Console.WriteLine("Job1Listener says: Job Is about to be executed.");
-            return default;
+            // schedule the job to run!
+            await inContext.Scheduler.ScheduleJob(job2, trigger, cancellationToken);
         }
-
-        public virtual ValueTask JobExecutionVetoed(
-            IJobExecutionContext inContext,
-            CancellationToken canncellationToken)
+        catch (SchedulerException e)
         {
-            Console.WriteLine("Job1Listener says: Job Execution was vetoed.");
-            return default;
-        }
-
-        public virtual async ValueTask JobWasExecuted(IJobExecutionContext inContext,
-            JobExecutionException? inException,
-            CancellationToken cancellationToken = default)
-        {
-            Console.WriteLine("Job1Listener says: Job was executed.");
-
-            // Simple job #2
-            IJobDetail job2 = JobBuilder.Create<SimpleJob2>()
-                .WithIdentity("job2")
-                .Build();
-
-            ITrigger trigger = TriggerBuilder.Create()
-                .WithIdentity("job2Trigger")
-                .StartNow()
-                .Build();
-
-            try
-            {
-                // schedule the job to run!
-                await inContext.Scheduler.ScheduleJob(job2, trigger, cancellationToken);
-            }
-            catch (SchedulerException e)
-            {
-                Console.Error.WriteLine("Unable to schedule job2!");
-                Console.Error.WriteLine(e.StackTrace);
-            }
+            Console.Error.WriteLine("Unable to schedule job2!");
+            Console.Error.WriteLine(e.StackTrace);
         }
     }
 }

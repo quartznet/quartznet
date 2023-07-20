@@ -19,43 +19,42 @@
 
 using Quartz.Spi;
 
-namespace Quartz.Simpl
+namespace Quartz.Simpl;
+
+/// <summary>
+/// A <see cref="ITypeLoadHelper" /> that simply calls <see cref="Type.GetType(string)" />.
+/// </summary>
+/// <seealso cref="ITypeLoadHelper" />
+/// <author>James House</author>
+/// <author>Marko Lahma (.NET)</author>
+public class SimpleTypeLoadHelper : ITypeLoadHelper
 {
-	/// <summary>
-	/// A <see cref="ITypeLoadHelper" /> that simply calls <see cref="Type.GetType(string)" />.
-	/// </summary>
-	/// <seealso cref="ITypeLoadHelper" />
-	/// <author>James House</author>
-    /// <author>Marko Lahma (.NET)</author>
-    public class SimpleTypeLoadHelper : ITypeLoadHelper
-	{
-		private const string QuartzAssemblyTypePostfix = ", Quartz";
-		private const string QuartzJobsAssemblyTypePostifx = ", Quartz.Jobs";
+    private const string QuartzAssemblyTypePostfix = ", Quartz";
+    private const string QuartzJobsAssemblyTypePostifx = ", Quartz.Jobs";
 
-		/// <inheritdoc />
-		public virtual void Initialize()
-		{
-		}
+    /// <inheritdoc />
+    public virtual void Initialize()
+    {
+    }
 
-		/// <inheritdoc />
-		public virtual Type? LoadType(string? name)
-		{
-            if (string.IsNullOrEmpty(name) || name == null)
-            {
-                return null;
-            }
-			var type = Type.GetType(name, false);
-			if (type == null && name.EndsWith(QuartzAssemblyTypePostfix, StringComparison.Ordinal))
-			{
-				// we've moved jobs to new assembly try that too
-				var newName = name.Substring(0, name.Length - QuartzAssemblyTypePostfix.Length) + QuartzJobsAssemblyTypePostifx;
-				type = Type.GetType(newName);
-			}
-			if (type == null)
-			{
-				ThrowHelper.ThrowTypeLoadException($"Could not load type '{name}'");
-			}
-			return type;
-		}
-	}
+    /// <inheritdoc />
+    public virtual Type? LoadType(string? name)
+    {
+        if (string.IsNullOrEmpty(name) || name == null)
+        {
+            return null;
+        }
+        var type = Type.GetType(name, false);
+        if (type == null && name.EndsWith(QuartzAssemblyTypePostfix, StringComparison.Ordinal))
+        {
+            // we've moved jobs to new assembly try that too
+            var newName = name.Substring(0, name.Length - QuartzAssemblyTypePostfix.Length) + QuartzJobsAssemblyTypePostifx;
+            type = Type.GetType(newName);
+        }
+        if (type == null)
+        {
+            ThrowHelper.ThrowTypeLoadException($"Could not load type '{name}'");
+        }
+        return type;
+    }
 }

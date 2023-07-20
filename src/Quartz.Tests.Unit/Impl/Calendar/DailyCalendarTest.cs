@@ -28,102 +28,101 @@ using Quartz.Impl.Triggers;
 using Quartz.Simpl;
 using Quartz.Util;
 
-namespace Quartz.Tests.Unit.Impl.Calendar
+namespace Quartz.Tests.Unit.Impl.Calendar;
+
+/// <summary>
+/// Unit test for DailyCalendar.
+/// </summary>
+/// <author>Marko Lahma (.NET)</author>
+[TestFixture(typeof(BinaryObjectSerializer))]
+[TestFixture(typeof(JsonObjectSerializer))]
+public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalendar>
 {
-    /// <summary>
-    /// Unit test for DailyCalendar.
-    /// </summary>
-    /// <author>Marko Lahma (.NET)</author>
-    [TestFixture(typeof(BinaryObjectSerializer))]
-    [TestFixture(typeof(JsonObjectSerializer))]
-    public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalendar>
+    public DailyCalendarTest(Type serializerType) : base(serializerType)
     {
-        public DailyCalendarTest(Type serializerType) : base(serializerType)
-        {
-        }
+    }
 
-        [Test]
-        public void TestStringStartEndTimes()
-        {
-            DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50");
-            var toString = dailyCalendar.ToString();
-            Assert.That(toString, Does.Contain("01:20:00:000 - 14:50:00:000"));
+    [Test]
+    public void TestStringStartEndTimes()
+    {
+        DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50");
+        var toString = dailyCalendar.ToString();
+        Assert.That(toString, Does.Contain("01:20:00:000 - 14:50:00:000"));
 
-            dailyCalendar = new DailyCalendar("1:20:1:456", "14:50:15:2");
-            toString = dailyCalendar.ToString();
-            Assert.That(toString, Does.Contain("01:20:01:456 - 14:50:15:002"));
-        }
+        dailyCalendar = new DailyCalendar("1:20:1:456", "14:50:15:2");
+        toString = dailyCalendar.ToString();
+        Assert.That(toString, Does.Contain("01:20:01:456 - 14:50:15:002"));
+    }
 
-        [Test]
-        public void TestStartEndTimes()
-        {
-            // Grafit found a copy-paste problem from ending time, it was the same as starting time
+    [Test]
+    public void TestStartEndTimes()
+    {
+        // Grafit found a copy-paste problem from ending time, it was the same as starting time
 
-            DateTime d = DateTime.Now;
-            DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50");
-            DateTime expectedStartTime = new DateTime(d.Year, d.Month, d.Day, 1, 20, 0);
-            DateTime expectedEndTime = new DateTime(d.Year, d.Month, d.Day, 14, 50, 0);
+        DateTime d = DateTime.Now;
+        DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50");
+        DateTime expectedStartTime = new DateTime(d.Year, d.Month, d.Day, 1, 20, 0);
+        DateTime expectedEndTime = new DateTime(d.Year, d.Month, d.Day, 14, 50, 0);
 
-            Assert.AreEqual(expectedStartTime, dailyCalendar.GetTimeRangeStartingTimeUtc(d).DateTime);
-            Assert.AreEqual(expectedEndTime, dailyCalendar.GetTimeRangeEndingTimeUtc(d).DateTime);
-        }
+        Assert.AreEqual(expectedStartTime, dailyCalendar.GetTimeRangeStartingTimeUtc(d).DateTime);
+        Assert.AreEqual(expectedEndTime, dailyCalendar.GetTimeRangeEndingTimeUtc(d).DateTime);
+    }
 
-        [Test]
-        public void TestStringInvertTimeRange()
-        {
-            DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50");
-            dailyCalendar.InvertTimeRange = true;
-            Assert.IsTrue(dailyCalendar.ToString().IndexOf("inverted: True") > 0);
+    [Test]
+    public void TestStringInvertTimeRange()
+    {
+        DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50");
+        dailyCalendar.InvertTimeRange = true;
+        Assert.IsTrue(dailyCalendar.ToString().IndexOf("inverted: True") > 0);
 
-            dailyCalendar.InvertTimeRange = false;
-            Assert.IsTrue(dailyCalendar.ToString().IndexOf("inverted: False") > 0);
-        }
+        dailyCalendar.InvertTimeRange = false;
+        Assert.IsTrue(dailyCalendar.ToString().IndexOf("inverted: False") > 0);
+    }
 
-        [Test]
-        public void TestTimeZone()
-        {
-            TimeZoneInfo tz = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
+    [Test]
+    public void TestTimeZone()
+    {
+        TimeZoneInfo tz = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
 
-            DailyCalendar dailyCalendar = new DailyCalendar("12:00:00", "14:00:00");
-            dailyCalendar.InvertTimeRange = true; //inclusive calendar
-            dailyCalendar.TimeZone = tz;
+        DailyCalendar dailyCalendar = new DailyCalendar("12:00:00", "14:00:00");
+        dailyCalendar.InvertTimeRange = true; //inclusive calendar
+        dailyCalendar.TimeZone = tz;
 
-            // 11/2/2012 17:00 (utc) is 11/2/2012 13:00 (est)
-            DateTimeOffset timeToCheck = new DateTimeOffset(2012, 11, 2, 17, 0, 0, TimeSpan.FromHours(0));
-            Assert.IsTrue(dailyCalendar.IsTimeIncluded(timeToCheck));
-        }
+        // 11/2/2012 17:00 (utc) is 11/2/2012 13:00 (est)
+        DateTimeOffset timeToCheck = new DateTimeOffset(2012, 11, 2, 17, 0, 0, TimeSpan.FromHours(0));
+        Assert.IsTrue(dailyCalendar.IsTimeIncluded(timeToCheck));
+    }
 
-        [Test]
-        public void ShouldAllowExactMidnight()
-        {
-            var calendar = new DailyCalendar("01:00", "05:00");
+    [Test]
+    public void ShouldAllowExactMidnight()
+    {
+        var calendar = new DailyCalendar("01:00", "05:00");
 
-            var trigger = (CronTriggerImpl) TriggerBuilder.Create()
-                .WithIdentity("TestJobTrigger", "group1")
-                .StartNow()
-                .WithCronSchedule("0 0 0 * * ? *")
-                .ModifiedByCalendar("CustomCalendar")
-                .Build();
+        var trigger = (CronTriggerImpl) TriggerBuilder.Create()
+            .WithIdentity("TestJobTrigger", "group1")
+            .StartNow()
+            .WithCronSchedule("0 0 0 * * ? *")
+            .ModifiedByCalendar("CustomCalendar")
+            .Build();
 
-            var fireTimeUtc = trigger.ComputeFirstFireTimeUtc(calendar);
-            fireTimeUtc.Should().NotBeNull();
-        }
+        var fireTimeUtc = trigger.ComputeFirstFireTimeUtc(calendar);
+        fireTimeUtc.Should().NotBeNull();
+    }
 
-        protected override DailyCalendar GetTargetObject()
-        {
-            DailyCalendar c = new DailyCalendar("01:20:01:456", "14:50:15:002");
-            c.Description = "description";
-            c.InvertTimeRange = true;
-            return c;
-        }
+    protected override DailyCalendar GetTargetObject()
+    {
+        DailyCalendar c = new DailyCalendar("01:20:01:456", "14:50:15:002");
+        c.Description = "description";
+        c.InvertTimeRange = true;
+        return c;
+    }
 
-        protected override void VerifyMatch(DailyCalendar original, DailyCalendar deserialized)
-        {
-            Assert.IsNotNull(deserialized);
-            Assert.AreEqual(original.Description, deserialized.Description);
-            Assert.AreEqual(original.InvertTimeRange, deserialized.InvertTimeRange);
-            Assert.AreEqual(original.TimeZone, deserialized.TimeZone);
-            Assert.AreEqual(original.ToString(), deserialized.ToString());
-        }
+    protected override void VerifyMatch(DailyCalendar original, DailyCalendar deserialized)
+    {
+        Assert.IsNotNull(deserialized);
+        Assert.AreEqual(original.Description, deserialized.Description);
+        Assert.AreEqual(original.InvertTimeRange, deserialized.InvertTimeRange);
+        Assert.AreEqual(original.TimeZone, deserialized.TimeZone);
+        Assert.AreEqual(original.ToString(), deserialized.ToString());
     }
 }

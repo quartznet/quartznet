@@ -23,69 +23,68 @@ using System.Data.Common;
 
 using Quartz.Spi;
 
-namespace Quartz.Impl.AdoJobStore
+namespace Quartz.Impl.AdoJobStore;
+
+/// <summary>
+/// An interface which provides an implementation for storing a particular
+/// type of <see cref="ITrigger" />'s extended properties.
+/// </summary>
+/// <author>jhouse</author>
+public interface ITriggerPersistenceDelegate
 {
     /// <summary>
-    /// An interface which provides an implementation for storing a particular
-    /// type of <see cref="ITrigger" />'s extended properties.
+    /// Initializes the persistence delegate.
     /// </summary>
-    /// <author>jhouse</author>
-    public interface ITriggerPersistenceDelegate
-    {
-        /// <summary>
-        /// Initializes the persistence delegate.
-        /// </summary>
-        void Initialize(string tablePrefix, string schedulerName, IDbAccessor dbAccessor);
+    void Initialize(string tablePrefix, string schedulerName, IDbAccessor dbAccessor);
 
-        /// <summary>
-        /// Returns whether the trigger type can be handled by delegate.
-        /// </summary>
-        bool CanHandleTriggerType(IOperableTrigger trigger);
+    /// <summary>
+    /// Returns whether the trigger type can be handled by delegate.
+    /// </summary>
+    bool CanHandleTriggerType(IOperableTrigger trigger);
 
-        /// <summary>
-        /// Returns database discriminator value for trigger type.
-        /// </summary>
-        string GetHandledTriggerTypeDiscriminator();
+    /// <summary>
+    /// Returns database discriminator value for trigger type.
+    /// </summary>
+    string GetHandledTriggerTypeDiscriminator();
 
-        /// <summary>
-        /// Inserts trigger's special properties.
-        /// </summary>
-        ValueTask<int> InsertExtendedTriggerProperties(
-            ConnectionAndTransactionHolder conn, 
-            IOperableTrigger trigger, 
-            string state,
-            IJobDetail jobDetail,
-            CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Inserts trigger's special properties.
+    /// </summary>
+    ValueTask<int> InsertExtendedTriggerProperties(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger trigger,
+        string state,
+        IJobDetail jobDetail,
+        CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Updates trigger's special properties.
-        /// </summary>
-        ValueTask<int> UpdateExtendedTriggerProperties(
-            ConnectionAndTransactionHolder conn, 
-            IOperableTrigger trigger,
-            string state, 
-            IJobDetail jobDetail,
-            CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Updates trigger's special properties.
+    /// </summary>
+    ValueTask<int> UpdateExtendedTriggerProperties(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger trigger,
+        string state,
+        IJobDetail jobDetail,
+        CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Deletes trigger's special properties.
-        /// </summary>
-        ValueTask<int> DeleteExtendedTriggerProperties(
-            ConnectionAndTransactionHolder conn,
-            TriggerKey triggerKey,
-            CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Deletes trigger's special properties.
+    /// </summary>
+    ValueTask<int> DeleteExtendedTriggerProperties(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Loads trigger's special properties.
-        /// </summary>
-        ValueTask<TriggerPropertyBundle> LoadExtendedTriggerProperties(
-            ConnectionAndTransactionHolder conn,
-            TriggerKey triggerKey,
-            CancellationToken cancellationToken = default);
+    /// <summary>
+    /// Loads trigger's special properties.
+    /// </summary>
+    ValueTask<TriggerPropertyBundle> LoadExtendedTriggerProperties(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Read trigger state data from open data reader.
-        /// </summary>
-        TriggerPropertyBundle ReadTriggerPropertyBundle(DbDataReader rs);
-    }
+    /// <summary>
+    /// Read trigger state data from open data reader.
+    /// </summary>
+    TriggerPropertyBundle ReadTriggerPropertyBundle(DbDataReader rs);
 }

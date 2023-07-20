@@ -25,36 +25,35 @@ using NUnit.Framework;
 
 using Quartz.Simpl;
 
-namespace Quartz.Tests.Unit.Simpl
+namespace Quartz.Tests.Unit.Simpl;
+
+[TestFixture]
+public class SimpleInstanceIdGeneratorTest
 {
-    [TestFixture]
-    public class SimpleInstanceIdGeneratorTest
+    private SimpleInstanceIdGenerator generator;
+
+    [SetUp]
+    public void SetUp()
     {
-        private SimpleInstanceIdGenerator generator;
+        generator = new TestInstanceIdGenerator();
+    }
 
-        [SetUp]
-        public void SetUp()
-        {
-            generator = new TestInstanceIdGenerator();
-        }
+    [Test]
+    public async Task IdShouldNotExceed50Chars()
+    {
+        string instanceId = await generator.GenerateInstanceId();
+        Assert.That(instanceId.Length, Is.LessThanOrEqualTo(50));
+    }
 
-        [Test]
-        public async Task IdShouldNotExceed50Chars()
+    private class TestInstanceIdGenerator : SimpleInstanceIdGenerator
+    {
+        protected override ValueTask<IPHostEntry> GetHostAddress(
+            CancellationToken cancellationToken = default)
         {
-            string instanceId = await generator.GenerateInstanceId();
-            Assert.That(instanceId.Length, Is.LessThanOrEqualTo(50));
-        }
-
-        private class TestInstanceIdGenerator : SimpleInstanceIdGenerator
-        {
-            protected override ValueTask<IPHostEntry> GetHostAddress(
-                CancellationToken cancellationToken = default)
+            return new ValueTask<IPHostEntry>(new IPHostEntry
             {
-                return new ValueTask<IPHostEntry>(new IPHostEntry
-                {
-                    HostName = "my-windows-machine-with-long-name.at.azurewebsites.net"
-                });
-            }
+                HostName = "my-windows-machine-with-long-name.at.azurewebsites.net"
+            });
         }
     }
 }

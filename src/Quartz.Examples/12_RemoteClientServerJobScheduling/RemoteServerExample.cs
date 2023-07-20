@@ -26,62 +26,61 @@ using Quartz.Impl;
 using Quartz.Simpl;
 using Quartz.Util;
 
-namespace Quartz.Examples.Example12
+namespace Quartz.Examples.Example12;
+
+/// <author>Bill Kratzer</author>
+/// <author>Marko Lahma (.NET)</author>
+public class RemoteServerJobSchedulingExample : IExample
 {
-    /// <author>Bill Kratzer</author>
-    /// <author>Marko Lahma (.NET)</author>
-    public class RemoteServerJobSchedulingExample : IExample
+    /// <summary>
+    /// This example will start a server that will allow clients to remotely schedule jobs.
+    /// </summary>
+    /// <author>  James House, Bill Kratzer
+    /// </author>
+    public virtual async Task Run()
     {
-        /// <summary>
-        /// This example will start a server that will allow clients to remotely schedule jobs.
-        /// </summary>
-        /// <author>  James House, Bill Kratzer
-        /// </author>
-        public virtual async Task Run()
+        // set remoting exporter
+        // reject non-local requests
+        NameValueCollection properties = new NameValueCollection
         {
-            // set remoting exporter
-            // reject non-local requests
-            NameValueCollection properties = new NameValueCollection
-            {
-                ["quartz.scheduler.instanceName"] = "RemoteServer",
-                ["quartz.threadPool.type"] = typeof(DefaultThreadPool).AssemblyQualifiedNameWithoutVersion(),
-                ["quartz.threadPool.threadCount"] = "5",
-                ["quartz.serializer.type"] = "json",
-                ["quartz.scheduler.exporter.type"] = "Quartz.Simpl.RemotingSchedulerExporter, Quartz",
-                ["quartz.scheduler.exporter.port"] = "555",
-                ["quartz.scheduler.exporter.bindName"] = "QuartzScheduler",
-                ["quartz.scheduler.exporter.channelType"] = "tcp",
-                ["quartz.scheduler.exporter.channelName"] = "httpQuartz",
-                ["quartz.scheduler.exporter.rejectRemoteRequests"] = "true"
-            };
+            ["quartz.scheduler.instanceName"] = "RemoteServer",
+            ["quartz.threadPool.type"] = typeof(DefaultThreadPool).AssemblyQualifiedNameWithoutVersion(),
+            ["quartz.threadPool.threadCount"] = "5",
+            ["quartz.serializer.type"] = "json",
+            ["quartz.scheduler.exporter.type"] = "Quartz.Simpl.RemotingSchedulerExporter, Quartz",
+            ["quartz.scheduler.exporter.port"] = "555",
+            ["quartz.scheduler.exporter.bindName"] = "QuartzScheduler",
+            ["quartz.scheduler.exporter.channelType"] = "tcp",
+            ["quartz.scheduler.exporter.channelName"] = "httpQuartz",
+            ["quartz.scheduler.exporter.rejectRemoteRequests"] = "true"
+        };
 
-            ISchedulerFactory sf = new StdSchedulerFactory(properties);
-            IScheduler sched = await sf.GetScheduler();
+        ISchedulerFactory sf = new StdSchedulerFactory(properties);
+        IScheduler sched = await sf.GetScheduler();
 
-            Console.WriteLine("------- Initialization Complete -----------");
+        Console.WriteLine("------- Initialization Complete -----------");
 
-            Console.WriteLine("------- Not scheduling any Jobs - relying on a remote client to schedule jobs --");
+        Console.WriteLine("------- Not scheduling any Jobs - relying on a remote client to schedule jobs --");
 
-            Console.WriteLine("------- Starting Scheduler ----------------");
+        Console.WriteLine("------- Starting Scheduler ----------------");
 
-            // start the schedule
-            await sched.Start();
+        // start the schedule
+        await sched.Start();
 
-            Console.WriteLine("------- Started Scheduler -----------------");
+        Console.WriteLine("------- Started Scheduler -----------------");
 
-            Console.WriteLine("------- Waiting 5 minutes... ------------");
+        Console.WriteLine("------- Waiting 5 minutes... ------------");
 
-            // wait to give our jobs a chance to run
-            await Task.Delay(TimeSpan.FromMinutes(5));
+        // wait to give our jobs a chance to run
+        await Task.Delay(TimeSpan.FromMinutes(5));
 
-            // shut down the scheduler
-            Console.WriteLine("------- Shutting Down ---------------------");
-            await sched.Shutdown(true);
-            Console.WriteLine("------- Shutdown Complete -----------------");
+        // shut down the scheduler
+        Console.WriteLine("------- Shutting Down ---------------------");
+        await sched.Shutdown(true);
+        Console.WriteLine("------- Shutdown Complete -----------------");
 
-            SchedulerMetaData metaData = await sched.GetMetaData();
-            Console.WriteLine("Executed " + metaData.NumberOfJobsExecuted + " jobs.");
-        }
+        SchedulerMetaData metaData = await sched.GetMetaData();
+        Console.WriteLine("Executed " + metaData.NumberOfJobsExecuted + " jobs.");
     }
 }
- #endif
+#endif

@@ -1,7 +1,6 @@
-﻿namespace Quartz.Core
+﻿namespace Quartz.Core;
+
+internal static class Context
 {
-    internal static class Context
-    {
-        public static readonly AsyncLocal<Guid?> CallerId = new AsyncLocal<Guid?>();
-    }
+    public static readonly AsyncLocal<Guid?> CallerId = new AsyncLocal<Guid?>();
 }

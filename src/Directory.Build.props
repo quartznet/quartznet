@@ -25,6 +25,7 @@
 
     <Nullable>enable</Nullable>
     <TreatWarningsAsErrors>True</TreatWarningsAsErrors>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
 
     <VersionPrefix>4.0.0</VersionPrefix>
 

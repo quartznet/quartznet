@@ -1,14 +1,13 @@
-namespace Quartz.Configuration
-{
-    internal sealed class JobListenerConfiguration
-    {
-        public JobListenerConfiguration(Type listenerType, IMatcher<JobKey>[] matchers)
-        {
-            ListenerType = listenerType;
-            Matchers = matchers;
-        }
+namespace Quartz.Configuration;
 
-        public Type ListenerType { get; }
-        public IMatcher<JobKey>[] Matchers  {  get;  }
+internal sealed class JobListenerConfiguration
+{
+    public JobListenerConfiguration(Type listenerType, IMatcher<JobKey>[] matchers)
+    {
+        ListenerType = listenerType;
+        Matchers = matchers;
     }
+
+    public Type ListenerType { get; }
+    public IMatcher<JobKey>[] Matchers  {  get;  }
 }

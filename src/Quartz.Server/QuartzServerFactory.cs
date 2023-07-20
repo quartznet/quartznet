@@ -2,29 +2,28 @@ using Microsoft.Extensions.Logging;
 
 using Quartz.Logging;
 
-namespace Quartz.Server
+namespace Quartz.Server;
+
+/// <summary>
+/// Factory class to create Quartz server implementations from.
+/// </summary>
+public class QuartzServerFactory
 {
+    private static readonly ILogger<QuartzServerFactory> logger = LogProvider.CreateLogger<QuartzServerFactory>();
+
     /// <summary>
-    /// Factory class to create Quartz server implementations from.
+    /// Creates a new instance of an Quartz.NET server core.
     /// </summary>
-    public class QuartzServerFactory
+    /// <returns></returns>
+    public static QuartzServer CreateServer()
     {
-        private static readonly ILogger<QuartzServerFactory> logger = LogProvider.CreateLogger<QuartzServerFactory>();
+        string typeName = Configuration.ServerImplementationType;
 
-        /// <summary>
-        /// Creates a new instance of an Quartz.NET server core.
-        /// </summary>
-        /// <returns></returns>
-        public static QuartzServer CreateServer()
-        {
-            string typeName = Configuration.ServerImplementationType;
+        Type t = Type.GetType(typeName, true)!;
 
-            Type t = Type.GetType(typeName, true)!;
-
-            logger.LogDebug("Creating new instance of server type '{Type}'" ,typeName);
-            QuartzServer retValue = (QuartzServer) Activator.CreateInstance(t)!;
-            logger.LogDebug("Instance successfully created");
-            return retValue;
-        }
+        logger.LogDebug("Creating new instance of server type '{Type}'" ,typeName);
+        QuartzServer retValue = (QuartzServer) Activator.CreateInstance(t)!;
+        logger.LogDebug("Instance successfully created");
+        return retValue;
     }
 }

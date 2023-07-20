@@ -3,102 +3,101 @@ using Microsoft.Extensions.Logging;
 using Quartz.Logging;
 using Quartz.Util;
 
-namespace Quartz.Impl.AdoJobStore
+namespace Quartz.Impl.AdoJobStore;
+
+internal sealed class ClusterManager
 {
-    internal sealed class ClusterManager
+    private readonly ILogger<ClusterManager> logger;
+
+    // keep constant lock requestor id for manager's lifetime
+    private readonly Guid requestorId = Guid.NewGuid();
+
+    private readonly JobStoreSupport jobStoreSupport;
+
+    private QueuedTaskScheduler taskScheduler = null!;
+    private readonly CancellationTokenSource cancellationTokenSource;
+    private Task task = null!;
+
+    private int numFails;
+
+    internal ClusterManager(JobStoreSupport jobStoreSupport)
     {
-        private readonly ILogger<ClusterManager> logger;
+        this.jobStoreSupport = jobStoreSupport;
+        cancellationTokenSource = new CancellationTokenSource();
+        logger = LogProvider.CreateLogger<ClusterManager>();
+    }
 
-        // keep constant lock requestor id for manager's lifetime
-        private readonly Guid requestorId = Guid.NewGuid();
+    public async Task Initialize()
+    {
+        await Manage().ConfigureAwait(false);
+        string threadName = $"QuartzScheduler_{jobStoreSupport.InstanceName}-{jobStoreSupport.InstanceId}_ClusterManager";
 
-        private readonly JobStoreSupport jobStoreSupport;
+        taskScheduler = new QueuedTaskScheduler(threadCount: 1, threadPriority: ThreadPriority.AboveNormal, threadName: threadName, useForegroundThreads: !jobStoreSupport.MakeThreadsDaemons);
+        task = Task.Factory.StartNew(() => Run(cancellationTokenSource.Token), cancellationTokenSource.Token, TaskCreationOptions.HideScheduler, taskScheduler).Unwrap();
+    }
 
-        private QueuedTaskScheduler taskScheduler = null!;
-        private readonly CancellationTokenSource cancellationTokenSource;
-        private Task task = null!;
-
-        private int numFails;
-
-        internal ClusterManager(JobStoreSupport jobStoreSupport)
+    public async Task Shutdown()
+    {
+        cancellationTokenSource.Cancel();
+        try
         {
-            this.jobStoreSupport = jobStoreSupport;
-            cancellationTokenSource = new CancellationTokenSource();
-            logger = LogProvider.CreateLogger<ClusterManager>();
+            taskScheduler.Dispose();
+            await task.ConfigureAwait(false);
         }
-
-        public async Task Initialize()
+        catch (OperationCanceledException)
         {
-            await Manage().ConfigureAwait(false);
-            string threadName = $"QuartzScheduler_{jobStoreSupport.InstanceName}-{jobStoreSupport.InstanceId}_ClusterManager";
-
-            taskScheduler = new QueuedTaskScheduler(threadCount: 1, threadPriority: ThreadPriority.AboveNormal, threadName: threadName, useForegroundThreads: !jobStoreSupport.MakeThreadsDaemons);
-            task = Task.Factory.StartNew(() => Run(cancellationTokenSource.Token), cancellationTokenSource.Token, TaskCreationOptions.HideScheduler, taskScheduler).Unwrap();
         }
+    }
 
-        public async Task Shutdown()
+    private async ValueTask<bool> Manage()
+    {
+        bool res = false;
+        try
         {
-            cancellationTokenSource.Cancel();
-            try
-            {
-                taskScheduler.Dispose();
-                await task.ConfigureAwait(false);
-            }
-            catch (OperationCanceledException)
-            {
-            }
-        }
+            res = await jobStoreSupport.DoCheckin(requestorId).ConfigureAwait(false);
 
-        private async ValueTask<bool> Manage()
+            numFails = 0;
+            logger.LogDebug("Check-in complete.");
+        }
+        catch (Exception e)
         {
-            bool res = false;
-            try
+            if (numFails % jobStoreSupport.RetryableActionErrorLogThreshold == 0)
             {
-                res = await jobStoreSupport.DoCheckin(requestorId).ConfigureAwait(false);
-
-                numFails = 0;
-                logger.LogDebug("Check-in complete.");
+                logger.LogError(e,"Error managing cluster: {ExceptionMessage}",e.Message);
             }
-            catch (Exception e)
-            {
-                if (numFails % jobStoreSupport.RetryableActionErrorLogThreshold == 0)
-                {
-                    logger.LogError(e,"Error managing cluster: {ExceptionMessage}",e.Message);
-                }
-                numFails++;
-            }
-            return res;
+            numFails++;
         }
+        return res;
+    }
 
-        private async Task Run(CancellationToken token)
+    private async Task Run(CancellationToken token)
+    {
+        while (true)
         {
-            while (true)
+            token.ThrowIfCancellationRequested();
+
+            TimeSpan timeToSleep = jobStoreSupport.ClusterCheckinInterval;
+            TimeSpan transpiredTime = SystemTime.UtcNow() - jobStoreSupport.LastCheckin;
+            timeToSleep = timeToSleep - transpiredTime;
+            if (timeToSleep <= TimeSpan.Zero)
             {
-                token.ThrowIfCancellationRequested();
-
-                TimeSpan timeToSleep = jobStoreSupport.ClusterCheckinInterval;
-                TimeSpan transpiredTime = SystemTime.UtcNow() - jobStoreSupport.LastCheckin;
-                timeToSleep = timeToSleep - transpiredTime;
-                if (timeToSleep <= TimeSpan.Zero)
-                {
-                    timeToSleep = TimeSpan.FromMilliseconds(100);
-                }
-
-                if (numFails > 0)
-                {
-                    timeToSleep = jobStoreSupport.DbRetryInterval > timeToSleep ? jobStoreSupport.DbRetryInterval : timeToSleep;
-                }
-
-                await Task.Delay(timeToSleep, token).ConfigureAwait(false);
-
-                token.ThrowIfCancellationRequested();
-
-                if (await Manage().ConfigureAwait(false))
-                {
-                    jobStoreSupport.SignalSchedulingChangeImmediately(SchedulerConstants.SchedulingSignalDateTime);
-                }
+                timeToSleep = TimeSpan.FromMilliseconds(100);
             }
-            // ReSharper disable once FunctionNeverReturns
+
+            if (numFails > 0)
+            {
+                timeToSleep = jobStoreSupport.DbRetryInterval > timeToSleep ? jobStoreSupport.DbRetryInterval : timeToSleep;
+            }
+
+            await Task.Delay(timeToSleep, token).ConfigureAwait(false);
+
+            token.ThrowIfCancellationRequested();
+
+            if (await Manage().ConfigureAwait(false))
+            {
+                jobStoreSupport.SignalSchedulingChangeImmediately(SchedulerConstants.SchedulingSignalDateTime);
+            }
         }
+        // ReSharper disable once FunctionNeverReturns
     }
 }

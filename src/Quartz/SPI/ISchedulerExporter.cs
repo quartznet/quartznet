@@ -19,24 +19,23 @@
 
 using Quartz.Simpl;
 
-namespace Quartz.Spi
+namespace Quartz.Spi;
+
+/// <summary>
+/// Service interface for scheduler exporters.
+/// </summary>
+/// <author>Marko Lahma</author>
+public interface ISchedulerExporter
 {
     /// <summary>
-    /// Service interface for scheduler exporters.
+    /// Binds (exports) scheduler to external context.
     /// </summary>
-    /// <author>Marko Lahma</author>
-    public interface ISchedulerExporter
-    {
-        /// <summary>
-        /// Binds (exports) scheduler to external context.
-        /// </summary>
-        /// <param name="scheduler"></param>
-        void Bind(IRemotableQuartzScheduler scheduler);
+    /// <param name="scheduler"></param>
+    void Bind(IRemotableQuartzScheduler scheduler);
 
-        /// <summary>
-        /// Unbinds scheduler from external context.
-        /// </summary>
-        /// <param name="scheduler"></param>
-        void UnBind(IRemotableQuartzScheduler scheduler);
-    }
+    /// <summary>
+    /// Unbinds scheduler from external context.
+    /// </summary>
+    /// <param name="scheduler"></param>
+    void UnBind(IRemotableQuartzScheduler scheduler);
 }

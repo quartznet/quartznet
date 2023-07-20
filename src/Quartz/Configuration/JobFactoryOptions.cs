@@ -1,6 +1,5 @@
-namespace Quartz
+namespace Quartz;
+
+public class JobFactoryOptions
 {
-    public class JobFactoryOptions
-    {
-    }
 }

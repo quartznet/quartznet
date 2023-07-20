@@ -6,65 +6,64 @@ using Quartz.Job;
 using Quartz.Simpl;
 using Quartz.Tests.Integration.Utils;
 
-namespace Quartz.Tests.Integration
+namespace Quartz.Tests.Integration;
+
+[TestFixture(TestConstants.DefaultSqlServerProvider, Category = "db-sqlserver")]
+[TestFixture(TestConstants.PostgresProvider, Category = "db-postgres")]
+public class JobDataMapStorageTest : IntegrationTest
 {
-    [TestFixture(TestConstants.DefaultSqlServerProvider, Category = "db-sqlserver")]
-    [TestFixture(TestConstants.PostgresProvider, Category = "db-postgres")]
-    public class JobDataMapStorageTest : IntegrationTest
+    private readonly string provider;
+
+    public JobDataMapStorageTest(string provider)
     {
-        private readonly string provider;
+        this.provider = provider;
+    }
 
-        public JobDataMapStorageTest(string provider)
+    [Test]
+    [Category("db-sqlserver")]
+    public async Task TestJobDataMapDirtyFlag()
+    {
+        IScheduler scheduler = await CreateScheduler("testBasicStorageFunctions");
+        await scheduler.Clear();
+
+        IJobDetail jobDetail = JobBuilder.Create<NoOpJob>()
+            .WithIdentity("test")
+            .UsingJobData("jfoo", "bar")
+            .Build();
+
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity("test")
+            .WithCronSchedule("0 0 0 * * ?")
+            .UsingJobData("tfoo", "bar")
+            .Build();
+
+        await scheduler.ScheduleJob(jobDetail, trigger);
+
+        IJobDetail storedJobDetail = await scheduler.GetJobDetail(new JobKey("test"));
+        JobDataMap storedJobMap = storedJobDetail.JobDataMap;
+        Assert.That(storedJobMap.Dirty, Is.False);
+
+        ITrigger storedTrigger = await scheduler.GetTrigger(new TriggerKey("test"));
+        JobDataMap storedTriggerMap = storedTrigger.JobDataMap;
+        Assert.That(storedTriggerMap.Dirty, Is.False);
+    }
+
+    private ValueTask<IScheduler> CreateScheduler(string name)
+    {
+        DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType);
+
+        var serializer = new JsonObjectSerializer();
+        serializer.Initialize();
+        var jobStore = new JobStoreTX
         {
-            this.provider = provider;
-        }
+            DataSource = "default",
+            TablePrefix = "QRTZ_",
+            InstanceId = "AUTO",
+            DriverDelegateType = driverDelegateType,
+            ObjectSerializer = serializer
+        };
 
-        [Test]
-        [Category("db-sqlserver")]
-        public async Task TestJobDataMapDirtyFlag()
-        {
-            IScheduler scheduler = await CreateScheduler("testBasicStorageFunctions");
-            await scheduler.Clear();
-
-            IJobDetail jobDetail = JobBuilder.Create<NoOpJob>()
-                .WithIdentity("test")
-                .UsingJobData("jfoo", "bar")
-                .Build();
-
-            ITrigger trigger = TriggerBuilder.Create()
-                .WithIdentity("test")
-                .WithCronSchedule("0 0 0 * * ?")
-                .UsingJobData("tfoo", "bar")
-                .Build();
-
-            await scheduler.ScheduleJob(jobDetail, trigger);
-
-            IJobDetail storedJobDetail = await scheduler.GetJobDetail(new JobKey("test"));
-            JobDataMap storedJobMap = storedJobDetail.JobDataMap;
-            Assert.That(storedJobMap.Dirty, Is.False);
-
-            ITrigger storedTrigger = await scheduler.GetTrigger(new TriggerKey("test"));
-            JobDataMap storedTriggerMap = storedTrigger.JobDataMap;
-            Assert.That(storedTriggerMap.Dirty, Is.False);
-        }
-
-        private ValueTask<IScheduler> CreateScheduler(string name)
-        {
-            DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType);
-
-            var serializer = new JsonObjectSerializer();
-            serializer.Initialize();
-            var jobStore = new JobStoreTX
-            {
-                DataSource = "default",
-                TablePrefix = "QRTZ_",
-                InstanceId = "AUTO",
-                DriverDelegateType = driverDelegateType,
-                ObjectSerializer = serializer
-            };
-
-            DirectSchedulerFactory.Instance.CreateScheduler(name + "Scheduler", "AUTO", new DefaultThreadPool(), jobStore);
-            return SchedulerRepository.Instance.Lookup(name + "Scheduler");
-        }
+        DirectSchedulerFactory.Instance.CreateScheduler(name + "Scheduler", "AUTO", new DefaultThreadPool(), jobStore);
+        return SchedulerRepository.Instance.Lookup(name + "Scheduler");
     }
 }

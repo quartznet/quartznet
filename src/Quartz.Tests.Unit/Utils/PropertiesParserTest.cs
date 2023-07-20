@@ -23,28 +23,27 @@ using NUnit.Framework;
 
 using Quartz.Util;
 
-namespace Quartz.Tests.Unit.Utils
+namespace Quartz.Tests.Unit.Utils;
+
+/// <summary>
+/// Unit tests for PropertiesParser.
+/// </summary>
+/// <author>Marko Lahma (.NET)</author>
+[TestFixture]
+public class PropertiesParserTest
 {
-	/// <summary>
-	/// Unit tests for PropertiesParser.
-	/// </summary>
-    /// <author>Marko Lahma (.NET)</author>
-    [TestFixture]
-	public class PropertiesParserTest
-	{
-		/// <summary>
-		/// Unit test for full getPropertyGroup() method.
-		/// </summary>
-		[Test]
-		public void TestGetPropertyGroupStringBooleanStringArray() 
-		{
-			// Test that an empty property does not cause an exception
-			NameValueCollection props = new NameValueCollection();
-			props.Add("x.y.z", "");
+    /// <summary>
+    /// Unit test for full getPropertyGroup() method.
+    /// </summary>
+    [Test]
+    public void TestGetPropertyGroupStringBooleanStringArray() 
+    {
+        // Test that an empty property does not cause an exception
+        NameValueCollection props = new NameValueCollection();
+        props.Add("x.y.z", "");
         
-			PropertiesParser propertiesParser = new PropertiesParser(props);
-			NameValueCollection propGroup = propertiesParser.GetPropertyGroup("x.y", true);
-			Assert.AreEqual("", propGroup.Get("z"));
-		}
-	}
+        PropertiesParser propertiesParser = new PropertiesParser(props);
+        NameValueCollection propGroup = propertiesParser.GetPropertyGroup("x.y", true);
+        Assert.AreEqual("", propGroup.Get("z"));
+    }
 }

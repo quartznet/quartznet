@@ -2,40 +2,39 @@ using NUnit.Framework;
 
 using Quartz.Simpl;
 
-namespace Quartz.Tests.Unit.Simpl
+namespace Quartz.Tests.Unit.Simpl;
+
+[TestFixture]
+public class SimpleJobFactoryTest
 {
-    [TestFixture]
-    public class SimpleJobFactoryTest
+    private SimpleJobFactory factory;
+
+    [SetUp]
+    public void SetUp()
     {
-        private SimpleJobFactory factory;
+        factory = new SimpleJobFactory();
+    }
 
-        [SetUp]
-        public void SetUp()
+    [Test]
+    public void ShouldDisposeDisposableJobs()
+    {
+        var disposableJob = new DisposableJob();
+        factory.ReturnJob(disposableJob);
+        Assert.That(disposableJob.WasDisposed, Is.True, "job was not disposed");
+    }
+
+    public class DisposableJob : IJob, IDisposable
+    {
+        public ValueTask Execute(IJobExecutionContext context)
         {
-            factory = new SimpleJobFactory();
+            return default;
         }
 
-        [Test]
-        public void ShouldDisposeDisposableJobs()
+        public void Dispose()
         {
-            var disposableJob = new DisposableJob();
-            factory.ReturnJob(disposableJob);
-            Assert.That(disposableJob.WasDisposed, Is.True, "job was not disposed");
+            WasDisposed = true;
         }
 
-        public class DisposableJob : IJob, IDisposable
-        {
-            public ValueTask Execute(IJobExecutionContext context)
-            {
-                return default;
-            }
-
-            public void Dispose()
-            {
-                WasDisposed = true;
-            }
-
-            public bool WasDisposed { get; private set; }
-        }
+        public bool WasDisposed { get; private set; }
     }
 }

@@ -27,24 +27,24 @@ using Quartz.Logging;
 using System.Web;
 #endif
 
-namespace Quartz.Util
+namespace Quartz.Util;
+
+/// <summary>
+/// Utility class for file handling related things.
+/// </summary>
+/// <author>Marko Lahma</author>
+public class FileUtil
 {
     /// <summary>
-    /// Utility class for file handling related things.
+    /// Resolves file to actual file if for example relative '~' used.
     /// </summary>
-    /// <author>Marko Lahma</author>
-    public class FileUtil
+    /// <param name="fName">File name to check</param>
+    /// <returns>Expanded file name or actual no resolving was done.</returns>
+    public static string? ResolveFile(string? fName)
     {
-        /// <summary>
-        /// Resolves file to actual file if for example relative '~' used.
-        /// </summary>
-        /// <param name="fName">File name to check</param>
-        /// <returns>Expanded file name or actual no resolving was done.</returns>
-        public static string? ResolveFile(string? fName)
+        if (fName != null && fName.StartsWith("~"))
         {
-            if (fName != null && fName.StartsWith("~"))
-            {
-                // relative to run directory
+            // relative to run directory
 
 #if HTTPCONTEXT
                 // if HttpContext available, use it
@@ -53,16 +53,16 @@ namespace Quartz.Util
                     return HttpContext.Current.Server.MapPath(fName);
                 }
 #else // HTTPCONTEXT
-                // TODO (NetCore Port): Use Microsoft.AspNet.Http.Abstractions.HttpContext as a substitute?
+            // TODO (NetCore Port): Use Microsoft.AspNet.Http.Abstractions.HttpContext as a substitute?
 #endif // HTTPCONTEXT
 
+            fName = fName.Substring(1);
+            if (fName.StartsWith("/") || fName.StartsWith("\\"))
+            {
                 fName = fName.Substring(1);
-                if (fName.StartsWith("/") || fName.StartsWith("\\"))
-                {
-                    fName = fName.Substring(1);
-                }
-                try
-                {
+            }
+            try
+            {
 #if NETSTANDARD
                     if (string.IsNullOrWhiteSpace(AppContext.BaseDirectory))
                     {
@@ -76,18 +76,17 @@ namespace Quartz.Util
 
                     fName = Path.Combine(AppContext.BaseDirectory, fName);
 #else
-                    fName = Path.Combine(AppDomain.CurrentDomain.SetupInformation.ApplicationBase ?? "", fName);
+                fName = Path.Combine(AppDomain.CurrentDomain.SetupInformation.ApplicationBase ?? "", fName);
 #endif
-                }
-                catch (SecurityException)
-                {
-                    var logger = LogProvider.CreateLogger<FileUtil>();
-                    logger.LogWarning("Unable to resolve file path '{FileName}' due to security exception, probably running under medium trust", fName);
-                    return null;
-                }
             }
-
-            return fName;
+            catch (SecurityException)
+            {
+                var logger = LogProvider.CreateLogger<FileUtil>();
+                logger.LogWarning("Unable to resolve file path '{FileName}' due to security exception, probably running under medium trust", fName);
+                return null;
+            }
         }
+
+        return fName;
     }
 }

@@ -24,45 +24,44 @@ using Quartz.Util;
 
 using TimeZoneConverter;
 
-namespace Quartz.Plugin.TimeZoneConverter
+namespace Quartz.Plugin.TimeZoneConverter;
+
+/// <summary>
+/// This plugin provides the capability to obtain timezone information regardless of the platform and database being used.
+/// </summary>
+public class TimeZoneConverterPlugin : ISchedulerPlugin
 {
     /// <summary>
-    /// This plugin provides the capability to obtain timezone information regardless of the platform and database being used.
+    /// Called during creation of the <see cref="IScheduler" /> in order to give
+    /// the <see cref="ISchedulerPlugin" /> a chance to Initialize.
     /// </summary>
-    public class TimeZoneConverterPlugin : ISchedulerPlugin
+    public ValueTask Initialize(
+        string pluginName,
+        IScheduler scheduler,
+        CancellationToken cancellationToken = default)
     {
-        /// <summary>
-        /// Called during creation of the <see cref="IScheduler" /> in order to give
-        /// the <see cref="ISchedulerPlugin" /> a chance to Initialize.
-        /// </summary>
-        public ValueTask Initialize(
-            string pluginName,
-            IScheduler scheduler,
-            CancellationToken cancellationToken = default)
-        {
-            TimeZoneUtil.CustomResolver = TZConvert.GetTimeZoneInfo;
+        TimeZoneUtil.CustomResolver = TZConvert.GetTimeZoneInfo;
 
-            return default;
-        }
+        return default;
+    }
 
-        /// <summary>
-        /// Called when the associated <see cref="IScheduler" /> is started, in order
-        /// to let the plug-in know it can now make calls into the scheduler if it
-        /// needs to.
-        /// </summary>
-        public ValueTask Start(CancellationToken cancellationToken = default)
-        {
-            return default;
-        }
+    /// <summary>
+    /// Called when the associated <see cref="IScheduler" /> is started, in order
+    /// to let the plug-in know it can now make calls into the scheduler if it
+    /// needs to.
+    /// </summary>
+    public ValueTask Start(CancellationToken cancellationToken = default)
+    {
+        return default;
+    }
 
-        /// <summary>
-        /// Called in order to inform the <see cref="ISchedulerPlugin" /> that it
-        /// should free up all of it's resources because the scheduler is shutting
-        /// down.
-        /// </summary>
-        public ValueTask Shutdown(CancellationToken cancellationToken = default)
-        {
-            return default;
-        }
+    /// <summary>
+    /// Called in order to inform the <see cref="ISchedulerPlugin" /> that it
+    /// should free up all of it's resources because the scheduler is shutting
+    /// down.
+    /// </summary>
+    public ValueTask Shutdown(CancellationToken cancellationToken = default)
+    {
+        return default;
     }
 }

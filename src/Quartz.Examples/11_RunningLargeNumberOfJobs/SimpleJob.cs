@@ -19,37 +19,36 @@
 
 #endregion
 
-namespace Quartz.Examples.Example11
+namespace Quartz.Examples.Example11;
+
+/// <summary>
+/// This is just a simple job that gets fired off many times by example 11.
+/// </summary>
+/// <author>Bill Kratzer</author>
+/// <author>Marko Lahma (.NET)</author>
+public class SimpleJob : IJob
 {
+    // job parameter
+    public const string DelayTime = "delay time";
+
     /// <summary>
-    /// This is just a simple job that gets fired off many times by example 11.
+    /// Called by the <see cref="IScheduler" /> when a
+    /// <see cref="ITrigger" /> fires that is associated with
+    /// the <see cref="IJob" />.
     /// </summary>
-    /// <author>Bill Kratzer</author>
-    /// <author>Marko Lahma (.NET)</author>
-    public class SimpleJob : IJob
+    public virtual async ValueTask Execute(IJobExecutionContext context)
     {
-        // job parameter
-        public const string DelayTime = "delay time";
+        // This job simply prints out its job name and the
+        // date and time that it is running
+        JobKey jobKey = context.JobDetail.Key;
 
-        /// <summary> 
-        /// Called by the <see cref="IScheduler" /> when a
-        /// <see cref="ITrigger" /> fires that is associated with
-        /// the <see cref="IJob" />.
-        /// </summary>
-        public virtual async ValueTask Execute(IJobExecutionContext context)
-        {
-            // This job simply prints out its job name and the
-            // date and time that it is running
-            JobKey jobKey = context.JobDetail.Key;
+        Console.WriteLine("Executing job: {0} executing at {1:r}", jobKey, DateTime.Now);
 
-            Console.WriteLine("Executing job: {0} executing at {1:r}", jobKey, DateTime.Now);
+        // wait for a period of time
+        long delayTime = context.JobDetail.JobDataMap.GetLong(DelayTime);
 
-            // wait for a period of time
-            long delayTime = context.JobDetail.JobDataMap.GetLong(DelayTime);
+        await Task.Delay(new TimeSpan(10000 * delayTime), context.CancellationToken);
 
-            await Task.Delay(new TimeSpan(10000 * delayTime), context.CancellationToken);
-
-            Console.WriteLine("Finished Executing job: {0} at {1:r}", jobKey, DateTime.Now);
-        }
+        Console.WriteLine("Finished Executing job: {0} at {1:r}", jobKey, DateTime.Now);
     }
 }

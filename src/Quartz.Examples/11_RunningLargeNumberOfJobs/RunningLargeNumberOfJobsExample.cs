@@ -21,73 +21,72 @@
 
 using Quartz.Impl;
 
-namespace Quartz.Examples.Example11
+namespace Quartz.Examples.Example11;
+
+/// <summary>
+/// This example will demonstrate how to run a large number
+/// of jobs.
+/// </summary>
+/// <author>James House, Bill Kratzer</author>
+/// <author>Marko Lahma (.NET)</author>
+public class RunningLargeNumberOfJobsExample : IExample
 {
-    /// <summary>
-    /// This example will demonstrate how to run a large number
-    /// of jobs.
-    /// </summary>
-    /// <author>James House, Bill Kratzer</author>
-    /// <author>Marko Lahma (.NET)</author>
-    public class RunningLargeNumberOfJobsExample : IExample
+    private const int NumberOfJobs = 500;
+
+    public virtual async Task Run()
     {
-        private const int NumberOfJobs = 500;
+        // First we must get a reference to a scheduler
+        ISchedulerFactory sf = new StdSchedulerFactory();
+        IScheduler sched = await sf.GetScheduler();
 
-        public virtual async Task Run()
+        Console.WriteLine("------- Initialization Complete -----------");
+
+        Console.WriteLine("------- Scheduling Jobs -------------------");
+
+        Random r = new Random();
+        // schedule 500 jobs to run
+        for (int count = 1; count <= NumberOfJobs; count++)
         {
-            // First we must get a reference to a scheduler
-            ISchedulerFactory sf = new StdSchedulerFactory();
-            IScheduler sched = await sf.GetScheduler();
+            IJobDetail job = JobBuilder
+                .Create<SimpleJob>()
+                .WithIdentity("job" + count, "group_1")
+                .RequestRecovery() // ask scheduler to re-execute this job if it was in progress when the scheduler went down...
+                .Build();
 
-            Console.WriteLine("------- Initialization Complete -----------");
+            // tell the job to delay some small amount... to simulate work...
+            long timeDelay = (long) (r.NextDouble()*2500);
+            job.JobDataMap.Put(SimpleJob.DelayTime, timeDelay);
 
-            Console.WriteLine("------- Scheduling Jobs -------------------");
+            ITrigger trigger = TriggerBuilder.Create()
+                .WithIdentity("trigger_" + count, "group_1")
+                .StartAt(DateBuilder.FutureDate(10000 + count*100, IntervalUnit.Millisecond)) // space fire times a small bit
+                .Build();
 
-            Random r = new Random();
-            // schedule 500 jobs to run
-            for (int count = 1; count <= NumberOfJobs; count++)
+            await sched.ScheduleJob(job, trigger);
+            if (count%25 == 0)
             {
-                IJobDetail job = JobBuilder
-                    .Create<SimpleJob>()
-                    .WithIdentity("job" + count, "group_1")
-                    .RequestRecovery() // ask scheduler to re-execute this job if it was in progress when the scheduler went down...
-                    .Build();
-
-                // tell the job to delay some small amount... to simulate work...
-                long timeDelay = (long) (r.NextDouble()*2500);
-                job.JobDataMap.Put(SimpleJob.DelayTime, timeDelay);
-
-                ITrigger trigger = TriggerBuilder.Create()
-                    .WithIdentity("trigger_" + count, "group_1")
-                    .StartAt(DateBuilder.FutureDate(10000 + count*100, IntervalUnit.Millisecond)) // space fire times a small bit
-                    .Build();
-
-                await sched.ScheduleJob(job, trigger);
-                if (count%25 == 0)
-                {
-                    Console.WriteLine("...scheduled " + count + " jobs");
-                }
+                Console.WriteLine("...scheduled " + count + " jobs");
             }
-
-            Console.WriteLine("------- Starting Scheduler ----------------");
-
-            // start the schedule
-            await sched.Start();
-
-            Console.WriteLine("------- Started Scheduler -----------------");
-
-            Console.WriteLine("------- Waiting five minutes... -----------");
-
-            // wait five minutes to give our jobs a chance to run
-            await Task.Delay(TimeSpan.FromMinutes(5));
-
-            // shut down the scheduler
-            Console.WriteLine("------- Shutting Down ---------------------");
-            await sched.Shutdown(true);
-            Console.WriteLine("------- Shutdown Complete -----------------");
-
-            SchedulerMetaData metaData = await sched.GetMetaData();
-            Console.WriteLine("Executed " + metaData.NumberOfJobsExecuted + " jobs.");
         }
+
+        Console.WriteLine("------- Starting Scheduler ----------------");
+
+        // start the schedule
+        await sched.Start();
+
+        Console.WriteLine("------- Started Scheduler -----------------");
+
+        Console.WriteLine("------- Waiting five minutes... -----------");
+
+        // wait five minutes to give our jobs a chance to run
+        await Task.Delay(TimeSpan.FromMinutes(5));
+
+        // shut down the scheduler
+        Console.WriteLine("------- Shutting Down ---------------------");
+        await sched.Shutdown(true);
+        Console.WriteLine("------- Shutdown Complete -----------------");
+
+        SchedulerMetaData metaData = await sched.GetMetaData();
+        Console.WriteLine("Executed " + metaData.NumberOfJobsExecuted + " jobs.");
     }
 }

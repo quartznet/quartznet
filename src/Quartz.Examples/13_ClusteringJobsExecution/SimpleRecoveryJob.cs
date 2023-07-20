@@ -19,53 +19,52 @@
 
 #endregion
 
-namespace Quartz.Examples.Example13
+namespace Quartz.Examples.Example13;
+
+/// <summary>
+/// A dumb implementation of Job, for unit testing purposes.
+/// </summary>
+/// <author>James House</author>
+/// <author>Marko Lahma (.NET)</author>
+public class SimpleRecoveryJob : IJob
 {
+    private const string Count = "count";
+
     /// <summary>
-    /// A dumb implementation of Job, for unit testing purposes.
+    /// Called by the <see cref="IScheduler" /> when a
+    /// <see cref="ITrigger" /> fires that is associated with
+    /// the <see cref="IJob" />.
     /// </summary>
-    /// <author>James House</author>
-    /// <author>Marko Lahma (.NET)</author>
-    public class SimpleRecoveryJob : IJob
+    public virtual async ValueTask Execute(IJobExecutionContext context)
     {
-        private const string Count = "count";
+        JobKey jobKey = context.JobDetail.Key;
 
-        /// <summary>
-        /// Called by the <see cref="IScheduler" /> when a
-        /// <see cref="ITrigger" /> fires that is associated with
-        /// the <see cref="IJob" />.
-        /// </summary>
-        public virtual async ValueTask Execute(IJobExecutionContext context)
+        // if the job is recovering print a message
+        if (context.Recovering)
         {
-            JobKey jobKey = context.JobDetail.Key;
-
-            // if the job is recovering print a message
-            if (context.Recovering)
-            {
-                Console.WriteLine("SimpleRecoveryJob: {0} RECOVERING at {1:r}", jobKey, DateTime.Now);
-            }
-            else
-            {
-                Console.WriteLine("SimpleRecoveryJob: {0} starting at {1:r}", jobKey, DateTime.Now);
-            }
-
-            // delay for ten seconds
-            await Task.Delay(TimeSpan.FromSeconds(10));
-
-            JobDataMap data = context.JobDetail.JobDataMap;
-            int count;
-            if (data.ContainsKey(Count))
-            {
-                count = data.GetInt(Count);
-            }
-            else
-            {
-                count = 0;
-            }
-            count++;
-            data.Put(Count, count);
-
-            Console.WriteLine("SimpleRecoveryJob: {0} done at {1:r}\n Execution #{2}", jobKey, DateTime.Now, count);
+            Console.WriteLine("SimpleRecoveryJob: {0} RECOVERING at {1:r}", jobKey, DateTime.Now);
         }
+        else
+        {
+            Console.WriteLine("SimpleRecoveryJob: {0} starting at {1:r}", jobKey, DateTime.Now);
+        }
+
+        // delay for ten seconds
+        await Task.Delay(TimeSpan.FromSeconds(10));
+
+        JobDataMap data = context.JobDetail.JobDataMap;
+        int count;
+        if (data.ContainsKey(Count))
+        {
+            count = data.GetInt(Count);
+        }
+        else
+        {
+            count = 0;
+        }
+        count++;
+        data.Put(Count, count);
+
+        Console.WriteLine("SimpleRecoveryJob: {0} done at {1:r}\n Execution #{2}", jobKey, DateTime.Now, count);
     }
 }

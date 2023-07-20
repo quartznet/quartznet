@@ -4,39 +4,38 @@ using log4net.Config;
 
 using Topshelf;
 
-namespace Quartz.Server
+namespace Quartz.Server;
+
+/// <summary>
+/// The server's main entry point.
+/// </summary>
+public static class Program
 {
     /// <summary>
-    /// The server's main entry point.
+    /// Main.
     /// </summary>
-    public static class Program
+    public static void Main()
     {
-        /// <summary>
-        /// Main.
-        /// </summary>
-        public static void Main()
+        // change from service account's dir to more logical one
+        Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
+
+        var logRepository = log4net.LogManager.GetRepository(Assembly.GetEntryAssembly());
+        XmlConfigurator.Configure(logRepository, new FileInfo("log4net.config"));
+
+        HostFactory.Run(x =>
         {
-            // change from service account's dir to more logical one
-            Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
+            x.RunAsLocalSystem();
 
-            var logRepository = log4net.LogManager.GetRepository(Assembly.GetEntryAssembly());
-            XmlConfigurator.Configure(logRepository, new FileInfo("log4net.config"));
+            x.SetDescription(Configuration.ServiceDescription);
+            x.SetDisplayName(Configuration.ServiceDisplayName);
+            x.SetServiceName(Configuration.ServiceName);
 
-            HostFactory.Run(x =>
+            x.Service(factory =>
             {
-                x.RunAsLocalSystem();
-
-                x.SetDescription(Configuration.ServiceDescription);
-                x.SetDisplayName(Configuration.ServiceDisplayName);
-                x.SetServiceName(Configuration.ServiceName);
-
-                x.Service(factory =>
-                {
-                    QuartzServer server = QuartzServerFactory.CreateServer();
-                    server.Initialize().GetAwaiter().GetResult();
-                    return server;
-                });
+                QuartzServer server = QuartzServerFactory.CreateServer();
+                server.Initialize().GetAwaiter().GetResult();
+                return server;
             });
-        }
+        });
     }
 }

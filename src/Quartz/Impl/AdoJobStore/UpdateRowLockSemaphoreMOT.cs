@@ -21,29 +21,28 @@
 
 using Quartz.Impl.AdoJobStore.Common;
 
-namespace Quartz.Impl.AdoJobStore
+namespace Quartz.Impl.AdoJobStore;
+
+/// <summary>
+/// Provides thread/resource using SQL Server memory-optimized tables.
+/// </summary>
+/// <author>JBVyncent</author>
+/// <author>Marko Lahma</author>
+public class UpdateLockRowSemaphoreMOT : UpdateLockRowSemaphore
 {
+    private static readonly string SqlUpdateForLockMOT =
+        $"UPDATE {TablePrefixSubst}{TableLocks} WITH (SNAPSHOT) SET {ColumnLockName} = {ColumnLockName} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnLockName} = @lockName";
+
+    private static readonly string SqlInsertLockMOT =
+        $"INSERT INTO {TablePrefixSubst}{TableLocks}({ColumnSchedulerName}, {ColumnLockName}) VALUES (@schedulerName, @lockName)";
+
     /// <summary>
-    /// Provides thread/resource using SQL Server memory-optimized tables.
+    /// Initializes a new instance of the <see cref="UpdateLockRowSemaphoreMOT"/> class.
     /// </summary>
-    /// <author>JBVyncent</author>
-    /// <author>Marko Lahma</author>
-    public class UpdateLockRowSemaphoreMOT : UpdateLockRowSemaphore
+    public UpdateLockRowSemaphoreMOT(IDbProvider provider)
+        : base(DefaultTablePrefix, null, SqlUpdateForLockMOT, SqlInsertLockMOT, provider)
     {
-        private static readonly string SqlUpdateForLockMOT =
-            $"UPDATE {TablePrefixSubst}{TableLocks} WITH (SNAPSHOT) SET {ColumnLockName} = {ColumnLockName} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnLockName} = @lockName";
-
-        private static readonly string SqlInsertLockMOT =
-            $"INSERT INTO {TablePrefixSubst}{TableLocks}({ColumnSchedulerName}, {ColumnLockName}) VALUES (@schedulerName, @lockName)";
-
-        /// <summary>
-        /// Initializes a new instance of the <see cref="UpdateLockRowSemaphoreMOT"/> class.
-        /// </summary>
-        public UpdateLockRowSemaphoreMOT(IDbProvider provider)
-            : base(DefaultTablePrefix, null, SqlUpdateForLockMOT, SqlInsertLockMOT, provider)
-        {
-        }
-
-        protected override int RetryCount => 5;
     }
+
+    protected override int RetryCount => 5;
 }

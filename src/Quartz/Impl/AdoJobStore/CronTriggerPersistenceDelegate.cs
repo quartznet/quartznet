@@ -25,128 +25,127 @@ using Quartz.Impl.Triggers;
 using Quartz.Spi;
 using Quartz.Util;
 
-namespace Quartz.Impl.AdoJobStore
+namespace Quartz.Impl.AdoJobStore;
+
+/// <summary>
+/// Persist a CronTriggerImpl.
+/// </summary>
+/// <see cref="CronScheduleBuilder"/>
+/// <see cref="ICronTrigger"/>
+public class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
 {
-    /// <summary>
-    /// Persist a CronTriggerImpl.
-    /// </summary>
-    /// <see cref="CronScheduleBuilder"/>
-    /// <see cref="ICronTrigger"/>
-    public class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
+    public void Initialize(string tablePrefix, string schedName, IDbAccessor dbAccessor)
     {
-        public void Initialize(string tablePrefix, string schedName, IDbAccessor dbAccessor)
-        {
-            TablePrefix = tablePrefix;
-            DbAccessor = dbAccessor;
-            SchedName = schedName;
+        TablePrefix = tablePrefix;
+        DbAccessor = dbAccessor;
+        SchedName = schedName;
 
-            // No longer used in this file
-            SchedNameLiteral = "'" + schedName + "'";
+        // No longer used in this file
+        SchedNameLiteral = "'" + schedName + "'";
+    }
+
+    protected string TablePrefix { get; private set; } = null!;
+
+    protected IDbAccessor DbAccessor { get; private set; } = null!;
+
+    [Obsolete("Scheduler name is now added to queries as a parameter")]
+    protected string SchedNameLiteral { get; private set; } = null!;
+
+    protected string SchedName { get; private set; } = null!;
+
+    public string GetHandledTriggerTypeDiscriminator()
+    {
+        return AdoConstants.TriggerTypeCron;
+    }
+
+    public bool CanHandleTriggerType(IOperableTrigger trigger)
+    {
+        return trigger is CronTriggerImpl impl && !impl.HasAdditionalProperties;
+    }
+
+    public async ValueTask<int> DeleteExtendedTriggerProperties(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default)
+    {
+        using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlDeleteCronTrigger, TablePrefix));
+        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
+        DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+        DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async ValueTask<int> InsertExtendedTriggerProperties(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger trigger,
+        string state,
+        IJobDetail jobDetail,
+        CancellationToken cancellationToken = default)
+    {
+        ICronTrigger cronTrigger = (ICronTrigger) trigger;
+
+        using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlInsertCronTrigger, TablePrefix));
+        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
+        DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
+        DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
+        DbAccessor.AddCommandParameter(cmd, "triggerCronExpression", cronTrigger.CronExpressionString);
+        DbAccessor.AddCommandParameter(cmd, "triggerTimeZone", cronTrigger.TimeZone.Id);
+
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+    }
+
+    public async ValueTask<TriggerPropertyBundle> LoadExtendedTriggerProperties(
+        ConnectionAndTransactionHolder conn,
+        TriggerKey triggerKey,
+        CancellationToken cancellationToken = default)
+    {
+        using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectCronTriggers, TablePrefix));
+        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
+        DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
+        DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+
+        using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return ReadTriggerPropertyBundle(rs);
         }
 
-        protected string TablePrefix { get; private set; } = null!;
+        ThrowHelper.ThrowInvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectCronTriggers, TablePrefix));
+        return default;
+    }
 
-        protected IDbAccessor DbAccessor { get; private set; } = null!;
+    public TriggerPropertyBundle ReadTriggerPropertyBundle(DbDataReader rs)
+    {
+        var cronExpr = rs.GetString(AdoConstants.ColumnCronExpression)!;
+        var timeZoneId = rs.GetString(AdoConstants.ColumnTimeZoneId);
 
-        [Obsolete("Scheduler name is now added to queries as a parameter")]
-        protected string SchedNameLiteral { get; private set; } = null!;
+        CronScheduleBuilder cb = CronScheduleBuilder.CronSchedule(cronExpr);
 
-        protected string SchedName { get; private set; } = null!;
-
-        public string GetHandledTriggerTypeDiscriminator()
+        if (timeZoneId != null)
         {
-            return AdoConstants.TriggerTypeCron;
+            cb.InTimeZone(TimeZoneUtil.FindTimeZoneById(timeZoneId));
         }
 
-        public bool CanHandleTriggerType(IOperableTrigger trigger)
-        {
-            return trigger is CronTriggerImpl impl && !impl.HasAdditionalProperties;
-        }
+        return new TriggerPropertyBundle(cb);
+    }
 
-        public async ValueTask<int> DeleteExtendedTriggerProperties(
-            ConnectionAndTransactionHolder conn,
-            TriggerKey triggerKey,
-            CancellationToken cancellationToken = default)
-        {
-            using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlDeleteCronTrigger, TablePrefix));
-            DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
-            DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-            DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
+    public async ValueTask<int> UpdateExtendedTriggerProperties(
+        ConnectionAndTransactionHolder conn,
+        IOperableTrigger trigger,
+        string state,
+        IJobDetail jobDetail,
+        CancellationToken cancellationToken = default)
+    {
+        ICronTrigger cronTrigger = (ICronTrigger) trigger;
 
-            return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        }
+        using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlUpdateCronTrigger, TablePrefix));
+        DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
+        DbAccessor.AddCommandParameter(cmd, "triggerCronExpression", cronTrigger.CronExpressionString);
+        DbAccessor.AddCommandParameter(cmd, "timeZoneId", cronTrigger.TimeZone.Id);
+        DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
+        DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
 
-        public async ValueTask<int> InsertExtendedTriggerProperties(
-            ConnectionAndTransactionHolder conn,
-            IOperableTrigger trigger,
-            string state,
-            IJobDetail jobDetail,
-            CancellationToken cancellationToken = default)
-        {
-            ICronTrigger cronTrigger = (ICronTrigger) trigger;
-
-            using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlInsertCronTrigger, TablePrefix));
-            DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
-            DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-            DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
-            DbAccessor.AddCommandParameter(cmd, "triggerCronExpression", cronTrigger.CronExpressionString);
-            DbAccessor.AddCommandParameter(cmd, "triggerTimeZone", cronTrigger.TimeZone.Id);
-
-            return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        }
-
-        public async ValueTask<TriggerPropertyBundle> LoadExtendedTriggerProperties(
-            ConnectionAndTransactionHolder conn,
-            TriggerKey triggerKey,
-            CancellationToken cancellationToken = default)
-        {
-            using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectCronTriggers, TablePrefix));
-            DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
-            DbAccessor.AddCommandParameter(cmd, "triggerName", triggerKey.Name);
-            DbAccessor.AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
-
-            using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-            if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
-            {
-                return ReadTriggerPropertyBundle(rs);
-            }
-
-            ThrowHelper.ThrowInvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectCronTriggers, TablePrefix));
-            return default;
-        }
-
-        public TriggerPropertyBundle ReadTriggerPropertyBundle(DbDataReader rs)
-        {
-            var cronExpr = rs.GetString(AdoConstants.ColumnCronExpression)!;
-            var timeZoneId = rs.GetString(AdoConstants.ColumnTimeZoneId);
-
-            CronScheduleBuilder cb = CronScheduleBuilder.CronSchedule(cronExpr);
-
-            if (timeZoneId != null)
-            {
-                cb.InTimeZone(TimeZoneUtil.FindTimeZoneById(timeZoneId));
-            }
-
-            return new TriggerPropertyBundle(cb);
-        }
-
-        public async ValueTask<int> UpdateExtendedTriggerProperties(
-            ConnectionAndTransactionHolder conn,
-            IOperableTrigger trigger,
-            string state,
-            IJobDetail jobDetail,
-            CancellationToken cancellationToken = default)
-        {
-            ICronTrigger cronTrigger = (ICronTrigger) trigger;
-
-            using var cmd = DbAccessor.PrepareCommand(conn, AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlUpdateCronTrigger, TablePrefix));
-            DbAccessor.AddCommandParameter(cmd, "schedulerName", SchedName);
-            DbAccessor.AddCommandParameter(cmd, "triggerCronExpression", cronTrigger.CronExpressionString);
-            DbAccessor.AddCommandParameter(cmd, "timeZoneId", cronTrigger.TimeZone.Id);
-            DbAccessor.AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
-            DbAccessor.AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
-
-            return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
-        }
+        return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 }

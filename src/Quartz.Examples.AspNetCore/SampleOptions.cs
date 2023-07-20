@@ -1,10 +1,9 @@
-namespace Quartz.Examples.AspNetCore
+namespace Quartz.Examples.AspNetCore;
+
+/// <summary>
+/// Example of user defined options.
+/// </summary>
+public class SampleOptions
 {
-    /// <summary>
-    /// Example of user defined options.
-    /// </summary>
-    public class SampleOptions
-    {
-        public string CronSchedule { get; set; } = "";
-    }
+    public string CronSchedule { get; set; } = "";
 }

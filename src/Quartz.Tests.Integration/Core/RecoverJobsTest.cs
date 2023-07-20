@@ -10,148 +10,147 @@ using Quartz.Simpl;
 using Quartz.Tests.Integration.Utils;
 using Quartz.Util;
 
-namespace Quartz.Tests.Integration.Core
+namespace Quartz.Tests.Integration.Core;
+
+[TestFixture(TestConstants.DefaultSqlServerProvider, Category = "db-sqlserver")]
+[TestFixture(TestConstants.PostgresProvider, Category = "db-postgres")]
+public class RecoverJobsTest
 {
-    [TestFixture(TestConstants.DefaultSqlServerProvider, Category = "db-sqlserver")]
-    [TestFixture(TestConstants.PostgresProvider, Category = "db-postgres")]
-    public class RecoverJobsTest
+    private readonly string provider;
+
+    public RecoverJobsTest(string provider)
     {
-        private readonly string provider;
+        this.provider = provider;
+    }
 
-        public RecoverJobsTest(string provider)
+    [Test]
+    public async Task TestRecoveringRepeatJobWhichIsFiredAndMisfiredAtTheSameTime()
+    {
+        DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType);
+
+        const string dataSourceName = "default";
+        var jobStore = new JobStoreTX
         {
-            this.provider = provider;
-        }
+            DataSource = dataSourceName,
+            InstanceId = "SINGLE_NODE_TEST",
+            InstanceName = dataSourceName,
+            MisfireThreshold = TimeSpan.FromSeconds(1)
+        };
 
-        [Test]
-        public async Task TestRecoveringRepeatJobWhichIsFiredAndMisfiredAtTheSameTime()
+        var factory = DirectSchedulerFactory.Instance;
+
+        factory.CreateScheduler(new DefaultThreadPool(), jobStore);
+        var scheduler = await factory.GetScheduler();
+
+        // run forever up to the first fail over situation
+        RecoverJobsTestJob.runForever = true;
+
+        await scheduler.Clear();
+
+        await scheduler.ScheduleJob(
+            JobBuilder.Create<RecoverJobsTestJob>()
+                .WithIdentity("test")
+                .Build(),
+            TriggerBuilder.Create()
+                .WithIdentity("test")
+                .WithSimpleSchedule(x => x
+                    .WithInterval(TimeSpan.FromSeconds(1))
+                    .RepeatForever()
+                ).Build()
+        );
+
+        await scheduler.Start();
+
+        // wait to be sure job is executing
+        await Task.Delay(TimeSpan.FromSeconds(2));
+
+        // emulate fail over situation
+        await scheduler.Shutdown(false);
+
+        using (var connection = DBConnectionManager.Instance.GetConnection(dataSourceName))
         {
-            DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType);
-
-            const string dataSourceName = "default";
-            var jobStore = new JobStoreTX
+            await connection.OpenAsync();
+            using (var command = connection.CreateCommand())
             {
-                DataSource = dataSourceName,
-                InstanceId = "SINGLE_NODE_TEST",
-                InstanceName = dataSourceName,
-                MisfireThreshold = TimeSpan.FromSeconds(1)
-            };
+                command.CommandText = $"SELECT TRIGGER_STATE from QRTZ_TRIGGERS WHERE SCHED_NAME = '{scheduler.SchedulerName}' AND TRIGGER_NAME='test'";
+                var triggerState = command.ExecuteScalar().ToString();
 
-            var factory = DirectSchedulerFactory.Instance;
+                // check that trigger is blocked after fail over situation
+                Assert.AreEqual("BLOCKED", triggerState);
 
-            factory.CreateScheduler(new DefaultThreadPool(), jobStore);
-            var scheduler = await factory.GetScheduler();
+                command.CommandText = $"SELECT count(*) from QRTZ_FIRED_TRIGGERS WHERE SCHED_NAME = '{scheduler.SchedulerName}' AND TRIGGER_NAME='test'";
+                int count = Convert.ToInt32(command.ExecuteScalar());
 
-            // run forever up to the first fail over situation
-            RecoverJobsTestJob.runForever = true;
-
-            await scheduler.Clear();
-
-            await scheduler.ScheduleJob(
-                JobBuilder.Create<RecoverJobsTestJob>()
-                    .WithIdentity("test")
-                    .Build(),
-                TriggerBuilder.Create()
-                    .WithIdentity("test")
-                    .WithSimpleSchedule(x => x
-                        .WithInterval(TimeSpan.FromSeconds(1))
-                        .RepeatForever()
-                    ).Build()
-            );
-
-            await scheduler.Start();
-
-            // wait to be sure job is executing
-            await Task.Delay(TimeSpan.FromSeconds(2));
-
-            // emulate fail over situation
-            await scheduler.Shutdown(false);
-
-            using (var connection = DBConnectionManager.Instance.GetConnection(dataSourceName))
-            {
-                await connection.OpenAsync();
-                using (var command = connection.CreateCommand())
-                {
-                    command.CommandText = $"SELECT TRIGGER_STATE from QRTZ_TRIGGERS WHERE SCHED_NAME = '{scheduler.SchedulerName}' AND TRIGGER_NAME='test'";
-                    var triggerState = command.ExecuteScalar().ToString();
-
-                    // check that trigger is blocked after fail over situation
-                    Assert.AreEqual("BLOCKED", triggerState);
-
-                    command.CommandText = $"SELECT count(*) from QRTZ_FIRED_TRIGGERS WHERE SCHED_NAME = '{scheduler.SchedulerName}' AND TRIGGER_NAME='test'";
-                    int count = Convert.ToInt32(command.ExecuteScalar());
-
-                    // check that fired trigger remains after fail over situation
-                    Assert.AreEqual(1, count);
-                }
-            }
-
-            // stop job executing to not as part of emulation fail over situation
-            RecoverJobsTestJob.runForever = false;
-
-            // emulate down time >> trigger interval - misfireThreshold
-            await Task.Delay(TimeSpan.FromSeconds(4));
-
-            var isJobRecovered = new ManualResetEventSlim(false);
-            factory.CreateScheduler(new DefaultThreadPool(), jobStore);
-            IScheduler recovery = await factory.GetScheduler();
-            recovery.ListenerManager.AddJobListener(new TestListener(isJobRecovered));
-            await recovery.Start();
-
-            // wait to be sure recovered job was executed
-            await Task.Delay(TimeSpan.FromSeconds(2));
-
-            // wait job
-            await recovery.Shutdown(true);
-
-            Assert.True(isJobRecovered.Wait(TimeSpan.FromSeconds(10)));
-        }
-
-        private class TestListener : JobListenerSupport
-        {
-            private readonly ManualResetEventSlim isJobRecovered;
-
-            public TestListener(ManualResetEventSlim isJobRecovered)
-            {
-                this.isJobRecovered = isJobRecovered;
-            }
-
-            public override string Name => typeof(RecoverJobsTest).Name;
-
-            public override ValueTask JobToBeExecuted(
-                IJobExecutionContext context,
-                CancellationToken cancellationToken = new CancellationToken())
-            {
-                isJobRecovered.Set();
-                return default;
+                // check that fired trigger remains after fail over situation
+                Assert.AreEqual(1, count);
             }
         }
 
-        [DisallowConcurrentExecution]
-        public class RecoverJobsTestJob : IJob
+        // stop job executing to not as part of emulation fail over situation
+        RecoverJobsTestJob.runForever = false;
+
+        // emulate down time >> trigger interval - misfireThreshold
+        await Task.Delay(TimeSpan.FromSeconds(4));
+
+        var isJobRecovered = new ManualResetEventSlim(false);
+        factory.CreateScheduler(new DefaultThreadPool(), jobStore);
+        IScheduler recovery = await factory.GetScheduler();
+        recovery.ListenerManager.AddJobListener(new TestListener(isJobRecovered));
+        await recovery.Start();
+
+        // wait to be sure recovered job was executed
+        await Task.Delay(TimeSpan.FromSeconds(2));
+
+        // wait job
+        await recovery.Shutdown(true);
+
+        Assert.True(isJobRecovered.Wait(TimeSpan.FromSeconds(10)));
+    }
+
+    private class TestListener : JobListenerSupport
+    {
+        private readonly ManualResetEventSlim isJobRecovered;
+
+        public TestListener(ManualResetEventSlim isJobRecovered)
         {
-            private static readonly ILogger<RecoverJobsTestJob> logger = LogProvider.CreateLogger<RecoverJobsTestJob>();
+            this.isJobRecovered = isJobRecovered;
+        }
 
-            internal static bool runForever = true;
+        public override string Name => typeof(RecoverJobsTest).Name;
 
-            public async ValueTask Execute(IJobExecutionContext context)
+        public override ValueTask JobToBeExecuted(
+            IJobExecutionContext context,
+            CancellationToken cancellationToken = new CancellationToken())
+        {
+            isJobRecovered.Set();
+            return default;
+        }
+    }
+
+    [DisallowConcurrentExecution]
+    public class RecoverJobsTestJob : IJob
+    {
+        private static readonly ILogger<RecoverJobsTestJob> logger = LogProvider.CreateLogger<RecoverJobsTestJob>();
+
+        internal static bool runForever = true;
+
+        public async ValueTask Execute(IJobExecutionContext context)
+        {
+            long now = DateTime.UtcNow.Ticks;
+            int tic = 0;
+            logger.LogInformation("Started - {StartTime}",now);
+            try
             {
-                long now = DateTime.UtcNow.Ticks;
-                int tic = 0;
-                logger.LogInformation("Started - {StartTime}",now);
-                try
+                while (runForever)
                 {
-                    while (runForever)
-                    {
-                        await Task.Delay(1000);
-                        logger.LogInformation("Tic " + ++tic + "- " + now);
-                    }
-                    logger.LogInformation("Stopped - {StopTime}",now);
+                    await Task.Delay(1000);
+                    logger.LogInformation("Tic " + ++tic + "- " + now);
                 }
-                catch (ThreadInterruptedException)
-                {
-                    logger.LogInformation("Interrupted - {InterruptionTime}",now);
-                }
+                logger.LogInformation("Stopped - {StopTime}",now);
+            }
+            catch (ThreadInterruptedException)
+            {
+                logger.LogInformation("Interrupted - {InterruptionTime}",now);
             }
         }
     }

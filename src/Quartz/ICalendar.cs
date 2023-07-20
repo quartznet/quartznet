@@ -19,56 +19,55 @@
 
 using Quartz.Impl.Calendar;
 
-namespace Quartz
+namespace Quartz;
+
+/// <summary>
+/// An interface to be implemented by objects that define spaces of time during
+/// which an associated <see cref="ITrigger" /> may (not) fire. Calendars
+/// do not define actual fire times, but rather are used to limit a
+/// <see cref="ITrigger" /> from firing on its normal schedule if necessary. Most
+/// Calendars include all times by default and allow the user to specify times
+/// to exclude.
+/// </summary>
+/// <remarks>
+/// As such, it is often useful to think of Calendars as being used to <I>exclude</I> a block
+/// of time - as opposed to <I>include</I> a block of time. (i.e. the
+/// schedule &quot;fire every five minutes except on Sundays&quot; could be
+/// implemented with a <see cref="ISimpleTrigger" /> and a
+/// <see cref="WeeklyCalendar" /> which excludes Sundays)
+/// <para>
+/// Implementations MUST take care of being properly cloneable and Serializable.
+/// </para>
+/// </remarks>
+/// <author>James House</author>
+/// <author>Juergen Donnerstag</author>
+/// <author>Marko Lahma (.NET)</author>
+public interface ICalendar
 {
     /// <summary>
-    /// An interface to be implemented by objects that define spaces of time during
-    /// which an associated <see cref="ITrigger" /> may (not) fire. Calendars
-    /// do not define actual fire times, but rather are used to limit a
-    /// <see cref="ITrigger" /> from firing on its normal schedule if necessary. Most
-    /// Calendars include all times by default and allow the user to specify times
-    /// to exclude.
+    /// Gets or sets a description for the <see cref="ICalendar" /> instance - may be
+    /// useful for remembering/displaying the purpose of the calendar, though
+    /// the description has no meaning to Quartz.
     /// </summary>
-    /// <remarks>
-    /// As such, it is often useful to think of Calendars as being used to <I>exclude</I> a block
-    /// of time - as opposed to <I>include</I> a block of time. (i.e. the
-    /// schedule &quot;fire every five minutes except on Sundays&quot; could be
-    /// implemented with a <see cref="ISimpleTrigger" /> and a
-    /// <see cref="WeeklyCalendar" /> which excludes Sundays)
-    /// <para>
-    /// Implementations MUST take care of being properly cloneable and Serializable.
-    /// </para>
-    /// </remarks>
-    /// <author>James House</author>
-    /// <author>Juergen Donnerstag</author>
-    /// <author>Marko Lahma (.NET)</author>
-    public interface ICalendar
-    {
-        /// <summary>
-        /// Gets or sets a description for the <see cref="ICalendar" /> instance - may be
-        /// useful for remembering/displaying the purpose of the calendar, though
-        /// the description has no meaning to Quartz.
-        /// </summary>
-        string? Description { get; set; }
+    string? Description { get; set; }
 
-		/// <summary>
-		/// Set a new base calendar or remove the existing one.
-		/// Get the base calendar.
-		/// </summary>
-		ICalendar? CalendarBase { set; get; }
+    /// <summary>
+    /// Set a new base calendar or remove the existing one.
+    /// Get the base calendar.
+    /// </summary>
+    ICalendar? CalendarBase { set; get; }
 
-		/// <summary>
-		/// Determine whether the given UTC time  is 'included' by the
-		/// Calendar.
-		/// </summary>
-        bool IsTimeIncluded(DateTimeOffset timeUtc);
+    /// <summary>
+    /// Determine whether the given UTC time  is 'included' by the
+    /// Calendar.
+    /// </summary>
+    bool IsTimeIncluded(DateTimeOffset timeUtc);
 
-		/// <summary>
-		/// Determine the next UTC time that is 'included' by the
-		/// Calendar after the given UTC time.
-		/// </summary>
-        DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc);
+    /// <summary>
+    /// Determine the next UTC time that is 'included' by the
+    /// Calendar after the given UTC time.
+    /// </summary>
+    DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc);
 
-        ICalendar Clone();
-    }
+    ICalendar Clone();
 }

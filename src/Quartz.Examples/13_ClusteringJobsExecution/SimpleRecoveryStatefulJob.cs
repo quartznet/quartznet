@@ -19,20 +19,19 @@
 
 #endregion
 
-namespace Quartz.Examples.Example13
+namespace Quartz.Examples.Example13;
+
+/// <summary> 
+/// This job has the same functionality of SimpleRecoveryJob
+/// except that this job implements is 'stateful', in that it
+/// will have it's data (JobDataMap) automatically re-persisted 
+/// after each execution, and only one instance of the JobDetail
+/// can be executed at a time.
+/// </summary>
+/// <author>Bill Kratzer</author>
+/// <author>Marko Lahma (.NET)</author>
+[PersistJobDataAfterExecution]
+[DisallowConcurrentExecution]
+public class SimpleRecoveryStatefulJob : SimpleRecoveryJob
 {
-    /// <summary> 
-    /// This job has the same functionality of SimpleRecoveryJob
-    /// except that this job implements is 'stateful', in that it
-    /// will have it's data (JobDataMap) automatically re-persisted 
-    /// after each execution, and only one instance of the JobDetail
-    /// can be executed at a time.
-    /// </summary>
-    /// <author>Bill Kratzer</author>
-    /// <author>Marko Lahma (.NET)</author>
-    [PersistJobDataAfterExecution]
-    [DisallowConcurrentExecution]
-    public class SimpleRecoveryStatefulJob : SimpleRecoveryJob
-    {
-    }
 }

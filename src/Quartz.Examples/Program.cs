@@ -24,94 +24,93 @@ using System.Reflection;
 using Quartz.Util;
 using Spectre.Console;
 
-namespace Quartz.Examples
+namespace Quartz.Examples;
+
+/// <summary>
+/// Console main runner.
+/// </summary>
+/// <author>Marko Lahma</author>
+public class Program
 {
-    /// <summary>
-    /// Console main runner.
-    /// </summary>
-    /// <author>Marko Lahma</author>
-    public class Program
+    public static async Task Main()
     {
-        public static async Task Main()
+        try
         {
-            try
+            var logOption = AnsiConsole.Prompt(
+                new SelectionPrompt<string>()
+                    .Title("Select logger")
+                    .AddChoices("microsoft", "serilog","nlog")
+            );
+            switch (logOption)
             {
-                var logOption = AnsiConsole.Prompt(
-                    new SelectionPrompt<string>()
-                        .Title("Select logger")
-                        .AddChoices("microsoft", "serilog","nlog")
-                );
-                switch (logOption)
-                {
-                    case "microsoft":
-                        Logging.ConfigureMicrosoftLogger();
-                        break;
-                    case "serilog":
-                        Logging.ConfigureSerilogLogger();
-                        break;
-                    case "nlog":
-                        Logging.ConfigureNLogLogger();
-                        break;
-                }
-
-                Assembly asm = typeof(Program).Assembly;
-                Type[] types = asm.GetTypes();
-
-                IDictionary<int, Type> typeMap = new Dictionary<int, Type>();
-                int counter = 1;
-
-                Console.WriteLine("Select example to run: ");
-                List<Type> typeList = new List<Type>();
-                foreach (Type t in types)
-                {
-                    if (new List<Type>(t.GetInterfaces()).Contains(typeof(IExample)))
-                    {
-                        typeList.Add(t);
-                    }
-                }
-
-                // sort for easier readability
-                typeList.Sort(new TypeNameComparer());
-
-                foreach (Type t in typeList)
-                {
-                    string counterString = $"[{counter}]".PadRight(4);
-                    Console.WriteLine("{0} {1} {2}", counterString, t.Namespace!.Substring(t.Namespace.LastIndexOf(".") + 1), t.Name);
-                    typeMap.Add(counter++, t);
-                }
-
-                Console.WriteLine();
-                Console.Write("> ");
-                int num = Convert.ToInt32(Console.ReadLine());
-                Type eType = typeMap[num];
-                IExample example = ObjectUtils.InstantiateType<IExample>(eType);
-                await example.Run().ConfigureAwait(false);
-                Console.WriteLine("Example run successfully.");
+                case "microsoft":
+                    Logging.ConfigureMicrosoftLogger();
+                    break;
+                case "serilog":
+                    Logging.ConfigureSerilogLogger();
+                    break;
+                case "nlog":
+                    Logging.ConfigureNLogLogger();
+                    break;
             }
-            catch (Exception ex)
+
+            Assembly asm = typeof(Program).Assembly;
+            Type[] types = asm.GetTypes();
+
+            IDictionary<int, Type> typeMap = new Dictionary<int, Type>();
+            int counter = 1;
+
+            Console.WriteLine("Select example to run: ");
+            List<Type> typeList = new List<Type>();
+            foreach (Type t in types)
             {
-                Console.WriteLine("Error running example: " + ex.Message);
-                Console.WriteLine(ex.ToString());
+                if (new List<Type>(t.GetInterfaces()).Contains(typeof(IExample)))
+                {
+                    typeList.Add(t);
+                }
             }
-            Console.Read();
+
+            // sort for easier readability
+            typeList.Sort(new TypeNameComparer());
+
+            foreach (Type t in typeList)
+            {
+                string counterString = $"[{counter}]".PadRight(4);
+                Console.WriteLine("{0} {1} {2}", counterString, t.Namespace!.Substring(t.Namespace.LastIndexOf(".") + 1), t.Name);
+                typeMap.Add(counter++, t);
+            }
+
+            Console.WriteLine();
+            Console.Write("> ");
+            int num = Convert.ToInt32(Console.ReadLine());
+            Type eType = typeMap[num];
+            IExample example = ObjectUtils.InstantiateType<IExample>(eType);
+            await example.Run().ConfigureAwait(false);
+            Console.WriteLine("Example run successfully.");
         }
-
-        private class TypeNameComparer : IComparer<Type>
+        catch (Exception ex)
         {
-            public int Compare(Type? t1, Type? t2)
+            Console.WriteLine("Error running example: " + ex.Message);
+            Console.WriteLine(ex.ToString());
+        }
+        Console.Read();
+    }
+
+    private class TypeNameComparer : IComparer<Type>
+    {
+        public int Compare(Type? t1, Type? t2)
+        {
+            if (t1!.Namespace!.Length > t2!.Namespace!.Length)
             {
-                if (t1!.Namespace!.Length > t2!.Namespace!.Length)
-                {
-                    return 1;
-                }
-
-                if (t1.Namespace.Length < t2.Namespace.Length)
-                {
-                    return -1;
-                }
-
-                return t1.Namespace.CompareTo(t2.Namespace);
+                return 1;
             }
+
+            if (t1.Namespace.Length < t2.Namespace.Length)
+            {
+                return -1;
+            }
+
+            return t1.Namespace.CompareTo(t2.Namespace);
         }
     }
 }

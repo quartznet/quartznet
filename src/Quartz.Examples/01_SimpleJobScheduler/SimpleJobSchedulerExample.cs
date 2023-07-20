@@ -21,63 +21,62 @@
 
 using Quartz.Impl;
 
-namespace Quartz.Examples.Example01
+namespace Quartz.Examples.Example01;
+
+/// <summary>
+/// This Example will demonstrate how to start and shutdown the Quartz
+/// scheduler and how to schedule a job to run in Quartz.
+/// </summary>
+/// <author>Bill Kratzer</author>
+/// <author>Marko Lahma (.NET)</author>
+public class SimpleJobSchedulerExample : IExample
 {
-    /// <summary>
-    /// This Example will demonstrate how to start and shutdown the Quartz
-    /// scheduler and how to schedule a job to run in Quartz.
-    /// </summary>
-    /// <author>Bill Kratzer</author>
-    /// <author>Marko Lahma (.NET)</author>
-    public class SimpleJobSchedulerExample : IExample
+    public virtual async Task Run()
     {
-        public virtual async Task Run()
-        {
-            Console.WriteLine("------- Initializing ----------------------");
+        Console.WriteLine("------- Initializing ----------------------");
 
-            // First we must get a reference to a scheduler
-            ISchedulerFactory sf = new StdSchedulerFactory();
-            IScheduler sched = await sf.GetScheduler();
+        // First we must get a reference to a scheduler
+        ISchedulerFactory sf = new StdSchedulerFactory();
+        IScheduler sched = await sf.GetScheduler();
 
-            Console.WriteLine("------- Initialization Complete -----------");
+        Console.WriteLine("------- Initialization Complete -----------");
 
 
-            // computer a time that is on the next round minute
-            DateTimeOffset runTime = DateBuilder.EvenMinuteDate(DateTimeOffset.UtcNow);
+        // computer a time that is on the next round minute
+        DateTimeOffset runTime = DateBuilder.EvenMinuteDate(DateTimeOffset.UtcNow);
 
-            Console.WriteLine("------- Scheduling Job  -------------------");
+        Console.WriteLine("------- Scheduling Job  -------------------");
 
-            // define the job and tie it to our HelloJob class
-            IJobDetail job = JobBuilder.Create<HelloJob>()
-                .WithIdentity("job1", "group1")
-                .Build();
+        // define the job and tie it to our HelloJob class
+        IJobDetail job = JobBuilder.Create<HelloJob>()
+            .WithIdentity("job1", "group1")
+            .Build();
 
-            // Trigger the job to run on the next round minute
-            ITrigger trigger = TriggerBuilder.Create()
-                .WithIdentity("trigger1", "group1")
-                .StartAt(runTime)
-                .Build();
+        // Trigger the job to run on the next round minute
+        ITrigger trigger = TriggerBuilder.Create()
+            .WithIdentity("trigger1", "group1")
+            .StartAt(runTime)
+            .Build();
 
-            // Tell quartz to schedule the job using our trigger
-            await sched.ScheduleJob(job, trigger);
-            Console.WriteLine($"{job.Key} will run at: {runTime:r}");
+        // Tell quartz to schedule the job using our trigger
+        await sched.ScheduleJob(job, trigger);
+        Console.WriteLine($"{job.Key} will run at: {runTime:r}");
 
-            // Start up the scheduler (nothing can actually run until the
-            // scheduler has been started)
-            await sched.Start();
-            Console.WriteLine("------- Started Scheduler -----------------");
+        // Start up the scheduler (nothing can actually run until the
+        // scheduler has been started)
+        await sched.Start();
+        Console.WriteLine("------- Started Scheduler -----------------");
 
-            // wait long enough so that the scheduler as an opportunity to
-            // run the job!
-            Console.WriteLine("------- Waiting 65 seconds... -------------");
+        // wait long enough so that the scheduler as an opportunity to
+        // run the job!
+        Console.WriteLine("------- Waiting 65 seconds... -------------");
 
-            // wait 65 seconds to show jobs
-            await Task.Delay(TimeSpan.FromSeconds(65));
+        // wait 65 seconds to show jobs
+        await Task.Delay(TimeSpan.FromSeconds(65));
 
-            // shut down the scheduler
-            Console.WriteLine("------- Shutting Down ---------------------");
-            await sched.Shutdown(true);
-            Console.WriteLine("------- Shutdown Complete -----------------");
-        }
+        // shut down the scheduler
+        Console.WriteLine("------- Shutting Down ---------------------");
+        await sched.Shutdown(true);
+        Console.WriteLine("------- Shutdown Complete -----------------");
     }
 }

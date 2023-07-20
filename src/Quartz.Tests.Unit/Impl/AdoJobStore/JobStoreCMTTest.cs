@@ -7,51 +7,50 @@ using NUnit.Framework;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Util;
 
-namespace Quartz.Tests.Unit.Impl.AdoJobStore
+namespace Quartz.Tests.Unit.Impl.AdoJobStore;
+
+[TestFixture]
+public class JobStoreCMTTest
 {
-    [TestFixture]
-    public class JobStoreCMTTest
+    private TestJobStoreCMT jobStore;
+    private IDbConnectionManager connectionManager;
+
+    [SetUp]
+    public void SetUp()
     {
-        private TestJobStoreCMT jobStore;
-        private IDbConnectionManager connectionManager;
+        jobStore = new TestJobStoreCMT();
+        connectionManager = A.Fake<IDbConnectionManager>();
+        jobStore.ConnectionManager = connectionManager;
+    }
 
-        [SetUp]
-        public void SetUp()
+    private class TestJobStoreCMT : JobStoreCMT
+    {
+        public void ExecuteGetNonManagedConnection()
         {
-            jobStore = new TestJobStoreCMT();
-            connectionManager = A.Fake<IDbConnectionManager>();
-            jobStore.ConnectionManager = connectionManager;
+            GetNonManagedTXConnection();
         }
+    }
 
-        private class TestJobStoreCMT : JobStoreCMT
-        {
-            public void ExecuteGetNonManagedConnection()
-            {
-                GetNonManagedTXConnection();
-            }
-        }
+    [Test]
+    public void ShouldNotAutomaticallyOpenConnection()
+    {
+        var mock = A.Fake<DbConnection>();
+        A.CallTo(() => connectionManager.GetConnection(A<string>.Ignored)).Returns(mock);
 
-        [Test]
-        public void ShouldNotAutomaticallyOpenConnection()
-        {
-            var mock = A.Fake<DbConnection>();
-            A.CallTo(() => connectionManager.GetConnection(A<string>.Ignored)).Returns(mock);
+        jobStore.ExecuteGetNonManagedConnection();
 
-            jobStore.ExecuteGetNonManagedConnection();
+        A.CallTo(() => mock.OpenAsync(CancellationToken.None)).MustNotHaveHappened();
+    }
 
-            A.CallTo(() => mock.OpenAsync(CancellationToken.None)).MustNotHaveHappened();
-        }
+    [Test]
+    public void ShouldOpenConnectionIfRequested()
+    {
+        jobStore.OpenConnection = true;
+        var mock = A.Fake<DbConnection>();
+        A.CallTo(() => connectionManager.GetConnection(A<string>.Ignored)).Returns(mock);
 
-        [Test]
-        public void ShouldOpenConnectionIfRequested()
-        {
-            jobStore.OpenConnection = true;
-            var mock = A.Fake<DbConnection>();
-            A.CallTo(() => connectionManager.GetConnection(A<string>.Ignored)).Returns(mock);
+        jobStore.ExecuteGetNonManagedConnection();
 
-            jobStore.ExecuteGetNonManagedConnection();
-
-            A.CallTo(() => mock.OpenAsync(CancellationToken.None)).MustHaveHappened();
-        }
+        A.CallTo(() => mock.OpenAsync(CancellationToken.None)).MustHaveHappened();
     }
 }

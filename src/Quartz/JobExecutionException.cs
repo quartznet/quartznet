@@ -20,133 +20,132 @@
 using System.Globalization;
 using System.Runtime.Serialization;
 
-namespace Quartz
+namespace Quartz;
+
+/// <summary>
+/// An exception that can be thrown by a <see cref="IJob" />
+/// to indicate to the Quartz <see cref="IScheduler" /> that an error
+/// occurred while executing, and whether or not the <see cref="IJob" /> requests
+/// to be re-fired immediately (using the same <see cref="IJobExecutionContext" />),
+/// or whether it wants to be unscheduled.
+/// </summary>
+/// <remarks>
+/// Note that if the flag for 'refire immediately' is set, the flags for
+/// unscheduling the Job are ignored.
+/// </remarks>
+/// <seealso cref="IJob" />
+/// <seealso cref="IJobExecutionContext" />
+/// <seealso cref="SchedulerException" />
+/// <author>James House</author>
+/// <author>Marko Lahma (.NET)</author>
+[Serializable]
+public sealed class JobExecutionException : SchedulerException
 {
-	/// <summary>
-	/// An exception that can be thrown by a <see cref="IJob" />
-	/// to indicate to the Quartz <see cref="IScheduler" /> that an error
-	/// occurred while executing, and whether or not the <see cref="IJob" /> requests
-	/// to be re-fired immediately (using the same <see cref="IJobExecutionContext" />),
-	/// or whether it wants to be unscheduled.
+    /// <summary>
+    /// Create a JobExecutionException, with the 're-fire immediately' flag set
+    /// to <see langword="false" />.
     /// </summary>
-	/// <remarks>
-	/// Note that if the flag for 'refire immediately' is set, the flags for
-	/// unscheduling the Job are ignored.
-	/// </remarks>
-	/// <seealso cref="IJob" />
-	/// <seealso cref="IJobExecutionContext" />
-	/// <seealso cref="SchedulerException" />
-	/// <author>James House</author>
-    /// <author>Marko Lahma (.NET)</author>
-    [Serializable]
-    public sealed class JobExecutionException : SchedulerException
-	{
-		/// <summary>
-		/// Create a JobExecutionException, with the 're-fire immediately' flag set
-		/// to <see langword="false" />.
-		/// </summary>
-		public JobExecutionException()
-		{
-		}
+    public JobExecutionException()
+    {
+    }
 
-		/// <summary>
-		/// Create a JobExecutionException, with the given cause.
-		/// </summary>
-		/// <param name="innerException">The cause.</param>
-		public JobExecutionException(Exception innerException) : base(innerException)
-		{
-		}
+    /// <summary>
+    /// Create a JobExecutionException, with the given cause.
+    /// </summary>
+    /// <param name="innerException">The cause.</param>
+    public JobExecutionException(Exception innerException) : base(innerException)
+    {
+    }
 
-		/// <summary>
-		/// Create a JobExecutionException, with the given message.
-		/// </summary>
-		public JobExecutionException(string message) : base(message)
-		{
-		}
+    /// <summary>
+    /// Create a JobExecutionException, with the given message.
+    /// </summary>
+    public JobExecutionException(string message) : base(message)
+    {
+    }
 
-		/// <summary>
-		/// Initializes a new instance of the <see cref="JobExecutionException"/> class.
-		/// </summary>
-		/// <param name="message">The message.</param>
-		/// <param name="innerException">The original cause.</param>
-		public JobExecutionException(string message, Exception innerException) : base(message, innerException)
-		{
-		}
+    /// <summary>
+    /// Initializes a new instance of the <see cref="JobExecutionException"/> class.
+    /// </summary>
+    /// <param name="message">The message.</param>
+    /// <param name="innerException">The original cause.</param>
+    public JobExecutionException(string message, Exception innerException) : base(message, innerException)
+    {
+    }
 
-		/// <summary>
-		/// Create a JobExecutionException with the 're-fire immediately' flag set
-		/// to the given value.
-		/// </summary>
-		public JobExecutionException(bool refireImmediately)
-		{
-			RefireImmediately = refireImmediately;
-		}
+    /// <summary>
+    /// Create a JobExecutionException with the 're-fire immediately' flag set
+    /// to the given value.
+    /// </summary>
+    public JobExecutionException(bool refireImmediately)
+    {
+        RefireImmediately = refireImmediately;
+    }
 
-		/// <summary>
-		/// Create a JobExecutionException with the given underlying exception, and
-		/// the 're-fire immediately' flag set to the given value.
-		/// </summary>
-		public JobExecutionException(Exception innerException, bool refireImmediately) : base(innerException)
-		{
-			RefireImmediately = refireImmediately;
-		}
+    /// <summary>
+    /// Create a JobExecutionException with the given underlying exception, and
+    /// the 're-fire immediately' flag set to the given value.
+    /// </summary>
+    public JobExecutionException(Exception innerException, bool refireImmediately) : base(innerException)
+    {
+        RefireImmediately = refireImmediately;
+    }
 
-		/// <summary>
-		/// Create a JobExecutionException with the given message, and underlying
-		/// exception, and the 're-fire immediately' flag set to the given value.
-		/// </summary>
-		public JobExecutionException(string message, Exception innerException, bool refireImmediately) : base(message, innerException)
-		{
-			RefireImmediately = refireImmediately;
-		}
+    /// <summary>
+    /// Create a JobExecutionException with the given message, and underlying
+    /// exception, and the 're-fire immediately' flag set to the given value.
+    /// </summary>
+    public JobExecutionException(string message, Exception innerException, bool refireImmediately) : base(message, innerException)
+    {
+        RefireImmediately = refireImmediately;
+    }
 
-        /// <summary>
-        /// Initializes a new instance of the <see cref="JobExecutionException"/> class.
-        /// </summary>
-        /// <param name="info">The <see cref="T:SerializationInfo"></see> that holds the serialized object data about the exception being thrown.</param>
-        /// <param name="context">The <see cref="T:System.Runtime.Serialization.StreamingContext"></see> that contains contextual information about the source or destination.</param>
-        /// <exception cref="T:System.Runtime.Serialization.SerializationException">The class name is null or <see cref="P:System.Exception.HResult"></see> is zero (0). </exception>
-        /// <exception cref="T:System.ArgumentNullException">The info parameter is null. </exception>
-        private JobExecutionException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
-        }
+    /// <summary>
+    /// Initializes a new instance of the <see cref="JobExecutionException"/> class.
+    /// </summary>
+    /// <param name="info">The <see cref="T:SerializationInfo"></see> that holds the serialized object data about the exception being thrown.</param>
+    /// <param name="context">The <see cref="T:System.Runtime.Serialization.StreamingContext"></see> that contains contextual information about the source or destination.</param>
+    /// <exception cref="T:System.Runtime.Serialization.SerializationException">The class name is null or <see cref="P:System.Exception.HResult"></see> is zero (0). </exception>
+    /// <exception cref="T:System.ArgumentNullException">The info parameter is null. </exception>
+    private JobExecutionException(SerializationInfo info, StreamingContext context) : base(info, context)
+    {
+    }
 
-        /// <summary>
-        /// Gets or sets a value indicating whether to unschedule firing trigger.
-        /// </summary>
-        /// <value>
-        /// 	<c>true</c> if firing trigger should be unscheduled; otherwise, <c>false</c>.
-        /// </value>
-        public bool UnscheduleFiringTrigger { set; get; }
+    /// <summary>
+    /// Gets or sets a value indicating whether to unschedule firing trigger.
+    /// </summary>
+    /// <value>
+    /// 	<c>true</c> if firing trigger should be unscheduled; otherwise, <c>false</c>.
+    /// </value>
+    public bool UnscheduleFiringTrigger { set; get; }
 
-        /// <summary>
-        /// Gets or sets a value indicating whether to unschedule all triggers.
-        /// </summary>
-        /// <value>
-        /// 	<c>true</c> if all triggers should be unscheduled; otherwise, <c>false</c>.
-        /// </value>
-        public bool UnscheduleAllTriggers { set; get; }
+    /// <summary>
+    /// Gets or sets a value indicating whether to unschedule all triggers.
+    /// </summary>
+    /// <value>
+    /// 	<c>true</c> if all triggers should be unscheduled; otherwise, <c>false</c>.
+    /// </value>
+    public bool UnscheduleAllTriggers { set; get; }
 
 
-		/// <summary>
-		/// Gets or sets a value indicating whether to refire immediately.
-		/// </summary>
-		/// <value><c>true</c> if to refire immediately; otherwise, <c>false</c>.</value>
-		public bool RefireImmediately { get; set; }
+    /// <summary>
+    /// Gets or sets a value indicating whether to refire immediately.
+    /// </summary>
+    /// <value><c>true</c> if to refire immediately; otherwise, <c>false</c>.</value>
+    public bool RefireImmediately { get; set; }
 
-        /// <summary>
-        /// Creates and returns a string representation of the current exception.
-        /// </summary>
-        /// <returns>
-        /// A string representation of the current exception.
-        /// </returns>
-        /// <PermissionSet><IPermission class="System.Security.Permissions.FileIOPermission, mscorlib, Version=2.0.3600.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" version="1" PathDiscovery="*AllFiles*"/></PermissionSet>
-	    public override string ToString()
-	    {
-            return
-                string.Format(CultureInfo.InvariantCulture,
-                    "Parameters: refire = {0}, unscheduleFiringTrigger = {1}, unscheduleAllTriggers = {2} \n {3}",
-                    RefireImmediately, UnscheduleFiringTrigger, UnscheduleAllTriggers, base.ToString());
-	    }
-	}
+    /// <summary>
+    /// Creates and returns a string representation of the current exception.
+    /// </summary>
+    /// <returns>
+    /// A string representation of the current exception.
+    /// </returns>
+    /// <PermissionSet><IPermission class="System.Security.Permissions.FileIOPermission, mscorlib, Version=2.0.3600.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" version="1" PathDiscovery="*AllFiles*"/></PermissionSet>
+    public override string ToString()
+    {
+        return
+            string.Format(CultureInfo.InvariantCulture,
+                "Parameters: refire = {0}, unscheduleFiringTrigger = {1}, unscheduleAllTriggers = {2} \n {3}",
+                RefireImmediately, UnscheduleFiringTrigger, UnscheduleAllTriggers, base.ToString());
+    }
 }

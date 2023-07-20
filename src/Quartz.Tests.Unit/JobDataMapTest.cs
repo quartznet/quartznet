@@ -25,56 +25,55 @@ using NUnit.Framework;
 
 using Quartz.Simpl;
 
-namespace Quartz.Tests.Unit
+namespace Quartz.Tests.Unit;
+
+/// <summary>
+/// Unit test for JobDataMap serialization backwards compatibility.
+/// </summary>
+/// <author>Marko Lahma (.NET)</author>
+[TestFixture(typeof(BinaryObjectSerializer))]
+[TestFixture(typeof(JsonObjectSerializer))]
+public class JobDataMapTest : SerializationTestSupport<JobDataMap>
 {
-    /// <summary>
-    /// Unit test for JobDataMap serialization backwards compatibility.
-    /// </summary>
-    /// <author>Marko Lahma (.NET)</author>
-    [TestFixture(typeof(BinaryObjectSerializer))]
-    [TestFixture(typeof(JsonObjectSerializer))]
-    public class JobDataMapTest : SerializationTestSupport<JobDataMap>
+    public JobDataMapTest(Type serializerType) : base(serializerType)
     {
-        public JobDataMapTest(Type serializerType) : base(serializerType)
+    }
+
+    /// <summary>
+    /// Get the object to serialize when generating serialized file for future
+    /// tests, and against which to validate deserialized object.
+    /// </summary>
+    /// <returns></returns>
+    protected override JobDataMap GetTargetObject()
+    {
+        JobDataMap m = new JobDataMap();
+        m.Put("key", 5);
+        return m;
+    }
+
+    protected override void VerifyMatch(JobDataMap original, JobDataMap deserialized)
+    {
+        Assert.That(deserialized, Is.Not.Null);
+        Assert.That(deserialized.WrappedMap, Is.EquivalentTo(original.WrappedMap));
+        if (serializer is JsonObjectSerializer)
         {
+            Assert.That(deserialized.Dirty, Is.False, "should not be dirty when returning from serialization");
         }
+    }
 
-        /// <summary>
-        /// Get the object to serialize when generating serialized file for future
-        /// tests, and against which to validate deserialized object.
-        /// </summary>
-        /// <returns></returns>
-        protected override JobDataMap GetTargetObject()
-        {
-            JobDataMap m = new JobDataMap();
-            m.Put("key", 5);
-            return m;
-        }
+    [Test]
+    public void HandlesGuid()
+    {
+        var map = new JobDataMap();
+        map["key"] = Guid.NewGuid();
+        map.TryGetGuidValue("key", out var g).Should().BeTrue();
+        g.Should().NotBe(Guid.Empty);
 
-        protected override void VerifyMatch(JobDataMap original, JobDataMap deserialized)
-        {
-            Assert.That(deserialized, Is.Not.Null);
-            Assert.That(deserialized.WrappedMap, Is.EquivalentTo(original.WrappedMap));
-            if (serializer is JsonObjectSerializer)
-            {
-                Assert.That(deserialized.Dirty, Is.False, "should not be dirty when returning from serialization");
-            }
-        }
+        map["key"] = Guid.NewGuid().ToString();
+        map.TryGetGuidValue("key", out g).Should().BeTrue();
+        g.Should().NotBe(Guid.Empty);
 
-        [Test]
-        public void HandlesGuid()
-        {
-            var map = new JobDataMap();
-            map["key"] = Guid.NewGuid();
-            map.TryGetGuidValue("key", out var g).Should().BeTrue();
-            g.Should().NotBe(Guid.Empty);
-
-            map["key"] = Guid.NewGuid().ToString();
-            map.TryGetGuidValue("key", out g).Should().BeTrue();
-            g.Should().NotBe(Guid.Empty);
-
-            map.TryGetNullableGuid("key-not-found", out var nullable).Should().BeTrue();
-            nullable.Should().Be(null);
-        }
+        map.TryGetNullableGuid("key-not-found", out var nullable).Should().BeTrue();
+        nullable.Should().Be(null);
     }
 }
