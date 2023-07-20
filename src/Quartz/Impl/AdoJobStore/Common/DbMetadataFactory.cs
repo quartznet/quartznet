@@ -1,4 +1,4 @@
-﻿namespace Quartz.Impl.AdoJobStore.Common;
+namespace Quartz.Impl.AdoJobStore.Common;
 
 /// <summary>
 /// Base class for the DbMetadata Factory implementations

@@ -31,7 +31,7 @@ namespace Quartz.Impl;
 public class StdJobRunShellFactory : IJobRunShellFactory
 {
     private IScheduler scheduler = null!;
-		
+
     /// <summary>
     /// Initialize the factory, providing a handle to the <see cref="IScheduler" />
     /// that should be made available within the <see cref="JobRunShell" /> and

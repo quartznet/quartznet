@@ -25,7 +25,7 @@ public class SchedulerListenerTest
         public ValueTask Execute(IJobExecutionContext context)
         {
             jobExecutionCount++;
-            logger.LogInformation("Job executed. jobExecutionCount={ExecutionCount}",jobExecutionCount);
+            logger.LogInformation("Job executed. jobExecutionCount={ExecutionCount}", jobExecutionCount);
             return default;
         }
     }
@@ -39,7 +39,7 @@ public class SchedulerListenerTest
         public ValueTask TriggerFired(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken)
         {
             FireCount++;
-            logger.LogInformation("Trigger fired. count {FireCount}",FireCount);
+            logger.LogInformation("Trigger fired. count {FireCount}", FireCount);
             return default;
         }
 
@@ -82,8 +82,8 @@ public class SchedulerListenerTest
 
         public ValueTask TriggerFinalized(ITrigger trigger, CancellationToken cancellationToken)
         {
-            TriggerFinalizedCount ++;
-            logger.LogInformation("triggerFinalized {Trigger}",trigger);
+            TriggerFinalizedCount++;
+            logger.LogInformation("triggerFinalized {Trigger}", trigger);
             return default;
         }
 

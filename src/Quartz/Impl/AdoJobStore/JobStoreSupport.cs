@@ -76,7 +76,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         MaxMisfiresToHandleAtATime = 20;
         DbRetryInterval = TimeSpan.FromSeconds(15);
         Logger = LogProvider.CreateLogger<JobStoreSupport>();
-        delegateType = typeof (StdAdoDelegate);
+        delegateType = typeof(StdAdoDelegate);
     }
 
     /// <summary>
@@ -372,7 +372,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             DateTimeOffset misfireTime = SystemTime.UtcNow();
             if (MisfireThreshold > TimeSpan.Zero)
             {
-                misfireTime = misfireTime.AddMilliseconds(-1*MisfireThreshold.TotalMilliseconds);
+                misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold.TotalMilliseconds);
             }
 
             return misfireTime;
@@ -573,7 +573,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
             catch (SchedulerException se)
             {
-                Logger.LogError(se,"Failure occurred during job recovery: {ExceptionMessage}",se.Message);
+                Logger.LogError(se, "Failure occurred during job recovery: {ExceptionMessage}", se.Message);
                 ThrowHelper.ThrowSchedulerConfigException("Failure occurred during job recovery.", se);
             }
         }
@@ -628,7 +628,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception sqle)
         {
-            Logger.LogWarning(sqle,"Database connection Shutdown unsuccessful.");
+            Logger.LogWarning(sqle, "Database connection Shutdown unsuccessful.");
         }
     }
 
@@ -653,7 +653,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
             catch (LockException le)
             {
-                Logger.LogError(le,"Error returning lock: {ExceptionMessage}",le.Message);
+                Logger.LogError(le, "Error returning lock: {ExceptionMessage}", le.Message);
             }
         }
     }
@@ -687,7 +687,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 StatePausedBlocked,
                 StatePausedBlocked, cancellationToken).ConfigureAwait(false);
 
-            Logger.LogInformation("Freed {Count} triggers from 'acquired' / 'blocked' state.",rows);
+            Logger.LogInformation("Freed {Count} triggers from 'acquired' / 'blocked' state.", rows);
 
             // clean up misfired jobs
             await RecoverMisfiredJobs(conn, true, cancellationToken).ConfigureAwait(false);
@@ -716,7 +716,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
             // clean up any fired trigger entries
             int n = await Delegate.DeleteFiredTriggers(conn, cancellationToken).ConfigureAwait(false);
-            Logger.LogInformation("Removed {Count} stale fired job entries.",n);
+            Logger.LogInformation("Removed {Count} stale fired job entries.", n);
         }
         catch (JobPersistenceException)
         {
@@ -774,7 +774,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
             catch (Exception e)
             {
-                Logger.LogError(e,"Error retrieving the misfired trigger: '{TriggerKey}'", triggerKey);
+                Logger.LogError(e, "Error retrieving the misfired trigger: '{TriggerKey}'", triggerKey);
                 continue;
             }
 
@@ -789,7 +789,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
             catch (Exception e)
             {
-                Logger.LogError(e,"Error updating misfired trigger: '{TriggerKey}'", trig.Key);
+                Logger.LogError(e, "Error updating misfired trigger: '{TriggerKey}'", trig.Key);
                 continue;
             }
 
@@ -817,7 +817,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             DateTimeOffset misfireTime = SystemTime.UtcNow();
             if (MisfireThreshold > TimeSpan.Zero)
             {
-                misfireTime = misfireTime.AddMilliseconds(-1*MisfireThreshold.TotalMilliseconds);
+                misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold.TotalMilliseconds);
             }
 
             if (trig.GetNextFireTimeUtc().GetValueOrDefault() > misfireTime)
@@ -2727,12 +2727,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                     {
                         try
                         {
-                            Logger.LogError(jpe,"Error retrieving job, setting trigger state to ERROR.");
+                            Logger.LogError(jpe, "Error retrieving job, setting trigger state to ERROR.");
                             await Delegate.UpdateTriggerState(conn, triggerKey, StateError, cancellationToken).ConfigureAwait(false);
                         }
                         catch (Exception ex)
                         {
-                            Logger.LogError(ex,"Unable to set trigger state to ERROR.");
+                            Logger.LogError(ex, "Unable to set trigger state to ERROR.");
                         }
                         continue;
                     }
@@ -2858,12 +2858,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                     }
                     catch (JobPersistenceException jpe)
                     {
-                        Logger.LogError(jpe, "Caught job persistence exception: {ExceptionMessage}",jpe.Message);
+                        Logger.LogError(jpe, "Caught job persistence exception: {ExceptionMessage}", jpe.Message);
                         result = new TriggerFiredResult(jpe);
                     }
                     catch (Exception ex)
                     {
-                        Logger.LogError(ex,"Caught exception: {ExceptionMessage}",ex.Message);
+                        Logger.LogError(ex, "Caught exception: {ExceptionMessage}", ex.Message);
                         result = new TriggerFiredResult(ex);
                     }
 
@@ -2943,12 +2943,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         {
             try
             {
-                Logger.LogError(jpe,"Error retrieving job, setting trigger state to ERROR.");
+                Logger.LogError(jpe, "Error retrieving job, setting trigger state to ERROR.");
                 await Delegate.UpdateTriggerState(conn, trigger.Key, StateError, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception sqle)
             {
-                Logger.LogError(sqle,"Unable to set trigger state to ERROR.");
+                Logger.LogError(sqle, "Unable to set trigger state to ERROR.");
             }
             throw;
         }
@@ -3372,7 +3372,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
                 orphanedInstances.Add(orphanedInstance);
 
-                Logger.LogWarning("Found orphaned fired triggers for instance: {SchedulerInstanceId}",orphanedInstance.SchedulerInstanceId);
+                Logger.LogWarning("Found orphaned fired triggers for instance: {SchedulerInstanceId}", orphanedInstance.SchedulerInstanceId);
             }
         }
 
@@ -3484,7 +3484,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                             }
                             else
                             {
-                                Logger.LogWarning("ClusterManager: failed job {JobKey} no longer exists, cannot schedule recovery.",jKey);
+                                Logger.LogWarning("ClusterManager: failed job {JobKey} no longer exists, cannot schedule recovery.", jKey);
                                 otherCount++;
                             }
                         }
@@ -3764,10 +3764,10 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 // Server is configured to allow remote connections. (provider: TCP Provider, error: 0 - No such host is known.)
                 case 11001:
                     return true;
-                // This exception can be thrown even if the operation completed succesfully, so it's safer to let the application fail.
-                // DBNETLIB Error Code: -2
-                // Timeout expired. The timeout period elapsed prior to completion of the operation or the server is not responding. The statement has been terminated.
-                //case -2:
+                    // This exception can be thrown even if the operation completed succesfully, so it's safer to let the application fail.
+                    // DBNETLIB Error Code: -2
+                    // Timeout expired. The timeout period elapsed prior to completion of the operation or the server is not responding. The statement has been terminated.
+                    //case -2:
             }
         }
 
@@ -3863,14 +3863,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
             catch (JobPersistenceException jpe)
             {
-                if (retry%RetryableActionErrorLogThreshold == 0)
+                if (retry % RetryableActionErrorLogThreshold == 0)
                 {
                     await schedSignaler.NotifySchedulerListenersError("An error occurred while " + txCallback, jpe, cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (Exception e)
             {
-                Logger.LogError(e,"retryExecuteInNonManagedTXLock: RuntimeException {ExceptionMessage}",e.Message);
+                Logger.LogError(e, "retryExecuteInNonManagedTXLock: RuntimeException {ExceptionMessage}", e.Message);
             }
 
             // retry every N seconds (the db connection must be failed)

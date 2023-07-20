@@ -51,7 +51,7 @@ public class ExceptionHandlingTest
 
         await sched.ScheduleJob(trigger);
 
-        await Task.Delay(7*1000);
+        await Task.Delay(7 * 1000);
         await sched.DeleteJob(trigger.JobKey);
         Assert.AreEqual(1, ExceptionJob.LaunchCount,
             "The job shouldn't have been refired (UnscheduleFiringTrigger)");
@@ -67,7 +67,7 @@ public class ExceptionHandlingTest
         trigger = new CronTriggerImpl("trigName1", trigGroup, "0/3 * * * * ?");
         trigger.JobKey = new JobKey(jobName, jobGroup);
         await sched.ScheduleJob(trigger);
-        await Task.Delay(7*1000);
+        await Task.Delay(7 * 1000);
         await sched.DeleteJob(trigger.JobKey);
         Assert.AreEqual(2, ExceptionJob.LaunchCount,
             "The job shouldn't have been refired(UnscheduleFiringTrigger)");

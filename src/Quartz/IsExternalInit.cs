@@ -1,4 +1,4 @@
-﻿#if !NET5_0_OR_GREATER
+#if !NET5_0_OR_GREATER
 
 // Source: https://github.com/dotnet/runtime/blob/v6.0.5/src/libraries/Common/src/System/Runtime/CompilerServices/IsExternalInit.cs
 

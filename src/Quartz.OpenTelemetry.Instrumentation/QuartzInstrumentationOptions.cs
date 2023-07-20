@@ -9,7 +9,7 @@ public class QuartzInstrumentationOptions
     /// Personally Identifiable Information (PII), passwords or usernames.
     /// </summary>
     public bool IncludeExceptionDetails { get; set; }
-        
+
     /// <summary>
     /// Default traced operations.
     /// </summary>

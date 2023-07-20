@@ -33,7 +33,7 @@ internal sealed class DefaultDirectoryProvider : IDirectoryProvider
         if (dirNames != null)
         {
             directoriesToScan.AddRange(
-                dirNames.Split(new[] {";"}, StringSplitOptions.RemoveEmptyEntries));
+                dirNames.Split(new[] { ";" }, StringSplitOptions.RemoveEmptyEntries));
         }
 
         return directoriesToScan;

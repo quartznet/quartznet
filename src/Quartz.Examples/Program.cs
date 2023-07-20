@@ -39,7 +39,7 @@ public class Program
             var logOption = AnsiConsole.Prompt(
                 new SelectionPrompt<string>()
                     .Title("Select logger")
-                    .AddChoices("microsoft", "serilog","nlog")
+                    .AddChoices("microsoft", "serilog", "nlog")
             );
             switch (logOption)
             {

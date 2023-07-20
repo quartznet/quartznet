@@ -280,7 +280,7 @@ public class WeeklyCalendar : BaseCalendar
             baseHash = CalendarBase.GetHashCode();
         }
 
-        return DaysExcluded.GetHashCode() + 5*baseHash;
+        return DaysExcluded.GetHashCode() + 5 * baseHash;
     }
 
     public bool Equals(WeeklyCalendar obj)

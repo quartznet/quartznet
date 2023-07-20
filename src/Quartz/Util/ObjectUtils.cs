@@ -159,7 +159,7 @@ public static class ObjectUtils
         }
     }
 
-    private static readonly ConcurrentDictionary<(Type ObjectType, string PropertyName), PropertyInfo?> propertyResolutionCache = new ();
+    private static readonly ConcurrentDictionary<(Type ObjectType, string PropertyName), PropertyInfo?> propertyResolutionCache = new();
 
     public static void SetPropertyValue(object target, string propertyName, object? value)
     {
@@ -212,7 +212,7 @@ public static class ObjectUtils
             value = ConvertValueIfNecessary(mi.GetParameters()[0].ParameterType, value);
         }
 
-        mi.Invoke(target, new[] {value});
+        mi.Invoke(target, new[] { value });
     }
 
     public static TimeSpan GetTimeSpanValueForProperty(PropertyInfo pi, object? value)

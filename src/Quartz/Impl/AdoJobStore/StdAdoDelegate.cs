@@ -283,7 +283,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
         var isDbNullTask = rs.IsDBNullAsync(colIndex);
         if (isDbNullTask.IsCompleted && isDbNullTask.Result)
         {
-            return new ValueTask<IDictionary?>((IDictionary?)null);
+            return new ValueTask<IDictionary?>((IDictionary?) null);
         }
 
         return Awaited(isDbNullTask);

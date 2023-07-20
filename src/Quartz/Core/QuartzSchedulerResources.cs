@@ -38,7 +38,7 @@ public class QuartzSchedulerResources
     private string instanceId = null!;
     private string threadName = null!;
     private IThreadPool threadPool = null!;
-    private IJobStore jobStore =  null!;
+    private IJobStore jobStore = null!;
     private IJobRunShellFactory jobRunShellFactory = null!;
     private int _maxBatchSize;
     private TimeSpan _idleWaitTime;
@@ -229,7 +229,7 @@ public class QuartzSchedulerResources
     /// Gets or sets the scheduler exporter.
     /// </summary>
     /// <value>The scheduler exporter.</value>
-    public ISchedulerExporter? SchedulerExporter{ get; set; }
+    public ISchedulerExporter? SchedulerExporter { get; set; }
 
     /// <summary>
     /// Gets or sets a value that determines how long the scheduler should wait before checking again

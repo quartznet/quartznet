@@ -18,7 +18,7 @@ public static class DataReaderExtensions
         {
             return null;
         }
-        return (string)columnValue;
+        return (string) columnValue;
     }
 
     /// <summary>
@@ -58,6 +58,6 @@ public static class DataReaderExtensions
     public static decimal GetDecimal(this IDataReader reader, string columnName)
     {
         object columnValue = reader[columnName];
-        return Convert.ToDecimal(columnValue,CultureInfo.InvariantCulture);
+        return Convert.ToDecimal(columnValue, CultureInfo.InvariantCulture);
     }
 }

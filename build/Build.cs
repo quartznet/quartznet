@@ -32,7 +32,7 @@ partial class Build : NukeBuild
     ///   - Microsoft VisualStudio     https://nuke.build/visualstudio
     ///   - Microsoft VSCode           https://nuke.build/vscode
 
-    public static int Main () => Execute<Build>(x => x.Compile);
+    public static int Main() => Execute<Build>(x => x.Compile);
 
     [Parameter("Configuration to build - Default is 'Debug' (local) or 'Release' (server)")]
     readonly Configuration Configuration = IsLocalBuild ? Configuration.Debug : Configuration.Release;
@@ -136,7 +136,7 @@ partial class Build : NukeBuild
                 .EnableNoBuild()
                 .SetConfiguration(Configuration)
                 .SetFramework(framework)
-                .SetLoggers(GitHubActions.Instance is not null ? new [] { "GitHubActions" }  : Array.Empty<string>())
+                .SetLoggers(GitHubActions.Instance is not null ? new[] { "GitHubActions" } : Array.Empty<string>())
                 .CombineWith(testProjects, (_, testProject) => _
                     .SetProjectFile(Solution.GetAllProjects(testProject).First())
                 )
@@ -265,8 +265,8 @@ partial class Build : NukeBuild
             {
                 CopyDirectoryRecursively(source: SourceDirectory / project.Name / "bin" / Configuration, target: zipTempDirectory / "bin" / Configuration / project.Name);
             }
-            
-            var rootFilesToCopy = new []{"README.md","Quartz.sln","quartz.net.snk","license.txt", "changelog.md","build.cmd","build.sh","build.ps1"};
+
+            var rootFilesToCopy = new[] { "README.md", "Quartz.sln", "quartz.net.snk", "license.txt", "changelog.md", "build.cmd", "build.sh", "build.ps1" };
             foreach (var file in rootFilesToCopy)
             {
                 CopyFileToDirectory(RootDirectory / file, zipTempDirectory);

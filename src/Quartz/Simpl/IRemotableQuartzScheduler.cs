@@ -85,7 +85,7 @@ public interface IRemotableQuartzScheduler
 
     void AddJob(IJobDetail jobDetail, bool replace);
 
-    void AddJob(IJobDetail jobDetail, bool replace,bool storeNonDurableWhileAwaitingScheduling);
+    void AddJob(IJobDetail jobDetail, bool replace, bool storeNonDurableWhileAwaitingScheduling);
 
     /// <summary>
     /// returns true if the given JobGroup

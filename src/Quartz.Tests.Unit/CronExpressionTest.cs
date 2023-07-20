@@ -165,12 +165,12 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
         return numbers.ToArray();
     }
 
-    [TestCase("0 15 10 5/5 * MON 2010", new int[] { 4,11,18,25,5,10,15,20,25,30 }, "10:15am every 5th day of the month from 5 to 31, and on Mondays in October 2010")]
-    [TestCase("0 15 10 3 * MON,THU,FRI 2010", new int[] { 1,3,4,11,18,25,7,14,21,28,8,15,22,29 }, "10:15am 3rd of month and every mon,thu,fri October 2010")]
+    [TestCase("0 15 10 5/5 * MON 2010", new int[] { 4, 11, 18, 25, 5, 10, 15, 20, 25, 30 }, "10:15am every 5th day of the month from 5 to 31, and on Mondays in October 2010")]
+    [TestCase("0 15 10 3 * MON,THU,FRI 2010", new int[] { 1, 3, 4, 11, 18, 25, 7, 14, 21, 28, 8, 15, 22, 29 }, "10:15am 3rd of month and every mon,thu,fri October 2010")]
     [TestCase("0 15 10 1,2,3,4,5,6 * MON,THU,FRI 2010", new int[] { 1, 2, 3, 4, 5, 6, 11, 18, 25, 7, 14, 21, 28, 8, 15, 22, 29 }, "10:15am 1-6th of mon and every Mon,Thu,Fri October 2010")]
-    [TestCase("0 15 10 * * MON,THU,FRI 2010", new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30,31 }, "10:15am EveryDay of Month October 2010, Wildcard specified")]
+    [TestCase("0 15 10 * * MON,THU,FRI 2010", new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31 }, "10:15am EveryDay of Month October 2010, Wildcard specified")]
     [TestCase("0 15 10 1 * * 2010", new int[] { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31 }, "10:15am Every Day of Month October 2010, Wildcard specified")]
-    public void CanUse_DayOfMonth_And_DayOfWeek_Together(string cronExpression, int[] expectedDays,string scenario = "")
+    public void CanUse_DayOfMonth_And_DayOfWeek_Together(string cronExpression, int[] expectedDays, string scenario = "")
     {
         var expr = new CronExpression(cronExpression);
         var templateDate = new DateTime(2010, 10, 1, 10, 15, 0).ToUniversalTime();
@@ -181,7 +181,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
             expr.IsSatisfiedBy(date).Should().BeTrue($"expected day of {day}, {scenario}");
         }
 
-        var invalidDays = CreateArrayOfDays(2010,10).Except(expectedDays);
+        var invalidDays = CreateArrayOfDays(2010, 10).Except(expectedDays);
 
         foreach (var day in invalidDays)
         {
@@ -267,7 +267,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
         var expr2 = new CronExpression(expression);
         expr1.Equals(expr2).Should().BeTrue();
 
-        expr1.Equals((object)expr2).Should().BeTrue();
+        expr1.Equals((object) expr2).Should().BeTrue();
     }
 
     [TestCase("0 15 10 15,L-31 * ? 2010")]
@@ -281,11 +281,11 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     [TestCase("L 15 10 15 * ? 2010", false)]
     [TestCase("0 L 10 15 * ? 2010", false)]
     [TestCase("0 15 L 15 * ? 2010", false)]
-    [TestCase("0 15 10 L * ? 2010", true,"Valid for day of month")]
+    [TestCase("0 15 10 L * ? 2010", true, "Valid for day of month")]
     [TestCase("0 15 10 15 L ? 2010", false)]
     [TestCase("0 15 10 ? * L 2010", true, "Valid for day of week")]
     [TestCase("0 15 10 15 * ? L", false)]
-    public void Ensure_L_Token_CanOnlyBeUsedIn_DayOfWeek_ORDayOfMonth(string expression, bool isValid, string description="")
+    public void Ensure_L_Token_CanOnlyBeUsedIn_DayOfWeek_ORDayOfMonth(string expression, bool isValid, string description = "")
     {
         Action act = () => new CronExpression(expression);
         if (isValid)
@@ -368,7 +368,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
         CronExpression cronExpression = new CronExpression("0 0 12 ? * FRI");
         var nextRunTime = cronExpression.GetTimeAfter(DateTimeOffset.Now);
-        var nextRunTime2 = cronExpression.GetTimeAfter((DateTimeOffset)nextRunTime);
+        var nextRunTime2 = cronExpression.GetTimeAfter((DateTimeOffset) nextRunTime);
 
         int[] arrJuneDaysThatShouldFire =
             { 1, 8, 15, 22, 29 };
@@ -382,7 +382,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
         CronExpression cronExpression = new CronExpression("0 0 12 ? * FRI/2");
         var nextRunTime = cronExpression.GetTimeAfter(DateTimeOffset.Now);
-        var nextRunTime2 = cronExpression.GetTimeAfter((DateTimeOffset)nextRunTime);
+        var nextRunTime2 = cronExpression.GetTimeAfter((DateTimeOffset) nextRunTime);
 
         int[] arrJuneDaysThatShouldFire =
             { 1, 15, 29 };
@@ -396,7 +396,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
         CronExpression cronExpression = new CronExpression("0 0 12 ? * THU,FRI/2");
         var nextRunTime = cronExpression.GetTimeAfter(DateTimeOffset.Now);
-        var nextRunTime2 = cronExpression.GetTimeAfter((DateTimeOffset)nextRunTime);
+        var nextRunTime2 = cronExpression.GetTimeAfter((DateTimeOffset) nextRunTime);
 
         int[] arrJuneDaysThatShouldFire =
             { 1, 14, 15, 28, 29 };
@@ -478,7 +478,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
 
         for (int i = 0; i < DateTime.DaysInMonth(2007, 6); ++i)
         {
-            nextFireTime = cronExpression.GetTimeAfter((DateTimeOffset)nextFireTime);
+            nextFireTime = cronExpression.GetTimeAfter((DateTimeOffset) nextFireTime);
             if (!fireDays.Contains(nextFireTime.Value.Day) && nextFireTime.Value.Month == 6 && nextFireTime.Value.Year == 2007)
             {
                 // next fire day may be monday for several days..

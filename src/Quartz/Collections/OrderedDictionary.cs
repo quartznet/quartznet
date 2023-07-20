@@ -1,4 +1,4 @@
-﻿// Licensed to the .NET Foundation under one or more agreements.
+// Licensed to the .NET Foundation under one or more agreements.
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
@@ -102,7 +102,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
     {
         get
         {
-            if ((uint)index >= (uint)Count)
+            if ((uint) index >= (uint) Count)
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException(nameof(index));
             }
@@ -111,7 +111,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
         }
         set
         {
-            if ((uint)index >= (uint)Count)
+            if ((uint) index >= (uint) Count)
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException(nameof(index));
             }
@@ -307,7 +307,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="index" /> is less than 0.-or-<paramref name="index" /> is greater than <see cref="OrderedDictionary{TKey, TValue}.Count" />.</exception>
     public void Insert(int index, TKey key, TValue value)
     {
-        if ((uint)index > (uint)Count)
+        if ((uint) index > (uint) Count)
         {
             ThrowHelper.ThrowArgumentOutOfRangeException(nameof(index));
         }
@@ -331,11 +331,11 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
     /// </exception>
     public void Move(int fromIndex, int toIndex)
     {
-        if ((uint)fromIndex >= (uint)Count)
+        if ((uint) fromIndex >= (uint) Count)
         {
             ThrowHelper.ThrowArgumentOutOfRangeException(nameof(fromIndex));
         }
-        if ((uint)toIndex >= (uint)Count)
+        if ((uint) toIndex >= (uint) Count)
         {
             ThrowHelper.ThrowArgumentOutOfRangeException(nameof(toIndex));
         }
@@ -385,11 +385,11 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
             return;
         }
 
-        if ((uint)fromIndex >= (uint)Count)
+        if ((uint) fromIndex >= (uint) Count)
         {
             ThrowHelper.ThrowArgumentOutOfRangeException(nameof(fromIndex));
         }
-        if ((uint)toIndex >= (uint)Count)
+        if ((uint) toIndex >= (uint) Count)
         {
             ThrowHelper.ThrowArgumentOutOfRangeException(nameof(toIndex));
         }
@@ -485,7 +485,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
     public void RemoveAt(int index)
     {
         int count = Count;
-        if ((uint)index >= (uint)count)
+        if ((uint) index >= (uint) count)
         {
             ThrowHelper.ThrowArgumentOutOfRangeException(nameof(index));
         }
@@ -563,7 +563,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
     {
         get
         {
-            if ((uint)index >= (uint)Count)
+            if ((uint) index >= (uint) Count)
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException(nameof(index));
             }
@@ -573,7 +573,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
         }
         set
         {
-            if ((uint)index >= (uint)Count)
+            if ((uint) index >= (uint) Count)
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException(nameof(index));
             }
@@ -604,7 +604,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
         }
     }
 
-    KeyValuePair<TKey, TValue> IReadOnlyList<KeyValuePair<TKey, TValue>>.this[int index] => ((IList<KeyValuePair<TKey, TValue>>)this)[index];
+    KeyValuePair<TKey, TValue> IReadOnlyList<KeyValuePair<TKey, TValue>>.this[int index] => ((IList<KeyValuePair<TKey, TValue>>) this)[index];
 
     ICollection<TKey> IDictionary<TKey, TValue>.Keys => Keys;
 
@@ -630,7 +630,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
         {
             ThrowHelper.ThrowArgumentNullException(nameof(array));
         }
-        if ((uint)arrayIndex > (uint)array.Length)
+        if ((uint) arrayIndex > (uint) array.Length)
         {
             ThrowHelper.ThrowArgumentOutOfRangeException(nameof(arrayIndex));
         }
@@ -697,8 +697,8 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
         }
 
         IEqualityComparer<TKey>? comparer = _comparer;
-        hashCode = (uint)(comparer?.GetHashCode(key) ?? key.GetHashCode());
-        int index = _buckets[(int)(hashCode % (uint)_buckets.Length)] - 1;
+        hashCode = (uint) (comparer?.GetHashCode(key) ?? key.GetHashCode());
+        int index = _buckets[(int) (hashCode % (uint) _buckets.Length)] - 1;
         if (index >= 0)
         {
             if (comparer == null)
@@ -780,7 +780,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
     // Returns the index of the next entry in the bucket
     private void AddEntryToBucket(ref Entry entry, int entryIndex, int[] buckets)
     {
-        ref int b = ref buckets[(int)(entry.HashCode % (uint)buckets.Length)];
+        ref int b = ref buckets[(int) (entry.HashCode % (uint) buckets.Length)];
         entry.Next = b - 1;
         b = entryIndex + 1;
     }
@@ -789,7 +789,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
     {
         Entry[] entries = _entries;
         Entry entry = entries[entryIndex];
-        ref int b = ref _buckets[(int)(entry.HashCode % (uint)_buckets.Length)];
+        ref int b = ref _buckets[(int) (entry.HashCode % (uint) _buckets.Length)];
         // Bucket was pointing to removed entry. Update it to point to the next in the chain
         if (b == entryIndex + 1)
         {
@@ -824,7 +824,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
     {
         Entry[] entries = _entries;
         Entry entry = entries[entryIndex];
-        ref int b = ref _buckets[(int)(entry.HashCode % (uint)_buckets.Length)];
+        ref int b = ref _buckets[(int) (entry.HashCode % (uint) _buckets.Length)];
         // Bucket was pointing to entry. Increment the index by incrementAmount.
         if (b == entryIndex + 1)
         {

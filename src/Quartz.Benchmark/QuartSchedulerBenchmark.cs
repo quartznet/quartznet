@@ -55,7 +55,7 @@ public class QuartSchedulerBenchmark
 
         _basicScheduler = new StdScheduler(_quartzScheduler1);
 
-        _trigger = (IOperableTrigger)CreateTrigger(TimeSpan.Zero);
+        _trigger = (IOperableTrigger) CreateTrigger(TimeSpan.Zero);
         _trigger.FireInstanceId = Guid.NewGuid().ToString();
 
         _jobExecutionContext = CreateJobExecutionContext(_basicScheduler, _trigger);

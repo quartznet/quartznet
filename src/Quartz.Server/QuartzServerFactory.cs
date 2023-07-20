@@ -21,7 +21,7 @@ public class QuartzServerFactory
 
         Type t = Type.GetType(typeName, true)!;
 
-        logger.LogDebug("Creating new instance of server type '{Type}'" ,typeName);
+        logger.LogDebug("Creating new instance of server type '{Type}'", typeName);
         QuartzServer retValue = (QuartzServer) Activator.CreateInstance(t)!;
         logger.LogDebug("Instance successfully created");
         return retValue;

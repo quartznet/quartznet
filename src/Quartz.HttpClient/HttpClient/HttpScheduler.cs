@@ -150,7 +150,7 @@ public class HttpScheduler : IScheduler
 
     public ValueTask StartDelayed(TimeSpan delay, CancellationToken cancellationToken = default)
     {
-        var delayMilliseconds = (long)Math.Round(delay.TotalMilliseconds);
+        var delayMilliseconds = (long) Math.Round(delay.TotalMilliseconds);
         return httpClient.Post($"{SchedulerEndpointUrl()}/start?delayMilliseconds={delayMilliseconds}", jsonSerializerOptions, cancellationToken);
     }
 

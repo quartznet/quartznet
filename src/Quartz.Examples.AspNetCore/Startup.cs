@@ -346,7 +346,7 @@ public class Startup
             settings.SerializerSettings = new JsonSerializerSettings { Converters = { new StringEnumConverter() } };
             settings.OperationProcessors.Add(new OperationProcessor(context =>
             {
-                var apiDescription = ((AspNetCoreOperationProcessorContext)context).ApiDescription;
+                var apiDescription = ((AspNetCoreOperationProcessorContext) context).ApiDescription;
                 context.OperationDescription.Operation.Summary = apiDescription.ActionDescriptor.DisplayName;
 
                 foreach (var parameter in context.OperationDescription.Operation.Parameters)

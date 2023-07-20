@@ -23,7 +23,7 @@ public static class ObjectExtensions
             BinaryFormatter bf = new BinaryFormatter();
             bf.Serialize(ms, obj);
             ms.Seek(0, SeekOrigin.Begin);
-            return (T)bf.Deserialize(ms);
+            return (T) bf.Deserialize(ms);
         }
     }
 }

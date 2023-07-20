@@ -28,7 +28,8 @@ namespace Quartz.Tests.Unit.Impl.Calendar;
 public class BaseCalendarTest
 {
     [Test]
-    public void TestClone() {
+    public void TestClone()
+    {
         BaseCalendar baseCalendar = new BaseCalendar();
         baseCalendar.Description = "My description";
         baseCalendar.TimeZone = TimeZoneInfo.GetSystemTimeZones()[3];

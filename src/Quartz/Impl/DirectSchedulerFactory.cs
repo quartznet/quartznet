@@ -362,9 +362,9 @@ public class DirectSchedulerFactory : ISchedulerFactory
             }
         }
 
-        logger.LogInformation("Quartz scheduler {SchedulerName}",scheduler.SchedulerName);
+        logger.LogInformation("Quartz scheduler {SchedulerName}", scheduler.SchedulerName);
 
-        logger.LogInformation("Quartz scheduler version: {Version}",qs.Version);
+        logger.LogInformation("Quartz scheduler version: {Version}", qs.Version);
 
         SchedulerRepository schedRep = SchedulerRepository.Instance;
 

@@ -593,30 +593,30 @@ public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTri
 
         if (RepeatIntervalUnit == IntervalUnit.Second)
         {
-            long jumpCount = secondsAfterStart/repeatLong;
-            if (secondsAfterStart%repeatLong != 0)
+            long jumpCount = secondsAfterStart / repeatLong;
+            if (secondsAfterStart % repeatLong != 0)
             {
                 jumpCount++;
             }
-            time = sTime.AddSeconds(RepeatInterval*(int) jumpCount);
+            time = sTime.AddSeconds(RepeatInterval * (int) jumpCount);
         }
         else if (RepeatIntervalUnit == IntervalUnit.Minute)
         {
-            long jumpCount = secondsAfterStart/(repeatLong*60L);
-            if (secondsAfterStart%(repeatLong*60L) != 0)
+            long jumpCount = secondsAfterStart / (repeatLong * 60L);
+            if (secondsAfterStart % (repeatLong * 60L) != 0)
             {
                 jumpCount++;
             }
-            time = sTime.AddMinutes(RepeatInterval*(int) jumpCount);
+            time = sTime.AddMinutes(RepeatInterval * (int) jumpCount);
         }
         else if (RepeatIntervalUnit == IntervalUnit.Hour)
         {
-            long jumpCount = secondsAfterStart/(repeatLong*60L*60L);
-            if (secondsAfterStart%(repeatLong*60L*60L) != 0)
+            long jumpCount = secondsAfterStart / (repeatLong * 60L * 60L);
+            if (secondsAfterStart % (repeatLong * 60L * 60L) != 0)
             {
                 jumpCount++;
             }
-            time = sTime.AddHours(RepeatInterval*(int) jumpCount);
+            time = sTime.AddHours(RepeatInterval * (int) jumpCount);
         }
         else
         {
@@ -635,24 +635,24 @@ public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTri
                 // increment to the start time until we reach the "after time",
                 // we can first make a big leap most of the way there...
 
-                long jumpCount = secondsAfterStart/(repeatLong*24L*60L*60L);
+                long jumpCount = secondsAfterStart / (repeatLong * 24L * 60L * 60L);
                 // if we need to make a big jump, jump most of the way there,
                 // but not all the way because in some cases we may over-shoot or under-shoot
                 if (jumpCount > 20)
                 {
                     if (jumpCount < 50)
                     {
-                        jumpCount = (long) (jumpCount*0.80);
+                        jumpCount = (long) (jumpCount * 0.80);
                     }
                     else if (jumpCount < 500)
                     {
-                        jumpCount = (long) (jumpCount*0.90);
+                        jumpCount = (long) (jumpCount * 0.90);
                     }
                     else
                     {
-                        jumpCount = (long) (jumpCount*0.95);
+                        jumpCount = (long) (jumpCount * 0.95);
                     }
-                    sTime = sTime.AddDays(RepeatInterval*jumpCount);
+                    sTime = sTime.AddDays(RepeatInterval * jumpCount);
                 }
 
                 // now baby-step the rest of the way there...
@@ -679,34 +679,34 @@ public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTri
                 // increment to the start time until we reach the "after time",
                 // we can first make a big leap most of the way there...
 
-                long jumpCount = secondsAfterStart/(repeatLong*7L*24L*60L*60L);
+                long jumpCount = secondsAfterStart / (repeatLong * 7L * 24L * 60L * 60L);
                 // if we need to make a big jump, jump most of the way there,
                 // but not all the way because in some cases we may over-shoot or under-shoot
                 if (jumpCount > 20)
                 {
                     if (jumpCount < 50)
                     {
-                        jumpCount = (long) (jumpCount*0.80);
+                        jumpCount = (long) (jumpCount * 0.80);
                     }
                     else if (jumpCount < 500)
                     {
-                        jumpCount = (long) (jumpCount*0.90);
+                        jumpCount = (long) (jumpCount * 0.90);
                     }
                     else
                     {
-                        jumpCount = (long) (jumpCount*0.95);
+                        jumpCount = (long) (jumpCount * 0.95);
                     }
-                    sTime = sTime.AddDays((int) (RepeatInterval*jumpCount*7));
+                    sTime = sTime.AddDays((int) (RepeatInterval * jumpCount * 7));
                 }
 
                 while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < YearToGiveupSchedulingAt)
                 {
-                    sTime = sTime.AddDays(RepeatInterval*7);
+                    sTime = sTime.AddDays(RepeatInterval * 7);
                     MakeHourAdjustmentIfNeeded(ref sTime, initialHourOfDay); //hours can shift due to DST
                 }
                 while (DaylightSavingHourShiftOccurredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < YearToGiveupSchedulingAt)
                 {
-                    sTime = sTime.AddDays(RepeatInterval*7);
+                    sTime = sTime.AddDays(RepeatInterval * 7);
                 }
                 time = sTime;
             }
@@ -834,31 +834,31 @@ public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTri
 
             if (RepeatIntervalUnit == IntervalUnit.Second)
             {
-                lTime = lTime.AddSeconds(-1*RepeatInterval);
+                lTime = lTime.AddSeconds(-1 * RepeatInterval);
             }
             else if (RepeatIntervalUnit == IntervalUnit.Minute)
             {
-                lTime = lTime.AddMinutes(-1*RepeatInterval);
+                lTime = lTime.AddMinutes(-1 * RepeatInterval);
             }
             else if (RepeatIntervalUnit == IntervalUnit.Hour)
             {
-                lTime = lTime.AddHours(-1*RepeatInterval);
+                lTime = lTime.AddHours(-1 * RepeatInterval);
             }
             else if (RepeatIntervalUnit == IntervalUnit.Day)
             {
-                lTime = lTime.AddDays(-1*RepeatInterval);
+                lTime = lTime.AddDays(-1 * RepeatInterval);
             }
             else if (RepeatIntervalUnit == IntervalUnit.Week)
             {
-                lTime = lTime.AddDays(-1*RepeatInterval*7);
+                lTime = lTime.AddDays(-1 * RepeatInterval * 7);
             }
             else if (RepeatIntervalUnit == IntervalUnit.Month)
             {
-                lTime = lTime.AddMonths(-1*RepeatInterval);
+                lTime = lTime.AddMonths(-1 * RepeatInterval);
             }
             else if (RepeatIntervalUnit == IntervalUnit.Year)
             {
-                lTime = lTime.AddYears(-1*RepeatInterval);
+                lTime = lTime.AddYears(-1 * RepeatInterval);
             }
 
             return lTime;

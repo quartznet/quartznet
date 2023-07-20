@@ -65,7 +65,7 @@ public class DBConnectionManager : IDbConnectionManager
     /// <param name="provider">The provider.</param>
     public virtual void AddConnectionProvider(string dataSourceName, IDbProvider provider)
     {
-        logger.LogInformation("Registering datasource '{DataSource}' with db provider: '{Provider}'",dataSourceName, provider);
+        logger.LogInformation("Registering datasource '{DataSource}' with db provider: '{Provider}'", dataSourceName, provider);
 
         providers[dataSourceName] = provider;
     }

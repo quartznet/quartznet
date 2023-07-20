@@ -28,7 +28,7 @@ public class SimpleJob1Listener : IJobListener
     public virtual string Name => "job1_to_job2";
 
     public virtual ValueTask JobToBeExecuted(
-        IJobExecutionContext inContext, 
+        IJobExecutionContext inContext,
         CancellationToken cancellationToken)
     {
         Console.WriteLine("Job1Listener says: Job Is about to be executed.");

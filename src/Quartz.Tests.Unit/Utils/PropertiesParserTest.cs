@@ -36,12 +36,12 @@ public class PropertiesParserTest
     /// Unit test for full getPropertyGroup() method.
     /// </summary>
     [Test]
-    public void TestGetPropertyGroupStringBooleanStringArray() 
+    public void TestGetPropertyGroupStringBooleanStringArray()
     {
         // Test that an empty property does not cause an exception
         NameValueCollection props = new NameValueCollection();
         props.Add("x.y.z", "");
-        
+
         PropertiesParser propertiesParser = new PropertiesParser(props);
         NameValueCollection propGroup = propertiesParser.GetPropertyGroup("x.y", true);
         Assert.AreEqual("", propGroup.Get("z"));

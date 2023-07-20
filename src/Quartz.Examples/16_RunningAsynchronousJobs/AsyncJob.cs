@@ -50,7 +50,7 @@ public class AsyncJob : IJob
 
         await Task.Delay(TimeSpan.FromSeconds(10), context.CancellationToken);
         Console.WriteLine("Cancellation requested: {0}", context.CancellationToken.IsCancellationRequested);
-   
+
         context.CancellationToken.ThrowIfCancellationRequested();
 
         Console.WriteLine("Finished Executing job: {0} at {1:r}", jobKey, DateTime.Now);

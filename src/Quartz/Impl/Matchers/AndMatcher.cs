@@ -71,8 +71,8 @@ public class AndMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
         const int Prime = 31;
         int result = 1;
-        result = Prime*result + (LeftOperand == null ? 0 : LeftOperand.GetHashCode());
-        result = Prime*result + (RightOperand == null ? 0 : RightOperand.GetHashCode());
+        result = Prime * result + (LeftOperand == null ? 0 : LeftOperand.GetHashCode());
+        result = Prime * result + (RightOperand == null ? 0 : RightOperand.GetHashCode());
         return result;
     }
 

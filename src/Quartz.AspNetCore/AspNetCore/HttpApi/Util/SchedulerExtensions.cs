@@ -1,4 +1,4 @@
-﻿namespace Quartz.AspNetCore.HttpApi.Util;
+namespace Quartz.AspNetCore.HttpApi.Util;
 
 internal static class SchedulerExtensions
 {

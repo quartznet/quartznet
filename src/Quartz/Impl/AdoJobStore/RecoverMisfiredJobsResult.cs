@@ -1,4 +1,4 @@
-﻿namespace Quartz.Impl.AdoJobStore;
+namespace Quartz.Impl.AdoJobStore;
 
 /// <summary>
 /// Helper class for returning the composite result of trying

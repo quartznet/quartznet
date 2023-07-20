@@ -41,9 +41,9 @@ public class JobDetailTest
     [Test]
     public void TestEquals()
     {
-        JobDetailImpl jd1 = new JobDetailImpl("name", "group", typeof (NoOpJob));
-        JobDetailImpl jd2 = new JobDetailImpl("name", "group", typeof (NoOpJob));
-        JobDetailImpl jd3 = new JobDetailImpl("namediff", "groupdiff", typeof (NoOpJob));
+        JobDetailImpl jd1 = new JobDetailImpl("name", "group", typeof(NoOpJob));
+        JobDetailImpl jd2 = new JobDetailImpl("name", "group", typeof(NoOpJob));
+        JobDetailImpl jd3 = new JobDetailImpl("namediff", "groupdiff", typeof(NoOpJob));
         Assert.AreEqual(jd1, jd2);
         Assert.AreNotEqual(jd1, jd3);
         Assert.AreNotEqual(jd2, jd3);
@@ -53,7 +53,7 @@ public class JobDetailTest
     [Test]
     public void TestClone()
     {
-        JobDetailImpl jobDetail = new JobDetailImpl("test",typeof(NoOpJob));
+        JobDetailImpl jobDetail = new JobDetailImpl("test", typeof(NoOpJob));
         JobDetailImpl clonedJobDetail = (JobDetailImpl) jobDetail.Clone();
 
         Assert.AreEqual(jobDetail, clonedJobDetail);

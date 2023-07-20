@@ -179,7 +179,7 @@ public class BroadcastSchedulerListener : ISchedulerListener
     {
         return IterateListenersInGuard(l => l.SchedulerShuttingdown(cancellationToken), nameof(SchedulerShuttingdown));
     }
-        
+
     private async ValueTask IterateListenersInGuard(Func<ISchedulerListener, ValueTask> action, string methodName)
     {
         foreach (var listener in listeners)
@@ -192,7 +192,7 @@ public class BroadcastSchedulerListener : ISchedulerListener
             {
                 if (logger.IsEnabled(LogLevel.Error))
                 {
-                    logger.LogError(e,"Listener method {MethodName} raised an exception: {ExceptionMessage}", methodName,e.Message);
+                    logger.LogError(e, "Listener method {MethodName} raised an exception: {ExceptionMessage}", methodName, e.Message);
                 }
             }
         }

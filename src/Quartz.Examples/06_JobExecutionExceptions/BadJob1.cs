@@ -47,7 +47,7 @@ public class BadJob1 : IJob
         // divide by zero error (only on first run)
         try
         {
-            int calculation = 4815/denominator;
+            int calculation = 4815 / denominator;
         }
         catch (Exception e)
         {

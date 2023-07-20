@@ -68,7 +68,7 @@ public partial class StdAdoDelegate
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteJobDetail));
         if (logger.IsEnabled(LogLevel.Debug))
         {
-            logger.LogDebug("Deleting job: {JobKey}",jobKey);
+            logger.LogDebug("Deleting job: {JobKey}", jobKey);
         }
 
         AddCommandParameter(cmd, "schedulerName", schedName);
@@ -228,7 +228,7 @@ public partial class StdAdoDelegate
 
         if (logger.IsEnabled(LogLevel.Debug))
         {
-            logger.LogDebug("No job for trigger '{TriggerKey}'",triggerKey);
+            logger.LogDebug("No job for trigger '{TriggerKey}'", triggerKey);
         }
 
         return null;
@@ -295,7 +295,7 @@ public partial class StdAdoDelegate
                 return GetObjectFromBlob<T>(rs, colIndex);
             }
 
-            return new ValueTask<T?>((T?)null);
+            return new ValueTask<T?>((T?) null);
         }
 
         return GetObjectFromBlob<T>(rs, colIndex);

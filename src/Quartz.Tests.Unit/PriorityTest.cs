@@ -63,7 +63,7 @@ public class PriorityTest
         IMutableTrigger trig1 = new SimpleTriggerImpl("T1", cal);
         IMutableTrigger trig2 = new SimpleTriggerImpl("T2", cal);
 
-        JobDetailImpl jobDetail = new JobDetailImpl("JD", typeof (TestJob));
+        JobDetailImpl jobDetail = new JobDetailImpl("JD", typeof(TestJob));
 
         await sched.ScheduleJob(jobDetail, trig1);
 
@@ -98,7 +98,7 @@ public class PriorityTest
         IOperableTrigger trig2 = new SimpleTriggerImpl("T2", cal);
         trig2.Priority = 10;
 
-        JobDetailImpl jobDetail = new JobDetailImpl("JD", typeof (TestJob));
+        JobDetailImpl jobDetail = new JobDetailImpl("JD", typeof(TestJob));
 
         await sched.ScheduleJob(jobDetail, trig1);
 

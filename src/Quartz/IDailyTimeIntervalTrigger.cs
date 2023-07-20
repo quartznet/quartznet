@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
@@ -74,7 +74,7 @@ public interface IDailyTimeIntervalTrigger : ITrigger
     /// <summary>
     /// The time of day to start firing at the given interval.
     /// </summary>
-    TimeOfDay StartTimeOfDay { get;  }
+    TimeOfDay StartTimeOfDay { get; }
 
     /// <summary>
     /// The time of day to complete firing at the given interval.

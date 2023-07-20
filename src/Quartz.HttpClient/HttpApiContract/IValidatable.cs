@@ -1,4 +1,4 @@
-﻿namespace Quartz.HttpApiContract;
+namespace Quartz.HttpApiContract;
 
 internal interface IValidatable
 {

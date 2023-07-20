@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 
 namespace Quartz.Calendars;
 
@@ -19,9 +19,9 @@ internal abstract class CalendarSerializer<TCalendar> : ICalendarSerializer wher
 
     public abstract string CalendarTypeForJson { get; }
 
-    void ICalendarSerializer.SerializeFields(Utf8JsonWriter writer, ICalendar calendar) => SerializeFields(writer, (TCalendar)calendar);
+    void ICalendarSerializer.SerializeFields(Utf8JsonWriter writer, ICalendar calendar) => SerializeFields(writer, (TCalendar) calendar);
 
-    void ICalendarSerializer.DeserializeFields(ICalendar calendar, JsonElement jsonElement) => DeserializeFields((TCalendar)calendar, jsonElement);
+    void ICalendarSerializer.DeserializeFields(ICalendar calendar, JsonElement jsonElement) => DeserializeFields((TCalendar) calendar, jsonElement);
 
     protected abstract TCalendar Create(JsonElement jsonElement);
 

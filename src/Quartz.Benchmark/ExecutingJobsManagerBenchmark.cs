@@ -1,7 +1,7 @@
+using System.Collections.Concurrent;
 using BenchmarkDotNet.Attributes;
 using Quartz.Core;
 using Quartz.Spi;
-using System.Collections.Concurrent;
 
 namespace Quartz.Benchmark;
 
@@ -51,7 +51,7 @@ public class ExecutingJobsManagerBenchmark
             CancellationToken cancellationToken = default)
         {
             Interlocked.Increment(ref numJobsFired);
-            executingJobs[((IOperableTrigger)context.Trigger).FireInstanceId] = context;
+            executingJobs[((IOperableTrigger) context.Trigger).FireInstanceId] = context;
             return default;
         }
 
@@ -59,7 +59,7 @@ public class ExecutingJobsManagerBenchmark
             JobExecutionException? jobException,
             CancellationToken cancellationToken = default)
         {
-            executingJobs.TryRemove(((IOperableTrigger)context.Trigger).FireInstanceId, out _);
+            executingJobs.TryRemove(((IOperableTrigger) context.Trigger).FireInstanceId, out _);
             return default;
         }
 

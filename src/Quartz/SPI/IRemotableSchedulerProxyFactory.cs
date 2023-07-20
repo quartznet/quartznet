@@ -1,4 +1,4 @@
-﻿namespace Quartz.Spi;
+namespace Quartz.Spi;
 
 /// <summary>
 /// Client Proxy to a IScheduler

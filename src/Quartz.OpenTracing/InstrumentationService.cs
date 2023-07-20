@@ -1,6 +1,5 @@
-﻿using Microsoft.Extensions.Hosting;
-
 using System.Diagnostics;
+using Microsoft.Extensions.Hosting;
 
 namespace Quartz.OpenTracing;
 

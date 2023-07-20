@@ -42,7 +42,7 @@ internal static partial class HashHelpers
     {
         if ((candidate & 1) != 0)
         {
-            int limit = (int)Math.Sqrt(candidate);
+            int limit = (int) Math.Sqrt(candidate);
             for (int divisor = 3; divisor <= limit; divisor += 2)
             {
                 if ((candidate % divisor) == 0)
@@ -82,7 +82,7 @@ internal static partial class HashHelpers
 
         // Allow the hashtables to grow to maximum possible size (~2G elements) before encountering capacity overflow.
         // Note that this check works even when _items.Length overflowed thanks to the (uint) cast
-        if ((uint)newSize > MaxPrimeArrayLength && MaxPrimeArrayLength > oldSize)
+        if ((uint) newSize > MaxPrimeArrayLength && MaxPrimeArrayLength > oldSize)
         {
             Debug.Assert(MaxPrimeArrayLength == GetPrime(MaxPrimeArrayLength), "Invalid MaxPrimeArrayLength");
             return MaxPrimeArrayLength;

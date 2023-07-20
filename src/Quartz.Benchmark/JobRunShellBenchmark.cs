@@ -62,7 +62,7 @@ public class JobRunShellBenchmark
     {
         var job = new Job();
         var jobDetail = CreateJobDetail("A", job.GetType());
-        var trigger = (IOperableTrigger)CreateTrigger(TimeSpan.FromMilliseconds(0.01d));
+        var trigger = (IOperableTrigger) CreateTrigger(TimeSpan.FromMilliseconds(0.01d));
         trigger.FireInstanceId = Guid.NewGuid().ToString();
 
         return new TriggerFiredBundle(jobDetail, trigger, null, false, DateTimeOffset.Now, null, null, null);

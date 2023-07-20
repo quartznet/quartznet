@@ -37,7 +37,7 @@ public class Configuration
         }
         catch (Exception e)
         {
-            logger.LogWarning(e,"could not read configuration using ConfigurationManager.GetSection: {ErrorMessage}",e.Message);
+            logger.LogWarning(e, "could not read configuration using ConfigurationManager.GetSection: {ErrorMessage}", e.Message);
         }
     }
 

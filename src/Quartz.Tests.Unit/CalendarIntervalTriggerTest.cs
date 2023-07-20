@@ -71,7 +71,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
             RepeatInterval = 6 // every six weeks
         };
 
-        DateTimeOffset targetCalendar = startCalendar.AddDays(7*6*4); // jump 24 weeks (4 intervals)
+        DateTimeOffset targetCalendar = startCalendar.AddDays(7 * 6 * 4); // jump 24 weeks (4 intervals)
 
         var fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 7);
         DateTimeOffset fifthTime = fireTimes[4]; // get the fifth fire time
@@ -724,7 +724,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         var firstFireTime = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 1).First();
         Assert.That(firstFireTime, Is.EqualTo(new DateTimeOffset(2017, 1, 4, 13, 0, 0, TimeSpan.FromHours(-2))));
     }
-        
+
     [Test]
     public void TriggerBuilderShouldHandleIgnoreMisfirePolicy()
     {
@@ -737,7 +737,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         var trigger2 = trigger1
             .GetTriggerBuilder()
             .Build();
-            
+
         trigger1.MisfireInstruction.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
         trigger2.MisfireInstruction.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
     }
@@ -749,7 +749,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
 
         var t = new CalendarIntervalTriggerImpl
         {
-            Key = new TriggerKey("test","testGroup"),
+            Key = new TriggerKey("test", "testGroup"),
             CalendarName = "MyCalendar",
             Description = "CronTriggerDesc",
             JobDataMap = jobDataMap,

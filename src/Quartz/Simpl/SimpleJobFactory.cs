@@ -70,7 +70,7 @@ public class SimpleJobFactory : IJobFactory
         {
             if (logger.IsEnabled(LogLevel.Debug))
             {
-                logger.LogDebug("Producing instance of Job '{JobKey}', class={JobFullName}", jobDetail.Key,jobType.FullName);
+                logger.LogDebug("Producing instance of Job '{JobKey}', class={JobFullName}", jobDetail.Key, jobType.FullName);
             }
 
             return ObjectUtils.InstantiateType<IJob>(jobType);

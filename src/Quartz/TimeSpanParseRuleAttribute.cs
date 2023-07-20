@@ -1,4 +1,4 @@
-﻿namespace Quartz;
+namespace Quartz;
 
 /// <summary>
 /// Attribute to use with public <see cref="TimeSpan" /> properties that

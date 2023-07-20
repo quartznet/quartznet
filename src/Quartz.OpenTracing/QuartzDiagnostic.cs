@@ -1,11 +1,9 @@
-﻿using Microsoft.Extensions.Logging;
+using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenTracing;
 using OpenTracing.Tag;
 using Quartz.Logging;
-
-using System.Diagnostics;
-
 using static Quartz.Logging.OperationName;
 
 namespace Quartz.OpenTracing;

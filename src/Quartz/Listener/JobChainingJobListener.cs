@@ -98,7 +98,7 @@ public class JobChainingJobListener : JobListenerSupport
             return;
         }
 
-        logger.LogInformation("Job '{JobKey}' will now chain to Job '{Job}'", context.JobDetail.Key,sj);
+        logger.LogInformation("Job '{JobKey}' will now chain to Job '{Job}'", context.JobDetail.Key, sj);
 
         try
         {
@@ -106,7 +106,7 @@ public class JobChainingJobListener : JobListenerSupport
         }
         catch (SchedulerException se)
         {
-            logger.LogError(se,"Error encountered during chaining to Job '{Job}'", sj);
+            logger.LogError(se, "Error encountered during chaining to Job '{Job}'", sj);
         }
     }
 }

@@ -46,7 +46,7 @@ public class StdAdoDelegateTest
 
     public StdAdoDelegateTest(Type serializerType)
     {
-        serializer = (IObjectSerializer)Activator.CreateInstance(serializerType);
+        serializer = (IObjectSerializer) Activator.CreateInstance(serializerType);
         serializer.Initialize();
     }
 
@@ -110,7 +110,7 @@ public class StdAdoDelegateTest
         var dbProvider = A.Fake<IDbProvider>();
         var connection = A.Fake<DbConnection>();
         var transaction = A.Fake<DbTransaction>();
-        var command = (DbCommand)A.Fake<StubCommand>();
+        var command = (DbCommand) A.Fake<StubCommand>();
         var dbMetadata = new DbMetadata();
         A.CallTo(() => dbProvider.Metadata).Returns(dbMetadata);
 
@@ -162,7 +162,7 @@ public class StdAdoDelegateTest
         var dbProvider = A.Fake<IDbProvider>();
         var connection = A.Fake<DbConnection>();
         var transaction = A.Fake<DbTransaction>();
-        var command = (DbCommand)A.Fake<StubCommand>();
+        var command = (DbCommand) A.Fake<StubCommand>();
         var dbMetadata = new DbMetadata();
         A.CallTo(() => dbProvider.Metadata).Returns(dbMetadata);
 
@@ -332,7 +332,7 @@ public class StdAdoDelegateTest
         var dbProvider = A.Fake<IDbProvider>();
         var connection = A.Fake<DbConnection>();
         var transaction = A.Fake<DbTransaction>();
-        var command = (DbCommand)A.Fake<StubCommand>();
+        var command = (DbCommand) A.Fake<StubCommand>();
         var dbMetadata = new DbMetadata();
         A.CallTo(() => dbProvider.Metadata).Returns(dbMetadata);
 

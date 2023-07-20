@@ -1,4 +1,4 @@
-﻿using System.Data.Common;
+using System.Data.Common;
 
 using NUnit.Framework;
 
@@ -190,7 +190,7 @@ public class SchedulerBuilderTest
         var builder = SchedulerBuilder.Create()
             .UseXmlSchedulingConfiguration(x =>
             {
-                x.Files = new[] {"jobs.xml", "jobs2.xml"};
+                x.Files = new[] { "jobs.xml", "jobs2.xml" };
                 x.ScanInterval = TimeSpan.FromSeconds(2);
                 x.FailOnFileNotFound = true;
                 x.FailOnSchedulingError = true;

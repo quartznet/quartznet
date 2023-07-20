@@ -95,9 +95,9 @@ internal sealed class MisfireHandler
         }
         catch (Exception e)
         {
-            if (numFails%jobStoreSupport.RetryableActionErrorLogThreshold == 0)
+            if (numFails % jobStoreSupport.RetryableActionErrorLogThreshold == 0)
             {
-                logger.LogError(e,"Error handling misfires: {ExceptionMessage}",e.Message);
+                logger.LogError(e, "Error handling misfires: {ExceptionMessage}", e.Message);
             }
             numFails++;
         }

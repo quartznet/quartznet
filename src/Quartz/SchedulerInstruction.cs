@@ -24,7 +24,7 @@ namespace Quartz;
 /// </summary>
 /// <author>Marko Lahma (.NET)</author>
 public enum SchedulerInstruction
-{        
+{
     /// <summary>
     /// Instructs the <see cref="IScheduler" /> that the <see cref="ITrigger" />
     /// has no further instructions.

@@ -379,8 +379,8 @@ public class DirectSchedulerFactoryTest
         var plugin2 = new TestPlugin(new StringBuilder());
 
         yield return null;
-        yield return new Dictionary<string, ISchedulerPlugin> {{ "TestPlugin1", plugin1 }};
-        yield return new Dictionary<string, ISchedulerPlugin> {{ "TestPlugin1", plugin1 }, { "TestPlugin2", plugin2 }};
+        yield return new Dictionary<string, ISchedulerPlugin> { { "TestPlugin1", plugin1 } };
+        yield return new Dictionary<string, ISchedulerPlugin> { { "TestPlugin1", plugin1 }, { "TestPlugin2", plugin2 } };
         yield return new Dictionary<string, ISchedulerPlugin>();
     }
 

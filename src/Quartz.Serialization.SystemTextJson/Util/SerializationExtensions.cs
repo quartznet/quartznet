@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Text.Json;
 
 namespace Quartz.Util;
@@ -65,7 +65,7 @@ internal static class Utf8JsonWriterExtensions
     {
         var value = jsonElement.GetString() ?? "";
         var result = Enum.Parse(typeof(T), value, ignoreCase: true);
-        return (T)result;
+        return (T) result;
     }
 
     public static void WriteTimeOfDay(this Utf8JsonWriter writer, string propertyName, TimeOfDay value)
@@ -184,7 +184,7 @@ internal static class Utf8JsonWriterExtensions
 
         foreach (var keyValuePair in jobDataMap)
         {
-            writer.WriteString(keyValuePair.Key, (string)keyValuePair.Value);
+            writer.WriteString(keyValuePair.Key, (string) keyValuePair.Value);
         }
 
         writer.WriteEndObject();

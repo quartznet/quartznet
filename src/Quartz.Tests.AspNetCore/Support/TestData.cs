@@ -1,4 +1,4 @@
-﻿using FakeItEasy;
+using FakeItEasy;
 
 using Quartz.Impl;
 using Quartz.Impl.Calendar;
@@ -195,7 +195,7 @@ public static class TestData
             scheduler: A.Fake<IScheduler>(),
             firedBundle: new TriggerFiredBundle(
                 job: JobDetail,
-                trigger: (IOperableTrigger)CronTrigger,
+                trigger: (IOperableTrigger) CronTrigger,
                 cal: CronCalendar,
                 jobIsRecovering: false,
                 fireTimeUtc: DateTimeOffset.Now.AddSeconds(-1),
@@ -210,7 +210,7 @@ public static class TestData
             scheduler: A.Fake<IScheduler>(),
             firedBundle: new TriggerFiredBundle(
                 job: JobDetail2,
-                trigger: (IOperableTrigger)SimpleTrigger,
+                trigger: (IOperableTrigger) SimpleTrigger,
                 cal: null,
                 jobIsRecovering: true,
                 fireTimeUtc: DateTimeOffset.Now.AddSeconds(-5),

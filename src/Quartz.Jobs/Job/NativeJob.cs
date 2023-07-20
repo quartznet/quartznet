@@ -186,7 +186,7 @@ public class NativeJob : IJob
 
             temp = temp.Trim();
 
-            logger.LogInformation("About to run {Command} {Temp}...", cmd[0],temp);
+            logger.LogInformation("About to run {Command} {Temp}...", cmd[0], temp);
 
             Process proc = new Process();
 
@@ -271,20 +271,20 @@ public class NativeJob : IJob
                 {
                     if (type == StreamTypeError)
                     {
-                        enclosingInstance.logger.LogWarning("{Type}>{Line}",type,line);
+                        enclosingInstance.logger.LogWarning("{Type}>{Line}", type, line);
                     }
                     else
                     {
-                        enclosingInstance.logger.LogInformation("{Type}>{Line}",type,line);
+                        enclosingInstance.logger.LogInformation("{Type}>{Line}", type, line);
                     }
                 }
             }
             catch (IOException ioe)
             {
-                enclosingInstance.logger.LogError(ioe,"Error consuming {Type} stream of spawned process.", type);
+                enclosingInstance.logger.LogError(ioe, "Error consuming {Type} stream of spawned process.", type);
             }
         }
     }
 
-     
+
 }

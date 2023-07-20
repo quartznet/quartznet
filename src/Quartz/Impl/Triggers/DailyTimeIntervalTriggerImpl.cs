@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -680,7 +680,7 @@ public class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalT
         // f. Continue to calculate the fireTime by incremental unit of intervals.
         // recall that if fireTime was less that fireTimeStartDate, we didn't get this far
         startTimeUtc = TimeZoneUtil.ConvertTime(fireTimeStartDate, TimeZone);
-        long secondsAfterStart = (long)(fireTime.Value - startTimeUtc).TotalSeconds;
+        long secondsAfterStart = (long) (fireTime.Value - startTimeUtc).TotalSeconds;
         long repeatLong = RepeatInterval;
 
         DateTimeOffset sTime = fireTimeStartDate.ToUniversalTime();
@@ -693,7 +693,7 @@ public class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalT
                 jumpCount++;
             }
 
-            sTime = sTime.AddSeconds(RepeatInterval * (int)jumpCount);
+            sTime = sTime.AddSeconds(RepeatInterval * (int) jumpCount);
             fireTime = TimeZoneUtil.ConvertTime(sTime, TimeZone);
         }
         else if (repeatUnit == IntervalUnit.Minute)
@@ -703,7 +703,7 @@ public class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalT
             {
                 jumpCount++;
             }
-            sTime = sTime.AddMinutes(RepeatInterval * (int)jumpCount);
+            sTime = sTime.AddMinutes(RepeatInterval * (int) jumpCount);
             fireTime = TimeZoneUtil.ConvertTime(sTime, TimeZone);
         }
         else if (repeatUnit == IntervalUnit.Hour)
@@ -713,7 +713,7 @@ public class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalT
             {
                 jumpCount++;
             }
-            sTime = sTime.AddHours(RepeatInterval * (int)jumpCount);
+            sTime = sTime.AddHours(RepeatInterval * (int) jumpCount);
             fireTime = TimeZoneUtil.ConvertTime(sTime, TimeZone);
         }
 

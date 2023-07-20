@@ -176,7 +176,7 @@ public class AdoJobStoreSmokeTest
         await RunAdoJobStoreTest("SQLite", "SQLite", serializerType, properties, clustered: false);
     }
 
-    public static string[] GetSerializerTypes() => new[] {"json", "binary"};
+    public static string[] GetSerializerTypes() => new[] { "json", "binary" };
 
     private Task RunAdoJobStoreTest(string dbProvider, string connectionStringId, string serializerType)
     {
@@ -404,7 +404,7 @@ public class AdoJobStoreSmokeTest
         properties.Add(StdSchedulerFactory.PropertySchedulerTypeLoadHelperType, typeof(SpecialClassLoadHelper).AssemblyQualifiedName);
         var scheduler = await CreateScheduler(properties);
 
-        await scheduler.DeleteJobs(new[] {JobKey.Create("bad"), JobKey.Create("good")});
+        await scheduler.DeleteJobs(new[] { JobKey.Create("bad"), JobKey.Create("good") });
 
         await scheduler.Start();
 

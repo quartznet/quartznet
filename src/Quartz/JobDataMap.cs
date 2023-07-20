@@ -438,7 +438,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     public virtual Guid GetGuidValueFromString(string key)
     {
         object obj = this[key];
-        return Guid.Parse((string)obj);
+        return Guid.Parse((string) obj);
     }
 
     /// <summary>
@@ -465,7 +465,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
 
         if (obj is string s)
         {
-            return s.Length == 0 ? (Guid?)null : GetGuidValueFromString(key);
+            return s.Length == 0 ? (Guid?) null : GetGuidValueFromString(key);
         }
 
         return GetNullableGuid(key);

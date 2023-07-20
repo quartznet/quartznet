@@ -229,7 +229,7 @@ public class StdSchedulerFactory : ISchedulerFactory
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Could not load properties for Quartz from file {propFileName}: {ExceptionMessage}",propFileName, ex.Message);
+                logger.LogError(ex, "Could not load properties for Quartz from file {propFileName}: {ExceptionMessage}", propFileName, ex.Message);
             }
         }
 
@@ -244,7 +244,7 @@ public class StdSchedulerFactory : ISchedulerFactory
             }
             catch (Exception ex)
             {
-                logger.LogError(ex,"Could not load default properties for Quartz from Quartz assembly: {0}".FormatInvariant(ex.Message));
+                logger.LogError(ex, "Could not load default properties for Quartz from Quartz assembly: {0}".FormatInvariant(ex.Message));
             }
         }
 
@@ -655,7 +655,7 @@ Please add configuration to your application config file to correctly initialize
             try
             {
                 objectSerializer = InstantiateType<IObjectSerializer>(loadHelper.LoadType(objectSerializerType));
-                logger.LogInformation("Using object serializer: {Type}",objectSerializerType);
+                logger.LogInformation("Using object serializer: {Type}", objectSerializerType);
 
                 ObjectUtils.SetObjectProperties(objectSerializer, tProps);
 
@@ -678,7 +678,7 @@ Please add configuration to your application config file to correctly initialize
         js.InstanceName = schedName;
         js.InstanceId = schedInstId;
 
-        tProps = cfg.GetPropertyGroup(PropertyJobStorePrefix, true, new[] {PropertyJobStoreLockHandlerPrefix});
+        tProps = cfg.GetPropertyGroup(PropertyJobStorePrefix, true, new[] { PropertyJobStoreLockHandlerPrefix });
 
         try
         {
@@ -699,13 +699,13 @@ Please add configuration to your application config file to correctly initialize
                 try
                 {
                     ISemaphore lockHandler;
-                    var cWithDbProvider = lockHandlerType.GetConstructor(new[] {typeof(DbProvider)});
+                    var cWithDbProvider = lockHandlerType.GetConstructor(new[] { typeof(DbProvider) });
 
                     if (cWithDbProvider != null)
                     {
                         // takes db provider
                         IDbProvider dbProvider = DBConnectionManager.Instance.GetDbProvider(jobStoreSupport.DataSource);
-                        lockHandler = (ISemaphore) cWithDbProvider.Invoke(new object[] {dbProvider});
+                        lockHandler = (ISemaphore) cWithDbProvider.Invoke(new object[] { dbProvider });
                     }
                     else
                     {
@@ -732,7 +732,7 @@ Please add configuration to your application config file to correctly initialize
                     }
 
                     jobStoreSupport.LockHandler = lockHandler;
-                    logger.LogInformation("Using custom data access locking (synchronization): {LockHandlerType}",lockHandlerType);
+                    logger.LogInformation("Using custom data access locking (synchronization): {LockHandlerType}", lockHandlerType);
                 }
                 catch (Exception e)
                 {
@@ -809,7 +809,7 @@ Please add configuration to your application config file to correctly initialize
                 var nameProperty = listener.GetType().GetProperty("Name", BindingFlags.Public | BindingFlags.Instance);
                 if (nameProperty != null && nameProperty.CanWrite)
                 {
-                    nameProperty.GetSetMethod()!.Invoke(listener, new object[] {jobListenerNames[i]});
+                    nameProperty.GetSetMethod()!.Invoke(listener, new object[] { jobListenerNames[i] });
                 }
                 ObjectUtils.SetObjectProperties(listener, lp);
             }
@@ -851,7 +851,7 @@ Please add configuration to your application config file to correctly initialize
                 var nameProperty = listener.GetType().GetProperty("Name", BindingFlags.Public | BindingFlags.Instance);
                 if (nameProperty != null && nameProperty.CanWrite)
                 {
-                    nameProperty.GetSetMethod()!.Invoke(listener, new object[] {triggerListenerNames[i]});
+                    nameProperty.GetSetMethod()!.Invoke(listener, new object[] { triggerListenerNames[i] });
                 }
                 ObjectUtils.SetObjectProperties(listener, lp);
             }
@@ -924,7 +924,7 @@ Please add configuration to your application config file to correctly initialize
                 }
                 catch (Exception e)
                 {
-                    logger.LogError(e,"Couldn't generate instance Id!");
+                    logger.LogError(e, "Couldn't generate instance Id!");
                     ThrowHelper.ThrowInvalidOperationException("Cannot run without an instance id.");
                 }
             }
@@ -1067,7 +1067,7 @@ Please add configuration to your application config file to correctly initialize
         }
         catch (Exception e)
         {
-            logger.LogError(e,"Got another exception while shutting down after instantiation exception");
+            logger.LogError(e, "Got another exception while shutting down after instantiation exception");
         }
     }
 

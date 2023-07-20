@@ -1,4 +1,4 @@
-﻿namespace Quartz;
+namespace Quartz;
 
 /// <summary>
 /// Supported interval units used by <see cref="ICalendarIntervalTrigger" />.

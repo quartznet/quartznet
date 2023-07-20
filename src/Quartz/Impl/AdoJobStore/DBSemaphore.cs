@@ -152,8 +152,8 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
         }
         else if (logger.IsEnabled(LogLevel.Warning))
         {
-            logger.LogWarning("Lock '{LockName}' attempt to return by: {RequestorId} -- but not owner!", lockName,requestorId);
-            logger.LogWarning("stack-trace of wrongful returner: {Stacktrace}",Environment.StackTrace);
+            logger.LogWarning("Lock '{LockName}' attempt to return by: {RequestorId} -- but not owner!", lockName, requestorId);
+            logger.LogWarning("stack-trace of wrongful returner: {Stacktrace}", Environment.StackTrace);
         }
 
         return default;

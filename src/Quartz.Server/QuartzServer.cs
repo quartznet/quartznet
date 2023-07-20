@@ -36,7 +36,7 @@ public class QuartzServer : ServiceControl, IQuartzServer
         }
         catch (Exception e)
         {
-            logger.LogError(e,"Server initialization failed: {ErrorMessage}",e.Message);
+            logger.LogError(e, "Server initialization failed: {ErrorMessage}", e.Message);
             throw;
         }
     }
@@ -77,7 +77,7 @@ public class QuartzServer : ServiceControl, IQuartzServer
         }
         catch (Exception ex)
         {
-            logger.LogCritical(ex,"Scheduler start failed: {ErrorMessage}", ex.Message);
+            logger.LogCritical(ex, "Scheduler start failed: {ErrorMessage}", ex.Message);
             throw;
         }
 
@@ -95,7 +95,7 @@ public class QuartzServer : ServiceControl, IQuartzServer
         }
         catch (Exception ex)
         {
-            logger.LogError(ex,"Scheduler stop failed: {ErrorMessage}", ex.Message);
+            logger.LogError(ex, "Scheduler stop failed: {ErrorMessage}", ex.Message);
             throw;
         }
 

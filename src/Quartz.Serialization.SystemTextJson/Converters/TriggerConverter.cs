@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 using Quartz.Impl.Triggers;
@@ -64,7 +64,7 @@ internal class TriggerConverter : JsonConverter<ITrigger>
                 .WithPriority(priority)
                 .Build();
 
-            ((IMutableTrigger)trigger).MisfireInstruction = misfireInstruction;
+            ((IMutableTrigger) trigger).MisfireInstruction = misfireInstruction;
             return trigger;
         }
         catch (Exception e)

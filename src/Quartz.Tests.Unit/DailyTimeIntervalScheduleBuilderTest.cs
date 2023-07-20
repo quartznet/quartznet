@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -49,7 +49,7 @@ public class DailyTimeIntervalScheduleBuilderTest
 
         var factory = new StdSchedulerFactory(properties);
         IScheduler scheduler = await factory.GetScheduler();
-        IJobDetail job = JobBuilder.Create(typeof (NoOpJob)).Build();
+        IJobDetail job = JobBuilder.Create(typeof(NoOpJob)).Build();
 
         ITrigger trigger = TriggerBuilder.Create()
             .WithIdentity("test")

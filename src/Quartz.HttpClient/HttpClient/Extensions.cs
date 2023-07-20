@@ -1,4 +1,4 @@
-﻿using Quartz.Impl.Matchers;
+using Quartz.Impl.Matchers;
 using Quartz.Util;
 
 namespace Quartz.HttpClient;

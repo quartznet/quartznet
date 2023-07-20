@@ -18,7 +18,7 @@ public class SimpleScheduleBuilderTest
         var trigger2 = trigger1
             .GetTriggerBuilder()
             .Build();
-            
+
         trigger1.MisfireInstruction.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
         trigger2.MisfireInstruction.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
     }
