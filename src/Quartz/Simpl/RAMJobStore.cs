@@ -1611,6 +1611,8 @@ public class RAMJobStore : IJobStore
     {
         lock (lockObject)
         {
+            using DateTimeScope _ = new();
+
             // return empty list if store has no triggers.
             if (timeTriggers.Count == 0)
             {
@@ -2030,5 +2032,21 @@ public class RAMJobStore : IJobStore
     {
         var data = new HashSet<string>(pausedTriggerGroups);
         return new ValueTask<IReadOnlyCollection<string>>(data);
+    }
+
+    private class DateTimeScope : IDisposable
+    {
+        public DateTimeScope()
+        {
+            // Set up the scope - clear the cache if it exists
+            SystemTime.ClearCache();
+            SystemTime.InitCache();
+        }
+
+        public void Dispose()
+        {
+            // Clean up the scope - clear the cache
+            SystemTime.ClearCache();
+        }
     }
 }
