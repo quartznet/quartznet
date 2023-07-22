@@ -1634,7 +1634,7 @@ namespace Quartz.Simpl
 
                 while (true)
                 {
-                    var tw = timeTriggers.FirstOrDefault();
+                    var tw = timeTriggers.Min;
                     if (tw == null)
                     {
                         break;
