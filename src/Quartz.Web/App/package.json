@@ -1,43 +1,68 @@
 {
-  "jspm": {
-    "dependencies": {
-      "aurelia-animator-css": "github:aurelia/animator-css@^0.16.0",
-      "aurelia-binding": "github:aurelia/binding@^0.9.1",
-      "aurelia-bootstrapper": "github:aurelia/bootstrapper@^0.17.0",
-      "aurelia-dependency-injection": "github:aurelia/dependency-injection@^0.10.1",
-      "aurelia-event-aggregator": "github:aurelia/event-aggregator@^0.8.0",
-      "aurelia-framework": "github:aurelia/framework@^0.16.0",
-      "aurelia-history": "github:aurelia/history@^0.7.0",
-      "aurelia-history-browser": "github:aurelia/history-browser@^0.8.0",
-      "aurelia-http-client": "github:aurelia/http-client@^0.11.0",
-      "aurelia-loader": "github:aurelia/loader@^0.9.0",
-      "aurelia-loader-default": "github:aurelia/loader-default@^0.10.0",
-      "aurelia-logging": "github:aurelia/logging@^0.7.0",
-      "aurelia-logging-console": "github:aurelia/logging-console@^0.6.0",
-      "aurelia-metadata": "github:aurelia/metadata@^0.8.0",
-      "aurelia-path": "github:aurelia/path@^0.9.0",
-      "aurelia-route-recognizer": "github:aurelia/route-recognizer@^0.7.0",
-      "aurelia-router": "github:aurelia/router@^0.12.0",
-      "aurelia-task-queue": "github:aurelia/task-queue@^0.7.0",
-      "aurelia-templating": "github:aurelia/templating@^0.15.3",
-      "aurelia-templating-binding": "github:aurelia/templating-binding@^0.15.0",
-      "aurelia-templating-resources": "github:aurelia/templating-resources@^0.15.2",
-      "aurelia-templating-router": "github:aurelia/templating-router@^0.16.1",
-      "aurelia-validation": "github:aurelia/validation@^0.3.1",
-      "bootbox": "npm:bootbox@^4.4.0",
-      "bootstrap": "github:twbs/bootstrap@^3.3.5",
-      "core-js": "npm:core-js@^1.1.4",
-      "font-awesome": "npm:font-awesome@^4.3.0",
-      "jquery": "github:components/jquery@^2.1.4",
-      "moment": "github:moment/moment@^2.10.3",
-      "systemjs": "npm:systemjs@^0.19.0",
-      "toastr": "github:CodeSeven/toastr@^2.1.2"
+  "name": "quartznet-web",
+  "version": "0.1.0",
+  "license": "UNLICENSED",
+  "dependencies": {
+    "@aurelia/router": "latest",
+    "aurelia": "latest"
+  },
+  "devDependencies": {
+    "@aurelia/testing": "latest",
+    "@aurelia/ts-jest": "latest",
+    "@aurelia/webpack-loader": "latest",
+    "@types/jest": "^29.5.2",
+    "@types/node": "^18.11.18",
+    "@typescript-eslint/eslint-plugin": "^5.60.1",
+    "@typescript-eslint/parser": "^5.60.1",
+    "autoprefixer": "^10.4.14",
+    "css-loader": "^6.8.1",
+    "dotenv-webpack": "^8.0.1",
+    "eslint": "^8.43.0",
+    "html-webpack-plugin": "^5.5.3",
+    "htmlhint": "^1.1.4",
+    "jest": "^29.5.0",
+    "jest-environment-jsdom": "^29.5.0",
+    "jest-transform-stub": "^2.0.0",
+    "postcss": "^8.4.24",
+    "postcss-loader": "^7.3.3",
+    "rimraf": "^5.0.1",
+    "style-loader": "^3.3.3",
+    "ts-loader": "^9.4.4",
+    "tslib": "^2.6.0",
+    "typescript": "^5.1.6",
+    "webpack": "^5.88.1",
+    "webpack-bundle-analyzer": "^4.9.0",
+    "webpack-cli": "^5.1.4",
+    "webpack-dev-server": "^4.15.1"
+  },
+  "scripts": {
+    "lint:js": "eslint src test --ext .js,.ts",
+    "lint:html": "htmlhint -c .htmlhintrc src",
+    "lint": "npm run lint:js && npm run lint:html",
+    "pretest": "npm run lint",
+    "start": "webpack serve",
+    "build": "rimraf dist && webpack --env production",
+    "analyze": "rimraf dist && webpack --env production --analyze",
+    "test": "jest"
+  },
+  "jest": {
+    "testMatch": [
+      "<rootDir>/test/**/*.spec.ts"
+    ],
+    "testEnvironment": "jsdom",
+    "transform": {
+      "\\.(css|less|sass|scss|styl|jpg|jpeg|png|gif|eot|otf|webp|svg|ttf|woff|woff2|mp4|webm|wav|mp3|m4a|aac|oga)$": "jest-transform-stub",
+      "\\.(ts|html)$": "@aurelia/ts-jest"
     },
-    "devDependencies": {
-      "babel": "npm:babel-core@^5.8.24",
-      "babel-runtime": "npm:babel-runtime@^5.8.24",
-      "traceur": "github:jmcriffey/bower-traceur@0.0.87",
-      "traceur-runtime": "github:jmcriffey/bower-traceur-runtime@0.0.87"
+    "collectCoverage": true,
+    "collectCoverageFrom": [
+      "src/**/*.ts",
+      "!src/**/*.d.ts"
+    ],
+    "globals": {
+      "ts-jest": {
+        "isolatedModules": true
+      }
     }
   }
 }
