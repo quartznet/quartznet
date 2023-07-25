@@ -1,17 +1,14 @@
-﻿using System;
+﻿namespace Quartz.Web.Api.Dto;
 
-namespace Quartz.Web.Api.Dto
+public class JobHistoryEntryDto
 {
-    public class JobHistoryEntryDto
-    {
-        public string JobName { get; set; }
-        public string JobGroup { get; set; }
-        public string TriggerName { get; set; }
-        public string TriggerGroup { get; set; }
-        public DateTimeOffset FiredTime { get; set; }
-        public DateTimeOffset ScheduledTime { get; set; }
-        public TimeSpan RunTime { get; set; }
-        public bool Error { get; set; }
-        public string ErrorMessage { get; set; }
-    }
+    public required string JobName { get; set; }
+    public required string JobGroup { get; set; }
+    public required string TriggerName { get; set; }
+    public required string TriggerGroup { get; set; }
+    public required DateTimeOffset FiredTime { get; set; }
+    public required DateTimeOffset ScheduledTime { get; set; }
+    public required TimeSpan RunTime { get; set; }
+    public required bool Error { get; set; }
+    public required string ErrorMessage { get; set; }
 }
