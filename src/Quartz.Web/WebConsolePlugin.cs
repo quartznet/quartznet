@@ -1,61 +1,53 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-
 using Microsoft.AspNetCore;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Logging;
+
 using Quartz.Impl.Calendar;
 using Quartz.Logging;
 using Quartz.Spi;
-using Quartz.Util;
-//using Quartz.Web.LiveLog;
 
-namespace Quartz.Web
+namespace Quartz.Web;
+
+public class WebConsolePlugin : ISchedulerPlugin
 {
-    public class WebConsolePlugin : ISchedulerPlugin
+    private static readonly ILogger<WebConsolePlugin> log = LogProvider.CreateLogger<WebConsolePlugin>();
+    private IDisposable? host;
+
+    public string HostName { get; set; } = null!;
+    public int? Port { get; set; }
+
+    public ValueTask Initialize(string pluginName, IScheduler scheduler, CancellationToken cancellationToken)
     {
-        private static readonly ILogger<WebConsolePlugin> log = LogContext.CreateLogger<WebConsolePlugin>();
-        private IDisposable host;
+        // var liveLogPlugin = new LiveLogPlugin();
+        // scheduler.ListenerManager.AddJobListener(liveLogPlugin);
+        // scheduler.ListenerManager.AddTriggerListener(liveLogPlugin);
+        // scheduler.ListenerManager.AddSchedulerListener(liveLogPlugin);
 
-        public string HostName { get; set; }
-        public int? Port { get; set; }
+        // TODO REMOVE
+        scheduler.AddCalendar(nameof(AnnualCalendar), new AnnualCalendar(), false, false, cancellationToken);
+        scheduler.AddCalendar(nameof(CronCalendar), new CronCalendar("0 0/5 * * * ?"), false, false, cancellationToken);
+        scheduler.AddCalendar(nameof(DailyCalendar), new DailyCalendar("12:01", "13:04"), false, false, cancellationToken);
+        scheduler.AddCalendar(nameof(HolidayCalendar), new HolidayCalendar(), false, false, cancellationToken);
+        scheduler.AddCalendar(nameof(MonthlyCalendar), new MonthlyCalendar(), false, false, cancellationToken);
+        scheduler.AddCalendar(nameof(WeeklyCalendar), new WeeklyCalendar(), false, false, cancellationToken);
 
-        public Task Initialize(string pluginName, IScheduler scheduler, CancellationToken cancellationToken)
-        {
-            // var liveLogPlugin = new LiveLogPlugin();
-            // scheduler.ListenerManager.AddJobListener(liveLogPlugin);
-            // scheduler.ListenerManager.AddTriggerListener(liveLogPlugin);
-            // scheduler.ListenerManager.AddSchedulerListener(liveLogPlugin);
+        return default;
+    }
 
-            // TODO REMOVE
-            scheduler.AddCalendar(typeof (AnnualCalendar).Name, new AnnualCalendar(), false, false, cancellationToken);
-            scheduler.AddCalendar(typeof (CronCalendar).Name, new CronCalendar("0 0/5 * * * ?"), false, false, cancellationToken);
-            scheduler.AddCalendar(typeof (DailyCalendar).Name, new DailyCalendar("12:01", "13:04"), false, false, cancellationToken);
-            scheduler.AddCalendar(typeof (HolidayCalendar).Name, new HolidayCalendar(), false, false, cancellationToken);
-            scheduler.AddCalendar(typeof (MonthlyCalendar).Name, new MonthlyCalendar(), false, false, cancellationToken);
-            scheduler.AddCalendar(typeof (WeeklyCalendar).Name, new WeeklyCalendar(), false, false, cancellationToken);
+    public ValueTask Start(CancellationToken cancellationToken = default)
+    {
+        string baseAddress = $"http://{HostName ?? "localhost"}:{Port ?? 28682}/";
 
-            return default;
-        }
+        //host = WebApp.Start<Startup>(url: baseAddress);
+        host = WebHost.CreateDefaultBuilder()
+            .UseStartup<Startup>()
+            .Build();
 
-        public Task Start(CancellationToken cancellationToken)
-        {
-            string baseAddress = $"http://{HostName ?? "localhost"}:{Port ?? 28682}/";
+        log.LogInformation("Quartz Web Console bound to address {BaseAddress}", baseAddress);
+        return default;
+    }
 
-            //host = WebApp.Start<Startup>(url: baseAddress);
-            host = WebHost.CreateDefaultBuilder()
-                .UseStartup<Startup>()
-                .Build();
-            
-            log.LogInformation("Quartz Web Console bound to address {BaseAddress}", baseAddress);
-            return TaskUtil.CompletedTask;
-        }
-
-        public Task Shutdown(CancellationToken cancellationToken)
-        {
-            host?.Dispose();
-            return TaskUtil.CompletedTask;
-        }
+    public ValueTask Shutdown(CancellationToken cancellationToken)
+    {
+        host?.Dispose();
+        return default;
     }
 }
