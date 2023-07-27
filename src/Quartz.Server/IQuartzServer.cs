@@ -9,25 +9,25 @@ public interface IQuartzServer
     /// Initializes the instance of <see cref="IQuartzServer"/>.
     /// Initialization will only be called once in server's lifetime.
     /// </summary>
-    Task Initialize();
+    ValueTask Initialize();
 
     /// <summary>
     /// Starts this instance.
     /// </summary>
-    void Start();
+    ValueTask Start();
 
     /// <summary>
     /// Stops this instance.
     /// </summary>
-    void Stop();
+    ValueTask Stop();
 
     /// <summary>
     /// Pauses all activity in scheduler.
     /// </summary>
-    void Pause();
+    ValueTask Pause();
 
     /// <summary>
     /// Resumes all activity in server.
     /// </summary>
-    void Resume();
+    ValueTask Resume();
 }

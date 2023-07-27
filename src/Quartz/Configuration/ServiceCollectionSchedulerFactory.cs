@@ -32,18 +32,18 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
     public override async ValueTask<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
     {
         base.Initialize(options.Value.ToNameValueCollection());
-        var scheduler = await base.GetScheduler(cancellationToken);
+        var scheduler = await base.GetScheduler(cancellationToken).ConfigureAwait(false);
         if (initialized)
         {
             return scheduler;
         }
 
-        await initializationLock.WaitAsync(cancellationToken);
+        await initializationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
             if (!initialized)
             {
-                await InitializeScheduler(scheduler, cancellationToken);
+                await InitializeScheduler(scheduler, cancellationToken).ConfigureAwait(false);
                 initialized = true;
             }
         }
@@ -80,10 +80,10 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
         var calendars = serviceProvider.GetServices<CalendarConfiguration>();
         foreach (var configuration in calendars)
         {
-            await scheduler.AddCalendar(configuration.Name, configuration.Calendar, configuration.Replace, configuration.UpdateTriggers, cancellationToken);
+            await scheduler.AddCalendar(configuration.Name, configuration.Calendar, configuration.Replace, configuration.UpdateTriggers, cancellationToken).ConfigureAwait(false);
         }
 
-        await processor.ScheduleJobs(scheduler, cancellationToken);
+        await processor.ScheduleJobs(scheduler, cancellationToken).ConfigureAwait(false);
     }
 
     protected override string? GetNamedConnectionString(string connectionStringName)

@@ -1,21 +1,26 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
     <TargetFrameworks>net6.0;net472</TargetFrameworks>
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
+    <NoWarn>$(NoWarn);MA0004</NoWarn>
   </PropertyGroup>
+
   <ItemGroup>
     <Content Include="quartz_jobs.xml">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
     <Compile Include="..\Quartz.Tests.Unit\TestConstants.cs" />
   </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
     <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj" />
     <ProjectReference Include="..\Quartz.Serialization.Newtonsoft\Quartz.Serialization.Newtonsoft.csproj" />
     <ProjectReference Include="..\Quartz.Plugins\Quartz.Plugins.csproj" />
   </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="log4net" />
     <PackageReference Include="Microsoft.Extensions.Logging" />
@@ -27,7 +32,9 @@
     <PackageReference Include="Serilog.Sinks.Console" />
     <PackageReference Include="Spectre.Console" />
   </ItemGroup>
+
   <ItemGroup>
     <None Update="*.config" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+
 </Project>

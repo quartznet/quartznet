@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OpenTracing;
@@ -75,9 +75,8 @@ internal sealed class QuartzDiagnostic : IObserver<DiagnosticListener>, IObserve
     {
         if (eventName == jobExecuteStartEventName)
         {
-            var jobContext = untypedArg as IJobExecutionContext;
-            if (jobContext is null)
-                throw new ArgumentException(nameof(untypedArg));
+            if (untypedArg is not IJobExecutionContext jobContext)
+                throw new ArgumentException("Invalid context", nameof(untypedArg));
 
             if (IgnoreEvent(jobContext))
             {
@@ -102,9 +101,8 @@ internal sealed class QuartzDiagnostic : IObserver<DiagnosticListener>, IObserve
         }
         else if (eventName == jobExecuteExceptionEventName)
         {
-            var jobException = untypedArg as JobExecutionException;
-            if (jobException is null)
-                throw new ArgumentException(nameof(untypedArg));
+            if (untypedArg is not JobExecutionException jobException)
+                throw new ArgumentException("invalid context", nameof(untypedArg));
 
             var scope = tracer.ScopeManager.Active;
             if (scope == null)

@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 
 using Microsoft.Extensions.Logging;
 
@@ -47,11 +47,13 @@ public class JobInterruptMonitorPlugin : TriggerListenerSupport, ISchedulerPlugi
     private void ScheduleJobInterruptMonitor(string fireInstanceId, JobKey jobkey, TimeSpan delay)
     {
         var monitor = new InterruptMonitor(fireInstanceId, jobkey, scheduler, delay);
+#pragma warning disable MA0134
         Task.Factory.StartNew(
             monitor.Run,
             monitor.cancellationTokenSource.Token,
             TaskCreationOptions.HideScheduler,
             taskScheduler).Unwrap();
+#pragma warning restore MA0134
 
         interruptMonitors.TryAdd(fireInstanceId, monitor);
     }
@@ -154,11 +156,11 @@ public class JobInterruptMonitorPlugin : TriggerListenerSupport, ISchedulerPlugi
         {
             try
             {
-                await Task.Delay(delay, cancellationTokenSource.Token);
+                await Task.Delay(delay, cancellationTokenSource.Token).ConfigureAwait(false);
 
                 // Interrupt the job here - using Scheduler API that gets propagated to Job's interrupt
                 logger.LogInformation("Interrupting Job as it ran more than the configured max time. Job Details [{JobName}:{JobGroup}]", jobKey.Name, jobKey.Group);
-                await scheduler.Interrupt(jobKey, cancellationTokenSource.Token);
+                await scheduler.Interrupt(jobKey, cancellationTokenSource.Token).ConfigureAwait(false);
             }
             catch (TaskCanceledException)
             {

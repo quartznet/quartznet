@@ -31,7 +31,7 @@
 
     <CLSCompliant>True</CLSCompliant>
     <ComVisible>False</ComVisible>
-    <NoWarn>1701;1702;1705;618;1591</NoWarn>
+    <NoWarn>1701;1702;1705;618;1591;MA0002;MA0006;MA0011;MA0016;MA0021;MA0025;MA0026;MA0048;MA0049;MA0051;MA0056;MA0064;MA0069;MA0074;MA0077;MA0084;MA0096;MA0097;MA0132</NoWarn>
     <DebugSymbols>True</DebugSymbols>
 
     <LangVersion>latest</LangVersion>

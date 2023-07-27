@@ -158,7 +158,7 @@ public class SendMailJob : IJob
         var value = data.GetString(propertyName);
         if (string.IsNullOrEmpty(value))
         {
-            throw new ArgumentException(propertyName + " not specified.");
+            throw new ArgumentException(propertyName + " not specified.", nameof(propertyName));
         }
         return value!;
     }

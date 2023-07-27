@@ -22,7 +22,7 @@ public class AdoSchedulerTest : AbstractSchedulerTest
         serializer.Initialize();
     }
 
-    protected override ValueTask<IScheduler> CreateScheduler(string name, int threadPoolSize)
+    protected override async ValueTask<IScheduler> CreateScheduler(string name, int threadPoolSize)
     {
         DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType);
 
@@ -36,7 +36,7 @@ public class AdoSchedulerTest : AbstractSchedulerTest
         };
 
         var schedulerName = CreateSchedulerName(name);
-        DirectSchedulerFactory.Instance.CreateScheduler(schedulerName, "AUTO", new DefaultThreadPool(), jobStore);
-        return SchedulerRepository.Instance.Lookup(schedulerName);
+        await DirectSchedulerFactory.Instance.CreateScheduler(schedulerName, "AUTO", new DefaultThreadPool(), jobStore);
+        return await SchedulerRepository.Instance.Lookup(schedulerName);
     }
 }

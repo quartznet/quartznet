@@ -1,14 +1,17 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
     <TargetFrameworks>net6.0;net472</TargetFrameworks>
     <IsPackable>false</IsPackable>
     <Nullable>disable</Nullable>
     <NoWarn>SYSLIB0011;CAC001</NoWarn>
   </PropertyGroup>
+
   <ItemGroup>
     <EmbeddedResource Include="**\TestData\*" />
     <Compile Include="..\Quartz.Tests.Unit\TestConstants.cs" />
   </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="FakeItEasy" />
     <PackageReference Include="FirebirdSql.Data.FirebirdClient" />
@@ -23,19 +26,28 @@
     <PackageReference Include="System.Data.SQLite.Core" />
     <PackageReference Include="NUnit3TestAdapter" />
   </ItemGroup>
+
   <PropertyGroup Condition=" '$(TargetFramework)' == 'net6.0' ">
     <DefineConstants>$(DefineConstants);NETCORE</DefineConstants>
   </PropertyGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
     <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj" />
     <ProjectReference Include="..\Quartz.Serialization.Newtonsoft\Quartz.Serialization.Newtonsoft.csproj" />
   </ItemGroup>
+
   <ItemGroup Condition=" '$(TargetFramework)' == 'net6.0' ">
     <PackageReference Include="Oracle.ManagedDataAccess.Core" />
   </ItemGroup>
+
   <ItemGroup Condition=" '$(TargetFramework)' == 'net472' ">
     <Reference Include="Microsoft.CSharp" />
     <PackageReference Include="Oracle.ManagedDataAccess" />
   </ItemGroup>
+
+  <ItemGroup>
+    <GlobalPackageReference Remove="Meziantou.Analyzer" />
+  </ItemGroup>
+
 </Project>

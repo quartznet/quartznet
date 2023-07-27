@@ -11,7 +11,7 @@ public class ExampleJob : IJob, IDisposable
 
     public async ValueTask Execute(IJobExecutionContext context)
     {
-        logger.LogInformation(context.JobDetail.Key + " job executing, triggered by " + context.Trigger.Key);
+        logger.LogInformation("{Job} job executing, triggered by {Trigger}",context.JobDetail.Key, context.Trigger.Key);
         await Task.Delay(TimeSpan.FromSeconds(1));
     }
 

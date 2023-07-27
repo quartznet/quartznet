@@ -9,7 +9,7 @@ public class SchedulerHelper
 {
     public const string TablePrefix = "QRTZ_";
 
-    public static ValueTask<IScheduler> CreateScheduler(string provider, string name)
+    public static async ValueTask<IScheduler> CreateScheduler(string provider, string name)
     {
         DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType);
 
@@ -24,7 +24,7 @@ public class SchedulerHelper
             ObjectSerializer = serializer
         };
 
-        DirectSchedulerFactory.Instance.CreateScheduler(name + "Scheduler", "AUTO", new DefaultThreadPool(), jobStore);
-        return SchedulerRepository.Instance.Lookup(name + "Scheduler");
+        await DirectSchedulerFactory.Instance.CreateScheduler(name + "Scheduler", "AUTO", new DefaultThreadPool(), jobStore);
+        return await SchedulerRepository.Instance.Lookup(name + "Scheduler");
     }
 }

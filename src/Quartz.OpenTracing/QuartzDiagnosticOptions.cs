@@ -11,7 +11,7 @@ public class QuartzDiagnosticOptions
     public string ComponentName
     {
         get => _componentName;
-        set => _componentName = value ?? throw new ArgumentNullException(nameof(ComponentName));
+        set => _componentName = value ?? throw new ArgumentNullException(nameof(value));
     }
 
     /// <summary>
@@ -27,7 +27,7 @@ public class QuartzDiagnosticOptions
     public Func<IJobExecutionContext, string> OperationNameResolver
     {
         get => _operationNameResolver;
-        set => _operationNameResolver = value ?? throw new ArgumentNullException(nameof(OperationNameResolver));
+        set => _operationNameResolver = value ?? throw new ArgumentNullException(nameof(value));
     }
 
     /// <summary>

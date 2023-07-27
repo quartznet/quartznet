@@ -48,7 +48,7 @@ public class JobDataMapStorageTest : IntegrationTest
         Assert.That(storedTriggerMap.Dirty, Is.False);
     }
 
-    private ValueTask<IScheduler> CreateScheduler(string name)
+    private async ValueTask<IScheduler> CreateScheduler(string name)
     {
         DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType);
 
@@ -63,7 +63,7 @@ public class JobDataMapStorageTest : IntegrationTest
             ObjectSerializer = serializer
         };
 
-        DirectSchedulerFactory.Instance.CreateScheduler(name + "Scheduler", "AUTO", new DefaultThreadPool(), jobStore);
-        return SchedulerRepository.Instance.Lookup(name + "Scheduler");
+        await DirectSchedulerFactory.Instance.CreateScheduler(name + "Scheduler", "AUTO", new DefaultThreadPool(), jobStore);
+        return await SchedulerRepository.Instance.Lookup(name + "Scheduler");
     }
 }

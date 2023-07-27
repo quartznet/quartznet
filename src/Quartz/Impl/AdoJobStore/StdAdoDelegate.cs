@@ -187,7 +187,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
         await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         ps = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteFiredTriggers));
         AddCommandParameter(ps, "schedulerName", schedName);
-        await ps.ExecuteNonQueryAsync(cancellationToken);
+        await ps.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
     //---------------------------------------------------------------------------

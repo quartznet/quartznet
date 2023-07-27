@@ -5,6 +5,7 @@
     <TargetFramework>net6.0</TargetFramework>
     <IsPackable>false</IsPackable>
     <SignAssembly>false</SignAssembly>
+    <NoWarn>$(NoWarn);MA0047</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

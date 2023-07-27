@@ -29,7 +29,7 @@ public class SimpleJob1Listener : IJobListener
 
     public virtual ValueTask JobToBeExecuted(
         IJobExecutionContext inContext,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken = default)
     {
         Console.WriteLine("Job1Listener says: Job Is about to be executed.");
         return default;
@@ -37,7 +37,7 @@ public class SimpleJob1Listener : IJobListener
 
     public virtual ValueTask JobExecutionVetoed(
         IJobExecutionContext inContext,
-        CancellationToken canncellationToken)
+        CancellationToken canncellationToken = default)
     {
         Console.WriteLine("Job1Listener says: Job Execution was vetoed.");
         return default;

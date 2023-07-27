@@ -75,6 +75,8 @@
  
   * `JobStoreSupport`'s `GetNonManagedTXConnection` and `GetConnection` return signatures changed from `ConnectionAndTransactionHolder` to `ValueTask<ConnectionAndTransactionHolder>`
 
+  * `DirectSchedulerFactory.CreateScheduler` must now be `await`ed
+
 #### Cron Parser
 
   * Add cron parser support for 'L' and 'LW' in expression combinations for daysOfMonth (#1939) (#1288)

@@ -1,26 +1,32 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
     <TargetFrameworks>net472;net6.0</TargetFrameworks>
     <OutputType>Exe</OutputType>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
+
   <ItemGroup>
     <None Include="App.config" />
     <Content Include="quartz.config" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="quartz_jobs.xml" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="log4net.config" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
+
   <ItemGroup Condition=" '$(TargetFramework)' == 'net472' ">
     <Reference Include="System.Configuration" />
   </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
     <ProjectReference Include="..\Quartz.Serialization.Newtonsoft\Quartz.Serialization.Newtonsoft.csproj" />
     <ProjectReference Include="..\Quartz.Plugins\Quartz.Plugins.csproj" />
   </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="log4net" />
     <PackageReference Include="Newtonsoft.Json" />
     <PackageReference Include="Topshelf" />
   </ItemGroup>
+
 </Project>

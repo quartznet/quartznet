@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 
 using Quartz.Logging;
 using Quartz.Spi;
@@ -118,11 +118,11 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
 
     public virtual string InstanceName { get; set; } = null!;
 
-    public TaskSchedulingThreadPool() : this(DefaultMaxConcurrency)
+    protected TaskSchedulingThreadPool() : this(DefaultMaxConcurrency)
     {
     }
 
-    public TaskSchedulingThreadPool(int maxConcurrency)
+    protected TaskSchedulingThreadPool(int maxConcurrency)
     {
         logger = LogProvider.CreateLogger<TaskSchedulingThreadPool>();
         MaxConcurrency = maxConcurrency;
@@ -238,7 +238,9 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
         }
 
         // Register a callback to remove the task from the running list once it has completed
+#pragma warning disable MA0134
         unwrappedTask.ContinueWith(completeTask);
+#pragma warning restore MA0134
 
         // Start the task using the task scheduler
         task.Start(Scheduler);

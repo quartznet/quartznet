@@ -98,7 +98,7 @@ public class JobStoreCMT : JobStoreSupport
             conn = ConnectionManager.GetConnection(DataSource);
             if (OpenConnection)
             {
-                await conn.OpenAsync();
+                await conn.OpenAsync().ConfigureAwait(false);
             }
         }
         catch (Exception e)
@@ -143,7 +143,7 @@ public class JobStoreCMT : JobStoreSupport
                 // until after acquiring the lock since it isn't needed.
                 if (LockHandler.RequiresConnection)
                 {
-                    conn = await GetNonManagedTXConnection();
+                    conn = await GetNonManagedTXConnection().ConfigureAwait(false);
                 }
 
                 transOwner = await LockHandler.ObtainLock(requestorId, conn!, lockName, cancellationToken).ConfigureAwait(false);
@@ -151,7 +151,7 @@ public class JobStoreCMT : JobStoreSupport
 
             if (conn == null)
             {
-                conn = await GetNonManagedTXConnection();
+                conn = await GetNonManagedTXConnection().ConfigureAwait(false);
             }
 
             return await txCallback(conn).ConfigureAwait(false);
