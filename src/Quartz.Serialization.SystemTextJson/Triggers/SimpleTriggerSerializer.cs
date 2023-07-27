@@ -4,7 +4,7 @@ using Quartz.Util;
 
 namespace Quartz.Triggers;
 
-internal class SimpleTriggerSerializer : TriggerSerializer<ISimpleTrigger>
+internal sealed class SimpleTriggerSerializer : TriggerSerializer<ISimpleTrigger>
 {
     public static SimpleTriggerSerializer Instance { get; } = new();
 

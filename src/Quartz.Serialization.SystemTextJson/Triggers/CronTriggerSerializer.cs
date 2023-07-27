@@ -4,7 +4,7 @@ using Quartz.Util;
 
 namespace Quartz.Triggers;
 
-internal class CronTriggerSerializer : TriggerSerializer<ICronTrigger>
+internal sealed class CronTriggerSerializer : TriggerSerializer<ICronTrigger>
 {
     public static CronTriggerSerializer Instance { get; } = new();
 

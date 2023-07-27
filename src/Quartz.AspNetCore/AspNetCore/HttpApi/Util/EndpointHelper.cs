@@ -7,7 +7,7 @@ using Quartz.Util;
 
 namespace Quartz.AspNetCore.HttpApi.Util;
 
-internal class EndpointHelper
+internal sealed class EndpointHelper
 {
     public IResult JsonResponse(object data) => Results.Json(data);
 

@@ -1354,7 +1354,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         return removedTrigger;
     }
 
-    private class NullJobTypeLoader : ITypeLoadHelper
+    private sealed class NullJobTypeLoader : ITypeLoadHelper
     {
         public void Initialize()
         {

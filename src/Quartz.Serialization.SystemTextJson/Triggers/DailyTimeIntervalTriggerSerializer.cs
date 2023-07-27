@@ -4,7 +4,7 @@ using Quartz.Util;
 
 namespace Quartz.Triggers;
 
-internal class DailyTimeIntervalTriggerSerializer : TriggerSerializer<IDailyTimeIntervalTrigger>
+internal sealed class DailyTimeIntervalTriggerSerializer : TriggerSerializer<IDailyTimeIntervalTrigger>
 {
     public static DailyTimeIntervalTriggerSerializer Instance { get; } = new();
 

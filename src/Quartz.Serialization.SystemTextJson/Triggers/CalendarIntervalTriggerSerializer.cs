@@ -4,7 +4,7 @@ using Quartz.Util;
 
 namespace Quartz.Triggers;
 
-internal class CalendarIntervalTriggerSerializer : TriggerSerializer<ICalendarIntervalTrigger>
+internal sealed class CalendarIntervalTriggerSerializer : TriggerSerializer<ICalendarIntervalTrigger>
 {
     public static CalendarIntervalTriggerSerializer Instance { get; } = new();
 

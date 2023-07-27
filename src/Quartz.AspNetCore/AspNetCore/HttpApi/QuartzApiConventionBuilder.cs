@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Builder;
 
 namespace Quartz.AspNetCore.HttpApi;
 
-internal class QuartzApiConventionBuilder : IEndpointConventionBuilder
+internal sealed class QuartzApiConventionBuilder : IEndpointConventionBuilder
 {
     private readonly RouteHandlerBuilder[] endpoints;
 

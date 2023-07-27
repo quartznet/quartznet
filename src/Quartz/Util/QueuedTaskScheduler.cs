@@ -19,7 +19,7 @@ namespace Quartz.Util;
 internal sealed class QueuedTaskScheduler : TaskScheduler, IDisposable
 {
     /// <summary>Debug view for the QueuedTaskScheduler.</summary>
-    private class QueuedTaskSchedulerDebugView
+    private sealed class QueuedTaskSchedulerDebugView
     {
         /// <summary>The scheduler.</summary>
         private QueuedTaskScheduler _scheduler;

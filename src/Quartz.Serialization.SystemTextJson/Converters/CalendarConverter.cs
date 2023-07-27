@@ -7,7 +7,7 @@ using Quartz.Util;
 
 namespace Quartz.Converters;
 
-internal class CalendarConverter : JsonConverter<ICalendar>
+internal sealed class CalendarConverter : JsonConverter<ICalendar>
 {
     private static readonly Dictionary<string, ICalendarSerializer> converters = new()
     {

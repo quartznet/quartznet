@@ -8,7 +8,7 @@ using Quartz.Util;
 
 namespace Quartz.Converters;
 
-internal class TriggerConverter : JsonConverter<ITrigger>
+internal sealed class TriggerConverter : JsonConverter<ITrigger>
 {
     private static readonly Dictionary<string, ITriggerSerializer> converters = new()
     {

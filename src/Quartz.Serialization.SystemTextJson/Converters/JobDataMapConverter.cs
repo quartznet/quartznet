@@ -5,7 +5,7 @@ using Quartz.Util;
 
 namespace Quartz.Converters;
 
-internal class JobDataMapConverter : JsonConverter<JobDataMap>
+internal sealed class JobDataMapConverter : JsonConverter<JobDataMap>
 {
     public override JobDataMap Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {

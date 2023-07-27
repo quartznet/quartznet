@@ -187,7 +187,7 @@ internal static class HttpClientExtensions
     }
 
     // Copy & paste from: https://github.com/dotnet/aspnetcore/blob/main/src/Http/Http.Abstractions/src/ProblemDetails/ProblemDetails.cs
-    private class ProblemDetails
+    private sealed class ProblemDetails
     {
         [JsonPropertyName("type")]
         public string? Type { get; set; }

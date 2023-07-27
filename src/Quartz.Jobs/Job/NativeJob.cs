@@ -238,7 +238,7 @@ public class NativeJob : IJob
     /// </summary>
     /// <author>cooste</author>
     /// <author>James House</author>
-    private class StreamConsumer
+    private sealed class StreamConsumer
     {
         private readonly NativeJob enclosingInstance;
         private readonly Stream inputStream;

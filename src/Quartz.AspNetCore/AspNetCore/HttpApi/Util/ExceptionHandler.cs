@@ -8,7 +8,7 @@ using Quartz.HttpApiContract;
 
 namespace Quartz.AspNetCore.HttpApi.Util;
 
-internal class ExceptionHandler
+internal sealed class ExceptionHandler
 {
     private readonly bool includeStackTrace;
     private readonly ILogger logger;
