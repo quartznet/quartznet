@@ -9,6 +9,7 @@
   * Mark UseJsonSerializer as obsolete, one should use UseNewtonsoftJsonSerializer (#2077)
   * Removed obsolete UseMicrosoftDependencyInjectionScopedJobFactory(), mark UseMicrosoftDependencyInjectionJobFactory() obsolete (#2085)
   * Change QuartzHostedService from internal to public (#2090)
+  * Switch to using feedz.io for pre-release builds (#2096)
 
 * FIXES
 

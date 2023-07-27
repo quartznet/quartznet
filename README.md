@@ -16,7 +16,7 @@ Quartz.NET supports .NET Core/netstandard 2.0 and .NET Framework 4.6.2 and later
 ## Installation
 
 * [Stable builds from NuGet](https://www.nuget.org/packages?q=owner%3AQuartz.NET)
-* Pre-release builds from MyGet feed: https://www.myget.org/F/quartznet/api/v3/index.json
+* Pre-release builds from Feedz.io feed: https://f.feedz.io/quartznet/quartznet/nuget/index.json
 
 ## Building
 
