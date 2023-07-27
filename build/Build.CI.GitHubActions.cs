@@ -33,7 +33,7 @@ using Nuke.Common.CI.GitHubActions;
     OnPushExcludePaths = new[] { "docs/**/*", "package.json", "readme.md" },
     PublishArtifacts = true,
     InvokedTargets = new[] { nameof(Compile), nameof(UnitTest), nameof(IntegrationTest), nameof(Pack), nameof(Publish) },
-    ImportSecrets = new [] { "NUGET_API_KEY", "MYGET_API_KEY" },
+    ImportSecrets = new [] { "NUGET_API_KEY", "FEEDZ_API_KEY" },
     CacheKeyFiles = new[] { "global.json", "src/**/*.csproj", "src/**/package.json" })
 ]
 public partial class Build

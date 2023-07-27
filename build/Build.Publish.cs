@@ -13,11 +13,11 @@ public partial class Build
     string NuGetSource => "https://api.nuget.org/v3/index.json";
     [Parameter] [Secret] string NuGetApiKey;
 
-    string MyGetGetSource => "https://www.myget.org/F/quartznet/api/v2/package";
-    [Parameter] [Secret] string MyGetApiKey;
+    string FeedzSource => "https://f.feedz.io/quartznet/quartznet/nuget/index.json";
+    [Parameter] [Secret] string FeedzApiKey;
 
-    string ApiKeyToUse => !string.IsNullOrWhiteSpace(TagVersion) ? NuGetApiKey : MyGetApiKey;
-    string SourceToUse => !string.IsNullOrWhiteSpace(TagVersion) ? NuGetSource : MyGetGetSource;
+    string ApiKeyToUse => !string.IsNullOrWhiteSpace(TagVersion) ? NuGetApiKey : FeedzApiKey;
+    string SourceToUse => !string.IsNullOrWhiteSpace(TagVersion) ? NuGetSource : FeedzSource;
 
     Target Publish => _ => _
         .OnlyWhenDynamic(() => IsRunningOnWindows && (string.Equals("3.x", GitRepository.Branch, StringComparison.OrdinalIgnoreCase) || IsTaggedBuild))

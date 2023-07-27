@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-04/schema#",
-  "title": "Build Schema",
   "$ref": "#/definitions/build",
+  "title": "Build Schema",
   "definitions": {
     "build": {
       "type": "object",
@@ -17,6 +17,10 @@
         "Continue": {
           "type": "boolean",
           "description": "Indicates to continue a previously failed build attempt"
+        },
+        "FeedzApiKey": {
+          "type": "string",
+          "default": "Secrets must be entered via 'nuke :secrets [profile]'"
         },
         "Help": {
           "type": "boolean",
@@ -42,10 +46,6 @@
             "VisualStudio",
             "VSCode"
           ]
-        },
-        "MyGetApiKey": {
-          "type": "string",
-          "default": "Secrets must be entered via 'nuke :secrets [profile]'"
         },
         "NoLogo": {
           "type": "boolean",
@@ -83,6 +83,7 @@
               "ApiDoc",
               "Clean",
               "Compile",
+              "DocsBuild",
               "IntegrationTest",
               "Pack",
               "Publish",
@@ -104,6 +105,7 @@
               "ApiDoc",
               "Clean",
               "Compile",
+              "DocsBuild",
               "IntegrationTest",
               "Pack",
               "Publish",

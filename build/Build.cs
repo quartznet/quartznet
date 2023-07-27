@@ -14,12 +14,14 @@ using Nuke.Common.IO;
 using Nuke.Common.ProjectModel;
 using Nuke.Common.Tooling;
 using Nuke.Common.Tools.DotNet;
+using Nuke.Common.Tools.Npm;
 using Nuke.Common.Utilities.Collections;
 
 using Serilog;
 
 using static Nuke.Common.IO.FileSystemTasks;
 using static Nuke.Common.Tools.DotNet.DotNetTasks;
+using static Nuke.Common.Tools.Npm.NpmTasks;
 
 [ShutdownDotNetAfterServerBuild]
 partial class Build : NukeBuild
@@ -70,8 +72,8 @@ partial class Build : NukeBuild
         .Before(Restore)
         .Executes(() =>
         {
-            SourceDirectory.GlobDirectories("**/bin", "**/obj").ForEach(DeleteDirectory);
-            EnsureCleanDirectory(ArtifactsDirectory);
+            SourceDirectory.GlobDirectories("**/bin", "**/obj").ForEach(x => x.DeleteDirectory());
+            ArtifactsDirectory.CreateOrCleanDirectory();
         });
 
     Target Restore => _ => _
@@ -94,6 +96,30 @@ partial class Build : NukeBuild
             );
         });
 
+    Target DocsBuild => _ => _
+        .Executes(() =>
+        {
+            if (IsServerBuild)
+            {
+                NpmCi();
+            }
+            else
+            {
+                NpmInstall();
+            }
+
+            // https://stackoverflow.com/a/69699772/111604
+            var nodeVersion = ProcessTasks.StartProcess("node", "--version").AssertWaitForExit().Output.FirstOrDefault().Text.Trim();
+            var major = Convert.ToInt32(Regex.Match(nodeVersion, "^v(\\d+)").Groups[1].Captures[0].Value);
+
+            Log.Information("Detected Node.js major version {Version}", major);
+
+            NpmRun(_ => _
+                .SetCommand("docs:build")
+            );
+        });
+
+
     Target UnitTest => _ => _
         .After(Compile)
         .Executes(() =>
@@ -104,13 +130,16 @@ partial class Build : NukeBuild
                 framework = "net6.0";
             }
 
+            var testProjects = new[] { "Quartz.Tests.Unit" };
             DotNetTest(s => s
                 .EnableNoRestore()
                 .EnableNoBuild()
-                .SetProjectFile(Solution.GetProject("Quartz.Tests.Unit"))
                 .SetConfiguration(Configuration)
                 .SetFramework(framework)
                 .SetLoggers(GitHubActions.Instance is not null ? new [] { "GitHubActions" }  : Array.Empty<string>())
+                .CombineWith(testProjects, (_, testProject) => _
+                    .SetProjectFile(Solution.GetAllProjects(testProject).First())
+                )
             );
         });
 
@@ -125,7 +154,8 @@ partial class Build : NukeBuild
 
             static void RunAsPostgresUser(string parameters)
             {
-                ProcessTasks.StartProcess("sudo", $"-u postgres {parameters}", workingDirectory: Path.GetTempPath()).AssertZeroExitCode();
+                // Warn: Be careful refactoring this to concatenation.
+                ProcessTasks.StartProcess("sudo", "-u postgres " + parameters, workingDirectory: Path.GetTempPath()).AssertZeroExitCode();
             }
 
             Log.Information("Creating user...");
@@ -136,7 +166,8 @@ partial class Build : NukeBuild
 
             static void RunPsqlAsQuartznetUser(string parameters)
             {
-                ProcessTasks.StartProcess("psql", $"--username=quartznet --host=localhost {parameters}", environmentVariables: new Dictionary<string, string> { { "PGPASSWORD", "quartznet" } }).AssertZeroExitCode();
+                // Warn: Be careful refactoring this to concatenation
+                ProcessTasks.StartProcess("psql", $"--username=quartznet --host=localhost " + parameters, environmentVariables: new Dictionary<string, string> { { "PGPASSWORD", "quartznet" } }).AssertZeroExitCode();
             }
 
             RunPsqlAsQuartznetUser("--list quartznet");
@@ -153,7 +184,7 @@ partial class Build : NukeBuild
                 .SetLoggers("GitHubActions")
                 .SetFilter("TestCategory!=db-firebird&TestCategory!=db-oracle&TestCategory!=db-mysql&TestCategory!=db-sqlserver")
                 .CombineWith(integrationTestProjects, (_, testProject) => _
-                    .SetProjectFile(Solution.GetProject(testProject))
+                    .SetProjectFile(Solution.GetAllProjects(testProject).First())
                 )
             );
         });
@@ -163,18 +194,36 @@ partial class Build : NukeBuild
         .Produces(ArtifactsDirectory / "*.*")
         .Executes(() =>
         {
-            EnsureCleanDirectory(ArtifactsDirectory);
+            ArtifactsDirectory.CreateOrCleanDirectory();
 
-            DotNetPack(s => s
-                .SetAssemblyVersion(TagVersion)
-                .SetFileVersion(TagVersion)
-                .SetInformationalVersion(TagVersion)
-                .SetVersionSuffix(VersionSuffix)
-                .SetConfiguration(Configuration)
-                .SetOutputDirectory(ArtifactsDirectory)
-                .SetDeterministic(IsServerBuild)
-                .SetContinuousIntegrationBuild(IsServerBuild)
-            );
+            var packTargetProjects = new[]
+            {
+                "Quartz",
+                "Quartz.Extensions.DependencyInjection",
+                "Quartz.Extensions.Hosting",
+                "Quartz.Serialization.Json",
+                "Quartz.AspNetCore",
+                "Quartz.Jobs",
+                "Quartz.Plugins",
+                "Quartz.Plugins.TimeZoneConverter",
+                "Quartz.OpenTelemetry.Instrumentation",
+                "Quartz.OpenTracing"
+            };
+
+            foreach (var project in packTargetProjects)
+            {
+                DotNetPack(s => s
+                    .SetProject(Solution.GetProject(project))
+                    .SetAssemblyVersion(TagVersion)
+                    .SetFileVersion(TagVersion)
+                    .SetInformationalVersion(TagVersion)
+                    .SetVersionSuffix(VersionSuffix)
+                    .SetConfiguration(Configuration)
+                    .SetOutputDirectory(ArtifactsDirectory)
+                    .SetDeterministic(IsServerBuild)
+                    .SetContinuousIntegrationBuild(IsServerBuild)
+                );
+            }
 
             var zipContents = Array.Empty<AbsolutePath>()
                     .Concat(SourceDirectory.GlobFiles("**/*.*"))
@@ -196,7 +245,7 @@ partial class Build : NukeBuild
                 ;
 
             var zipTempDirectory = RootDirectory / "temp" / "package";
-            EnsureCleanDirectory(zipTempDirectory);
+            zipTempDirectory.CreateOrCleanDirectory();
 
             CopyDirectoryRecursively(
                 source: SourceDirectory,
@@ -211,22 +260,19 @@ partial class Build : NukeBuild
 
             CopyDirectoryRecursively(source: RootDirectory / "database", target: zipTempDirectory / "database");
 
-            var binaries = Solution.GetProjects("*")
+            var binaries = Solution.Projects
                 .Where(x => x.GetProperty("IsPackable") != "false" || x.Name.Contains("Example") || x.Name == "Quartz.Server");
 
             foreach (var project in binaries)
             {
                 CopyDirectoryRecursively(source: SourceDirectory / project.Name / "bin" / Configuration, target: zipTempDirectory / "bin" / Configuration / project.Name);
             }
-
-            CopyFileToDirectory("README.md", zipTempDirectory);
-            CopyFileToDirectory("Quartz.sln", zipTempDirectory);
-            CopyFileToDirectory("quartz.net.snk", zipTempDirectory);
-            CopyFileToDirectory("license.txt", zipTempDirectory);
-            CopyFileToDirectory("changelog.md", zipTempDirectory);
-            CopyFileToDirectory("build.cmd", zipTempDirectory);
-            CopyFileToDirectory("build.sh", zipTempDirectory);
-            CopyFileToDirectory("build.ps1", zipTempDirectory);
+            
+            var rootFilesToCopy = new []{"README.md","Quartz.sln","quartz.net.snk","license.txt", "changelog.md","build.cmd","build.sh","build.ps1"};
+            foreach (var file in rootFilesToCopy)
+            {
+                CopyFileToDirectory(RootDirectory / file, zipTempDirectory);
+            }
 
             var props = File.ReadAllText(SourceDirectory / "Directory.Build.props");
             var baseVersion = Regex.Match(props, "<VersionPrefix>(.+)</VersionPrefix>").Groups[1].Captures[0].Value;

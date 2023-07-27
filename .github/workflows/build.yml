@@ -20,7 +20,7 @@ on:
   push:
     branches:
       - main
-      - 3.x
+      - '3.x'
     tags:
       - 'v*.*.*'
     paths:
@@ -35,19 +35,20 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Cache .nuke/temp, ~/.nuget/packages
+      - name: 'Cache: .nuke/temp, ~/.nuget/packages'
         uses: actions/cache@v3
         with:
           path: |
             .nuke/temp
             ~/.nuget/packages
           key: ${{ runner.os }}-${{ hashFiles('global.json', 'src/**/*.csproj', 'src/**/package.json') }}
-      - name: Run './build.cmd Compile UnitTest IntegrationTest Pack Publish'
+      - name: 'Run: Compile, UnitTest, IntegrationTest, Pack, Publish'
         run: ./build.cmd Compile UnitTest IntegrationTest Pack Publish
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-          MYGET_API_KEY: ${{ secrets.MYGET_API_KEY }}
-      - uses: actions/upload-artifact@v3
+          FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
+      - name: 'Publish: artifacts'
+        uses: actions/upload-artifact@v3
         with:
           name: artifacts
           path: artifacts
@@ -56,19 +57,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Cache .nuke/temp, ~/.nuget/packages
+      - name: 'Cache: .nuke/temp, ~/.nuget/packages'
         uses: actions/cache@v3
         with:
           path: |
             .nuke/temp
             ~/.nuget/packages
           key: ${{ runner.os }}-${{ hashFiles('global.json', 'src/**/*.csproj', 'src/**/package.json') }}
-      - name: Run './build.cmd Compile UnitTest IntegrationTest Pack Publish'
+      - name: 'Run: Compile, UnitTest, IntegrationTest, Pack, Publish'
         run: ./build.cmd Compile UnitTest IntegrationTest Pack Publish
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-          MYGET_API_KEY: ${{ secrets.MYGET_API_KEY }}
-      - uses: actions/upload-artifact@v3
+          FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
+      - name: 'Publish: artifacts'
+        uses: actions/upload-artifact@v3
         with:
           name: artifacts
           path: artifacts
@@ -77,19 +79,20 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v3
-      - name: Cache .nuke/temp, ~/.nuget/packages
+      - name: 'Cache: .nuke/temp, ~/.nuget/packages'
         uses: actions/cache@v3
         with:
           path: |
             .nuke/temp
             ~/.nuget/packages
           key: ${{ runner.os }}-${{ hashFiles('global.json', 'src/**/*.csproj', 'src/**/package.json') }}
-      - name: Run './build.cmd Compile UnitTest IntegrationTest Pack Publish'
+      - name: 'Run: Compile, UnitTest, IntegrationTest, Pack, Publish'
         run: ./build.cmd Compile UnitTest IntegrationTest Pack Publish
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-          MYGET_API_KEY: ${{ secrets.MYGET_API_KEY }}
-      - uses: actions/upload-artifact@v3
+          FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
+      - name: 'Publish: artifacts'
+        uses: actions/upload-artifact@v3
         with:
           name: artifacts
           path: artifacts
