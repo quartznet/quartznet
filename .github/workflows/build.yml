@@ -48,7 +48,8 @@ jobs:
           path: |
             .nuke/temp
             ~/.nuget/packages
-          key: ${{ runner.os }}-${{ hashFiles('global.json', 'src/**/*.csproj', 'src/**/package.json') }}
+            !~/.nuget/packages/system.*/**
+          key: ${{ runner.os }}-${{ hashFiles('**/global.json', '**/*.csproj', '**/Directory.Packages.props') }}
       - name: 'Run: Compile, UnitTest, IntegrationTest, Pack, Publish'
         run: ./build.cmd Compile UnitTest IntegrationTest Pack Publish
         env:
@@ -76,7 +77,8 @@ jobs:
           path: |
             .nuke/temp
             ~/.nuget/packages
-          key: ${{ runner.os }}-${{ hashFiles('global.json', 'src/**/*.csproj', 'src/**/package.json') }}
+            !~/.nuget/packages/system.*/**
+          key: ${{ runner.os }}-${{ hashFiles('**/global.json', '**/*.csproj', '**/Directory.Packages.props') }}
       - name: 'Run: Compile, UnitTest, IntegrationTest, Pack, Publish'
         run: ./build.cmd Compile UnitTest IntegrationTest Pack Publish
         env:
@@ -104,7 +106,8 @@ jobs:
           path: |
             .nuke/temp
             ~/.nuget/packages
-          key: ${{ runner.os }}-${{ hashFiles('global.json', 'src/**/*.csproj', 'src/**/package.json') }}
+            !~/.nuget/packages/system.*/**
+          key: ${{ runner.os }}-${{ hashFiles('**/global.json', '**/*.csproj', '**/Directory.Packages.props') }}
       - name: 'Run: Compile, UnitTest, IntegrationTest, Pack, Publish'
         run: ./build.cmd Compile UnitTest IntegrationTest Pack Publish
         env:

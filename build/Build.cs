@@ -66,6 +66,27 @@ partial class Build : NukeBuild
         Log.Information("Configuration:\t{Configuration}", Configuration);
         Log.Information("Version suffix:\t{VersionSuffix}", VersionSuffix);
         Log.Information("Tagged build:\t{IsTaggedBuild}", IsTaggedBuild);
+
+        Log.Information("BEFORE RESTORE:");
+        PrintCacheData();
+    }
+
+    static void PrintCacheData()
+    {
+        foreach (var cacheRoot in new[] { "/home/runner/.nuke/temp", "/home/runner/.nuget/packages" })
+        {
+            Log.Information("Directory {Directory}", cacheRoot);
+            if (!Directory.Exists(cacheRoot))
+            {
+                Log.Warning(" - {Directory} does not exist", cacheRoot);
+                continue;
+            }
+
+            foreach (var dir in Directory.GetDirectories(cacheRoot))
+            {
+                Log.Information(" - {Directory}", dir);
+            }
+        }
     }
 
     Target Clean => _ => _
@@ -81,6 +102,10 @@ partial class Build : NukeBuild
         {
             DotNetRestore(s => s
                 .SetProjectFile(Solution));
+
+            Log.Information("AFTER RESTORE:");
+            PrintCacheData();
+
         });
 
     Target Compile => _ => _
@@ -154,7 +179,7 @@ partial class Build : NukeBuild
 
             static void RunAsPostgresUser(string parameters)
             {
-                // Warn: Be careful refactoring this to concatenation. 
+                // Warn: Be careful refactoring this to concatenation.
                 ProcessTasks.StartProcess("sudo", "-u postgres " + parameters, workingDirectory: Path.GetTempPath()).AssertZeroExitCode();
             }
 
