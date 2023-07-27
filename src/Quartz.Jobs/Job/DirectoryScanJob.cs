@@ -166,7 +166,7 @@ namespace Quartz.Job
             }
         }
 
-        private class FileInfoComparer : IEqualityComparer<FileInfo>
+        private sealed class FileInfoComparer : IEqualityComparer<FileInfo>
         {
             public bool Equals(FileInfo? x, FileInfo? y)
             {

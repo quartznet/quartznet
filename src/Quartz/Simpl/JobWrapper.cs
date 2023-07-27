@@ -1,6 +1,6 @@
 namespace Quartz.Simpl
 {
-    internal class JobWrapper
+    internal sealed class JobWrapper
     {
         public JobKey Key { get; }
         public IJobDetail JobDetail { get; set; }

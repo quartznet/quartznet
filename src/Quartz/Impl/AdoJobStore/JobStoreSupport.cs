@@ -1353,7 +1353,7 @@ namespace Quartz.Impl.AdoJobStore
             return removedTrigger;
         }
 
-        private class NullJobTypeLoader : ITypeLoadHelper
+        private sealed class NullJobTypeLoader : ITypeLoadHelper
         {
             public void Initialize()
             {

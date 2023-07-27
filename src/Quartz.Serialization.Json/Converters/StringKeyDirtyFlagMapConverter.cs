@@ -8,7 +8,7 @@ using Quartz.Util;
 
 namespace Quartz.Converters
 {
-    internal class StringKeyDirtyFlagMapConverter : JsonConverter
+    internal sealed class StringKeyDirtyFlagMapConverter : JsonConverter
     {
         public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
         {

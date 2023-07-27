@@ -2,7 +2,7 @@ using System;
 
 namespace Quartz
 {
-    internal class TriggerConfigurator : ITriggerConfigurator
+    internal sealed class TriggerConfigurator : ITriggerConfigurator
     {
         private readonly TriggerBuilder triggerBuilder = new TriggerBuilder();
 

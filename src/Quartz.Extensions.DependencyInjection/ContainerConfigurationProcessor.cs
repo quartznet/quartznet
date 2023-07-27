@@ -10,7 +10,7 @@ namespace Quartz
     /// <summary>
     /// Reuse logic for adding and removing items by using XMLSchedulingDataProcessor.
     /// </summary>
-    internal class ContainerConfigurationProcessor : XMLSchedulingDataProcessor
+    internal sealed class ContainerConfigurationProcessor : XMLSchedulingDataProcessor
     {
         private readonly IOptions<QuartzOptions> options;
 

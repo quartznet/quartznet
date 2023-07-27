@@ -10,6 +10,7 @@
   * Removed obsolete UseMicrosoftDependencyInjectionScopedJobFactory(), mark UseMicrosoftDependencyInjectionJobFactory() obsolete (#2085)
   * Change QuartzHostedService from internal to public (#2090)
   * Switch to using feedz.io for pre-release builds (#2096)
+  * Make private and internal classes sealed (#2098)
 
 * FIXES
 

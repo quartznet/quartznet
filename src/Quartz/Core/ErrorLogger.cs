@@ -9,7 +9,7 @@ namespace Quartz.Core
     /// <summary>
     /// ErrorLogger - Scheduler Listener Class
     /// </summary>
-    internal class ErrorLogger : SchedulerListenerSupport
+    internal sealed class ErrorLogger : SchedulerListenerSupport
     {
         private readonly ILog log = LogProvider.GetLogger(typeof(ErrorLogger));
 

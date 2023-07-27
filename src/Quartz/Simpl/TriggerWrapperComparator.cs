@@ -6,7 +6,7 @@ namespace Quartz.Simpl
     /// <summary>
     /// Comparer for trigger wrappers.
     /// </summary>
-    internal class TriggerWrapperComparator : IComparer<TriggerWrapper>, IEquatable<TriggerWrapperComparator>
+    internal sealed class TriggerWrapperComparator : IComparer<TriggerWrapper>, IEquatable<TriggerWrapperComparator>
     {
         private readonly TriggerTimeComparator ttc = new TriggerTimeComparator();
 

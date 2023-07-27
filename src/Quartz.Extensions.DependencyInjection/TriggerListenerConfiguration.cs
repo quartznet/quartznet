@@ -2,7 +2,7 @@ using System;
 
 namespace Quartz
 {
-    internal class TriggerListenerConfiguration
+    internal sealed class TriggerListenerConfiguration
     {
         public TriggerListenerConfiguration(Type listenerType, IMatcher<TriggerKey>[] matchers)
         {

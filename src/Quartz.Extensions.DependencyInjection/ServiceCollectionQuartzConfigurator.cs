@@ -9,7 +9,7 @@ using Quartz.Spi;
 
 namespace Quartz
 {
-    internal class ServiceCollectionQuartzConfigurator : IServiceCollectionQuartzConfigurator
+    internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQuartzConfigurator
     {
         private readonly IServiceCollection services;
         private readonly SchedulerBuilder schedulerBuilder;

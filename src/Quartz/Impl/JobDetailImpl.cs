@@ -35,7 +35,7 @@ namespace Quartz.Impl
     /// </summary>
     /// <seealso cref="DisallowConcurrentExecutionAttribute"/>
     /// <seealso cref="PersistJobDataAfterExecutionAttribute"/>
-    internal class JobTypeInformation
+    internal sealed class JobTypeInformation
     {
         private static readonly ConcurrentDictionary<Type, JobTypeInformation> jobTypeCache = new ConcurrentDictionary<Type, JobTypeInformation>();
 

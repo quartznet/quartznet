@@ -7,7 +7,7 @@ using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore
 {
-    internal class MisfireHandler
+    internal sealed class MisfireHandler
     {
         private readonly ILog log;
         // keep constant lock requestor id for handler's lifetime
@@ -30,7 +30,7 @@ namespace Quartz.Impl.AdoJobStore
             cancellationTokenSource = new CancellationTokenSource();
         }
 
-        public virtual void Initialize()
+        public void Initialize()
         {
             task = Task.Factory.StartNew(Run, CancellationToken.None, TaskCreationOptions.HideScheduler, taskScheduler).Unwrap();
         }
@@ -72,7 +72,7 @@ namespace Quartz.Impl.AdoJobStore
             }
         }
 
-        public virtual async Task Shutdown()
+        public async Task Shutdown()
         {
             cancellationTokenSource.Cancel();
             try
