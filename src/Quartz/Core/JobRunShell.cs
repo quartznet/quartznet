@@ -470,7 +470,7 @@ namespace Quartz.Core
         }
 
         [Serializable]
-        internal class VetoedException : Exception
+        internal sealed class VetoedException : Exception
         {
             public VetoedException(JobRunShell shell)
             {

@@ -7,7 +7,7 @@ using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore
 {
-    internal class ClusterManager
+    internal sealed class ClusterManager
     {
         private readonly ILog log;
 

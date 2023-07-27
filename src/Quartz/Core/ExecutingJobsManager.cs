@@ -10,21 +10,21 @@ namespace Quartz.Core
     /// <summary>
     /// ExecutingJobsManager - Job Listener Class.
     /// </summary>
-    internal class ExecutingJobsManager : IJobListener
+    internal sealed class ExecutingJobsManager : IJobListener
     {
-        public virtual string Name => GetType()!.FullName!;
+        public string Name => GetType()!.FullName!;
 
-        public virtual int NumJobsCurrentlyExecuting => executingJobs.Count;
+        public int NumJobsCurrentlyExecuting => executingJobs.Count;
 
-        public virtual int NumJobsFired => numJobsFired;
+        public int NumJobsFired => numJobsFired;
 
-        public virtual IReadOnlyCollection<IJobExecutionContext> ExecutingJobs => new List<IJobExecutionContext>(executingJobs.Values);
+        public IReadOnlyCollection<IJobExecutionContext> ExecutingJobs => new List<IJobExecutionContext>(executingJobs.Values);
 
         private readonly ConcurrentDictionary<string, IJobExecutionContext> executingJobs = new ConcurrentDictionary<string, IJobExecutionContext>();
 
         private int numJobsFired;
 
-        public virtual Task JobToBeExecuted(
+        public Task JobToBeExecuted(
             IJobExecutionContext context,
             CancellationToken cancellationToken = default)
         {
@@ -33,7 +33,7 @@ namespace Quartz.Core
             return Task.CompletedTask;
         }
 
-        public virtual Task JobWasExecuted(IJobExecutionContext context,
+        public Task JobWasExecuted(IJobExecutionContext context,
             JobExecutionException? jobException,
             CancellationToken cancellationToken = default)
         {
@@ -41,7 +41,7 @@ namespace Quartz.Core
             return Task.CompletedTask;
         }
 
-        public virtual Task JobExecutionVetoed(
+        public Task JobExecutionVetoed(
             IJobExecutionContext context,
             CancellationToken cancellationToken = default)
         {
