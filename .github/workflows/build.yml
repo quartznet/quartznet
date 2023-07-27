@@ -53,7 +53,7 @@ jobs:
         run: ./build.cmd Compile UnitTest IntegrationTest Pack Publish
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-          MYGET_API_KEY: ${{ secrets.MYGET_API_KEY }}
+          FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
       - name: 'Publish: artifacts'
         uses: actions/upload-artifact@v3
         with:
@@ -81,7 +81,7 @@ jobs:
         run: ./build.cmd Compile UnitTest IntegrationTest Pack Publish
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-          MYGET_API_KEY: ${{ secrets.MYGET_API_KEY }}
+          FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
       - name: 'Publish: artifacts'
         uses: actions/upload-artifact@v3
         with:
@@ -109,7 +109,7 @@ jobs:
         run: ./build.cmd Compile UnitTest IntegrationTest Pack Publish
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
-          MYGET_API_KEY: ${{ secrets.MYGET_API_KEY }}
+          FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
       - name: 'Publish: artifacts'
         uses: actions/upload-artifact@v3
         with:
