@@ -43,7 +43,7 @@ export const sidebarEn: SidebarConfig = [
       "/documentation/quartz-3.x/how-tos/multiple-triggers",
       "/documentation/quartz-3.x/how-tos/job-template",
       "/documentation/quartz-3.x/how-tos/crontrigger",
-      "/documentation/quartz-3.x/how-tos/reschedule-jobs",
+      "/documentation/quartz-3.x/how-tos/rescheduling-jobs",
     ],
   },
   {
