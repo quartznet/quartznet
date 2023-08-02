@@ -15,4 +15,9 @@
   <ItemGroup>
     <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <GlobalPackageReference Remove="Meziantou.Analyzer" />
+  </ItemGroup>
+
 </Project>

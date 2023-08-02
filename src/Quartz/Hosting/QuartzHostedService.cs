@@ -31,7 +31,7 @@ public sealed class QuartzHostedService : IHostedService
     public async Task StartAsync(CancellationToken cancellationToken)
     {
         // Require successful initialization for application startup to succeed
-        scheduler = await schedulerFactory.GetScheduler(cancellationToken);
+        scheduler = await schedulerFactory.GetScheduler(cancellationToken).ConfigureAwait(false);
 
         if (options.Value.AwaitApplicationStarted) // Sensible mode: proceed with startup, and have jobs start after application startup
         {

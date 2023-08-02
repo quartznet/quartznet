@@ -63,12 +63,12 @@ public class ShutdownHookPlugin : ISchedulerPlugin
         CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Registering Quartz Shutdown hook '{PluginName}'", pluginName);
-        AppDomain.CurrentDomain.ProcessExit += (sender, ea) =>
+        AppDomain.CurrentDomain.ProcessExit += async (sender, ea) =>
         {
             logger.LogInformation("Shutting down Quartz...");
             try
             {
-                scheduler.Shutdown(CleanShutdown, cancellationToken);
+                await scheduler.Shutdown(CleanShutdown, cancellationToken).ConfigureAwait(false);
             }
             catch (SchedulerException e)
             {

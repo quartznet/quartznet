@@ -40,7 +40,9 @@ internal static class ThrowHelper
     [MethodImpl(MethodImplOptions.NoInlining)]
     internal static void ThrowArgumentException(string message)
     {
+#pragma warning disable MA0015
         throw new ArgumentException(message);
+#pragma warning restore MA0015
     }
 
     [DoesNotReturn]
@@ -103,7 +105,9 @@ internal static class ThrowHelper
     [MethodImpl(MethodImplOptions.NoInlining)]
     internal static void ThrowNotImplementedException()
     {
+#pragma warning disable MA0025
         throw new NotImplementedException();
+#pragma warning restore MA0025
     }
 
     [DoesNotReturn]

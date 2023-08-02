@@ -361,6 +361,7 @@ public class QuartzScheduler :
             ThrowHelper.ThrowSchedulerException(
                 "The Scheduler cannot be restarted after Shutdown() has been called.");
         }
+#pragma warning disable MA0134
         Task.Run(async () =>
         {
             await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
@@ -374,6 +375,7 @@ public class QuartzScheduler :
                 logger.LogError(se, "Unable to start scheduler after startup delay.");
             }
         }, cancellationToken);
+#pragma warning restore MA0134
 
         return default;
     }
@@ -1045,7 +1047,7 @@ public class QuartzScheduler :
 
         await resources.JobStore.PauseJob(jobKey, cancellationToken).ConfigureAwait(false);
         NotifySchedulerThread(null);
-        NotifySchedulerListenersPausedJob(jobKey, cancellationToken);
+        await NotifySchedulerListenersPausedJob(jobKey, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -1913,8 +1915,7 @@ public class QuartzScheduler :
     /// <summary>
     /// Notifies the scheduler listeners about paused job.
     /// </summary>
-    public virtual void NotifySchedulerListenersPausedJob(
-        JobKey jobKey,
+    public virtual async ValueTask NotifySchedulerListenersPausedJob(JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
         // build a list of all job listeners that are to be notified...
@@ -1925,7 +1926,7 @@ public class QuartzScheduler :
         {
             try
             {
-                sl.JobPaused(jobKey, cancellationToken);
+                await sl.JobPaused(jobKey, cancellationToken).ConfigureAwait(false);
             }
             catch (Exception e)
             {

@@ -39,7 +39,7 @@ public class RecoverJobsTest
 
         var factory = DirectSchedulerFactory.Instance;
 
-        factory.CreateScheduler(new DefaultThreadPool(), jobStore);
+        await factory.CreateScheduler(new DefaultThreadPool(), jobStore);
         var scheduler = await factory.GetScheduler();
 
         // run forever up to the first fail over situation
@@ -93,7 +93,7 @@ public class RecoverJobsTest
         await Task.Delay(TimeSpan.FromSeconds(4));
 
         var isJobRecovered = new ManualResetEventSlim(false);
-        factory.CreateScheduler(new DefaultThreadPool(), jobStore);
+        await factory.CreateScheduler(new DefaultThreadPool(), jobStore);
         IScheduler recovery = await factory.GetScheduler();
         recovery.ListenerManager.AddJobListener(new TestListener(isJobRecovered));
         await recovery.Start();

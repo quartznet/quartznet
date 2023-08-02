@@ -24,7 +24,7 @@ internal sealed class CalendarConverter : JsonConverter
     {
         if (!converters.TryGetValue(typeName, out var converter))
         {
-            throw new ArgumentException("don't know how to handle " + typeName);
+            throw new ArgumentException("don't know how to handle " + typeName, nameof(typeName));
         }
 
         return converter;

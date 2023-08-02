@@ -96,7 +96,7 @@ public class ZeroSizeThreadPool : IThreadPool
     /// shutting down.
     /// </summary>
     /// <param name="waitForJobsToComplete"></param>
-    public virtual void Shutdown(bool waitForJobsToComplete)
+    public virtual void Shutdown(bool waitForJobsToComplete = true)
     {
         logger.LogDebug("Shutdown complete");
     }

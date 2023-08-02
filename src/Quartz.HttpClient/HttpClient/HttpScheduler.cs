@@ -23,7 +23,7 @@ public class HttpScheduler : IScheduler
         this.httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         if (!this.httpClient.BaseAddress?.ToString().EndsWith("/") == true)
         {
-            throw new ArgumentException("HttpClient's BaseAddress must end in /");
+            throw new ArgumentException("HttpClient's BaseAddress must end in /", nameof(httpClient));
         }
 
         this.jsonSerializerOptions = jsonSerializerOptions ?? new JsonSerializerOptions(JsonSerializerDefaults.Web);
@@ -217,11 +217,6 @@ public class HttpScheduler : IScheduler
         static ScheduleJobsRequestItem CreateRequestItem(KeyValuePair<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJob)
         {
             var (job, triggers) = (triggersAndJob.Key, triggersAndJob.Value);
-            if (triggers == null)
-            {
-                throw new ArgumentNullException(nameof(triggersAndJobs));
-            }
-
             return new ScheduleJobsRequestItem(JobDetailDto.Create(job), triggers.ToArray());
         }
     }

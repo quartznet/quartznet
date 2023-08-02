@@ -27,7 +27,7 @@ public class QuartzServer : ServiceControl, IQuartzServer
     /// <summary>
     /// Initializes the instance of the <see cref="QuartzServer"/> class.
     /// </summary>
-    public virtual async Task Initialize()
+    public virtual async ValueTask Initialize()
     {
         try
         {
@@ -69,11 +69,11 @@ public class QuartzServer : ServiceControl, IQuartzServer
     /// <summary>
     /// Starts this instance, delegates to scheduler.
     /// </summary>
-    public virtual void Start()
+    public virtual async ValueTask Start()
     {
         try
         {
-            scheduler.Start();
+            await scheduler.Start().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -87,11 +87,11 @@ public class QuartzServer : ServiceControl, IQuartzServer
     /// <summary>
     /// Stops this instance, delegates to scheduler.
     /// </summary>
-    public virtual void Stop()
+    public virtual async ValueTask Stop()
     {
         try
         {
-            scheduler.Shutdown(true);
+            await scheduler.Shutdown(waitForJobsToComplete: true).ConfigureAwait(false);
         }
         catch (Exception ex)
         {
@@ -113,17 +113,17 @@ public class QuartzServer : ServiceControl, IQuartzServer
     /// <summary>
     /// Pauses all activity in scheduler.
     /// </summary>
-    public virtual void Pause()
+    public virtual async ValueTask Pause()
     {
-        scheduler.PauseAll();
+        await scheduler.PauseAll().ConfigureAwait(false);
     }
 
     /// <summary>
     /// Resumes all activity in server.
     /// </summary>
-    public void Resume()
+    public async ValueTask Resume()
     {
-        scheduler.ResumeAll();
+        await scheduler.ResumeAll().ConfigureAwait(false);
     }
 
     /// <summary>
@@ -131,7 +131,7 @@ public class QuartzServer : ServiceControl, IQuartzServer
     /// </summary>
     public bool Start(HostControl hostControl)
     {
-        Start();
+        Start().GetAwaiter().GetResult();
         return true;
     }
 
@@ -140,25 +140,7 @@ public class QuartzServer : ServiceControl, IQuartzServer
     /// </summary>
     public bool Stop(HostControl hostControl)
     {
-        Stop();
-        return true;
-    }
-
-    /// <summary>
-    /// TopShelf's method delegated to <see cref="Pause()"/>.
-    /// </summary>
-    public bool Pause(HostControl hostControl)
-    {
-        Pause();
-        return true;
-    }
-
-    /// <summary>
-    /// TopShelf's method delegated to <see cref="Resume()"/>.
-    /// </summary>
-    public bool Continue(HostControl hostControl)
-    {
-        Resume();
+        Stop().GetAwaiter().GetResult();
         return true;
     }
 }

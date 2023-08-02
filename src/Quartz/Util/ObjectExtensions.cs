@@ -8,8 +8,8 @@ namespace Quartz.Util;
 /// </summary>
 public static class ObjectExtensions
 {
-    private static readonly ConcurrentDictionary<Type, string> assemblyQualifiedNameCache = new ConcurrentDictionary<Type, string>();
-    private static readonly Regex cleanup = new Regex(", (Version|Culture|PublicKeyToken)=[0-9.\\w]+", RegexOptions.Compiled);
+    private static readonly ConcurrentDictionary<Type, string> assemblyQualifiedNameCache = new();
+    private static readonly Regex cleanup = new(", (Version|Culture|PublicKeyToken)=[0-9.\\w]+", RegexOptions.Compiled | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(5));
 
     public static string AssemblyQualifiedNameWithoutVersion(this Type type)
         => assemblyQualifiedNameCache.GetOrAdd(type, x => GetTypeString(x) + ", " + x.Assembly.GetName().Name);

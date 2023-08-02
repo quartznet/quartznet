@@ -335,7 +335,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         try
         {
             conn = ConnectionManager.GetConnection(DataSource);
-            await conn.OpenAsync();
+            await conn.OpenAsync().ConfigureAwait(false);
         }
         catch (Exception e)
         {
@@ -3134,7 +3134,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         CancellationToken cancellationToken)
     {
         bool transOwner = false;
-        ConnectionAndTransactionHolder conn = await GetNonManagedTXConnection();
+        ConnectionAndTransactionHolder conn = await GetNonManagedTXConnection().ConfigureAwait(false);
         try
         {
             RecoverMisfiredJobsResult result = RecoverMisfiredJobsResult.NoOp;
@@ -3206,7 +3206,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         bool transStateOwner = false;
         bool recovered = false;
 
-        ConnectionAndTransactionHolder conn = await GetNonManagedTXConnection();
+        ConnectionAndTransactionHolder conn = await GetNonManagedTXConnection().ConfigureAwait(false);
         try
         {
             // Other than the first time, always checkin first to make sure there is
@@ -3947,7 +3947,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 // until after acquiring the lock since it isn't needed.
                 if (LockHandler.RequiresConnection)
                 {
-                    conn = await GetNonManagedTXConnection();
+                    conn = await GetNonManagedTXConnection().ConfigureAwait(false);
                 }
 
                 transOwner = await LockHandler.ObtainLock(requestorId.Value, conn, lockName, cancellationToken).ConfigureAwait(false);
@@ -3955,7 +3955,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
             if (conn == null)
             {
-                conn = await GetNonManagedTXConnection();
+                conn = await GetNonManagedTXConnection().ConfigureAwait(false);
             }
 
             T result = await txCallback(conn).ConfigureAwait(false);

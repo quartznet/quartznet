@@ -27,7 +27,7 @@ public class SampleJob : IJob
     public async ValueTask Execute(IJobExecutionContext context)
     {
         logger.LogInformation("SampleJob running...");
-        await Task.Delay(TimeSpan.FromSeconds(5));
+        await Task.Delay(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
         logger.LogInformation("SampleJob run finished.");
     }
 }

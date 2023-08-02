@@ -59,9 +59,9 @@ public class DirectSchedulerFactoryTest
     }
 
     [Test]
-    public void CreateScheduler_ThreadPoolAndJobStore()
+    public async Task CreateScheduler_ThreadPoolAndJobStore()
     {
-        _directSchedulerFactory.CreateScheduler(_threadPool, _jobStore);
+        await _directSchedulerFactory.CreateScheduler(_threadPool, _jobStore);
 
         var scheduler = _schedulerRepository.Lookup(DirectSchedulerFactory.DefaultSchedulerName).GetAwaiter().GetResult();
         Assert.IsNotNull(scheduler);
@@ -79,12 +79,12 @@ public class DirectSchedulerFactoryTest
     }
 
     [Test]
-    public void CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStore()
+    public async Task CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStore()
     {
         var schedulerName = _random.Next().ToString();
         var schedulerInstanceId = _random.Next().ToString();
 
-        _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore);
+        await _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore);
 
         var scheduler = _schedulerRepository.Lookup(schedulerName).GetAwaiter().GetResult();
         Assert.IsNotNull(scheduler);
@@ -103,14 +103,14 @@ public class DirectSchedulerFactoryTest
     }
 
     [Test]
-    public void CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStoreAndIdleWaitTime_IdleWaitTimeNotValid([ValueSource(nameof(InvalidIdleWaitTimes))] TimeSpan idleWaitTime)
+    public async Task CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStoreAndIdleWaitTime_IdleWaitTimeNotValid([ValueSource(nameof(InvalidIdleWaitTimes))] TimeSpan idleWaitTime)
     {
         var schedulerName = _random.Next().ToString();
         var schedulerInstanceId = _random.Next().ToString();
 
         try
         {
-            _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, idleWaitTime);
+            await _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, idleWaitTime);
             Assert.Fail();
         }
         catch (ArgumentOutOfRangeException ex)
@@ -120,13 +120,13 @@ public class DirectSchedulerFactoryTest
     }
 
     [Test]
-    public void CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStoreAndSchedulerPluginMapAndIdleWaitTime([ValueSource(nameof(ValidIdleWaitTimes))] TimeSpan idleWaitTime,
+    public async Task CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStoreAndSchedulerPluginMapAndIdleWaitTime([ValueSource(nameof(ValidIdleWaitTimes))] TimeSpan idleWaitTime,
         [ValueSource(nameof(ValidSchedulerPluginMaps))] IDictionary<string, ISchedulerPlugin> schedulerPluginMap)
     {
         var schedulerName = _random.Next().ToString();
         var schedulerInstanceId = _random.Next().ToString();
 
-        _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime);
+        await _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime);
 
         var scheduler = _schedulerRepository.Lookup(schedulerName).GetAwaiter().GetResult();
         Assert.IsNotNull(scheduler);
@@ -157,7 +157,7 @@ public class DirectSchedulerFactoryTest
     }
 
     [Test]
-    public void CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStoreAndSchedulerPluginMapAndIdleWaitTime_IdleWaitTimeNotValid([ValueSource(nameof(InvalidIdleWaitTimes))] TimeSpan idleWaitTime)
+    public async Task CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStoreAndSchedulerPluginMapAndIdleWaitTime_IdleWaitTimeNotValid([ValueSource(nameof(InvalidIdleWaitTimes))] TimeSpan idleWaitTime)
     {
         var schedulerName = _random.Next().ToString();
         var schedulerInstanceId = _random.Next().ToString();
@@ -165,7 +165,7 @@ public class DirectSchedulerFactoryTest
 
         try
         {
-            _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime);
+            await _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime);
             Assert.Fail();
         }
         catch (ArgumentOutOfRangeException ex)
@@ -175,7 +175,7 @@ public class DirectSchedulerFactoryTest
     }
 
     [Test]
-    public void CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStoreAndSchedulerPluginMapAndIdleWaitTimeAndMaxBatchSizeAndBatchTimeWindow([ValueSource(nameof(ValidSchedulerPluginMaps))] IDictionary<string, ISchedulerPlugin> schedulerPluginMap,
+    public async Task CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStoreAndSchedulerPluginMapAndIdleWaitTimeAndMaxBatchSizeAndBatchTimeWindow([ValueSource(nameof(ValidSchedulerPluginMaps))] IDictionary<string, ISchedulerPlugin> schedulerPluginMap,
         [ValueSource(nameof(ValidIdleWaitTimes))] TimeSpan idleWaitTime,
         [ValueSource(nameof(ValidMaxBatchSizes))] int maxBatchSize,
         [ValueSource(nameof(ValidBatchTimeWindows))] TimeSpan batchTimeWindow)
@@ -183,7 +183,7 @@ public class DirectSchedulerFactoryTest
         var schedulerName = _random.Next().ToString();
         var schedulerInstanceId = _random.Next().ToString();
 
-        _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow);
+        await _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow);
 
         var scheduler = _schedulerRepository.Lookup(schedulerName).GetAwaiter().GetResult();
         Assert.IsNotNull(scheduler);
@@ -214,7 +214,7 @@ public class DirectSchedulerFactoryTest
     }
 
     [Test]
-    public void CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStoreAndSchedulerPluginMapAndIdleWaitTimeAndMaxBatchSizeAndBatchTimeWindow_IdleWaitTimeNotValid([ValueSource(nameof(InvalidIdleWaitTimes))] TimeSpan idleWaitTime)
+    public async Task CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStoreAndSchedulerPluginMapAndIdleWaitTimeAndMaxBatchSizeAndBatchTimeWindow_IdleWaitTimeNotValid([ValueSource(nameof(InvalidIdleWaitTimes))] TimeSpan idleWaitTime)
     {
         var schedulerName = _random.Next().ToString();
         var schedulerInstanceId = _random.Next().ToString();
@@ -224,7 +224,7 @@ public class DirectSchedulerFactoryTest
 
         try
         {
-            _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow);
+            await _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow);
             Assert.Fail();
         }
         catch (ArgumentOutOfRangeException ex)
@@ -234,7 +234,7 @@ public class DirectSchedulerFactoryTest
     }
 
     [Test]
-    public void CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStoreAndSchedulerPluginMapAndIdleWaitTimeAndMaxBatchSizeAndBatchTimeWindowAndSchedulerExporter([ValueSource(nameof(ValidSchedulerPluginMaps))] IDictionary<string, ISchedulerPlugin> schedulerPluginMap,
+    public async Task CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStoreAndSchedulerPluginMapAndIdleWaitTimeAndMaxBatchSizeAndBatchTimeWindowAndSchedulerExporter([ValueSource(nameof(ValidSchedulerPluginMaps))] IDictionary<string, ISchedulerPlugin> schedulerPluginMap,
         [ValueSource(nameof(ValidIdleWaitTimes))] TimeSpan idleWaitTime,
         [ValueSource(nameof(ValidMaxBatchSizes))] int maxBatchSize,
         [ValueSource(nameof(ValidBatchTimeWindows))] TimeSpan batchTimeWindow,
@@ -243,7 +243,7 @@ public class DirectSchedulerFactoryTest
         var schedulerName = _random.Next().ToString();
         var schedulerInstanceId = _random.Next().ToString();
 
-        _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow, schedulerExporter);
+        await _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow, schedulerExporter);
 
         var scheduler = _schedulerRepository.Lookup(schedulerName).GetAwaiter().GetResult();
         Assert.IsNotNull(scheduler);
@@ -275,7 +275,7 @@ public class DirectSchedulerFactoryTest
     }
 
     [Test]
-    public void CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStoreAndSchedulerPluginMapAndIdleWaitTimeAndMaxBatchSizeAndBatchTimeWindowAndSchedulerExporter_IdleWaitTimeNotValid([ValueSource(nameof(InvalidIdleWaitTimes))] TimeSpan idleWaitTime)
+    public async Task CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStoreAndSchedulerPluginMapAndIdleWaitTimeAndMaxBatchSizeAndBatchTimeWindowAndSchedulerExporter_IdleWaitTimeNotValid([ValueSource(nameof(InvalidIdleWaitTimes))] TimeSpan idleWaitTime)
     {
         var schedulerName = _random.Next().ToString();
         var schedulerInstanceId = _random.Next().ToString();
@@ -286,7 +286,7 @@ public class DirectSchedulerFactoryTest
 
         try
         {
-            _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow, schedulerExporter);
+            await _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow, schedulerExporter).ConfigureAwait(false);
             Assert.Fail();
         }
         catch (ArgumentOutOfRangeException ex)
@@ -296,7 +296,7 @@ public class DirectSchedulerFactoryTest
     }
 
     [Test]
-    public void CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStoreAndSchedulerPluginMapAndIdleWaitTimeAndMaxBatchSizeAndBatchTimeWindowAndSchedulerExporter_MaxBatchSizeNotValid([ValueSource(nameof(InvalidMaxBatchSizes))] int maxBatchSize)
+    public async Task CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStoreAndSchedulerPluginMapAndIdleWaitTimeAndMaxBatchSizeAndBatchTimeWindowAndSchedulerExporter_MaxBatchSizeNotValid([ValueSource(nameof(InvalidMaxBatchSizes))] int maxBatchSize)
     {
         var schedulerName = _random.Next().ToString();
         var schedulerInstanceId = _random.Next().ToString();
@@ -307,7 +307,7 @@ public class DirectSchedulerFactoryTest
 
         try
         {
-            _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow, schedulerExporter);
+            await _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow, schedulerExporter);
             Assert.Fail();
         }
         catch (ArgumentOutOfRangeException ex)
@@ -317,7 +317,7 @@ public class DirectSchedulerFactoryTest
     }
 
     [Test]
-    public void CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStoreAndSchedulerPluginMapAndIdleWaitTimeAndMaxBatchSizeAndBatchTimeWindowAndSchedulerExporter_BatchTimeWindowNotValid([ValueSource(nameof(InvalidBatchTimeWindows))] TimeSpan batchTimeWindow)
+    public async Task CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStoreAndSchedulerPluginMapAndIdleWaitTimeAndMaxBatchSizeAndBatchTimeWindowAndSchedulerExporter_BatchTimeWindowNotValid([ValueSource(nameof(InvalidBatchTimeWindows))] TimeSpan batchTimeWindow)
     {
         var schedulerName = _random.Next().ToString();
         var schedulerInstanceId = _random.Next().ToString();
@@ -328,7 +328,7 @@ public class DirectSchedulerFactoryTest
 
         try
         {
-            _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow, schedulerExporter);
+            await _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow, schedulerExporter);
             Assert.Fail();
         }
         catch (ArgumentOutOfRangeException ex)
@@ -350,7 +350,7 @@ public class DirectSchedulerFactoryTest
             ThreadCount = 1
         };
         threadPool.Initialize();
-        DirectSchedulerFactory.Instance.CreateScheduler(
+        await DirectSchedulerFactory.Instance.CreateScheduler(
             "MyScheduler", "Instance1", threadPool,
             new RAMJobStore(), data,
             TimeSpan.Zero);

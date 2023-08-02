@@ -21,6 +21,7 @@
 
 using System.Collections;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -261,8 +262,8 @@ public sealed class CronExpression : ISerializable
 
     public static readonly int MaxYear = DateTime.Now.Year + 100;
 
-    private static Regex regex = new Regex("^L(-\\d{1,2})?(W(-\\d{1,2})?)?$", RegexOptions.Compiled); //e.g. LW L-0W L-4 L-12W LW-4 LW-12
-    private static Regex offsetRegex = new Regex("LW-(?<offset>[0-9]+)", RegexOptions.Compiled);
+    private static readonly Regex regex = new("^L(-\\d{1,2})?(W(-\\d{1,2})?)?$", RegexOptions.Compiled | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(5)); //e.g. LW L-0W L-4 L-12W LW-4 LW-12
+    private static readonly Regex offsetRegex = new("LW-(?<offset>[0-9]+)", RegexOptions.Compiled | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(5));
 
     static CronExpression()
     {
@@ -2111,12 +2112,14 @@ public sealed class CronExpression : ISerializable
     }
 }
 
+[StructLayout(LayoutKind.Auto)]
 internal readonly record struct ValueAndPosition(int Value, int Position);
 
 /// <summary>
 /// </summary>
 /// <param name="RestartLoop">Indicate if the Next fire date progressor loop should restart</param>
 /// <param name="Date">NextFireDate calculated progress result</param>
+[StructLayout(LayoutKind.Auto)]
 internal readonly record struct NextFireTimeCursor(bool RestartLoop, DateTimeOffset? Date);
 
 /// <summary>

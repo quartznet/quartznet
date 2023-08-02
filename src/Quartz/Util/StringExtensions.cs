@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.InteropServices;
 
 namespace Quartz.Util;
 
@@ -55,6 +56,7 @@ internal static class StringExtensions
     public static StringSplitEnumerator SpanSplit(this ReadOnlySpan<char> span, char ch1, char ch2 = char.MinValue) => new(span, ch1, ch2);
 
     // Must be a ref struct as it contains a ReadOnlySpan<char>
+    [StructLayout(LayoutKind.Auto)]
     public ref struct StringSplitEnumerator
     {
         private ReadOnlySpan<char> _str;
@@ -97,6 +99,7 @@ internal static class StringExtensions
         public StringSplitEntry Current { get; private set; }
     }
 
+    [StructLayout(LayoutKind.Auto)]
     public readonly ref struct StringSplitEntry
     {
         public StringSplitEntry(ReadOnlySpan<char> token, ReadOnlySpan<char> separator)

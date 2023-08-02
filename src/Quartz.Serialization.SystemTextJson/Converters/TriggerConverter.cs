@@ -106,7 +106,7 @@ internal sealed class TriggerConverter : JsonConverter<ITrigger>
     {
         if (string.IsNullOrWhiteSpace(typeName) || !converters.TryGetValue(typeName!, out var converter))
         {
-            throw new ArgumentException("Don't know how to handle " + typeName);
+            throw new ArgumentException("Don't know how to handle " + typeName, nameof(typeName));
         }
 
         return converter;

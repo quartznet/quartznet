@@ -4,6 +4,7 @@
     <TargetFramework>net6.0</TargetFramework>
     <IsPackable>false</IsPackable>
     <SignAssembly>false</SignAssembly>
+    <NoWarn>$(NoWarn);MA0004</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,4 +16,5 @@
   <ItemGroup>
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
   </ItemGroup>
+
 </Project>

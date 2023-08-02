@@ -1,10 +1,12 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
+
   <PropertyGroup>
     <TargetFrameworks>net6.0;net472</TargetFrameworks>
     <IsPackable>false</IsPackable>
     <Nullable>disable</Nullable>
     <NoWarn>SYSLIB0011;CS0618</NoWarn>
   </PropertyGroup>
+
   <ItemGroup>
     <EmbeddedResource Include="Xml\TestData\*" />
     <Content Include="Xml\TestData\JobTypeNotFound.xml">
@@ -14,6 +16,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="FakeItEasy" />
     <PackageReference Include="FluentAssertions" />
@@ -24,6 +27,7 @@
     <PackageReference Include="NUnit" />
     <PackageReference Include="NUnit3TestAdapter" />
   </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
     <ProjectReference Include="..\Quartz.HttpClient\Quartz.HttpClient.csproj" />
@@ -32,7 +36,13 @@
     <ProjectReference Include="..\Quartz.Plugins.TimeZoneConverter\Quartz.Plugins.TimeZoneConverter.csproj" />
     <ProjectReference Include="..\Quartz.Serialization.Newtonsoft\Quartz.Serialization.Newtonsoft.csproj" />
   </ItemGroup>
+
   <PropertyGroup Condition=" '$(TargetFramework)' == 'net6.0' ">
     <DefineConstants>$(DefineConstants);NETCORE</DefineConstants>
   </PropertyGroup>
+
+  <ItemGroup>
+    <GlobalPackageReference Remove="Meziantou.Analyzer" />
+  </ItemGroup>
+
 </Project>
