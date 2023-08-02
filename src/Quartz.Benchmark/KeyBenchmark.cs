@@ -12,24 +12,24 @@ public class KeyBenchmark
     private const string GroupNameA = "GroupNameA";
     private const string GroupNameB = "GroupNameB";
 
-    private Key<JobKey> _keyNameAGroupA;
-    private Key<JobKey> _keyNameAGroupASameReferenceForNameAndGroup;
-    private Key<JobKey> _keyNameAGroupANotSameReferenceForName;
-    private Key<JobKey> _keyNameAGroupANotSameReferenceForGroup;
-    private Key<JobKey> _keyNameAGroupB;
-    private Key<JobKey> _keyNameAGroupDefault;
-    private Key<JobKey> _keyNameAGroupDefaultSameReferenceForName;
-    private Key<JobKey> _keyNameBGroupA;
-    private Key<JobKey> _keyNameBGroupDefault;
-    private KeyLegacy<JobKey> _legacyKeyNameAGroupA;
-    private KeyLegacy<JobKey> _legacyKeyNameAGroupASameReferenceForNameAndGroup;
-    private KeyLegacy<JobKey> _legacyKeyNameAGroupANotSameReferenceForName;
-    private KeyLegacy<JobKey> _legacyKeyNameAGroupANotSameReferenceForGroup;
-    private KeyLegacy<JobKey> _legacyKeyNameAGroupB;
-    private KeyLegacy<JobKey> _legacyKeyNameAGroupDefault;
-    private KeyLegacy<JobKey> _legacyKeyNameAGroupDefaultSameReferenceForName;
-    private KeyLegacy<JobKey> _legacyKeyNameBGroupA;
-    private KeyLegacy<JobKey> _legacyKeyNameBGroupDefault;
+    private readonly Key<JobKey> _keyNameAGroupA;
+    private readonly Key<JobKey> _keyNameAGroupASameReferenceForNameAndGroup;
+    private readonly Key<JobKey> _keyNameAGroupANotSameReferenceForName;
+    private readonly Key<JobKey> _keyNameAGroupANotSameReferenceForGroup;
+    private readonly Key<JobKey> _keyNameAGroupB;
+    private readonly Key<JobKey> _keyNameAGroupDefault;
+    private readonly Key<JobKey> _keyNameAGroupDefaultSameReferenceForName;
+    private readonly Key<JobKey> _keyNameBGroupA;
+    private readonly Key<JobKey> _keyNameBGroupDefault;
+    private readonly KeyLegacy<JobKey> _legacyKeyNameAGroupA;
+    private readonly KeyLegacy<JobKey> _legacyKeyNameAGroupASameReferenceForNameAndGroup;
+    private readonly KeyLegacy<JobKey> _legacyKeyNameAGroupANotSameReferenceForName;
+    private readonly KeyLegacy<JobKey> _legacyKeyNameAGroupANotSameReferenceForGroup;
+    private readonly KeyLegacy<JobKey> _legacyKeyNameAGroupB;
+    private readonly KeyLegacy<JobKey> _legacyKeyNameAGroupDefault;
+    private readonly KeyLegacy<JobKey> _legacyKeyNameAGroupDefaultSameReferenceForName;
+    private readonly KeyLegacy<JobKey> _legacyKeyNameBGroupA;
+    private readonly KeyLegacy<JobKey> _legacyKeyNameBGroupDefault;
 
     public KeyBenchmark()
     {

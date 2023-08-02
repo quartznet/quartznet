@@ -213,13 +213,13 @@ public sealed class CronExpression : ISerializable
 {
     private TimeZoneInfo? timeZone;
 
-    [NonSerialized] private CronField seconds = new();
-    [NonSerialized] private CronField minutes = new();
-    [NonSerialized] private CronField hours = new();
-    [NonSerialized] private CronField daysOfMonth = new();
-    [NonSerialized] private CronField months = new();
-    [NonSerialized] private CronField daysOfWeek = new();
-    [NonSerialized] private CronField years = new();
+    [NonSerialized] private readonly CronField seconds = new();
+    [NonSerialized] private readonly CronField minutes = new();
+    [NonSerialized] private readonly CronField hours = new();
+    [NonSerialized] private readonly CronField daysOfMonth = new();
+    [NonSerialized] private readonly CronField months = new();
+    [NonSerialized] private readonly CronField daysOfWeek = new();
+    [NonSerialized] private readonly CronField years = new();
 
     /// <summary>
     /// Last day of week.

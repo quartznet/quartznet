@@ -154,7 +154,7 @@ public class SimpleSemaphore : ISemaphore
 
     private sealed class ResourceLock
     {
-        private SemaphoreSlim semaphore = new(1, 1);
+        private readonly SemaphoreSlim semaphore = new(1, 1);
         private Guid? owner;
 
         public bool IsLockOwner(Guid requestorId)

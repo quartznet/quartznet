@@ -285,7 +285,7 @@ public class QuartzSchedulerTest
 
     public class DelayedJob : IJob
     {
-        private static TimeSpan _delay = TimeSpan.FromMilliseconds(200);
+        private static readonly TimeSpan _delay = TimeSpan.FromMilliseconds(200);
 
         public async ValueTask Execute(IJobExecutionContext context)
         {

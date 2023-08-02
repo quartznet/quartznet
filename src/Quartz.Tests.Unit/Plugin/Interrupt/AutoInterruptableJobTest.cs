@@ -11,7 +11,7 @@ namespace Quartz.Tests.Unit.Plugin.Interrupt;
 
 public class AutoInterruptableJobTest
 {
-    private static SemaphoreSlim sync = new(0);
+    private static readonly SemaphoreSlim sync = new(0);
 
     private class TestInterruptableJob : IJob
     {

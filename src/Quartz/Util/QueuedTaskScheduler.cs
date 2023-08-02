@@ -22,7 +22,7 @@ internal sealed class QueuedTaskScheduler : TaskScheduler, IDisposable
     private sealed class QueuedTaskSchedulerDebugView
     {
         /// <summary>The scheduler.</summary>
-        private QueuedTaskScheduler _scheduler;
+        private readonly QueuedTaskScheduler _scheduler;
 
         /// <summary>Initializes the debug view.</summary>
         /// <param name="scheduler">The scheduler.</param>
@@ -55,7 +55,7 @@ internal sealed class QueuedTaskScheduler : TaskScheduler, IDisposable
     private readonly int _concurrencyLevel;
 
     /// <summary>Whether we're processing tasks on the current thread.</summary>
-    private static ThreadLocal<bool> _taskProcessingThread = new ThreadLocal<bool>();
+    private static readonly ThreadLocal<bool> _taskProcessingThread = new ThreadLocal<bool>();
 
     /// <summary>The threads used by the scheduler to process work.</summary>
     private readonly Thread[] _threads;

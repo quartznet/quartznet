@@ -47,7 +47,7 @@ public class RemotingSchedulerExporter : ISchedulerExporter
     /// <summary>
     /// BinaryServerFormatterSinkProvider allowed properties.
     /// </summary>
-    private static string[] formatProviderAllowedProperties = new string[] { "includeVersions", "strictBinding", "typeFilterLevel" };
+    private static readonly string[] formatProviderAllowedProperties = new string[] { "includeVersions", "strictBinding", "typeFilterLevel" };
 
     private static readonly Dictionary<string, object> registeredChannels = new Dictionary<string, object>();
 

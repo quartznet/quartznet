@@ -24,14 +24,14 @@ public class JobInterruptMonitorPlugin : TriggerListenerSupport, ISchedulerPlugi
     public const string JobDataMapKeyAutoInterruptable = "AutoInterruptable";
     public const string JobDataMapKeyMaxRunTime = "MaxRunTime";
 
-    private ILogger<JobInterruptMonitorPlugin> logger = LogProvider.CreateLogger<JobInterruptMonitorPlugin>();
+    private readonly ILogger<JobInterruptMonitorPlugin> logger = LogProvider.CreateLogger<JobInterruptMonitorPlugin>();
 
     private IScheduler scheduler = null!;
     private string name = null!;
     private QueuedTaskScheduler taskScheduler = null!;
 
     // active monitors
-    private ConcurrentDictionary<string, InterruptMonitor> interruptMonitors = new();
+    private readonly ConcurrentDictionary<string, InterruptMonitor> interruptMonitors = new();
 
     public ValueTask Start(CancellationToken cancellationToken = default)
     {

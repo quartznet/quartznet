@@ -9,7 +9,7 @@ namespace Quartz.Core;
 /// </summary>
 internal sealed class ExecutingJobsManager : IJobListener
 {
-    private ConcurrentDictionary<string, IJobExecutionContext> executingJobs = new ConcurrentDictionary<string, IJobExecutionContext>();
+    private readonly ConcurrentDictionary<string, IJobExecutionContext> executingJobs = new ConcurrentDictionary<string, IJobExecutionContext>();
     private int numJobsFired;
 
     /// <summary>

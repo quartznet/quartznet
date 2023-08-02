@@ -10,8 +10,8 @@ namespace Quartz.Benchmark;
 [MemoryDiagnoser]
 public class JobDispatchBenchmark
 {
-    private StdScheduler scheduler;
-    private JobRunShell shell;
+    private readonly StdScheduler scheduler;
+    private readonly JobRunShell shell;
 
     public JobDispatchBenchmark()
     {

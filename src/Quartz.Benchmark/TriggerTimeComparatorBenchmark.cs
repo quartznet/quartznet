@@ -6,17 +6,17 @@ namespace Quartz.Benchmark;
 [MemoryDiagnoser]
 public class TriggerTimeComparatorBenchmark
 {
-    private TriggerKey _triggerKeyA;
-    private TriggerKey _triggerKeyB;
-    private TriggerTimeComparator _comparerNew;
-    private TriggerTimeComparatorLegacy _comparerLegacy;
-    private MutableTrigger _triggerAPrio1NextFireTimeMinValue;
-    private MutableTrigger _triggerAPrio1NextFireTimeMaxValue;
-    private MutableTrigger _triggerAPrio1NextFireTimeNull;
-    private MutableTrigger _triggerBPrio1NextFireTimeNull;
-    private MutableTrigger _triggerBPrio2NextFireTimeNull;
-    private MutableTrigger _triggerBPrio1NextFireTimeMinValue;
-    private MutableTrigger _triggerBPrio2NextFireTimeMinValue;
+    private readonly TriggerKey _triggerKeyA;
+    private readonly TriggerKey _triggerKeyB;
+    private readonly TriggerTimeComparator _comparerNew;
+    private readonly TriggerTimeComparatorLegacy _comparerLegacy;
+    private readonly MutableTrigger _triggerAPrio1NextFireTimeMinValue;
+    private readonly MutableTrigger _triggerAPrio1NextFireTimeMaxValue;
+    private readonly MutableTrigger _triggerAPrio1NextFireTimeNull;
+    private readonly MutableTrigger _triggerBPrio1NextFireTimeNull;
+    private readonly MutableTrigger _triggerBPrio2NextFireTimeNull;
+    private readonly MutableTrigger _triggerBPrio1NextFireTimeMinValue;
+    private readonly MutableTrigger _triggerBPrio2NextFireTimeMinValue;
 
     public TriggerTimeComparatorBenchmark()
     {

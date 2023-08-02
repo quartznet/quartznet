@@ -7,8 +7,8 @@ namespace Quartz.Benchmark;
 [MemoryDiagnoser]
 public class SimpleSemaphoreBenchmark
 {
-    private SimpleSemaphore semaphore;
-    private Guid requestorId;
+    private readonly SimpleSemaphore semaphore;
+    private readonly Guid requestorId;
 
     public SimpleSemaphoreBenchmark()
     {

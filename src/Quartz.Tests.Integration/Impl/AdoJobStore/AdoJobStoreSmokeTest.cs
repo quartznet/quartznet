@@ -20,8 +20,8 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 public class AdoJobStoreSmokeTest
 {
     private static readonly Dictionary<string, string> dbConnectionStrings = new Dictionary<string, string>();
-    private bool clearJobs = true;
-    private bool scheduleJobs = true;
+    private readonly bool clearJobs = true;
+    private readonly bool scheduleJobs = true;
     private TestLoggerHelper testLoggerHelper;
 
     private const string KeyResetEvent = "ResetEvent";

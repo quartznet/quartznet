@@ -6,18 +6,18 @@ namespace Quartz.Tests.Unit;
 [TestFixture]
 public class TriggerTimeComparatorTest
 {
-    private TriggerKey _triggerKeyA;
-    private TriggerKey _triggerKeyB;
-    private MutableTrigger _triggerAPrio1NextFireTimeMinValueInstance1;
-    private MutableTrigger _triggerAPrio1NextFireTimeMinValueInstance2;
-    private MutableTrigger _triggerAPrio1NextFireTimeMaxValue;
-    private MutableTrigger _triggerAPrio1NextFireTimeNullInstance1;
-    private MutableTrigger _triggerAPrio1NextFireTimeNullInstance2;
-    private MutableTrigger _triggerBPrio1NextFireTimeNull;
-    private MutableTrigger _triggerBPrio2NextFireTimeNull;
-    private MutableTrigger _triggerBPrio1NextFireTimeMinValue;
-    private MutableTrigger _triggerBPrio2NextFireTimeMinValue;
-    private TriggerTimeComparator _comparer;
+    private readonly TriggerKey _triggerKeyA;
+    private readonly TriggerKey _triggerKeyB;
+    private readonly MutableTrigger _triggerAPrio1NextFireTimeMinValueInstance1;
+    private readonly MutableTrigger _triggerAPrio1NextFireTimeMinValueInstance2;
+    private readonly MutableTrigger _triggerAPrio1NextFireTimeMaxValue;
+    private readonly MutableTrigger _triggerAPrio1NextFireTimeNullInstance1;
+    private readonly MutableTrigger _triggerAPrio1NextFireTimeNullInstance2;
+    private readonly MutableTrigger _triggerBPrio1NextFireTimeNull;
+    private readonly MutableTrigger _triggerBPrio2NextFireTimeNull;
+    private readonly MutableTrigger _triggerBPrio1NextFireTimeMinValue;
+    private readonly MutableTrigger _triggerBPrio2NextFireTimeMinValue;
+    private readonly TriggerTimeComparator _comparer;
 
     public TriggerTimeComparatorTest()
     {

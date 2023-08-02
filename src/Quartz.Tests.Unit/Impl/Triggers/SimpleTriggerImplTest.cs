@@ -6,7 +6,7 @@ namespace Quartz.Tests.Unit.Impl.Triggers;
 [TestFixture]
 public class SimpleTriggerImplTest
 {
-    private Random _random;
+    private readonly Random _random;
 
     public SimpleTriggerImplTest()
     {
