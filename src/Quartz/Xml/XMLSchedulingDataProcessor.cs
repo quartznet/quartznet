@@ -77,7 +77,7 @@ public class XMLSchedulingDataProcessor
 
     private readonly List<string> jobGroupsToNeverDelete = new List<string>();
     private readonly List<string> triggerGroupsToNeverDelete = new List<string>();
-    private ILogger<XMLSchedulingDataProcessor> logger;
+    private readonly ILogger<XMLSchedulingDataProcessor> logger;
 
     /// <summary>
     /// Constructor for XMLSchedulingDataProcessor.

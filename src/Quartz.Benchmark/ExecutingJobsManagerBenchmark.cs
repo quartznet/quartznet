@@ -8,8 +8,8 @@ namespace Quartz.Benchmark;
 [MemoryDiagnoser]
 public class ExecutingJobsManagerBenchmark
 {
-    private ExecutingJobsManager _executionJobsManagerNew;
-    private ExecutingJobsManagerLegacy _executionJobsManagerLegacy;
+    private readonly ExecutingJobsManager _executionJobsManagerNew;
+    private readonly ExecutingJobsManagerLegacy _executionJobsManagerLegacy;
 
     public ExecutingJobsManagerBenchmark()
     {

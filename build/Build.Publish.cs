@@ -11,10 +11,10 @@ using static Nuke.Common.Tools.DotNet.DotNetTasks;
 public partial class Build
 {
     string NuGetSource => "https://api.nuget.org/v3/index.json";
-    [Parameter] [Secret] string NuGetApiKey;
+    [Parameter] [Secret] readonly string NuGetApiKey;
 
     string FeedzSource => "https://f.feedz.io/quartznet/quartznet/nuget/index.json";
-    [Parameter] [Secret] string FeedzApiKey;
+    [Parameter] [Secret] readonly string FeedzApiKey;
 
     string ApiKeyToUse => !string.IsNullOrWhiteSpace(TagVersion) ? NuGetApiKey : FeedzApiKey;
     string SourceToUse => !string.IsNullOrWhiteSpace(TagVersion) ? NuGetSource : FeedzSource;

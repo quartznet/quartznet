@@ -24,13 +24,13 @@ namespace Quartz.Benchmark;
 [MemoryDiagnoser]
 public class QuartSchedulerBenchmark
 {
-    private QuartzScheduler _quartzScheduler1;
-    private QuartzScheduler _quartzScheduler2;
-    private QuartzScheduler _quartzScheduler3;
-    private QuartzScheduler _quartzScheduler4;
-    private StdScheduler _basicScheduler;
-    private IOperableTrigger _trigger;
-    private JobExecutionContextImpl _jobExecutionContext;
+    private readonly QuartzScheduler _quartzScheduler1;
+    private readonly QuartzScheduler _quartzScheduler2;
+    private readonly QuartzScheduler _quartzScheduler3;
+    private readonly QuartzScheduler _quartzScheduler4;
+    private readonly StdScheduler _basicScheduler;
+    private readonly IOperableTrigger _trigger;
+    private readonly JobExecutionContextImpl _jobExecutionContext;
 
     public QuartSchedulerBenchmark()
     {

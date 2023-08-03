@@ -97,7 +97,7 @@ public class JobDetailImpl : IJobDetail
     private string group = SchedulerConstants.DefaultGroup;
     private string? description;
     private JobDataMap jobDataMap = null!;
-    private Type jobType = null!;
+    private readonly Type jobType = null!;
     private bool? disallowConcurrentExecution;
     private bool? persistJobDataAfterExecution;
 

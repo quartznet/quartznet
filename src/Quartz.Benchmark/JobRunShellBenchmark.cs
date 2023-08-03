@@ -10,10 +10,10 @@ namespace Quartz.Benchmark;
 [MemoryDiagnoser]
 public class JobRunShellBenchmark
 {
-    private QuartzScheduler _basicQuartzScheduler;
-    private StdScheduler _basicScheduler;
-    private TriggerFiredBundle _bundleMayFireAgain;
-    private JobRunShell _jobRunShell;
+    private readonly QuartzScheduler _basicQuartzScheduler;
+    private readonly StdScheduler _basicScheduler;
+    private readonly TriggerFiredBundle _bundleMayFireAgain;
+    private readonly JobRunShell _jobRunShell;
 
     public JobRunShellBenchmark()
     {

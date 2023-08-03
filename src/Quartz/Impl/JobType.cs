@@ -8,7 +8,7 @@ namespace Quartz.Impl;
 [Serializable]
 public sealed class JobType
 {
-    private Lazy<Type> type;
+    private readonly Lazy<Type> type;
 
     /// <summary>
     /// Construct a Job Type specifying the Assembly Qualified NameWithout Version.

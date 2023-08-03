@@ -32,11 +32,11 @@ namespace Quartz.Tests.Unit.Impl;
 [TestFixture]
 public class DirectSchedulerFactoryTest
 {
-    private DirectSchedulerFactory _directSchedulerFactory;
-    private Random _random;
-    private SchedulerRepository _schedulerRepository;
-    private DefaultThreadPool _threadPool;
-    private RAMJobStore _jobStore;
+    private readonly DirectSchedulerFactory _directSchedulerFactory;
+    private readonly Random _random;
+    private readonly SchedulerRepository _schedulerRepository;
+    private readonly DefaultThreadPool _threadPool;
+    private readonly RAMJobStore _jobStore;
 
     public DirectSchedulerFactoryTest()
     {

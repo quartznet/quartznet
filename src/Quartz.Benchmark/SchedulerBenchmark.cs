@@ -681,7 +681,7 @@ public class SchedulerBenchmark
         private static readonly ManualResetEvent Done = new ManualResetEvent(false);
         private static int _runCount = 0;
         private static int _operationsPerRun;
-        private static TimeSpan _delay = TimeSpan.FromMilliseconds(500);
+        private static readonly TimeSpan _delay = TimeSpan.FromMilliseconds(500);
 
         public static int RunCount => _runCount;
 
