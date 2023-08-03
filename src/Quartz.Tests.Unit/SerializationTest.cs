@@ -94,18 +94,18 @@ public class SerializationTest
         Assert.That(calendar.ExcludedDates.Count, Is.EqualTo(1));
 
         BinaryFormatter formatter = new BinaryFormatter();
-        using (var stream = new MemoryStream())
-        {
-            calendar = new HolidayCalendar();
-            calendar.AddExcludedDate(DateTime.Now.Date);
-            formatter.Serialize(stream, calendar);
 
-            stream.Seek(0, SeekOrigin.Begin);
-            stream.Position = 0;
+        using var stream = new MemoryStream();
 
-            calendar = (HolidayCalendar) formatter.Deserialize(stream);
-            Assert.That(calendar.ExcludedDates.Count, Is.EqualTo(1));
-        }
+        calendar = new HolidayCalendar();
+        calendar.AddExcludedDate(DateTime.Now.Date);
+        formatter.Serialize(stream, calendar);
+
+        stream.Seek(0, SeekOrigin.Begin);
+        stream.Position = 0;
+
+        calendar = (HolidayCalendar) formatter.Deserialize(stream);
+        Assert.That(calendar.ExcludedDates.Count, Is.EqualTo(1));
     }
 
     [Test]
@@ -218,9 +218,7 @@ public class SerializationTest
     private static T Deserialize<T>(int version) where T : class
     {
         BinaryFormatter formatter = new BinaryFormatter();
-        using (var stream = File.OpenRead(Path.Combine("Serialized", typeof(T).Name + "_" + version + ".ser")))
-        {
-            return (T) formatter.Deserialize(stream);
-        }
+        using var stream = File.OpenRead(Path.Combine("Serialized", typeof(T).Name + "_" + version + ".ser"));
+        return (T) formatter.Deserialize(stream);
     }
 }

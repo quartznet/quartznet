@@ -406,19 +406,18 @@ public class KeyTest
     {
         var key = new Key<string>("A", "B");
 
-        using (var ms = new MemoryStream())
-        {
-            ms.Write(_serializedKeyStringWithNameAndGroup, 0, _serializedKeyStringWithNameAndGroup.Length);
-            ms.Position = 0;
+        using var ms = new MemoryStream();
 
-            BinaryFormatter formatter = new BinaryFormatter();
-            formatter.AssemblyFormat = FormatterAssemblyStyle.Simple;
+        ms.Write(_serializedKeyStringWithNameAndGroup, 0, _serializedKeyStringWithNameAndGroup.Length);
+        ms.Position = 0;
 
-            var deserialized = formatter.Deserialize(ms) as Key<string>;
-            Assert.IsNotNull(deserialized);
-            Assert.AreEqual(key.Group, deserialized.Group);
-            Assert.AreEqual(key.Name, deserialized.Name);
-        }
+        BinaryFormatter formatter = new BinaryFormatter();
+        formatter.AssemblyFormat = FormatterAssemblyStyle.Simple;
+
+        var deserialized = formatter.Deserialize(ms) as Key<string>;
+        Assert.IsNotNull(deserialized);
+        Assert.AreEqual(key.Group, deserialized.Group);
+        Assert.AreEqual(key.Name, deserialized.Name);
     }
 
     [Test]
@@ -426,18 +425,17 @@ public class KeyTest
     {
         var key = new Key<string>("A", "B");
 
-        using (var ms = new MemoryStream())
-        {
-            BinaryFormatter formatter = new BinaryFormatter();
-            formatter.Serialize(ms, key);
+        using var ms = new MemoryStream();
 
-            ms.Position = 0;
+        BinaryFormatter formatter = new BinaryFormatter();
+        formatter.Serialize(ms, key);
 
-            var deserialized = formatter.Deserialize(ms) as Key<string>;
-            Assert.IsNotNull(deserialized);
-            Assert.AreEqual(key.Group, deserialized.Group);
-            Assert.AreEqual(key.Name, deserialized.Name);
-        }
+        ms.Position = 0;
+
+        var deserialized = formatter.Deserialize(ms) as Key<string>;
+        Assert.IsNotNull(deserialized);
+        Assert.AreEqual(key.Group, deserialized.Group);
+        Assert.AreEqual(key.Name, deserialized.Name);
     }
 
     /// <summary>

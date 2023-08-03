@@ -2132,23 +2132,21 @@ public class DirtyFlagMapTest
     {
         var formatter = new BinaryFormatter();
 
-        using (var ms = new MemoryStream())
-        {
-            formatter.Serialize(ms, value);
+        using var ms = new MemoryStream();
 
-            ms.Position = 0;
+        formatter.Serialize(ms, value);
+        ms.Position = 0;
 
-            return (T) formatter.Deserialize(ms);
-        }
+        return (T) formatter.Deserialize(ms);
     }
 
     private static T Deserialize<T>(string name)
     {
-        using (var fs = File.OpenRead(Path.Combine("Serialized", name + ".ser")))
-        {
-            BinaryFormatter binaryFormatter = new BinaryFormatter();
-            binaryFormatter.AssemblyFormat = FormatterAssemblyStyle.Simple;
-            return (T) binaryFormatter.Deserialize(fs);
-        }
+        using var fs = File.OpenRead(Path.Combine("Serialized", name + ".ser"));
+
+        BinaryFormatter binaryFormatter = new BinaryFormatter();
+        binaryFormatter.AssemblyFormat = FormatterAssemblyStyle.Simple;
+
+        return (T) binaryFormatter.Deserialize(fs);
     }
 }

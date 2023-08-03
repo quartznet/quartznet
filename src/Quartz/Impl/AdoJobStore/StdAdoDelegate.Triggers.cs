@@ -192,35 +192,34 @@ public partial class StdAdoDelegate
             AddCommandParameter(cmd, "instanceName", instanceId);
             AddCommandParameter(cmd, "requestsRecovery", GetDbBooleanValue(true));
 
-            using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+            using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+
+            long dumId = SystemTime.UtcNow().Ticks;
+
+            while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                long dumId = SystemTime.UtcNow().Ticks;
+                string jobName = rs.GetString(ColumnJobName)!;
+                string jobGroup = rs.GetString(ColumnJobGroup)!;
+                string trigName = rs.GetString(ColumnTriggerName)!;
+                string trigGroup = rs.GetString(ColumnTriggerGroup)!;
+                int priority = Convert.ToInt32(rs[ColumnPriority], CultureInfo.InvariantCulture);
+                DateTimeOffset firedTime = GetDateTimeFromDbValue(rs[ColumnFiredTime]) ?? DateTimeOffset.MinValue;
+                DateTimeOffset scheduledTime = GetDateTimeFromDbValue(rs[ColumnScheduledTime]) ?? DateTimeOffset.MinValue;
+                SimpleTriggerImpl rcvryTrig = new SimpleTriggerImpl("recover_" + instanceId + "_" + Convert.ToString(dumId++, CultureInfo.InvariantCulture),
+                    SchedulerConstants.DefaultRecoveryGroup, scheduledTime);
+                rcvryTrig.JobKey = new JobKey(jobName, jobGroup);
+                rcvryTrig.Priority = priority;
+                rcvryTrig.MisfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
 
-                while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
+                var dataHolder = new FiredTriggerRecord
                 {
-                    string jobName = rs.GetString(ColumnJobName)!;
-                    string jobGroup = rs.GetString(ColumnJobGroup)!;
-                    string trigName = rs.GetString(ColumnTriggerName)!;
-                    string trigGroup = rs.GetString(ColumnTriggerGroup)!;
-                    int priority = Convert.ToInt32(rs[ColumnPriority], CultureInfo.InvariantCulture);
-                    DateTimeOffset firedTime = GetDateTimeFromDbValue(rs[ColumnFiredTime]) ?? DateTimeOffset.MinValue;
-                    DateTimeOffset scheduledTime = GetDateTimeFromDbValue(rs[ColumnScheduledTime]) ?? DateTimeOffset.MinValue;
-                    SimpleTriggerImpl rcvryTrig = new SimpleTriggerImpl("recover_" + instanceId + "_" + Convert.ToString(dumId++, CultureInfo.InvariantCulture),
-                        SchedulerConstants.DefaultRecoveryGroup, scheduledTime);
-                    rcvryTrig.JobKey = new JobKey(jobName, jobGroup);
-                    rcvryTrig.Priority = priority;
-                    rcvryTrig.MisfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
+                    ScheduleTimestamp = scheduledTime,
+                    FireTimestamp = firedTime
+                };
 
-                    var dataHolder = new FiredTriggerRecord
-                    {
-                        ScheduleTimestamp = scheduledTime,
-                        FireTimestamp = firedTime
-                    };
-
-                    triggerData.Add(dataHolder);
-                    triggers.Add(rcvryTrig);
-                    keys.Add(new TriggerKey(trigName, trigGroup));
-                }
+                triggerData.Add(dataHolder);
+                triggers.Add(rcvryTrig);
+                keys.Add(new TriggerKey(trigName, trigGroup));
             }
         }
 
@@ -673,34 +672,33 @@ public partial class StdAdoDelegate
             AddCommandParameter(cmd, "triggerName", triggerKey.Name);
             AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
-            using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+            using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+
+            if (!await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                if (!await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    return null;
-                }
+                return null;
+            }
 
-                jobName = rs.GetString(ColumnJobName)!;
-                jobGroup = rs.GetString(ColumnJobGroup)!;
-                description = rs.GetString(ColumnDescription);
-                triggerType = rs.GetString(ColumnTriggerType)!;
-                calendarName = rs.GetString(ColumnCalendarName);
-                misFireInstr = rs.GetInt32(ColumnMifireInstruction);
-                priority = rs.GetInt32(ColumnPriority);
+            jobName = rs.GetString(ColumnJobName)!;
+            jobGroup = rs.GetString(ColumnJobGroup)!;
+            description = rs.GetString(ColumnDescription);
+            triggerType = rs.GetString(ColumnTriggerType)!;
+            calendarName = rs.GetString(ColumnCalendarName);
+            misFireInstr = rs.GetInt32(ColumnMifireInstruction);
+            priority = rs.GetInt32(ColumnPriority);
 
-                map = await ReadMapFromReader(rs, 11).ConfigureAwait(false);
+            map = await ReadMapFromReader(rs, 11).ConfigureAwait(false);
 
-                nextFireTimeUtc = GetDateTimeFromDbValue(rs[ColumnNextFireTime]);
-                previousFireTimeUtc = GetDateTimeFromDbValue(rs[ColumnPreviousFireTime]);
-                startTimeUtc = GetDateTimeFromDbValue(rs[ColumnStartTime]) ?? DateTimeOffset.MinValue;
-                endTimeUtc = GetDateTimeFromDbValue(rs[ColumnEndTime]);
+            nextFireTimeUtc = GetDateTimeFromDbValue(rs[ColumnNextFireTime]);
+            previousFireTimeUtc = GetDateTimeFromDbValue(rs[ColumnPreviousFireTime]);
+            startTimeUtc = GetDateTimeFromDbValue(rs[ColumnStartTime]) ?? DateTimeOffset.MinValue;
+            endTimeUtc = GetDateTimeFromDbValue(rs[ColumnEndTime]);
 
-                // check if we access fast path
-                if (triggerType.Equals(TriggerTypeCron) || triggerType.Equals(TriggerTypeSimple))
-                {
-                    tDel = FindTriggerPersistenceDelegate(triggerType);
-                    triggerProps = tDel!.ReadTriggerPropertyBundle(rs);
-                }
+            // check if we access fast path
+            if (triggerType.Equals(TriggerTypeCron) || triggerType.Equals(TriggerTypeSimple))
+            {
+                tDel = FindTriggerPersistenceDelegate(triggerType);
+                triggerProps = tDel!.ReadTriggerPropertyBundle(rs);
             }
         }
 
@@ -1423,12 +1421,11 @@ public partial class StdAdoDelegate
             AddCommandParameter(cmd, "jobName", jobKey.Name);
             AddCommandParameter(cmd, "jobGroup", jobKey.Group);
 
-            using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+            using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+
+            while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    keys.Add(new TriggerKey(rs.GetString(0), rs.GetString(1)));
-                }
+                keys.Add(new TriggerKey(rs.GetString(0), rs.GetString(1)));
             }
         }
 
@@ -1455,12 +1452,10 @@ public partial class StdAdoDelegate
         {
             AddCommandParameter(cmd, "schedulerName", schedName);
             AddCommandParameter(cmd, "calendarName", calName);
-            using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
+            using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
-                while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
-                {
-                    keys.Add(new TriggerKey(rs.GetString(ColumnTriggerName)!, rs.GetString(ColumnTriggerGroup)!));
-                }
+                keys.Add(new TriggerKey(rs.GetString(ColumnTriggerName)!, rs.GetString(ColumnTriggerGroup)!));
             }
         }
 

@@ -84,11 +84,11 @@ public abstract class SerializationTestSupport<T, TInterface> where T : class wh
         object obj = GetTargetObject();
 
         string fileName = GetSerializedFileName(version, obj.GetType());
-        using (FileStream fs = new FileStream(fileName, FileMode.Create))
-        {
-            var bytes = serializer.Serialize(obj);
-            fs.Write(bytes, 0, bytes.Length);
-        }
+
+        using FileStream fs = new FileStream(fileName, FileMode.Create);
+
+        var bytes = serializer.Serialize(obj);
+        fs.Write(bytes, 0, bytes.Length);
     }
 
     /// <summary>
