@@ -1,7 +1,6 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Data;
 using System.Data.Common;
 using System.Globalization;
 using System.Threading;
@@ -716,7 +715,7 @@ namespace Quartz.Impl.AdoJobStore
                 AddCommandParameter(cmd2, "schedulerName", schedName);
                 AddCommandParameter(cmd2, "triggerName", triggerKey.Name);
                 AddCommandParameter(cmd2, "triggerGroup", triggerKey.Group);
-                using var rs2 = await cmd2.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
+                using var rs2 = await cmd2.ExecuteReaderAsync(System.Data.CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
                 if (await rs2.ReadAsync(cancellationToken).ConfigureAwait(false))
                 {
                     trigger = await GetObjectFromBlob<IOperableTrigger>(rs2, 0, cancellationToken).ConfigureAwait(false);
@@ -813,7 +812,7 @@ namespace Quartz.Impl.AdoJobStore
             AddCommandParameter(cmd, "triggerName", triggerKey.Name);
             AddCommandParameter(cmd, "triggerGroup", triggerKey.Group);
 
-            using var rs = await cmd.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
+            using var rs = await cmd.ExecuteReaderAsync(System.Data.CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
             if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
             {
                 var map = await ReadMapFromReader(rs, 0).ConfigureAwait(false);

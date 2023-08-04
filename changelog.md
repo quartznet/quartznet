@@ -11,6 +11,7 @@
   * Change QuartzHostedService from internal to public (#2090)
   * Switch to using feedz.io for pre-release builds (#2096)
   * Make private and internal classes sealed (#2098)
+  * Add net6.0 target (#2106)
 
 * FIXES
 

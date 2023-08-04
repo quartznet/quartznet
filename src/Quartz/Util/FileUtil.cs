@@ -63,7 +63,7 @@ namespace Quartz.Util
                 }
                 try
                 {
-#if NETSTANDARD
+#if !NETFRAMEWORK
                     if (string.IsNullOrWhiteSpace(AppContext.BaseDirectory))
                     {
                         // can happen under Xamarin android, see https://github.com/quartznet/quartznet/issues/1008

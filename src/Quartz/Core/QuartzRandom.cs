@@ -1,4 +1,6 @@
-﻿using System;
+﻿#pragma warning disable SYSLIB0023 // RNGCryptoServiceProvider' is obsolete
+
+using System;
 using System.Security.Cryptography;
 
 namespace Quartz.Core

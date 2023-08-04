@@ -2,7 +2,7 @@
   <PropertyGroup>
     <AssemblyTitle>Quartz.NET</AssemblyTitle>
     <TargetFrameworkVersion>4.6.2</TargetFrameworkVersion>
-    <TargetFrameworks>net462;net472;netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>net462;net472;net6.0;netstandard2.0</TargetFrameworks>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
   </PropertyGroup>
   <ItemGroup>
@@ -13,14 +13,11 @@
     <Reference Include="System.Runtime.Remoting" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="ConfigureAwaitChecker.Analyzer" Version="5.0.0">
-      <PrivateAssets>all</PrivateAssets>
-      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
-    </PackageReference>
+    <PackageReference Include="ConfigureAwaitChecker.Analyzer" Version="5.0.0" PrivateAssets="all" IncludeAssets="runtime; build; native; contentfiles; analyzers" />
     <PackageReference Include="LibLog" Version="5.0.8" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="2.1.1" />
-    <PackageReference Include="System.Configuration.ConfigurationManager" Version="6.0.1" Condition=" '$(FullFramework)' != 'true'  " />
-    <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="4.7.1" Condition=" '$(DiagnosticsSource)' == 'true'  " />
+    <PackageReference Include="System.Configuration.ConfigurationManager" Version="6.0.1" Condition=" '$(TargetFramework)' != 'net462' and '$(TargetFramework)' != 'net472' " />
+    <PackageReference Include="System.Diagnostics.DiagnosticSource" Version="4.7.1" Condition=" '$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'net472' " />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="TunnelVisionLabs.ReferenceAssemblyAnnotator" Version="1.0.0-alpha.160" PrivateAssets="all" />
