@@ -152,7 +152,9 @@ namespace Quartz.Util
                         // continue processing work items.
                         if (!Environment.HasShutdownStarted && !AppDomain.CurrentDomain.IsFinalizingForUnload())
                         {
+#pragma warning disable SYSLIB0006
                             Thread.ResetAbort();
+#pragma warning restore SYSLIB0006
                         }
                     }
                 }

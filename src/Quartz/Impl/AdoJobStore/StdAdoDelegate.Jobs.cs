@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Data;
 using System.Data.Common;
 using System.IO;
 using System.Runtime.Serialization;
@@ -137,7 +136,7 @@ namespace Quartz.Impl.AdoJobStore
             AddCommandParameter(cmd, "schedulerName", schedName);
             AddCommandParameter(cmd, "jobName", jobKey.Name);
             AddCommandParameter(cmd, "jobGroup", jobKey.Group);
-            using var rs = await cmd.ExecuteReaderAsync(CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
+            using var rs = await cmd.ExecuteReaderAsync(System.Data.CommandBehavior.SequentialAccess, cancellationToken).ConfigureAwait(false);
             JobDetailImpl? job = null;
 
             if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))

@@ -27,7 +27,7 @@ namespace Quartz.Impl.AdoJobStore
     /// <author>Marko Lahma</author>
     public class SQLiteDelegate : StdAdoDelegate
     {
-#if NETSTANDARD2_0
+#if !NETFRAMEWORK
         private System.Reflection.MethodInfo? getFieldValueMethod;
 #endif
 
@@ -43,7 +43,7 @@ namespace Quartz.Impl.AdoJobStore
 
         protected override Task<byte[]?> ReadBytesFromBlob(IDataReader dr, int colIndex, CancellationToken cancellationToken)
         {
-#if NETSTANDARD2_0
+#if !NETFRAMEWORK
             if (dr.GetType().Namespace == "Microsoft.Data.Sqlite")
             {
                 if (dr.IsDBNull(colIndex))
