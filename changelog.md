@@ -2,7 +2,7 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
-## Release 3.7.0, xxx xx 2023
+## Release 3.7.0, Aug 4 2023
 
 * CHANGES
 
