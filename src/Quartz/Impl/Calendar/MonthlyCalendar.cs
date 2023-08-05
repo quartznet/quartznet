@@ -35,7 +35,7 @@ namespace Quartz.Impl.Calendar;
 /// <author>Juergen Donnerstag</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public class MonthlyCalendar : BaseCalendar
+public sealed class MonthlyCalendar : BaseCalendar
 {
     private const int MaxDaysInMonth = 31;
 
@@ -68,7 +68,7 @@ public class MonthlyCalendar : BaseCalendar
     /// </summary>
     /// <param name="info"></param>
     /// <param name="context"></param>
-    protected MonthlyCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
+    private MonthlyCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
     {
         int version;
         try
@@ -117,7 +117,7 @@ public class MonthlyCalendar : BaseCalendar
     /// Setting will redefine the array of days excluded. The array must of size greater or
     /// equal 31.
     /// </summary>
-    public virtual bool[] DaysExcluded
+    public bool[] DaysExcluded
     {
         get => excludeDays;
 
@@ -136,7 +136,7 @@ public class MonthlyCalendar : BaseCalendar
     /// <summary>
     /// Return true, if day is defined to be excluded.
     /// </summary>
-    public virtual bool IsDayExcluded(int day)
+    public bool IsDayExcluded(int day)
     {
         if (day < 1 || day > MaxDaysInMonth)
         {
@@ -150,7 +150,7 @@ public class MonthlyCalendar : BaseCalendar
     /// Redefine a certain day of the month to be excluded (true) or included
     /// (false).
     /// </summary>
-    public virtual void SetDayExcluded(int day, bool exclude)
+    public void SetDayExcluded(int day, bool exclude)
     {
         excludeDays[day - 1] = exclude;
         excludeAll = AreAllDaysExcluded();
@@ -161,7 +161,7 @@ public class MonthlyCalendar : BaseCalendar
     /// </summary>
     /// <returns> boolean
     /// </returns>
-    public virtual bool AreAllDaysExcluded()
+    public bool AreAllDaysExcluded()
     {
         for (int i = 1; i <= 31; i++)
         {

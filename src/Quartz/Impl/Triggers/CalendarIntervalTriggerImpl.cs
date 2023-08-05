@@ -52,7 +52,7 @@ namespace Quartz.Impl.Triggers;
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTrigger
+public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTrigger
 {
     private static readonly int YearToGiveupSchedulingAt = DateTime.Now.AddYears(100).Year;
 
@@ -553,7 +553,7 @@ public class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTri
         return GetFireTimeAfter(afterTime, false);
     }
 
-    protected DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTime, bool ignoreEndTime)
+    private DateTimeOffset? GetFireTimeAfter(DateTimeOffset? afterTime, bool ignoreEndTime)
     {
         // increment afterTime by a second, so that we are
         // comparing against a time after it!

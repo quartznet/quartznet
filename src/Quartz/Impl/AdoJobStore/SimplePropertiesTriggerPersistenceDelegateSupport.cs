@@ -90,9 +90,6 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateSupport : ITrigg
         TablePrefix = tablePrefix;
         DbAccessor = dbAccessor;
         SchedName = schedName;
-
-        // No longer used
-        SchedNameLiteral = "'" + schedName + "'";
     }
 
     /// <summary>
@@ -110,9 +107,6 @@ public abstract class SimplePropertiesTriggerPersistenceDelegateSupport : ITrigg
     protected abstract TriggerPropertyBundle GetTriggerPropertyBundle(SimplePropertiesTriggerProperties properties);
 
     protected string TablePrefix { get; private set; } = null!;
-
-    [Obsolete("Scheduler name is now added to queries as a parameter")]
-    protected string SchedNameLiteral { get; private set; } = null!;
 
     protected string SchedName { get; private set; } = null!;
 

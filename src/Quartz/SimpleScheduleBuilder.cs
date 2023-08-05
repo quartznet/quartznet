@@ -58,13 +58,13 @@ namespace Quartz;
 /// <seealso cref="CronScheduleBuilder" />
 /// <seealso cref="IScheduleBuilder" />
 /// <seealso cref="TriggerBuilder" />
-public class SimpleScheduleBuilder : ScheduleBuilder<ISimpleTrigger>
+public sealed class SimpleScheduleBuilder : ScheduleBuilder<ISimpleTrigger>
 {
     private TimeSpan interval = TimeSpan.Zero;
     private int repeatCount;
     private int misfireInstruction = MisfireInstruction.SmartPolicy;
 
-    protected SimpleScheduleBuilder()
+    private SimpleScheduleBuilder()
     {
     }
 

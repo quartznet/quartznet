@@ -22,7 +22,7 @@ public static class LogProvider
 #if DIAGNOSTICS_SOURCE
     internal static class Cached
     {
-        internal static readonly System.Lazy<System.Diagnostics.DiagnosticListener> Default =
+        internal static readonly Lazy<System.Diagnostics.DiagnosticListener> Default =
             new(() => new System.Diagnostics.DiagnosticListener(DiagnosticHeaders.DefaultListenerName));
     }
 #endif

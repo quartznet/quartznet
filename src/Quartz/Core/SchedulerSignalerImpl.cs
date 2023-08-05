@@ -30,11 +30,11 @@ namespace Quartz.Core;
 /// </summary>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public class SchedulerSignalerImpl : ISchedulerSignaler
+internal sealed class SchedulerSignalerImpl : ISchedulerSignaler
 {
     private readonly ILogger<SchedulerSignalerImpl> logger = LogProvider.CreateLogger<SchedulerSignalerImpl>();
-    protected readonly QuartzScheduler sched;
-    protected readonly QuartzSchedulerThread schedThread;
+    private readonly QuartzScheduler sched;
+    private readonly QuartzSchedulerThread schedThread;
 
     public SchedulerSignalerImpl(QuartzScheduler sched, QuartzSchedulerThread schedThread)
     {
@@ -50,7 +50,7 @@ public class SchedulerSignalerImpl : ISchedulerSignaler
     /// </summary>
     /// <param name="trigger">The trigger that misfired.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public virtual async ValueTask NotifyTriggerListenersMisfired(
+    public async ValueTask NotifyTriggerListenersMisfired(
         ITrigger trigger,
         CancellationToken cancellationToken = default)
     {

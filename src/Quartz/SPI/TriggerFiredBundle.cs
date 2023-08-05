@@ -31,7 +31,7 @@ namespace Quartz.Spi;
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public class TriggerFiredBundle
+public sealed class TriggerFiredBundle
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="TriggerFiredBundle"/> class.
@@ -70,47 +70,47 @@ public class TriggerFiredBundle
     /// Gets the job detail.
     /// </summary>
     /// <value>The job detail.</value>
-    public virtual IJobDetail JobDetail { get; }
+    public IJobDetail JobDetail { get; }
 
     /// <summary>
     /// Gets the trigger.
     /// </summary>
     /// <value>The trigger.</value>
-    public virtual IOperableTrigger Trigger { get; }
+    public IOperableTrigger Trigger { get; }
 
     /// <summary>
     /// Gets the calendar.
     /// </summary>
     /// <value>The calendar.</value>
-    public virtual ICalendar? Calendar { get; }
+    public ICalendar? Calendar { get; }
 
     /// <summary>
     /// Gets a value indicating whether this <see cref="TriggerFiredBundle"/> is recovering.
     /// </summary>
     /// <value><c>true</c> if recovering; otherwise, <c>false</c>.</value>
-    public virtual bool Recovering { get; }
+    public bool Recovering { get; }
 
     /// <returns>
     /// Returns the UTC fire time.
     /// </returns>
-    public virtual DateTimeOffset FireTimeUtc { get; }
+    public DateTimeOffset FireTimeUtc { get; }
 
     /// <summary>
     /// Gets the next UTC fire time.
     /// </summary>
     /// <value>The next fire time.</value>
     /// <returns> Returns the nextFireTimeUtc.</returns>
-    public virtual DateTimeOffset? NextFireTimeUtc { get; }
+    public DateTimeOffset? NextFireTimeUtc { get; }
 
     /// <summary>
     /// Gets the previous UTC fire time.
     /// </summary>
     /// <value>The previous fire time.</value>
     /// <returns> Returns the previous fire time. </returns>
-    public virtual DateTimeOffset? PrevFireTimeUtc { get; }
+    public DateTimeOffset? PrevFireTimeUtc { get; }
 
     /// <returns>
     /// Returns the scheduled UTC fire time.
     /// </returns>
-    public virtual DateTimeOffset? ScheduledFireTimeUtc { get; }
+    public DateTimeOffset? ScheduledFireTimeUtc { get; }
 }

@@ -35,7 +35,7 @@ namespace Quartz.Impl.Calendar;
 /// <author>Juergen Donnerstag</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public class WeeklyCalendar : BaseCalendar
+public sealed class WeeklyCalendar : BaseCalendar
 {
     // An array to store the week days which are to be excluded.
     // DayOfWeek enumeration values are used as index.
@@ -66,7 +66,7 @@ public class WeeklyCalendar : BaseCalendar
     /// </summary>
     /// <param name="info"></param>
     /// <param name="context"></param>
-    protected WeeklyCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
+    private WeeklyCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
     {
         int version;
         try
@@ -118,7 +118,7 @@ public class WeeklyCalendar : BaseCalendar
     /// should be used as index (Sunday is the 0).
     /// A value of true is regarded as: exclude it.
     /// </summary>
-    public virtual bool[] DaysExcluded
+    public bool[] DaysExcluded
     {
         get => excludeDays;
 
@@ -138,7 +138,7 @@ public class WeeklyCalendar : BaseCalendar
     /// Return true, if wday is defined to be excluded. E. g.
     /// saturday and sunday.
     /// </summary>
-    public virtual bool IsDayExcluded(DayOfWeek wday)
+    public bool IsDayExcluded(DayOfWeek wday)
     {
         return excludeDays[(int) wday];
     }
@@ -147,7 +147,7 @@ public class WeeklyCalendar : BaseCalendar
     /// Redefine a certain day of the week to be excluded (true) or included
     /// (false). Use <see cref="DayOfWeek"/> enum to determine the weekday.
     /// </summary>
-    public virtual void SetDayExcluded(DayOfWeek wday, bool exclude)
+    public void SetDayExcluded(DayOfWeek wday, bool exclude)
     {
         excludeDays[(int) wday] = exclude;
         excludeAll = AreAllDaysExcluded();
@@ -156,7 +156,7 @@ public class WeeklyCalendar : BaseCalendar
     /// <summary>
     /// Check if all week ays are excluded. That is no day is included.
     /// </summary>
-    public virtual bool AreAllDaysExcluded()
+    public bool AreAllDaysExcluded()
     {
         if (IsDayExcluded(DayOfWeek.Sunday) == false)
         {

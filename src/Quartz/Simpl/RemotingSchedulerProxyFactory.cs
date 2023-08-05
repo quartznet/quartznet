@@ -10,7 +10,7 @@ namespace Quartz.Simpl;
 /// A <see cref="IRemotableSchedulerProxyFactory" /> implementation that creates
 /// connection to remote scheduler using remoting.
 /// </summary>
-public class RemotingSchedulerProxyFactory : IRemotableSchedulerProxyFactory
+public sealed class RemotingSchedulerProxyFactory : IRemotableSchedulerProxyFactory
 {
     /// <summary>
     /// Gets or sets the remote scheduler address.
@@ -29,7 +29,7 @@ public class RemotingSchedulerProxyFactory : IRemotableSchedulerProxyFactory
         }
 
         string uid = QuartzSchedulerResources.GetUniqueIdentifier(schedulerName, schedulerInstanceId);
-        var remoteScheduler = new RemoteScheduler(uid, () => (IRemotableQuartzScheduler) System.Activator.GetObject(typeof(IRemotableQuartzScheduler), Address));
+        var remoteScheduler = new RemoteScheduler(uid, () => (IRemotableQuartzScheduler) Activator.GetObject(typeof(IRemotableQuartzScheduler), Address));
 
         return remoteScheduler;
     }

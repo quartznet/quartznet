@@ -30,7 +30,7 @@ namespace Quartz;
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public class SchedulerMetaData
+public sealed class SchedulerMetaData
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="SchedulerMetaData"/> class.
@@ -75,22 +75,22 @@ public class SchedulerMetaData
     /// <summary>
     /// Returns the name of the <see cref="IScheduler" />.
     /// </summary>
-    public virtual string SchedulerName { get; }
+    public string SchedulerName { get; }
 
     /// <summary>
     /// Returns the instance Id of the <see cref="IScheduler" />.
     /// </summary>
-    public virtual string SchedulerInstanceId { get; }
+    public string SchedulerInstanceId { get; }
 
     /// <summary>
     /// Returns the class-name of the <see cref="IScheduler" /> instance.
     /// </summary>
-    public virtual Type SchedulerType { get; }
+    public Type SchedulerType { get; }
 
     /// <summary>
     /// Returns whether the <see cref="IScheduler" /> is being used remotely (via remoting).
     /// </summary>
-    public virtual bool SchedulerRemote { get; }
+    public bool SchedulerRemote { get; }
 
     /// <summary>
     /// Returns whether the scheduler has been started.
@@ -99,7 +99,7 @@ public class SchedulerMetaData
     /// Note: <see cref="Started" /> may return <see langword="true" /> even if
     /// <see cref="InStandbyMode" /> returns <see langword="true" />.
     /// </remarks>
-    public virtual bool Started { get; }
+    public bool Started { get; }
 
     /// <summary>
     /// Reports whether the <see cref="IScheduler" /> is in standby mode.
@@ -108,34 +108,34 @@ public class SchedulerMetaData
     /// Note: <see cref="Started" /> may return <see langword="true" /> even if
     /// <see cref="InStandbyMode" /> returns <see langword="true" />.
     /// </remarks>
-    public virtual bool InStandbyMode { get; }
+    public bool InStandbyMode { get; }
 
     /// <summary>
     /// Reports whether the <see cref="IScheduler" /> has been Shutdown.
     /// </summary>
-    public virtual bool Shutdown { get; }
+    public bool Shutdown { get; }
 
     /// <summary>
     /// Returns the class-name of the <see cref="IJobStore" /> instance that is
     /// being used by the <see cref="IScheduler" />.
     /// </summary>
-    public virtual Type JobStoreType { get; }
+    public Type JobStoreType { get; }
 
     /// <summary>
     /// Returns the type name of the thread pool instance that is
     /// being used by the <see cref="IScheduler" />.
     /// </summary>
-    public virtual Type ThreadPoolType { get; }
+    public Type ThreadPoolType { get; }
 
     /// <summary>
     /// Returns the number of threads currently in the <see cref="IScheduler" />'s
     /// </summary>
-    public virtual int ThreadPoolSize { get; }
+    public int ThreadPoolSize { get; }
 
     /// <summary>
     /// Returns the version of Quartz that is running.
     /// </summary>
-    public virtual string Version { get; }
+    public string Version { get; }
 
     /// <summary>
     /// Returns a formatted (human readable) string describing all the <see cref="IScheduler" />'s
@@ -242,25 +242,25 @@ public class SchedulerMetaData
     /// </summary>
     /// <returns> null if the scheduler has not been started.
     /// </returns>
-    public virtual DateTimeOffset? RunningSince { get; }
+    public DateTimeOffset? RunningSince { get; }
 
     /// <summary>
     /// Returns the number of jobs executed since the <see cref="IScheduler" />
     /// started..
     /// </summary>
-    public virtual int NumberOfJobsExecuted { get; }
+    public int NumberOfJobsExecuted { get; }
 
     /// <summary>
     /// Returns whether or not the <see cref="IScheduler" />'s<see cref="IJobStore" />
     /// instance supports persistence.
     /// </summary>
-    public virtual bool JobStoreSupportsPersistence { get; }
+    public bool JobStoreSupportsPersistence { get; }
 
     /// <summary>
     /// Returns whether or not the <see cref="IScheduler" />'s <see cref="IJobStore" />
     /// is clustered.
     /// </summary>
-    public virtual bool JobStoreClustered { get; }
+    public bool JobStoreClustered { get; }
 
     /// <summary>
     /// Return a simple string representation of this object.

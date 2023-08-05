@@ -27,7 +27,7 @@ namespace Quartz.Util;
 /// </summary>
 /// <author> James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public class PropertiesParser
+internal sealed class PropertiesParser
 {
     internal readonly NameValueCollection props;
 
@@ -35,7 +35,7 @@ public class PropertiesParser
     /// Gets the underlying properties.
     /// </summary>
     /// <value>The underlying properties.</value>
-    public virtual NameValueCollection UnderlyingProperties => props;
+    public NameValueCollection UnderlyingProperties => props;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="PropertiesParser"/> class.
@@ -51,7 +51,7 @@ public class PropertiesParser
     /// </summary>
     /// <param name="name">The name.</param>
     /// <returns></returns>
-    public virtual string? GetStringProperty(string? name)
+    public string? GetStringProperty(string? name)
     {
         var val = props.Get(name);
         return val?.Trim();
@@ -63,7 +63,7 @@ public class PropertiesParser
     /// <param name="name">The name.</param>
     /// <param name="defaultValue">The default value.</param>
     /// <returns></returns>
-    public virtual string? GetStringProperty(string name, string? defaultValue)
+    public string? GetStringProperty(string name, string? defaultValue)
     {
         string? val = props[name] ?? defaultValue;
         if (val == null)
@@ -83,7 +83,7 @@ public class PropertiesParser
     /// </summary>
     /// <param name="name">The name.</param>
     /// <returns></returns>
-    public virtual IList<string>? GetStringArrayProperty(string name)
+    public IList<string>? GetStringArrayProperty(string name)
     {
         return GetStringArrayProperty(name, null);
     }
@@ -94,7 +94,7 @@ public class PropertiesParser
     /// <param name="name">The name.</param>
     /// <param name="defaultValue">The default value.</param>
     /// <returns></returns>
-    public virtual IList<string>? GetStringArrayProperty(string name, string[]? defaultValue)
+    public IList<string>? GetStringArrayProperty(string name, string[]? defaultValue)
     {
         var vals = GetStringProperty(name);
         if (vals == null)
@@ -121,7 +121,7 @@ public class PropertiesParser
     /// </summary>
     /// <param name="name">The name.</param>
     /// <returns></returns>
-    public virtual bool GetBooleanProperty(string name)
+    public bool GetBooleanProperty(string name)
     {
         var val = GetStringProperty(name);
         if (val == null)
@@ -138,7 +138,7 @@ public class PropertiesParser
     /// <param name="name">The name.</param>
     /// <param name="defaultValue">if set to <c>true</c> [defaultValue].</param>
     /// <returns></returns>
-    public virtual bool GetBooleanProperty(string name, bool defaultValue)
+    public bool GetBooleanProperty(string name, bool defaultValue)
     {
         var val = GetStringProperty(name);
         if (val == null)
@@ -154,7 +154,7 @@ public class PropertiesParser
     /// </summary>
     /// <param name="name">The name.</param>
     /// <returns></returns>
-    public virtual byte GetByteProperty(string name)
+    public byte GetByteProperty(string name)
     {
         var val = GetStringProperty(name);
         if (val == null)
@@ -179,7 +179,7 @@ public class PropertiesParser
     /// <param name="name">The name.</param>
     /// <param name="defaultValue">The default value.</param>
     /// <returns></returns>
-    public virtual byte GetByteProperty(string name, byte defaultValue)
+    public byte GetByteProperty(string name, byte defaultValue)
     {
         var val = GetStringProperty(name);
         if (val == null)
@@ -203,7 +203,7 @@ public class PropertiesParser
     /// </summary>
     /// <param name="name">The name.</param>
     /// <returns></returns>
-    public virtual char GetCharProperty(string name)
+    public char GetCharProperty(string name)
     {
         var param = GetStringProperty(name);
         if (param == null)
@@ -225,7 +225,7 @@ public class PropertiesParser
     /// <param name="name">The name.</param>
     /// <param name="defaultValue">The default value.</param>
     /// <returns></returns>
-    public virtual char GetCharProperty(string name, char defaultValue)
+    public char GetCharProperty(string name, char defaultValue)
     {
         var param = GetStringProperty(name);
         if (param == null)
@@ -246,7 +246,7 @@ public class PropertiesParser
     /// </summary>
     /// <param name="name">The name.</param>
     /// <returns></returns>
-    public virtual double GetDoubleProperty(string name)
+    public double GetDoubleProperty(string name)
     {
         var val = GetStringProperty(name);
         if (val == null)
@@ -271,7 +271,7 @@ public class PropertiesParser
     /// <param name="name">The name.</param>
     /// <param name="defaultValue">The default value.</param>
     /// <returns></returns>
-    public virtual double GetDoubleProperty(string name, double defaultValue)
+    public double GetDoubleProperty(string name, double defaultValue)
     {
         var val = GetStringProperty(name);
         if (val == null)
@@ -295,7 +295,7 @@ public class PropertiesParser
     /// </summary>
     /// <param name="name">The name.</param>
     /// <returns></returns>
-    public virtual float GetFloatProperty(string name)
+    public float GetFloatProperty(string name)
     {
         var val = GetStringProperty(name);
         if (val == null)
@@ -320,7 +320,7 @@ public class PropertiesParser
     /// <param name="name">The name.</param>
     /// <param name="defaultValue">The default value.</param>
     /// <returns></returns>
-    public virtual float GetFloatProperty(string name, float defaultValue)
+    public float GetFloatProperty(string name, float defaultValue)
     {
         var val = GetStringProperty(name);
         if (val == null)
@@ -344,7 +344,7 @@ public class PropertiesParser
     /// </summary>
     /// <param name="name">The name.</param>
     /// <returns></returns>
-    public virtual int GetIntProperty(string name)
+    public int GetIntProperty(string name)
     {
         var val = GetStringProperty(name);
         if (val == null)
@@ -369,7 +369,7 @@ public class PropertiesParser
     /// <param name="name">The name.</param>
     /// <param name="defaultValue">The default value.</param>
     /// <returns></returns>
-    public virtual int GetIntProperty(string name, int defaultValue)
+    public int GetIntProperty(string name, int defaultValue)
     {
         var val = GetStringProperty(name);
         if (val == null)
@@ -393,7 +393,7 @@ public class PropertiesParser
     /// </summary>
     /// <param name="name">The name.</param>
     /// <returns></returns>
-    public virtual IList<int>? GetIntArrayProperty(string name)
+    public IList<int>? GetIntArrayProperty(string name)
     {
         return GetIntArrayProperty(name, null);
     }
@@ -404,7 +404,7 @@ public class PropertiesParser
     /// <param name="name">The name.</param>
     /// <param name="defaultValue">The default value.</param>
     /// <returns></returns>
-    public virtual IList<int>? GetIntArrayProperty(string name, IList<int>? defaultValue)
+    public IList<int>? GetIntArrayProperty(string name, IList<int>? defaultValue)
     {
         var vals = GetStringProperty(name);
         if (vals == null)
@@ -445,7 +445,7 @@ public class PropertiesParser
     /// </summary>
     /// <param name="name">The name.</param>
     /// <returns></returns>
-    public virtual long GetLongProperty(string name)
+    public long GetLongProperty(string name)
     {
         var val = GetStringProperty(name);
         if (val == null)
@@ -470,7 +470,7 @@ public class PropertiesParser
     /// <param name="name">The name.</param>
     /// <param name="def">The def.</param>
     /// <returns></returns>
-    public virtual long GetLongProperty(string name, long def)
+    public long GetLongProperty(string name, long def)
     {
         var val = GetStringProperty(name);
         if (val == null)
@@ -495,7 +495,7 @@ public class PropertiesParser
     /// <param name="name">The name.</param>
     /// <param name="def">The def.</param>
     /// <returns></returns>
-    public virtual TimeSpan GetTimeSpanProperty(string name, TimeSpan def)
+    public TimeSpan GetTimeSpanProperty(string name, TimeSpan def)
     {
         var val = GetStringProperty(name);
         if (val == null)
@@ -519,7 +519,7 @@ public class PropertiesParser
     /// </summary>
     /// <param name="name">The name.</param>
     /// <returns></returns>
-    public virtual short GetShortProperty(string name)
+    public short GetShortProperty(string name)
     {
         var val = GetStringProperty(name);
         if (val == null)
@@ -544,7 +544,7 @@ public class PropertiesParser
     /// <param name="name">The name.</param>
     /// <param name="defaultValue">The default value.</param>
     /// <returns></returns>
-    public virtual short GetShortProperty(string name, short defaultValue)
+    public short GetShortProperty(string name, short defaultValue)
     {
         var val = GetStringProperty(name);
         if (val == null)
@@ -568,7 +568,7 @@ public class PropertiesParser
     /// </summary>
     /// <param name="prefix">The prefix.</param>
     /// <returns></returns>
-    public virtual IReadOnlyList<string> GetPropertyGroups(string prefix)
+    public IReadOnlyList<string> GetPropertyGroups(string prefix)
     {
         var groups = new HashSet<string>();
 
@@ -594,7 +594,7 @@ public class PropertiesParser
     /// </summary>
     /// <param name="prefix">The prefix.</param>
     /// <returns></returns>
-    public virtual NameValueCollection GetPropertyGroup(string prefix)
+    public NameValueCollection GetPropertyGroup(string prefix)
     {
         return GetPropertyGroup(prefix, false);
     }
@@ -605,7 +605,7 @@ public class PropertiesParser
     /// <param name="prefix">The prefix.</param>
     /// <param name="stripPrefix">if set to <c>true</c> [strip prefix].</param>
     /// <returns></returns>
-    public virtual NameValueCollection GetPropertyGroup(string prefix, bool stripPrefix)
+    public NameValueCollection GetPropertyGroup(string prefix, bool stripPrefix)
     {
         return GetPropertyGroup(prefix, stripPrefix, null);
     }
@@ -618,7 +618,7 @@ public class PropertiesParser
     /// <param name="stripPrefix">Whether to strip off the given <paramref name="prefix" /> in the result's keys.</param>
     /// <param name="excludedPrefixes">Optional array of fully qualified prefixes to exclude.  For example if <see paramref="prefix" /> is "a.b.c", then <see paramref="excludedPrefixes" /> might be "a.b.c.ignore".</param>
     /// <returns>Group of <see cref="NameValueCollection" /> that start with the given prefix, optionally have that prefix removed, and do not include properties that start with one of the given excluded prefixes.</returns>
-    public virtual NameValueCollection GetPropertyGroup(string prefix, bool stripPrefix, string[]? excludedPrefixes)
+    public NameValueCollection GetPropertyGroup(string prefix, bool stripPrefix, string[]? excludedPrefixes)
     {
         NameValueCollection group = new NameValueCollection();
 

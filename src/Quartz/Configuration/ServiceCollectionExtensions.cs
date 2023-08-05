@@ -112,7 +112,7 @@ public static class ServiceCollectionExtensions
         {
             ThrowHelper.ThrowArgumentException("jobType must implement the IJob interface", nameof(jobType));
         }
-        var c = new JobConfigurator();
+        var c = JobBuilder.Create();
         if (jobKey != null)
         {
             c.WithIdentity(jobKey);
@@ -166,7 +166,7 @@ public static class ServiceCollectionExtensions
             throw new ArgumentNullException(nameof(trigger));
         }
 
-        var jobConfigurator = new JobConfigurator();
+        var jobConfigurator = JobBuilder.Create();
         var jobDetail = ConfigureAndBuildJobDetail(typeof(T), jobConfigurator, job, out var jobHasCustomKey);
 
         options.Services.Configure<QuartzOptions>(quartzOptions =>
@@ -207,7 +207,7 @@ public static class ServiceCollectionExtensions
 
     private static IJobDetail ConfigureAndBuildJobDetail(
         Type type,
-        JobConfigurator builder,
+        JobBuilder builder,
         Action<IJobConfigurator>? configure,
         out bool hasCustomKey)
     {

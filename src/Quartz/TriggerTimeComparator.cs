@@ -8,7 +8,7 @@ namespace Quartz;
 /// by key.
 /// </summary>
 [Serializable]
-public class TriggerTimeComparator : IComparer<ITrigger>
+internal sealed class TriggerTimeComparator : IComparer<ITrigger>
 {
     public int Compare(ITrigger? trig1, ITrigger? trig2)
     {

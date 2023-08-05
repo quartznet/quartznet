@@ -1,6 +1,6 @@
 namespace Quartz.Impl.AdoJobStore;
 
-public class SimplePropertiesTriggerProperties
+public sealed class SimplePropertiesTriggerProperties
 {
     public string? String1 { get; set; }
 

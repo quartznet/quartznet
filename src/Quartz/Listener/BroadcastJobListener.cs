@@ -38,7 +38,7 @@ namespace Quartz.Listener;
 /// <seealso cref="RemoveListener(IJobListener)" />
 /// <seealso cref="RemoveListener(string)" />
 /// <author>James House (jhouse AT revolition DOT net)</author>
-public class BroadcastJobListener : IJobListener
+public sealed class BroadcastJobListener : IJobListener
 {
     private readonly List<IJobListener> listeners;
     private readonly ILogger<BroadcastJobListener> logger;

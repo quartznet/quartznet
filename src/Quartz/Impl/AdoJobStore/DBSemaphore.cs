@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -209,22 +209,6 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
         }
     }
 
-    private string? schedNameLiteral;
-
-    [Obsolete("SchedName is now a sql parameter")]
-    protected string SchedulerNameLiteral
-    {
-        get
-        {
-            if (schedNameLiteral == null)
-            {
-                schedNameLiteral = "'" + schedName + "'";
-            }
-
-            return schedNameLiteral;
-        }
-    }
-
     public string? SchedName
     {
         get => schedName;
@@ -245,7 +229,7 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
         }
     }
 
-    protected AdoUtil AdoUtil { get; }
+    protected IAdoUtil AdoUtil { get; }
 
     private readonly struct ThreadLockKey : IEquatable<ThreadLockKey>
     {

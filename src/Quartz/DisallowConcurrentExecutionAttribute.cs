@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
@@ -32,6 +32,6 @@ namespace Quartz;
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 [AttributeUsage(AttributeTargets.Class | AttributeTargets.Interface)]
-public class DisallowConcurrentExecutionAttribute : Attribute
+public sealed class DisallowConcurrentExecutionAttribute : Attribute
 {
 }

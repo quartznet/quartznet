@@ -519,6 +519,6 @@ public class StubParameterCollection : DbParameterCollection
     }
 }
 
-public class TestTriggerPersistenceDelegate : SimpleTriggerPersistenceDelegate
+internal class TestTriggerPersistenceDelegate : SimpleTriggerPersistenceDelegate
 {
 }

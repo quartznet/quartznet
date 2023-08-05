@@ -37,7 +37,7 @@ namespace Quartz;
 /// <seealso cref="IScheduleBuilder" />
 /// <seealso cref="SimpleScheduleBuilder" />
 /// <seealso cref="TriggerBuilder" />
-public class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarIntervalTrigger>
+public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarIntervalTrigger>
 {
     private int interval = 1;
     private IntervalUnit intervalUnit = IntervalUnit.Day;
@@ -47,7 +47,7 @@ public class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarInterval
     private bool preserveHourOfDayAcrossDaylightSavings;
     private bool skipDayIfHourDoesNotExist;
 
-    protected CalendarIntervalScheduleBuilder()
+    private CalendarIntervalScheduleBuilder()
     {
     }
 

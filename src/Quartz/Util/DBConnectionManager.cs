@@ -36,7 +36,7 @@ namespace Quartz.Util;
 /// <author>Sharada Jambula</author>
 /// <author>Mohammad Rezaei</author>
 /// <author>Marko Lahma (.NET)</author>
-public class DBConnectionManager : IDbConnectionManager
+internal sealed class DBConnectionManager : IDbConnectionManager
 {
     private static readonly DBConnectionManager instance = new DBConnectionManager();
     private readonly ILogger<DBConnectionManager> logger;
@@ -63,7 +63,7 @@ public class DBConnectionManager : IDbConnectionManager
     /// </summary>
     /// <param name="dataSourceName">Name of the data source.</param>
     /// <param name="provider">The provider.</param>
-    public virtual void AddConnectionProvider(string dataSourceName, IDbProvider provider)
+    public void AddConnectionProvider(string dataSourceName, IDbProvider provider)
     {
         logger.LogInformation("Registering datasource '{DataSource}' with db provider: '{Provider}'", dataSourceName, provider);
 
@@ -74,7 +74,7 @@ public class DBConnectionManager : IDbConnectionManager
     /// Get a database connection from the DataSource with the given name.
     /// </summary>
     /// <returns> a database connection </returns>
-    public virtual DbConnection GetConnection(string dataSourceName)
+    public DbConnection GetConnection(string dataSourceName)
     {
         var provider = GetDbProvider(dataSourceName);
         return provider.CreateConnection();
@@ -84,7 +84,7 @@ public class DBConnectionManager : IDbConnectionManager
     /// Shuts down database connections from the DataSource with the given name,
     /// if applicable for the underlying provider.
     /// </summary>
-    public virtual void Shutdown(string dsName)
+    public void Shutdown(string dsName)
     {
         IDbProvider provider = GetDbProvider(dsName);
         provider.Shutdown();

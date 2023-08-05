@@ -32,7 +32,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// Unit of work for AdoJobStore operations.
 /// </summary>
 /// <author>Marko Lahma</author>
-public class ConnectionAndTransactionHolder : IDisposable
+public sealed class ConnectionAndTransactionHolder : IDisposable
 {
     private DateTimeOffset? sigChangeForTxCompletion;
 
@@ -118,7 +118,7 @@ public class ConnectionAndTransactionHolder : IDisposable
         }
     }
 
-    internal virtual DateTimeOffset? SignalSchedulingChangeOnTxCompletion
+    internal DateTimeOffset? SignalSchedulingChangeOnTxCompletion
     {
         get => sigChangeForTxCompletion;
         set

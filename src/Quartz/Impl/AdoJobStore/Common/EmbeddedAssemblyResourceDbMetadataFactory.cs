@@ -1,4 +1,4 @@
-using System.Collections.Specialized;
+﻿using System.Collections.Specialized;
 
 using Quartz.Util;
 
@@ -7,7 +7,7 @@ namespace Quartz.Impl.AdoJobStore.Common;
 /// <summary>
 /// The DbMetadata factory based on embedded assembly resource
 /// </summary>
-public class EmbeddedAssemblyResourceDbMetadataFactory : DbMetadataFactory
+internal sealed class EmbeddedAssemblyResourceDbMetadataFactory : DbMetadataFactory
 {
     private readonly string resourceName;
     private readonly string propertyGroupName;

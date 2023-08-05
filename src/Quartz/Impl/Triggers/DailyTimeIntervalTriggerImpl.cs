@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -70,7 +70,7 @@ namespace Quartz.Impl.Triggers;
 /// <author>Zemian Deng saltnlight5@gmail.com</author>
 /// <author>Nuno Maia (.NET)</author>
 [Serializable]
-public class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalTrigger
+public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalTrigger
 {
     /// <summary>
     /// Used to indicate the 'repeat count' of the trigger is indefinite. Or in

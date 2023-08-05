@@ -11,7 +11,6 @@ using Quartz.Impl.Calendar;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
-using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
 
@@ -566,15 +565,19 @@ public class AdoJobStoreSmokeTest
         }
     }
 
-    public class SpecialClassLoadHelper : SimpleTypeLoadHelper
+    public class SpecialClassLoadHelper : ITypeLoadHelper
     {
-        public override Type LoadType(string name)
+        public void Initialize()
+        {
+        }
+
+        public Type LoadType(string name)
         {
             if (!string.IsNullOrEmpty(name) && typeof(BadJob) == Type.GetType(name))
             {
                 throw new TypeLoadException();
             }
-            return base.LoadType(name);
+            return Type.GetType(name, false);
         }
     }
 

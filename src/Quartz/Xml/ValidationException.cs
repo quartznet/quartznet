@@ -28,13 +28,13 @@ namespace Quartz.Xml;
 /// <author> <a href="mailto:bonhamcm@thirdeyeconsulting.com">Chris Bonham</a></author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public class ValidationException : Exception
+public sealed class ValidationException : Exception
 {
     /// <summary>
     /// Gets the validation exceptions.
     /// </summary>
     /// <value>The validation exceptions.</value>
-    public virtual ICollection<Exception> ValidationExceptions { get; } = new List<Exception>();
+    public IReadOnlyList<Exception> ValidationExceptions { get; } = new List<Exception>();
 
     /// <summary>
     /// Returns the detail message string.
@@ -90,7 +90,7 @@ public class ValidationException : Exception
     /// <param name="context">The <see cref="T:System.Runtime.Serialization.StreamingContext"></see> that contains contextual information about the source or destination.</param>
     /// <exception cref="T:System.Runtime.Serialization.SerializationException">The class name is null or <see cref="P:System.Exception.HResult"></see> is zero (0). </exception>
     /// <exception cref="T:System.ArgumentNullException">The info parameter is null. </exception>
-    protected ValidationException(SerializationInfo info, StreamingContext context) : base(info, context)
+    private ValidationException(SerializationInfo info, StreamingContext context) : base(info, context)
     {
     }
 }

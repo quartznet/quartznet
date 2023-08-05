@@ -29,9 +29,9 @@ namespace Quartz.Impl.Matchers;
 /// <remarks>
 /// </remarks>
 /// <author>jhouse</author>
-public class EverythingMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
+public sealed class EverythingMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
 {
-    protected EverythingMatcher()
+    private EverythingMatcher()
     {
     }
 

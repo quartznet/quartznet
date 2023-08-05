@@ -43,8 +43,8 @@ public class SchedulerTest
         {
             return new JobDataMap
             {
-                { TestJobWithDelay.ExecutingWaitHandleKey, executing },
-                { TestJobWithDelay.CompletedWaitHandleKey, completed }
+                { ExecutingWaitHandleKey, executing },
+                { CompletedWaitHandleKey, completed }
             };
         }
 

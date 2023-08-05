@@ -1566,17 +1566,17 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     ///           if a <see cref="ICalendar" /> with the same name already
     ///           exists, and replaceExisting is set to false.
     /// </exception>
-    public ValueTask StoreCalendar(
+    public async ValueTask StoreCalendar(
         string calName,
         ICalendar calendar,
         bool replaceExisting,
         bool updateTriggers,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteInLock(
+        await ExecuteInLock(
             LockOnInsert || updateTriggers ? LockTriggerAccess : null,
-            conn => StoreCalendar(conn, calName, calendar, replaceExisting, updateTriggers, cancellationToken),
-            cancellationToken).AsValueTask();
+            async conn => await StoreCalendar(conn, calName, calendar, replaceExisting, updateTriggers, cancellationToken).ConfigureAwait(false),
+            cancellationToken).ConfigureAwait(false);
     }
 
     protected virtual async ValueTask StoreCalendar(

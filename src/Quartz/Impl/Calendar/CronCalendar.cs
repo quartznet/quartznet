@@ -44,7 +44,7 @@ namespace Quartz.Impl.Calendar;
 /// <author>Aaron Craven</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public class CronCalendar : BaseCalendar
+public sealed class CronCalendar : BaseCalendar
 {
     private CronExpression cronExpression = null!;
 
@@ -96,7 +96,7 @@ public class CronCalendar : BaseCalendar
     /// </summary>
     /// <param name="info"></param>
     /// <param name="context"></param>
-    protected CronCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
+    private CronCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
     {
         int version;
         try

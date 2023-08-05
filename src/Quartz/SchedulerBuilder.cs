@@ -20,7 +20,6 @@
 #endregion
 
 using System.Collections.Specialized;
-using System.Diagnostics;
 
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
@@ -34,9 +33,9 @@ namespace Quartz;
 /// <summary>
 /// Helper to create common scheduler configurations.
 /// </summary>
-public class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationRoot
+public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationRoot
 {
-    protected SchedulerBuilder(NameValueCollection? properties)
+    private SchedulerBuilder(NameValueCollection? properties)
         : base(properties ?? new NameValueCollection())
     {
     }
@@ -129,13 +128,13 @@ public class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationRoot
         return this;
     }
 
-    public virtual SchedulerBuilder UseJobFactory<T>() where T : IJobFactory
+    public SchedulerBuilder UseJobFactory<T>() where T : IJobFactory
     {
         SetProperty(StdSchedulerFactory.PropertySchedulerJobFactoryType, typeof(T).AssemblyQualifiedNameWithoutVersion());
         return this;
     }
 
-    public virtual SchedulerBuilder UseTypeLoader<T>() where T : ITypeLoadHelper
+    public SchedulerBuilder UseTypeLoader<T>() where T : ITypeLoadHelper
     {
         SetProperty(StdSchedulerFactory.PropertySchedulerTypeLoadHelperType, typeof(T).AssemblyQualifiedNameWithoutVersion());
         return this;
@@ -320,9 +319,9 @@ public class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationRoot
         set => SetProperty(StdSchedulerFactory.PropertySchedulerInterruptJobsOnShutdownWithWait, value.ToString());
     }
 
-    public class ThreadPoolOptions : PropertiesHolder
+    public sealed class ThreadPoolOptions : PropertiesHolder
     {
-        protected internal ThreadPoolOptions(PropertiesHolder parent) : base(parent, "quartz.threadPool")
+        internal ThreadPoolOptions(PropertiesHolder parent) : base(parent, "quartz.threadPool")
         {
         }
 
@@ -342,7 +341,7 @@ public class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationRoot
         }
     }
 
-    public class PersistentStoreOptions : StoreOptions
+    public sealed class PersistentStoreOptions : StoreOptions
     {
         internal PersistentStoreOptions(PropertiesHolder parent, Type jobStoreType) : base(parent)
         {
@@ -422,9 +421,9 @@ public class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationRoot
         }
     }
 
-    public class ClusterOptions : PropertiesHolder
+    public sealed class ClusterOptions : PropertiesHolder
     {
-        protected internal ClusterOptions(PropertiesHolder parent) : base(parent)
+        public ClusterOptions(PropertiesHolder parent) : base(parent)
         {
         }
 
@@ -456,20 +455,20 @@ public class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationRoot
         }
     }
 
-    public class InMemoryStoreOptions : PropertiesHolder
+    public sealed class InMemoryStoreOptions : PropertiesHolder
     {
-        protected internal InMemoryStoreOptions(SchedulerBuilder parent) : base(parent)
+        public InMemoryStoreOptions(SchedulerBuilder parent) : base(parent)
         {
         }
     }
 
-    public class AdoProviderOptions
+    public sealed class AdoProviderOptions
     {
         public const string DefaultDataSourceName = "default";
 
         private readonly PersistentStoreOptions options;
 
-        protected internal AdoProviderOptions(PersistentStoreOptions options)
+        public AdoProviderOptions(PersistentStoreOptions options)
         {
             this.options = options;
         }

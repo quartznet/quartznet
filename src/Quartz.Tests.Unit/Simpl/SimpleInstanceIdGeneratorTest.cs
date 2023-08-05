@@ -24,13 +24,14 @@ using System.Net;
 using NUnit.Framework;
 
 using Quartz.Simpl;
+using Quartz.Spi;
 
 namespace Quartz.Tests.Unit.Simpl;
 
 [TestFixture]
 public class SimpleInstanceIdGeneratorTest
 {
-    private SimpleInstanceIdGenerator generator;
+    private IInstanceIdGenerator generator;
 
     [SetUp]
     public void SetUp()
@@ -45,8 +46,18 @@ public class SimpleInstanceIdGeneratorTest
         Assert.That(instanceId.Length, Is.LessThanOrEqualTo(50));
     }
 
-    private class TestInstanceIdGenerator : SimpleInstanceIdGenerator
+    private class TestInstanceIdGenerator : HostNameBasedIdGenerator
     {
+        // assume ticks to be at most 20 chars long
+        private const int HostNameMaxLength = IdMaxLength - 20;
+
+
+        public override async ValueTask<string> GenerateInstanceId(CancellationToken cancellationToken = default)
+        {
+            var hostName = await GetHostName(HostNameMaxLength, cancellationToken).ConfigureAwait(false);
+            return hostName + SystemTime.UtcNow().Ticks;
+        }
+
         protected override ValueTask<IPHostEntry> GetHostAddress(
             CancellationToken cancellationToken = default)
         {

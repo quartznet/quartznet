@@ -27,14 +27,11 @@ using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore;
 
-public class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelegate
+internal class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelegate
 {
     protected IDbAccessor DbAccessor { get; private set; } = null!;
 
     protected string TablePrefix { get; private set; } = null!;
-
-    [Obsolete("Scheduler name is now added to queries as a parameter")]
-    protected string SchedNameLiteral { get; private set; } = null!;
 
     protected string SchedName { get; private set; } = null!;
 
@@ -43,9 +40,6 @@ public class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelegate
         TablePrefix = tablePrefix;
         SchedName = schedName;
         DbAccessor = dbAccessor;
-
-        // No longer required
-        SchedNameLiteral = "'" + schedName + "'";
     }
 
     public string GetHandledTriggerTypeDiscriminator()
