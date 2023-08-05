@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -34,7 +34,7 @@ namespace Quartz;
 /// <author>Zemian Deng saltnlight5@gmail.com</author>
 /// <author>Nuno Maia (.NET)</author>
 [Serializable]
-public class TimeOfDay
+public sealed class TimeOfDay
 {
     /// <summary>
     /// Create a TimeOfDay instance for the given hour, minute and second.
@@ -158,14 +158,12 @@ public class TimeOfDay
 
     public override bool Equals(object? obj)
     {
-        if (!(obj is TimeOfDay))
+        if (obj is not TimeOfDay timeOfDay)
         {
             return false;
         }
 
-        TimeOfDay other = (TimeOfDay) obj;
-
-        return other.Hour == Hour && other.Minute == Minute && other.Second == Second;
+        return timeOfDay.Hour == Hour && timeOfDay.Minute == Minute && timeOfDay.Second == Second;
     }
 
     public override int GetHashCode()

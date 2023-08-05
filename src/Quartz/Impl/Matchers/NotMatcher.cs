@@ -29,14 +29,14 @@ namespace Quartz.Impl.Matchers;
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public class NotMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
+public sealed class NotMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
 {
     // ReSharper disable once UnusedMember.Local
     private NotMatcher()
     {
     }
 
-    protected NotMatcher(IMatcher<TKey> operand)
+    private NotMatcher(IMatcher<TKey> operand)
     {
         if (operand is null)
         {

@@ -67,7 +67,7 @@ namespace Quartz.Impl;
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 /// <seealso cref="IJobStore" />
-public class DirectSchedulerFactory : ISchedulerFactory
+public sealed class DirectSchedulerFactory : ISchedulerFactory
 {
     public const string DefaultInstanceId = "SIMPLE_NON_CLUSTERED";
     public const string DefaultSchedulerName = "SimpleQuartzScheduler";
@@ -91,7 +91,7 @@ public class DirectSchedulerFactory : ISchedulerFactory
     /// StdSchedulerFactory instance.).
     /// </para>
     /// </summary>
-    public virtual ValueTask<IReadOnlyList<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default)
+    public ValueTask<IReadOnlyList<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default)
     {
         return SchedulerRepository.Instance.LookupAll(cancellationToken);
     }
@@ -99,7 +99,7 @@ public class DirectSchedulerFactory : ISchedulerFactory
     /// <summary>
     /// Initializes a new instance of the <see cref="DirectSchedulerFactory"/> class.
     /// </summary>
-    protected DirectSchedulerFactory()
+    private DirectSchedulerFactory()
     {
         logger = LogProvider.CreateLogger<DirectSchedulerFactory>();
     }
@@ -108,7 +108,7 @@ public class DirectSchedulerFactory : ISchedulerFactory
     /// Creates an in memory job store (<see cref="RAMJobStore" />)
     /// </summary>
     /// <param name="maxConcurrency">The number of allowed concurrent running tasks.</param>
-    public virtual ValueTask CreateVolatileScheduler(int maxConcurrency)
+    public ValueTask CreateVolatileScheduler(int maxConcurrency)
     {
         var threadPool = new DefaultThreadPool
         {
@@ -125,7 +125,7 @@ public class DirectSchedulerFactory : ISchedulerFactory
     /// via <see cref="DirectSchedulerFactory.GetScheduler(CancellationToken)" />.
     /// </summary>
     /// <throws>  SchedulerException </throws>
-    public virtual void CreateRemoteScheduler(string proxyAddress)
+    public void CreateRemoteScheduler(string proxyAddress)
     {
         CreateRemoteScheduler(DefaultSchedulerName, DefaultInstanceId, proxyAddress);
     }
@@ -139,7 +139,7 @@ public class DirectSchedulerFactory : ISchedulerFactory
     /// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
     /// <param name="proxyAddress"></param>
     /// <throws>  SchedulerException </throws>
-    protected virtual void CreateRemoteScheduler(string schedulerName, string schedulerInstanceId, string proxyAddress)
+    private void CreateRemoteScheduler(string schedulerName, string schedulerInstanceId, string proxyAddress)
     {
         var proxyBuilder = new RemotingSchedulerProxyFactory();
         proxyBuilder.Address = proxyAddress;
@@ -158,7 +158,7 @@ public class DirectSchedulerFactory : ISchedulerFactory
     /// <param name="threadPool">The thread pool for executing jobs</param>
     /// <param name="jobStore">The type of job store</param>
     /// <exception cref="SchedulerException">Initialization failed.</exception>
-    public virtual ValueTask CreateScheduler(IThreadPool threadPool, IJobStore jobStore)
+    public ValueTask CreateScheduler(IThreadPool threadPool, IJobStore jobStore)
     {
         return CreateScheduler(DefaultSchedulerName, DefaultInstanceId, threadPool, jobStore);
     }
@@ -173,7 +173,7 @@ public class DirectSchedulerFactory : ISchedulerFactory
     /// <param name="threadPool">The thread pool for executing jobs</param>
     /// <param name="jobStore">The type of job store</param>
     /// <exception cref="SchedulerException">Initialization failed.</exception>
-    public virtual ValueTask CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool,
+    public ValueTask CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool,
         IJobStore jobStore)
     {
         return CreateScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, QuartzSchedulerResources.DefaultIdleWaitTime);
@@ -190,7 +190,7 @@ public class DirectSchedulerFactory : ISchedulerFactory
     /// <param name="idleWaitTime">The idle wait time.</param>
     /// <exception cref="SchedulerException">Initialization failed.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="idleWaitTime"/> is less than <see cref="TimeSpan.Zero"/>.</exception>
-    public virtual ValueTask CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool,
+    public ValueTask CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool,
         IJobStore jobStore, TimeSpan idleWaitTime)
     {
         return CreateScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, null, idleWaitTime);
@@ -208,7 +208,7 @@ public class DirectSchedulerFactory : ISchedulerFactory
     /// <param name="idleWaitTime">The idle wait time.</param>
     /// <exception cref="SchedulerException">Initialization failed.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="idleWaitTime"/> is less than <see cref="TimeSpan.Zero"/>.</exception>
-    public virtual ValueTask CreateScheduler(string schedulerName,
+    public ValueTask CreateScheduler(string schedulerName,
         string schedulerInstanceId,
         IThreadPool threadPool,
         IJobStore jobStore,
@@ -242,7 +242,7 @@ public class DirectSchedulerFactory : ISchedulerFactory
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="idleWaitTime"/> is less than <see cref="TimeSpan.Zero"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxBatchSize"/> is less than <c>1</c>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="batchTimeWindow"/> is less than <see cref="TimeSpan.Zero"/>.</exception>
-    public virtual ValueTask CreateScheduler(string schedulerName,
+    public ValueTask CreateScheduler(string schedulerName,
         string schedulerInstanceId,
         IThreadPool threadPool,
         IJobStore jobStore,
@@ -279,7 +279,7 @@ public class DirectSchedulerFactory : ISchedulerFactory
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="idleWaitTime"/> is less than <see cref="TimeSpan.Zero"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxBatchSize"/> is less than <c>1</c>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="batchTimeWindow"/> is less than <see cref="TimeSpan.Zero"/>.</exception>
-    public virtual async ValueTask CreateScheduler(string schedulerName,
+    public async ValueTask CreateScheduler(string schedulerName,
         string schedulerInstanceId,
         IThreadPool threadPool,
         IJobStore jobStore,
@@ -382,7 +382,7 @@ public class DirectSchedulerFactory : ISchedulerFactory
     /// </summary>
     /// <returns></returns>
     /// <throws>  SchedulerException </throws>
-    public virtual ValueTask<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
+    public ValueTask<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
     {
         if (!initialized)
         {
@@ -397,7 +397,7 @@ public class DirectSchedulerFactory : ISchedulerFactory
     /// <summary>
     /// Returns a handle to the Scheduler with the given name, if it exists.
     /// </summary>
-    public virtual ValueTask<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default)
+    public ValueTask<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default)
     {
         SchedulerRepository schedRep = SchedulerRepository.Instance;
         return schedRep.Lookup(schedName, cancellationToken);

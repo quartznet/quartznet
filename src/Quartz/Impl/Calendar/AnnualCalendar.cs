@@ -35,7 +35,7 @@ namespace Quartz.Impl.Calendar;
 /// <author>Juergen Donnerstag</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public class AnnualCalendar : BaseCalendar
+public sealed class AnnualCalendar : BaseCalendar
 {
     private SortedSet<DateTime> excludeDays = new SortedSet<DateTime>();
 
@@ -62,7 +62,7 @@ public class AnnualCalendar : BaseCalendar
     /// </summary>
     /// <param name="info"></param>
     /// <param name="context"></param>
-    protected AnnualCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
+    private AnnualCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
     {
         int version;
         try
@@ -127,7 +127,7 @@ public class AnnualCalendar : BaseCalendar
     /// <summary>
     /// Gets or sets the days to be excluded by this calendar.
     /// </summary>
-    public virtual IReadOnlyCollection<DateTime> DaysExcluded
+    public IReadOnlyCollection<DateTime> DaysExcluded
     {
         get => new HashSet<DateTime>(excludeDays);
         set => excludeDays = value == null ? new SortedSet<DateTime>() : new SortedSet<DateTime>(value);
@@ -136,7 +136,7 @@ public class AnnualCalendar : BaseCalendar
     /// <summary>
     /// Return true, if day is defined to be excluded.
     /// </summary>
-    public virtual bool IsDayExcluded(DateTimeOffset day)
+    public bool IsDayExcluded(DateTimeOffset day)
     {
         return IsDateTimeExcluded(day, true);
     }
@@ -180,7 +180,7 @@ public class AnnualCalendar : BaseCalendar
     /// <summary>
     /// Redefine a certain day to be excluded (true) or included (false).
     /// </summary>
-    public virtual void SetDayExcluded(DateTime day, bool exclude)
+    public void SetDayExcluded(DateTime day, bool exclude)
     {
         DateTime d = new DateTime(FixedYear, day.Month, day.Day, 0, 0, 0);
 

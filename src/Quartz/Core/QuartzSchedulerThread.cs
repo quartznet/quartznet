@@ -41,7 +41,7 @@ namespace Quartz.Core;
 /// <seealso cref="ITrigger" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public class QuartzSchedulerThread
+internal sealed class QuartzSchedulerThread
 {
     private readonly ILogger logger;
     private readonly QuartzScheduler qs;
@@ -117,7 +117,7 @@ public class QuartzSchedulerThread
     /// <summary>
     /// Signals the main processing loop to pause at the next possible point.
     /// </summary>
-    internal virtual void TogglePause(bool pause)
+    internal void TogglePause(bool pause)
     {
         lock (sigLock)
         {
@@ -137,7 +137,7 @@ public class QuartzSchedulerThread
     /// <summary>
     /// Signals the main processing loop to stop at the next possible point.
     /// </summary>
-    internal virtual async Task Halt(bool wait)
+    internal async Task Halt(bool wait)
     {
         lock (sigLock)
         {

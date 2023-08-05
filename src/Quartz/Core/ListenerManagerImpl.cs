@@ -5,7 +5,7 @@ namespace Quartz.Core;
 /// <summary>
 /// Default concrete implementation of <see cref="IListenerManager" />.
 /// </summary>
-public class ListenerManagerImpl : IListenerManager
+internal sealed class ListenerManagerImpl : IListenerManager
 {
     private readonly object globalJobListenerLock = new object();
     private OrderedDictionary<string, IJobListener>? globalJobListeners;

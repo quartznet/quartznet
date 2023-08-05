@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Security;
 
 using Microsoft.Extensions.Logging;
@@ -10,7 +10,7 @@ namespace Quartz.Util;
 /// <summary>
 /// Environment access helpers that fail gracefully if under medium trust.
 /// </summary>
-public static class QuartzEnvironment
+internal static class QuartzEnvironment
 {
     /// <summary>
     /// Return whether we are currently running under Mono runtime.
@@ -37,7 +37,7 @@ public static class QuartzEnvironment
     /// <summary>
     /// Retrieves all environment variable names and their values from the current process.
     /// </summary>
-    public static IDictionary<string, string?> GetEnvironmentVariables()
+    public static Dictionary<string, string?> GetEnvironmentVariables()
     {
         var retValue = new Dictionary<string, string?>();
         try

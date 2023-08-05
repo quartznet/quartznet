@@ -60,7 +60,7 @@ namespace Quartz;
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public class JobDataMap : StringKeyDirtyFlagMap
+public sealed class JobDataMap : StringKeyDirtyFlagMap
 {
     /// <summary>
     /// Create an empty <see cref="JobDataMap" />.
@@ -110,7 +110,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// </summary>
     /// <param name="info"></param>
     /// <param name="context"></param>
-    protected JobDataMap(SerializationInfo info, StreamingContext context) : base(info, context)
+    private JobDataMap(SerializationInfo info, StreamingContext context) : base(info, context)
     {
     }
 
@@ -118,7 +118,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// Adds the given <see cref="bool" /> value as a string version to the
     /// <see cref="IJob" />'s data map.
     /// </summary>
-    public virtual void PutAsString(string key, bool value)
+    public void PutAsString(string key, bool value)
     {
         string strValue = value.ToString();
         Put(key, strValue);
@@ -128,7 +128,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// Adds the given <see cref="char" /> value as a string version to the
     /// <see cref="IJob" />'s data map.
     /// </summary>
-    public virtual void PutAsString(string key, char value)
+    public void PutAsString(string key, char value)
     {
         string strValue = value.ToString();
         Put(key, strValue);
@@ -138,7 +138,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// Adds the given <see cref="double" /> value as a string version to the
     /// <see cref="IJob" />'s data map.
     /// </summary>
-    public virtual void PutAsString(string key, double value)
+    public void PutAsString(string key, double value)
     {
         string strValue = value.ToString(CultureInfo.InvariantCulture);
         Put(key, strValue);
@@ -148,7 +148,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// Adds the given <see cref="float" /> value as a string version to the
     /// <see cref="IJob" />'s data map.
     /// </summary>
-    public virtual void PutAsString(string key, float value)
+    public void PutAsString(string key, float value)
     {
         string strValue = value.ToString(CultureInfo.InvariantCulture);
         Put(key, strValue);
@@ -158,7 +158,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// Adds the given <see cref="int" /> value as a string version to the
     /// <see cref="IJob" />'s data map.
     /// </summary>
-    public virtual void PutAsString(string key, int value)
+    public void PutAsString(string key, int value)
     {
         string strValue = value.ToString(CultureInfo.InvariantCulture);
         Put(key, strValue);
@@ -168,7 +168,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// Adds the given <see cref="long" /> value as a string version to the
     /// <see cref="IJob" />'s data map.
     /// </summary>
-    public virtual void PutAsString(string key, long value)
+    public void PutAsString(string key, long value)
     {
         string strValue = value.ToString(CultureInfo.InvariantCulture);
         Put(key, strValue);
@@ -178,7 +178,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// Adds the given <see cref="DateTime" /> value as a string version to the
     /// <see cref="IJob" />'s data map.
     /// </summary>
-    public virtual void PutAsString(string key, DateTime value)
+    public void PutAsString(string key, DateTime value)
     {
         string strValue = value.ToString(CultureInfo.InvariantCulture);
         Put(key, strValue);
@@ -188,7 +188,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// Adds the given <see cref="DateTimeOffset" /> value as a string version to the
     /// <see cref="IJob" />'s data map.
     /// </summary>
-    public virtual void PutAsString(string key, DateTimeOffset value)
+    public void PutAsString(string key, DateTimeOffset value)
     {
         string strValue = value.ToString(CultureInfo.InvariantCulture);
         Put(key, strValue);
@@ -198,7 +198,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// Adds the given <see cref="TimeSpan" /> value as a string version to the
     /// <see cref="IJob" />'s data map.
     /// </summary>
-    public virtual void PutAsString(string key, TimeSpan value)
+    public void PutAsString(string key, TimeSpan value)
     {
         string strValue = value.ToString();
         Put(key, strValue);
@@ -208,7 +208,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// Adds the given <see cref="Guid" /> value as a string version to the
     /// <see cref="IJob" />'s data map. The hyphens are omitted from the  <see cref="Guid" />.
     /// </summary>
-    public virtual void PutAsString(string key, Guid value)
+    public void PutAsString(string key, Guid value)
     {
         string strValue = value.ToString("N");
         Put(key, strValue);
@@ -218,7 +218,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// Adds the given <see cref="Guid" /> value as a string version to the
     /// <see cref="IJob" />'s data map. The hyphens are omitted from the  <see cref="Guid" />.
     /// </summary>
-    public virtual void PutAsString(string key, Guid? value)
+    public void PutAsString(string key, Guid? value)
     {
         string? strValue = value?.ToString("N");
         Put(key, strValue!);
@@ -227,7 +227,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Retrieve the identified <see cref="int" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual int GetIntValueFromString(string key)
+    public int GetIntValueFromString(string key)
     {
         object obj = this[key];
         return int.Parse((string) obj, CultureInfo.InvariantCulture);
@@ -236,7 +236,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Retrieve the identified <see cref="int" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual int GetIntValue(string key)
+    public int GetIntValue(string key)
     {
         object obj = this[key];
 
@@ -251,7 +251,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Retrieve the identified <see cref="bool" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual bool GetBooleanValueFromString(string key)
+    public bool GetBooleanValueFromString(string key)
     {
         object obj = this[key];
 
@@ -262,7 +262,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// Retrieve the identified <see cref="bool" /> value from the
     /// <see cref="JobDataMap" />.
     /// </summary>
-    public virtual bool GetBooleanValue(string key)
+    public bool GetBooleanValue(string key)
     {
         object obj = this[key];
 
@@ -277,7 +277,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Retrieve the identified <see cref="char" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual char GetCharFromString(string key)
+    public char GetCharFromString(string key)
     {
         object obj = this[key];
 
@@ -287,7 +287,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Retrieve the identified <see cref="double" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual double GetDoubleValueFromString(string key)
+    public double GetDoubleValueFromString(string key)
     {
         object obj = this[key];
         return double.Parse((string) obj, CultureInfo.InvariantCulture);
@@ -296,7 +296,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Retrieve the identified <see cref="double" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual double GetDoubleValue(string key)
+    public double GetDoubleValue(string key)
     {
         object obj = this[key];
 
@@ -311,7 +311,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Retrieve the identified <see cref="float" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual float GetFloatValueFromString(string key)
+    public float GetFloatValueFromString(string key)
     {
         object obj = this[key];
         return float.Parse((string) obj, CultureInfo.InvariantCulture);
@@ -320,7 +320,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Retrieve the identified <see cref="float" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual float GetFloatValue(string key)
+    public float GetFloatValue(string key)
     {
         object obj = this[key];
 
@@ -335,7 +335,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Retrieve the identified <see cref="long" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual long GetLongValueFromString(string key)
+    public long GetLongValueFromString(string key)
     {
         object obj = this[key];
         return long.Parse((string) obj, CultureInfo.InvariantCulture);
@@ -344,7 +344,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Retrieve the identified <see cref="DateTime" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual DateTime GetDateTimeValueFromString(string key)
+    public DateTime GetDateTimeValueFromString(string key)
     {
         object obj = this[key];
         return DateTime.Parse((string) obj, CultureInfo.InvariantCulture);
@@ -353,7 +353,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Retrieve the identified <see cref="DateTimeOffset" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual DateTimeOffset GetDateTimeOffsetValueFromString(string key)
+    public DateTimeOffset GetDateTimeOffsetValueFromString(string key)
     {
         object obj = this[key];
         return DateTimeOffset.Parse((string) obj, CultureInfo.InvariantCulture);
@@ -362,7 +362,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Retrieve the identified <see cref="TimeSpan" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual TimeSpan GetTimeSpanValueFromString(string key)
+    public TimeSpan GetTimeSpanValueFromString(string key)
     {
         object obj = this[key];
         return TimeSpan.Parse((string) obj, CultureInfo.InvariantCulture);
@@ -371,7 +371,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Retrieve the identified <see cref="long" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual long GetLongValue(string key)
+    public long GetLongValue(string key)
     {
         object obj = this[key];
 
@@ -388,7 +388,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// </summary>
     /// <param name="key">The key.</param>
     /// <returns></returns>
-    public virtual DateTime GetDateTimeValue(string key)
+    public DateTime GetDateTimeValue(string key)
     {
         object obj = this[key];
 
@@ -405,7 +405,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// </summary>
     /// <param name="key">The key.</param>
     /// <returns></returns>
-    public virtual DateTimeOffset GetDateTimeOffsetValue(string key)
+    public DateTimeOffset GetDateTimeOffsetValue(string key)
     {
         object obj = this[key];
 
@@ -420,7 +420,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Retrieve the identified <see cref="TimeSpan" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual TimeSpan GetTimeSpanValue(string key)
+    public TimeSpan GetTimeSpanValue(string key)
     {
         object obj = this[key];
 
@@ -435,7 +435,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Retrieve the identified <see cref="Guid" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual Guid GetGuidValueFromString(string key)
+    public Guid GetGuidValueFromString(string key)
     {
         object obj = this[key];
         return Guid.Parse((string) obj);
@@ -444,7 +444,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Retrieve the identified <see cref="Guid" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual Guid GetGuidValue(string key)
+    public Guid GetGuidValue(string key)
     {
         object obj = this[key];
 
@@ -459,7 +459,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Retrieve the identified <see cref="Guid" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual Guid? GetNullableGuidValue(string key)
+    public Guid? GetNullableGuidValue(string key)
     {
         object obj = this[key];
 
@@ -474,7 +474,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Try to retrieve the identified <see cref="int" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual bool TryGetIntValueFromString(string key, out int value)
+    public bool TryGetIntValueFromString(string key, out int value)
     {
         try
         {
@@ -491,7 +491,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Try to retrieve the identified <see cref="bool" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual bool TryGetBooleanValueFromString(string key, out bool value)
+    public bool TryGetBooleanValueFromString(string key, out bool value)
     {
         try
         {
@@ -508,7 +508,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Try to retrieve the identified <see cref="double" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual bool TryGetDoubleValueFromString(string key, out double value)
+    public bool TryGetDoubleValueFromString(string key, out double value)
     {
         try
         {
@@ -525,7 +525,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Try to retrieve the identified <see cref="float" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual bool TryGetFloatValueFromString(string key, out float value)
+    public bool TryGetFloatValueFromString(string key, out float value)
     {
         try
         {
@@ -542,7 +542,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Try to retrieve the identified <see cref="long" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual bool TryGetLongValueFromString(string key, out long value)
+    public bool TryGetLongValueFromString(string key, out long value)
     {
         try
         {
@@ -559,7 +559,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Try to retrieve the identified <see cref="DateTime" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual bool TryGetDateTimeValueFromString(string key, out DateTime value)
+    public bool TryGetDateTimeValueFromString(string key, out DateTime value)
     {
         try
         {
@@ -576,7 +576,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Try to retrieve the identified <see cref="DateTimeOffset" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual bool TryGetDateTimeOffsetValueFromString(string key, out DateTimeOffset value)
+    public bool TryGetDateTimeOffsetValueFromString(string key, out DateTimeOffset value)
     {
         try
         {
@@ -593,7 +593,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Try to retrieve the identified <see cref="TimeSpan" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual bool TryGetTimeSpanValueFromString(string key, out TimeSpan value)
+    public bool TryGetTimeSpanValueFromString(string key, out TimeSpan value)
     {
         try
         {
@@ -610,7 +610,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Try to retrieve the identified <see cref="Guid" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual bool TryGetGuidValueFromString(string key, out Guid value)
+    public bool TryGetGuidValueFromString(string key, out Guid value)
     {
         try
         {
@@ -627,7 +627,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Try to retrieve the identified <see cref="int" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual bool TryGetIntValue(string key, out int value)
+    public bool TryGetIntValue(string key, out int value)
     {
         var result = TryGetIntValueFromString(key, out value);
         if (!result)
@@ -641,7 +641,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Try to retrieve the identified <see cref="bool" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual bool TryGetBooleanValue(string key, out bool value)
+    public bool TryGetBooleanValue(string key, out bool value)
     {
         var result = TryGetBooleanValueFromString(key, out value);
         if (!result)
@@ -655,7 +655,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Try to retrieve the identified <see cref="double" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual bool TryGetDoubleValue(string key, out double value)
+    public bool TryGetDoubleValue(string key, out double value)
     {
         var result = TryGetDoubleValueFromString(key, out value);
         if (!result)
@@ -669,7 +669,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Try to retrieve the identified <see cref="float" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual bool TryGetFloatValue(string key, out float value)
+    public bool TryGetFloatValue(string key, out float value)
     {
         var result = TryGetFloatValueFromString(key, out value);
         if (!result)
@@ -683,7 +683,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Try to retrieve the identified <see cref="long" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual bool TryGetLongValue(string key, out long value)
+    public bool TryGetLongValue(string key, out long value)
     {
         var result = TryGetLongValueFromString(key, out value);
         if (!result)
@@ -697,7 +697,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Try to retrieve the identified <see cref="DateTime" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual bool TryGetDateTimeValue(string key, out DateTime value)
+    public bool TryGetDateTimeValue(string key, out DateTime value)
     {
         var result = TryGetDateTimeValueFromString(key, out value);
         if (!result)
@@ -711,7 +711,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Try to retrieve the identified <see cref="DateTimeOffset" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual bool TryGetDateTimeOffsetValue(string key, out DateTimeOffset value)
+    public bool TryGetDateTimeOffsetValue(string key, out DateTimeOffset value)
     {
         var result = TryGetDateTimeOffsetValueFromString(key, out value);
         if (!result)
@@ -725,7 +725,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Try to retrieve the identified <see cref="TimeSpan" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual bool TryGetTimeSpanValue(string key, out TimeSpan value)
+    public bool TryGetTimeSpanValue(string key, out TimeSpan value)
     {
         var result = TryGetTimeSpanValueFromString(key, out value);
         if (!result)
@@ -739,7 +739,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Try to retrieve the identified <see cref="Guid" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual bool TryGetGuidValue(string key, out Guid value)
+    public bool TryGetGuidValue(string key, out Guid value)
     {
         var result = TryGetGuidValueFromString(key, out value);
         if (!result)
@@ -753,7 +753,7 @@ public class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Try to retrieve the identified <see cref="char" /> value from the <see cref="JobDataMap" />.
     /// </summary>
-    public virtual bool TryGetCharFromString(string key, out char value)
+    public bool TryGetCharFromString(string key, out char value)
     {
         try
         {

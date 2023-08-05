@@ -9,7 +9,7 @@ namespace Quartz.Simpl;
 /// under the hood.
 /// </summary>
 /// <author>Marko Lahma</author>
-public class BinaryObjectSerializer : IObjectSerializer
+internal sealed class BinaryObjectSerializer : IObjectSerializer
 {
     public void Initialize()
     {

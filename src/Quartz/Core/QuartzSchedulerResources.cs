@@ -28,7 +28,7 @@ namespace Quartz.Core;
 /// <seealso cref="QuartzScheduler" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public class QuartzSchedulerResources
+public sealed class QuartzSchedulerResources
 {
     internal static readonly TimeSpan DefaultIdleWaitTime = TimeSpan.FromSeconds(30);
     internal const int DefaultMaxBatchSize = 1;
@@ -57,7 +57,7 @@ public class QuartzSchedulerResources
     /// <exception cref="ArgumentException">
     /// if name is null or empty.
     /// </exception>
-    public virtual string Name
+    public string Name
     {
         get => name;
         set
@@ -83,7 +83,7 @@ public class QuartzSchedulerResources
     /// <exception cref="ArgumentException">
     /// if name is null or empty.
     /// </exception>
-    public virtual string InstanceId
+    public string InstanceId
     {
         get => instanceId;
         set
@@ -104,7 +104,7 @@ public class QuartzSchedulerResources
     /// <exception cref="ArgumentException">
     /// if name is null or empty.
     /// </exception>
-    public virtual string ThreadName
+    public string ThreadName
     {
         get => threadName;
         set
@@ -125,7 +125,7 @@ public class QuartzSchedulerResources
     /// <exception cref="ArgumentException">
     /// if threadPool is null.
     /// </exception>
-    public virtual IThreadPool ThreadPool
+    public IThreadPool ThreadPool
     {
         get => threadPool;
         set
@@ -145,7 +145,7 @@ public class QuartzSchedulerResources
     /// <exception cref="ArgumentException">
     /// if jobStore is null.
     /// </exception>
-    public virtual IJobStore JobStore
+    public IJobStore JobStore
     {
         get => jobStore;
         set
@@ -165,7 +165,7 @@ public class QuartzSchedulerResources
     /// <exception cref="ArgumentException">
     /// if jobRunShellFactory is null.
     /// </exception>
-    public virtual IJobRunShellFactory JobRunShellFactory
+    public IJobRunShellFactory JobRunShellFactory
     {
         get => jobRunShellFactory;
         set
@@ -193,7 +193,7 @@ public class QuartzSchedulerResources
     /// Gets the unique identifier.
     /// </summary>
     /// <returns></returns>
-    public virtual string GetUniqueIdentifier()
+    public string GetUniqueIdentifier()
     {
         return GetUniqueIdentifier(name, instanceId);
     }

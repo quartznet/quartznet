@@ -58,12 +58,12 @@ namespace Quartz;
 /// <seealso cref="SimpleScheduleBuilder" />
 /// <seealso cref="CalendarIntervalScheduleBuilder" />
 /// <seealso cref="TriggerBuilder" />
-public class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>
+public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>
 {
     private readonly CronExpression cronExpression;
     private int misfireInstruction = MisfireInstruction.SmartPolicy;
 
-    protected CronScheduleBuilder(CronExpression cronExpression)
+    private CronScheduleBuilder(CronExpression cronExpression)
     {
         if (cronExpression is null)
         {

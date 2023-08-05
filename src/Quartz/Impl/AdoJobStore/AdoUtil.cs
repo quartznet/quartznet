@@ -27,11 +27,25 @@ using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
 namespace Quartz.Impl.AdoJobStore;
 
+public interface IAdoUtil
+{
+    void AddCommandParameter(IDbCommand cmd, string paramName, object? paramValue);
+
+    void AddCommandParameter(
+        IDbCommand cmd,
+        string paramName,
+        object? paramValue,
+        Enum? dataType,
+        int? size);
+
+    DbCommand PrepareCommand(ConnectionAndTransactionHolder cth, string commandText);
+}
+
 /// <summary>
 /// Common helper methods for working with ADO.NET.
 /// </summary>
 /// <author>Marko Lahma</author>
-public class AdoUtil
+internal sealed class AdoUtil : IAdoUtil
 {
     private readonly ILogger logger;
     private readonly IDbProvider dbProvider;

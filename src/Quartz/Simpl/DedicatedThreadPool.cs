@@ -1,4 +1,4 @@
-using Quartz.Util;
+﻿using Quartz.Util;
 
 namespace Quartz.Simpl;
 
@@ -6,7 +6,7 @@ namespace Quartz.Simpl;
 /// An implementation of the TaskSchedulingThreadPool which uses a custom task scheduler
 /// with a dedicated pool of threads reserved only for its own scheduling purposes
 /// </summary>
-public class DedicatedThreadPool : TaskSchedulingThreadPool
+internal sealed class DedicatedThreadPool : TaskSchedulingThreadPool
 {
     /// <summary>
     /// Returns a QueuedTaskScheduler

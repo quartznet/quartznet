@@ -6,7 +6,7 @@ namespace Quartz.Util;
 /// <summary>
 /// Extension methods for simplified <see cref="IDataReader" /> access.
 /// </summary>
-public static class DataReaderExtensions
+internal static class DataReaderExtensions
 {
     /// <summary>
     /// Returns string from given column name, or null if DbNull.

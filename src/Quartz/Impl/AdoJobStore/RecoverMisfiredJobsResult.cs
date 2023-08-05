@@ -1,10 +1,10 @@
-namespace Quartz.Impl.AdoJobStore;
+﻿namespace Quartz.Impl.AdoJobStore;
 
 /// <summary>
 /// Helper class for returning the composite result of trying
 /// to recover misfired jobs.
 /// </summary>
-public class RecoverMisfiredJobsResult
+public sealed class RecoverMisfiredJobsResult
 {
     public static readonly RecoverMisfiredJobsResult NoOp = new RecoverMisfiredJobsResult(false, 0, DateTimeOffset.MaxValue);
 

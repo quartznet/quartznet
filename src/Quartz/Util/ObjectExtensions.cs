@@ -14,12 +14,12 @@ public static class ObjectExtensions
     public static string AssemblyQualifiedNameWithoutVersion(this Type type)
         => assemblyQualifiedNameCache.GetOrAdd(type, x => GetTypeString(x) + ", " + x.Assembly.GetName().Name);
 
-    public static string? GetTypeString(Type type)
+    private static string? GetTypeString(Type type)
         => type.IsGenericType
             ? GenericTypeString(type.FullName)
             : type.FullName;
 
-    public static string? GenericTypeString(string? name)
+    private static string? GenericTypeString(string? name)
         => string.IsNullOrEmpty(name)
             ? null
             : cleanup.Replace(name, "");

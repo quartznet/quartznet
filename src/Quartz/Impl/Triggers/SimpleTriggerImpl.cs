@@ -230,7 +230,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// Get or set the number of times the <see cref="ISimpleTrigger" /> has already
     /// fired.
     /// </summary>
-    public virtual int TimesTriggered
+    public int TimesTriggered
     {
         get => timesTriggered;
         set => timesTriggered = value;
@@ -693,7 +693,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// fire, before the given time. If the trigger will not fire before the
     /// given time, <see langword="null" /> will be returned.
     /// </summary>
-    public virtual DateTimeOffset? GetFireTimeBefore(DateTimeOffset endUtc)
+    public DateTimeOffset? GetFireTimeBefore(DateTimeOffset endUtc)
     {
         if (endUtc < StartTimeUtc)
         {
@@ -710,7 +710,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// <param name="startTimeUtc">The UTC start date and time.</param>
     /// <param name="endTimeUtc">The UTC end date and time.</param>
     /// <returns></returns>
-    public virtual int ComputeNumTimesFiredBetween(DateTimeOffset startTimeUtc, DateTimeOffset endTimeUtc)
+    public int ComputeNumTimesFiredBetween(DateTimeOffset startTimeUtc, DateTimeOffset endTimeUtc)
     {
         long time = (endTimeUtc - startTimeUtc).Ticks;
         return (int) (time / repeatInterval.Ticks);

@@ -8,7 +8,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// <summary>
 /// Initialization arguments holder for <see cref="IDriverDelegate" /> implementations.
 /// </summary>
-public class DelegateInitializationArgs
+public sealed class DelegateInitializationArgs
 {
     /// <summary>
     /// Whether simple <see cref="NameValueCollection"/> should be used (for serialization safety).

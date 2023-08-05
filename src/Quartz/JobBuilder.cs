@@ -61,7 +61,7 @@ namespace Quartz;
 /// <seealso cref="TriggerBuilder" />
 /// <seealso cref="DateBuilder" />
 /// <seealso cref="IJobDetail" />
-public class JobBuilder : IJobConfigurator
+public sealed class JobBuilder : IJobConfigurator
 {
     private JobKey? _key;
     private string? _description;
@@ -78,7 +78,7 @@ public class JobBuilder : IJobConfigurator
     /// </summary>
     internal JobKey? Key => _key;
 
-    protected JobBuilder()
+    private JobBuilder()
     {
     }
 

@@ -45,7 +45,7 @@ namespace Quartz.Listener;
 ///</remarks>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public class JobChainingJobListener : JobListenerSupport
+public sealed class JobChainingJobListener : JobListenerSupport
 {
     private readonly Dictionary<JobKey, JobKey> chainLinks;
     private readonly ILogger<JobChainingJobListener> logger;

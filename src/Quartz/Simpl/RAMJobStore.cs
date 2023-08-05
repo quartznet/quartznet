@@ -1097,24 +1097,6 @@ public class RAMJobStore : IJobStore
     /// Gets the trigger wrappers for job.
     /// </summary>
     /// <returns></returns>
-    protected virtual IEnumerable<TriggerWrapper> GetTriggerWrappersForJob(
-        JobKey jobKey)
-    {
-        lock (lockObject)
-        {
-            if (triggersByJob.TryGetValue(jobKey, out var jobList))
-            {
-                return new List<TriggerWrapper>(jobList);
-            }
-        }
-
-        return new List<TriggerWrapper>();
-    }
-
-    /// <summary>
-    /// Gets the trigger wrappers for job.
-    /// </summary>
-    /// <returns></returns>
     /// <remarks>
     /// This method should only be executed while holding the instance level lock.
     /// </remarks>
@@ -1133,7 +1115,7 @@ public class RAMJobStore : IJobStore
     /// </summary>
     /// <param name="calName">Name of the cal.</param>
     /// <returns></returns>
-    protected virtual IEnumerable<TriggerWrapper> GetTriggerWrappersForCalendar(string calName)
+    private IEnumerable<TriggerWrapper> GetTriggerWrappersForCalendar(string calName)
     {
         lock (lockObject)
         {
@@ -1549,7 +1531,7 @@ public class RAMJobStore : IJobStore
     /// one value to another, or from a given value to <see langword="null"/>; otherwise,
     /// <see langword="false"/>.
     /// </returns>
-    protected virtual bool ApplyMisfire(TriggerWrapper tw)
+    private bool ApplyMisfire(TriggerWrapper tw)
     {
         if (tw.Trigger.MisfireInstruction == MisfireInstruction.IgnoreMisfirePolicy)
         {

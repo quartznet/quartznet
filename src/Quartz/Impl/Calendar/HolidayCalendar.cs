@@ -38,14 +38,14 @@ namespace Quartz.Impl.Calendar;
 /// <author>Juergen Donnerstag</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public class HolidayCalendar : BaseCalendar
+public sealed class HolidayCalendar : BaseCalendar
 {
     /// <summary>
     /// Returns a collection of dates representing the excluded
     /// days. Only the month, day and year of the returned dates are
     /// significant.
     /// </summary>
-    public virtual IReadOnlyCollection<DateTime> ExcludedDates
+    public IReadOnlyCollection<DateTime> ExcludedDates
     {
         get => new HashSet<DateTime>(dates);
         internal set => dates = new SortedSet<DateTime>(value);
@@ -76,7 +76,7 @@ public class HolidayCalendar : BaseCalendar
     /// </summary>
     /// <param name="info"></param>
     /// <param name="context"></param>
-    protected HolidayCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
+    private HolidayCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
     {
         int version;
         try
@@ -179,7 +179,7 @@ public class HolidayCalendar : BaseCalendar
     /// Add the given Date to the list of excluded days. Only the month, day and
     /// year of the returned dates are significant.
     /// </summary>
-    public virtual void AddExcludedDate(DateTime excludedDateUtc)
+    public void AddExcludedDate(DateTime excludedDateUtc)
     {
         DateTime date = excludedDateUtc.Date;
         dates.Add(date);
@@ -189,7 +189,7 @@ public class HolidayCalendar : BaseCalendar
     /// Removes the excluded date.
     /// </summary>
     /// <param name="dateToRemoveUtc">The date to remove.</param>
-    public virtual void RemoveExcludedDate(DateTime dateToRemoveUtc)
+    public void RemoveExcludedDate(DateTime dateToRemoveUtc)
     {
         DateTime date = dateToRemoveUtc.Date;
         dates.Remove(date);

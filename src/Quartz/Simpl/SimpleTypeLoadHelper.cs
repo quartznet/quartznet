@@ -27,18 +27,18 @@ namespace Quartz.Simpl;
 /// <seealso cref="ITypeLoadHelper" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public class SimpleTypeLoadHelper : ITypeLoadHelper
+internal sealed class SimpleTypeLoadHelper : ITypeLoadHelper
 {
     private const string QuartzAssemblyTypePostfix = ", Quartz";
     private const string QuartzJobsAssemblyTypePostifx = ", Quartz.Jobs";
 
     /// <inheritdoc />
-    public virtual void Initialize()
+    public void Initialize()
     {
     }
 
     /// <inheritdoc />
-    public virtual Type? LoadType(string? name)
+    public Type? LoadType(string? name)
     {
         if (string.IsNullOrEmpty(name) || name == null)
         {
