@@ -88,7 +88,7 @@ public sealed class SchedulerMetaData
     public Type SchedulerType { get; }
 
     /// <summary>
-    /// Returns whether the <see cref="IScheduler" /> is being used remotely (via remoting).
+    /// Returns whether the <see cref="IScheduler" /> is being used remotely (via RPC).
     /// </summary>
     public bool SchedulerRemote { get; }
 

@@ -32,7 +32,7 @@ namespace Quartz;
 /// <remarks>
 /// Future versions of Quartz may make distinctions on how it propagates
 /// data in <see cref="SchedulerContext" /> between instances of proxies to a
-/// single scheduler instance - i.e. if Quartz is being used via WCF of Remoting.
+/// single scheduler instance - i.e. if Quartz is being used via RPC.
 /// </remarks>
 /// <seealso cref="IScheduler.Context" />
 /// <author>James House</author>

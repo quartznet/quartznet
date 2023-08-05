@@ -119,38 +119,6 @@ public sealed class DirectSchedulerFactory : ISchedulerFactory
         return CreateScheduler(threadPool, jobStore);
     }
 
-#if REMOTING
-    /// <summary>
-    /// Creates a proxy to a remote scheduler. This scheduler can be retrieved
-    /// via <see cref="DirectSchedulerFactory.GetScheduler(CancellationToken)" />.
-    /// </summary>
-    /// <throws>  SchedulerException </throws>
-    public void CreateRemoteScheduler(string proxyAddress)
-    {
-        CreateRemoteScheduler(DefaultSchedulerName, DefaultInstanceId, proxyAddress);
-    }
-
-    /// <summary>
-    /// Same as <see cref="DirectSchedulerFactory.CreateRemoteScheduler(string)" />,
-    /// with the addition of specifying the scheduler name and instance ID. This
-    /// scheduler can only be retrieved via <see cref="DirectSchedulerFactory.GetScheduler(string, CancellationToken)" />.
-    /// </summary>
-    /// <param name="schedulerName">The name for the scheduler.</param>
-    /// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
-    /// <param name="proxyAddress"></param>
-    /// <throws>  SchedulerException </throws>
-    private void CreateRemoteScheduler(string schedulerName, string schedulerInstanceId, string proxyAddress)
-    {
-        var proxyBuilder = new RemotingSchedulerProxyFactory();
-        proxyBuilder.Address = proxyAddress;
-        IScheduler remoteScheduler = proxyBuilder.GetProxy(schedulerName, schedulerInstanceId);
-
-        SchedulerRepository schedRep = SchedulerRepository.Instance;
-        schedRep.Bind(remoteScheduler);
-        initialized = true;
-    }
-#endif // REMOTING
-
     /// <summary>
     /// Creates a scheduler using the specified thread pool and job store, and with an idle wait time of
     /// <c>30</c> seconds. This scheduler can be retrieved via <see cref="GetScheduler(CancellationToken)"/>.
@@ -173,8 +141,7 @@ public sealed class DirectSchedulerFactory : ISchedulerFactory
     /// <param name="threadPool">The thread pool for executing jobs</param>
     /// <param name="jobStore">The type of job store</param>
     /// <exception cref="SchedulerException">Initialization failed.</exception>
-    public ValueTask CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool,
-        IJobStore jobStore)
+    public ValueTask CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool, IJobStore jobStore)
     {
         return CreateScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, QuartzSchedulerResources.DefaultIdleWaitTime);
     }
