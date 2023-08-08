@@ -28,7 +28,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// </summary>
 /// <author>JBVyncent</author>
 /// <author>Marko Lahma</author>
-public class UpdateLockRowSemaphoreMOT : UpdateLockRowSemaphore
+public sealed class UpdateLockRowSemaphoreMOT : UpdateLockRowSemaphore
 {
     private static readonly string SqlUpdateForLockMOT =
         $"UPDATE {TablePrefixSubst}{TableLocks} WITH (SNAPSHOT) SET {ColumnLockName} = {ColumnLockName} WHERE {ColumnSchedulerName} = @schedulerName AND {ColumnLockName} = @lockName";

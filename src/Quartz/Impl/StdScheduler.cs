@@ -22,7 +22,6 @@
 using Quartz.Core;
 using Quartz.Impl.Matchers;
 using Quartz.Spi;
-using Quartz.Util;
 
 namespace Quartz.Impl;
 
@@ -35,7 +34,7 @@ namespace Quartz.Impl;
 /// <seealso cref="QuartzScheduler" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public class StdScheduler : IScheduler
+internal class StdScheduler : IScheduler
 {
     internal readonly QuartzScheduler sched;
 
@@ -542,9 +541,9 @@ public class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public ValueTask ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public async ValueTask ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        return sched.ResetTriggerFromErrorState(triggerKey, cancellationToken).AsValueTask();
+        await sched.ResetTriggerFromErrorState(triggerKey, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>

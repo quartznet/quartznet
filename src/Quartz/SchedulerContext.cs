@@ -37,8 +37,8 @@ namespace Quartz;
 /// <seealso cref="IScheduler.Context" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-[System.Serializable]
-public class SchedulerContext : StringKeyDirtyFlagMap
+[Serializable]
+public sealed class SchedulerContext : StringKeyDirtyFlagMap
 {
     /// <summary>
     /// Create an empty <see cref="JobDataMap" />.
@@ -60,7 +60,7 @@ public class SchedulerContext : StringKeyDirtyFlagMap
     /// </summary>
     /// <param name="info"></param>
     /// <param name="context"></param>
-    protected SchedulerContext(SerializationInfo info, StreamingContext context) : base(info, context)
+    private SchedulerContext(SerializationInfo info, StreamingContext context) : base(info, context)
     {
     }
 }

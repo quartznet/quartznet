@@ -29,14 +29,14 @@ namespace Quartz.Impl.Matchers;
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public class AndMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
+public sealed class AndMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
 {
     // ReSharper disable once UnusedMember.Local
     private AndMatcher()
     {
     }
 
-    protected AndMatcher(IMatcher<TKey> leftOperand, IMatcher<TKey> rightOperand)
+    private AndMatcher(IMatcher<TKey> leftOperand, IMatcher<TKey> rightOperand)
     {
         if (leftOperand == null || rightOperand == null)
         {

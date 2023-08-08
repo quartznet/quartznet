@@ -28,15 +28,15 @@ namespace Quartz.Impl.Matchers;
 /// </summary>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-[System.Serializable]
-public class NameMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TKey>
+[Serializable]
+public sealed class NameMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TKey>
 {
     // ReSharper disable once UnusedMember.Local
     private NameMatcher()
     {
     }
 
-    protected NameMatcher(string compareTo, StringOperator compareWith) : base(compareTo, compareWith)
+    private NameMatcher(string compareTo, StringOperator compareWith) : base(compareTo, compareWith)
     {
     }
 

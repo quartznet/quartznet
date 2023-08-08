@@ -1,9 +1,9 @@
-namespace Quartz.Impl.AdoJobStore;
+﻿namespace Quartz.Impl.AdoJobStore;
 
 /// <summary>
 /// Property name and value holder for trigger state data.
 /// </summary>
-public class TriggerPropertyBundle
+public sealed class TriggerPropertyBundle
 {
     public TriggerPropertyBundle(IScheduleBuilder sb)
         : this(sb, Array.Empty<string>(), Array.Empty<object>())

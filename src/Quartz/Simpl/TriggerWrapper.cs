@@ -5,7 +5,7 @@ namespace Quartz.Simpl;
 /// <summary>
 /// Helper wrapper class
 /// </summary>
-public class TriggerWrapper : IEquatable<TriggerWrapper>
+internal sealed class TriggerWrapper : IEquatable<TriggerWrapper>
 {
     /// <summary>
     /// The key used

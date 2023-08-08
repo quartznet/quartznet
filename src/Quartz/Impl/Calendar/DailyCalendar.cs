@@ -52,7 +52,7 @@ namespace Quartz.Impl.Calendar;
 /// <author>Aaron Craven</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public class DailyCalendar : BaseCalendar
+public sealed class DailyCalendar : BaseCalendar
 {
     private const string InvalidHourOfDay = "Invalid hour of day: ";
     private const string InvalidMinute = "Invalid minute: ";
@@ -376,7 +376,7 @@ public class DailyCalendar : BaseCalendar
     /// </summary>
     /// <param name="info"></param>
     /// <param name="context"></param>
-    protected DailyCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
+    private DailyCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
     {
         int version;
         try

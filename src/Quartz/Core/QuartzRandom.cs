@@ -2,7 +2,7 @@ using System.Security.Cryptography;
 
 namespace Quartz.Core;
 
-public class QuartzRandom
+internal sealed class QuartzRandom
 {
 #pragma warning disable SYSLIB0023
     private readonly RNGCryptoServiceProvider random;

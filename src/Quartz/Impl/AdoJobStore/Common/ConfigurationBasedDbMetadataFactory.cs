@@ -1,4 +1,4 @@
-using System.Collections.Specialized;
+﻿using System.Collections.Specialized;
 
 using Quartz.Util;
 
@@ -7,7 +7,7 @@ namespace Quartz.Impl.AdoJobStore.Common;
 /// <summary>
 /// The DbMetadata factory based on application configuration
 /// </summary>
-public class ConfigurationBasedDbMetadataFactory : DbMetadataFactory
+internal sealed class ConfigurationBasedDbMetadataFactory : DbMetadataFactory
 {
     private readonly string propertyGroupName;
     private readonly NameValueCollection properties;
@@ -37,7 +37,7 @@ public class ConfigurationBasedDbMetadataFactory : DbMetadataFactory
     /// Gets the properties parser.
     /// </summary>
     /// <returns>The properties parser</returns>
-    protected virtual PropertiesParser GetPropertiesParser()
+    private PropertiesParser GetPropertiesParser()
     {
         var result = new PropertiesParser(properties);
         return result;

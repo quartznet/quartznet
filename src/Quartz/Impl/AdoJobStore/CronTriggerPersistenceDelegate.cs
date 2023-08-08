@@ -32,26 +32,20 @@ namespace Quartz.Impl.AdoJobStore;
 /// </summary>
 /// <see cref="CronScheduleBuilder"/>
 /// <see cref="ICronTrigger"/>
-public class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
+internal sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelegate
 {
     public void Initialize(string tablePrefix, string schedName, IDbAccessor dbAccessor)
     {
         TablePrefix = tablePrefix;
         DbAccessor = dbAccessor;
         SchedName = schedName;
-
-        // No longer used in this file
-        SchedNameLiteral = "'" + schedName + "'";
     }
 
-    protected string TablePrefix { get; private set; } = null!;
+    private string TablePrefix { get; set; } = null!;
 
-    protected IDbAccessor DbAccessor { get; private set; } = null!;
+    private IDbAccessor DbAccessor { get; set; } = null!;
 
-    [Obsolete("Scheduler name is now added to queries as a parameter")]
-    protected string SchedNameLiteral { get; private set; } = null!;
-
-    protected string SchedName { get; private set; } = null!;
+    private string SchedName { get; set; } = null!;
 
     public string GetHandledTriggerTypeDiscriminator()
     {

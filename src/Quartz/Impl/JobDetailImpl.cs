@@ -91,7 +91,7 @@ internal sealed class JobTypeInformation
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public class JobDetailImpl : IJobDetail
+internal sealed class JobDetailImpl : IJobDetail
 {
     private string name = null!;
     private string group = SchedulerConstants.DefaultGroup;
@@ -292,7 +292,7 @@ public class JobDetailImpl : IJobDetail
     /// <summary>
     /// Get or set the <see cref="JobDataMap" /> that is associated with the <see cref="IJob" />.
     /// </summary>
-    public virtual JobDataMap JobDataMap
+    public JobDataMap JobDataMap
     {
         get
         {
@@ -339,7 +339,7 @@ public class JobDetailImpl : IJobDetail
     /// <see langword="false"/>.
     /// </value>
     /// <seealso cref="PersistJobDataAfterExecutionAttribute"/>
-    public virtual bool PersistJobDataAfterExecution
+    public bool PersistJobDataAfterExecution
     {
         get
         {
@@ -359,7 +359,7 @@ public class JobDetailImpl : IJobDetail
     /// <see langword="true"/> if concurrent execution is disallowed; otherwise, <see langword="false"/>.
     /// </value>
     /// <seealso cref="DisallowConcurrentExecutionAttribute"/>
-    public virtual bool ConcurrentExecutionDisallowed
+    public bool ConcurrentExecutionDisallowed
     {
         get
         {
@@ -376,7 +376,7 @@ public class JobDetailImpl : IJobDetail
     /// Validates whether the properties of the <see cref="IJobDetail" /> are
     /// valid for submission into a <see cref="IScheduler" />.
     /// </summary>
-    public virtual void Validate()
+    public void Validate()
     {
         if (name == null)
         {
@@ -412,7 +412,7 @@ public class JobDetailImpl : IJobDetail
     /// <returns>
     /// A new object that is a copy of this instance.
     /// </returns>
-    public virtual IJobDetail Clone()
+    public IJobDetail Clone()
     {
         var copy = (JobDetailImpl) MemberwiseClone();
         if (jobDataMap != null)
@@ -429,7 +429,7 @@ public class JobDetailImpl : IJobDetail
     /// <returns>
     /// 	<c>true</c> if the specified detail is equal; otherwise, <c>false</c>.
     /// </returns>
-    protected virtual bool IsEqual(JobDetailImpl detail)
+    internal bool IsEqual(JobDetailImpl detail)
     {
         //doesn't consider job's saved data,
         //durability etc
@@ -459,7 +459,7 @@ public class JobDetailImpl : IJobDetail
     /// </summary>
     /// <param name="detail">The detail to compare this instance with.</param>
     /// <returns></returns>
-    public virtual bool Equals(JobDetailImpl detail)
+    public bool Equals(JobDetailImpl detail)
     {
         return IsEqual(detail);
     }
@@ -476,7 +476,7 @@ public class JobDetailImpl : IJobDetail
         return FullName.GetHashCode();
     }
 
-    public virtual JobBuilder GetJobBuilder()
+    public JobBuilder GetJobBuilder()
     {
         return JobBuilder.Create()
             .OfType(JobType)

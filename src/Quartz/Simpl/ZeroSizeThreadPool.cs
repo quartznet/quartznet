@@ -40,7 +40,7 @@ namespace Quartz.Simpl;
 /// </remarks>
 /// <author>Wayne Fay</author>
 /// <author>Marko Lahma (.NET)</author>
-public class ZeroSizeThreadPool : IThreadPool
+public sealed class ZeroSizeThreadPool : IThreadPool
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="ZeroSizeThreadPool"/> class.
@@ -60,7 +60,7 @@ public class ZeroSizeThreadPool : IThreadPool
     /// Gets the size of the pool.
     /// </summary>
     /// <value>The size of the pool.</value>
-    public virtual int PoolSize => 0;
+    public int PoolSize => 0;
 
     public int AvailableThreadCount => 0;
 
@@ -68,7 +68,7 @@ public class ZeroSizeThreadPool : IThreadPool
     /// Inform the <see cref="IThreadPool" /> of the Scheduler instance's Id,
     /// prior to initialize being invoked.
     /// </summary>
-    public virtual string InstanceId
+    public string InstanceId
     {
         set { }
     }
@@ -77,7 +77,7 @@ public class ZeroSizeThreadPool : IThreadPool
     /// Inform the <see cref="IThreadPool" /> of the Scheduler instance's name,
     /// prior to initialize being invoked.
     /// </summary>
-    public virtual string InstanceName
+    public string InstanceName
     {
         set { }
     }
@@ -86,7 +86,7 @@ public class ZeroSizeThreadPool : IThreadPool
     /// Called by the QuartzScheduler before the thread pool is
     /// used, in order to give the it a chance to Initialize.
     /// </summary>
-    public virtual void Initialize()
+    public void Initialize()
     {
     }
 
@@ -96,7 +96,7 @@ public class ZeroSizeThreadPool : IThreadPool
     /// shutting down.
     /// </summary>
     /// <param name="waitForJobsToComplete"></param>
-    public virtual void Shutdown(bool waitForJobsToComplete = true)
+    public void Shutdown(bool waitForJobsToComplete = true)
     {
         logger.LogDebug("Shutdown complete");
     }
@@ -130,10 +130,9 @@ public class ZeroSizeThreadPool : IThreadPool
     /// The implementation of this method should block until there is at
     /// least one available thread.
     /// </remarks>
-    public virtual int BlockForAvailableThreads()
+    public int BlockForAvailableThreads()
     {
         ThrowHelper.ThrowNotSupportedException("This ThreadPool should not be used on Scheduler instances that are started.");
         return default;
     }
-
 }

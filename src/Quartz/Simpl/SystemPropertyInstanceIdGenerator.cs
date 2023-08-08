@@ -7,7 +7,7 @@ namespace Quartz.Simpl;
 /// If no value set for the property, a <see cref="SchedulerException" /> is thrown.
 /// <author>Alex Snaps</author>
 /// </summary>
-public class SystemPropertyInstanceIdGenerator : IInstanceIdGenerator
+internal sealed class SystemPropertyInstanceIdGenerator : IInstanceIdGenerator
 {
     /// <summary>
     /// System property to read the instanceId from.

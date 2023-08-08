@@ -53,7 +53,7 @@ namespace Quartz;
 /// </remarks>
 /// <seealso cref="TriggerBuilder" />
 /// <seealso cref="JobBuilder" />
-public class DateBuilder
+public sealed class DateBuilder
 {
     private int month;
     private int day;

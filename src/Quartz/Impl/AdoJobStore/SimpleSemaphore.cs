@@ -34,7 +34,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// </summary>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public class SimpleSemaphore : ISemaphore
+internal sealed class SimpleSemaphore : ISemaphore
 {
     private readonly ResourceLock triggerLock = new();
     private readonly ResourceLock stateLock = new();
@@ -51,7 +51,7 @@ public class SimpleSemaphore : ISemaphore
     /// until it is available).
     /// </summary>
     /// <returns>True if the lock was obtained.</returns>
-    public virtual async ValueTask<bool> ObtainLock(
+    public async ValueTask<bool> ObtainLock(
         Guid requestorId,
         ConnectionAndTransactionHolder? conn,
         string lockName,
@@ -103,7 +103,7 @@ public class SimpleSemaphore : ISemaphore
     /// <summary> Release the lock on the identified resource if it is held by the calling
     /// thread.
     /// </summary>
-    public virtual ValueTask ReleaseLock(
+    public ValueTask ReleaseLock(
         Guid requestorId,
         string lockName,
         CancellationToken cancellationToken = default)

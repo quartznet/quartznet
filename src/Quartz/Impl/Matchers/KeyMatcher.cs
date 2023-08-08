@@ -29,14 +29,14 @@ namespace Quartz.Impl.Matchers;
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public class KeyMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
+public sealed class KeyMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
 {
     // ReSharper disable once UnusedMember.Local
     private KeyMatcher()
     {
     }
 
-    protected KeyMatcher(TKey compareTo)
+    private KeyMatcher(TKey compareTo)
     {
         CompareToValue = compareTo;
     }

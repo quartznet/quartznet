@@ -37,7 +37,7 @@ namespace Quartz;
 /// </remarks>
 /// <seealso cref="ITrigger" />
 /// <seealso cref="Key{T}.DefaultGroup" />
-[System.Serializable]
+[Serializable]
 public sealed class TriggerKey : Key<TriggerKey>
 {
     private TriggerKey()

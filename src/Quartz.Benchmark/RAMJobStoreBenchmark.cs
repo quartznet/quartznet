@@ -432,7 +432,8 @@ public class RAMJobStoreBenchmark
         }
     }
 
-    private static IOperableTrigger CreateTrigger(TriggerKey triggerKey,
+    private static IOperableTrigger CreateTrigger(
+        TriggerKey triggerKey,
         IJobDetail job,
         TimeSpan repeatInterval,
         int misFirePolicy,
@@ -441,14 +442,15 @@ public class RAMJobStoreBenchmark
         return CreateTrigger<SimpleTriggerImpl>(triggerKey, job, repeatInterval, misFirePolicy, nextFireTimeUtc);
     }
 
-    private static IOperableTrigger CreateTrigger<T>(TriggerKey triggerKey,
+    private static IOperableTrigger CreateTrigger<T>(
+        TriggerKey triggerKey,
         IJobDetail job,
         TimeSpan repeatInterval,
         int misFirePolicy,
         DateTimeOffset? nextFireTimeUtc = null)
-        where T : SimpleTriggerImpl, new()
+        where T : class, ISimpleTrigger, IOperableTrigger, new()
     {
-        var trigger = (IOperableTrigger) new T()
+        var trigger = (IOperableTrigger) new T
         {
             Key = triggerKey,
             JobKey = job.Key,

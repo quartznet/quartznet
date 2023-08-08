@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -67,7 +67,7 @@ namespace Quartz;
 /// <author>James House</author>
 /// <author>Zemian Deng saltnlight5@gmail.com</author>
 /// <author>Nuno Maia (.NET)</author>
-public class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTimeIntervalTrigger>
+public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTimeIntervalTrigger>
 {
     private int interval = 1;
     private IntervalUnit intervalUnit = IntervalUnit.Minute;
@@ -131,7 +131,7 @@ public class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTimeInterv
         SaturdayAndSunday = new HashSet<DayOfWeek>(SaturdayAndSunday);
     }
 
-    protected DailyTimeIntervalScheduleBuilder()
+    private DailyTimeIntervalScheduleBuilder()
     {
     }
 

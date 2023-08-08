@@ -31,7 +31,7 @@ namespace Quartz.Impl.AdoJobStore;
 /// </summary>
 /// <see cref="CalendarIntervalScheduleBuilder"/>
 /// <see cref="ICalendarIntervalTrigger"/>
-public class CalendarIntervalTriggerPersistenceDelegate : SimplePropertiesTriggerPersistenceDelegateSupport
+public sealed class CalendarIntervalTriggerPersistenceDelegate : SimplePropertiesTriggerPersistenceDelegateSupport
 {
     public override bool CanHandleTriggerType(IOperableTrigger trigger)
     {

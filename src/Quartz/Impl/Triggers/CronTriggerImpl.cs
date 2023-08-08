@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -178,7 +178,7 @@ namespace Quartz.Impl.Triggers;
 [Serializable]
 public class CronTriggerImpl : AbstractTrigger, ICronTrigger
 {
-    protected const int YearToGiveupSchedulingAt = 2299;
+    private const int YearToGiveupSchedulingAt = 2299;
     private CronExpression? cronEx;
     private DateTimeOffset startTimeUtc = DateTimeOffset.MinValue;
     private DateTimeOffset? endTimeUtc;
@@ -926,7 +926,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// </summary>
     /// <param name="afterTime">The time to compute from.</param>
     /// <returns></returns>
-    protected DateTimeOffset? GetTimeAfter(DateTimeOffset afterTime)
+    private DateTimeOffset? GetTimeAfter(DateTimeOffset afterTime)
     {
         return cronEx?.GetTimeAfter(afterTime);
     }
@@ -937,7 +937,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// </summary>
     /// <param name="date">The date.</param>
     /// <returns></returns>
-    protected DateTimeOffset? GetTimeBefore(DateTimeOffset? date)
+    private DateTimeOffset? GetTimeBefore(DateTimeOffset? date)
     {
         return cronEx?.GetTimeBefore(endTimeUtc);
     }

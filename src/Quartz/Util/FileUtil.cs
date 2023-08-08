@@ -33,8 +33,12 @@ namespace Quartz.Util;
 /// Utility class for file handling related things.
 /// </summary>
 /// <author>Marko Lahma</author>
-public class FileUtil
+internal sealed class FileUtil
 {
+    private FileUtil()
+    {
+    }
+
     /// <summary>
     /// Resolves file to actual file if for example relative '~' used.
     /// </summary>

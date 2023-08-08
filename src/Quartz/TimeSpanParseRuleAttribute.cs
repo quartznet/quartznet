@@ -9,7 +9,7 @@
 /// <author>Marko Lahma (.NET)</author>
 /// <seealso cref="TimeSpanParseRuleAttribute" />
 [AttributeUsage(AttributeTargets.Property)]
-public class TimeSpanParseRuleAttribute : Attribute
+internal sealed class TimeSpanParseRuleAttribute : Attribute
 {
     /// <summary>
     /// Initializes a new instance of the <see cref="TimeSpanParseRuleAttribute"/> class.

@@ -114,11 +114,7 @@ public class UpdateTriggerTest
             .WithReturnType<DbParameterCollection>()
             .Returns(dataParameterCollection);
 
-        var metaData = A.Fake<DbMetadata>();
-        A.CallTo(() => dbProvider.Metadata).Returns(metaData);
-
-        Func<string, string> paramFunc = x => x;
-        A.CallTo(() => metaData.GetParameterName(A<string>.Ignored)).ReturnsLazily(paramFunc);
+        A.CallTo(() => dbProvider.Metadata).Returns(new DbMetadata());
 
         DelegateInitializationArgs args = new DelegateInitializationArgs();
         args.TablePrefix = "QRTZ_";

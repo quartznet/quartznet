@@ -41,7 +41,7 @@ namespace Quartz.Listener;
 /// <seealso cref="RemoveListener(ITriggerListener)" />
 /// <seealso cref="RemoveListener(string)" />
 /// <author>James House (jhouse AT revolition DOT net)</author>
-public class BroadcastTriggerListener : ITriggerListener
+public sealed class BroadcastTriggerListener : ITriggerListener
 {
     private readonly List<ITriggerListener> listeners;
     private readonly ILogger<BroadcastTriggerListener> logger;

@@ -54,7 +54,6 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
     private ITypeLoadHelper typeLoadHelper = null!;
     private AdoUtil adoUtil = null!;
     private readonly List<ITriggerPersistenceDelegate> triggerPersistenceDelegates = new List<ITriggerPersistenceDelegate>();
-    private string schedNameLiteral = null!;
     private IObjectSerializer objectSerializer = null!;
     private readonly ConcurrentDictionary<string, string> cachedQueries = new();
 
@@ -457,19 +456,6 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
     protected string ReplaceTablePrefix(string query)
     {
         return cachedQueries.GetOrAdd(query, q => AdoJobStoreUtil.ReplaceTablePrefix(q, tablePrefix));
-    }
-
-    [Obsolete("Scheduler name is now added to queries as a parameter")]
-    protected string SchedulerNameLiteral
-    {
-        get
-        {
-            if (schedNameLiteral == null)
-            {
-                schedNameLiteral = "'" + schedName + "'";
-            }
-            return schedNameLiteral;
-        }
     }
 
     /// <summary>
