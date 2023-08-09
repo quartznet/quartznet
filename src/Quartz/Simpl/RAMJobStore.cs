@@ -30,7 +30,6 @@ using System.Threading.Tasks;
 using Quartz.Impl.Matchers;
 using Quartz.Logging;
 using Quartz.Spi;
-using Quartz.Util;
 
 namespace Quartz.Simpl
 {
