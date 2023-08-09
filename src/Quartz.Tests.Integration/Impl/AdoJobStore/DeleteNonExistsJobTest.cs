@@ -3,10 +3,7 @@ using System.Data;
 using System.Data.Common;
 using System.Threading.Tasks;
 
-using Microsoft.Extensions.Logging;
-
 using NUnit.Framework;
-using NUnit.Framework.Internal;
 
 using Quartz.Impl;
 using Quartz.Logging;

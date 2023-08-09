@@ -1553,9 +1553,9 @@ namespace Quartz
         /// <returns></returns>
         protected virtual int GetMonthNumber(string s)
         {
-            if (monthMap.ContainsKey(s))
+            if (monthMap.TryGetValue(s, out var number))
             {
-                return monthMap[s];
+                return number;
             }
 
             return -1;
@@ -1568,9 +1568,9 @@ namespace Quartz
         /// <returns></returns>
         protected virtual int GetDayOfWeekNumber(string s)
         {
-            if (dayMap.ContainsKey(s))
+            if (dayMap.TryGetValue(s, out var number))
             {
-                return dayMap[s];
+                return number;
             }
 
             return -1;
