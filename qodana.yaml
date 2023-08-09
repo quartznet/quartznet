@@ -1,0 +1,53 @@
+#-------------------------------------------------------------------------------#
+#               Qodana analysis is configured by qodana.yaml file               #
+#             https://www.jetbrains.com/help/qodana/qodana-yaml.html            #
+#-------------------------------------------------------------------------------#
+version: "1.0"
+
+profile:
+  name: qodana.recommended
+
+linter: jetbrains/qodana-dotnet:latest
+
+dotnet:
+  solution: Quartz.sln
+
+exclude:
+  - name: All
+    paths:
+      - src/Quartz.Examples.AspNetCore/wwwroot
+
+  - name: HttpUrlsUsage
+    paths:
+      - src/Quartz/Xml/job_scheduling_data_2_0.cs
+      - Dockerfile
+
+  - name: ArrangeObjectCreationWhenTypeEvident
+  - name: ClassNeverInstantiated.Global
+  - name: ClassNeverInstantiated.Local
+  - name: ConvertToConstant.Local
+  - name: HeapView.BoxingAllocation
+  - name: HeapView.ClosureAllocation
+  - name: HeapView.DelegateAllocation
+  - name: HeapView.ObjectAllocation
+  - name: HeapView.ObjectAllocation.Evident
+  - name: HeapView.ObjectAllocation.Possible
+  - name: HeapView.PossibleBoxingAllocation
+  - name: MemberCanBePrivate.Global
+  - name: MemberCanBePrivate.Local
+  - name: PossibleNullReferenceException
+  - name: SuggestVarOrType_BuiltInTypes
+  - name: UnusedAutoPropertyAccessor.Global
+  - name: UnusedAutoPropertyAccessor.Local
+  - name: UseObjectOrCollectionInitializer
+    paths:
+      - src/Quartz.Examples
+      - src/Quartz.Examples.AspNetCore
+      - src/Quartz.Examples.Worker
+      - src/Quartz.Tests.Integration
+      - src/Quartz.Tests.Unit
+
+  - name: InvertIf
+  - name: SuggestVarOrType_Elsewhere
+  - name: SuggestVarOrType_SimpleTypes
+  - name: UnusedMember.Global
