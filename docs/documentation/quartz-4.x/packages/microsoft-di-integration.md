@@ -78,16 +78,10 @@ public void ConfigureServices(IServiceCollection services)
     {
         // handy when part of cluster or you want to otherwise identify multiple schedulers
         q.SchedulerId = "Scheduler-Core";
-        
+
         // we take this from appsettings.json, just show it's possible
         // q.SchedulerName = "Quartz ASP.NET Core Sample Scheduler";
-        
-        // as of 3.3.2 this also injects scoped services (like EF DbContext) without problems
-        q.UseMicrosoftDependencyInjectionJobFactory();
 
-        // or for scoped service support like EF Core DbContext
-        // q.UseMicrosoftDependencyInjectionScopedJobFactory();
-        
         // these are the defaults
         q.UseSimpleTypeLoader();
         q.UseInMemoryStore();
@@ -120,7 +114,7 @@ public void ConfigureServices(IServiceCollection services)
         );
 
         q.AddTrigger(t => t
-            .WithIdentity("Simple Trigger")    
+            .WithIdentity("Simple Trigger")
             .ForJob(jobKey)
             .StartNow()
             .WithSimpleSchedule(x => x.WithInterval(TimeSpan.FromSeconds(10)).RepeatForever())
@@ -128,7 +122,7 @@ public void ConfigureServices(IServiceCollection services)
         );
 
         q.AddTrigger(t => t
-            .WithIdentity("Cron Trigger")    
+            .WithIdentity("Cron Trigger")
             .ForJob(jobKey)
             .StartAt(DateBuilder.EvenSecondDate(DateTimeOffset.UtcNow.AddSeconds(3)))
             .WithCronSchedule("0/3 * * * * ?")
@@ -152,7 +146,7 @@ public void ConfigureServices(IServiceCollection services)
             .WithDescription("my awesome daily time interval trigger")
             .ModifiedByCalendar(calendarName)
         );
-        
+
         // also add XML configuration and poll it for changes
         q.UseXmlSchedulingConfiguration(x =>
         {
@@ -164,7 +158,7 @@ public void ConfigureServices(IServiceCollection services)
 
         // convert time zones using converter that can handle Windows/Linux differences
         q.UseTimeZoneConverter();
-        
+
         // auto-interrupt long-running job
         q.UseJobAutoInterrupt(options =>
         {
@@ -209,12 +203,12 @@ public void ConfigureServices(IServiceCollection services)
         });
         */
     });
- 
+
  // we can use options pattern to support hooking your own configuration
- // because we don't use service registration api, 
+ // because we don't use service registration api,
  // we need to manually ensure the job is present in DI
  services.AddTransient<ExampleJob>();
-    
+
  services.Configure<SampleOptions>(Configuration.GetSection("Sample"));
  services.AddOptions<QuartzOptions>()
   .Configure<IOptions<SampleOptions>>((options, dep) =>
@@ -228,8 +222,8 @@ public void ConfigureServices(IServiceCollection services)
      .ForJob(jobKey)
      .WithCronSchedule(dep.Value.CronSchedule));
    }
-  }); 
-  
+  });
+
     // Quartz.Extensions.Hosting allows you to fire background service that handles scheduler lifecycle
     services.AddQuartzHostedService(options =>
     {
