@@ -117,13 +117,20 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             var timeZoneOffset = TimeZoneInfo.Local.BaseUtcOffset;
 
             // Trigger need to fire during the period when the local timezone and utc timezone are on different day
-            if (timeZoneOffset >= TimeSpan.Zero)
+            if (timeZoneOffset > TimeSpan.Zero)
             {
+                // Trigger must fire between midnight and utc offset if positive offset.
                 fireTimes.Where(t => t.Hour >= 0 && t.Hour <= timeZoneOffset.Hours).Should().NotBeEmpty();
+            }
+            else if (timeZoneOffset < TimeSpan.Zero)
+            {
+                // Trigger must fire between midnight minus utc offset and midnight if negative offset.
+                fireTimes.Where(t => t.Hour >= 24 - timeZoneOffset.Hours && t.Hour <= 23).Should().NotBeEmpty();
             }
             else
             {
-                fireTimes.Where(t => t.Hour >= 24 - timeZoneOffset.Hours && t.Hour <= 23).Should().NotBeEmpty();
+                // Trigger must not fire between midnight and utc offset if offset is UTC (zero)
+                fireTimes.Where(t => t.Hour >= 0 && t.Hour <= timeZoneOffset.Hours).Should().BeEmpty();
             }
         }
 
