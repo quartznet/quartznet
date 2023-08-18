@@ -804,7 +804,7 @@ namespace Quartz.Impl.Calendar
         /// <returns></returns>
         private static DateTimeOffset GetStartOfDay(DateTimeOffset time)
         {
-            return time.Date;
+            return new DateTimeOffset(new DateTime(time.Year, time.Month, time.Day, 0, 0, 0, 0), time.Offset);
         }
 
         /// <summary>
@@ -814,8 +814,7 @@ namespace Quartz.Impl.Calendar
         /// <returns></returns>
         private static DateTimeOffset GetEndOfDay(DateTimeOffset time)
         {
-            DateTime endOfDay = new DateTime(time.Year, time.Month, time.Day, 23, 59, 59, 999);
-            return endOfDay;
+            return new DateTimeOffset(new DateTime(time.Year, time.Month, time.Day, 23, 59, 59, 999), time.Offset);
         }
 
         /// <summary>
