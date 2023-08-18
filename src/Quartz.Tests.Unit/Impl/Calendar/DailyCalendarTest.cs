@@ -26,6 +26,7 @@ using NUnit.Framework;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
 using Quartz.Simpl;
+using Quartz.Spi;
 using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Impl.Calendar;
@@ -91,6 +92,43 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
         // 11/2/2012 17:00 (utc) is 11/2/2012 13:00 (est)
         DateTimeOffset timeToCheck = new DateTimeOffset(2012, 11, 2, 17, 0, 0, TimeSpan.FromHours(0));
         Assert.IsTrue(dailyCalendar.IsTimeIncluded(timeToCheck));
+    }
+
+    [Test]
+    public void TestTimeZone2()
+    {
+        DailyCalendar dailyCalendar = new DailyCalendar("00:00:00", "04:00:00");
+        dailyCalendar.TimeZone = TimeZoneInfo.Utc;
+
+        var trigger = (IOperableTrigger)TriggerBuilder
+            .Create()
+            .WithIdentity("TestTimeZone2Trigger")
+            .StartAt(DateBuilder.EvenMinuteDateAfterNow())
+            .WithSimpleSchedule(s => s
+                .WithIntervalInMinutes(1)
+                .RepeatForever())
+            .Build();
+
+        var fireTimes = TriggerUtils.ComputeFireTimes(trigger, dailyCalendar, (int)TimeSpan.FromDays(1).TotalMinutes);
+
+        var timeZoneOffset = TimeZoneInfo.Local.BaseUtcOffset;
+
+        // Trigger need to fire during the period when the local timezone and utc timezone are on different day
+        if (timeZoneOffset > TimeSpan.Zero)
+        {
+            // Trigger must fire between midnight and utc offset if positive offset.
+            fireTimes.Where(t => t.Hour >= 0 && t.Hour <= timeZoneOffset.Hours).Should().NotBeEmpty();
+        }
+        else if (timeZoneOffset < TimeSpan.Zero)
+        {
+            // Trigger must fire between midnight minus utc offset and midnight if negative offset.
+            fireTimes.Where(t => t.Hour >= 24 - timeZoneOffset.Hours && t.Hour <= 23).Should().NotBeEmpty();
+        }
+        else
+        {
+            // Trigger must not fire between midnight and utc offset if offset is UTC (zero)
+            fireTimes.Where(t => t.Hour >= 0 && t.Hour <= timeZoneOffset.Hours).Should().BeEmpty();
+        }
     }
 
     [Test]
