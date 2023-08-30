@@ -208,12 +208,11 @@ namespace Quartz.Util
         /// </summary>
         public virtual int GetInt(string key)
         {
-            if (!this.ContainsKey(key))
+            if (!this.TryGetValue(key, out var obj))
             {
                 throw new KeyNotFoundException($"Key {key} not found");
             }
 
-            var obj = this[key];
             if (obj is null)
             {
                 throw new InvalidCastException("Identified object is not an Integer.");
@@ -233,12 +232,11 @@ namespace Quartz.Util
         /// </summary>
         public virtual long GetLong(string key)
         {
-            if (!this.ContainsKey(key))
+            if (!this.TryGetValue(key, out var obj))
             {
                 throw new KeyNotFoundException($"Key {key} not found");
             }
 
-            var obj = this[key];
             if (obj is null)
             {
                 throw new InvalidCastException("Identified object is not a Long.");
@@ -258,12 +256,11 @@ namespace Quartz.Util
         /// </summary>
         public virtual float GetFloat(string key)
         {
-            if (!this.ContainsKey(key))
+            if (!this.TryGetValue(key, out var obj))
             {
                 throw new KeyNotFoundException($"Key {key} not found");
             }
 
-            var obj = this[key];
             if (obj is null)
             {
                 throw new InvalidCastException("Identified object is not a Float.");
@@ -283,12 +280,10 @@ namespace Quartz.Util
         /// </summary>
         public virtual double GetDouble(string key)
         {
-            if (!this.ContainsKey(key))
+            if (!this.TryGetValue(key, out var obj))
             {
                 throw new KeyNotFoundException($"Key {key} not found");
             }
-
-            var obj = this[key];
 
             if (obj is null)
             {
@@ -309,11 +304,10 @@ namespace Quartz.Util
         /// </summary>
         public virtual bool GetBoolean(string key)
         {
-            if (!this.ContainsKey(key))
+            if (!this.TryGetValue(key, out var obj))
             {
                 throw new KeyNotFoundException($"Key {key} not found");
             }
-            var obj = this[key];
             
             if (obj is null)
             {
@@ -334,12 +328,11 @@ namespace Quartz.Util
         /// </summary>
         public virtual char GetChar(string key)
         {
-            if (!this.ContainsKey(key))
+            if (!this.TryGetValue(key, out var obj))
             {
                 throw new KeyNotFoundException($"Key {key} not found");
             }
 
-            var obj = this[key];
             if (obj is null)
             {
                 throw new InvalidCastException("Identified object is not a Character.");
@@ -359,11 +352,10 @@ namespace Quartz.Util
         /// </summary>
         public virtual string? GetString(string key)
         {
-            if (!this.ContainsKey(key))
+            if (!this.TryGetValue(key, out var obj))
             {
                 throw new KeyNotFoundException($"Key {key} not found");
             }
-            var obj = this[key];
 
             if (obj is null)
             {
@@ -384,12 +376,11 @@ namespace Quartz.Util
         /// </summary>
         public virtual DateTime GetDateTime(string key)
         {
-            if (!this.ContainsKey(key))
+            if (!this.TryGetValue(key, out var obj))
             {
                 throw new KeyNotFoundException($"Key {key} not found");
             }
 
-            var obj = this[key];
             if (obj is null)
             {
                 throw new InvalidCastException("Identified object is not a DateTime.");
