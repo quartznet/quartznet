@@ -208,8 +208,16 @@ namespace Quartz.Util
         /// </summary>
         public virtual int GetInt(string key)
         {
-            var obj = this[key];
+            if (!this.ContainsKey(key))
+            {
+                throw new KeyNotFoundException($"Key {key} not found");
+            }
 
+            var obj = this[key];
+            if (obj is null)
+            {
+                throw new InvalidCastException("Identified object is not an Integer.");
+            }
             try
             {
                 return Convert.ToInt32(obj);
@@ -225,8 +233,16 @@ namespace Quartz.Util
         /// </summary>
         public virtual long GetLong(string key)
         {
-            var obj = this[key];
+            if (!this.ContainsKey(key))
+            {
+                throw new KeyNotFoundException($"Key {key} not found");
+            }
 
+            var obj = this[key];
+            if (obj is null)
+            {
+                throw new InvalidCastException("Identified object is not a Long.");
+            }
             try
             {
                 return Convert.ToInt64(obj);
@@ -242,8 +258,16 @@ namespace Quartz.Util
         /// </summary>
         public virtual float GetFloat(string key)
         {
-            var obj = this[key];
+            if (!this.ContainsKey(key))
+            {
+                throw new KeyNotFoundException($"Key {key} not found");
+            }
 
+            var obj = this[key];
+            if (obj is null)
+            {
+                throw new InvalidCastException("Identified object is not a Float.");
+            }
             try
             {
                 return Convert.ToSingle(obj);
@@ -259,8 +283,17 @@ namespace Quartz.Util
         /// </summary>
         public virtual double GetDouble(string key)
         {
+            if (!this.ContainsKey(key))
+            {
+                throw new KeyNotFoundException($"Key {key} not found");
+            }
+
             var obj = this[key];
 
+            if (obj is null)
+            {
+                throw new InvalidCastException("Identified object is not a Double.");
+            }
             try
             {
                 return Convert.ToDouble(obj);
@@ -276,8 +309,16 @@ namespace Quartz.Util
         /// </summary>
         public virtual bool GetBoolean(string key)
         {
+            if (!this.ContainsKey(key))
+            {
+                throw new KeyNotFoundException($"Key {key} not found");
+            }
             var obj = this[key];
-
+            
+            if (obj is null)
+            {
+                throw new InvalidCastException("Identified object is not a Boolean.");
+            }
             try
             {
                 return Convert.ToBoolean(obj);
@@ -293,8 +334,16 @@ namespace Quartz.Util
         /// </summary>
         public virtual char GetChar(string key)
         {
-            var obj = this[key];
+            if (!this.ContainsKey(key))
+            {
+                throw new KeyNotFoundException($"Key {key} not found");
+            }
 
+            var obj = this[key];
+            if (obj is null)
+            {
+                throw new InvalidCastException("Identified object is not a Character.");
+            }
             try
             {
                 return Convert.ToChar(obj);
@@ -310,8 +359,16 @@ namespace Quartz.Util
         /// </summary>
         public virtual string? GetString(string key)
         {
+            if (!this.ContainsKey(key))
+            {
+                throw new KeyNotFoundException($"Key {key} not found");
+            }
             var obj = this[key];
 
+            if (obj is null)
+            {
+                throw new InvalidCastException("Identified object is not a String.");
+            }
             try
             {
                 return (string?) obj;
@@ -327,8 +384,16 @@ namespace Quartz.Util
         /// </summary>
         public virtual DateTime GetDateTime(string key)
         {
-            var obj = this[key];
+            if (!this.ContainsKey(key))
+            {
+                throw new KeyNotFoundException($"Key {key} not found");
+            }
 
+            var obj = this[key];
+            if (obj is null)
+            {
+                throw new InvalidCastException("Identified object is not a DateTime.");
+            }
             try
             {
                 return
