@@ -605,6 +605,23 @@ namespace Quartz.Util
         }
 
         /// <summary>
+        /// Try to retrieve the identified <see cref="string" /> value from the <see cref="JobDataMap" />.
+        /// </summary>
+        public virtual bool TryGetNullableString(string key, out string? value)
+        {
+            try
+            {
+                value = GetString(key);
+                return true;
+            }
+            catch
+            {
+                value = default;
+                return false;
+            }
+        }
+
+        /// <summary>
         /// Try to retrieve the identified <see cref="char" /> value from the <see cref="JobDataMap" />.
         /// </summary>
         public virtual bool TryGetChar(string key, out char value)
