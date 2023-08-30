@@ -49,17 +49,17 @@ internal sealed class DirectoryScanJobModel
         var model = new DirectoryScanJobModel
         {
             DirectoryScanListener = GetListener(mergedJobDataMap, schedCtxt),
-            LastModTime = mergedJobDataMap.ContainsKey(DirectoryScanJob.LastModifiedTime)
-                ? mergedJobDataMap.GetDateTime(DirectoryScanJob.LastModifiedTime)
+            LastModTime = mergedJobDataMap.ContainsKey(BaseDirectoryScanJob.LastModifiedTime)
+                ? mergedJobDataMap.GetDateTime(BaseDirectoryScanJob.LastModifiedTime)
                 : DateTime.MinValue,
-            MinUpdateAge = mergedJobDataMap.ContainsKey(DirectoryScanJob.MinimumUpdateAge)
-                ? TimeSpan.FromMilliseconds(mergedJobDataMap.GetLong(DirectoryScanJob.MinimumUpdateAge))
+            MinUpdateAge = mergedJobDataMap.ContainsKey(BaseDirectoryScanJob.MinimumUpdateAge)
+                ? TimeSpan.FromMilliseconds(mergedJobDataMap.GetLong(BaseDirectoryScanJob.MinimumUpdateAge))
                 : TimeSpan.FromSeconds(5), // default of 5 seconds
             JobDetailJobDataMap = context.JobDetail.JobDataMap,
             DirectoriesToScan = GetDirectoriesToScan(schedCtxt, mergedJobDataMap)
                 .Distinct().ToList(),
-            CurrentFileList = mergedJobDataMap.ContainsKey(DirectoryScanJob.CurrentFileList) ?
-                (List<FileInfo>) mergedJobDataMap[DirectoryScanJob.CurrentFileList]
+            CurrentFileList = mergedJobDataMap.ContainsKey(BaseDirectoryScanJob.CurrentFileList) ?
+                (List<FileInfo>) mergedJobDataMap[BaseDirectoryScanJob.CurrentFileList]
                 : new List<FileInfo>(),
             SearchPattern = mergedJobDataMap.ContainsKey(DirectoryScanJob.SearchPattern) ?
                 mergedJobDataMap.GetString(DirectoryScanJob.SearchPattern)! : "*",
@@ -82,7 +82,7 @@ internal sealed class DirectoryScanJobModel
             : LastModTime;
 
         // It is the JobDataMap on the JobDetail which is actually stateful
-        JobDetailJobDataMap.Put(DirectoryScanJob.LastModifiedTime, newLastModifiedDate);
+        JobDetailJobDataMap.Put(BaseDirectoryScanJob.LastModifiedTime, newLastModifiedDate);
     }
 
     /// <summary>
@@ -91,14 +91,14 @@ internal sealed class DirectoryScanJobModel
     /// <param name="fileList"></param>
     internal void UpdateFileList(List<FileInfo> fileList)
     {
-        JobDetailJobDataMap.Put(DirectoryScanJob.CurrentFileList, fileList);
+        JobDetailJobDataMap.Put(BaseDirectoryScanJob.CurrentFileList, fileList);
     }
 
 
     private static List<string> GetDirectoriesToScan(SchedulerContext schedCtxt, JobDataMap mergedJobDataMap)
     {
         IDirectoryProvider directoryProvider = new DefaultDirectoryProvider();
-        var explicitDirProviderName = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryProviderName);
+        var explicitDirProviderName = mergedJobDataMap.GetString(BaseDirectoryScanJob.DirectoryProviderName);
 
         if (explicitDirProviderName != null)
         {
@@ -115,12 +115,12 @@ internal sealed class DirectoryScanJobModel
 
     private static IDirectoryScanListener GetListener(JobDataMap mergedJobDataMap, SchedulerContext schedCtxt)
     {
-        var listenerName = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryScanListenerName);
+        var listenerName = mergedJobDataMap.GetString(BaseDirectoryScanJob.DirectoryScanListenerName);
 
         if (listenerName == null)
         {
             throw new JobExecutionException("Required parameter '" +
-                                            DirectoryScanJob.DirectoryScanListenerName + "' not found in merged JobDataMap");
+                                            BaseDirectoryScanJob.DirectoryScanListenerName + "' not found in merged JobDataMap");
         }
 
         if (!schedCtxt.TryGetValue(listenerName, out var listener))

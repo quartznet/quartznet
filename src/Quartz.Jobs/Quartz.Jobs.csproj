@@ -8,6 +8,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="SSH.NET" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
   </ItemGroup>
 
