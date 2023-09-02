@@ -5,7 +5,7 @@
 ## Future Release, TBA
 
 * CHANGES
-  * `TryGetNullableString` method added to JobDataMap (#2125)
+  * `TryGetString` method added to JobDataMap (#2125)
 
 * FIXES
   * JobDataMap `TryGetXXX` methods will now correctly return true/false if a key value can be retrieved (or not) (#2125)
