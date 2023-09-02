@@ -356,11 +356,7 @@ namespace Quartz.Util
             {
                 throw new KeyNotFoundException($"Key {key} not found");
             }
-
-            if (obj is null)
-            {
-                throw new InvalidCastException("Identified object is not a String.");
-            }
+          
             try
             {
                 return (string?) obj;
@@ -607,7 +603,7 @@ namespace Quartz.Util
         /// <summary>
         /// Try to retrieve the identified <see cref="string" /> value from the <see cref="JobDataMap" />.
         /// </summary>
-        public virtual bool TryGetNullableString(string key, out string? value)
+        public virtual bool TryGetString(string key, out string? value)
         {
             try
             {

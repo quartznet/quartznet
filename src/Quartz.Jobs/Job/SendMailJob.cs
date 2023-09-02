@@ -165,7 +165,7 @@ namespace Quartz.Job
 
         protected virtual string? GetOptionalParameter(JobDataMap data, string propertyName)
         {
-            if (data.TryGetNullableString(propertyName, out var value))
+            if (data.TryGetString(propertyName, out var value))
                 return string.IsNullOrEmpty(value) ? null : value;
             return null;
         }

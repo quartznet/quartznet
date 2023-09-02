@@ -78,6 +78,18 @@ namespace Quartz.Tests.Unit
             map.TryGetNullableGuid("key-not-found", out var nullable).Should().BeTrue();
             nullable.Should().Be(null);
         }
+        
+        [TestCase(null, true)] //nullable string is valid
+        [TestCase("string", true)]
+        public void TryGetString_ParseResult(object val, bool resultOutcome)
+        {
+            var map = new JobDataMap
+            {
+                ["key"] = val
+            };
+            var result = map.TryGetString("key", out _);
+            result.Should().Be(resultOutcome);
+        }
 
         [TestCase(null, false)]
         [TestCase(1, true)]
@@ -165,6 +177,13 @@ namespace Quartz.Tests.Unit
         public void TryGetFloatValue_NonExistentKey()
         {
             var result = new JobDataMap().TryGetFloatValue("key", out _);
+            result.Should().BeFalse();
+        }
+        
+        [Test]
+        public void TryGetString_NonExistentKey()
+        {
+            var result = new JobDataMap().TryGetString("key", out _);
             result.Should().BeFalse();
         }
     }
