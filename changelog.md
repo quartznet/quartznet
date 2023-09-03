@@ -9,8 +9,8 @@
 
 * FIXES
   * JobDataMap `TryGetXXX` methods will now correctly return true/false if a key value can be retrieved (or not) (#2125)
-  * JobDataMap `GetXXX` methods with throw KeyNotFoundException if the key does not exist on the JobDataMap (#2125)
-  * JobDataMap `GetXXX` methods with throw InvalidCastException if null value for non nullable types is found. (#2125)
+  * JobDataMap `GetXXX` methods throw KeyNotFoundException if the key does not exist on the JobDataMap (#2125)
+  * JobDataMap `GetXXX` methods throw InvalidCastException if null value for non nullable types is found. (#2125)
 
 ## Release 3.7.0, Aug 4 2023
 
