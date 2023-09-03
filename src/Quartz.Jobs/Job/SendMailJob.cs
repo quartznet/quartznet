@@ -84,9 +84,17 @@ namespace Quartz.Job
         /// <param name="context">The job execution context.</param>
         public virtual Task Execute(IJobExecutionContext context)
         {
-            JobDataMap data = context.MergedJobDataMap;
+            var data = context.MergedJobDataMap;
+            MailMessage message;
 
-            MailMessage message = BuildMessageFromParameters(data);
+            try
+            {
+                message = BuildMessageFromParameters(data);
+            }
+            catch (Exception ex)
+            {
+                throw new JobExecutionException($"Could not build message: {ex.Message}", ex, false);
+            }
 
             try
             {
