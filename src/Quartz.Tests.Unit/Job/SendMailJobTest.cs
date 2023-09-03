@@ -19,7 +19,10 @@
 
 #endregion
 
+using System;
 using System.Net.Mail;
+
+using FluentAssertions;
 
 using NUnit.Framework;
 
@@ -56,6 +59,23 @@ namespace Quartz.Tests.Unit.Job
             expectedMail.IsEqualTo(job.actualMailSent);
             Assert.AreEqual("someserver", job.actualSmtpHost);
         }
+
+        [Test]
+        public void JobShouldCatchExceptionIfRequiredParamsAreNotSet()
+        {
+            // setup mail job omitting mandatory properties.
+            var job = new TestSendMailJob();
+
+            var context = TestUtil.NewJobExecutionContextFor(job);
+            context.MergedJobDataMap.Put("smtp_host", "someserver");
+
+            // When
+            Action act = () => job.Execute(context);
+
+            // Then
+            act.Should().Throw<JobExecutionException>();
+        }
+
 
         [Test]
         public void ShouldSendMailWithOptionalProperties()
@@ -156,7 +176,7 @@ namespace Quartz.Tests.Unit.Job
 
     internal class TestSendMailJob : SendMailJob
     {
-        public MailMessage actualMailSent = new MailMessage();
+        public MailMessage actualMailSent = new ();
         public string actualSmtpHost = "ad";
         public string actualSmtpUserName;
         public string actualSmtpPassword;
