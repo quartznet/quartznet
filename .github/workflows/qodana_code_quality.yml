@@ -8,11 +8,6 @@ on:
       - main
       - '3.x'
 
-permissions:
-  contents: write
-  pull-requests: write
-  checks: write
-
 jobs:
   qodana:
     runs-on: ubuntu-latest
