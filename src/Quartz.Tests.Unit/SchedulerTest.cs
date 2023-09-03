@@ -13,6 +13,7 @@ using Quartz.Job;
 using Quartz.Spi;
 
 using System.IO;
+using System.Threading;
 
 namespace Quartz.Tests.Unit
 {
@@ -293,7 +294,6 @@ namespace Quartz.Tests.Unit
         }
 
         [Test]
-        [Platform(Exclude="Linux")]  // TODO seems that we have some trouble on Linux with this
         public async Task ReschedulingTriggerShouldKeepOriginalNextFireTime()
         {
             NameValueCollection properties = new NameValueCollection();
@@ -302,26 +302,32 @@ namespace Quartz.Tests.Unit
             IScheduler scheduler = await factory.GetScheduler();
             await scheduler.Start();
 
+            // Delay starting the trigger by a second as we do not want it to get triggered
+            var triggerStartTime = DateTimeOffset.UtcNow.AddSeconds(1);
+
             var job = JobBuilder.Create<NoOpJob>().Build();
             IOperableTrigger trigger = (IOperableTrigger) TriggerBuilder.Create()
                 .WithSimpleSchedule(x => x.WithIntervalInHours(1).RepeatForever())
                 .ForJob(job)
-                .StartNow()
+                .StartAt(triggerStartTime)
                 .Build();
 
             await scheduler.ScheduleJob(job, trigger);
 
             trigger = (IOperableTrigger) await scheduler.GetTrigger(trigger.Key);
+            Assert.That(trigger.StartTimeUtc, Is.EqualTo(triggerStartTime));
+            Assert.That(trigger.GetNextFireTimeUtc(), Is.EqualTo(triggerStartTime));
             Assert.That(trigger.GetPreviousFireTimeUtc(), Is.EqualTo(null));
 
-            var previousFireTimeUtc = DateTimeOffset.UtcNow.AddDays(1);
+            var previousFireTimeUtc = triggerStartTime.AddDays(1);
             trigger.SetPreviousFireTimeUtc(previousFireTimeUtc);
             trigger.SetNextFireTimeUtc(trigger.GetFireTimeAfter(previousFireTimeUtc));
 
             await scheduler.RescheduleJob(trigger.Key, trigger);
 
             trigger = (IOperableTrigger) await scheduler.GetTrigger(trigger.Key);
-            Assert.That(trigger.GetNextFireTimeUtc().Value.UtcDateTime, Is.EqualTo(previousFireTimeUtc.AddHours(1).UtcDateTime).Within(TimeSpan.FromSeconds(5)));
+            Assert.That(trigger.GetNextFireTimeUtc(), Is.Not.Null);
+            Assert.That(trigger.GetNextFireTimeUtc(), Is.EqualTo(previousFireTimeUtc.AddHours(1)));
 
             await scheduler.Shutdown(true);
         }
