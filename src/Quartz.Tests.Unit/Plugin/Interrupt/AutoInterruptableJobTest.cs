@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Specialized;
 using System.Threading;
 using System.Threading.Tasks;
@@ -42,7 +42,7 @@ namespace Quartz.Tests.Unit.Plugin.Interrupt
             }
         }
 
-        [Test]
+        [Test, Timeout(5000)]
         public async Task TestJobAutoInterruption()
         {
             var scheduler = await CreateScheduler<TestInterruptableJob>();

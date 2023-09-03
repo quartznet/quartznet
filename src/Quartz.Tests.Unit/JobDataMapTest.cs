@@ -78,5 +78,113 @@ namespace Quartz.Tests.Unit
             map.TryGetNullableGuid("key-not-found", out var nullable).Should().BeTrue();
             nullable.Should().Be(null);
         }
+        
+        [TestCase(null, true)] //nullable string is valid
+        [TestCase("string", true)]
+        public void TryGetString_ParseResult(object val, bool resultOutcome)
+        {
+            var map = new JobDataMap
+            {
+                ["key"] = val
+            };
+            var result = map.TryGetString("key", out _);
+            result.Should().Be(resultOutcome);
+        }
+
+        [TestCase(null, false)]
+        [TestCase(1, true)]
+        public void TryGetIntValue_ParseResult(object val, bool resultOutcome)
+        {
+            var map = new JobDataMap
+            {
+                ["key"] = val
+            };
+            var result = map.TryGetIntValue("key", out _);
+            result.Should().Be(resultOutcome);
+        }
+
+        [TestCase(null, false)]
+        [TestCase(1, true)]
+        public void TryGetLongValue_ParseResult(object val, bool resultOutcome)
+        {
+            var map = new JobDataMap
+            {
+                ["key"] = val
+            };
+            var result = map.TryGetLongValue("key", out _);
+            result.Should().Be(resultOutcome);
+        }
+
+        [TestCase(null, false)]
+        [TestCase(1, true)]
+        public void TryGetFloatValue_ParseResult(object val, bool resultOutcome)
+        {
+            var map = new JobDataMap
+            {
+                ["key"] = val
+            };
+            var result = map.TryGetFloatValue("key", out _);
+            result.Should().Be(resultOutcome);
+        }
+
+        [TestCase(null, false)]
+        [TestCase(1, true)]
+        public void TryGetDoubleValue_ParseResult(object val, bool resultOutcome)
+        {
+            var map = new JobDataMap
+            {
+                ["key"] = val
+            };
+            var result = map.TryGetDoubleValue("key", out _);
+            result.Should().Be(resultOutcome);
+        }
+
+        [TestCase(null, false)]
+        [TestCase(true, true)]
+        [TestCase(false, true)]
+        public void TryGetBooleanValue_ParseResult(object val, bool resultOutcome)
+        {
+            var map = new JobDataMap
+            {
+                ["key"] = val
+            };
+            var result = map.TryGetBooleanValue("key", out _);
+            result.Should().Be(resultOutcome);
+        }
+
+        [Test]
+        public void TryGetValBoolean_NonExistentKey()
+        {
+            var result = new JobDataMap().TryGetBooleanValue("key", out _);
+            result.Should().BeFalse();
+        }
+
+        [Test]
+        public void TryGetIntValue_NonExistentKey()
+        {
+            var result = new JobDataMap().TryGetIntValue("key", out _);
+            result.Should().BeFalse();
+        }
+
+        [Test]
+        public void TryGetLongValue_NonExistentKey()
+        {
+            var result = new JobDataMap().TryGetLongValue("key", out _);
+            result.Should().BeFalse();
+        }
+
+        [Test]
+        public void TryGetFloatValue_NonExistentKey()
+        {
+            var result = new JobDataMap().TryGetFloatValue("key", out _);
+            result.Should().BeFalse();
+        }
+        
+        [Test]
+        public void TryGetString_NonExistentKey()
+        {
+            var result = new JobDataMap().TryGetString("key", out _);
+            result.Should().BeFalse();
+        }
     }
 }

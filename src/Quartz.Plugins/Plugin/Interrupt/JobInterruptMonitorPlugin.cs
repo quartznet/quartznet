@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
@@ -81,9 +81,9 @@ namespace Quartz.Plugin.Interrupt
                     // Get the MaxRuntime from MergedJobDataMap if NOT available use MaxRunTime from Plugin Configuration
                     var jobDataDelay = DefaultMaxRunTime;
 
-                    if (context.MergedJobDataMap.GetString(JobDataMapKeyMaxRunTime) != null)
+                    if (context.MergedJobDataMap.TryGetLongValueFromString(JobDataMapKeyMaxRunTime, out var val))
                     {
-                        jobDataDelay = TimeSpan.FromMilliseconds(context.MergedJobDataMap.GetLongValueFromString(JobDataMapKeyMaxRunTime));
+                        jobDataDelay = TimeSpan.FromMilliseconds(val);
                     }
 
                     monitorPlugin.ScheduleJobInterruptMonitor(context.FireInstanceId, context.JobDetail.Key, jobDataDelay);
