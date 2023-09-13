@@ -71,11 +71,11 @@ public Task DoSomething(IScheduler schedule, CancellationToken ct)
 
     // Trigger 1
     var jobData1 = new JobDataMap { { "CustomerId", 1 } };
-    await scheduler.TriggerJob(HelloJob.Key), jobData1, ct);
+    await scheduler.TriggerJob(HelloJob.Key, jobData1, ct);
 
     // Trigger 2
     var jobData2 = new JobDataMap { { "CustomerId", 2 } };
-    await scheduler.TriggerJob(HelloJob.Key), jobData2, ct);
+    await scheduler.TriggerJob(HelloJob.Key, jobData2, ct);
 }
 ```
 
