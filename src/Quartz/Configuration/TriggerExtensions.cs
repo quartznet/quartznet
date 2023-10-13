@@ -18,7 +18,15 @@ public static class TriggerExtensions
         triggerBuilder.WithSchedule(builder);
         return triggerBuilder;
     }
-    
+
+    public static ITriggerConfigurator WithDailyTimeIntervalSchedule(
+        this ITriggerConfigurator triggerBuilder,
+        DailyTimeIntervalScheduleBuilder schedule)
+    {
+        triggerBuilder.WithSchedule(schedule);
+        return triggerBuilder;
+    }
+
     /// <summary>
     /// Sets up a trigger schedule for one or more occurrences every day.
     /// With parameter defaults, sets up a daily interval of every 12h.
@@ -43,14 +51,6 @@ public static class TriggerExtensions
         builder.WithInterval(defaultInterval, defaultIntervalUnit);
         action?.Invoke(builder);
         triggerBuilder.WithSchedule(builder);
-        return triggerBuilder;
-    }
-
-    public static ITriggerConfigurator WithDailyTimeIntervalSchedule(
-        this ITriggerConfigurator triggerBuilder,
-        DailyTimeIntervalScheduleBuilder schedule)
-    {
-        triggerBuilder.WithSchedule(schedule);
         return triggerBuilder;
     }
 
