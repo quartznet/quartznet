@@ -156,11 +156,9 @@ public class XMLSchedulingDataProcessorTest
         // replaced instead of only overwriting the first N bytes (where N is the length of SimpleJobTrigger.xml)
         using (TextWriter writer = new StreamWriter(File.Create(tempFileName)))
         {
-            using (StreamReader reader = new StreamReader(ReadJobXmlFromEmbeddedResource("SimpleJobTrigger.xml")))
-            {
-                await writer.WriteAsync(await reader.ReadToEndAsync());
-                await writer.FlushAsync();
-            }
+            using StreamReader reader = new (ReadJobXmlFromEmbeddedResource("SimpleJobTrigger.xml"));
+            await writer.WriteAsync(await reader.ReadToEndAsync());
+            await writer.FlushAsync();
         }
 
         IScheduler scheduler = null;
@@ -222,11 +220,9 @@ public class XMLSchedulingDataProcessorTest
         string tempFileName = XMLSchedulingDataProcessor.QuartzXmlFileName;
         using (TextWriter writer = new StreamWriter(File.OpenWrite(tempFileName)))
         {
-            using (StreamReader reader = new StreamReader(ReadJobXmlFromEmbeddedResource("directives_overwrite_no-ignoredups.xml")))
-            {
-                await writer.WriteAsync(await reader.ReadToEndAsync());
-                await writer.FlushAsync();
-            }
+            using StreamReader reader = new (ReadJobXmlFromEmbeddedResource("directives_overwrite_no-ignoredups.xml"));
+            await writer.WriteAsync(await reader.ReadToEndAsync());
+            await writer.FlushAsync();
         }
 
         IScheduler scheduler = null;

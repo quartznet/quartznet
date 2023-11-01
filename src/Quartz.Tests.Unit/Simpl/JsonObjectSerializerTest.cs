@@ -158,10 +158,9 @@ public class JsonObjectSerializerTest
             return;
         }
 
-        using (var reader = new StringReader(Encoding.UTF8.GetString(bytes)))
-        {
-            var json = reader.ReadToEnd();
-            Console.WriteLine(json);
-        }
+        using var reader = new StringReader(Encoding.UTF8.GetString(bytes));
+
+        var json = reader.ReadToEnd();
+        Console.WriteLine(json);
     }
 }

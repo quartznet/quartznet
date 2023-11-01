@@ -164,11 +164,10 @@ public class XMLSchedulingDataProcessor
 
         logger.LogInformation("Parsing XML file: {FileName} with systemId: {SystemId}", fileName, systemId);
 
-        using (var stream = File.Open(fileName, FileMode.Open, FileAccess.Read, FileShare.Read))
-        using (StreamReader sr = new StreamReader(stream))
-        {
-            ProcessInternal(await sr.ReadToEndAsync().ConfigureAwait(false));
-        }
+        using var stream = File.Open(fileName, FileMode.Open, FileAccess.Read, FileShare.Read);
+        using var sr = new StreamReader(stream);
+
+        ProcessInternal(await sr.ReadToEndAsync().ConfigureAwait(false));
     }
 
     /// <summary>

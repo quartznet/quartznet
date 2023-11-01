@@ -18,12 +18,12 @@ public static class ObjectExtensions
             return null;
         }
 
-        using (MemoryStream ms = new MemoryStream())
-        {
-            BinaryFormatter bf = new BinaryFormatter();
-            bf.Serialize(ms, obj);
-            ms.Seek(0, SeekOrigin.Begin);
-            return (T) bf.Deserialize(ms);
-        }
+        using MemoryStream ms = new MemoryStream();
+
+        BinaryFormatter bf = new BinaryFormatter();
+        bf.Serialize(ms, obj);
+        ms.Seek(0, SeekOrigin.Begin);
+
+        return (T) bf.Deserialize(ms);
     }
 }

@@ -70,20 +70,21 @@ public class RecoverJobsTest
         using (var connection = DBConnectionManager.Instance.GetConnection(dataSourceName))
         {
             await connection.OpenAsync();
-            using (var command = connection.CreateCommand())
-            {
-                command.CommandText = $"SELECT TRIGGER_STATE from QRTZ_TRIGGERS WHERE SCHED_NAME = '{scheduler.SchedulerName}' AND TRIGGER_NAME='test'";
-                var triggerState = command.ExecuteScalar().ToString();
 
-                // check that trigger is blocked after fail over situation
-                Assert.AreEqual("BLOCKED", triggerState);
+            using var command = connection.CreateCommand();
 
-                command.CommandText = $"SELECT count(*) from QRTZ_FIRED_TRIGGERS WHERE SCHED_NAME = '{scheduler.SchedulerName}' AND TRIGGER_NAME='test'";
-                int count = Convert.ToInt32(command.ExecuteScalar());
+            command.CommandText = $"SELECT TRIGGER_STATE from QRTZ_TRIGGERS WHERE SCHED_NAME = '{scheduler.SchedulerName}' AND TRIGGER_NAME='test'";
 
-                // check that fired trigger remains after fail over situation
-                Assert.AreEqual(1, count);
-            }
+            var triggerState = command.ExecuteScalar().ToString();
+
+            // check that trigger is blocked after fail over situation
+            Assert.AreEqual("BLOCKED", triggerState);
+
+            command.CommandText = $"SELECT count(*) from QRTZ_FIRED_TRIGGERS WHERE SCHED_NAME = '{scheduler.SchedulerName}' AND TRIGGER_NAME='test'";
+            int count = Convert.ToInt32(command.ExecuteScalar());
+
+            // check that fired trigger remains after fail over situation
+            Assert.AreEqual(1, count);
         }
 
         // stop job executing to not as part of emulation fail over situation

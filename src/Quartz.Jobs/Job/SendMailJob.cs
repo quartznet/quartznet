@@ -173,20 +173,19 @@ public class SendMailJob : IJob
     {
         logger.LogInformation("Sending message {MailMessage}", GetMessageDescription(mailInfo.MailMessage));
 
-        using (var client = new SmtpClient(mailInfo.SmtpHost))
+        using var client = new SmtpClient(mailInfo.SmtpHost);
+
+        if (mailInfo.SmtpUserName != null)
         {
-            if (mailInfo.SmtpUserName != null)
-            {
-                client.Credentials = new NetworkCredential(mailInfo.SmtpUserName, mailInfo.SmtpPassword);
-            }
-
-            if (mailInfo.SmtpPort != null)
-            {
-                client.Port = mailInfo.SmtpPort.Value;
-            }
-
-            client.Send(mailInfo.MailMessage);
+            client.Credentials = new NetworkCredential(mailInfo.SmtpUserName, mailInfo.SmtpPassword);
         }
+
+        if (mailInfo.SmtpPort != null)
+        {
+            client.Port = mailInfo.SmtpPort.Value;
+        }
+
+        client.Send(mailInfo.MailMessage);
     }
 
     private static string GetMessageDescription(MailMessage message)
