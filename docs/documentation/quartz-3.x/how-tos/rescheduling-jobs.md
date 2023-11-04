@@ -33,7 +33,7 @@ If your job simply needs to retry its work, then you could wrap the job in a [Po
 
 ## Self-Rescheduling
 
-If your job needs more time, say it needs to wait 5 minutes, the `IJobExecutionContext` has access to the scheduler on it. You could use that to reschudel the job, and let it exit normally.
+If your job needs more time, say it needs to wait 5 minutes, the `IJobExecutionContext` has access to the scheduler on it. You could use that to reschedule the job, and let it exit normally.
 
 ```csharp
 public async Task Execute(IJobExecutionContext context)
