@@ -82,7 +82,7 @@ namespace Quartz.Impl.AdoJobStore
 
             if (!string.IsNullOrEmpty(args.InitString))
             {
-                string[] settings = args.InitString.Split('\\', '|');
+                string[] settings = args.InitString!.Split('\\', '|');
 
                 foreach (string setting in settings)
                 {

@@ -47,7 +47,7 @@ namespace Quartz.Simpl
                 return null;
             }
 			var type = Type.GetType(name, false);
-			if (type == null && name.EndsWith(QuartzAssemblyTypePostfix, StringComparison.Ordinal))
+			if (type == null && name!.EndsWith(QuartzAssemblyTypePostfix, StringComparison.Ordinal))
 			{
 				// we've moved jobs to new assembly try that too
 				var newName = name.Substring(0, name.Length - QuartzAssemblyTypePostfix.Length) + QuartzJobsAssemblyTypePostifx;

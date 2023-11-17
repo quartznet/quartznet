@@ -12,8 +12,10 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
+using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Quartz.AspNetCore;
+using Quartz.Impl;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Matchers;
@@ -48,21 +50,19 @@ namespace Quartz.Examples.AspNetCore
                 loggingBuilder.AddSerilog(dispose: true);
             });
 
-            services.AddOpenTelemetryTracing(builder =>
-            {
-                builder
+            services.AddOpenTelemetry()
+                .ConfigureResource(builder => builder.AddService("Quartz ASP.NET Example"))
+                .WithTracing(x => x
                     .AddQuartzInstrumentation()
-                    .AddZipkinExporter(o =>
-                    {
-                        o.Endpoint = new Uri("http://localhost:9411/api/v2/spans");
-                    })
+                    .AddConsoleExporter()
+                    .AddZipkinExporter(o => { o.Endpoint = new Uri("http://localhost:9411/api/v2/spans"); })
                     .AddJaegerExporter(o =>
                     {
                         // these are the defaults
                         o.AgentHost = "localhost";
                         o.AgentPort = 6831;
-                    });
-            });
+                    })
+                );
 
             services.AddRazorPages();
 
@@ -154,7 +154,8 @@ namespace Quartz.Examples.AspNetCore
                         .WithIdentity("slowJob")
                         .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable, "true")
                         // allow only five seconds for this job, overriding default configuration
-                        .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime, TimeSpan.FromSeconds(5).TotalMilliseconds.ToString(CultureInfo.InvariantCulture)));
+                        .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime, TimeSpan.FromSeconds(5).TotalMilliseconds.ToString(CultureInfo.InvariantCulture))
+                );
 
                 const string calendarName = "myHolidayCalendar";
                 q.AddCalendar<HolidayCalendar>(

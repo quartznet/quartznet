@@ -316,12 +316,12 @@ namespace Quartz.Tests.Unit.Impl.Triggers
 
         private static object Deserialize(string name)
         {
-            using (var fs = File.OpenRead(Path.Combine("Serialized", name + ".ser")))
-            {
-                BinaryFormatter binaryFormatter = new BinaryFormatter();
-                binaryFormatter.AssemblyFormat = FormatterAssemblyStyle.Simple;
-                return binaryFormatter.Deserialize(fs);
-            }
+#pragma warning disable SYSLIB0050
+            using var fs = File.OpenRead(Path.Combine("Serialized", name + ".ser"));
+            BinaryFormatter binaryFormatter = new BinaryFormatter();
+            binaryFormatter.AssemblyFormat = FormatterAssemblyStyle.Simple;
+            return binaryFormatter.Deserialize(fs);
+#pragma warning restore SYSLIB0050
         }
 
         [Serializable]
