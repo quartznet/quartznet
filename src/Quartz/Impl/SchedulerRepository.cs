@@ -86,7 +86,7 @@ namespace Quartz.Impl
 			lock (syncRoot)
 			{
 				schedulers.TryGetValue(schedName, out var retValue);
-				return Task.FromResult(retValue);
+				return Task.FromResult<IScheduler?>(retValue);
 			}
 		}
 

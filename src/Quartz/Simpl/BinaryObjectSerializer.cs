@@ -23,14 +23,12 @@ namespace Quartz.Simpl
         /// <param name="obj">Object to serialize.</param>
         public byte[] Serialize<T>(T obj) where T : class
         {
-            using (MemoryStream ms = new MemoryStream())
-            {
-                BinaryFormatter bf = new BinaryFormatter();
+            using MemoryStream ms = new MemoryStream();
 #pragma warning disable SYSLIB0011
-                bf.Serialize(ms, obj);
+            BinaryFormatter bf = new BinaryFormatter();
+            bf.Serialize(ms, obj);
+            return ms.ToArray();
 #pragma warning restore SYSLIB0011
-                return ms.ToArray();
-            }
         }
 
         /// <summary>
@@ -39,13 +37,11 @@ namespace Quartz.Simpl
         /// <param name="data">Data to deserialize object from.</param>
         public T? DeSerialize<T>(byte[] data) where T : class
         {
-            using (MemoryStream ms = new MemoryStream(data))
-            {
-                BinaryFormatter bf = new BinaryFormatter();
+            using MemoryStream ms = new MemoryStream(data);
 #pragma warning disable SYSLIB0011
-                return (T) bf.Deserialize(ms);
+            BinaryFormatter bf = new BinaryFormatter();
+            return (T) bf.Deserialize(ms);
 #pragma warning restore SYSLIB0011
-            }
         }
     }
 }

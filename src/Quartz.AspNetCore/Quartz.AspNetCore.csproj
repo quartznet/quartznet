@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <Description>Quartz.NET ASP.NET Core integration; $(Description)</Description>
-    <TargetFrameworks>netcoreapp3.1;net6.0;netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>netcoreapp3.1;net6.0;net8.0;netstandard2.0</TargetFrameworks>
     <RootNamespace>Quartz</RootNamespace>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <Authors>Lewis Zou, Marko Lahma, Quartz.NET</Authors>
@@ -26,7 +26,12 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="6.0.0" />
   </ItemGroup>
 
-  <PropertyGroup Condition=" '$(TargetFramework)' == 'netcoreapp3.1' or '$(TargetFramework)' == 'net6.0' ">
+  <ItemGroup Condition=" '$(TargetFramework)' == 'net8.0' ">
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
+  </ItemGroup>
+
+  <PropertyGroup Condition=" '$(TargetFramework)' == 'netcoreapp3.1' or '$(TargetFramework)' == 'net6.0' or '$(TargetFramework)' == 'net8.0' ">
     <DefineConstants>$(DefineConstants);SUPPORTS_HEALTH_CHECKS</DefineConstants>
   </PropertyGroup>
 

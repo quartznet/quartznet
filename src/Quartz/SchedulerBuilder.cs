@@ -60,12 +60,12 @@ namespace Quartz
             var builder = Create();
             if (!string.IsNullOrWhiteSpace(id))
             {
-                builder.SchedulerId = id;
+                builder.SchedulerId = id!;
             }
 
             if (!string.IsNullOrWhiteSpace(name))
             {
-                builder.SchedulerName = name;
+                builder.SchedulerName = name!;
             }
             return builder;
         }

@@ -100,7 +100,7 @@ namespace Quartz
 
         private protected override string GetNamedConnectionString(string connectionStringName)
         {
-            var configuration = serviceProvider.GetService<IConfiguration>();
+            var configuration = serviceProvider.GetRequiredService<IConfiguration>();
             var connectionString = configuration.GetConnectionString(connectionStringName);
             if (!string.IsNullOrWhiteSpace(connectionString))
             {

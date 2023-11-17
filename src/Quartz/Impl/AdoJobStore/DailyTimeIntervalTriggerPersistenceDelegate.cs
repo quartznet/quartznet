@@ -111,7 +111,7 @@ namespace Quartz.Impl.AdoJobStore
 
             if (!string.IsNullOrEmpty(props.TimeZoneId))
             {
-                scheduleBuilder.InTimeZone(TimeZoneUtil.FindTimeZoneById(props.TimeZoneId));
+                scheduleBuilder.InTimeZone(TimeZoneUtil.FindTimeZoneById(props.TimeZoneId!));
             }
 
             if (daysOfWeekStr != null)

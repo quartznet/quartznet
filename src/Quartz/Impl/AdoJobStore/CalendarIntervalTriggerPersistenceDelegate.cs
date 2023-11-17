@@ -73,7 +73,7 @@ namespace Quartz.Impl.AdoJobStore
             }
             if (!string.IsNullOrEmpty(tzId))
             {
-                tz = TimeZoneUtil.FindTimeZoneById(tzId);
+                tz = TimeZoneUtil.FindTimeZoneById(tzId!);
             }
 
             CalendarIntervalScheduleBuilder sb = CalendarIntervalScheduleBuilder.Create()

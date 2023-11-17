@@ -243,7 +243,7 @@ namespace Quartz.Xml
                             var deleteJobGroup = s.NullSafeTrim();
                             if (!string.IsNullOrEmpty(deleteJobGroup))
                             {
-                                jobGroupsToDelete.Add(deleteJobGroup);
+                                jobGroupsToDelete.Add(deleteJobGroup!);
                             }
                         }
                     }
@@ -254,7 +254,7 @@ namespace Quartz.Xml
                             var deleteTriggerGroup = s.NullSafeTrim();
                             if (!string.IsNullOrEmpty(deleteTriggerGroup))
                             {
-                                triggerGroupsToDelete.Add(deleteTriggerGroup);
+                                triggerGroupsToDelete.Add(deleteTriggerGroup!);
                             }
                         }
                     }
@@ -549,7 +549,7 @@ namespace Quartz.Xml
                 return IntervalUnit.Day;
             }
 
-            if (!TryParseEnum(intervalUnit, out IntervalUnit retValue))
+            if (!TryParseEnum(intervalUnit!, out IntervalUnit retValue))
             {
                 throw new SchedulerConfigException("Unknown interval unit for DateIntervalTrigger: " + intervalUnit);
             }
