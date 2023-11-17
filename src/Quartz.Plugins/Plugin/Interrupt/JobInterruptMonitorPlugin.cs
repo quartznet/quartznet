@@ -76,7 +76,7 @@ public class JobInterruptMonitorPlugin : TriggerListenerSupport, ISchedulerPlugi
         try
         {
             // Schedule Monitor only if the job wants AutoInterruptable functionality
-            if (context.JobDetail.JobDataMap.GetBoolean(JobDataMapKeyAutoInterruptable))
+            if (context.JobDetail.JobDataMap.TryGetBooleanValue(JobDataMapKeyAutoInterruptable, out var value) && value)
             {
                 var monitorPlugin = (JobInterruptMonitorPlugin) context.Scheduler.Context[JobInterruptMonitorKey];
 
