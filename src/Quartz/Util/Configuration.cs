@@ -1,24 +1,21 @@
-using System.Collections.Specialized;
-using System.Configuration;
-
+#if NETFRAMEWORK
 using Microsoft.Extensions.Logging;
-
-using Quartz.Logging;
+#endif
 
 namespace Quartz.Util;
 
 internal static class Configuration
 {
-    internal static NameValueCollection? GetSection(string sectionName)
+    internal static System.Collections.Specialized.NameValueCollection? GetSection(string sectionName)
     {
 #if NETFRAMEWORK
         try
         {
-            return (NameValueCollection) ConfigurationManager.GetSection(sectionName);
+            return (System.Collections.Specialized.NameValueCollection) System.Configuration.ConfigurationManager.GetSection(sectionName);
         }
         catch (Exception e)
         {
-            var logger = LogProvider.CreateLogger(nameof(Configuration));
+            var logger = Logging.LogProvider.CreateLogger(nameof(Configuration));
             logger.LogWarning(e, "could not read configuration using ConfigurationManager.GetSection: {ExceptionMessage}", e.Message);
             return null;
         }

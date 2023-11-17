@@ -50,7 +50,7 @@ public class TriggerEndpointsTest : WebApiTest
         A.CallTo(() => FakeScheduler.GetTrigger(TestData.CronTrigger.Key, A<CancellationToken>._)).Returns(TestData.CronTrigger);
         A.CallTo(() => FakeScheduler.GetTrigger(TestData.DailyTimeIntervalTrigger.Key, A<CancellationToken>._)).Returns(TestData.DailyTimeIntervalTrigger);
         A.CallTo(() => FakeScheduler.GetTrigger(TestData.SimpleTrigger.Key, A<CancellationToken>._)).Returns(TestData.SimpleTrigger);
-        A.CallTo(() => FakeScheduler.GetTrigger(triggerKeyOne, A<CancellationToken>._)).Returns((ITrigger?) null);
+        A.CallTo(() => FakeScheduler.GetTrigger(triggerKeyOne, A<CancellationToken>._)).Returns(null);
 
         var trigger = await HttpScheduler.GetTrigger(TestData.CalendarIntervalTrigger.Key);
         trigger.Should().BeEquivalentTo(TestData.CalendarIntervalTrigger);
@@ -326,7 +326,7 @@ public class TriggerEndpointsTest : WebApiTest
             .MustHaveHappened(1, Times.Exactly);
 
         Fake.ClearRecordedCalls(FakeScheduler);
-        A.CallTo(() => FakeScheduler.RescheduleJob(triggerKeyTwo, A<ITrigger>._, A<CancellationToken>._)).Returns((DateTimeOffset?) null);
+        A.CallTo(() => FakeScheduler.RescheduleJob(triggerKeyTwo, A<ITrigger>._, A<CancellationToken>._)).Returns(null);
 
         response = await HttpScheduler.RescheduleJob(triggerKeyTwo, TestData.SimpleTrigger);
         response.Should().BeNull();

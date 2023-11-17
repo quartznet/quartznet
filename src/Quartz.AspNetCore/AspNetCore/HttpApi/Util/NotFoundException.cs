@@ -1,5 +1,3 @@
-using System.Runtime.Serialization;
-
 namespace Quartz.AspNetCore.HttpApi.Util;
 
 internal sealed class NotFoundException : Exception
@@ -9,10 +7,6 @@ internal sealed class NotFoundException : Exception
     }
 
     public NotFoundException(string? message, Exception? innerException) : base(message, innerException)
-    {
-    }
-
-    public NotFoundException(SerializationInfo info, StreamingContext context) : base(info, context)
     {
     }
 

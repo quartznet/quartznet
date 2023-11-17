@@ -350,7 +350,7 @@ public class QuartzHostedServiceTests
         var quartzHostedService = new QuartzHostedService(
             appliationLifetime,
             schedulerFactory,
-            Options.Create(new QuartzHostedServiceOptions()
+            Options.Create(new QuartzHostedServiceOptions
             {
                 AwaitApplicationStarted = awaitApplicationStarted,
                 StartDelay = withStartDelay ? TimeSpan.FromMinutes(1) : null,
@@ -380,7 +380,7 @@ public class QuartzHostedServiceTests
         var quartzHostedService = new QuartzHostedService(
             appliationLifetime,
             schedulerFactory,
-            Options.Create(new QuartzHostedServiceOptions()
+            Options.Create(new QuartzHostedServiceOptions
             {
                 AwaitApplicationStarted = awaitApplicationStarted,
                 StartDelay = withStartDelay ? TimeSpan.FromMinutes(1) : null,
@@ -421,7 +421,7 @@ public class QuartzHostedServiceTests
         var quartzHostedService = new QuartzHostedService(
             appliationLifetime,
             schedulerFactory,
-            Options.Create(new QuartzHostedServiceOptions()
+            Options.Create(new QuartzHostedServiceOptions
             {
                 AwaitApplicationStarted = awaitApplicationStarted,
                 StartDelay = withStartDelay ? TimeSpan.FromMinutes(1) : null,
@@ -451,7 +451,7 @@ public class QuartzHostedServiceTests
         var quartzHostedService = new QuartzHostedService(
             appliationLifetime,
             schedulerFactory,
-            Options.Create(new QuartzHostedServiceOptions()
+            Options.Create(new QuartzHostedServiceOptions
             {
                 AwaitApplicationStarted = awaitApplicationStarted,
                 StartDelay = withStartDelay ? TimeSpan.FromMinutes(1) : null,

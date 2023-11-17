@@ -52,7 +52,7 @@ public class CustomSqlServerConnectionProvider : IDbProvider
 
     public string ConnectionString
     {
-        get => configuration.GetConnectionString("Quartz");
+        get => configuration.GetConnectionString("Quartz")!;
         set => throw new NotImplementedException();
     }
 

@@ -1501,7 +1501,7 @@ public class DirtyFlagMapTest
         dirtyFlagMap.Add("a", "x");
         dirtyFlagMap.ClearDirtyFlag();
 
-        Assert.IsFalse(((IDictionary) dirtyFlagMap).Contains((object) 5));
+        Assert.IsFalse(((IDictionary) dirtyFlagMap).Contains(5));
         Assert.IsFalse(dirtyFlagMap.Dirty);
     }
 
@@ -1512,7 +1512,7 @@ public class DirtyFlagMapTest
         dirtyFlagMap.Put("a", "x");
         dirtyFlagMap.ClearDirtyFlag();
 
-        Assert.IsTrue(dirtyFlagMap.Contains((object) "a"));
+        Assert.IsTrue(dirtyFlagMap.Contains("a"));
         Assert.IsFalse(dirtyFlagMap.Dirty);
     }
 
@@ -2144,11 +2144,11 @@ public class DirtyFlagMapTest
 
     private static T Deserialize<T>(string name)
     {
-        using (var fs = File.OpenRead(Path.Combine("Serialized", name + ".ser")))
-        {
-            BinaryFormatter binaryFormatter = new BinaryFormatter();
-            binaryFormatter.AssemblyFormat = FormatterAssemblyStyle.Simple;
-            return (T) binaryFormatter.Deserialize(fs);
-        }
+#pragma warning disable SYSLIB0050
+        using var fs = File.OpenRead(Path.Combine("Serialized", name + ".ser"));
+        BinaryFormatter binaryFormatter = new BinaryFormatter();
+        binaryFormatter.AssemblyFormat = FormatterAssemblyStyle.Simple;
+        return (T) binaryFormatter.Deserialize(fs);
+#pragma warning restore SYSLIB0050
     }
 }

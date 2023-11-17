@@ -22,7 +22,7 @@ public class JobStoreSupportTest
 
     private class SqlExceptionSimulator : Exception
     {
-        public IEnumerable<SqlErrorSimulator> Errors => new List<SqlErrorSimulator>()
+        public IEnumerable<SqlErrorSimulator> Errors => new List<SqlErrorSimulator>
         {
             new SqlErrorSimulator()
         };
