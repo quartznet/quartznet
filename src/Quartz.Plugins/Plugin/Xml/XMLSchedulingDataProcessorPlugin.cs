@@ -64,22 +64,26 @@ namespace Quartz.Plugin.Xml
         /// <summary>
         /// Initializes a new instance of the <see cref="XMLSchedulingDataProcessorPlugin"/> class.
         /// </summary>
-        public XMLSchedulingDataProcessorPlugin()
+        public XMLSchedulingDataProcessorPlugin() : this(new SimpleTypeLoadHelper())
         {
-            Log = LogProvider.GetLogger(typeof (XMLSchedulingDataProcessorPlugin));
         }
 
         /// <summary>
-        /// Gets the log.
+        /// Initializes a new instance of the <see cref="XMLSchedulingDataProcessorPlugin"/> class.
         /// </summary>
-        /// <value>The log.</value>
+        public XMLSchedulingDataProcessorPlugin(ITypeLoadHelper typeLoadHelper)
+        {
+            Log = LogProvider.GetLogger(typeof (XMLSchedulingDataProcessorPlugin));
+            TypeLoadHelper = typeLoadHelper;
+        }
+
         private ILog Log { get; }
 
         public string Name { get; private set; } = null!;
 
         public IScheduler Scheduler { get; private set; } = null!;
 
-        protected ITypeLoadHelper TypeLoadHelper { get; private set; } = null!;
+        protected ITypeLoadHelper TypeLoadHelper { get; private set; }
 
         /// <summary>
         /// Comma separated list of file names (with paths) to the XML files that should be read.
@@ -131,8 +135,6 @@ namespace Quartz.Plugin.Xml
         {
             Name = pluginName;
             Scheduler = scheduler;
-            TypeLoadHelper = new SimpleTypeLoadHelper();
-            TypeLoadHelper.Initialize();
 
             Log.Info("Registering Quartz Job Initialization Plug-in.");
 
