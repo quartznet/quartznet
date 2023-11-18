@@ -788,7 +788,10 @@ Please add configuration to your application config file to correctly initialize
             ISchedulerPlugin plugin;
             try
             {
-                plugin = InstantiateType<ISchedulerPlugin>(LoadType(plugInType));
+                var pluginTypeType = LoadType(plugInType) ?? throw new SchedulerException($"Could not load plugin type {plugInType}");
+                // we need to use concrete types to resolve correct one
+                var method = GetType().GetMethod(nameof(InstantiateType), BindingFlags.Instance | BindingFlags.NonPublic)!.MakeGenericMethod(pluginTypeType);
+                plugin = (ISchedulerPlugin) method.Invoke(this, new [] { pluginTypeType! })!;
             }
             catch (Exception e)
             {

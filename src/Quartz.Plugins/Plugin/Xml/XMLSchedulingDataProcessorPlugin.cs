@@ -54,26 +54,30 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
     private bool started;
 
     private readonly HashSet<string> jobTriggerNameSet = new HashSet<string>();
+    private readonly ILogger<XMLSchedulingDataProcessorPlugin> logger;
+
 
     /// <summary>
     /// Initializes a new instance of the <see cref="XMLSchedulingDataProcessorPlugin"/> class.
     /// </summary>
-    public XMLSchedulingDataProcessorPlugin()
+    public XMLSchedulingDataProcessorPlugin() : this(new SimpleTypeLoadHelper())
     {
-        logger = LogProvider.CreateLogger<XMLSchedulingDataProcessorPlugin>();
     }
 
     /// <summary>
-    /// Gets the log.
+    /// Initializes a new instance of the <see cref="XMLSchedulingDataProcessorPlugin"/> class.
     /// </summary>
-    /// <value>The log.</value>
-    private ILogger<XMLSchedulingDataProcessorPlugin> logger { get; }
+    public XMLSchedulingDataProcessorPlugin(ITypeLoadHelper typeLoadHelper)
+    {
+        logger = LogProvider.CreateLogger<XMLSchedulingDataProcessorPlugin>();
+        TypeLoadHelper = typeLoadHelper;
+    }
 
     public string Name { get; private set; } = null!;
 
     public IScheduler Scheduler { get; private set; } = null!;
 
-    protected ITypeLoadHelper TypeLoadHelper { get; private set; } = null!;
+    protected ITypeLoadHelper TypeLoadHelper { get; private set; }
 
     /// <summary>
     /// Comma separated list of file names (with paths) to the XML files that should be read.
@@ -125,8 +129,6 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
     {
         Name = pluginName;
         Scheduler = scheduler;
-        TypeLoadHelper = new SimpleTypeLoadHelper();
-        TypeLoadHelper.Initialize();
 
         logger.LogInformation("Registering Quartz Job Initialization Plug-in.");
 

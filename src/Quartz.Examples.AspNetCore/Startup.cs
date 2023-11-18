@@ -100,6 +100,9 @@ public class Startup
             q.UseInMemoryStore();
             q.UseDefaultThreadPool(maxConcurrency: 10);
 
+            // you could use custom too
+            q.UseTypeLoader<CustomTypeLoader>();
+
             // quickest way to create a job with single trigger is to use ScheduleJob
             q.ScheduleJob<ExampleJob>(trigger => trigger
                 .WithIdentity("Combined Configuration Trigger")
@@ -223,7 +226,7 @@ public class Startup
                     // this is the default
                     sqlServer.TablePrefix = "QRTZ_";
                 });
-                s.UseNewtonsoftJsonSerializer();
+                s.UseJsonSerializer();
                 s.UseClustering(c =>
                 {
                     c.CheckinMisfireThreshold = TimeSpan.FromSeconds(20);
