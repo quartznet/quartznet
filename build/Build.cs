@@ -100,6 +100,10 @@ partial class Build : NukeBuild
                 .SetProject(Solution.AllProjects.First(x => x.Name == "Quartz.Examples.Worker"))
                 .SetConfiguration(Configuration)
             );
+            DotNetPublish(s => s
+                .SetProject(Solution.AllProjects.First(x => x.Name == "Quartz.Examples.AspNetCore"))
+                .SetConfiguration(Configuration)
+            );
         });
 
     Target DocsBuild => _ => _

@@ -124,6 +124,8 @@ namespace Quartz.Examples.AspNetCore
                 var jobKey = new JobKey("awesome job", "awesome group");
                 q.AddJob<ExampleJob>(jobKey, j => j
                     .WithDescription("my awesome job")
+                    .UsingJobData(nameof(ExampleJob.InjectedString), "Hello")
+                    .UsingJobData(nameof(ExampleJob.InjectedBool), true)
                 );
 
                 q.AddTrigger(t => t
