@@ -158,6 +158,18 @@ partial class Build : NukeBuild
         .OnlyWhenDynamic(() => Host is GitHubActions && RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         .Executes(() =>
         {
+            Action<OutputType,string> logger = (type, output) =>
+            {
+                if (output.Contains(": NOTICE:", StringComparison.Ordinal))
+                {
+                    Log.Debug(output);
+                }
+                else
+                {
+                    ProcessTasks.DefaultLogger(type, output);
+                }
+            };
+
             Log.Information("Starting Postgres");
             ProcessTasks.StartProcess("sudo", "systemctl start postgresql.service").AssertZeroExitCode();
             ProcessTasks.StartProcess("pg_isready").AssertZeroExitCode();
@@ -174,10 +186,15 @@ partial class Build : NukeBuild
             Log.Information("Creating database...");
             RunAsPostgresUser("createdb --owner=quartznet quartznet");
 
-            static void RunPsqlAsQuartznetUser(string parameters)
+            void RunPsqlAsQuartznetUser(string parameters)
             {
                 // Warn: Be careful refactoring this to concatenation
-                ProcessTasks.StartProcess("psql", $"--username=quartznet --host=localhost " + parameters, environmentVariables: new Dictionary<string, string> { { "PGPASSWORD", "quartznet" } }).AssertZeroExitCode();
+                ProcessTasks.StartProcess(
+                    "psql",
+                    "--username=quartznet --host=localhost " + parameters,
+                    environmentVariables: new Dictionary<string, string> { { "PGPASSWORD", "quartznet" } },
+                    logger: logger
+                ).AssertZeroExitCode();
             }
 
             RunPsqlAsQuartznetUser("--list quartznet");
