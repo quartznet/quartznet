@@ -2,7 +2,7 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
-## Release 3.8.0, TBA
+## Release 3.8.0, Nov 18 2023
 
 * CHANGES
   * `TryGetString` method added to JobDataMap (#2125)
