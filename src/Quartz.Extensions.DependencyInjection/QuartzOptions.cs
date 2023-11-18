@@ -61,7 +61,11 @@ public class QuartzOptions : Dictionary<string, string?>
         return this;
     }
 
-    public QuartzOptions AddJob<T>(Action<JobBuilder> configure) where T : IJob
+    public QuartzOptions AddJob<
+#if NET6_0_OR_GREATER
+        [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
+#endif
+        T>(Action<JobBuilder> configure) where T : IJob
     {
         var builder = JobBuilder.Create<T>();
         configure(builder);

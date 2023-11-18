@@ -14,9 +14,18 @@ namespace Quartz.Examples.AspNetCore
             this.logger = logger;
         }
 
+        public string? InjectedString { get; set; }
+        public bool InjectedBool { get; set; }
+
         public async Task Execute(IJobExecutionContext context)
         {
-            logger.LogInformation(context.JobDetail.Key + " job executing, triggered by " + context.Trigger.Key);
+            logger.LogInformation(
+                "Job {Job} executing, triggered by {Trigger}. InjectedString: {InjectedString}, InjectedBool: {InjectedBool}",
+                context.JobDetail.Key,
+                context.Trigger.Key,
+                InjectedString,
+                InjectedBool);
+
             await Task.Delay(TimeSpan.FromSeconds(1));
         }
 
