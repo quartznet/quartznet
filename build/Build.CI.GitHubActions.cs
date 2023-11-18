@@ -22,7 +22,7 @@ using Nuke.Common.CI.GitHubActions;
     InvokedTargets = new[] { nameof(Compile), nameof(IntegrationTest) },
     CacheKeyFiles = new[] { "global.json", "src/**/*.csproj", "src/**/package.json" }),
 ]
-[GitHubActionsAttribute(
+[GitHubActions(
     "build",
     GitHubActionsImage.WindowsLatest,
     GitHubActionsImage.UbuntuLatest,

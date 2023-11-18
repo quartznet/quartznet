@@ -8,6 +8,7 @@
   * `TryGetString` method added to JobDataMap (#2125)
   * Add NET 8.0 targeting for examples, tests and integration projects (#2192)
   * Upgrade TimeZoneConverter to version 6.1.0 (#2194)
+  * Improve trimming compatibility #2195
 
 * FIXES
   * JobDataMap `TryGetXXX` methods will now correctly return true/false if a key value can be retrieved (or not) (#2125)

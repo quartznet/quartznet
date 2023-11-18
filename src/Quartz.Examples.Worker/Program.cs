@@ -1,6 +1,12 @@
 using System;
+using System.Threading;
+using System.Threading.Tasks;
+
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+
+using Quartz.Listener;
 
 using Serilog;
 
@@ -37,7 +43,10 @@ namespace Quartz.Examples.Worker
                     {
                         // handy when part of cluster or you want to otherwise identify multiple schedulers
                         q.SchedulerId = "Scheduler-Core";
-                        
+
+                        // whether we want to validate used configuration properties, defaults to true
+                        q.CheckConfiguration = true;
+
                         // we take this from appsettings.json, just show it's possible
                         // q.SchedulerName = "Quartz ASP.NET Core Sample Scheduler";
 
@@ -52,7 +61,7 @@ namespace Quartz.Examples.Worker
                         // quickest way to create a job with single trigger is to use ScheduleJob
                         q.ScheduleJob<ExampleJob>(trigger => trigger
                             .WithIdentity("Combined Configuration Trigger")
-                            .StartAt(DateBuilder.EvenSecondDate(DateTimeOffset.UtcNow.AddSeconds(7)))
+                            .StartAt(DateBuilder.EvenSecondDate(DateTimeOffset.UtcNow))
                             .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second))
                             .WithDescription("my awesome trigger configured for a job with single call")
                         );
@@ -73,6 +82,10 @@ namespace Quartz.Examples.Worker
                             .WithDescription("my awesome simple trigger")
                         );
 
+                        q.AddTriggerListener<TestTriggerListener>();
+                        q.AddJobListener<TestJobListener>();
+                        q.AddSchedulerListener<TestSchedulerListener>();
+                        
                     });
 
                     // Quartz.Extensions.Hosting hosting
@@ -85,5 +98,57 @@ namespace Quartz.Examples.Worker
                         options.StartDelay = TimeSpan.FromSeconds(10);
                     });
                 });
+    }
+
+    public class TestSchedulerListener : SchedulerListenerSupport
+    {
+        private readonly ILogger<TestSchedulerListener> logger;
+
+        public TestSchedulerListener(ILogger<TestSchedulerListener> logger)
+        {
+            this.logger = logger;
+        }
+
+        public override Task SchedulerStarting(CancellationToken cancellationToken = default)
+        {
+            logger.LogInformation("Scheduler starting");
+            return Task.CompletedTask;
+        }
+    }
+
+    public class TestJobListener : JobListenerSupport
+    {
+        private readonly ILogger<TestJobListener> logger;
+
+        public TestJobListener(ILogger<TestJobListener> logger)
+        {
+            this.logger = logger;
+        }
+
+        public override string Name => nameof(TestJobListener);
+
+        public override Task JobToBeExecuted(IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            logger.LogInformation("Job {Job} to be executed", context.JobDetail.Key);
+            return Task.CompletedTask;
+        }
+    }
+
+    public class TestTriggerListener : TriggerListenerSupport
+    {
+        private readonly ILogger<TestTriggerListener> logger;
+
+        public TestTriggerListener(ILogger<TestTriggerListener> logger)
+        {
+            this.logger = logger;
+        }
+
+        public override string Name => nameof(TestSchedulerListener);
+
+        public override Task TriggerFired(ITrigger trigger, IJobExecutionContext context, CancellationToken cancellationToken = default)
+        {
+            logger.LogInformation("Trigger {Trigger} fired", trigger.Key);
+            return Task.CompletedTask;
+        }
     }
 }

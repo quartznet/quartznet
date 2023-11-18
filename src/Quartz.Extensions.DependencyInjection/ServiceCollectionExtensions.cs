@@ -96,7 +96,11 @@ namespace Quartz
         /// <summary>
         /// Add job to underlying service collection. This API maybe change!
         /// </summary>
-        public static IServiceCollectionQuartzConfigurator AddJob<T>(
+        public static IServiceCollectionQuartzConfigurator AddJob<
+#if NET6_0_OR_GREATER
+            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
+#endif
+            T>(
             this IServiceCollectionQuartzConfigurator options,
             Action<IJobConfigurator>? configure = null) where T : IJob
         {
@@ -106,7 +110,11 @@ namespace Quartz
         /// <summary>
         /// Add job to underlying service collection. This API maybe change!
         /// </summary>
-        public static IServiceCollectionQuartzConfigurator AddJob<T>(
+        public static IServiceCollectionQuartzConfigurator AddJob<
+#if NET6_0_OR_GREATER
+            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
+#endif
+            T>(
             this IServiceCollectionQuartzConfigurator options,
             JobKey? jobKey = null,
             Action<IJobConfigurator>? configure = null) where T : IJob
@@ -118,6 +126,9 @@ namespace Quartz
         /// </summary>
         public static IServiceCollectionQuartzConfigurator AddJob(
            this IServiceCollectionQuartzConfigurator options,
+#if NET6_0_OR_GREATER
+           [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
+#endif
            Type jobType,
            JobKey? jobKey = null,
            Action<IJobConfigurator>? configure = null)
@@ -170,7 +181,11 @@ namespace Quartz
         /// <summary>
         /// Schedule job with trigger to underlying service collection. This API maybe change!
         /// </summary>
-        public static IServiceCollectionQuartzConfigurator ScheduleJob<T>(
+        public static IServiceCollectionQuartzConfigurator ScheduleJob<
+#if NET6_0_OR_GREATER
+            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
+#endif
+            T>(
             this IServiceCollectionQuartzConfigurator options,
             Action<ITriggerConfigurator> trigger,
             Action<IJobConfigurator>? job = null) where T : IJob
@@ -217,9 +232,10 @@ namespace Quartz
             return options;
         }
 
-
-
         private static IJobDetail ConfigureAndBuildJobDetail(
+#if NET6_0_OR_GREATER
+            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
+#endif
             Type type,
             JobConfigurator builder,
             Action<IJobConfigurator>? configure,
@@ -232,7 +248,11 @@ namespace Quartz
             return jobDetail;
         }
 
-        public static IServiceCollectionQuartzConfigurator AddCalendar<T>(
+        public static IServiceCollectionQuartzConfigurator AddCalendar<
+#if NET6_0_OR_GREATER
+            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
+#endif
+            T>(
             this IServiceCollectionQuartzConfigurator configurator,
             string name,
             bool replace,
