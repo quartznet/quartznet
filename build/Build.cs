@@ -213,9 +213,7 @@ partial class Build : NukeBuild
                 "Quartz.AspNetCore",
                 "Quartz.Jobs",
                 "Quartz.Plugins",
-                "Quartz.Plugins.TimeZoneConverter",
-                "Quartz.OpenTelemetry.Instrumentation",
-                "Quartz.OpenTracing"
+                "Quartz.Plugins.TimeZoneConverter"
             };
 
             foreach (var project in packTargetProjects)

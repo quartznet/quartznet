@@ -46,8 +46,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Examples.Worker", "s
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Benchmark", "src\Quartz.Benchmark\Quartz.Benchmark.csproj", "{23DEAB6E-D12C-40F6-A50E-6584FEAA389C}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.OpenTracing", "src\Quartz.OpenTracing\Quartz.OpenTracing.csproj", "{A41539B5-18CC-4881-9E88-3C0BA55716D3}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GitHub", "GitHub", "{354EFE76-4FA8-45C9-A3D4-585B8E00D242}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Workflows", "Workflows", "{BB894600-46FC-4EAD-84C8-F98622A3D012}"
@@ -129,10 +127,6 @@ Global
 		{23DEAB6E-D12C-40F6-A50E-6584FEAA389C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{23DEAB6E-D12C-40F6-A50E-6584FEAA389C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{23DEAB6E-D12C-40F6-A50E-6584FEAA389C}.Release|Any CPU.Build.0 = Release|Any CPU
-		{A41539B5-18CC-4881-9E88-3C0BA55716D3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{A41539B5-18CC-4881-9E88-3C0BA55716D3}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{A41539B5-18CC-4881-9E88-3C0BA55716D3}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{A41539B5-18CC-4881-9E88-3C0BA55716D3}.Release|Any CPU.Build.0 = Release|Any CPU
 		{12EA4497-DCEC-4C1A-83BD-FFAFA2C01A25}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{12EA4497-DCEC-4C1A-83BD-FFAFA2C01A25}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{12EA4497-DCEC-4C1A-83BD-FFAFA2C01A25}.Release|Any CPU.ActiveCfg = Release|Any CPU
