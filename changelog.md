@@ -2,15 +2,21 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
-## Future Release, TBA
+## Release 3.8.0, TBA
 
 * CHANGES
   * `TryGetString` method added to JobDataMap (#2125)
+  * Add NET 8.0 targeting for examples, tests and integration projects (#2192)
+  * Upgrade TimeZoneConverter to version 6.1.0 (#2194)
 
 * FIXES
   * JobDataMap `TryGetXXX` methods will now correctly return true/false if a key value can be retrieved (or not) (#2125)
   * JobDataMap `GetXXX` methods throw KeyNotFoundException if the key does not exist on the JobDataMap (#2125)
   * JobDataMap `GetXXX` methods throw InvalidCastException if null value for non nullable types is found. (#2125)
+  * DailyCalendar should use same time zone offset for all checks (#2113)
+  * SendMailJob will now throw JobExecutionException on BuildMessage construction failure due to missing mandatory params. (#2126)
+  * JobInterruptMonitorPlugin should tolerate missing JobDataMapKeyAutoInterruptable (#2191)
+
 
 ## Release 3.7.0, Aug 4 2023
 
