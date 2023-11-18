@@ -9,7 +9,7 @@ using Quartz.Spi;
 
 namespace Quartz
 {
-    internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQuartzConfigurator
+    internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQuartzConfigurator, IContainerConfigurationSupport
     {
         private readonly IServiceCollection services;
         private readonly SchedulerBuilder schedulerBuilder;
@@ -256,6 +256,19 @@ namespace Quartz
         {
             services.AddSingleton(new TriggerListenerConfiguration(typeof(T), matchers));
             services.AddSingleton<ITriggerListener>(implementationFactory);
+        }
+
+        public void RegisterSingleton<
+            TService,
+#if NET6_0_OR_GREATER
+            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
+#endif
+            TImplementation>()
+            where TService : class
+            where TImplementation : class, TService
+        {
+
+            services.AddSingleton<TService, TImplementation>();
         }
     }
 }

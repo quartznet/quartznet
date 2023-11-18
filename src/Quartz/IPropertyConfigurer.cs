@@ -24,4 +24,16 @@ namespace Quartz
     public interface IPropertyConfigurationRoot : IPropertySetter
     {
     }
+
+    internal interface IContainerConfigurationSupport : IPropertyConfigurer, IPropertyConfigurationRoot
+    {
+        void RegisterSingleton<
+            TService,
+#if NET6_0_OR_GREATER
+            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
+#endif
+            TImplementation>()
+            where TService : class
+            where TImplementation : class, TService;
+    }
 }
