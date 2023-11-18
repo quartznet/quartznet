@@ -9,9 +9,18 @@ public class ExampleJob : IJob, IDisposable
         this.logger = logger;
     }
 
+    public string? InjectedString { get; set; }
+    public bool InjectedBool { get; set; }
+
     public async ValueTask Execute(IJobExecutionContext context)
     {
-        logger.LogInformation("{Job} job executing, triggered by {Trigger}",context.JobDetail.Key, context.Trigger.Key);
+        logger.LogInformation(
+            "Job {Job} executing, triggered by {Trigger}. InjectedString: {InjectedString}, InjectedBool: {InjectedBool}",
+            context.JobDetail.Key,
+            context.Trigger.Key,
+            InjectedString,
+            InjectedBool);
+
         await Task.Delay(TimeSpan.FromSeconds(1));
     }
 

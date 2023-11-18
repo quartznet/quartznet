@@ -123,6 +123,8 @@ public class Startup
             var jobKey = new JobKey("awesome job", "awesome group");
             q.AddJob<ExampleJob>(jobKey, j => j
                 .WithDescription("my awesome job")
+                .UsingJobData(nameof(ExampleJob.InjectedString), "Hello")
+                .UsingJobData(nameof(ExampleJob.InjectedBool), true)
             );
 
             q.AddTrigger(t => t
@@ -157,7 +159,8 @@ public class Startup
                     .WithIdentity("slowJob")
                     .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable, "true")
                     // allow only five seconds for this job, overriding default configuration
-                    .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime, TimeSpan.FromSeconds(5).TotalMilliseconds.ToString(CultureInfo.InvariantCulture)));
+                    .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime, TimeSpan.FromSeconds(5).TotalMilliseconds.ToString(CultureInfo.InvariantCulture))
+            );
 
             const string calendarName = "myHolidayCalendar";
             q.AddCalendar<HolidayCalendar>(
