@@ -82,7 +82,11 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// Add job to underlying service collection. This API maybe change!
     /// </summary>
-    public static IServiceCollectionQuartzConfigurator AddJob<T>(
+    public static IServiceCollectionQuartzConfigurator AddJob<
+#if NET6_0_OR_GREATER
+            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
+#endif
+        T>(
         this IServiceCollectionQuartzConfigurator options,
         Action<IJobConfigurator>? configure = null) where T : IJob
     {
@@ -92,7 +96,11 @@ public static class ServiceCollectionExtensions
     /// <summary>
     /// Add job to underlying service collection. This API maybe change!
     /// </summary>
-    public static IServiceCollectionQuartzConfigurator AddJob<T>(
+    public static IServiceCollectionQuartzConfigurator AddJob<
+#if NET6_0_OR_GREATER
+            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
+#endif
+        T>(
         this IServiceCollectionQuartzConfigurator options,
         JobKey? jobKey = null,
         Action<IJobConfigurator>? configure = null) where T : IJob
@@ -104,6 +112,9 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IServiceCollectionQuartzConfigurator AddJob(
         this IServiceCollectionQuartzConfigurator options,
+#if NET6_0_OR_GREATER
+            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
+#endif
         Type jobType,
         JobKey? jobKey = null,
         Action<IJobConfigurator>? configure = null)
@@ -206,6 +217,9 @@ public static class ServiceCollectionExtensions
 
 
     private static IJobDetail ConfigureAndBuildJobDetail(
+#if NET6_0_OR_GREATER
+            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
+#endif
         Type type,
         JobBuilder builder,
         Action<IJobConfigurator>? configure,
@@ -218,7 +232,11 @@ public static class ServiceCollectionExtensions
         return jobDetail;
     }
 
-    public static IServiceCollectionQuartzConfigurator AddCalendar<T>(
+    public static IServiceCollectionQuartzConfigurator AddCalendar<
+#if NET6_0_OR_GREATER
+            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
+#endif
+        T>(
         this IServiceCollectionQuartzConfigurator configurator,
         string name,
         bool replace,
