@@ -8,7 +8,7 @@
     <Authors>Sean Farrow, Quartz.NET</Authors>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="TimeZoneConverter" Version="5.0.0" />
+    <PackageReference Include="TimeZoneConverter" Version="6.1.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Quartz.Plugins\Quartz.Plugins.csproj" />
