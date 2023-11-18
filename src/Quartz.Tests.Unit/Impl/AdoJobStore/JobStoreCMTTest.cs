@@ -27,7 +27,7 @@ public class JobStoreCMTTest
     {
         public void ExecuteGetNonManagedConnection()
         {
-            GetNonManagedTXConnection();
+            GetNonManagedTXConnection().GetAwaiter().GetResult();
         }
     }
 

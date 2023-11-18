@@ -1,3 +1,5 @@
+// ReSharper disable SuspiciousTypeConversion.Global
+
 using System.Runtime.Serialization.Formatters;
 using System.Runtime.Serialization.Formatters.Binary;
 using NUnit.Framework;
@@ -71,7 +73,7 @@ public class StringOperatorTest
         Assert.IsTrue(op.Equals(op));
         Assert.IsTrue(op.Equals(SerializeAndDeserialize(op)));
         Assert.IsFalse(op.Equals(StringOperator.Equality));
-        Assert.IsFalse(op.Equals((StringOperator) null));
+        Assert.IsFalse(op.Equals(null));
     }
 
     [Test]
@@ -153,7 +155,7 @@ public class StringOperatorTest
         Assert.IsTrue(op.Equals(op));
         Assert.IsTrue(op.Equals(SerializeAndDeserialize(op)));
         Assert.IsFalse(op.Equals(StringOperator.Anything));
-        Assert.IsFalse(op.Equals((StringOperator) null));
+        Assert.IsFalse(op.Equals(null));
     }
 
     [Test]
@@ -176,7 +178,7 @@ public class StringOperatorTest
         Assert.IsTrue(op.Equals(op));
         Assert.IsTrue(op.Equals(SerializeAndDeserialize(op)));
         Assert.IsFalse(op.Equals(StringOperator.Anything));
-        Assert.IsFalse(op.Equals((StringOperator) null));
+        Assert.IsFalse(op.Equals(null));
     }
 
     [Test]
@@ -270,7 +272,7 @@ public class StringOperatorTest
         Assert.IsTrue(op.Equals(op));
         Assert.IsTrue(op.Equals(SerializeAndDeserialize(op)));
         Assert.IsFalse(op.Equals(StringOperator.Anything));
-        Assert.IsFalse(op.Equals((StringOperator) null));
+        Assert.IsFalse(op.Equals(null));
     }
 
     [Test]
@@ -337,7 +339,7 @@ public class StringOperatorTest
         Assert.IsTrue(op.Equals(op));
         Assert.IsTrue(op.Equals(SerializeAndDeserialize(op)));
         Assert.IsFalse(op.Equals(StringOperator.Anything));
-        Assert.IsFalse(op.Equals((StringOperator) null));
+        Assert.IsFalse(op.Equals(null));
     }
 
     [Test]
@@ -431,7 +433,7 @@ public class StringOperatorTest
         Assert.IsTrue(op.Equals(op));
         Assert.IsTrue(op.Equals(SerializeAndDeserialize(op)));
         Assert.IsFalse(op.Equals(StringOperator.Anything));
-        Assert.IsFalse(op.Equals((StringOperator) null));
+        Assert.IsFalse(op.Equals(null));
     }
 
     [Serializable]
@@ -446,24 +448,19 @@ public class StringOperatorTest
     private static T SerializeAndDeserialize<T>(T stringOperator)
     {
         var formatter = new BinaryFormatter();
-
-        using (var ms = new MemoryStream())
-        {
-            formatter.Serialize(ms, stringOperator);
-
-            ms.Position = 0;
-
-            return (T) formatter.Deserialize(ms);
-        }
+        using var ms = new MemoryStream();
+        formatter.Serialize(ms, stringOperator);
+        ms.Position = 0;
+        return (T) formatter.Deserialize(ms);
     }
 
     private static T Deserialize<T>(string name)
     {
-        using (var fs = File.OpenRead(Path.Combine("Serialized", name + ".ser")))
-        {
-            BinaryFormatter binaryFormatter = new BinaryFormatter();
-            binaryFormatter.AssemblyFormat = FormatterAssemblyStyle.Simple;
-            return (T) binaryFormatter.Deserialize(fs);
-        }
+#pragma warning disable SYSLIB0050
+        using var fs = File.OpenRead(Path.Combine("Serialized", name + ".ser"));
+        BinaryFormatter binaryFormatter = new BinaryFormatter();
+        binaryFormatter.AssemblyFormat = FormatterAssemblyStyle.Simple;
+        return (T) binaryFormatter.Deserialize(fs);
+#pragma warning restore SYSLIB0050
     }
 }

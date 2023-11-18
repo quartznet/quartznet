@@ -477,7 +477,7 @@ public class StubParameterCollection : DbParameterCollection
 
     public override object SyncRoot => throw new NotImplementedException();
 
-#if !NETCORE
+#if NETFRAMEWORK
     public override bool IsFixedSize => throw new NotImplementedException();
 
     public override bool IsReadOnly => throw new NotImplementedException();

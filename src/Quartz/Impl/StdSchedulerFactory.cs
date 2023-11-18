@@ -20,7 +20,6 @@
 #endregion
 
 using System.Collections.Specialized;
-using System.Configuration;
 using System.Globalization;
 using System.Reflection;
 
@@ -1040,7 +1039,7 @@ Please add configuration to your application config file to correctly initialize
     protected virtual string? GetNamedConnectionString(string dsConnectionStringName)
     {
 #if NETFRAMEWORK
-        var connectionStringSettings = ConfigurationManager.ConnectionStrings[dsConnectionStringName];
+        var connectionStringSettings = System.Configuration.ConfigurationManager.ConnectionStrings[dsConnectionStringName];
         return connectionStringSettings.ConnectionString;
 #else
             return null;

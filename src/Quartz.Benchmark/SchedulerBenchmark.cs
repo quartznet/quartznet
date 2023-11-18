@@ -543,7 +543,8 @@ public class SchedulerBenchmark
 
         var threadPool = new DefaultThreadPool { MaxConcurrency = threadCount };
 
-        DirectSchedulerFactory.Instance.CreateScheduler(name,
+        DirectSchedulerFactory.Instance.CreateScheduler(
+            name,
             instanceId,
             threadPool,
             store,
@@ -551,7 +552,7 @@ public class SchedulerBenchmark
             idleWaitTime,
             maxBatchSize,
             TimeSpan.Zero,
-            null);
+            null).GetAwaiter().GetResult();
 
 
         var scheduler = DirectSchedulerFactory.Instance.GetScheduler(name).ConfigureAwait(false).GetAwaiter().GetResult();

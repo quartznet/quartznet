@@ -404,21 +404,21 @@ public class KeyTest
     [Test]
     public void Serialization_CanBeDeserialized()
     {
+#pragma warning disable SYSLIB0050
         var key = new Key<string>("A", "B");
 
-        using (var ms = new MemoryStream())
-        {
-            ms.Write(_serializedKeyStringWithNameAndGroup, 0, _serializedKeyStringWithNameAndGroup.Length);
-            ms.Position = 0;
+        using var ms = new MemoryStream();
+        ms.Write(_serializedKeyStringWithNameAndGroup, 0, _serializedKeyStringWithNameAndGroup.Length);
+        ms.Position = 0;
 
-            BinaryFormatter formatter = new BinaryFormatter();
-            formatter.AssemblyFormat = FormatterAssemblyStyle.Simple;
+        BinaryFormatter formatter = new BinaryFormatter();
+        formatter.AssemblyFormat = FormatterAssemblyStyle.Simple;
 
-            var deserialized = formatter.Deserialize(ms) as Key<string>;
-            Assert.IsNotNull(deserialized);
-            Assert.AreEqual(key.Group, deserialized.Group);
-            Assert.AreEqual(key.Name, deserialized.Name);
-        }
+        var deserialized = formatter.Deserialize(ms) as Key<string>;
+        Assert.IsNotNull(deserialized);
+        Assert.AreEqual(key.Group, deserialized.Group);
+        Assert.AreEqual(key.Name, deserialized.Name);
+#pragma warning restore SYSLIB0050
     }
 
     [Test]

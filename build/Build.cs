@@ -127,7 +127,7 @@ partial class Build : NukeBuild
             var framework = "";
             if (!IsRunningOnWindows)
             {
-                framework = "net6.0";
+                framework = "net8.0";
             }
 
             var testProjects = new[] { "Quartz.Tests.Unit", "Quartz.Tests.AspNetCore" };
@@ -154,7 +154,7 @@ partial class Build : NukeBuild
 
             static void RunAsPostgresUser(string parameters)
             {
-                // Warn: Be careful refactoring this to concatenation. 
+                // Warn: Be careful refactoring this to concatenation.
                 ProcessTasks.StartProcess("sudo", "-u postgres " + parameters, workingDirectory: Path.GetTempPath()).AssertZeroExitCode();
             }
 

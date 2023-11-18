@@ -1,3 +1,7 @@
+#if NETFRAMEWORK
+using System.Net.Http;
+#endif
+
 using FakeItEasy;
 
 using FluentAssertions;

@@ -1,18 +1,19 @@
 using System.Globalization;
+using System.Text.Json.Serialization;
 
 using HealthChecks.UI.Client;
 
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 
-using Newtonsoft.Json;
-using Newtonsoft.Json.Converters;
+using NJsonSchema.Generation;
 
 using NSwag;
 using NSwag.Generation.AspNetCore;
 using NSwag.Generation.Processors;
 using NSwag.Generation.Processors.Security;
 
+using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Quartz.AspNetCore;
 using Quartz.Impl.AdoJobStore.Common;
@@ -48,22 +49,19 @@ public class Startup
             loggingBuilder.ClearProviders();
             loggingBuilder.AddSerilog(dispose: true);
         });
-
-        services.AddOpenTelemetryTracing(builder =>
-        {
-            builder
+        services.AddOpenTelemetry()
+            .ConfigureResource(builder => builder.AddService("Quartz ASP.NET Example"))
+            .WithTracing(x => x
                 .AddQuartzInstrumentation()
-                .AddZipkinExporter(o =>
-                {
-                    o.Endpoint = new Uri("http://localhost:9411/api/v2/spans");
-                })
+                .AddConsoleExporter()
+                .AddZipkinExporter(o => { o.Endpoint = new Uri("http://localhost:9411/api/v2/spans"); })
                 .AddJaegerExporter(o =>
                 {
                     // these are the defaults
                     o.AgentHost = "localhost";
                     o.AgentPort = 6831;
-                });
-        });
+                })
+            );
 
         services.AddRazorPages();
 
@@ -295,7 +293,7 @@ public class Startup
         {
             app.UseDeveloperExceptionPage();
             app.UseOpenApi();
-            app.UseSwaggerUi3();
+            app.UseSwaggerUi();
         }
         else
         {
@@ -343,7 +341,7 @@ public class Startup
 
             settings.Title = "Quartz.NET HTTP API";
             settings.Version = "v1";
-            settings.SerializerSettings = new JsonSerializerSettings { Converters = { new StringEnumConverter() } };
+            ((SystemTextJsonSchemaGeneratorSettings) settings.SchemaSettings).SerializerOptions.Converters.Add(new JsonStringEnumConverter());
             settings.OperationProcessors.Add(new OperationProcessor(context =>
             {
                 var apiDescription = ((AspNetCoreOperationProcessorContext) context).ApiDescription;

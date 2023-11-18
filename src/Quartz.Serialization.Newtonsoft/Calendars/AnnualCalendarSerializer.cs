@@ -16,7 +16,7 @@ internal sealed class AnnualCalendarSerializer : CalendarSerializer<AnnualCalend
     {
         writer.WritePropertyName("ExcludedDays");
         writer.WriteStartArray();
-        foreach (var day in ((AnnualCalendar) calendar).DaysExcluded)
+        foreach (var day in calendar.DaysExcluded)
         {
             writer.WriteValue(day);
         }
@@ -25,7 +25,7 @@ internal sealed class AnnualCalendarSerializer : CalendarSerializer<AnnualCalend
 
     protected override void DeserializeFields(AnnualCalendar calendar, JObject source)
     {
-        var annualCalendar = (AnnualCalendar) calendar;
+        var annualCalendar = calendar;
         var excludedDates = source["ExcludedDays"]!.Values<DateTimeOffset>();
         foreach (var date in excludedDates)
         {

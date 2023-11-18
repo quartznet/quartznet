@@ -32,7 +32,7 @@ public class CalendarEndpointsTest : WebApiTest
         A.CallTo(() => FakeScheduler.GetCalendar("HolidayCalendar", A<CancellationToken>._)).Returns(TestData.HolidayCalendar);
         A.CallTo(() => FakeScheduler.GetCalendar("MonthlyCalendar", A<CancellationToken>._)).Returns(TestData.MonthlyCalendar);
         A.CallTo(() => FakeScheduler.GetCalendar("WeeklyCalendar", A<CancellationToken>._)).Returns(TestData.WeeklyCalendar);
-        A.CallTo(() => FakeScheduler.GetCalendar("NonExistingCalendar", A<CancellationToken>._)).Returns((ICalendar?) null);
+        A.CallTo(() => FakeScheduler.GetCalendar("NonExistingCalendar", A<CancellationToken>._)).Returns(null);
 
         var calendar = await HttpScheduler.GetCalendar("AnnualCalendar");
         calendar.Should().BeEquivalentTo(TestData.AnnualCalendar);

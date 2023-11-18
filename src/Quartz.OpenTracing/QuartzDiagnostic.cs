@@ -131,7 +131,7 @@ internal sealed class QuartzDiagnostic : IObserver<DiagnosticListener>, IObserve
             { LogFields.ErrorKind, exception.GetType().Name },
             { LogFields.ErrorObject, options.IncludeExceptionDetails
                 ? exception
-                : (object)$"{nameof(QuartzDiagnosticOptions.IncludeExceptionDetails)} is disabled" }
+                : $"{nameof(QuartzDiagnosticOptions.IncludeExceptionDetails)} is disabled" }
         });
     }
 }

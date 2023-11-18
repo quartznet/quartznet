@@ -465,7 +465,7 @@ public sealed class JobDataMap : StringKeyDirtyFlagMap
 
         if (obj is string s)
         {
-            return s.Length == 0 ? (Guid?) null : GetGuidValueFromString(key);
+            return s.Length == 0 ? null : GetGuidValueFromString(key);
         }
 
         return GetNullableGuid(key);

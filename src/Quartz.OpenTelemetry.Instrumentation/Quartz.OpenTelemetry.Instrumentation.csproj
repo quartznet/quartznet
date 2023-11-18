@@ -8,7 +8,7 @@
     <NoWarn>$(NoWarn);NU5104</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="OpenTelemetry" VersionOverride="0.6.0-beta.1" />
+    <PackageReference Include="OpenTelemetry" VersionOverride="1.6.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Quartz\Quartz.csproj" />

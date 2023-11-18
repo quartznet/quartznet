@@ -51,7 +51,7 @@ public class JobEndpointsTest : WebApiTest
 
         A.CallTo(() => FakeScheduler.GetJobDetail(jobKeyOne, A<CancellationToken>._)).Returns(TestData.JobDetail);
         A.CallTo(() => FakeScheduler.GetJobDetail(jobKeyTwo, A<CancellationToken>._)).Returns(TestData.JobDetail2);
-        A.CallTo(() => FakeScheduler.GetJobDetail(nonExistingJobKey, A<CancellationToken>._)).Returns((IJobDetail?) null);
+        A.CallTo(() => FakeScheduler.GetJobDetail(nonExistingJobKey, A<CancellationToken>._)).Returns(null);
 
         var jobDetails = await HttpScheduler.GetJobDetail(jobKeyOne);
         jobDetails.Should().BeEquivalentTo(TestData.JobDetail);

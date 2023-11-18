@@ -1,3 +1,5 @@
+#pragma warning disable SYSLIB0051 // 'Exception.Exception(SerializationInfo, StreamingContext)' is obsolete
+
 #region License
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
