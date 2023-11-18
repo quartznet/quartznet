@@ -129,6 +129,11 @@ namespace Quartz.Tests.Unit.Impl
             public TestStdSchedulerFactory(NameValueCollection nameValueCollection) : base(nameValueCollection)
             {
             }
+
+            protected override bool IsSupportedConfigurationKey(string configurationKey)
+            {
+                return configurationKey == PropertyTest || base.IsSupportedConfigurationKey(configurationKey);
+            }
         }
     }
 }

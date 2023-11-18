@@ -23,7 +23,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.Configuration;
-using System.Globalization;
 using System.IO;
 using System.Reflection;
 using System.Threading;
@@ -83,6 +82,7 @@ namespace Quartz.Impl
         private const string ConfigurationKeyPrefixServer = "quartz.server";
         public const string ConfigurationSectionName = "quartz";
         public const string PropertiesFile = "quartz.config";
+
         public const string PropertySchedulerInstanceName = "quartz.scheduler.instanceName";
         public const string PropertySchedulerInstanceId = "quartz.scheduler.instanceId";
         public const string PropertySchedulerInstanceIdGeneratorPrefix = "quartz.scheduler.instanceIdGenerator";
@@ -122,13 +122,54 @@ namespace Quartz.Impl
         public const string PropertyJobListenerPrefix = "quartz.jobListener";
         public const string PropertyTriggerListenerPrefix = "quartz.triggerListener";
         public const string PropertyListenerType = "type";
-        public const string DefaultInstanceId = "NON_CLUSTERED";
         public const string PropertyCheckConfiguration = "quartz.checkConfiguration";
-        public const string AutoGenerateInstanceId = "AUTO";
         public const string PropertyThreadExecutor = "quartz.threadExecutor";
         public const string PropertyThreadExecutorType = "quartz.threadExecutor.type";
         public const string PropertyObjectSerializer = "quartz.serializer";
 
+        // for validating configuration
+        private static readonly string[] supportedKeys =
+        {
+            PropertySchedulerInstanceName,
+            PropertySchedulerInstanceId,
+            PropertySchedulerInstanceIdGeneratorPrefix,
+            PropertySchedulerInstanceIdGeneratorType,
+            PropertySchedulerThreadName,
+            PropertySchedulerBatchTimeWindow,
+            PropertySchedulerMaxBatchSize,
+            PropertySchedulerExporterPrefix,
+            PropertySchedulerExporterType,
+            PropertySchedulerProxy,
+            PropertySchedulerProxyType,
+            PropertySchedulerIdleWaitTime,
+            PropertySchedulerMakeSchedulerThreadDaemon,
+            PropertySchedulerTypeLoadHelperType,
+            PropertySchedulerJobFactoryType,
+            PropertySchedulerJobFactoryPrefix,
+            PropertySchedulerInterruptJobsOnShutdown,
+            PropertySchedulerInterruptJobsOnShutdownWithWait,
+            PropertySchedulerContextPrefix,
+            PropertyThreadPoolPrefix,
+            PropertyThreadPoolType,
+            PropertyJobStoreDbRetryInterval,
+            PropertyJobStorePrefix,
+            PropertyJobStoreLockHandlerPrefix,
+            PropertyJobStoreLockHandlerType,
+            PropertyJobStoreType,
+            PropertyDataSourcePrefix,
+            PropertyDbProvider,
+            PropertyDbProviderType,
+            PropertyPluginPrefix,
+            PropertyJobListenerPrefix,
+            PropertyTriggerListenerPrefix,
+            PropertyCheckConfiguration,
+            PropertyThreadExecutor,
+            PropertyThreadExecutorType,
+            PropertyObjectSerializer,
+        };
+
+        public const string DefaultInstanceId = "NON_CLUSTERED";
+        public const string AutoGenerateInstanceId = "AUTO";
         public const string SystemPropertyAsInstanceId = "SYS_PROP";
 
         private readonly SemaphoreSlim semaphore = new SemaphoreSlim(1, 1);
@@ -300,22 +341,6 @@ Please add configuration to your application config file to correctly initialize
                 return;
             }
 
-            // determine currently supported configuration keys via reflection
-            List<string> supportedKeys = new List<string>();
-            List<FieldInfo> fields = new List<FieldInfo>(GetType().GetFields(BindingFlags.Static | BindingFlags.Public | BindingFlags.FlattenHierarchy));
-            // choose constant string fields
-            fields = fields.FindAll(field => field.FieldType == typeof(string));
-
-            // read value from each field
-            foreach (FieldInfo field in fields)
-            {
-                var value = (string?) field.GetValue(null);
-                if (value != null && value.StartsWith(ConfigurationKeyPrefix) && value != ConfigurationKeyPrefix)
-                {
-                    supportedKeys.Add(value);
-                }
-            }
-
             // now check against allowed
             foreach (var configurationKey in cfg.UnderlyingProperties.AllKeys)
             {
@@ -327,20 +352,24 @@ Please add configuration to your application config file to correctly initialize
                     continue;
                 }
 
-                var isMatch = false;
-                foreach (var supportedKey in supportedKeys)
+                if (!IsSupportedConfigurationKey(configurationKey))
                 {
-                    if (CultureInfo.InvariantCulture.CompareInfo.IsPrefix(configurationKey, supportedKey, CompareOptions.None))
-                    {
-                        isMatch = true;
-                        break;
-                    }
-                }
-                if (!isMatch)
-                {
-                    throw new SchedulerConfigException("Unknown configuration property '" + configurationKey + "'");
+                    throw new SchedulerConfigException($"Unknown configuration property '{configurationKey}'");
                 }
             }
+        }
+
+        protected virtual bool IsSupportedConfigurationKey(string configurationKey)
+        {
+            foreach (var supportedKey in supportedKeys)
+            {
+                if (configurationKey.StartsWith(supportedKey, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>  </summary>

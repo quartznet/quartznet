@@ -94,6 +94,12 @@ partial class Build : NukeBuild
                 .SetDeterministic(IsServerBuild)
                 .SetContinuousIntegrationBuild(IsServerBuild)
             );
+
+            // also check that publish with trimming doesn't produce errors
+            DotNetPublish(s => s
+                .SetProject(Solution.AllProjects.First(x => x.Name == "Quartz.Examples.Worker"))
+                .SetConfiguration(Configuration)
+            );
         });
 
     Target DocsBuild => _ => _

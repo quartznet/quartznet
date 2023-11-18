@@ -98,7 +98,11 @@ namespace Quartz
         /// and set the class name of the job to be executed.
         /// </summary>
         /// <returns>a new JobBuilder</returns>
-        public static JobBuilder Create(Type jobType)
+        public static JobBuilder Create(
+#if NET6_0_OR_GREATER
+            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
+#endif
+            Type jobType)
         {
             JobBuilder b = new JobBuilder();
             b.OfType(jobType);
@@ -110,7 +114,11 @@ namespace Quartz
         /// and set the class name of the job to be executed.
         /// </summary>
         /// <returns>a new JobBuilder</returns>
-        public static JobBuilder Create<T>() where T : IJob
+        public static JobBuilder Create<
+#if NET6_0_OR_GREATER
+            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
+#endif
+            T>() where T : IJob
         {
             JobBuilder b = new JobBuilder();
             b.OfType(typeof(T));
@@ -275,7 +283,11 @@ namespace Quartz
         /// </summary>
         /// <returns>the updated JobBuilder</returns>
         /// <seealso cref="IJobDetail.JobType" />
-        public JobBuilder OfType<T>()
+        public JobBuilder OfType<
+#if NET6_0_OR_GREATER
+            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
+#endif
+            T>()
         {
             return OfType(typeof(T));
         }
@@ -286,7 +298,11 @@ namespace Quartz
         /// </summary>
         /// <returns>the updated JobBuilder</returns>
         /// <seealso cref="IJobDetail.JobType" />
-        public JobBuilder OfType(Type type)
+        public JobBuilder OfType(
+#if NET6_0_OR_GREATER
+            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
+#endif
+            Type type)
         {
             jobType = type;
             return this;

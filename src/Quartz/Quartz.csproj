@@ -4,6 +4,9 @@
     <TargetFrameworkVersion>4.6.2</TargetFrameworkVersion>
     <TargetFrameworks>net462;net472;net6.0;netstandard2.0</TargetFrameworks>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <!--
+    <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
+    -->
   </PropertyGroup>
   <ItemGroup>
     <EmbeddedResource Include="quartz.config;Impl\AdoJobStore\Common\dbproviders.properties;Impl\AdoJobStore\Common\dbproviders.netstandard.properties;Xml\job_scheduling_data_2_0.xsd" />
