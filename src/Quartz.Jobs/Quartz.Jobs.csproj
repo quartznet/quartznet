@@ -4,7 +4,11 @@
     <TargetFrameworks>net462;net472;netstandard2.0</TargetFrameworks>
     <RootNamespace>Quartz</RootNamespace>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <PackageReadmeFile>quartz-jobs.md</PackageReadmeFile>
   </PropertyGroup>
+  <ItemGroup>
+    <None Include="../../docs/documentation/quartz-3.x/packages/quartz-jobs.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
   </ItemGroup>
