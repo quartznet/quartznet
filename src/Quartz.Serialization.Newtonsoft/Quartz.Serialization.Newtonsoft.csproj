@@ -6,7 +6,12 @@
     <Title>Quartz.NET JSON Serialization</Title>
     <Description>Quartz.NET JSON Serialization Support; $(Description)</Description>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <PackageReadmeFile>json-serialization.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../docs/documentation/quartz-4.x/packages/json-serialization.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Quartz\Quartz.csproj" />

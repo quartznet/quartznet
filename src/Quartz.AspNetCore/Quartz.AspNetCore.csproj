@@ -6,7 +6,12 @@
     <RootNamespace>Quartz</RootNamespace>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <Authors>Lewis Zou, Marko Lahma, Quartz.NET</Authors>
+    <PackageReadmeFile>aspnet-core-integration.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../docs/documentation/quartz-4.x/packages/aspnet-core-integration.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
