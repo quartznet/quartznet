@@ -6,7 +6,12 @@
     <RootNamespace>Quartz</RootNamespace>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <Authors>Lewis Zou, Marko Lahma, Quartz.NET</Authors>
+    <PackageReadmeFile>aspnet-core-integration.md</PackageReadmeFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="../../docs/documentation/quartz-3.x/packages/aspnet-core-integration.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Quartz.Extensions.Hosting\Quartz.Extensions.Hosting.csproj" />

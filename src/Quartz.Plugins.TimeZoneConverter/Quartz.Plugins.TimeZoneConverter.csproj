@@ -6,7 +6,11 @@
     <Description>Quartz.NET TimeZoneConverter integration https://github.com/mj1856/TimeZoneConverter; $(Description)</Description>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <Authors>Sean Farrow, Quartz.NET</Authors>
+    <PackageReadmeFile>timezoneconverter-integration.md</PackageReadmeFile>
   </PropertyGroup>
+  <ItemGroup>
+    <None Include="../../docs/documentation/quartz-3.x/packages/timezoneconverter-integration.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="TimeZoneConverter" Version="6.1.0" />
   </ItemGroup>

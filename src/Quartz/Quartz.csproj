@@ -4,10 +4,14 @@
     <TargetFrameworkVersion>4.6.2</TargetFrameworkVersion>
     <TargetFrameworks>net462;net472;net6.0;netstandard2.0</TargetFrameworks>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
+    <PackageReadmeFile>quick-start.md</PackageReadmeFile>
     <!--
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     -->
   </PropertyGroup>
+  <ItemGroup>
+    <None Include="../../docs/documentation/quartz-3.x/quick-start.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
   <ItemGroup>
     <EmbeddedResource Include="quartz.config;Impl\AdoJobStore\Common\dbproviders.properties;Impl\AdoJobStore\Common\dbproviders.netstandard.properties;Xml\job_scheduling_data_2_0.xsd" />
   </ItemGroup>
