@@ -34,10 +34,7 @@ using Quartz;
 var builder = Host.CreateDefaultBuilder()
     .ConfigureServices((cxt, services) =>
     {
-        services.AddQuartz(q =>
-        {
-            q.UseMicrosoftDependencyInjectionJobFactory();
-        });
+        services.AddQuartz();
         services.AddQuartzHostedService(opt =>
         {
             opt.WaitForJobsToComplete = true;
