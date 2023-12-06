@@ -317,6 +317,13 @@ Please add configuration to your application config file to correctly initialize
 
             foreach (string key in vars.Keys)
             {
+                // skip environment variable "quartz.config" that specifies the pros file,
+                // because it looks like part of the quartz props, but is not, so it would make ValidateConfiguration fail
+                if (string.Equals(key, PropertiesFile, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
                 retValue.Set(key, vars[key]);
             }
 
