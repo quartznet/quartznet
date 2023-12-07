@@ -23,6 +23,6 @@ jobs:
       - name: 'Qodana Scan'
         uses: JetBrains/qodana-action@v2023.2
         with:
-          args: "--baseline,qodana.sarif.json --linter,jetbrains/qodana-dotnet:2023.3-eap"
+          args: --baseline,qodana.sarif.json --linter,jetbrains/qodana-dotnet:2023.3-eap
         env:
           QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
