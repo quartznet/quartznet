@@ -108,7 +108,7 @@ public static class ServiceCollectionExtensions
         return AddJob(options, typeof(T), jobKey, configure);
     }
     /// <summary>
-    /// Add job to underlying service collection.jobType shoud be implement `IJob`
+    /// Add job to underlying service collection.jobType should be implement `IJob`
     /// </summary>
     public static IServiceCollectionQuartzConfigurator AddJob(
         this IServiceCollectionQuartzConfigurator options,
