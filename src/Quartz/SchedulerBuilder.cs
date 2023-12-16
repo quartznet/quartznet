@@ -20,6 +20,7 @@
 #endregion
 
 using System.Collections.Specialized;
+using System.Diagnostics.CodeAnalysis;
 
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
@@ -117,11 +118,7 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
         return UsePersistentStore<JobStoreTX>(options);
     }
 
-    public SchedulerBuilder UsePersistentStore<
-#if NET6_0_OR_GREATER
-            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-        T>(Action<PersistentStoreOptions> options) where T : IJobStore
+    public SchedulerBuilder UsePersistentStore<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(Action<PersistentStoreOptions> options) where T : IJobStore
     {
         if (options == null)
         {
@@ -132,21 +129,13 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
         return this;
     }
 
-    public SchedulerBuilder UseJobFactory<
-#if NET6_0_OR_GREATER
-            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-        T>() where T : IJobFactory
+    public SchedulerBuilder UseJobFactory<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>() where T : IJobFactory
     {
         SetProperty(StdSchedulerFactory.PropertySchedulerJobFactoryType, typeof(T).AssemblyQualifiedNameWithoutVersion());
         return this;
     }
 
-    public SchedulerBuilder UseTypeLoader<
-#if NET6_0_OR_GREATER
-            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-        T>() where T : ITypeLoadHelper
+    public SchedulerBuilder UseTypeLoader<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>() where T : ITypeLoadHelper
     {
         SetProperty(StdSchedulerFactory.PropertySchedulerTypeLoadHelperType, typeof(T).AssemblyQualifiedNameWithoutVersion());
         return this;
@@ -172,11 +161,8 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
     /// <summary>
     /// Uses the default thread pool, which uses the default task scheduler.
     /// </summary>
-    public SchedulerBuilder UseThreadPool<
-#if NET6_0_OR_GREATER
-            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-        T>(Action<ThreadPoolOptions>? configure = null) where T : IThreadPool
+    public SchedulerBuilder UseThreadPool<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        Action<ThreadPoolOptions>? configure = null) where T : IThreadPool
     {
         SetProperty("quartz.threadPool.type", typeof(T).AssemblyQualifiedNameWithoutVersion());
         configure?.Invoke(new ThreadPoolOptions(this));
@@ -239,11 +225,8 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
     /// using the typeof T proxy generator.
     /// </summary>
     /// <param name="address">Connection address</param>
-    public SchedulerBuilder ProxyToRemoteScheduler<
-#if NET6_0_OR_GREATER
-            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-        T>(string address) where T : IRemotableSchedulerProxyFactory
+    public SchedulerBuilder ProxyToRemoteScheduler<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        string address) where T : IRemotableSchedulerProxyFactory
     {
         SetProperty(StdSchedulerFactory.PropertySchedulerProxy, "true");
         SetProperty(StdSchedulerFactory.PropertySchedulerProxyType, typeof(T).AssemblyQualifiedNameWithoutVersion());
@@ -443,11 +426,7 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
         /// <summary>
         /// Use custom serializer.
         /// </summary>
-        public void UseSerializer<
-#if NET6_0_OR_GREATER
-            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-            T>() where T : IObjectSerializer
+        public void UseSerializer<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>() where T : IObjectSerializer
         {
             SetProperty("quartz.serializer.type", typeof(T).AssemblyQualifiedNameWithoutVersion());
         }
@@ -540,11 +519,7 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
         /// <summary>
         /// Use given connection provider.
         /// </summary>
-        public void UseConnectionProvider<
-#if NET6_0_OR_GREATER
-            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-            T>() where T : IDbProvider
+        public void UseConnectionProvider<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>() where T : IDbProvider
         {
             options.SetProperty($"quartz.dataSource.{DefaultDataSourceName}.connectionProvider.type", typeof(T).AssemblyQualifiedNameWithoutVersion());
         }

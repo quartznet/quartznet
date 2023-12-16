@@ -1,7 +1,3 @@
-using System;
-
-using Microsoft.Extensions.Logging;
-
 using Quartz.Spi;
 
 namespace Quartz.Examples.AspNetCore;

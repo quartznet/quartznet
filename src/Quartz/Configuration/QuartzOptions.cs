@@ -1,4 +1,5 @@
 using System.Collections.Specialized;
+using System.Diagnostics.CodeAnalysis;
 
 using Quartz.Impl;
 
@@ -59,11 +60,7 @@ public class QuartzOptions : Dictionary<string, string?>
         return this;
     }
 
-    public QuartzOptions AddJob<
-#if NET6_0_OR_GREATER
-        [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-        T>(Action<JobBuilder> configure) where T : IJob
+    public QuartzOptions AddJob<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(Action<JobBuilder> configure) where T : IJob
     {
         var builder = JobBuilder.Create<T>();
         configure(builder);
