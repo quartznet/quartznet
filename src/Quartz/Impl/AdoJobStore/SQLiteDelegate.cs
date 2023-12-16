@@ -15,8 +15,6 @@
 *
 */
 
-using System.Data;
-
 namespace Quartz.Impl.AdoJobStore;
 
 /// <summary>
