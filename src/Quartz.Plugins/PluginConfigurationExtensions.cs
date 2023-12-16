@@ -1,4 +1,4 @@
-using System;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
 using Quartz.Plugin.Interrupt;
@@ -9,11 +9,7 @@ namespace Quartz;
 
 public static class PluginConfigurationExtensions
 {
-    public static T UseXmlSchedulingConfiguration<
-#if NET6_0_OR_GREATER
-            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-        T>(
+    public static T UseXmlSchedulingConfiguration<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         this T configurer,
         Action<XmlSchedulingOptions> configure) where T : IPropertyConfigurationRoot
     {
@@ -29,11 +25,7 @@ public static class PluginConfigurationExtensions
     /// <summary>
     /// Configures <see cref="JobInterruptMonitorPlugin "/> into use.
     /// </summary>
-    public static T UseJobAutoInterrupt<
-#if NET6_0_OR_GREATER
-            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-        T>(
+    public static T UseJobAutoInterrupt<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
         this T configurer,
         Action<JobAutoInterruptOptions>? configure = null) where T : IPropertyConfigurationRoot
     {

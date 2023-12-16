@@ -1,4 +1,5 @@
 using System.Collections.Specialized;
+using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -87,21 +88,15 @@ internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQu
         schedulerBuilder.UsePersistentStore(configure);
     }
 
-    public void UsePersistentStore<
-#if NET6_0_OR_GREATER
-            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-        T>(Action<SchedulerBuilder.PersistentStoreOptions> configure) where T : class, IJobStore
+    public void UsePersistentStore<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        Action<SchedulerBuilder.PersistentStoreOptions> configure) where T : class, IJobStore
     {
         services.AddSingleton<IJobStore, T>();
         schedulerBuilder.UsePersistentStore<T>(configure);
     }
 
-    public void UseJobFactory<
-#if NET6_0_OR_GREATER
-            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-        T>(Action<JobFactoryOptions>? configure = null) where T : class, IJobFactory
+    public void UseJobFactory<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        Action<JobFactoryOptions>? configure = null) where T : class, IJobFactory
     {
         schedulerBuilder.UseJobFactory<T>();
         services.Replace(ServiceDescriptor.Singleton(typeof(IJobFactory), typeof(T)));
@@ -114,21 +109,14 @@ internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQu
         }
     }
 
-    public void UseTypeLoader<
-#if NET6_0_OR_GREATER
-            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-        T>() where T : ITypeLoadHelper
+    public void UseTypeLoader<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>() where T : ITypeLoadHelper
     {
         schedulerBuilder.UseTypeLoader<T>();
         services.Replace(ServiceDescriptor.Singleton(typeof(ITypeLoadHelper), typeof(T)));
     }
 
-    public void UseThreadPool<
-#if NET6_0_OR_GREATER
-            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-        T>(Action<SchedulerBuilder.ThreadPoolOptions>? configure = null) where T : class, IThreadPool
+    public void UseThreadPool<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        Action<SchedulerBuilder.ThreadPoolOptions>? configure = null) where T : class, IThreadPool
     {
         schedulerBuilder.UseThreadPool<T>(configure);
     }
@@ -171,99 +159,70 @@ internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQu
         set => schedulerBuilder.MisfireThreshold = value;
     }
 
-    public void AddSchedulerListener<
-#if NET6_0_OR_GREATER
-            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-        T>() where T : class, ISchedulerListener
+    public void AddSchedulerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>() where T : class, ISchedulerListener
     {
         services.AddSingleton<ISchedulerListener, T>();
     }
 
-    public void AddSchedulerListener<
-#if NET6_0_OR_GREATER
-            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-        T>(T implementationInstance) where T : class, ISchedulerListener
+    public void AddSchedulerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        T implementationInstance) where T : class, ISchedulerListener
     {
         services.AddSingleton<ISchedulerListener>(implementationInstance);
     }
 
-    public void AddSchedulerListener<
-#if NET6_0_OR_GREATER
-            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-        T>(Func<IServiceProvider, T> implementationFactory) where T : class, ISchedulerListener
+    public void AddSchedulerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        Func<IServiceProvider, T> implementationFactory) where T : class, ISchedulerListener
     {
         services.AddSingleton<ISchedulerListener>(implementationFactory);
     }
 
-    public void AddJobListener<
-#if NET6_0_OR_GREATER
-            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-        T>(params IMatcher<JobKey>[] matchers) where T : class, IJobListener
+    public void AddJobListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        params IMatcher<JobKey>[] matchers) where T : class, IJobListener
     {
         services.AddSingleton(new JobListenerConfiguration(typeof(T), matchers));
         services.AddSingleton<IJobListener, T>();
     }
 
-    public void AddJobListener<
-#if NET6_0_OR_GREATER
-            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-        T>(T implementationInstance, params IMatcher<JobKey>[] matchers) where T : class, IJobListener
+    public void AddJobListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        T implementationInstance,
+        params IMatcher<JobKey>[] matchers) where T : class, IJobListener
     {
         services.AddSingleton(new JobListenerConfiguration(typeof(T), matchers));
         services.AddSingleton<IJobListener>(implementationInstance);
     }
 
-    public void AddJobListener<
-#if NET6_0_OR_GREATER
-            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-        T>(Func<IServiceProvider, T> implementationFactory, params IMatcher<JobKey>[] matchers) where T : class, IJobListener
+    public void AddJobListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        Func<IServiceProvider, T> implementationFactory,
+        params IMatcher<JobKey>[] matchers) where T : class, IJobListener
     {
         services.AddSingleton(new JobListenerConfiguration(typeof(T), matchers));
         services.AddSingleton<IJobListener>(implementationFactory);
     }
 
-    public void AddTriggerListener<
-#if NET6_0_OR_GREATER
-            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-        T>(params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener
+    public void AddTriggerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener
     {
         services.AddSingleton(new TriggerListenerConfiguration(typeof(T), matchers));
         services.AddSingleton<ITriggerListener, T>();
     }
 
-    public void AddTriggerListener<
-#if NET6_0_OR_GREATER
-            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-        T>(T implementationInstance, params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener
+    public void AddTriggerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        T implementationInstance,
+        params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener
     {
         services.AddSingleton(new TriggerListenerConfiguration(typeof(T), matchers));
         services.AddSingleton<ITriggerListener>(implementationInstance);
     }
 
-    public void AddTriggerListener<
-#if NET6_0_OR_GREATER
-            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-        T>(Func<IServiceProvider, T> implementationFactory, params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener
+    public void AddTriggerListener<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(
+        Func<IServiceProvider, T> implementationFactory,
+        params IMatcher<TriggerKey>[] matchers) where T : class, ITriggerListener
     {
         services.AddSingleton(new TriggerListenerConfiguration(typeof(T), matchers));
         services.AddSingleton<ITriggerListener>(implementationFactory);
     }
 
-    public void RegisterSingleton<
-        TService,
-#if NET6_0_OR_GREATER
-            [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicConstructors | System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.PublicMethods)]
-#endif
-        TImplementation>()
+    public void RegisterSingleton<TService, [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] TImplementation>()
         where TService : class
         where TImplementation : class, TService
     {
