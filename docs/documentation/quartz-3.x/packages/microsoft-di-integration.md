@@ -54,7 +54,7 @@ The section should be bound manually to `QuartzOptions` type with `AddOptions` o
 Quartz comes with two built-in alternatives for job factory which can be configured via either calling `UseMicrosoftDependencyInjectionJobFactory` or `UseMicrosoftDependencyInjectionScopedJobFactory` (deprecated).
 
 ::: tip
-As of Quartz.NET 3.3.2 all jobs produced by the default job factory are scoped jobs, you should no longer use `UseMicrosoftDependencyInjectionScopedJobFactory`.
+As of Quartz.NET 3.3.2 all jobs produced by the default job factory are scoped jobs, you should no longer use `UseMicrosoftDependencyInjectionJobFactory` or `UseMicrosoftDependencyInjectionScopedJobFactory`.
 :::
 
 ### Job instance construction
