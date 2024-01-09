@@ -1,4 +1,3 @@
-
 ---
 
 title: Best Practices
