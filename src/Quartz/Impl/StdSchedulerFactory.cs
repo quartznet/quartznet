@@ -250,14 +250,14 @@ public class StdSchedulerFactory : ISchedulerFactory
 
     internal static NameValueCollection? InitializeProperties(ILogger<StdSchedulerFactory> logger, bool throwOnProblem)
     {
-        var props = Util.Configuration.GetSection(ConfigurationSectionName);
         var requestedFile = QuartzEnvironment.GetEnvironmentVariable(PropertiesFile);
         string propFileName = (requestedFile != null && !string.IsNullOrWhiteSpace(requestedFile)) ? requestedFile : "~/quartz.config";
 
         // check for specials
         propFileName = FileUtil.ResolveFile(propFileName) ?? "quartz.config";
 
-        if (props == null && File.Exists(propFileName))
+        NameValueCollection? props = null;
+        if (File.Exists(propFileName))
         {
             // file system
             try
@@ -459,10 +459,6 @@ Please add configuration to your application config file to correctly initialize
             }
 
             var proxyType = loadHelper.LoadType(cfg.GetStringProperty(PropertySchedulerProxyType));
-#if REMOTING
-            proxyType ??= typeof(RemotingSchedulerProxyFactory);
-#endif
-
             IRemotableSchedulerProxyFactory factory;
             try
             {
@@ -904,15 +900,6 @@ Please add configuration to your application config file to correctly initialize
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         var exporterType = cfg.GetStringProperty(PropertySchedulerExporterType, null);
-
-#if !REMOTING
-            if (exporterType != null && exporterType.StartsWith("Quartz.Simpl.RemotingSchedulerExporter"))
-            {
-                logger.LogWarning("RemotingSchedulerExporter configuration was ignored as Remoting is not supported");
-                exporterType = null;
-            }
-#endif
-
         if (exporterType != null)
         {
             try
@@ -1076,12 +1063,7 @@ Please add configuration to your application config file to correctly initialize
 
     protected virtual string? GetNamedConnectionString(string dsConnectionStringName)
     {
-#if NETFRAMEWORK
-        var connectionStringSettings = System.Configuration.ConfigurationManager.ConnectionStrings[dsConnectionStringName];
-        return connectionStringSettings.ConnectionString;
-#else
-            return null;
-#endif
+        return null;
     }
 
     protected virtual T InstantiateType<T>(Type? implementationType)

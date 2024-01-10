@@ -4,11 +4,7 @@ using NUnit.Framework;
 using Quartz.Impl.Matchers;
 using Quartz.Spi;
 
-#if NET6_OR_GREATER
 using Lifetime = Microsoft.Extensions.Hosting.IHostApplicationLifetime;
-#else
-using Lifetime = Microsoft.Extensions.Hosting.IApplicationLifetime;
-#endif
 
 namespace Quartz.Tests.Unit;
 

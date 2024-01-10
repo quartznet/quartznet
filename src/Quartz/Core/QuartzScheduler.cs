@@ -20,7 +20,6 @@
 #endregion
 
 using System.Globalization;
-using System.Security;
 using System.Text;
 
 using Microsoft.Extensions.Logging;
@@ -31,10 +30,6 @@ using Quartz.Impl.Triggers;
 using Quartz.Logging;
 using Quartz.Simpl;
 using Quartz.Spi;
-
-#if REMOTING
-using System.Runtime.Remoting;
-#endif // REMOTING
 
 namespace Quartz.Core;
 
@@ -49,11 +44,7 @@ namespace Quartz.Core;
 /// <seealso cref="IThreadPool" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public sealed class QuartzScheduler :
-#if REMOTING
-    MarshalByRefObject,
-#endif // REMOTING
-    IRemotableQuartzScheduler
+public sealed class QuartzScheduler : IRemotableQuartzScheduler
 {
     private readonly ILogger<QuartzScheduler> logger;
     private static readonly Version version;
@@ -483,12 +474,9 @@ public sealed class QuartzScheduler :
             {
                 UnBind();
             }
-#if REMOTING
-            catch (RemotingException)
-#else // REMOTING
-                catch (Exception) // TODO (NetCore Port): Determine the correct exception type
-#endif // REMOTING
+            catch (Exception ex)
             {
+                logger.LogWarning(ex, "Error while unbinding scheduler from remoting");
             }
         }
 
@@ -2170,23 +2158,6 @@ public sealed class QuartzScheduler :
         CancellationToken cancellationToken = default)
     {
         return resources.JobStore.IsTriggerGroupPaused(groupName, cancellationToken);
-    }
-
-    ///<summary>
-    ///Obtains a lifetime service object to control the lifetime policy for this instance.
-    ///</summary>
-    [SecurityCritical]
-    public
-#if REMOTING
-        override
-#else // REMOTING
-#endif // REMOTING
-        object InitializeLifetimeService()
-    {
-        // overridden to initialize null life time service,
-        // this basically means that remoting object will live as long
-        // as the application lives
-        return null!;
     }
 
     void IRemotableQuartzScheduler.Clear()

@@ -134,18 +134,11 @@ partial class Build : NukeBuild
         .After(Compile)
         .Executes(() =>
         {
-            var framework = "";
-            if (!IsRunningOnWindows)
-            {
-                framework = "net8.0";
-            }
-
             var testProjects = new[] { "Quartz.Tests.Unit", "Quartz.Tests.AspNetCore" };
             DotNetTest(s => s
                 .EnableNoRestore()
                 .EnableNoBuild()
                 .SetConfiguration(Configuration)
-                .SetFramework(framework)
                 .SetLoggers(GitHubActions.Instance is not null ? new[] { "GitHubActions" } : Array.Empty<string>())
                 .CombineWith(testProjects, (_, testProject) => _
                     .SetProjectFile(Solution.GetAllProjects(testProject).First())
@@ -207,7 +200,6 @@ partial class Build : NukeBuild
                 .EnableNoRestore()
                 .EnableNoBuild()
                 .SetConfiguration(Configuration)
-                .SetFramework("net6.0")
                 .SetLoggers("GitHubActions")
                 .SetFilter("TestCategory!=db-firebird&TestCategory!=db-oracle&TestCategory!=db-mysql&TestCategory!=db-sqlserver")
                 .CombineWith(integrationTestProjects, (_, testProject) => _

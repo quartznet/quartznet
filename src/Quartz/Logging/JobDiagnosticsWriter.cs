@@ -1,5 +1,3 @@
-#if DIAGNOSTICS_SOURCE
-
 using System.Diagnostics;
 
 namespace Quartz.Logging;
@@ -49,4 +47,3 @@ internal sealed class JobDiagnosticsWriter
         }
     }
 }
-#endif
