@@ -8,12 +8,14 @@
     <NukeRootDirectory>..</NukeRootDirectory>
     <NukeScriptDirectory>..</NukeScriptDirectory>
     <NukeTelemetryVersion>1</NukeTelemetryVersion>
+    <NukeExcludeConfig>true</NukeExcludeConfig>
+    <NukeExcludeDirectoryBuild>true</NukeExcludeDirectoryBuild>
+    <NukeExcludeLogs>true</NukeExcludeLogs>
     <IsPackable>false</IsPackable>
-    <EnableUnsafeBinaryFormatterSerialization>true</EnableUnsafeBinaryFormatterSerialization>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Nuke.Common" Version="7.0.2" />
+    <PackageReference Include="Nuke.Common" Version="8.0.0" />
     <PackageDownload Include="GitVersion.Tool" Version="[5.7.0]" />
   </ItemGroup>
 
