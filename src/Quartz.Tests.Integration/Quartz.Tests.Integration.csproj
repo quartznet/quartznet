@@ -14,7 +14,7 @@
     <PackageReference Include="FakeItEasy" Version="8.0.0" />
     <PackageReference Include="GitHubActionsTestLogger" Version="2.3.3" PrivateAssets="all" />
     <PackageReference Include="FirebirdSql.Data.FirebirdClient" Version="8.5.4" />
-    <PackageReference Include="Microsoft.Data.SqlClient" Version="2.1.5" />
+    <PackageReference Include="Microsoft.Data.SqlClient" Version="5.1.4" />
     <PackageReference Include="Microsoft.Data.SQLite" Version="3.1.6" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
     <PackageReference Include="MySqlConnector" Version="2.1.8" />
