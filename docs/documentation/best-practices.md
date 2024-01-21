@@ -90,6 +90,27 @@ TriggerUtils:
 * Offers a simple way to create Dates (for start/end dates)
 * Offers helpers for analyzing triggers (e.g. calculating future fire times)
 
+### Use ScheduleJobs
+
+When it is necessary to use multiple jobs with a large number of them in a scheduler (e.g. when calling the same job with different JobData) it is rational to call the `ScheduleJobs` method instead of triggering jobs in a loop or calling them manually one by one:
+
+```csharp
+Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>> jobsDictionary = new();
+foreach (var data in allData)
+{
+    var triggerSet = new HashSet<ITrigger>();
+    IJobDetail job = JobBuilder.Create<JobName>()
+        .UsingJobData("jobData", data.ToString())
+        .Build();
+    ITrigger trigger = TriggerBuilder.Create()
+        .ForJob(job)
+        .Build();
+    triggerSet.Add(trigger);
+    jobsDictionary.Add(job, triggerSet);
+}
+await scheduler.ScheduleJobs(jobsDictionary, replace: true);
+```
+
 ## ADO.NET JobStore
 
 ### Never Write Directly To Quartz's Tables
