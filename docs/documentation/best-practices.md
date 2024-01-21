@@ -108,7 +108,7 @@ foreach (var data in allData)
     triggerSet.Add(trigger);
     jobsDictionary.Add(job, triggerSet);
 }
-await scheduler.ScheduleJobs(jobsDictionary, true);
+await scheduler.ScheduleJobs(jobsDictionary, replace: true);
 ```
 
 ## ADO.NET JobStore
