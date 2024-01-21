@@ -12,6 +12,7 @@
     <NukeExcludeDirectoryBuild>true</NukeExcludeDirectoryBuild>
     <NukeExcludeLogs>true</NukeExcludeLogs>
     <IsPackable>false</IsPackable>
+    <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
   </PropertyGroup>
 
   <ItemGroup>
