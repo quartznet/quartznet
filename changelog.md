@@ -2,6 +2,12 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+## Release 3.8.1, Feb xx 2024
+
+* Fix handling of env var quartz.config (#2212) (#2213)
+* Use configured type loader in scheduler factory init (#2268)
+
+
 ## Release 3.8.0, Nov 18 2023
 
 * CHANGES
