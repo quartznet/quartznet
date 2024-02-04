@@ -406,18 +406,31 @@ Please add configuration to your application config file to correctly initialize
         string threadName = cfg.GetStringProperty(PropertySchedulerThreadName, "{0}_QuartzSchedulerThread".FormatInvariant(schedName))!;
         var schedInstId = cfg.GetStringProperty(PropertySchedulerInstanceId, DefaultInstanceId)!;
 
+        // Create type load helper
+        Type? typeLoadHelperType = LoadType(cfg.GetStringProperty(PropertySchedulerTypeLoadHelperType));
+        ITypeLoadHelper loadHelper;
+        try
+        {
+            loadHelper = InstantiateType<ITypeLoadHelper>(typeLoadHelperType ?? typeof(SimpleTypeLoadHelper));
+        }
+        catch (Exception e)
+        {
+            ThrowHelper.ThrowSchedulerConfigException("Unable to instantiate type load helper: {0}".FormatInvariant(e.Message), e);
+            return default;
+        }
+
+        loadHelper.Initialize();
+
         if (schedInstId.Equals(AutoGenerateInstanceId))
         {
             autoId = true;
-            instanceIdGeneratorType = LoadType(cfg.GetStringProperty(PropertySchedulerInstanceIdGeneratorType)) ?? typeof(SimpleInstanceIdGenerator);
+            instanceIdGeneratorType = loadHelper.LoadType(cfg.GetStringProperty(PropertySchedulerInstanceIdGeneratorType)) ?? typeof(SimpleInstanceIdGenerator);
         }
         else if (schedInstId.Equals(SystemPropertyAsInstanceId))
         {
             autoId = true;
             instanceIdGeneratorType = typeof(SystemPropertyInstanceIdGenerator);
         }
-
-        Type? typeLoadHelperType = LoadType(cfg.GetStringProperty(PropertySchedulerTypeLoadHelperType));
 
         dbFailureRetry = cfg.GetTimeSpanProperty(PropertyJobStoreDbRetryInterval, dbFailureRetry);
         if (dbFailureRetry < TimeSpan.Zero)
@@ -434,20 +447,6 @@ Please add configuration to your application config file to correctly initialize
 
         var schedCtxtProps = cfg.GetPropertyGroup(PropertySchedulerContextPrefix, true);
         var proxyScheduler = cfg.GetBooleanProperty(PropertySchedulerProxy, false);
-
-        // Create type load helper
-        ITypeLoadHelper loadHelper;
-        try
-        {
-            loadHelper = InstantiateType<ITypeLoadHelper>(typeLoadHelperType ?? typeof(SimpleTypeLoadHelper));
-        }
-        catch (Exception e)
-        {
-            ThrowHelper.ThrowSchedulerConfigException("Unable to instantiate type load helper: {0}".FormatInvariant(e.Message), e);
-            return default;
-        }
-
-        loadHelper.Initialize();
 
         // If Proxying to remote scheduler, short-circuit here...
         // ~~~~~~~~~~~~~~~~~~
@@ -482,8 +481,7 @@ Please add configuration to your application config file to correctly initialize
             return remoteScheduler;
         }
 
-
-        Type? jobFactoryType = LoadType(cfg.GetStringProperty(PropertySchedulerJobFactoryType));
+        Type? jobFactoryType = loadHelper.LoadType(cfg.GetStringProperty(PropertySchedulerJobFactoryType));
         IJobFactory? jobFactory = null;
         if (jobFactoryType != null)
         {
@@ -794,7 +792,7 @@ Please add configuration to your application config file to correctly initialize
             ISchedulerPlugin plugin;
             try
             {
-                var pluginTypeType = LoadType(plugInType) ?? throw new SchedulerException($"Could not load plugin type {plugInType}");
+                var pluginTypeType = loadHelper.LoadType(plugInType) ?? throw new SchedulerException($"Could not load plugin type {plugInType}");
                 // we need to use concrete types to resolve correct one
                 var method = GetType().GetMethod(nameof(InstantiateType), BindingFlags.Instance | BindingFlags.NonPublic)!.MakeGenericMethod(pluginTypeType);
                 plugin = (ISchedulerPlugin) method.Invoke(this, new [] { pluginTypeType! })!;

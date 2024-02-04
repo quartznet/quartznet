@@ -30,7 +30,7 @@ namespace Quartz.Simpl;
 internal sealed class SimpleTypeLoadHelper : ITypeLoadHelper
 {
     private const string QuartzAssemblyTypePostfix = ", Quartz";
-    private const string QuartzJobsAssemblyTypePostifx = ", Quartz.Jobs";
+    private const string QuartzJobsAssemblyTypePostfix = ", Quartz.Jobs";
 
     /// <inheritdoc />
     public void Initialize()
@@ -48,7 +48,7 @@ internal sealed class SimpleTypeLoadHelper : ITypeLoadHelper
         if (type == null && name.EndsWith(QuartzAssemblyTypePostfix, StringComparison.Ordinal))
         {
             // we've moved jobs to new assembly try that too
-            var newName = name.Substring(0, name.Length - QuartzAssemblyTypePostfix.Length) + QuartzJobsAssemblyTypePostifx;
+            var newName = name.Substring(0, name.Length - QuartzAssemblyTypePostfix.Length) + QuartzJobsAssemblyTypePostfix;
             type = Type.GetType(newName);
         }
         if (type == null)
