@@ -13,11 +13,12 @@
     <NukeExcludeLogs>true</NukeExcludeLogs>
     <IsPackable>false</IsPackable>
     <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
+    <EnableUnsafeBinaryFormatterSerialization>true</EnableUnsafeBinaryFormatterSerialization>
+    <SonarQubeExclude>true</SonarQubeExclude>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Nuke.Common" Version="8.0.0" />
-    <PackageDownload Include="GitVersion.Tool" Version="[5.7.0]" />
+    <PackageReference Include="Nuke.Components" Version="8.0.0" />
   </ItemGroup>
 
 </Project>

@@ -16,6 +16,7 @@ exclude:
   - name: All
     paths:
       - src/Quartz.Examples.AspNetCore/wwwroot
+      - build
 
   - name: HttpUrlsUsage
     paths:

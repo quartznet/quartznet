@@ -5,7 +5,7 @@
 #
 #     - To turn off auto-generation set:
 #
-#         [CustomGitHubActions (AutoGenerate = false)]
+#         [GitHubActions (AutoGenerate = false)]
 #
 #     - To trigger manual generation invoke:
 #
@@ -20,7 +20,6 @@ on:
   pull_request:
     branches:
       - main
-      - v4
       - '3.x'
     paths:
       - '**/*'
@@ -34,59 +33,20 @@ jobs:
     name: windows-latest
     runs-on: windows-latest
     steps:
-      - if: ${{ runner.os == 'Windows' }}
-        name: 'Use GNU tar'
-        shell: cmd
-        run: |
-          echo "Adding GNU tar to PATH"
-          echo C:\Program Files\Git\usr\bin>>"%GITHUB_PATH%"
       - uses: actions/checkout@v3
-      - name: 'Cache: .nuke/temp, ~/.nuget/packages'
-        uses: actions/cache@v3
-        with:
-          path: |
-            .nuke/temp
-            ~/.nuget/packages
-          key: ${{ runner.os }}-${{ hashFiles('global.json', 'src/**/*.csproj', 'src/**/package.json') }}
-      - name: 'Run: Compile, UnitTest'
-        run: ./build.cmd Compile UnitTest
+      - name: 'Run: Compile, UnitTest, PublishAot'
+        run: ./build.cmd Compile UnitTest PublishAot
   ubuntu-latest:
     name: ubuntu-latest
     runs-on: ubuntu-latest
     steps:
-      - if: ${{ runner.os == 'Windows' }}
-        name: 'Use GNU tar'
-        shell: cmd
-        run: |
-          echo "Adding GNU tar to PATH"
-          echo C:\Program Files\Git\usr\bin>>"%GITHUB_PATH%"
       - uses: actions/checkout@v3
-      - name: 'Cache: .nuke/temp, ~/.nuget/packages'
-        uses: actions/cache@v3
-        with:
-          path: |
-            .nuke/temp
-            ~/.nuget/packages
-          key: ${{ runner.os }}-${{ hashFiles('global.json', 'src/**/*.csproj', 'src/**/package.json') }}
-      - name: 'Run: Compile, UnitTest'
-        run: ./build.cmd Compile UnitTest
+      - name: 'Run: Compile, UnitTest, PublishAot'
+        run: ./build.cmd Compile UnitTest PublishAot
   macos-latest:
     name: macos-latest
     runs-on: macos-latest
     steps:
-      - if: ${{ runner.os == 'Windows' }}
-        name: 'Use GNU tar'
-        shell: cmd
-        run: |
-          echo "Adding GNU tar to PATH"
-          echo C:\Program Files\Git\usr\bin>>"%GITHUB_PATH%"
       - uses: actions/checkout@v3
-      - name: 'Cache: .nuke/temp, ~/.nuget/packages'
-        uses: actions/cache@v3
-        with:
-          path: |
-            .nuke/temp
-            ~/.nuget/packages
-          key: ${{ runner.os }}-${{ hashFiles('global.json', 'src/**/*.csproj', 'src/**/package.json') }}
-      - name: 'Run: Compile, UnitTest'
-        run: ./build.cmd Compile UnitTest
+      - name: 'Run: Compile, UnitTest, PublishAot'
+        run: ./build.cmd Compile UnitTest PublishAot

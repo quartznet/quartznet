@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <!-- Necessary to run benchmarks on .NET 6.0+ -->
     <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
 
   <ItemGroup>
