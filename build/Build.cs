@@ -97,7 +97,8 @@ partial class Build : NukeBuild, ICompile, IPack
         });
 
     Target UnitTest => _ => _
-        .After<ICompile>()
+        .DependsOn<ICompile>()
+        .Before<IPack>()
         .Executes(() =>
         {
             var solution = ((IHazSolution) this).Solution;
@@ -122,7 +123,8 @@ partial class Build : NukeBuild, ICompile, IPack
         });
 
     Target IntegrationTest => _ => _
-        .After<ICompile>()
+        .DependsOn<ICompile>()
+        .Before<IPack>()
         .OnlyWhenDynamic(() => Host is GitHubActions && RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         .Executes(() =>
         {

@@ -21,6 +21,7 @@ public partial class Build
     Target Publish => _ => _
         .OnlyWhenDynamic(() => IsRunningOnWindows && (GitRepository.IsOnMainBranch() || IsTaggedBuild))
         .DependsOn<IPack>()
+        .DependsOn(UnitTest)
         .Requires(() => NuGetApiKey)
         .Executes(() =>
         {
