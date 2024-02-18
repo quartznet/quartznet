@@ -1,10 +1,9 @@
-using System.Collections.Generic;
-
 using Nuke.Common;
 using Nuke.Common.Git;
 using Nuke.Common.IO;
 using Nuke.Common.Tooling;
 using Nuke.Common.Tools.DotNet;
+using Nuke.Components;
 
 using static Nuke.Common.Tools.DotNet.DotNetTasks;
 
@@ -21,31 +20,16 @@ public partial class Build
 
     Target Publish => _ => _
         .OnlyWhenDynamic(() => IsRunningOnWindows && (GitRepository.IsOnMainBranch() || IsTaggedBuild))
-        .DependsOn(Pack)
+        .DependsOn<IPack>()
         .Requires(() => NuGetApiKey)
         .Executes(() =>
         {
             DotNetNuGetPush(_ => _
-                    .Apply(PushSettingsBase)
-                    .Apply(PushSettings)
-                    .CombineWith(PushPackageFiles, (_, v) => _
-                        .SetTargetPath(v))
-                    .Apply(PackagePushSettings),
-                PushDegreeOfParallelism,
-                PushCompleteOnFailure);
+                    .SetSource(SourceToUse)
+                    .SetApiKey(ApiKeyToUse)
+                    .EnableSkipDuplicate()
+                    .CombineWith(((IPack) this).PackagesDirectory.GlobFiles("*.nupkg"), (_, v) => _.SetTargetPath(v)),
+                degreeOfParallelism: 2,
+                completeOnFailure: true);
         });
-
-    Configure<DotNetNuGetPushSettings> PushSettingsBase => _ => _
-        .SetSource(SourceToUse)
-        .SetApiKey(ApiKeyToUse)
-        .SetSkipDuplicate(true);
-
-    Configure<DotNetNuGetPushSettings> PushSettings => _ => _;
-    Configure<DotNetNuGetPushSettings> PackagePushSettings => _ => _;
-
-    IEnumerable<AbsolutePath> PushPackageFiles => ArtifactsDirectory.GlobFiles("*.nupkg");
-
-    bool PushCompleteOnFailure => true;
-    int PushDegreeOfParallelism => 2;
-
 }

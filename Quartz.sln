@@ -46,13 +46,16 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Examples.Worker", "s
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Quartz.Benchmark", "src\Quartz.Benchmark\Quartz.Benchmark.csproj", "{23DEAB6E-D12C-40F6-A50E-6584FEAA389C}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "GitHub", "GitHub", "{354EFE76-4FA8-45C9-A3D4-585B8E00D242}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = ".github", ".github", "{354EFE76-4FA8-45C9-A3D4-585B8E00D242}"
 EndProject
-Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Workflows", "Workflows", "{BB894600-46FC-4EAD-84C8-F98622A3D012}"
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "workflows", "workflows", "{BB894600-46FC-4EAD-84C8-F98622A3D012}"
 ProjectSection(SolutionItems) = preProject
 	.github\workflows\docs.yml = .github\workflows\docs.yml
 	.github\workflows\build.yml = .github\workflows\build.yml
-	.github\workflows\pr.yml = .github\workflows\pr.yml
+	.github\workflows\docs-pr.yml = .github\workflows\docs-pr.yml
+	.github\workflows\pr-tests-integration-postgres.yml = .github\workflows\pr-tests-integration-postgres.yml
+	.github\workflows\pr-tests-unit.yml = .github\workflows\pr-tests-unit.yml
+	.github\workflows\qodana_code_quality.yml = .github\workflows\qodana_code_quality.yml
 EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "_build", "build\_build.csproj", "{1252A3D8-2CF1-4AF6-A80C-A9889634543B}"

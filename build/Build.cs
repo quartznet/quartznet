@@ -14,17 +14,16 @@ using Nuke.Common.IO;
 using Nuke.Common.ProjectModel;
 using Nuke.Common.Tooling;
 using Nuke.Common.Tools.DotNet;
-using Nuke.Common.Tools.Npm;
 using Nuke.Common.Utilities.Collections;
+using Nuke.Components;
 
 using Serilog;
 
 using static Nuke.Common.IO.FileSystemTasks;
 using static Nuke.Common.Tools.DotNet.DotNetTasks;
-using static Nuke.Common.Tools.Npm.NpmTasks;
 
 [ShutdownDotNetAfterServerBuild]
-partial class Build : NukeBuild
+partial class Build : NukeBuild, ICompile, IPack
 {
     /// Support plugins are available for:
     ///   - JetBrains ReSharper        https://nuke.build/resharper
@@ -32,18 +31,14 @@ partial class Build : NukeBuild
     ///   - Microsoft VisualStudio     https://nuke.build/visualstudio
     ///   - Microsoft VSCode           https://nuke.build/vscode
 
-    public static int Main() => Execute<Build>(x => x.Compile);
+    public static int Main() => Execute<Build>(x => ((ICompile) x).Compile);
 
-    [Parameter("Configuration to build - Default is 'Debug' (local) or 'Release' (server)")]
-    readonly Configuration Configuration = IsLocalBuild ? Configuration.Debug : Configuration.Release;
-
-    [Solution] readonly Solution Solution;
     [GitRepository] readonly GitRepository GitRepository;
 
     AbsolutePath SourceDirectory => RootDirectory / "src";
     AbsolutePath ArtifactsDirectory => RootDirectory / "artifacts";
 
-    string TagVersion => GitRepository.Tags.SingleOrDefault(x => x.StartsWith("v"))?[1..];
+    string TagVersion => GitRepository.Tags.SingleOrDefault(x => x.StartsWith('v'))?[1..];
 
     bool IsTaggedBuild => !string.IsNullOrWhiteSpace(TagVersion);
 
@@ -63,77 +58,50 @@ partial class Build : NukeBuild
         }
 
         Log.Information("BUILD SETUP");
-        Log.Information("Configuration:\t{Configuration}", Configuration);
+        Log.Information("Configuration:\t{Configuration}", ((ICompile) this).Configuration);
         Log.Information("Version suffix:\t{VersionSuffix}", VersionSuffix);
         Log.Information("Tagged build:\t{IsTaggedBuild}", IsTaggedBuild);
     }
 
     Target Clean => _ => _
-        .Before(Restore)
+        .Before<IRestore>()
         .Executes(() =>
         {
             SourceDirectory.GlobDirectories("**/bin", "**/obj").ForEach(x => x.DeleteDirectory());
             ArtifactsDirectory.CreateOrCleanDirectory();
         });
 
-    Target Restore => _ => _
+    public Configure<DotNetBuildSettings> CompileSettings => _ => _
+        .SetAssemblyVersion(TagVersion)
+        .SetFileVersion(TagVersion)
+        .SetInformationalVersion(TagVersion)
+        .SetVersionSuffix(VersionSuffix);
+
+    Target PublishAot => _ => _
+        .After<ICompile>()
         .Executes(() =>
         {
-            DotNetRestore(s => s
-                .SetProjectFile(Solution));
-        });
-
-    Target Compile => _ => _
-        .DependsOn(Restore)
-        .Executes(() =>
-        {
-            DotNetBuild(s => s
-                .SetProjectFile(Solution)
-                .SetConfiguration(Configuration)
-                .EnableNoRestore()
-                .SetDeterministic(IsServerBuild)
-                .SetContinuousIntegrationBuild(IsServerBuild)
-            );
-
             // also check that publish with trimming doesn't produce errors
+            var solution = ((IHazSolution) this).Solution;
+            var configuration = ((ICompile) this).Configuration;
+
             DotNetPublish(s => s
-                .SetProject(Solution.AllProjects.First(x => x.Name == "Quartz.Examples.Worker"))
-                .SetConfiguration(Configuration)
+                .SetProject(solution.AllProjects.First(x => x.Name == "Quartz.Examples.Worker"))
+                .SetConfiguration(configuration)
             );
+
             DotNetPublish(s => s
-                .SetProject(Solution.AllProjects.First(x => x.Name == "Quartz.Examples.AspNetCore"))
-                .SetConfiguration(Configuration)
+                .SetProject(solution.AllProjects.First(x => x.Name == "Quartz.Examples.AspNetCore"))
+                .SetConfiguration(configuration)
             );
         });
-
-    Target DocsBuild => _ => _
-        .Executes(() =>
-        {
-            if (IsServerBuild)
-            {
-                NpmCi();
-            }
-            else
-            {
-                NpmInstall();
-            }
-
-            // https://stackoverflow.com/a/69699772/111604
-            var nodeVersion = ProcessTasks.StartProcess("node", "--version").AssertWaitForExit().Output.FirstOrDefault().Text.Trim();
-            var major = Convert.ToInt32(Regex.Match(nodeVersion, "^v(\\d+)").Groups[1].Captures[0].Value);
-
-            Log.Information("Detected Node.js major version {Version}", major);
-
-            NpmRun(_ => _
-                .SetCommand("docs:build")
-            );
-        });
-
 
     Target UnitTest => _ => _
-        .After(Compile)
+        .After<ICompile>()
         .Executes(() =>
         {
+            var solution = ((IHazSolution) this).Solution;
+            var configuration = ((ICompile) this).Configuration;
             var framework = "";
             if (!IsRunningOnWindows)
             {
@@ -144,17 +112,17 @@ partial class Build : NukeBuild
             DotNetTest(s => s
                 .EnableNoRestore()
                 .EnableNoBuild()
-                .SetConfiguration(Configuration)
+                .SetConfiguration(configuration)
                 .SetFramework(framework)
-                .SetLoggers(GitHubActions.Instance is not null ? new[] { "GitHubActions" } : Array.Empty<string>())
+                .SetLoggers(GitHubActions.Instance is not null ? ["GitHubActions"] : Array.Empty<string>())
                 .CombineWith(testProjects, (_, testProject) => _
-                    .SetProjectFile(Solution.GetAllProjects(testProject).First())
+                    .SetProjectFile(solution.GetAllProjects(testProject).First())
                 )
             );
         });
 
     Target IntegrationTest => _ => _
-        .After(Compile)
+        .After<ICompile>()
         .OnlyWhenDynamic(() => Host is GitHubActions && RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
         .Executes(() =>
         {
@@ -202,71 +170,34 @@ partial class Build : NukeBuild
             Log.Information("Creating schema...");
             RunPsqlAsQuartznetUser("-d quartznet -f ./database/tables/tables_postgres.sql");
 
+            var solution = ((IHazSolution) this).Solution;
+            var configuration = ((ICompile) this).Configuration;
             var integrationTestProjects = new[] { "Quartz.Tests.Integration" };
             DotNetTest(s => s
                 .EnableNoRestore()
                 .EnableNoBuild()
-                .SetConfiguration(Configuration)
+                .SetConfiguration(configuration)
                 .SetFramework("net6.0")
                 .SetLoggers("GitHubActions")
                 .SetFilter("TestCategory!=db-firebird&TestCategory!=db-oracle&TestCategory!=db-mysql&TestCategory!=db-sqlserver")
                 .CombineWith(integrationTestProjects, (_, testProject) => _
-                    .SetProjectFile(Solution.GetAllProjects(testProject).First())
+                    .SetProjectFile(solution.GetAllProjects(testProject).First())
                 )
             );
         });
 
-    Target Pack => _ => _
-        .After(Compile, UnitTest)
-        .Produces(ArtifactsDirectory / "*.*")
+    public Configure<DotNetPackSettings> PackSettings => _ => _
+        .SetAssemblyVersion(TagVersion)
+        .SetFileVersion(TagVersion)
+        .SetInformationalVersion(TagVersion)
+        .SetVersionSuffix(VersionSuffix);
+
+    Target PackZip => _ => _
+        .TriggeredBy<IPack>()
+        .Produces(((IPack) this).PackagesDirectory / "*.zip")
         .Executes(() =>
         {
-            ArtifactsDirectory.CreateOrCleanDirectory();
-
-            var packTargetProjects = new[]
-            {
-                "Quartz",
-                "Quartz.Serialization.Newtonsoft",
-                "Quartz.AspNetCore",
-                "Quartz.Jobs",
-                "Quartz.Plugins",
-                "Quartz.Plugins.TimeZoneConverter"
-            };
-
-            foreach (var project in packTargetProjects)
-            {
-                DotNetPack(s => s
-                    .SetProject(Solution.GetProject(project))
-                    .SetAssemblyVersion(TagVersion)
-                    .SetFileVersion(TagVersion)
-                    .SetInformationalVersion(TagVersion)
-                    .SetVersionSuffix(VersionSuffix)
-                    .SetConfiguration(Configuration)
-                    .SetOutputDirectory(ArtifactsDirectory)
-                    .SetDeterministic(IsServerBuild)
-                    .SetContinuousIntegrationBuild(IsServerBuild)
-                );
-            }
-
-            var zipContents = Array.Empty<AbsolutePath>()
-                    .Concat(SourceDirectory.GlobFiles("**/*.*"))
-                    .Concat(RootDirectory.GlobFiles("database/**/*"))
-                    .Concat(RootDirectory.GlobFiles("changelog.md"))
-                    .Concat(RootDirectory.GlobFiles("license.txt"))
-                    .Concat(RootDirectory.GlobFiles("README.md"))
-                    .Concat(RootDirectory.GlobFiles("*.sln"))
-                    .Concat(RootDirectory.GlobFiles("build.*"))
-                    .Concat(RootDirectory.GlobFiles("quartz.net.snk"))
-                    .Concat(RootDirectory.GlobFiles("build.*"))
-                    .Where(x => !x.Contains(""))
-                    .Where(x => !x.Contains("Quartz.Web"))
-                    .Where(x => !x.Contains("Quartz.Benchmark"))
-                    .Where(x => !x.Contains("Quartz.Test"))
-                    .Where(x => !x.Contains("/obj/"))
-                    .Where(x => !x.ToString().EndsWith(".suo"))
-                    .Where(x => !x.ToString().EndsWith(".user"))
-                ;
-
+            var solution = ((IHazSolution) this).Solution;
             var zipTempDirectory = RootDirectory / "temp" / "package";
             zipTempDirectory.CreateOrCleanDirectory();
 
@@ -283,21 +214,32 @@ partial class Build : NukeBuild
 
             CopyDirectoryRecursively(source: RootDirectory / "database", target: zipTempDirectory / "database");
 
-            var binaries = Solution.Projects
+            var binaries = solution.Projects
                 .Where(x => x.GetProperty("IsPackable") != "false" || x.Name.Contains("Example") || x.Name == "Quartz.Server");
 
             foreach (var project in binaries)
             {
-                CopyDirectoryRecursively(source: SourceDirectory / project.Name / "bin" / Configuration, target: zipTempDirectory / "bin" / Configuration / project.Name);
+                CopyDirectoryRecursively(source: ArtifactsDirectory / "bin" / project.Name, target: zipTempDirectory / "bin" / project.Name);
             }
 
-            var rootFilesToCopy = new[] { "README.md", "Quartz.sln", "quartz.net.snk", "license.txt", "changelog.md", "build.cmd", "build.sh", "build.ps1" };
+            string[] rootFilesToCopy = [
+                "Quartz.sln",
+                "README.md",
+                "build.cmd",
+                "build.ps1",
+                "build.sh",
+                "changelog.md",
+                "Directory.Build.props",
+                "Directory.Packages.props",
+                "license.txt",
+                "quartz.net.snk",
+            ];
             foreach (var file in rootFilesToCopy)
             {
                 CopyFileToDirectory(RootDirectory / file, zipTempDirectory);
             }
 
-            var props = File.ReadAllText(SourceDirectory / "Directory.Build.props");
+            var props = File.ReadAllText("Directory.Build.props");
             var baseVersion = Regex.Match(props, "<VersionPrefix>(.+)</VersionPrefix>").Groups[1].Captures[0].Value;
 
             if (!string.IsNullOrWhiteSpace(VersionSuffix))
@@ -305,23 +247,6 @@ partial class Build : NukeBuild
                 baseVersion += "-";
             }
 
-            ZipFile.CreateFromDirectory(zipTempDirectory, ArtifactsDirectory / $"Quartz.NET-{baseVersion}{VersionSuffix}.zip");
-        });
-
-    Target ApiDoc => _ => _
-        .Executes(() =>
-        {
-            var headerContent = File.ReadAllText("doc/header.template");
-            var footerContent = File.ReadAllText("doc/footer.template");
-
-            var docsDirectory = RootDirectory / "build" / "apidoc";
-
-            foreach (var file in docsDirectory.GlobFiles("**/*.htm", "**/*.html"))
-            {
-                var contents = File.ReadAllText(file);
-                contents = contents.Replace("@HEADER@", headerContent);
-                contents = contents.Replace("@FOOTER@", footerContent);
-                File.WriteAllText(file, contents);
-            }
+            ZipFile.CreateFromDirectory(zipTempDirectory, ((IPack) this).PackagesDirectory / $"Quartz.NET-{baseVersion}{VersionSuffix}.zip");
         });
 }
