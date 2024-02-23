@@ -47,6 +47,8 @@ namespace Quartz.Impl.Calendar
     /// as, for example, WeeklyCalendar defines a set of days that are
     /// excluded <i>every week</i>. Likewise, <see cref="DailyCalendar" /> defines a
     /// set of times that are excluded <i>every day</i>.
+    ///
+    /// The minimum resolution of time supported by this calendar is one second.
     /// </para>
     /// </remarks>
     /// <author>Mike Funk</author>
@@ -61,7 +63,7 @@ namespace Quartz.Impl.Calendar
         private const string InvalidMillis = "Invalid millis: ";
         private const string InvalidTimeRange = "Invalid time range: ";
         private const string Separator = " - ";
-        private const long OneMillis = 1;
+        private const long OneSecondInMillis = 1000;
         private const char Colon = ':';
 
         private const string TwoDigitFormat = "00";
@@ -479,7 +481,7 @@ namespace Quartz.Impl.Calendar
         /// <seealso cref="ICalendar.GetNextIncludedTimeUtc"/>
         public override DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc)
         {
-            DateTimeOffset nextIncludedTime = timeUtc.AddMilliseconds(OneMillis);
+            DateTimeOffset nextIncludedTime = timeUtc.AddMilliseconds(OneSecondInMillis);
 
             while (!IsTimeIncluded(nextIncludedTime))
             {
@@ -497,7 +499,7 @@ namespace Quartz.Impl.Calendar
                         GetTimeRangeEndingTimeUtc(nextIncludedTime))
                     {
                         nextIncludedTime =
-                            GetTimeRangeEndingTimeUtc(nextIncludedTime).AddMilliseconds(OneMillis);
+                            GetTimeRangeEndingTimeUtc(nextIncludedTime).AddMilliseconds(OneSecondInMillis);
                     }
                     else if (CalendarBase != null &&
                              !CalendarBase.IsTimeIncluded(nextIncludedTime))
@@ -507,7 +509,7 @@ namespace Quartz.Impl.Calendar
                     }
                     else
                     {
-                        nextIncludedTime = nextIncludedTime.AddMilliseconds(1);
+                        nextIncludedTime = nextIncludedTime.AddMilliseconds(OneSecondInMillis);
                     }
                 }
                 else
@@ -529,7 +531,7 @@ namespace Quartz.Impl.Calendar
                     {
                         //(move to start of next day)
                         nextIncludedTime = GetEndOfDay(nextIncludedTime);
-                        nextIncludedTime = nextIncludedTime.AddMilliseconds(1);
+                        nextIncludedTime = nextIncludedTime.AddMilliseconds(OneSecondInMillis);
                     }
                     else if (CalendarBase != null &&
                              !CalendarBase.IsTimeIncluded(nextIncludedTime))
@@ -539,7 +541,7 @@ namespace Quartz.Impl.Calendar
                     }
                     else
                     {
-                        nextIncludedTime = nextIncludedTime.AddMilliseconds(1);
+                        nextIncludedTime = nextIncludedTime.AddMilliseconds(OneSecondInMillis);
                     }
                 }
             }
