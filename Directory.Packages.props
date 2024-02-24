@@ -13,6 +13,8 @@
     <PackageVersion Include="Microsoft.Extensions.Options" Version="8.0.0" />
   </ItemGroup>
   <ItemGroup>
+    <PackageVersion Include="Microsoft.Bcl.TimeProvider" Version="8.0.1" />
+    <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="3.3.4" />
     <PackageVersion Include="NLog.Extensions.Logging" Version="5.3.7" />
     <PackageVersion Include="AspNetCore.HealthChecks.UI" Version="8.0.0" />
     <PackageVersion Include="AspNetCore.HealthChecks.UI.Client" Version="8.0.0" />

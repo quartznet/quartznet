@@ -79,7 +79,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
     /// </summary>
     public const int RepeatIndefinitely = -1;
 
-    private static readonly int YearToGiveupSchedulingAt = DateTime.Now.Year + 100;
+    private static readonly int YearToGiveupSchedulingAt = TimeProvider.System.GetLocalNow().AddYears(100).Year;
 
     private DateTimeOffset startTimeUtc;
     private DateTimeOffset? endTimeUtc;

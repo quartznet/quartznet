@@ -63,13 +63,9 @@ public sealed class DateBuilder
     private int second;
     private TimeZoneInfo? tz;
 
-    /// <summary>
-    /// Create a DateBuilder, with initial settings for the current date
-    /// and time in the system default timezone.
-    /// </summary>
-    private DateBuilder()
+    private DateBuilder(TimeProvider timeProvider)
     {
-        DateTime now = DateTime.Now;
+        DateTime now = timeProvider.GetLocalNow().DateTime;
 
         month = now.Month;
         day = now.Day;
@@ -79,22 +75,14 @@ public sealed class DateBuilder
         second = now.Second;
     }
 
-
     /// <summary>
     /// Create a DateBuilder, with initial settings for the current date and time in the given timezone.
     /// </summary>
     /// <param name="tz"></param>
-    private DateBuilder(TimeZoneInfo tz)
+    /// <param name="timeProvider"></param>
+    private DateBuilder(TimeZoneInfo tz, TimeProvider timeProvider)
+        : this(timeProvider)
     {
-        DateTime now = DateTime.Now;
-
-        month = now.Month;
-        day = now.Day;
-        year = now.Year;
-        hour = now.Hour;
-        minute = now.Minute;
-        second = now.Second;
-
         this.tz = tz;
     }
 
@@ -104,7 +92,7 @@ public sealed class DateBuilder
     /// <returns></returns>
     public static DateBuilder NewDate()
     {
-        return new DateBuilder();
+        return new DateBuilder(TimeProvider.System);
     }
 
     /// <summary>
@@ -114,7 +102,7 @@ public sealed class DateBuilder
     /// <returns></returns>
     public static DateBuilder NewDateInTimeZone(TimeZoneInfo tz)
     {
-        return new DateBuilder(tz);
+        return new DateBuilder(tz, TimeProvider.System);
     }
 
     /// <summary>
@@ -259,7 +247,7 @@ public sealed class DateBuilder
         ValidateMinute(minute);
         ValidateHour(hour);
 
-        DateTimeOffset now = DateTimeOffset.Now;
+        DateTimeOffset now = TimeProvider.System.GetLocalNow();
         DateTimeOffset c = new DateTimeOffset(
             now.Year,
             now.Month,

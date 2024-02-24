@@ -429,7 +429,7 @@ public class XMLSchedulingDataProcessor
                 }
             }
 
-            DateTime? triggerEndTime = triggerNode.Item.endtimeSpecified ? triggerNode.Item.endtime : null;
+            DateTimeOffset? triggerEndTime = triggerNode.Item.endtimeSpecified ? new DateTimeOffset(triggerNode.Item.endtime) : null;
 
             IScheduleBuilder sched;
 

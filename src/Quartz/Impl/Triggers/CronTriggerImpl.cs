@@ -184,6 +184,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     private DateTimeOffset? endTimeUtc;
     private DateTimeOffset? nextFireTimeUtc; // Making a public property which called GetNextFireTime/SetNextFireTime would make the json attribute unnecessary
     private DateTimeOffset? previousFireTimeUtc; // Making a public property which called GetPreviousFireTime/SetPreviousFireTime would make the json attribute unnecessary
+    private TimeProvider timeProvider;
 
     [NonSerialized] private TimeZoneInfo? timeZone;
 
@@ -211,6 +212,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// </remarks>
     public CronTriggerImpl()
     {
+        timeProvider = TimeProvider.System;
         StartTimeUtc = SystemTime.UtcNow();
         TimeZone = TimeZoneInfo.Local;
     }
@@ -242,6 +244,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     {
         StartTimeUtc = SystemTime.UtcNow();
         TimeZone = TimeZoneInfo.Local;
+        timeProvider = TimeProvider.System;
     }
 
     /// <summary>
@@ -261,6 +264,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
         CronExpressionString = cronExpression;
         StartTimeUtc = SystemTime.UtcNow();
         TimeZone = TimeZoneInfo.Local;
+        timeProvider = TimeProvider.System;
     }
 
     /// <summary>
@@ -281,6 +285,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     {
         StartTimeUtc = SystemTime.UtcNow();
         TimeZone = TimeZoneInfo.Local;
+        timeProvider = TimeProvider.System;
     }
 
     /// <summary>
@@ -348,6 +353,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
         string cronExpression)
         : base(name, group, jobName, jobGroup)
     {
+        timeProvider = TimeProvider.System;
         CronExpressionString = cronExpression;
 
         if (startTimeUtc == DateTimeOffset.MinValue)
@@ -386,6 +392,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
         string cronExpression,
         TimeZoneInfo timeZone) : base(name, group, jobName, jobGroup)
     {
+        timeProvider = TimeProvider.System;
         CronExpressionString = cronExpression;
 
         if (startTimeUtc == DateTimeOffset.MinValue)
@@ -785,7 +792,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     {
         if (dayOnly)
         {
-            test = new DateTime(test.Year, test.Month, test.Day, 0, 0, 0);
+            test = new DateTimeOffset(test.Year, test.Month, test.Day, 0, 0, 0, timeProvider.LocalTimeZone.BaseUtcOffset);
         }
 
         DateTimeOffset? fta = GetFireTimeAfter(test.AddMilliseconds(-1 * 1000));

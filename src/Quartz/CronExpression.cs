@@ -26,6 +26,7 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Text.RegularExpressions;
 
+using Quartz.Configuration;
 using Quartz.Util;
 
 namespace Quartz;
@@ -260,7 +261,7 @@ public sealed class CronExpression : ISerializable
     /// </summary>
     [NonSerialized] private bool calendarDayOfMonth;
 
-    public static readonly int MaxYear = DateTime.Now.Year + 100;
+    public static readonly int MaxYear =  TimeProvider.System.GetLocalNow().Year + 100;
 
     private static readonly Regex regex = new("^L(-\\d{1,2})?(W(-\\d{1,2})?)?$", RegexOptions.Compiled | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(5)); //e.g. LW L-0W L-4 L-12W LW-4 LW-12
     private static readonly Regex offsetRegex = new("LW-(?<offset>[0-9]+)", RegexOptions.Compiled | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(5));
