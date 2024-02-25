@@ -54,8 +54,6 @@ namespace Quartz.Impl.Triggers;
 [Serializable]
 public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarIntervalTrigger
 {
-    private static readonly int YearToGiveupSchedulingAt = DateTime.Now.AddYears(100).Year;
-
     private DateTimeOffset startTime;
     private DateTimeOffset? endTime;
     private DateTimeOffset? nextFireTimeUtc; // Making a public property which called GetNextFireTime/SetNextFireTime would make the json attribute unnecessary
@@ -66,7 +64,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
     // Serializing TimeZones is tricky in .NET Core. This helper will ensure that we get the same timezone on a given platform,
     // but there's not yet a good method of serializing/deserializing timezones cross-platform since Windows timezone IDs don't
     // match IANA tz IDs (https://en.wikipedia.org/wiki/List_of_tz_database_time_zones). This feature is coming, but depending
-    // on timelines, it may be worth doign the mapping here.
+    // on timelines, it may be worth doing the mapping here.
     // More info: https://github.com/dotnet/corefx/issues/7757
     private string? timeZoneInfoId
     {
@@ -408,7 +406,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
             }
 
             //avoid infinite loop
-            if (nextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
+            if (nextFireTimeUtc.Value.Year > TriggerConstants.YearToGiveupSchedulingAt)
             {
                 nextFireTimeUtc = null;
             }
@@ -446,7 +444,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
             }
 
             //avoid infinite loop
-            if (nextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
+            if (nextFireTimeUtc.Value.Year > TriggerConstants.YearToGiveupSchedulingAt)
             {
                 nextFireTimeUtc = null;
             }
@@ -497,7 +495,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
             }
 
             //avoid infinite loop
-            if (nextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
+            if (nextFireTimeUtc.Value.Year > TriggerConstants.YearToGiveupSchedulingAt)
             {
                 return null;
             }
@@ -656,12 +654,12 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
                 }
 
                 // now baby-step the rest of the way there...
-                while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < YearToGiveupSchedulingAt)
+                while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < TriggerConstants.YearToGiveupSchedulingAt)
                 {
                     sTime = sTime.AddDays(RepeatInterval);
                     MakeHourAdjustmentIfNeeded(ref sTime, initialHourOfDay); //hours can shift due to DST
                 }
-                while (DaylightSavingHourShiftOccurredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < YearToGiveupSchedulingAt)
+                while (DaylightSavingHourShiftOccurredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < TriggerConstants.YearToGiveupSchedulingAt)
                 {
                     sTime = sTime.AddDays(RepeatInterval);
                 }
@@ -699,12 +697,12 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
                     sTime = sTime.AddDays((int) (RepeatInterval * jumpCount * 7));
                 }
 
-                while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < YearToGiveupSchedulingAt)
+                while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < TriggerConstants.YearToGiveupSchedulingAt)
                 {
                     sTime = sTime.AddDays(RepeatInterval * 7);
                     MakeHourAdjustmentIfNeeded(ref sTime, initialHourOfDay); //hours can shift due to DST
                 }
-                while (DaylightSavingHourShiftOccurredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < YearToGiveupSchedulingAt)
+                while (DaylightSavingHourShiftOccurredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < TriggerConstants.YearToGiveupSchedulingAt)
                 {
                     sTime = sTime.AddDays(RepeatInterval * 7);
                 }
@@ -716,13 +714,13 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
                 // because months are already large blocks of time, we will
                 // just advance via brute-force iteration.
 
-                while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < YearToGiveupSchedulingAt)
+                while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < TriggerConstants.YearToGiveupSchedulingAt)
                 {
                     sTime = sTime.AddMonths(RepeatInterval);
                     MakeHourAdjustmentIfNeeded(ref sTime, initialHourOfDay); //hours can shift due to DST
                 }
                 while (DaylightSavingHourShiftOccurredAndAdvanceNeeded(ref sTime, initialHourOfDay)
-                       && sTime.Year < YearToGiveupSchedulingAt)
+                       && sTime.Year < TriggerConstants.YearToGiveupSchedulingAt)
                 {
                     sTime = sTime.AddMonths(RepeatInterval);
                 }
@@ -730,12 +728,12 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
             }
             else if (RepeatIntervalUnit == IntervalUnit.Year)
             {
-                while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < YearToGiveupSchedulingAt)
+                while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < TriggerConstants.YearToGiveupSchedulingAt)
                 {
                     sTime = sTime.AddYears(RepeatInterval);
                     MakeHourAdjustmentIfNeeded(ref sTime, initialHourOfDay); //hours can shift due to DST
                 }
-                while (DaylightSavingHourShiftOccurredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < YearToGiveupSchedulingAt)
+                while (DaylightSavingHourShiftOccurredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < TriggerConstants.YearToGiveupSchedulingAt)
                 {
                     sTime = sTime.AddYears(RepeatInterval);
                 }

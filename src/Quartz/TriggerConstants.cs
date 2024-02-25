@@ -9,4 +9,6 @@ public static class TriggerConstants
     /// The default value for priority.
     /// </summary>
     public const int DefaultPriority = 5;
+
+    public const int YearToGiveupSchedulingAt = 2200;
 }

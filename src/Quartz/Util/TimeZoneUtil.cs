@@ -59,11 +59,6 @@ public static class TimeZoneUtil
     /// <returns></returns>
     public static DateTimeOffset ConvertTime(DateTimeOffset dateTimeOffset, TimeZoneInfo timeZoneInfo)
     {
-        if (QuartzEnvironment.IsRunningOnMono)
-        {
-            return TimeZoneInfo.ConvertTime(dateTimeOffset.UtcDateTime, TimeZoneInfo.Utc, timeZoneInfo);
-        }
-
         return TimeZoneInfo.ConvertTime(dateTimeOffset, timeZoneInfo);
     }
 

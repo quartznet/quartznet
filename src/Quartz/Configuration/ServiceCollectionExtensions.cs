@@ -49,6 +49,7 @@ public static class ServiceCollectionExtensions
             services.TryAddSingleton(typeof(ITypeLoadHelper), typeof(SimpleTypeLoadHelper));
         }
 
+        services.TryAddSingleton(TimeProvider.System);
         if (string.IsNullOrWhiteSpace(properties[StdSchedulerFactory.PropertySchedulerJobFactoryType]))
         {
             // there's no explicit job factory defined, use MS version

@@ -180,9 +180,9 @@ public sealed class AnnualCalendar : BaseCalendar
     /// <summary>
     /// Redefine a certain day to be excluded (true) or included (false).
     /// </summary>
-    public void SetDayExcluded(DateTime day, bool exclude)
+    public void SetDayExcluded(DateTimeOffset day, bool exclude)
     {
-        DateTime d = new DateTime(FixedYear, day.Month, day.Day, 0, 0, 0);
+        DateTime d = new (FixedYear, day.Month, day.Day, 0, 0, 0);
 
         if (exclude)
         {

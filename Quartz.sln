@@ -70,6 +70,11 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Serialization.System
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Tests", "Tests", "{32367329-6157-4580-BB06-F7DD68FC1658}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Analyzers", "Analyzers", "{CBE8BDDE-B71F-4A95-B184-E6CBEBE40231}"
+	ProjectSection(SolutionItems) = preProject
+		Analyzers\bannedsymbols.txt = Analyzers\bannedsymbols.txt
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -160,6 +165,7 @@ Global
 		{12EA4497-DCEC-4C1A-83BD-FFAFA2C01A25} = {32367329-6157-4580-BB06-F7DD68FC1658}
 		{54FCAFBB-0040-4FBB-96BB-0AE9C70742B0} = {32367329-6157-4580-BB06-F7DD68FC1658}
 		{98DAF894-D837-47EC-9472-50C832AFC8B2} = {32367329-6157-4580-BB06-F7DD68FC1658}
+		{CBE8BDDE-B71F-4A95-B184-E6CBEBE40231} = {7E6034DE-2AF7-42CE-B9E3-A1B3B582E6DA}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {A8666F1F-9B78-4A1D-A3DB-0E91324AB539}

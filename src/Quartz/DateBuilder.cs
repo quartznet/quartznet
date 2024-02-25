@@ -64,29 +64,18 @@ public sealed class DateBuilder
     private TimeZoneInfo? tz;
 
     /// <summary>
-    /// Create a DateBuilder, with initial settings for the current date
-    /// and time in the system default timezone.
-    /// </summary>
-    private DateBuilder()
-    {
-        DateTime now = DateTime.Now;
-
-        month = now.Month;
-        day = now.Day;
-        year = now.Year;
-        hour = now.Hour;
-        minute = now.Minute;
-        second = now.Second;
-    }
-
-
-    /// <summary>
     /// Create a DateBuilder, with initial settings for the current date and time in the given timezone.
     /// </summary>
+    /// <param name="timeProvider"></param>
     /// <param name="tz"></param>
-    private DateBuilder(TimeZoneInfo tz)
+    private DateBuilder(TimeProvider timeProvider, TimeZoneInfo? tz = null)
     {
-        DateTime now = DateTime.Now;
+        if (tz != null)
+        {
+            this.tz = tz;
+        }
+
+        DateTime now = timeProvider.GetLocalNow().DateTime;
 
         month = now.Month;
         day = now.Day;
@@ -94,27 +83,27 @@ public sealed class DateBuilder
         hour = now.Hour;
         minute = now.Minute;
         second = now.Second;
-
-        this.tz = tz;
     }
 
     /// <summary>
     /// Create a DateBuilder, with initial settings for the current date and time in the system default timezone.
     /// </summary>
+    /// <param name="timeProvider"></param>
     /// <returns></returns>
-    public static DateBuilder NewDate()
+    public static DateBuilder NewDate(TimeProvider? timeProvider = null)
     {
-        return new DateBuilder();
+        return timeProvider == null ? new DateBuilder(TimeProvider.System) : new DateBuilder(timeProvider);
     }
 
     /// <summary>
     /// Create a DateBuilder, with initial settings for the current date and time in the given timezone.
     /// </summary>
     /// <param name="tz">Time zone to use.</param>
+    /// <param name="timeProvider"></param>
     /// <returns></returns>
-    public static DateBuilder NewDateInTimeZone(TimeZoneInfo tz)
+    public static DateBuilder NewDateInTimeZone(TimeZoneInfo tz, TimeProvider? timeProvider = null)
     {
-        return new DateBuilder(tz);
+        return timeProvider == null ? new DateBuilder(TimeProvider.System, tz) : new DateBuilder(timeProvider, tz);
     }
 
     /// <summary>
@@ -259,7 +248,7 @@ public sealed class DateBuilder
         ValidateMinute(minute);
         ValidateHour(hour);
 
-        DateTimeOffset now = DateTimeOffset.Now;
+        DateTimeOffset now = TimeProvider.System.GetLocalNow();
         DateTimeOffset c = new DateTimeOffset(
             now.Year,
             now.Month,
