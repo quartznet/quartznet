@@ -63,8 +63,18 @@ public sealed class DateBuilder
     private int second;
     private TimeZoneInfo? tz;
 
-    private DateBuilder(TimeProvider timeProvider)
+    /// <summary>
+    /// Create a DateBuilder, with initial settings for the current date and time in the given timezone.
+    /// </summary>
+    /// <param name="timeProvider"></param>
+    /// <param name="tz"></param>
+    private DateBuilder(TimeProvider timeProvider, TimeZoneInfo? tz = null)
     {
+        if (tz != null)
+        {
+            this.tz = tz;
+        }
+
         DateTime now = timeProvider.GetLocalNow().DateTime;
 
         month = now.Month;
@@ -76,33 +86,24 @@ public sealed class DateBuilder
     }
 
     /// <summary>
-    /// Create a DateBuilder, with initial settings for the current date and time in the given timezone.
-    /// </summary>
-    /// <param name="tz"></param>
-    /// <param name="timeProvider"></param>
-    private DateBuilder(TimeZoneInfo tz, TimeProvider timeProvider)
-        : this(timeProvider)
-    {
-        this.tz = tz;
-    }
-
-    /// <summary>
     /// Create a DateBuilder, with initial settings for the current date and time in the system default timezone.
     /// </summary>
+    /// <param name="timeProvider"></param>
     /// <returns></returns>
-    public static DateBuilder NewDate()
+    public static DateBuilder NewDate(TimeProvider? timeProvider = null)
     {
-        return new DateBuilder(TimeProvider.System);
+        return timeProvider == null ? new DateBuilder(TimeProvider.System) : new DateBuilder(timeProvider);
     }
 
     /// <summary>
     /// Create a DateBuilder, with initial settings for the current date and time in the given timezone.
     /// </summary>
     /// <param name="tz">Time zone to use.</param>
+    /// <param name="timeProvider"></param>
     /// <returns></returns>
-    public static DateBuilder NewDateInTimeZone(TimeZoneInfo tz)
+    public static DateBuilder NewDateInTimeZone(TimeZoneInfo tz, TimeProvider? timeProvider = null)
     {
-        return new DateBuilder(tz, TimeProvider.System);
+        return timeProvider == null ? new DateBuilder(TimeProvider.System, tz) : new DateBuilder(timeProvider, tz);
     }
 
     /// <summary>

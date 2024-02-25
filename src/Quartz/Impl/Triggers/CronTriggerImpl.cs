@@ -213,7 +213,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     public CronTriggerImpl()
     {
         timeProvider = TimeProvider.System;
-        StartTimeUtc = SystemTime.UtcNow();
+        StartTimeUtc = timeProvider.GetUtcNow();
         TimeZone = TimeZoneInfo.Local;
     }
 
@@ -239,12 +239,14 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// </remarks>
     /// <param name="name">The name of the <see cref="ITrigger" /></param>
     /// <param name="group">The group of the <see cref="ITrigger" /></param>
+    /// /// <param name="timeProvider">A <see cref="timeProvider" /> to use, if not specified defaults to TimeProvider.System</param>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
-    public CronTriggerImpl(string name, string group) : base(name, group)
+    public CronTriggerImpl(string name, string group, TimeProvider? timeProvider = null) : base(name, group)
     {
-        StartTimeUtc = SystemTime.UtcNow();
+        this.timeProvider = timeProvider ?? TimeProvider.System;
+        StartTimeUtc = this.timeProvider.GetUtcNow();
         TimeZone = TimeZoneInfo.Local;
-        timeProvider = TimeProvider.System;
+
     }
 
     /// <summary>
@@ -258,18 +260,21 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// <param name="name">The name of the <see cref="ITrigger" /></param>
     /// <param name="group">The group of the <see cref="ITrigger" /></param>
     /// <param name="cronExpression"> A cron expression dictating the firing sequence of the <see cref="ITrigger" /></param>
+    /// <param name="timeProvider">A <see cref="timeProvider" /> to use, if not specified defaults to TimeProvider.System</param>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
-    public CronTriggerImpl(string name, string group, string cronExpression) : base(name, group)
+    public CronTriggerImpl(string name, string group, string cronExpression, TimeProvider? timeProvider = null) : base(name, group)
     {
         CronExpressionString = cronExpression;
-        StartTimeUtc = SystemTime.UtcNow();
+        this.timeProvider = timeProvider ?? TimeProvider.System;
+        StartTimeUtc = this.timeProvider.GetUtcNow();
         TimeZone = TimeZoneInfo.Local;
-        timeProvider = TimeProvider.System;
+
     }
 
     /// <summary>
     /// Create a <see cref="CronTriggerImpl" /> with the given name and group, and
     /// associated with the identified <see cref="IJobDetail" />.
+    /// StartTime will be set to TimeProvider.System.GetUtcNow()
     /// </summary>
     /// <remarks>
     /// The start-time will also be set to the current time, and the time zone
@@ -281,11 +286,8 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// <param name="jobGroup">Group of the <see cref="IJobDetail" /> executed on firetime</param>
     /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="group"/>, <paramref name="jobName"/> or <paramref name="jobGroup"/> are <see langword="null"/>.</exception>
     public CronTriggerImpl(string name, string group, string jobName,
-        string jobGroup) : base(name, group, jobName, jobGroup)
+        string jobGroup) : this(name, group, jobName, jobGroup, TimeProvider.System.GetUtcNow(), null, null)
     {
-        StartTimeUtc = SystemTime.UtcNow();
-        TimeZone = TimeZoneInfo.Local;
-        timeProvider = TimeProvider.System;
     }
 
     /// <summary>
@@ -305,7 +307,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="group"/>, <paramref name="jobName"/> or <paramref name="jobGroup"/> are <see langword="null"/>.</exception>
     public CronTriggerImpl(string name, string group, string jobName,
         string jobGroup, string cronExpression)
-        : this(name, group, jobName, jobGroup, SystemTime.UtcNow(), null, cronExpression, TimeZoneInfo.Local)
+        : this(name, group, jobName, jobGroup, TimeProvider.System.GetUtcNow(), null, cronExpression, TimeZoneInfo.Local)
     {
     }
 
@@ -326,7 +328,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="group"/>, <paramref name="jobName"/> or <paramref name="jobGroup"/> are <see langword="null"/>.</exception>
     public CronTriggerImpl(string name, string group, string jobName,
         string jobGroup, string cronExpression, TimeZoneInfo timeZone)
-        : this(name, group, jobName, jobGroup, SystemTime.UtcNow(), null, cronExpression,
+        : this(name, group, jobName, jobGroup, TimeProvider.System.GetUtcNow(), null, cronExpression,
             timeZone)
     {
     }
@@ -334,6 +336,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// <summary>
     /// Create a <see cref="ICronTrigger" /> that will occur at the given time,
     /// until the given end time.
+    /// TimeZone is set to Local.
     /// <para>
     /// If null, the start-time will also be set to the current time, the time
     /// zone will be set to the system's default.
@@ -350,22 +353,8 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     public CronTriggerImpl(string name, string group, string jobName,
         string jobGroup, DateTimeOffset startTimeUtc,
         DateTimeOffset? endTime,
-        string cronExpression)
-        : base(name, group, jobName, jobGroup)
+        string? cronExpression) : this(name, group, jobName, jobGroup, startTimeUtc, endTime, cronExpression, TimeZoneInfo.Local)
     {
-        timeProvider = TimeProvider.System;
-        CronExpressionString = cronExpression;
-
-        if (startTimeUtc == DateTimeOffset.MinValue)
-        {
-            startTimeUtc = SystemTime.UtcNow();
-        }
-        StartTimeUtc = startTimeUtc;
-        if (endTime.HasValue)
-        {
-            EndTimeUtc = endTime;
-        }
-        TimeZone = TimeZoneInfo.Local;
     }
 
     /// <summary>
@@ -385,19 +374,21 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     /// Specifies for which time zone the cronExpression should be interpreted,
     /// i.e. the expression 0 0 10 * * ?, is resolved to 10:00 am in this time zone.
     /// </param>
+    /// <param name="timeProvider">A <see cref="timeProvider" /> to use, if not specified defaults to TimeProvider.System</param>
     /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="group"/>, <paramref name="jobName"/> or <paramref name="jobGroup"/> are <see langword="null"/>.</exception>
     public CronTriggerImpl(string name, string group, string jobName,
         string jobGroup, DateTimeOffset startTimeUtc,
         DateTimeOffset? endTime,
-        string cronExpression,
-        TimeZoneInfo timeZone) : base(name, group, jobName, jobGroup)
+        string? cronExpression,
+        TimeZoneInfo? timeZone = null, TimeProvider? timeProvider = null) : base(name, group, jobName, jobGroup)
     {
-        timeProvider = TimeProvider.System;
+        this.timeProvider = timeProvider ?? TimeProvider.System;
+
         CronExpressionString = cronExpression;
 
         if (startTimeUtc == DateTimeOffset.MinValue)
         {
-            startTimeUtc = SystemTime.UtcNow();
+            startTimeUtc = this.timeProvider.GetUtcNow();
         }
         StartTimeUtc = startTimeUtc;
 
@@ -600,7 +591,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     {
         if (!afterTimeUtc.HasValue)
         {
-            afterTimeUtc = SystemTime.UtcNow();
+            afterTimeUtc = this.timeProvider.GetUtcNow();
         }
 
         if (StartTimeUtc > afterTimeUtc.Value)
@@ -743,7 +734,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
 
         if (instr == Quartz.MisfireInstruction.CronTrigger.DoNothing)
         {
-            DateTimeOffset? newFireTime = GetFireTimeAfter(SystemTime.UtcNow());
+            DateTimeOffset? newFireTime = GetFireTimeAfter(this.timeProvider.GetUtcNow());
 
             while (newFireTime.HasValue && cal != null
                                         && !cal.IsTimeIncluded(newFireTime.Value))
@@ -754,7 +745,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
         }
         else if (instr == Quartz.MisfireInstruction.CronTrigger.FireOnceNow)
         {
-            SetNextFireTimeUtc(SystemTime.UtcNow());
+            SetNextFireTimeUtc(this.timeProvider.GetUtcNow());
         }
     }
 
@@ -858,7 +849,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
             return;
         }
 
-        DateTimeOffset now = SystemTime.UtcNow();
+        DateTimeOffset now = this.timeProvider.GetUtcNow();
 
         while (nextFireTimeUtc.HasValue && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
         {
