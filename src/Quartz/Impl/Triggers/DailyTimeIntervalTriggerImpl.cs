@@ -78,9 +78,6 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
     /// ending timestamp.
     /// </summary>
     public const int RepeatIndefinitely = -1;
-
-    private static readonly int YearToGiveupSchedulingAt = TimeProvider.System.GetLocalNow().AddYears(100).Year;
-
     private DateTimeOffset startTimeUtc;
     private DateTimeOffset? endTimeUtc;
     private DateTimeOffset? nextFireTimeUtc; // Making a public property which called GetNextFireTime/SetNextFireTime would make the json attribute unnecessary
@@ -440,7 +437,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
             }
 
             //avoid infinite loop
-            if (nextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
+            if (nextFireTimeUtc.Value.Year > TriggerConstants.YearToGiveupSchedulingAt)
             {
                 nextFireTimeUtc = null;
             }
@@ -478,7 +475,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
             }
 
             //avoid infinite loop
-            if (nextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
+            if (nextFireTimeUtc.Value.Year > TriggerConstants.YearToGiveupSchedulingAt)
             {
                 nextFireTimeUtc = null;
             }
@@ -530,7 +527,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
             }
 
             //avoid infinite loop
-            if (nextFireTimeUtc.Value.Year > YearToGiveupSchedulingAt)
+            if (nextFireTimeUtc.Value.Year > TriggerConstants.YearToGiveupSchedulingAt)
             {
                 return null;
             }

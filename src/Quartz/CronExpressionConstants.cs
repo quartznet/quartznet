@@ -46,4 +46,10 @@ internal static class CronExpressionConstants
     /// Field specification for no specification at all '?'.
     /// </summary>
     public const int NoSpec = 98;
+
+
+    /// <summary>
+    /// Max Year to stop processing at.
+    /// </summary>
+    public const int MaxYear = 2200;
 }

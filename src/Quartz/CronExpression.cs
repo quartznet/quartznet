@@ -261,8 +261,6 @@ public sealed class CronExpression : ISerializable
     /// </summary>
     [NonSerialized] private bool calendarDayOfMonth;
 
-    public static readonly int MaxYear =  TimeProvider.System.GetLocalNow().Year + 100;
-
     private static readonly Regex regex = new("^L(-\\d{1,2})?(W(-\\d{1,2})?)?$", RegexOptions.Compiled | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(5)); //e.g. LW L-0W L-4 L-12W LW-4 LW-12
     private static readonly Regex offsetRegex = new("LW-(?<offset>[0-9]+)", RegexOptions.Compiled | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(5));
 
@@ -1219,7 +1217,7 @@ public sealed class CronExpression : ISerializable
         {
             if (stopAt == -1)
             {
-                stopAt = MaxYear;
+                stopAt = CronExpressionConstants.MaxYear;
             }
             if (startAt is -1 or CronExpressionConstants.AllSpec)
             {
@@ -1959,7 +1957,7 @@ public sealed class CronExpression : ISerializable
             }
 
             // test for expressions that never generate a valid fire date,
-            if (nextFireTimeCursor.Date == null || nextFireTimeCursor.Date.Value.Year > MaxYear)
+            if (nextFireTimeCursor.Date == null || nextFireTimeCursor.Date.Value.Year > CronExpressionConstants.MaxYear)
             {
                 return null; // ran out of years
             }
