@@ -47,8 +47,6 @@ namespace Quartz.Impl.Calendar
     /// as, for example, WeeklyCalendar defines a set of days that are
     /// excluded <i>every week</i>. Likewise, <see cref="DailyCalendar" /> defines a
     /// set of times that are excluded <i>every day</i>.
-    ///
-    /// The minimum resolution of time supported by this calendar is one second.
     /// </para>
     /// </remarks>
     /// <author>Mike Funk</author>
@@ -63,7 +61,6 @@ namespace Quartz.Impl.Calendar
         private const string InvalidMillis = "Invalid millis: ";
         private const string InvalidTimeRange = "Invalid time range: ";
         private const string Separator = " - ";
-        private const long OneSecondInMillis = 1000;
         private const char Colon = ':';
 
         private const string TwoDigitFormat = "00";
@@ -80,6 +77,7 @@ namespace Quartz.Impl.Calendar
         private int rangeEndingMinute;
         private int rangeEndingSecond;
         private int rangeEndingMillis;
+        private int precisionStepMillis = 1000;
 
         private DailyCalendar()
         {
@@ -481,7 +479,7 @@ namespace Quartz.Impl.Calendar
         /// <seealso cref="ICalendar.GetNextIncludedTimeUtc"/>
         public override DateTimeOffset GetNextIncludedTimeUtc(DateTimeOffset timeUtc)
         {
-            DateTimeOffset nextIncludedTime = timeUtc.AddMilliseconds(OneSecondInMillis);
+            DateTimeOffset nextIncludedTime = timeUtc.AddMilliseconds(precisionStepMillis);
 
             while (!IsTimeIncluded(nextIncludedTime))
             {
@@ -499,7 +497,7 @@ namespace Quartz.Impl.Calendar
                         GetTimeRangeEndingTimeUtc(nextIncludedTime))
                     {
                         nextIncludedTime =
-                            GetTimeRangeEndingTimeUtc(nextIncludedTime).AddMilliseconds(OneSecondInMillis);
+                            GetTimeRangeEndingTimeUtc(nextIncludedTime).AddMilliseconds(precisionStepMillis);
                     }
                     else if (CalendarBase != null &&
                              !CalendarBase.IsTimeIncluded(nextIncludedTime))
@@ -509,7 +507,7 @@ namespace Quartz.Impl.Calendar
                     }
                     else
                     {
-                        nextIncludedTime = nextIncludedTime.AddMilliseconds(OneSecondInMillis);
+                        nextIncludedTime = nextIncludedTime.AddMilliseconds(precisionStepMillis);
                     }
                 }
                 else
@@ -531,7 +529,7 @@ namespace Quartz.Impl.Calendar
                     {
                         //(move to start of next day)
                         nextIncludedTime = GetEndOfDay(nextIncludedTime);
-                        nextIncludedTime = nextIncludedTime.AddMilliseconds(OneSecondInMillis);
+                        nextIncludedTime = nextIncludedTime.AddMilliseconds(precisionStepMillis);
                     }
                     else if (CalendarBase != null &&
                              !CalendarBase.IsTimeIncluded(nextIncludedTime))
@@ -541,7 +539,7 @@ namespace Quartz.Impl.Calendar
                     }
                     else
                     {
-                        nextIncludedTime = nextIncludedTime.AddMilliseconds(OneSecondInMillis);
+                        nextIncludedTime = nextIncludedTime.AddMilliseconds(precisionStepMillis);
                     }
                 }
             }
@@ -765,6 +763,22 @@ namespace Quartz.Impl.Calendar
             this.rangeEndingMinute = rangeEndingMinute;
             this.rangeEndingSecond = rangeEndingSecond;
             this.rangeEndingMillis = rangeEndingMillis;
+            
+          CalculationPrecisionStep();
+        }
+
+        private void CalculationPrecisionStep()
+        {
+            if (rangeStartingMillis != 0 || rangeEndingMillis != 0)
+            {
+                precisionStepMillis = 1;
+            }
+            else if (rangeStartingSecond != 0 || rangeEndingSecond != 0)
+            {
+                precisionStepMillis = 1000;
+            }
+            else 
+                precisionStepMillis = 60000;
         }
 
         /// <summary>

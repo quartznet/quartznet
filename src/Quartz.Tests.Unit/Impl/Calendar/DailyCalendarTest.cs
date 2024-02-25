@@ -71,6 +71,19 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             Assert.AreEqual(expectedStartTime, dailyCalendar.GetTimeRangeStartingTimeUtc(d).DateTime);
             Assert.AreEqual(expectedEndTime, dailyCalendar.GetTimeRangeEndingTimeUtc(d).DateTime);
         }
+        
+        [Test]
+        public void EnsureCalendarCanWorkWithMillisecondPrecision()
+        {
+            var  calendar = new DailyCalendar("14:25:10:05", "14:50");
+            
+            var time = new DateTime(2024, 2, 5, 10, 6, 0, DateTimeKind.Utc);
+            var expected = new DateTime(2024, 2, 5, 10, 6, 0,1, DateTimeKind.Utc);
+
+            var d = calendar.GetNextIncludedTimeUtc(time); 
+            d.Should().Be(expected);
+        }
+        
 
         [Test]
         public void TestStringInvertTimeRange()
