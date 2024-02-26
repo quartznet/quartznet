@@ -121,16 +121,20 @@ namespace Quartz.Impl.Calendar
 		/// </para>
 		/// </summary>
         public override bool IsTimeIncluded(DateTimeOffset timeStampUtc)
-		{
-			if (!base.IsTimeIncluded(timeStampUtc))
-			{
-				return false;
-			}
+	    {
+		    if (!base.IsTimeIncluded(timeStampUtc))
+		    {
+			    return false;
+		    }
 
+            return IsTimeIncludedThisCalendar(timeStampUtc);
+        }
+
+        private bool IsTimeIncludedThisCalendar(DateTimeOffset timeStampUtc)
+        {
             //apply the timezone
             timeStampUtc = TimeZoneUtil.ConvertTime(timeStampUtc, TimeZone);
-            DateTime lookFor = timeStampUtc.Date;
-
+            var lookFor = timeStampUtc.Date;
             return !dates.Contains(lookFor);
 		}
 
@@ -155,13 +159,18 @@ namespace Quartz.Impl.Calendar
 
             // Get timestamp for 00:00:00, with the correct timezone offset
             DateTimeOffset day = new DateTimeOffset(timeUtc.Date, timeUtc.Offset);
-
-			while (!IsTimeIncluded(day))
+            while (!IsTimeIncludedThisCalendar(day) || !base.IsTimeIncluded(timeUtc))
 			{
 				day = day.AddDays(1);
+            timeUtc = timeUtc.AddDays(1);
+            //ensure earliest value is assigned to return value
+            if (day < timeUtc)
+            {
+                timeUtc = day;
+            }
 			}
 
-            return day;
+            return timeUtc;
 		}
 
 	    /// <summary>

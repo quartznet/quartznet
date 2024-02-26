@@ -2,6 +2,11 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+## Release 3.NEXT, TBD
+ 
+* Fix Holiday Calendar with Nested Calendars sometimes crashing when resolving NextIncludedTime (#2270)
+
+
 ## Release 3.8.1, Feb 17 2024
 
 * Fix handling of env var quartz.config (#2212)
