@@ -2,7 +2,7 @@ namespace Quartz.Configuration;
 
 internal sealed class TriggerConfigurator : ITriggerConfigurator
 {
-    private readonly TriggerBuilder triggerBuilder = new TriggerBuilder();
+    private readonly TriggerBuilder triggerBuilder = TriggerBuilder.Create();
 
     public ITriggerConfigurator WithIdentity(string name)
     {

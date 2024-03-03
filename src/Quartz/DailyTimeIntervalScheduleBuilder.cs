@@ -69,6 +69,8 @@ namespace Quartz;
 /// <author>Nuno Maia (.NET)</author>
 public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTimeIntervalTrigger>
 {
+    private readonly TimeProvider timeProvider;
+
     private int interval = 1;
     private IntervalUnit intervalUnit = IntervalUnit.Minute;
     private HashSet<DayOfWeek>? daysOfWeek;
@@ -131,17 +133,19 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
         SaturdayAndSunday = new HashSet<DayOfWeek>(SaturdayAndSunday);
     }
 
-    private DailyTimeIntervalScheduleBuilder()
+    private DailyTimeIntervalScheduleBuilder(TimeProvider timeProvider)
     {
+        this.timeProvider = timeProvider;
     }
 
     /// <summary>
     /// Create a DailyTimeIntervalScheduleBuilder
     /// </summary>
+    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     /// <returns>The new DailyTimeIntervalScheduleBuilder</returns>
-    public static DailyTimeIntervalScheduleBuilder Create()
+    public static DailyTimeIntervalScheduleBuilder Create(TimeProvider? timeProvider = null)
     {
-        return new DailyTimeIntervalScheduleBuilder();
+        return new DailyTimeIntervalScheduleBuilder(timeProvider ?? TimeProvider.System);
     }
 
     /// <summary>
@@ -364,7 +368,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
             ThrowHelper.ThrowArgumentException("You must set the StartDailyAt() before calling this EndingDailyAfterCount()!");
         }
 
-        DateTimeOffset today = SystemTime.UtcNow();
+        DateTimeOffset today = timeProvider.GetUtcNow();
         DateTimeOffset startTimeOfDayDate = startTimeOfDayUtc.GetTimeOfDayForDate(today);
         DateTimeOffset maxEndTimeOfDayDate = TimeOfDay.HourMinuteAndSecondOfDay(23, 59, 59).GetTimeOfDayForDate(today);
 
@@ -412,7 +416,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
             ThrowHelper.ThrowArgumentException("The given count " + count + " is too large! The max you can set is " + maxNumOfCount);
         }
 
-        DateTime cal = SystemTime.UtcNow().Date;
+        DateTime cal = timeProvider.GetUtcNow().Date;
         cal = cal.Add(endTimeOfDayDate.TimeOfDay);
         endTimeOfDayUtc = TimeOfDay.HourMinuteAndSecondOfDay(cal.Hour, cal.Minute, cal.Second);
         return this;

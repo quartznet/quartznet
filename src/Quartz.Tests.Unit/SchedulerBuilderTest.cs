@@ -202,4 +202,10 @@ public class SchedulerBuilderTest
         Assert.That(builder.Properties["quartz.plugin.xml.failOnSchedulingError"], Is.EqualTo("true"));
         Assert.That(builder.Properties["quartz.plugin.xml.scanInterval"], Is.EqualTo("2"));
     }
+
+    [Test]
+    public void TestTimeProvider()
+    {
+
+    }
 }

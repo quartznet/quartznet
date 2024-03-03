@@ -49,6 +49,7 @@ public sealed class QuartzSchedulerResources
         _maxBatchSize = DefaultMaxBatchSize;
         _idleWaitTime = DefaultIdleWaitTime;
         _batchTimeWindow = DefaultBatchTimeWindow;
+        TimeProvider = TimeProvider.System;
     }
 
     /// <summary>
@@ -301,4 +302,6 @@ public sealed class QuartzSchedulerResources
     public bool InterruptJobsOnShutdown { get; set; }
 
     public bool InterruptJobsOnShutdownWithWait { get; set; }
+
+    public TimeProvider TimeProvider { get; set; }
 }

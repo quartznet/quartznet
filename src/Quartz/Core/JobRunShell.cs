@@ -181,7 +181,7 @@ public class JobRunShell : SchedulerListenerSupport
                     break;
                 }
 
-                DateTimeOffset startTime = SystemTime.UtcNow();
+                DateTimeOffset startTime = qs.resources.TimeProvider.GetUtcNow();
                 DateTimeOffset endTime;
 
 #if DIAGNOSTICS_SOURCE
@@ -202,17 +202,17 @@ public class JobRunShell : SchedulerListenerSupport
 
                     await job.Execute(jec).ConfigureAwait(false);
 
-                    endTime = SystemTime.UtcNow();
+                    endTime = qs.resources.TimeProvider.GetUtcNow();
                 }
                 catch (OperationCanceledException)
                     when (jec.CancellationToken.IsCancellationRequested)
                 {
-                    endTime = SystemTime.UtcNow();
+                    endTime = qs.resources.TimeProvider.GetUtcNow();
                     logger.LogInformation("Job {JobDetailKey} was cancelled", jobDetail.Key);
                 }
                 catch (JobExecutionException jee)
                 {
-                    endTime = SystemTime.UtcNow();
+                    endTime = qs.resources.TimeProvider.GetUtcNow();
                     jobExEx = jee;
 #if DIAGNOSTICS_SOURCE
                     jobExecutionJobDiagnostics.WriteException(activity, jobExEx);
@@ -221,7 +221,7 @@ public class JobRunShell : SchedulerListenerSupport
                 }
                 catch (Exception e)
                 {
-                    endTime = SystemTime.UtcNow();
+                    endTime = qs.resources.TimeProvider.GetUtcNow();
                     logger.LogError(e, "Job {JobDetailKey} threw an unhandled Exception: ", jobDetail.Key);
                     SchedulerException se = new SchedulerException("Job threw an unhandled exception.", e);
                     string msg = $"Job {jec.JobDetail.Key} threw an exception.";

@@ -33,6 +33,10 @@ public class AbstractTriggerTest
     [Serializable]
     private class TestTrigger : AbstractTrigger
     {
+        public TestTrigger() : base(TimeProvider.System)
+        {
+        }
+
         public override IScheduleBuilder GetScheduleBuilder()
         {
             throw new NotImplementedException();

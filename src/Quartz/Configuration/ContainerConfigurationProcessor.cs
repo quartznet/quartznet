@@ -16,8 +16,9 @@ internal sealed class ContainerConfigurationProcessor : XMLSchedulingDataProcess
     public ContainerConfigurationProcessor(
         ILogger<XMLSchedulingDataProcessor> logger,
         ITypeLoadHelper typeLoadHelper,
+        TimeProvider timeProvider,
         IOptions<QuartzOptions> options)
-        : base(logger, typeLoadHelper)
+        : base(logger, typeLoadHelper, timeProvider)
     {
         this.options = options;
     }

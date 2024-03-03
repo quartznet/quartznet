@@ -351,7 +351,7 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
         {
             context.JobDetail.Key.Name,
             context.JobDetail.Key.Group,
-            SystemTime.UtcNow(),
+            TimeProvider.System.GetUtcNow(),
             trigger.Key.Name,
             trigger.Key.Group,
             trigger.GetPreviousFireTimeUtc(),
@@ -368,7 +368,8 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
     /// has been executed, and be for the associated <see cref="ITrigger" />'s
     /// <see cref="IOperableTrigger.Triggered" /> method has been called.
     /// </summary>
-    public virtual ValueTask JobWasExecuted(IJobExecutionContext context,
+    public virtual ValueTask JobWasExecuted(
+        IJobExecutionContext context,
         JobExecutionException? jobException,
         CancellationToken cancellationToken = default)
     {
@@ -384,11 +385,17 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
             }
 
             string errMsg = jobException.Message;
-            args = new object?[]
-            {
-                context.JobDetail.Key.Name, context.JobDetail.Key.Group, SystemTime.UtcNow(), trigger.Key.Name, trigger.Key.Group,
-                trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, errMsg
-            };
+            args = [
+                context.JobDetail.Key.Name,
+                context.JobDetail.Key.Group,
+                TimeProvider.System.GetUtcNow(),
+                trigger.Key.Name,
+                trigger.Key.Group,
+                trigger.GetPreviousFireTimeUtc(),
+                trigger.GetNextFireTimeUtc(),
+                context.RefireCount,
+                errMsg
+            ];
 
             WriteWarning(string.Format(CultureInfo.InvariantCulture, JobFailedMessage, args), jobException);
         }
@@ -402,7 +409,7 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
             var result = Convert.ToString(context.Result, CultureInfo.InvariantCulture);
             args = new object?[]
             {
-                context.JobDetail.Key.Name, context.JobDetail.Key.Group, SystemTime.UtcNow(), trigger.Key.Name, trigger.Key.Group,
+                context.JobDetail.Key.Name, context.JobDetail.Key.Group, TimeProvider.System.GetUtcNow(), trigger.Key.Name, trigger.Key.Group,
                 trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, result
             };
 
@@ -433,7 +440,7 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
         {
             context.JobDetail.Key.Name,
             context.JobDetail.Key.Group,
-            SystemTime.UtcNow(),
+            TimeProvider.System.GetUtcNow(),
             trigger.Key.Name,
             trigger.Key.Group,
             trigger.GetPreviousFireTimeUtc(),

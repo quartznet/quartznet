@@ -77,7 +77,7 @@ internal sealed class ClusterManager
             token.ThrowIfCancellationRequested();
 
             TimeSpan timeToSleep = jobStoreSupport.ClusterCheckinInterval;
-            TimeSpan transpiredTime = SystemTime.UtcNow() - jobStoreSupport.LastCheckin;
+            TimeSpan transpiredTime = jobStoreSupport.timeProvider.GetUtcNow() - jobStoreSupport.LastCheckin;
             timeToSleep = timeToSleep - transpiredTime;
             if (timeToSleep <= TimeSpan.Zero)
             {

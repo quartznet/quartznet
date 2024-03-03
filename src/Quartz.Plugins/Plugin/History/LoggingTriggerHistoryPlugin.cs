@@ -297,16 +297,16 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
         }
 
         object?[] args =
-        {
+        [
             trigger.Key.Name,
             trigger.Key.Group,
             trigger.GetPreviousFireTimeUtc(),
             trigger.GetNextFireTimeUtc(),
-            SystemTime.UtcNow(),
+            TimeProvider.System.GetUtcNow(),
             context.JobDetail.Key.Name,
             context.JobDetail.Key.Group,
             context.RefireCount
-        };
+        ];
 
         WriteInfo(string.Format(CultureInfo.InvariantCulture, TriggerFiredMessage, args));
         return default;
@@ -334,15 +334,15 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
         }
 
         object?[] args =
-        {
+        [
             trigger.Key.Name,
             trigger.Key.Group,
             trigger.GetPreviousFireTimeUtc(),
             trigger.GetNextFireTimeUtc(),
-            SystemTime.UtcNow(),
+            TimeProvider.System.GetUtcNow(),
             trigger.JobKey.Name,
             trigger.JobKey.Group
-        };
+        ];
 
         WriteInfo(string.Format(CultureInfo.InvariantCulture, TriggerMisfiredMessage, args));
         return default;
@@ -393,18 +393,18 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
         }
 
         object?[] args =
-        {
+        [
             trigger.Key.Name,
             trigger.Key.Group,
             trigger.GetPreviousFireTimeUtc(),
             trigger.GetNextFireTimeUtc(),
-            SystemTime.UtcNow(),
+            TimeProvider.System.GetUtcNow(),
             context.JobDetail.Key.Name,
             context.JobDetail.Key.Group,
             context.RefireCount,
             triggerInstructionCode,
             instrCode
-        };
+        ];
 
         WriteInfo(string.Format(CultureInfo.InvariantCulture, TriggerCompleteMessage, args));
         return default;

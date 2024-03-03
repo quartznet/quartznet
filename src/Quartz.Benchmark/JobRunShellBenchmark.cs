@@ -127,6 +127,12 @@ public class JobRunShellBenchmark
         public string InstanceId { set => throw new NotImplementedException(); }
         public string InstanceName { set => throw new NotImplementedException(); }
         public int ThreadPoolSize { set => throw new NotImplementedException(); }
+        public TimeProvider TimeProvider { get; set; } = TimeProvider.System;
+
+        public TimeSpan GetAcquireRetryDelay(int failureCount)
+        {
+            throw new NotImplementedException();
+        }
 
         public ValueTask<IReadOnlyCollection<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow, CancellationToken cancellationToken = default)
         {

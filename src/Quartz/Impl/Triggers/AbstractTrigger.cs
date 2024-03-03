@@ -74,6 +74,9 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     private DateTimeOffset? endTimeUtc;
     private DateTimeOffset startTimeUtc;
 
+    private TimeProvider timeProvider;
+
+    internal TimeProvider TimeProvider => timeProvider;
 
     /// <summary>
     /// Gets or sets the key of the trigger.
@@ -305,8 +308,10 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// Note that <see cref="Key" /> and <see cref="JobKey" /> must be set before
     /// the <see cref="ITrigger" /> can be placed into a <see cref="IScheduler" />.
     /// </remarks>
-    protected AbstractTrigger()
+    /// <param name="timeProvider">Time provider instance to use</param>
+    protected AbstractTrigger(TimeProvider timeProvider)
     {
+        this.timeProvider = timeProvider;
     }
 
     /// <summary>
@@ -317,8 +322,9 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// can be placed into a <see cref="IScheduler" />.
     /// </remarks>
     /// <param name="name">The name.</param>
+    /// <param name="timeProvider">Time provider instance to use</param>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
-    protected AbstractTrigger(string name) : this(name, SchedulerConstants.DefaultGroup)
+    protected AbstractTrigger(string name, TimeProvider timeProvider) : this(name, SchedulerConstants.DefaultGroup, timeProvider)
     {
     }
 
@@ -331,8 +337,9 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// </remarks>
     /// <param name="name">The name.</param>
     /// <param name="group">The group.</param>
+    /// <param name="timeProvider">Time provider instance to use</param>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
-    protected AbstractTrigger(string name, string group)
+    protected AbstractTrigger(string name, string group, TimeProvider timeProvider) : this(timeProvider)
     {
         Key = new TriggerKey(name, group);
     }
@@ -344,8 +351,9 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// <param name="group">if <see langword="null" />, Scheduler.DefaultGroup will be used.</param>
     /// <param name="jobName">Name of the job.</param>
     /// <param name="jobGroup">The job group.</param>
+    /// <param name="timeProvider">Time provider instance to use</param>
     /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="group"/>, <paramref name="jobName"/> or <paramref name="jobGroup"/> are <see langword="null"/>.</exception>
-    protected AbstractTrigger(string name, string group, string jobName, string jobGroup)
+    protected AbstractTrigger(string name, string group, string jobName, string jobGroup, TimeProvider timeProvider) : this(timeProvider)
     {
         Key = new TriggerKey(name, group);
         JobKey = new JobKey(jobName, jobGroup);

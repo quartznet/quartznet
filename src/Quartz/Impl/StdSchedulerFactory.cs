@@ -99,6 +99,7 @@ public class StdSchedulerFactory : ISchedulerFactory
     public const string PropertySchedulerContextPrefix = "quartz.context.key";
     public const string PropertyThreadPoolPrefix = "quartz.threadPool";
     public const string PropertyThreadPoolType = "quartz.threadPool.type";
+    public const string PropertyTimeProviderType = "quartz.timeProvider.type";
     public const string PropertyJobStoreDbRetryInterval = "quartz.jobStore.dbRetryInterval";
     public const string PropertyJobStorePrefix = "quartz.jobStore";
     public const string PropertyJobStoreLockHandlerPrefix = PropertyJobStorePrefix + ".lockHandler";
@@ -386,6 +387,7 @@ Please add configuration to your application config file to correctly initialize
             throw initException;
         }
 
+        TimeProvider timeProvider = TimeProvider.System;
         ISchedulerExporter? exporter = null;
         IJobStore js;
         IThreadPool tp;
@@ -420,6 +422,13 @@ Please add configuration to your application config file to correctly initialize
         }
 
         loadHelper.Initialize();
+
+        string? timeProviderTypeString = cfg.GetStringProperty(PropertyTimeProviderType);
+        if (!string.IsNullOrWhiteSpace(timeProviderTypeString))
+        {
+            var timeProviderType = loadHelper.LoadType(timeProviderTypeString);
+            timeProvider = InstantiateType<TimeProvider>(timeProviderType);
+        }
 
         if (schedInstId.Equals(AutoGenerateInstanceId))
         {
@@ -982,6 +991,7 @@ Please add configuration to your application config file to correctly initialize
             rsrcs.InterruptJobsOnShutdown = interruptJobsOnShutdown;
             rsrcs.InterruptJobsOnShutdownWithWait = interruptJobsOnShutdownWithWait;
             rsrcs.SchedulerExporter = exporter;
+            rsrcs.TimeProvider = timeProvider;
 
             tp.InstanceName = schedName;
             tp.InstanceId = schedInstId;
@@ -1039,6 +1049,7 @@ Please add configuration to your application config file to correctly initialize
             js.InstanceId = schedInstId;
             js.InstanceName = schedName;
             js.ThreadPoolSize = tp.PoolSize;
+            js.TimeProvider = timeProvider;
             await js.Initialize(loadHelper, qs.SchedulerSignaler).ConfigureAwait(false);
 
             jrsf.Initialize(sched);

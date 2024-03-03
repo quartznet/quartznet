@@ -44,6 +44,7 @@ namespace Quartz.Plugin.Xml;
 /// <author>Pierre Awaragi</author>
 public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListener
 {
+    private readonly TimeProvider timeProvider;
     private const int MaxJobTriggerNameLength = 80;
     private const string JobInitializationPluginName = "XMLSchedulingDataProcessorPlugin";
     private const char FileNameDelimiter = ',';
@@ -60,16 +61,21 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
     /// <summary>
     /// Initializes a new instance of the <see cref="XMLSchedulingDataProcessorPlugin"/> class.
     /// </summary>
-    public XMLSchedulingDataProcessorPlugin() : this(new SimpleTypeLoadHelper())
+    public XMLSchedulingDataProcessorPlugin()
+        : this(LogProvider.CreateLogger<XMLSchedulingDataProcessorPlugin>(), new SimpleTypeLoadHelper(), TimeProvider.System)
     {
     }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="XMLSchedulingDataProcessorPlugin"/> class.
     /// </summary>
-    public XMLSchedulingDataProcessorPlugin(ITypeLoadHelper typeLoadHelper)
+    public XMLSchedulingDataProcessorPlugin(
+        ILogger<XMLSchedulingDataProcessorPlugin> logger,
+        ITypeLoadHelper typeLoadHelper,
+        TimeProvider timeProvider)
     {
-        logger = LogProvider.CreateLogger<XMLSchedulingDataProcessorPlugin>();
+        this.logger = logger;
+        this.timeProvider = timeProvider;
         TypeLoadHelper = typeLoadHelper;
     }
 
@@ -175,7 +181,7 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
                         // TODO: convert to use builder
                         var trig = new SimpleTriggerImpl();
                         trig.Key = tKey;
-                        trig.StartTimeUtc = SystemTime.UtcNow();
+                        trig.StartTimeUtc = TimeProvider.System.GetUtcNow();
                         trig.EndTimeUtc = null;
                         trig.RepeatCount = SimpleTriggerImpl.RepeatIndefinitely;
                         trig.RepeatInterval = ScanInterval;
@@ -275,7 +281,10 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
 
         try
         {
-            XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(LogProvider.CreateLogger<XMLSchedulingDataProcessor>(), TypeLoadHelper);
+            XMLSchedulingDataProcessor processor = new(
+                LogProvider.CreateLogger<XMLSchedulingDataProcessor>(),
+                TypeLoadHelper,
+                TimeProvider.System);
 
             processor.AddJobGroupToNeverDelete(JobInitializationPluginName);
             processor.AddTriggerGroupToNeverDelete(JobInitializationPluginName);

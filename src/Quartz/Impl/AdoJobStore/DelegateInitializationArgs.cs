@@ -53,4 +53,9 @@ public sealed class DelegateInitializationArgs
     /// settingName=settingValue|otherSettingName=otherSettingValue|...
     /// </remarks>
     public string? InitString { get; set; }
+
+    /// <summary>
+    /// Time provider to use, defaults to <see cref="System.TimeProvider.System"/>.
+    /// </summary>
+    public TimeProvider TimeProvider { get; set; } = TimeProvider.System;
 }

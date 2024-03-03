@@ -10,5 +10,5 @@ public static class TriggerConstants
     /// </summary>
     public const int DefaultPriority = 5;
 
-    public const int YearToGiveupSchedulingAt = 2200;
+    internal static readonly int YearToGiveUpSchedulingAt = TimeProvider.System.GetUtcNow().Year + 100;
 }
