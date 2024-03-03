@@ -162,6 +162,7 @@ public class StdSchedulerFactory : ISchedulerFactory
         PropertyThreadExecutor,
         PropertyThreadExecutorType,
         PropertyObjectSerializer,
+        PropertyTimeProviderType,
     };
 
     public const string DefaultInstanceId = "NON_CLUSTERED";
@@ -427,7 +428,15 @@ Please add configuration to your application config file to correctly initialize
         if (!string.IsNullOrWhiteSpace(timeProviderTypeString))
         {
             var timeProviderType = loadHelper.LoadType(timeProviderTypeString);
-            timeProvider = InstantiateType<TimeProvider>(timeProviderType);
+            if (timeProviderType is null)
+            {
+                logger.LogError("Unable to load time provider type: {TimeProviderType}", timeProviderTypeString);
+            }
+            else
+            {
+                timeProvider = InstantiateType<TimeProvider>(timeProviderType);
+                logger.LogInformation("Using custom time provider: {TimeProviderType}", timeProviderTypeString);
+            }
         }
 
         if (schedInstId.Equals(AutoGenerateInstanceId))

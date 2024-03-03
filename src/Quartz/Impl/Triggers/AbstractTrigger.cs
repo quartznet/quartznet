@@ -74,6 +74,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     private DateTimeOffset? endTimeUtc;
     private DateTimeOffset startTimeUtc;
 
+    [NonSerialized]
     private TimeProvider timeProvider;
 
     internal TimeProvider TimeProvider => timeProvider;
@@ -299,6 +300,11 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     public abstract bool HasMillisecondPrecision
     {
         get;
+    }
+
+    protected AbstractTrigger()
+    {
+        this.timeProvider = TimeProvider.System;
     }
 
     /// <summary>

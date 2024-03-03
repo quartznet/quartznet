@@ -88,6 +88,15 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
     }
 
     /// <summary>
+    /// Sets the custom time provider type to be used.
+    /// </summary>
+    public SchedulerBuilder UseTimeProvider<T>() where T : TimeProvider, new()
+    {
+        SetProperty(StdSchedulerFactory.PropertyTimeProviderType, typeof(T).AssemblyQualifiedNameWithoutVersion());
+        return this;
+    }
+
+    /// <summary>
     /// Sets the instance id of the scheduler (must be unique within a cluster).
     /// </summary>
     public string SchedulerId

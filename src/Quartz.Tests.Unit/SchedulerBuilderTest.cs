@@ -206,6 +206,11 @@ public class SchedulerBuilderTest
     [Test]
     public void TestTimeProvider()
     {
+        var builder = SchedulerBuilder.Create()
+            .UseTimeProvider<CustomTimeProvider>();
 
+        Assert.That(builder.Properties["quartz.timeProvider.type"], Is.EqualTo("Quartz.Tests.Unit.SchedulerBuilderTest+CustomTimeProvider, Quartz.Tests.Unit"));
     }
+
+    private sealed class CustomTimeProvider : TimeProvider;
 }
