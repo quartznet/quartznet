@@ -173,7 +173,7 @@ public class StdSchedulerFactory : ISchedulerFactory
 
     private PropertiesParser cfg = null!;
 
-    private ILogger<StdSchedulerFactory> logger = null!;
+    internal ILogger<StdSchedulerFactory> logger;
 
     private string SchedulerName
     {
