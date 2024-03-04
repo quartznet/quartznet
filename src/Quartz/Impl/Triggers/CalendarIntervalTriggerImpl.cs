@@ -72,11 +72,15 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
         set => timeZone = value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value);
     }
 
+    public CalendarIntervalTriggerImpl() : base(TimeProvider.System)
+    {
+    }
+
     /// <summary>
     /// Create a <see cref="ICalendarIntervalTrigger" /> with no settings.
     /// </summary>
     /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
-    public CalendarIntervalTriggerImpl(TimeProvider? timeProvider = null) : base(timeProvider ?? TimeProvider.System)
+    public CalendarIntervalTriggerImpl(TimeProvider timeProvider) : base(timeProvider)
     {
     }
 

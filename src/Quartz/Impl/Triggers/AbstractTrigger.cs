@@ -77,7 +77,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     [NonSerialized]
     private TimeProvider timeProvider;
 
-    internal TimeProvider TimeProvider => timeProvider;
+    internal TimeProvider TimeProvider => timeProvider ?? TimeProvider.System;
 
     /// <summary>
     /// Gets or sets the key of the trigger.
