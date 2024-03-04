@@ -44,7 +44,6 @@ namespace Quartz.Plugin.Xml;
 /// <author>Pierre Awaragi</author>
 public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListener
 {
-    private readonly TimeProvider timeProvider;
     private const int MaxJobTriggerNameLength = 80;
     private const string JobInitializationPluginName = "XMLSchedulingDataProcessorPlugin";
     private const char FileNameDelimiter = ',';
@@ -62,7 +61,7 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
     /// Initializes a new instance of the <see cref="XMLSchedulingDataProcessorPlugin"/> class.
     /// </summary>
     public XMLSchedulingDataProcessorPlugin()
-        : this(LogProvider.CreateLogger<XMLSchedulingDataProcessorPlugin>(), new SimpleTypeLoadHelper(), TimeProvider.System)
+        : this(LogProvider.CreateLogger<XMLSchedulingDataProcessorPlugin>(), new SimpleTypeLoadHelper())
     {
     }
 
@@ -71,11 +70,9 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
     /// </summary>
     public XMLSchedulingDataProcessorPlugin(
         ILogger<XMLSchedulingDataProcessorPlugin> logger,
-        ITypeLoadHelper typeLoadHelper,
-        TimeProvider timeProvider)
+        ITypeLoadHelper typeLoadHelper)
     {
         this.logger = logger;
-        this.timeProvider = timeProvider;
         TypeLoadHelper = typeLoadHelper;
     }
 

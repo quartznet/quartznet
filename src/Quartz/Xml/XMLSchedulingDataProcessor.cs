@@ -79,7 +79,7 @@ public class XMLSchedulingDataProcessor
     private readonly List<string> triggerGroupsToNeverDelete = new List<string>();
 
     private readonly ILogger<XMLSchedulingDataProcessor> logger;
-    private TimeProvider timeProvider;
+    private readonly TimeProvider timeProvider;
 
     /// <summary>
     /// Constructor for XMLSchedulingDataProcessor.
