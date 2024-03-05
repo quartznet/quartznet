@@ -6,7 +6,7 @@
 
 ### BREAKING CHANGES
 
-  * A lot of types were sealed and/or intenralized, these can be opened later on if needed. We are just trying to minimize API surface that needs to be maintained
+  * A lot of types were sealed and/or internalized, these can be opened later on if needed. We are just trying to minimize API surface that needs to be maintained
   * netstandard2.0 build no longer reference System.Configuration.ConfigurationManager and thus there's no support for Full Framework style .config files
   * **JobKey** and **TriggerKey** now throw an **ArgumentNullException** when you specify **null** for _name_ or _group_ (#1359)
   * The following properties have been removed from **AbstractTrigger** as they represent information that is already available through the **Key** and **JobKey** properties:
@@ -25,6 +25,8 @@
   * For **MaxBatchSize**, a value less than or equal to **zero** will be rejected.
   * The ctor for **QuartzScheduler** no longer takes an **idleWaitTime** argument. This value
     is now obtained from a newly introduced **IdleWaitTime** property on **QuartzSchedulerResources**.
+
+  * `SystemTime` was removed as way to provide "now", you can inject `TimeProvider` via configuration or `SchedulerBuilder.UseTimeProvider<T>()`
 
   * The `Equals(StringOperator? other)` method of **StringOperator** is now also virtual to allow it to be
     overridden in pair with `Equals(object? obj)` and `GetHashCode()`.
