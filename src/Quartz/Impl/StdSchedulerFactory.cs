@@ -438,6 +438,18 @@ Please add configuration to your application config file to correctly initialize
                 logger.LogInformation("Using custom time provider: {TimeProviderType}", timeProviderTypeString);
             }
         }
+        else
+        {
+            // try to resolve from DI, if possible
+            try
+            {
+                timeProvider = InstantiateType<TimeProvider>(implementationType: null);
+            }
+            catch
+            {
+                // ignore and default to system
+            }
+        }
 
         if (schedInstId.Equals(AutoGenerateInstanceId))
         {

@@ -40,8 +40,6 @@ public interface IServiceCollectionQuartzConfigurator : IPropertyConfigurer, IPr
     /// <inheritdoc cref="SchedulerBuilder.CheckConfiguration"/>
     bool CheckConfiguration { set; }
 
-    void UseTimeProvider<T>() where T : TimeProvider, new();
-
     /// <summary>
     /// Configure custom job factory.
     /// </summary>

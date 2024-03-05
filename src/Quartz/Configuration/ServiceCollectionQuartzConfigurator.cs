@@ -78,11 +78,6 @@ internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQu
         set => schedulerBuilder.CheckConfiguration = value;
     }
 
-    public void UseTimeProvider<T>() where T : TimeProvider, new()
-    {
-        schedulerBuilder.UseTimeProvider<T>();
-    }
-
     public void UseInMemoryStore(Action<SchedulerBuilder.InMemoryStoreOptions>? configure = null)
     {
         schedulerBuilder.UseInMemoryStore(configure);

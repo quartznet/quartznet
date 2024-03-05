@@ -78,6 +78,9 @@ public class Startup
         // custom connection provider
         services.AddSingleton<IDbProvider, CustomSqlServerConnectionProvider>();
 
+        // a custom time provider will be pulled from DI
+        services.AddSingleton<TimeProvider, CustomTimeProvider>();
+
         services.AddQuartz(q =>
         {
             // handy when part of cluster or you want to otherwise identify multiple schedulers
@@ -208,8 +211,6 @@ public class Startup
             {
                 options.UseNewtonsoftJsonSerializer();
             });
-
-            q.UseTimeProvider<CustomTimeProvider>();
 
             // example of persistent job store using JSON serializer as an example
             /*
