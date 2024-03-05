@@ -655,7 +655,10 @@ public interface IJobStore
     /// </summary>
     int ThreadPoolSize { set; }
 
-    /* TODO V4 add to interface
+    /// <summary>
+    /// Time provider to use.
+    /// </summary>
+    TimeProvider TimeProvider { set; }
 
     /// <summary>
     /// Get the amount of time (in ms) to wait when accessing this job store repeatedly fails.
@@ -670,6 +673,4 @@ public interface IJobStore
     /// <param name="failureCount">the number of successive failures seen so far</param>
     /// <returns>the time (in milliseconds) to wait before trying again</returns>
     TimeSpan GetAcquireRetryDelay(int failureCount);
-
-    */
 }

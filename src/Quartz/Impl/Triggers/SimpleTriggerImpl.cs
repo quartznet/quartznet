@@ -37,7 +37,6 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// ending timestamp.
     /// </summary>
     public const int RepeatIndefinitely = -1;
-    private const int YearToGiveupSchedulingAt = 2299;
 
     private DateTimeOffset? nextFireTimeUtc; // Making a public property which called GetNextFireTime/SetNextFireTime would make the json attribute unnecessary
     private DateTimeOffset? previousFireTimeUtc; // Making a public property which called GetPreviousFireTime/SetPreviousFireTime would make the json attribute unnecessary
@@ -46,10 +45,19 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     private TimeSpan repeatInterval = TimeSpan.Zero;
     private int timesTriggered;
 
+
     /// <summary>
     /// Create a <see cref="SimpleTriggerImpl" /> with no settings.
     /// </summary>
-    public SimpleTriggerImpl()
+    public SimpleTriggerImpl() : this(null)
+    {
+    }
+
+    /// <summary>
+    /// Create a <see cref="SimpleTriggerImpl" /> with no settings.
+    /// </summary>
+    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
+    public SimpleTriggerImpl(TimeProvider? timeProvider = null) : base(timeProvider ?? TimeProvider.System)
     {
     }
 
@@ -58,7 +66,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// not repeat.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
-    public SimpleTriggerImpl(string name) : this(name, SchedulerConstants.DefaultGroup)
+    public SimpleTriggerImpl(string name, TimeProvider? timeProvider = null) : this(name, SchedulerConstants.DefaultGroup, timeProvider)
     {
     }
 
@@ -67,8 +75,8 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// not repeat.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
-    public SimpleTriggerImpl(string name, string group)
-        : this(name, group, SystemTime.UtcNow(), null, 0, TimeSpan.Zero)
+    public SimpleTriggerImpl(string name, string group, TimeProvider? timeProvider = null)
+        : this(name, group, (timeProvider ?? TimeProvider.System).GetUtcNow(), endTimeUtc: null, repeatCount: 0, TimeSpan.Zero)
     {
     }
 
@@ -77,8 +85,8 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// repeat at the given interval the given number of times.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
-    public SimpleTriggerImpl(string name, int repeatCount, TimeSpan repeatInterval)
-        : this(name, SchedulerConstants.DefaultGroup, repeatCount, repeatInterval)
+    public SimpleTriggerImpl(string name, int repeatCount, TimeSpan repeatInterval, TimeProvider? timeProvider = null)
+        : this(name, SchedulerConstants.DefaultGroup, repeatCount, repeatInterval, timeProvider)
     {
     }
 
@@ -87,8 +95,8 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// repeat at the given interval the given number of times.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
-    public SimpleTriggerImpl(string name, string group, int repeatCount, TimeSpan repeatInterval)
-        : this(name, group, SystemTime.UtcNow(), null, repeatCount, repeatInterval)
+    public SimpleTriggerImpl(string name, string group, int repeatCount, TimeSpan repeatInterval, TimeProvider? timeProvider = null)
+        : this(name, group, (timeProvider ?? TimeProvider.System).GetUtcNow(), endTimeUtc: null, repeatCount, repeatInterval)
     {
     }
 
@@ -97,8 +105,8 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// and not repeat.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
-    public SimpleTriggerImpl(string name, DateTimeOffset startTimeUtc)
-        : this(name, SchedulerConstants.DefaultGroup, startTimeUtc)
+    public SimpleTriggerImpl(string name, DateTimeOffset startTimeUtc, TimeProvider? timeProvider = null)
+        : this(name, SchedulerConstants.DefaultGroup, startTimeUtc, timeProvider)
     {
     }
 
@@ -107,8 +115,8 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// and not repeat.
     /// </summary>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
-    public SimpleTriggerImpl(string name, string group, DateTimeOffset startTimeUtc)
-        : this(name, group, startTimeUtc, null, 0, TimeSpan.Zero)
+    public SimpleTriggerImpl(string name, string group, DateTimeOffset startTimeUtc, TimeProvider? timeProvider = null)
+        : this(name, group, startTimeUtc, endTimeUtc: null, 0, TimeSpan.Zero, timeProvider)
     {
     }
 
@@ -124,10 +132,16 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// <param name="repeatCount">The number of times for the <see cref="ITrigger" /> to repeat
     /// firing, use <see cref="RepeatIndefinitely "/> for unlimited times.</param>
     /// <param name="repeatInterval">The time span to pause between the repeat firing.</param>
+    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
-    public SimpleTriggerImpl(string name, DateTimeOffset startTimeUtc,
-        DateTimeOffset? endTimeUtc, int repeatCount, TimeSpan repeatInterval)
-        : this(name, SchedulerConstants.DefaultGroup, startTimeUtc, endTimeUtc, repeatCount, repeatInterval)
+    public SimpleTriggerImpl(
+        string name,
+        DateTimeOffset startTimeUtc,
+        DateTimeOffset? endTimeUtc,
+        int repeatCount,
+        TimeSpan repeatInterval,
+        TimeProvider? timeProvider = null)
+        : this(name, SchedulerConstants.DefaultGroup, startTimeUtc, endTimeUtc, repeatCount, repeatInterval, timeProvider)
     {
     }
 
@@ -144,6 +158,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// <param name="repeatCount">The number of times for the <see cref="ITrigger" /> to repeat
     /// firing, use <see cref="RepeatIndefinitely "/> for unlimited times.</param>
     /// <param name="repeatInterval">The time span to pause between the repeat firing.</param>
+    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
     public SimpleTriggerImpl(
         string name,
@@ -151,8 +166,9 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
         DateTimeOffset startTimeUtc,
         DateTimeOffset? endTimeUtc,
         int repeatCount,
-        TimeSpan repeatInterval)
-        : base(name, group)
+        TimeSpan repeatInterval,
+        TimeProvider? timeProvider = null)
+        : base(name, group, timeProvider ?? TimeProvider.System)
     {
         StartTimeUtc = startTimeUtc;
         EndTimeUtc = endTimeUtc;
@@ -176,11 +192,19 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     /// <param name="repeatCount">The number of times for the <see cref="ITrigger" /> to repeat
     /// firing, use RepeatIndefinitely for unlimited times.</param>
     /// <param name="repeatInterval">The time span to pause between the repeat firing.</param>
+    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="group"/>, <paramref name="jobName"/> or <paramref name="jobGroup"/> are <see langword="null"/>.</exception>
-    public SimpleTriggerImpl(string name, string group, string jobName, string jobGroup, DateTimeOffset startTimeUtc,
+    public SimpleTriggerImpl(
+        string name,
+        string group,
+        string jobName,
+        string jobGroup,
+        DateTimeOffset startTimeUtc,
         DateTimeOffset? endTimeUtc,
-        int repeatCount, TimeSpan repeatInterval)
-        : base(name, group, jobName, jobGroup)
+        int repeatCount,
+        TimeSpan repeatInterval,
+        TimeProvider? timeProvider = null)
+        : base(name, group, jobName, jobGroup, timeProvider ?? TimeProvider.System)
     {
         StartTimeUtc = startTimeUtc;
         EndTimeUtc = endTimeUtc;
@@ -379,7 +403,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
 
         if (instr == Quartz.MisfireInstruction.SimpleTrigger.FireNow)
         {
-            nextFireTimeUtc = SystemTime.UtcNow();
+            nextFireTimeUtc = TimeProvider.GetUtcNow();
         }
         else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount)
         {
@@ -397,7 +421,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
                     }
 
                     //avoid infinite loop
-                    if (newFireTime.GetValueOrDefault().Year > YearToGiveupSchedulingAt)
+                    if (newFireTime.GetValueOrDefault().Year > TriggerConstants.YearToGiveUpSchedulingAt)
                     {
                         newFireTime = null;
                         break;
@@ -422,7 +446,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
                     }
 
                     //avoid infinite loop
-                    if (newFireTime.GetValueOrDefault().Year > YearToGiveupSchedulingAt)
+                    if (newFireTime.GetValueOrDefault().Year > TriggerConstants.YearToGiveUpSchedulingAt)
                     {
                         newFireTime = null;
                         break;
@@ -446,7 +470,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
                 TimesTriggered = 0;
             }
 
-            DateTimeOffset newFireTime = SystemTime.UtcNow();
+            DateTimeOffset newFireTime = TimeProvider.GetUtcNow();
 
             if (EndTimeUtc.HasValue && EndTimeUtc.GetValueOrDefault() < newFireTime)
             {
@@ -460,7 +484,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
         }
         else if (instr == Quartz.MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount)
         {
-            DateTimeOffset newFireTime = SystemTime.UtcNow();
+            DateTimeOffset newFireTime = TimeProvider.GetUtcNow();
 
             if (repeatCount != 0 && repeatCount != RepeatIndefinitely)
             {
@@ -511,7 +535,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
                 }
 
                 //avoid infinite loop
-                if (nextFireTimeUtc.GetValueOrDefault().Year > YearToGiveupSchedulingAt)
+                if (nextFireTimeUtc.GetValueOrDefault().Year > TriggerConstants.YearToGiveUpSchedulingAt)
                 {
                     nextFireTimeUtc = null;
                     break;
@@ -534,7 +558,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
             return;
         }
 
-        DateTimeOffset now = SystemTime.UtcNow();
+        DateTimeOffset now = TimeProvider.GetUtcNow();
         while (nextFireTimeUtc.HasValue && !calendar.IsTimeIncluded(nextFireTimeUtc.GetValueOrDefault()))
         {
             nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
@@ -545,7 +569,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
             }
 
             //avoid infinite loop
-            if (nextFireTimeUtc.GetValueOrDefault().Year > YearToGiveupSchedulingAt)
+            if (nextFireTimeUtc.GetValueOrDefault().Year > TriggerConstants.YearToGiveUpSchedulingAt)
             {
                 nextFireTimeUtc = null;
             }
@@ -591,7 +615,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
                 }
 
                 //avoid infinite loop
-                if (nextFireTimeUtc.GetValueOrDefault().Year > YearToGiveupSchedulingAt)
+                if (nextFireTimeUtc.GetValueOrDefault().Year > TriggerConstants.YearToGiveUpSchedulingAt)
                 {
                     return null;
                 }
@@ -647,7 +671,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
 
         if (!afterTimeUtc.HasValue)
         {
-            afterTimeUtc = SystemTime.UtcNow();
+            afterTimeUtc = TimeProvider.GetUtcNow();
         }
 
         DateTimeOffset startMillis = StartTimeUtc;

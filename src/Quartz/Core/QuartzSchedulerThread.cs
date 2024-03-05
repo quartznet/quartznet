@@ -23,9 +23,7 @@ using System.Data.Common;
 
 using Microsoft.Extensions.Logging;
 
-using Quartz.Impl.AdoJobStore;
 using Quartz.Logging;
-using Quartz.Simpl;
 using Quartz.Spi;
 
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
@@ -268,7 +266,7 @@ internal sealed class QuartzSchedulerThread
                 {
                     List<IOperableTrigger> triggers;
 
-                    DateTimeOffset now = SystemTime.UtcNow();
+                    DateTimeOffset now = qsRsrcs.TimeProvider.GetUtcNow();
 
                     ClearSignaledSchedulingChange();
                     try
@@ -312,7 +310,7 @@ internal sealed class QuartzSchedulerThread
 
                     if (triggers != null && triggers.Count > 0)
                     {
-                        now = SystemTime.UtcNow();
+                        now = qsRsrcs.TimeProvider.GetUtcNow();
                         DateTimeOffset triggerTime = triggers[0].GetNextFireTimeUtc()!.Value;
                         TimeSpan timeUntilTrigger = triggerTime - now;
 
@@ -334,7 +332,7 @@ internal sealed class QuartzSchedulerThread
                                     {
                                         // we could have blocked a long while
                                         // on 'synchronize', so we must recompute
-                                        now = SystemTime.UtcNow();
+                                        now = qsRsrcs.TimeProvider.GetUtcNow();
                                         timeUntilTrigger = triggerTime - now;
                                         if (timeUntilTrigger > TimeSpan.Zero)
                                         {
@@ -350,7 +348,7 @@ internal sealed class QuartzSchedulerThread
                             {
                                 break;
                             }
-                            now = SystemTime.UtcNow();
+                            now = qsRsrcs.TimeProvider.GetUtcNow();
                             timeUntilTrigger = triggerTime - now;
                         }
 
@@ -494,15 +492,7 @@ internal sealed class QuartzSchedulerThread
         var delay = TimeSpan.FromMilliseconds(100);
         try
         {
-            // TODO v4, use interface
-            if (jobStore is JobStoreSupport jobStoreSupport)
-            {
-                delay = jobStoreSupport.GetAcquireRetryDelay(acquiresFailed);
-            }
-            else if (jobStore is RAMJobStore ramJobStore)
-            {
-                delay = ramJobStore.GetAcquireRetryDelay(acquiresFailed);
-            }
+            delay = jobStore.GetAcquireRetryDelay(acquiresFailed);
         }
         catch
         {
@@ -581,7 +571,7 @@ internal sealed class QuartzSchedulerThread
             if (earlier)
             {
                 // so the new time is considered earlier, but is it enough earlier?
-                TimeSpan diff = oldTimeUtc - SystemTime.UtcNow();
+                TimeSpan diff = oldTimeUtc - qsRsrcs.TimeProvider.GetUtcNow();
                 if (diff < (qsRsrcs.JobStore.SupportsPersistence ? TimeSpan.FromMilliseconds(70) : TimeSpan.FromMilliseconds(7)))
                 {
                     earlier = false;

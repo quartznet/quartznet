@@ -336,7 +336,7 @@ public sealed class QuartzScheduler :
 
         if (!initialStart.HasValue)
         {
-            initialStart = SystemTime.UtcNow();
+            initialStart = this.resources.TimeProvider.GetUtcNow();
             await resources.JobStore.SchedulerStarted(cancellationToken).ConfigureAwait(false);
             await StartPlugins(cancellationToken).ConfigureAwait(false);
         }
@@ -947,7 +947,14 @@ public sealed class QuartzScheduler :
 
         // TODO: use builder
         IOperableTrigger trig = new SimpleTriggerImpl(
-            NewTriggerId(), SchedulerConstants.DefaultGroup, jobKey.Name, jobKey.Group, SystemTime.UtcNow(), null, 0, TimeSpan.Zero);
+            NewTriggerId(),
+            SchedulerConstants.DefaultGroup,
+            jobKey.Name,
+            jobKey.Group,
+            this.resources.TimeProvider.GetUtcNow(),
+            null,
+            0,
+            TimeSpan.Zero);
 
         trig.ComputeFirstFireTimeUtc(null);
         if (data != null)

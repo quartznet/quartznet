@@ -99,6 +99,7 @@ public class StdSchedulerFactory : ISchedulerFactory
     public const string PropertySchedulerContextPrefix = "quartz.context.key";
     public const string PropertyThreadPoolPrefix = "quartz.threadPool";
     public const string PropertyThreadPoolType = "quartz.threadPool.type";
+    public const string PropertyTimeProviderType = "quartz.timeProvider.type";
     public const string PropertyJobStoreDbRetryInterval = "quartz.jobStore.dbRetryInterval";
     public const string PropertyJobStorePrefix = "quartz.jobStore";
     public const string PropertyJobStoreLockHandlerPrefix = PropertyJobStorePrefix + ".lockHandler";
@@ -161,6 +162,7 @@ public class StdSchedulerFactory : ISchedulerFactory
         PropertyThreadExecutor,
         PropertyThreadExecutorType,
         PropertyObjectSerializer,
+        PropertyTimeProviderType,
     };
 
     public const string DefaultInstanceId = "NON_CLUSTERED";
@@ -171,7 +173,7 @@ public class StdSchedulerFactory : ISchedulerFactory
 
     private PropertiesParser cfg = null!;
 
-    private ILogger<StdSchedulerFactory> logger = null!;
+    internal ILogger<StdSchedulerFactory> logger;
 
     private string SchedulerName
     {
@@ -386,6 +388,7 @@ Please add configuration to your application config file to correctly initialize
             throw initException;
         }
 
+        TimeProvider timeProvider = TimeProvider.System;
         ISchedulerExporter? exporter = null;
         IJobStore js;
         IThreadPool tp;
@@ -420,6 +423,21 @@ Please add configuration to your application config file to correctly initialize
         }
 
         loadHelper.Initialize();
+
+        string? timeProviderTypeString = cfg.GetStringProperty(PropertyTimeProviderType);
+        if (!string.IsNullOrWhiteSpace(timeProviderTypeString))
+        {
+            var timeProviderType = loadHelper.LoadType(timeProviderTypeString);
+            if (timeProviderType is null)
+            {
+                logger.LogError("Unable to load time provider type: {TimeProviderType}", timeProviderTypeString);
+            }
+            else
+            {
+                timeProvider = InstantiateType<TimeProvider>(timeProviderType);
+                logger.LogInformation("Using custom time provider: {TimeProviderType}", timeProviderTypeString);
+            }
+        }
 
         if (schedInstId.Equals(AutoGenerateInstanceId))
         {
@@ -982,6 +1000,7 @@ Please add configuration to your application config file to correctly initialize
             rsrcs.InterruptJobsOnShutdown = interruptJobsOnShutdown;
             rsrcs.InterruptJobsOnShutdownWithWait = interruptJobsOnShutdownWithWait;
             rsrcs.SchedulerExporter = exporter;
+            rsrcs.TimeProvider = timeProvider;
 
             tp.InstanceName = schedName;
             tp.InstanceId = schedInstId;
@@ -1039,6 +1058,7 @@ Please add configuration to your application config file to correctly initialize
             js.InstanceId = schedInstId;
             js.InstanceName = schedName;
             js.ThreadPoolSize = tp.PoolSize;
+            js.TimeProvider = timeProvider;
             await js.Initialize(loadHelper, qs.SchedulerSignaler).ConfigureAwait(false);
 
             jrsf.Initialize(sched);

@@ -60,6 +60,7 @@ public class RAMJobStore : IJobStore
     private readonly HashSet<JobKey> blockedJobs = new HashSet<JobKey>();
     private TimeSpan misfireThreshold = TimeSpan.FromSeconds(5);
     private ISchedulerSignaler signaler = null!;
+    private TimeProvider timeProvider = TimeProvider.System;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RAMJobStore"/> class.
@@ -92,7 +93,7 @@ public class RAMJobStore : IJobStore
         }
     }
 
-    private static long ftrCtr = SystemTime.UtcNow().Ticks;
+    private static long ftrCtr = TimeProvider.System.GetTimestamp();
 
     /// <summary>
     /// Gets the fired trigger record id.
@@ -1538,7 +1539,7 @@ public class RAMJobStore : IJobStore
             return false;
         }
 
-        DateTimeOffset misfireTime = SystemTime.UtcNow();
+        DateTimeOffset misfireTime = timeProvider.GetUtcNow();
         if (MisfireThreshold > TimeSpan.Zero)
         {
             misfireTime = misfireTime.AddTicks(-1 * MisfireThreshold.Ticks);
@@ -1679,7 +1680,7 @@ public class RAMJobStore : IJobStore
                 // more than one trigger.
                 if (result.Count == 1)
                 {
-                    var now = SystemTime.UtcNow();
+                    var now = timeProvider.GetUtcNow();
                     var nextFireTime = tnft.GetValueOrDefault();
                     var max = now > nextFireTime ? now : nextFireTime;
 
@@ -1771,7 +1772,7 @@ public class RAMJobStore : IJobStore
                     trigger,
                     cal,
                     false,
-                    SystemTime.UtcNow(),
+                    timeProvider.GetUtcNow(),
                     trigger.GetPreviousFireTimeUtc(),
                     prevFireTime,
                     trigger.GetNextFireTimeUtc());
@@ -1931,7 +1932,7 @@ public class RAMJobStore : IJobStore
     /// Inform the <see cref="IJobStore" /> of the Scheduler instance's Id,
     /// prior to initialize being invoked.
     /// </summary>
-    public virtual string InstanceId
+    string IJobStore.InstanceId
     {
         set { }
     }
@@ -1940,14 +1941,19 @@ public class RAMJobStore : IJobStore
     /// Inform the <see cref="IJobStore" /> of the Scheduler instance's name,
     /// prior to initialize being invoked.
     /// </summary>
-    public virtual string InstanceName
+    string IJobStore.InstanceName
     {
         set { }
     }
 
-    public int ThreadPoolSize
+    int IJobStore.ThreadPoolSize
     {
         set { }
+    }
+
+    TimeProvider IJobStore.TimeProvider
+    {
+        set => timeProvider = value;
     }
 
     public long EstimatedTimeToReleaseAndAcquireTrigger => 5;

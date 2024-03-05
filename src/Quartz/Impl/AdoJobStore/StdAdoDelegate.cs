@@ -51,10 +51,15 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
     private string instanceId = null!;
     private string schedName = null!;
     private bool useProperties;
+
     private ITypeLoadHelper typeLoadHelper = null!;
     private AdoUtil adoUtil = null!;
-    private readonly List<ITriggerPersistenceDelegate> triggerPersistenceDelegates = new List<ITriggerPersistenceDelegate>();
+
+    private readonly List<ITriggerPersistenceDelegate> triggerPersistenceDelegates = new();
+
     private IObjectSerializer objectSerializer = null!;
+    private TimeProvider timeProvider = null!;
+
     private readonly ConcurrentDictionary<string, string> cachedQueries = new();
 
     protected IDbProvider DbProvider { get; private set; } = null!;
@@ -73,6 +78,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
         useProperties = args.UseProperties;
         adoUtil = new AdoUtil(args.DbProvider);
         objectSerializer = args.ObjectSerializer!;
+        timeProvider = args.TimeProvider;
 
         AddDefaultTriggerPersistenceDelegates();
 

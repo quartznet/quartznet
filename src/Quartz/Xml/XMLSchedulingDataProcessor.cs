@@ -77,17 +77,24 @@ public class XMLSchedulingDataProcessor
 
     private readonly List<string> jobGroupsToNeverDelete = new List<string>();
     private readonly List<string> triggerGroupsToNeverDelete = new List<string>();
+
     private readonly ILogger<XMLSchedulingDataProcessor> logger;
+    private readonly TimeProvider timeProvider;
 
     /// <summary>
     /// Constructor for XMLSchedulingDataProcessor.
     /// </summary>
-    public XMLSchedulingDataProcessor(ILogger<XMLSchedulingDataProcessor> logger, ITypeLoadHelper typeLoadHelper)
+    public XMLSchedulingDataProcessor(
+        ILogger<XMLSchedulingDataProcessor> logger,
+        ITypeLoadHelper typeLoadHelper,
+        TimeProvider timeProvider)
     {
-        OverWriteExistingData = true;
-        IgnoreDuplicates = false;
         this.logger = logger;
         TypeLoadHelper = typeLoadHelper;
+        this.timeProvider = timeProvider;
+
+        OverWriteExistingData = true;
+        IgnoreDuplicates = false;
     }
 
     /// <summary>
@@ -416,7 +423,7 @@ public class XMLSchedulingDataProcessor
                 triggerPriority = Convert.ToInt32(triggerNode.Item.priority);
             }
 
-            DateTimeOffset triggerStartTime = SystemTime.UtcNow();
+            DateTimeOffset triggerStartTime = timeProvider.GetUtcNow();
             if (triggerNode.Item.Item != null)
             {
                 if (triggerNode.Item.Item is DateTime time)
@@ -946,7 +953,7 @@ public class XMLSchedulingDataProcessor
         CancellationToken cancellationToken = default)
     {
         // if this is a trigger with default start time we can consider relative scheduling
-        if (oldTrigger != null && trigger.StartTimeUtc - SystemTime.UtcNow() < TimeSpan.FromSeconds(5) && ScheduleTriggerRelativeToReplacedTrigger)
+        if (oldTrigger != null && trigger.StartTimeUtc - timeProvider.GetUtcNow() < TimeSpan.FromSeconds(5) && ScheduleTriggerRelativeToReplacedTrigger)
         {
             logger.LogDebug("Using relative scheduling for trigger with key {TriggerKey}", trigger.Key);
 

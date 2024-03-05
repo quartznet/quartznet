@@ -40,7 +40,7 @@ internal sealed class MisfireHandler
         {
             token.ThrowIfCancellationRequested();
 
-            DateTimeOffset sTime = SystemTime.UtcNow();
+            DateTimeOffset sTime = jobStoreSupport.timeProvider.GetUtcNow();
 
             RecoverMisfiredJobsResult recoverMisfiredJobsResult = await Manage().ConfigureAwait(false);
 
@@ -54,7 +54,7 @@ internal sealed class MisfireHandler
             TimeSpan timeToSleep = TimeSpan.FromMilliseconds(50); // At least a short pause to help balance threads
             if (!recoverMisfiredJobsResult.HasMoreMisfiredTriggers)
             {
-                timeToSleep = jobStoreSupport.MisfireHandlerFrequency - (SystemTime.UtcNow() - sTime);
+                timeToSleep = jobStoreSupport.MisfireHandlerFrequency - (jobStoreSupport.timeProvider.GetUtcNow() - sTime);
                 if (timeToSleep <= TimeSpan.Zero)
                 {
                     timeToSleep = TimeSpan.FromMilliseconds(50);

@@ -66,8 +66,6 @@ public sealed class DateBuilder
     /// <summary>
     /// Create a DateBuilder, with initial settings for the current date and time in the given timezone.
     /// </summary>
-    /// <param name="timeProvider"></param>
-    /// <param name="tz"></param>
     private DateBuilder(TimeProvider timeProvider, TimeZoneInfo? tz = null)
     {
         if (tz != null)
@@ -92,7 +90,7 @@ public sealed class DateBuilder
     /// <returns></returns>
     public static DateBuilder NewDate(TimeProvider? timeProvider = null)
     {
-        return timeProvider == null ? new DateBuilder(TimeProvider.System) : new DateBuilder(timeProvider);
+        return new DateBuilder(timeProvider ?? TimeProvider.System);
     }
 
     /// <summary>
@@ -103,7 +101,7 @@ public sealed class DateBuilder
     /// <returns></returns>
     public static DateBuilder NewDateInTimeZone(TimeZoneInfo tz, TimeProvider? timeProvider = null)
     {
-        return timeProvider == null ? new DateBuilder(TimeProvider.System, tz) : new DateBuilder(timeProvider, tz);
+        return new DateBuilder(timeProvider ?? TimeProvider.System, tz);
     }
 
     /// <summary>
@@ -228,27 +226,21 @@ public sealed class DateBuilder
         return this;
     }
 
-    public static DateTimeOffset FutureDate(int interval, IntervalUnit unit)
+    public static DateTimeOffset FutureDate(int interval, IntervalUnit unit, TimeProvider? timeProvider = null)
     {
-        return TranslatedAdd(SystemTime.Now(), unit, interval);
+        return TranslatedAdd((timeProvider ?? TimeProvider.System).GetLocalNow(), unit, interval);
     }
 
-
     /// <summary>
-    /// Get a <see cref="DateTimeOffset" /> object that represents the given time, on
-    /// tomorrow's date.
+    /// Get a <see cref="DateTimeOffset" /> object that represents the given time, on tomorrow's date.
     /// </summary>
-    /// <param name="hour"></param>
-    /// <param name="minute"></param>
-    /// <param name="second"></param>
-    /// <returns></returns>
-    public static DateTimeOffset TomorrowAt(int hour, int minute, int second)
+    public static DateTimeOffset TomorrowAt(int hour, int minute, int second, TimeProvider? timeProvider = null)
     {
         ValidateSecond(second);
         ValidateMinute(minute);
         ValidateHour(hour);
 
-        DateTimeOffset now = TimeProvider.System.GetLocalNow();
+        DateTimeOffset now = (timeProvider ?? TimeProvider.System).GetLocalNow();
         DateTimeOffset c = new DateTimeOffset(
             now.Year,
             now.Month,
@@ -266,16 +258,11 @@ public sealed class DateBuilder
     }
 
     /// <summary>
-    /// Get a <see cref="DateTimeOffset" /> object that represents the given time, on
-    /// today's date (equivalent to <see cref="DateOf(int,int,int)" />).
+    /// Get a <see cref="DateTimeOffset" /> object that represents the given time, on today's date (equivalent to <see cref="DateOf(int,int,int,TimeProvider)" />).
     /// </summary>
-    /// <param name="hour"></param>
-    /// <param name="minute"></param>
-    /// <param name="second"></param>
-    /// <returns></returns>
-    public static DateTimeOffset TodayAt(int hour, int minute, int second)
+    public static DateTimeOffset TodayAt(int hour, int minute, int second, TimeProvider? timeProvider = null)
     {
-        return DateOf(hour, minute, second);
+        return DateOf(hour, minute, second, timeProvider);
     }
 
     private static DateTimeOffset TranslatedAdd(DateTimeOffset date, IntervalUnit unit, int amountToAdd)
@@ -310,14 +297,15 @@ public sealed class DateBuilder
     /// <param name="second">The value (0-59) to give the seconds field of the date</param>
     /// <param name="minute">The value (0-59) to give the minutes field of the date</param>
     /// <param name="hour">The value (0-23) to give the hours field of the date</param>
+    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     /// <returns>the new date</returns>
-    public static DateTimeOffset DateOf(int hour, int minute, int second)
+    public static DateTimeOffset DateOf(int hour, int minute, int second, TimeProvider? timeProvider = null)
     {
         ValidateSecond(second);
         ValidateMinute(minute);
         ValidateHour(hour);
 
-        DateTimeOffset c = SystemTime.Now();
+        DateTimeOffset c = (timeProvider ?? TimeProvider.System).GetLocalNow();
         DateTime dt = new DateTime(c.Year, c.Month, c.Day, hour, minute, second);
         return new DateTimeOffset(dt, TimeZoneUtil.GetUtcOffset(dt, TimeZoneInfo.Local));
     }
@@ -331,9 +319,9 @@ public sealed class DateBuilder
     /// <param name="hour">The value (0-23) to give the hours field of the date</param>
     /// <param name="dayOfMonth">The value (1-31) to give the day of month field of the date</param>
     /// <param name="month">The value (1-12) to give the month field of the date</param>
+    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     /// <returns>the new date</returns>
-    public static DateTimeOffset DateOf(int hour, int minute, int second,
-        int dayOfMonth, int month)
+    public static DateTimeOffset DateOf(int hour, int minute, int second, int dayOfMonth, int month, TimeProvider? timeProvider = null)
     {
         ValidateSecond(second);
         ValidateMinute(minute);
@@ -341,7 +329,7 @@ public sealed class DateBuilder
         ValidateDayOfMonth(dayOfMonth);
         ValidateMonth(month);
 
-        DateTimeOffset c = SystemTime.Now();
+        DateTimeOffset c = (timeProvider ?? TimeProvider.System).GetLocalNow();
         DateTime dt = new DateTime(c.Year, month, dayOfMonth, hour, minute, second);
         return new DateTimeOffset(dt, TimeZoneUtil.GetUtcOffset(dt, TimeZoneInfo.Local));
     }
@@ -359,8 +347,7 @@ public sealed class DateBuilder
     /// <param name="month">The value (1-12) to give the month field of the date</param>
     /// <param name="year">The value (1970-2099) to give the year field of the date</param>
     /// <returns>the new date</returns>
-    public static DateTimeOffset DateOf(int hour, int minute, int second,
-        int dayOfMonth, int month, int year)
+    public static DateTimeOffset DateOf(int hour, int minute, int second, int dayOfMonth, int month, int year)
     {
         ValidateSecond(second);
         ValidateMinute(minute);
@@ -381,10 +368,11 @@ public sealed class DateBuilder
     /// with the time of 09:00:00. If the date's time is in the 23rd hour, the
     /// date's 'day' will be promoted, and the time will be set to 00:00:00.
     /// </remarks>
+    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     /// <returns>the new rounded date</returns>
-    public static DateTimeOffset EvenHourDateAfterNow()
+    public static DateTimeOffset EvenHourDateAfterNow(TimeProvider? timeProvider = null)
     {
-        return EvenHourDate(null);
+        return EvenHourDate(date: null, timeProvider);
     }
 
     /// <summary>
@@ -397,12 +385,13 @@ public sealed class DateBuilder
     /// </remarks>
     /// <param name="date">the Date to round, if <see langword="null" /> the current time will
     /// be used</param>
+    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     /// <returns>the new rounded date</returns>
-    public static DateTimeOffset EvenHourDate(DateTimeOffset? date)
+    public static DateTimeOffset EvenHourDate(DateTimeOffset? date, TimeProvider? timeProvider = null)
     {
         if (!date.HasValue)
         {
-            date = SystemTime.Now();
+            date = (timeProvider ?? TimeProvider.System).GetLocalNow();
         }
         DateTimeOffset d = date.Value.AddHours(1);
         return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, 0, 0, d.Offset);
@@ -415,14 +404,14 @@ public sealed class DateBuilder
     /// For example an input date with a time of 08:13:54 would result in a date
     /// with the time of 08:00:00.
     /// </remarks>
-    /// <param name="date">the Date to round, if <see langword="null" /> the current time will
-    /// be used</param>
+    /// <param name="date">the Date to round, if <see langword="null" /> the current time will be used</param>
+    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     /// <returns>the new rounded date</returns>
-    public static DateTimeOffset EvenHourDateBefore(DateTimeOffset? date)
+    public static DateTimeOffset EvenHourDateBefore(DateTimeOffset? date, TimeProvider? timeProvider = null)
     {
         if (!date.HasValue)
         {
-            date = SystemTime.Now();
+            date = (timeProvider ?? TimeProvider.System).GetLocalNow();
         }
         return new DateTimeOffset(date.Value.Year, date.Value.Month, date.Value.Day, date.Value.Hour, 0, 0, date.Value.Offset);
     }
@@ -437,10 +426,11 @@ public sealed class DateBuilder
     /// with the time of 08:14:00. If the date's time is in the 59th minute,
     /// then the hour (and possibly the day) will be promoted.
     /// </remarks>
+    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     /// <returns>the new rounded date</returns>
-    public static DateTimeOffset EvenMinuteDateAfterNow()
+    public static DateTimeOffset EvenMinuteDateAfterNow(TimeProvider? timeProvider = null)
     {
-        return EvenMinuteDate(SystemTime.Now());
+        return EvenMinuteDate((timeProvider ?? TimeProvider.System).GetLocalNow());
     }
 
     /// <summary>
@@ -452,12 +442,13 @@ public sealed class DateBuilder
     /// then the hour (and possibly the day) will be promoted.
     /// </remarks>
     /// <param name="date">The Date to round, if <see langword="null" /> the current time will  be used</param>
+    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     /// <returns>The new rounded date</returns>
-    public static DateTimeOffset EvenMinuteDate(DateTimeOffset? date)
+    public static DateTimeOffset EvenMinuteDate(DateTimeOffset? date, TimeProvider? timeProvider = null)
     {
         if (!date.HasValue)
         {
-            date = SystemTime.Now();
+            date = (timeProvider ?? TimeProvider.System).GetLocalNow();
         }
 
         DateTimeOffset d = date.Value;
@@ -472,14 +463,14 @@ public sealed class DateBuilder
     /// For example an input date with a time of 08:13:54 would result in a date
     /// with the time of 08:13:00.
     /// </remarks>
-    /// <param name="date">the Date to round, if <see langword="null" /> the current time will
-    /// be used</param>
+    /// <param name="date">the Date to round, if <see langword="null" /> the current time will be used</param>
+    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     /// <returns>the new rounded date</returns>
-    public static DateTimeOffset EvenMinuteDateBefore(DateTimeOffset? date)
+    public static DateTimeOffset EvenMinuteDateBefore(DateTimeOffset? date, TimeProvider? timeProvider = null)
     {
         if (!date.HasValue)
         {
-            date = SystemTime.Now();
+            date = (timeProvider ?? TimeProvider.System).GetLocalNow();
         }
 
         DateTimeOffset d = date.Value;
@@ -490,9 +481,9 @@ public sealed class DateBuilder
     /// Returns a date that is rounded to the next even second after the current time.
     /// </summary>
     /// <returns>the new rounded date</returns>
-    public static DateTimeOffset EvenSecondDateAfterNow()
+    public static DateTimeOffset EvenSecondDateAfterNow(TimeProvider? timeProvider = null)
     {
-        return EvenSecondDate(SystemTime.Now());
+        return EvenSecondDate((timeProvider ?? TimeProvider.System).GetLocalNow());
     }
 
     /// <summary>
@@ -610,21 +601,19 @@ public sealed class DateBuilder
     /// </table>
     /// </para>
     /// </remarks>
-    /// <param name="date"></param>
-    /// the Date to round, if <see langword="null" /> the current time will
-    /// be used
-    /// <param name="minuteBase"></param>
-    /// the base-minute to set the time on
+    /// <param name="date">the Date to round, if <see langword="null" /> the current time will be used</param>
+    /// <param name="minuteBase"> the base-minute to set the time on</param>
+    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     /// <returns>the new rounded date</returns>
-    /// <seealso cref="NextGivenSecondDate(DateTimeOffset?, int)" />
-    public static DateTimeOffset NextGivenMinuteDate(DateTimeOffset? date, int minuteBase)
+    /// <seealso cref="NextGivenSecondDate(DateTimeOffset?, int, TimeProvider)" />
+    public static DateTimeOffset NextGivenMinuteDate(DateTimeOffset? date, int minuteBase, TimeProvider? timeProvider = null)
     {
         if (minuteBase < 0 || minuteBase > 59)
         {
             ThrowHelper.ThrowArgumentException("minuteBase must be >=0 and <= 59");
         }
 
-        DateTimeOffset c = date ?? SystemTime.Now();
+        DateTimeOffset c = date ?? (timeProvider ?? TimeProvider.System).GetLocalNow();
 
         if (minuteBase == 0)
         {
@@ -656,15 +645,16 @@ public sealed class DateBuilder
     /// be used
     /// <param name="secondBase">the base-second to set the time on</param>
     /// <returns>the new rounded date</returns>
-    /// <seealso cref="NextGivenMinuteDate(DateTimeOffset?, int)" />
-    public static DateTimeOffset NextGivenSecondDate(DateTimeOffset? date, int secondBase)
+    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
+    /// <seealso cref="NextGivenMinuteDate(DateTimeOffset?, int, TimeProvider)" />
+    public static DateTimeOffset NextGivenSecondDate(DateTimeOffset? date, int secondBase, TimeProvider? timeProvider = null)
     {
         if (secondBase < 0 || secondBase > 59)
         {
             ThrowHelper.ThrowArgumentException("secondBase must be >=0 and <= 59");
         }
 
-        DateTimeOffset c = date ?? SystemTime.Now();
+        DateTimeOffset c = date ?? (timeProvider ?? TimeProvider.System).GetLocalNow();
 
         if (secondBase == 0)
         {
@@ -684,49 +674,49 @@ public sealed class DateBuilder
         return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, c.Minute, 0, 0, c.Offset).AddMinutes(1);
     }
 
-    public static void ValidateHour(int hour)
+    internal static void ValidateHour(int hour)
     {
-        if (hour < 0 || hour > 23)
+        if (hour is < 0 or > 23)
         {
             ThrowHelper.ThrowArgumentException("Invalid hour (must be >= 0 and <= 23).");
         }
     }
 
-    public static void ValidateMinute(int minute)
+    internal static void ValidateMinute(int minute)
     {
-        if (minute < 0 || minute > 59)
+        if (minute is < 0 or > 59)
         {
             ThrowHelper.ThrowArgumentException("Invalid minute (must be >= 0 and <= 59).");
         }
     }
 
-    public static void ValidateSecond(int second)
+    private static void ValidateSecond(int second)
     {
-        if (second < 0 || second > 59)
+        if (second is < 0 or > 59)
         {
             ThrowHelper.ThrowArgumentException("Invalid second (must be >= 0 and <= 59).");
         }
     }
 
-    public static void ValidateDayOfMonth(int day)
+    internal static void ValidateDayOfMonth(int day)
     {
-        if (day < 1 || day > 31)
+        if (day is < 1 or > 31)
         {
             ThrowHelper.ThrowArgumentException("Invalid day of month.");
         }
     }
 
-    public static void ValidateMonth(int month)
+    private static void ValidateMonth(int month)
     {
-        if (month < 1 || month > 12)
+        if (month is < 1 or > 12)
         {
             ThrowHelper.ThrowArgumentException("Invalid month (must be >= 1 and <= 12).");
         }
     }
 
-    public static void ValidateYear(int year)
+    private static void ValidateYear(int year)
     {
-        if (year < 1970 || year > 2099)
+        if (year is < 1970 or > 2099)
         {
             ThrowHelper.ThrowArgumentException("Invalid year (must be >= 1970 and <= 2099).");
         }

@@ -62,7 +62,7 @@ public class XMLSchedulingDataProcessorTest
     public void SetUp()
     {
         logger = A.Fake<ILogger<XMLSchedulingDataProcessor>>();
-        processor = new XMLSchedulingDataProcessor(logger, new SimpleTypeLoadHelper());
+        processor = new XMLSchedulingDataProcessor(logger, new SimpleTypeLoadHelper(), TimeProvider.System);
         mockScheduler = A.Fake<IScheduler>();
         A.CallTo(() => mockScheduler.GetJobDetail(A<JobKey>._, A<CancellationToken>._)).Returns(new ValueTask<IJobDetail>());
         A.CallTo(() => mockScheduler.GetTrigger(A<TriggerKey>._, A<CancellationToken>._)).Returns(new ValueTask<ITrigger>());
@@ -177,7 +177,7 @@ public class XMLSchedulingDataProcessorTest
             ITrigger trigger = TriggerBuilder.Create().WithIdentity("job1").WithSchedule(SimpleScheduleBuilder.RepeatHourlyForever()).Build();
             await scheduler.ScheduleJob(job, trigger);
 
-            XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(logger, new SimpleTypeLoadHelper());
+            XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(logger, new SimpleTypeLoadHelper(), TimeProvider.System);
             try
             {
                 await processor.ProcessFileAndScheduleJobs(scheduler, false);
@@ -259,7 +259,7 @@ public class XMLSchedulingDataProcessorTest
             // Now load the xml data with directives: overwrite-existing-data=false, ignore-duplicates=true
             ITypeLoadHelper loadHelper = new SimpleTypeLoadHelper();
             loadHelper.Initialize();
-            XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(logger, loadHelper);
+            XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(logger, loadHelper, TimeProvider.System);
             await processor.ProcessFileAndScheduleJobs(tempFileName, scheduler);
             var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("DEFAULT"));
             Assert.AreEqual(2, jobKeys.Count);
@@ -344,7 +344,7 @@ public class XMLSchedulingDataProcessorTest
 
             await ModifyStoredJobType();
 
-            XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(logger, new SimpleTypeLoadHelper());
+            XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(logger, new SimpleTypeLoadHelper(), TimeProvider.System);
 
             // when
             await processor.ProcessStreamAndScheduleJobs(ReadJobXmlFromEmbeddedResource("delete-no-job-class.xml"), scheduler);
@@ -402,7 +402,7 @@ public class XMLSchedulingDataProcessorTest
 
             await ModifyStoredJobType();
 
-            XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(logger, new SimpleTypeLoadHelper());
+            XMLSchedulingDataProcessor processor = new(logger, new SimpleTypeLoadHelper(), TimeProvider.System);
 
             await processor.ProcessStreamAndScheduleJobs(ReadJobXmlFromEmbeddedResource("overwrite-no-jobclass.xml"), scheduler);
 
@@ -453,7 +453,7 @@ public class XMLSchedulingDataProcessorTest
             await scheduler.ScheduleJob(job, trigger);
 
             // Now load the xml data with directives: overwrite-existing-data=false, ignore-duplicates=true
-            XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(logger, new SimpleTypeLoadHelper());
+            XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(logger, new SimpleTypeLoadHelper(), TimeProvider.System);
             await processor.ProcessStream(ReadJobXmlFromEmbeddedResource("directives_overwrite_no-ignoredups.xml"), "temp");
             var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("DEFAULT"));
             Assert.That(jobKeys.Count, Is.EqualTo(2));

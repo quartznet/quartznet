@@ -26,7 +26,6 @@ using System.Runtime.Serialization;
 using System.Text;
 using System.Text.RegularExpressions;
 
-using Quartz.Configuration;
 using Quartz.Util;
 
 namespace Quartz;
@@ -272,9 +271,7 @@ public sealed class CronExpression : ISerializable
     /// Constructs a new <see cref="CronExpressionString" /> based on the specified
     /// parameter.
     /// </summary>
-    /// <param name="cronExpression">
-    /// String representation of the cron expression the new object should represent
-    /// </param>
+    /// <param name="cronExpression">String representation of the cron expression the new object should represent</param>
     /// <see cref="CronExpressionString" />
     public CronExpression(string cronExpression)
     {
@@ -1217,7 +1214,7 @@ public sealed class CronExpression : ISerializable
         {
             if (stopAt == -1)
             {
-                stopAt = CronExpressionConstants.MaxYear;
+                stopAt = TriggerConstants.YearToGiveUpSchedulingAt;
             }
             if (startAt is -1 or CronExpressionConstants.AllSpec)
             {
@@ -1381,38 +1378,6 @@ public sealed class CronExpression : ISerializable
             "SAT" => 7,
             _ => -1
         };
-    }
-
-    private DateTimeOffset? GetTime(int sc, int mn, int hr, int dayOfMonth, int mon)
-    {
-        try
-        {
-            if (sc == -1)
-            {
-                sc = 0;
-            }
-            if (mn == -1)
-            {
-                mn = 0;
-            }
-            if (hr == -1)
-            {
-                hr = 0;
-            }
-            if (dayOfMonth == -1)
-            {
-                dayOfMonth = 0;
-            }
-            if (mon == -1)
-            {
-                mon = 0;
-            }
-            return new DateTimeOffset(SystemTime.UtcNow().Year, mon, dayOfMonth, hr, mn, sc, TimeSpan.Zero);
-        }
-        catch (Exception)
-        {
-            return null;
-        }
     }
 
     /// <summary>
@@ -1957,7 +1922,7 @@ public sealed class CronExpression : ISerializable
             }
 
             // test for expressions that never generate a valid fire date,
-            if (nextFireTimeCursor.Date == null || nextFireTimeCursor.Date.Value.Year > CronExpressionConstants.MaxYear)
+            if (nextFireTimeCursor.Date == null || nextFireTimeCursor.Date.Value.Year > TriggerConstants.YearToGiveUpSchedulingAt)
             {
                 return null; // ran out of years
             }

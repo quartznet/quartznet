@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 using Quartz.Configuration;
@@ -20,10 +21,12 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
     private readonly SemaphoreSlim initializationLock = new SemaphoreSlim(1, 1);
 
     public ServiceCollectionSchedulerFactory(
+        ILogger<ServiceCollectionSchedulerFactory> logger,
         IServiceProvider serviceProvider,
         IOptions<QuartzOptions> options,
         ContainerConfigurationProcessor processor)
     {
+        this.logger = logger;
         this.serviceProvider = serviceProvider;
         this.options = options;
         this.processor = processor;

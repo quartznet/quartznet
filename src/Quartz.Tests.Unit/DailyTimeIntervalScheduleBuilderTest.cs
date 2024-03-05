@@ -143,7 +143,7 @@ public class DailyTimeIntervalScheduleBuilderTest
 
         Assert.AreEqual("test", trigger.Key.Name);
         Assert.AreEqual("group", trigger.Key.Group);
-        Assert.AreEqual(true, SystemTime.UtcNow() >= trigger.StartTimeUtc);
+        Assert.AreEqual(true, TimeProvider.System.GetUtcNow() >= trigger.StartTimeUtc);
         Assert.AreEqual(true, null == trigger.EndTimeUtc);
         Assert.AreEqual(IntervalUnit.Minute, trigger.RepeatIntervalUnit);
         Assert.AreEqual(72, trigger.RepeatInterval);

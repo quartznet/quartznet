@@ -43,6 +43,6 @@ internal sealed class SimpleInstanceIdGenerator : HostNameBasedIdGenerator
     public override async ValueTask<string?> GenerateInstanceId(CancellationToken cancellationToken = default)
     {
         var hostName = await GetHostName(HostNameMaxLength, cancellationToken).ConfigureAwait(false);
-        return hostName + SystemTime.UtcNow().Ticks;
+        return hostName + TimeProvider.System.GetTimestamp();
     }
 }

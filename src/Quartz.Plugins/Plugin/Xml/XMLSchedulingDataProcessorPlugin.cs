@@ -55,21 +55,26 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
 
     private readonly HashSet<string> jobTriggerNameSet = new HashSet<string>();
     private readonly ILogger<XMLSchedulingDataProcessorPlugin> logger;
-
+    private readonly TimeProvider timeProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="XMLSchedulingDataProcessorPlugin"/> class.
     /// </summary>
-    public XMLSchedulingDataProcessorPlugin() : this(new SimpleTypeLoadHelper())
+    public XMLSchedulingDataProcessorPlugin()
+        : this(LogProvider.CreateLogger<XMLSchedulingDataProcessorPlugin>(), new SimpleTypeLoadHelper(), TimeProvider.System)
     {
     }
 
     /// <summary>
     /// Initializes a new instance of the <see cref="XMLSchedulingDataProcessorPlugin"/> class.
     /// </summary>
-    public XMLSchedulingDataProcessorPlugin(ITypeLoadHelper typeLoadHelper)
+    public XMLSchedulingDataProcessorPlugin(
+        ILogger<XMLSchedulingDataProcessorPlugin> logger,
+        ITypeLoadHelper typeLoadHelper,
+        TimeProvider timeProvider)
     {
-        logger = LogProvider.CreateLogger<XMLSchedulingDataProcessorPlugin>();
+        this.logger = logger;
+        this.timeProvider = timeProvider;
         TypeLoadHelper = typeLoadHelper;
     }
 
@@ -175,7 +180,7 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
                         // TODO: convert to use builder
                         var trig = new SimpleTriggerImpl();
                         trig.Key = tKey;
-                        trig.StartTimeUtc = SystemTime.UtcNow();
+                        trig.StartTimeUtc = timeProvider.GetUtcNow();
                         trig.EndTimeUtc = null;
                         trig.RepeatCount = SimpleTriggerImpl.RepeatIndefinitely;
                         trig.RepeatInterval = ScanInterval;
@@ -275,7 +280,10 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
 
         try
         {
-            XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(LogProvider.CreateLogger<XMLSchedulingDataProcessor>(), TypeLoadHelper);
+            XMLSchedulingDataProcessor processor = new(
+                LogProvider.CreateLogger<XMLSchedulingDataProcessor>(),
+                TypeLoadHelper,
+                timeProvider);
 
             processor.AddJobGroupToNeverDelete(JobInitializationPluginName);
             processor.AddTriggerGroupToNeverDelete(JobInitializationPluginName);

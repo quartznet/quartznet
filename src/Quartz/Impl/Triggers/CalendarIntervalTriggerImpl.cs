@@ -72,10 +72,15 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
         set => timeZone = value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value);
     }
 
+    public CalendarIntervalTriggerImpl() : base(TimeProvider.System)
+    {
+    }
+
     /// <summary>
     /// Create a <see cref="ICalendarIntervalTrigger" /> with no settings.
     /// </summary>
-    public CalendarIntervalTriggerImpl()
+    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
+    public CalendarIntervalTriggerImpl(TimeProvider timeProvider) : base(timeProvider)
     {
     }
 
@@ -86,9 +91,10 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
     /// <param name="name">Name for the trigger instance.</param>
     /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
     /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
+    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
-    public CalendarIntervalTriggerImpl(string name, IntervalUnit intervalUnit, int repeatInterval)
-        : this(name, SchedulerConstants.DefaultGroup, intervalUnit, repeatInterval)
+    public CalendarIntervalTriggerImpl(string name, IntervalUnit intervalUnit, int repeatInterval, TimeProvider? timeProvider = null)
+        : this(name, SchedulerConstants.DefaultGroup, intervalUnit, repeatInterval, timeProvider)
     {
     }
 
@@ -100,10 +106,15 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
     /// <param name="group">Group for the trigger instance.</param>
     /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
     /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
+    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
-    public CalendarIntervalTriggerImpl(string name, string group, IntervalUnit intervalUnit,
-        int repeatInterval)
-        : this(name, group, SystemTime.UtcNow(), null, intervalUnit, repeatInterval)
+    public CalendarIntervalTriggerImpl(
+        string name,
+        string group,
+        IntervalUnit intervalUnit,
+        int repeatInterval,
+        TimeProvider? timeProvider = null)
+        : this(name, group, (timeProvider ??TimeProvider.System).GetUtcNow(), null, intervalUnit, repeatInterval)
     {
     }
 
@@ -116,10 +127,16 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
     /// <param name="endTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to quit repeat firing.</param>
     /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
     /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
+    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> is <see langword="null"/>.</exception>
-    public CalendarIntervalTriggerImpl(string name, DateTimeOffset startTimeUtc,
-        DateTimeOffset? endTimeUtc, IntervalUnit intervalUnit, int repeatInterval)
-        : this(name, SchedulerConstants.DefaultGroup, startTimeUtc, endTimeUtc, intervalUnit, repeatInterval)
+    public CalendarIntervalTriggerImpl(
+        string name,
+        DateTimeOffset startTimeUtc,
+        DateTimeOffset? endTimeUtc,
+        IntervalUnit intervalUnit,
+        int repeatInterval,
+        TimeProvider? timeProvider = null)
+        : this(name, SchedulerConstants.DefaultGroup, startTimeUtc, endTimeUtc, intervalUnit, repeatInterval, timeProvider)
     {
     }
 
@@ -133,10 +150,16 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
     /// <param name="endTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to quit repeat firing.</param>
     /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
     /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
+    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
-    public CalendarIntervalTriggerImpl(string name, string group, DateTimeOffset startTimeUtc,
-        DateTimeOffset? endTimeUtc, IntervalUnit intervalUnit, int repeatInterval)
-        : base(name, group)
+    public CalendarIntervalTriggerImpl(string name,
+        string group,
+        DateTimeOffset startTimeUtc,
+        DateTimeOffset? endTimeUtc,
+        IntervalUnit intervalUnit,
+        int repeatInterval,
+        TimeProvider? timeProvider = null)
+        : base(name, group, timeProvider ?? TimeProvider.System)
     {
         StartTimeUtc = startTimeUtc;
         EndTimeUtc = endTimeUtc;
@@ -156,11 +179,19 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
     /// <param name="endTimeUtc">A <see cref="DateTimeOffset" /> set to the time for the <see cref="ITrigger" /> to quit repeat firing.</param>
     /// <param name="intervalUnit">The repeat interval unit (minutes, days, months, etc).</param>
     /// <param name="repeatInterval">The number of milliseconds to pause between the repeat firing.</param>
+    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     /// <exception cref="ArgumentNullException"><paramref name="name"/>, <paramref name="group"/>, <paramref name="jobName"/> or <paramref name="jobGroup"/> are <see langword="null"/>.</exception>
-    public CalendarIntervalTriggerImpl(string name, string group, string jobName,
-        string jobGroup, DateTimeOffset startTimeUtc, DateTimeOffset? endTimeUtc,
-        IntervalUnit intervalUnit, int repeatInterval)
-        : base(name, group, jobName, jobGroup)
+    public CalendarIntervalTriggerImpl(
+        string name,
+        string group,
+        string jobName,
+        string jobGroup,
+        DateTimeOffset startTimeUtc,
+        DateTimeOffset? endTimeUtc,
+        IntervalUnit intervalUnit,
+        int repeatInterval,
+        TimeProvider? timeProvider = null)
+        : base(name, group, jobName, jobGroup, timeProvider ?? TimeProvider.System)
     {
         StartTimeUtc = startTimeUtc;
         EndTimeUtc = endTimeUtc;
@@ -177,7 +208,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
         {
             if (startTime == DateTimeOffset.MinValue)
             {
-                startTime = SystemTime.UtcNow();
+                startTime = TimeProvider.GetUtcNow();
             }
             return startTime;
         }
@@ -361,7 +392,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
 
         if (instr == Quartz.MisfireInstruction.CalendarIntervalTrigger.DoNothing)
         {
-            DateTimeOffset? newFireTime = GetFireTimeAfter(SystemTime.UtcNow());
+            DateTimeOffset? newFireTime = GetFireTimeAfter(TimeProvider.GetUtcNow());
             while (newFireTime != null && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
             {
                 newFireTime = GetFireTimeAfter(newFireTime);
@@ -371,7 +402,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
         else if (instr == Quartz.MisfireInstruction.CalendarIntervalTrigger.FireOnceNow)
         {
             // fire once now...
-            SetNextFireTimeUtc(SystemTime.UtcNow());
+            SetNextFireTimeUtc(TimeProvider.GetUtcNow());
             // the new fire time afterward will magically preserve the original
             // time of day for firing for day/week/month interval triggers,
             // because of the way getFireTimeAfter() works - in its always restarting
@@ -406,7 +437,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
             }
 
             //avoid infinite loop
-            if (nextFireTimeUtc.Value.Year > TriggerConstants.YearToGiveupSchedulingAt)
+            if (nextFireTimeUtc.Value.Year > TriggerConstants.YearToGiveUpSchedulingAt)
             {
                 nextFireTimeUtc = null;
             }
@@ -433,7 +464,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
             return;
         }
 
-        DateTimeOffset now = SystemTime.UtcNow();
+        DateTimeOffset now = TimeProvider.GetUtcNow();
         while (nextFireTimeUtc != null && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
         {
             nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
@@ -444,7 +475,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
             }
 
             //avoid infinite loop
-            if (nextFireTimeUtc.Value.Year > TriggerConstants.YearToGiveupSchedulingAt)
+            if (nextFireTimeUtc.Value.Year > TriggerConstants.YearToGiveUpSchedulingAt)
             {
                 nextFireTimeUtc = null;
             }
@@ -495,7 +526,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
             }
 
             //avoid infinite loop
-            if (nextFireTimeUtc.Value.Year > TriggerConstants.YearToGiveupSchedulingAt)
+            if (nextFireTimeUtc.Value.Year > TriggerConstants.YearToGiveUpSchedulingAt)
             {
                 return null;
             }
@@ -557,7 +588,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
         // comparing against a time after it!
         if (afterTime == null)
         {
-            afterTime = SystemTime.UtcNow().AddSeconds(1);
+            afterTime = TimeProvider.GetUtcNow().AddSeconds(1);
         }
         else
         {
@@ -654,12 +685,12 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
                 }
 
                 // now baby-step the rest of the way there...
-                while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < TriggerConstants.YearToGiveupSchedulingAt)
+                while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < TriggerConstants.YearToGiveUpSchedulingAt)
                 {
                     sTime = sTime.AddDays(RepeatInterval);
                     MakeHourAdjustmentIfNeeded(ref sTime, initialHourOfDay); //hours can shift due to DST
                 }
-                while (DaylightSavingHourShiftOccurredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < TriggerConstants.YearToGiveupSchedulingAt)
+                while (DaylightSavingHourShiftOccurredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < TriggerConstants.YearToGiveUpSchedulingAt)
                 {
                     sTime = sTime.AddDays(RepeatInterval);
                 }
@@ -697,12 +728,12 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
                     sTime = sTime.AddDays((int) (RepeatInterval * jumpCount * 7));
                 }
 
-                while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < TriggerConstants.YearToGiveupSchedulingAt)
+                while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < TriggerConstants.YearToGiveUpSchedulingAt)
                 {
                     sTime = sTime.AddDays(RepeatInterval * 7);
                     MakeHourAdjustmentIfNeeded(ref sTime, initialHourOfDay); //hours can shift due to DST
                 }
-                while (DaylightSavingHourShiftOccurredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < TriggerConstants.YearToGiveupSchedulingAt)
+                while (DaylightSavingHourShiftOccurredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < TriggerConstants.YearToGiveUpSchedulingAt)
                 {
                     sTime = sTime.AddDays(RepeatInterval * 7);
                 }
@@ -714,13 +745,13 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
                 // because months are already large blocks of time, we will
                 // just advance via brute-force iteration.
 
-                while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < TriggerConstants.YearToGiveupSchedulingAt)
+                while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < TriggerConstants.YearToGiveUpSchedulingAt)
                 {
                     sTime = sTime.AddMonths(RepeatInterval);
                     MakeHourAdjustmentIfNeeded(ref sTime, initialHourOfDay); //hours can shift due to DST
                 }
                 while (DaylightSavingHourShiftOccurredAndAdvanceNeeded(ref sTime, initialHourOfDay)
-                       && sTime.Year < TriggerConstants.YearToGiveupSchedulingAt)
+                       && sTime.Year < TriggerConstants.YearToGiveUpSchedulingAt)
                 {
                     sTime = sTime.AddMonths(RepeatInterval);
                 }
@@ -728,12 +759,12 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
             }
             else if (RepeatIntervalUnit == IntervalUnit.Year)
             {
-                while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < TriggerConstants.YearToGiveupSchedulingAt)
+                while (sTime.UtcDateTime < afterTime.Value.UtcDateTime && sTime.Year < TriggerConstants.YearToGiveUpSchedulingAt)
                 {
                     sTime = sTime.AddYears(RepeatInterval);
                     MakeHourAdjustmentIfNeeded(ref sTime, initialHourOfDay); //hours can shift due to DST
                 }
-                while (DaylightSavingHourShiftOccurredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < TriggerConstants.YearToGiveupSchedulingAt)
+                while (DaylightSavingHourShiftOccurredAndAdvanceNeeded(ref sTime, initialHourOfDay) && sTime.Year < TriggerConstants.YearToGiveUpSchedulingAt)
                 {
                     sTime = sTime.AddYears(RepeatInterval);
                 }

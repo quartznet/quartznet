@@ -194,7 +194,7 @@ public partial class StdAdoDelegate
 
             using (var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false))
             {
-                long dumId = SystemTime.UtcNow().Ticks;
+                long dumId = timeProvider.GetTimestamp();
 
                 while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
                 {
@@ -1133,7 +1133,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "triggerName", trigger.Key.Name);
         AddCommandParameter(cmd, "triggerGroup", trigger.Key.Group);
         AddCommandParameter(cmd, "triggerInstanceName", instanceId);
-        AddCommandParameter(cmd, "triggerFireTime", GetDbDateTimeValue(SystemTime.UtcNow()));
+        AddCommandParameter(cmd, "triggerFireTime", GetDbDateTimeValue(timeProvider.GetUtcNow()));
         AddCommandParameter(cmd, "triggerScheduledTime", GetDbDateTimeValue(trigger.GetNextFireTimeUtc()));
         AddCommandParameter(cmd, "triggerState", state);
         if (job != null)
@@ -1167,7 +1167,7 @@ public partial class StdAdoDelegate
         var ps = PrepareCommand(conn, ReplaceTablePrefix(SqlUpdateFiredTrigger));
         AddCommandParameter(ps, "schedulerName", schedName);
         AddCommandParameter(ps, "instanceName", instanceId);
-        AddCommandParameter(ps, "firedTime", GetDbDateTimeValue(SystemTime.UtcNow()));
+        AddCommandParameter(ps, "firedTime", GetDbDateTimeValue(timeProvider.GetUtcNow()));
         AddCommandParameter(ps, "scheduledTime", GetDbDateTimeValue(trigger.GetNextFireTimeUtc()));
         AddCommandParameter(ps, "entryState", state);
         AddCommandParameter(ps, "jobName", trigger.JobKey.Name);

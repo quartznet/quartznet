@@ -64,9 +64,10 @@ namespace Quartz;
 /// <seealso cref="ITrigger" />
 public sealed class TriggerBuilder
 {
+    private readonly TimeProvider timeProvider;
     private TriggerKey? key;
     private string? description;
-    private DateTimeOffset startTime = SystemTime.UtcNow();
+    private DateTimeOffset startTime;
     private DateTimeOffset? endTime;
     private int priority = TriggerConstants.DefaultPriority;
     private string? calendarName;
@@ -75,8 +76,10 @@ public sealed class TriggerBuilder
 
     private IScheduleBuilder? scheduleBuilder;
 
-    internal TriggerBuilder()
+    internal TriggerBuilder(TimeProvider timeProvider)
     {
+        this.timeProvider = timeProvider;
+        this.startTime = timeProvider.GetUtcNow();
     }
 
     /// <summary>
@@ -85,10 +88,11 @@ public sealed class TriggerBuilder
     /// </summary>
     /// <remarks>
     /// </remarks>
+    /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     /// <returns>the new TriggerBuilder</returns>
-    public static TriggerBuilder Create()
+    public static TriggerBuilder Create(TimeProvider? timeProvider = null)
     {
-        return new TriggerBuilder();
+        return new TriggerBuilder(timeProvider ?? TimeProvider.System);
     }
 
     /// <summary>
@@ -258,7 +262,7 @@ public sealed class TriggerBuilder
     /// <seealso cref="ITrigger.StartTimeUtc" />
     public TriggerBuilder StartNow()
     {
-        startTime = SystemTime.UtcNow();
+        startTime = timeProvider.GetUtcNow();
         return this;
     }
 

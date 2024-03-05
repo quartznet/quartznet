@@ -209,6 +209,8 @@ public class Startup
                 options.UseNewtonsoftJsonSerializer();
             });
 
+            q.UseTimeProvider<CustomTimeProvider>();
+
             // example of persistent job store using JSON serializer as an example
             /*
             q.UsePersistentStore(s =>
@@ -368,4 +370,7 @@ public class Startup
             settings.OperationProcessors.Add(new AspNetCoreOperationSecurityScopeProcessor(securityScope));
         });
     }
+
+    private sealed class CustomTimeProvider : TimeProvider;
 }
+

@@ -7,6 +7,7 @@
     <!-- Necessary to run benchmarks on .NET 6.0+ -->
     <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
     <IsPackable>false</IsPackable>
+    <SonarQubeExclude>true</SonarQubeExclude>
   </PropertyGroup>
 
   <ItemGroup>

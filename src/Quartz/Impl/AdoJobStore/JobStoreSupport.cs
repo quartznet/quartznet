@@ -60,6 +60,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     private MisfireHandler? misfireHandler;
     private ITypeLoadHelper typeLoadHelper = null!;
     private ISchedulerSignaler schedSignaler = null!;
+    internal TimeProvider timeProvider = TimeProvider.System;
 
     private volatile bool schedulerRunning;
     private volatile bool shutdown;
@@ -131,16 +132,21 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <summary>
     /// Get or set the instance Id of the Scheduler (must be unique within a cluster).
     /// </summary>
-    public virtual string InstanceId { get; set; } = "";
+    public string InstanceId { get; set; } = "";
 
     /// <summary>
     /// Get or set the instance Id of the Scheduler (must be unique within this server instance).
     /// </summary>
-    public virtual string InstanceName { get; set; } = "";
+    public string InstanceName { get; set; } = "";
 
-    public int ThreadPoolSize
+    int IJobStore.ThreadPoolSize
     {
         set { }
+    }
+
+    TimeProvider IJobStore.TimeProvider
+    {
+        set => timeProvider = value;
     }
 
     /// <summary>
@@ -369,7 +375,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     {
         get
         {
-            DateTimeOffset misfireTime = SystemTime.UtcNow();
+            DateTimeOffset misfireTime = timeProvider.GetUtcNow();
             if (MisfireThreshold > TimeSpan.Zero)
             {
                 misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold.TotalMilliseconds);
@@ -456,6 +462,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             ThrowHelper.ThrowSchedulerConfigException("DataSource name not set.");
         }
 
+        LastCheckin = timeProvider.GetUtcNow();
         typeLoadHelper = loadHelper;
         schedSignaler = signaler;
 
@@ -814,7 +821,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         {
             var trig = (await RetrieveTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false))!;
 
-            DateTimeOffset misfireTime = SystemTime.UtcNow();
+            DateTimeOffset misfireTime = timeProvider.GetUtcNow();
             if (MisfireThreshold > TimeSpan.Zero)
             {
                 misfireTime = misfireTime.AddMilliseconds(-1 * MisfireThreshold.TotalMilliseconds);
@@ -2297,7 +2304,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
             bool misfired = false;
 
-            if (schedulerRunning && status.NextFireTimeUtc.Value < SystemTime.UtcNow())
+            if (schedulerRunning && status.NextFireTimeUtc.Value < timeProvider.GetUtcNow())
             {
                 misfired = await UpdateMisfiredTrigger(conn, triggerKey, newState, true, cancellationToken).ConfigureAwait(false);
             }
@@ -2617,7 +2624,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
     }
 
-    private static long ftrCtr = SystemTime.UtcNow().Ticks;
+    private static long ftrCtr = TimeProvider.System.GetTimestamp();
 
     /// <summary>
     /// Get a handle to the next N triggers to be fired, and mark them as 'reserved'
@@ -2776,7 +2783,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
                     if (acquiredTriggers.Count == 0)
                     {
-                        var now = SystemTime.UtcNow();
+                        var now = timeProvider.GetUtcNow();
                         var nextFireTime = nextFireTimeUtc.Value;
                         var max = now > nextFireTime ? now : nextFireTime;
 
@@ -3010,7 +3017,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             trigger,
             cal,
             trigger.Key.Group.Equals(SchedulerConstants.DefaultRecoveryGroup),
-            SystemTime.UtcNow(),
+            timeProvider.GetUtcNow(),
             trigger.GetPreviousFireTimeUtc(),
             prevFireTime,
             trigger.GetNextFireTimeUtc());
@@ -3196,7 +3203,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
     protected bool firstCheckIn = true;
 
-    protected internal DateTimeOffset LastCheckin { get; set; } = SystemTime.UtcNow();
+    protected internal DateTimeOffset LastCheckin { get; set; }
 
     protected internal virtual async ValueTask<bool> DoCheckin(
         Guid requestorId,
@@ -3307,7 +3314,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 else
                 {
                     // find failed instances...
-                    if (CalcFailedIfAfter(rec) < SystemTime.UtcNow())
+                    if (CalcFailedIfAfter(rec) < timeProvider.GetUtcNow())
                     {
                         failedInstances.Add(rec);
                     }
@@ -3335,7 +3342,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
-            LastCheckin = SystemTime.UtcNow();
+            LastCheckin = timeProvider.GetUtcNow();
             ThrowHelper.ThrowJobPersistenceException("Failure identifying failed instances when checking-in: " + e.Message, e);
             return default;
         }
@@ -3381,7 +3388,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
     protected DateTimeOffset CalcFailedIfAfter(SchedulerStateRecord rec)
     {
-        TimeSpan passed = SystemTime.UtcNow() - LastCheckin;
+        TimeSpan passed = timeProvider.GetUtcNow() - LastCheckin;
         TimeSpan ts = rec.CheckinInterval > passed ? rec.CheckinInterval : passed;
         return rec.CheckinTimestamp.Add(ts).Add(ClusterCheckinMisfireThreshold);
     }
@@ -3396,7 +3403,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             // TODO: handle self-failed-out
 
             // check in...
-            LastCheckin = SystemTime.UtcNow();
+            LastCheckin = timeProvider.GetUtcNow();
             if (await Delegate.UpdateSchedulerState(conn, InstanceId, LastCheckin, cancellationToken).ConfigureAwait(false) == 0)
             {
                 await Delegate.InsertSchedulerState(conn, InstanceId, LastCheckin, ClusterCheckinInterval, cancellationToken).ConfigureAwait(false);
@@ -3417,7 +3424,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     {
         if (failedInstances.Count > 0)
         {
-            long recoverIds = SystemTime.UtcNow().Ticks;
+            long recoverIds = timeProvider.GetTimestamp();
 
             LogWarnIfNonZero(failedInstances.Count,
                 "ClusterManager: detected " + failedInstances.Count + " failed or restarted instances.");
