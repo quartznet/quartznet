@@ -55,13 +55,13 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
 
     private readonly HashSet<string> jobTriggerNameSet = new HashSet<string>();
     private readonly ILogger<XMLSchedulingDataProcessorPlugin> logger;
-
+    private readonly TimeProvider timeProvider;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="XMLSchedulingDataProcessorPlugin"/> class.
     /// </summary>
     public XMLSchedulingDataProcessorPlugin()
-        : this(LogProvider.CreateLogger<XMLSchedulingDataProcessorPlugin>(), new SimpleTypeLoadHelper())
+        : this(LogProvider.CreateLogger<XMLSchedulingDataProcessorPlugin>(), new SimpleTypeLoadHelper(), TimeProvider.System)
     {
     }
 
@@ -70,9 +70,11 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
     /// </summary>
     public XMLSchedulingDataProcessorPlugin(
         ILogger<XMLSchedulingDataProcessorPlugin> logger,
-        ITypeLoadHelper typeLoadHelper)
+        ITypeLoadHelper typeLoadHelper,
+        TimeProvider timeProvider)
     {
         this.logger = logger;
+        this.timeProvider = timeProvider;
         TypeLoadHelper = typeLoadHelper;
     }
 
@@ -178,7 +180,7 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
                         // TODO: convert to use builder
                         var trig = new SimpleTriggerImpl();
                         trig.Key = tKey;
-                        trig.StartTimeUtc = TimeProvider.System.GetUtcNow();
+                        trig.StartTimeUtc = timeProvider.GetUtcNow();
                         trig.EndTimeUtc = null;
                         trig.RepeatCount = SimpleTriggerImpl.RepeatIndefinitely;
                         trig.RepeatInterval = ScanInterval;
@@ -281,7 +283,7 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
             XMLSchedulingDataProcessor processor = new(
                 LogProvider.CreateLogger<XMLSchedulingDataProcessor>(),
                 TypeLoadHelper,
-                TimeProvider.System);
+                timeProvider);
 
             processor.AddJobGroupToNeverDelete(JobInitializationPluginName);
             processor.AddTriggerGroupToNeverDelete(JobInitializationPluginName);

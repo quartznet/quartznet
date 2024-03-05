@@ -257,10 +257,20 @@ namespace Quartz.Plugin.History;
 /// <author>Marko Lahma (.NET)</author>
 public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
 {
-    /// <summary>
-    /// Logger instance to use. Defaults to common logging.
-    /// </summary>
-    private ILogger<LoggingJobHistoryPlugin> logger { get; set; } = LogProvider.CreateLogger<LoggingJobHistoryPlugin>();
+    private readonly ILogger<LoggingJobHistoryPlugin> logger;
+    private readonly TimeProvider timeProvider;
+
+    public LoggingJobHistoryPlugin() : this(LogProvider.CreateLogger<LoggingJobHistoryPlugin>(), TimeProvider.System)
+    {
+    }
+
+    public LoggingJobHistoryPlugin(
+        ILogger<LoggingJobHistoryPlugin> logger,
+        TimeProvider timeProvider)
+    {
+        this.logger = logger;
+        this.timeProvider = timeProvider;
+    }
 
     /// <summary>
     /// Get or sets the message that is logged when a Job successfully completes its
@@ -351,7 +361,7 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
         {
             context.JobDetail.Key.Name,
             context.JobDetail.Key.Group,
-            TimeProvider.System.GetUtcNow(),
+            timeProvider.GetUtcNow(),
             trigger.Key.Name,
             trigger.Key.Group,
             trigger.GetPreviousFireTimeUtc(),
@@ -388,7 +398,7 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
             args = [
                 context.JobDetail.Key.Name,
                 context.JobDetail.Key.Group,
-                TimeProvider.System.GetUtcNow(),
+                timeProvider.GetUtcNow(),
                 trigger.Key.Name,
                 trigger.Key.Group,
                 trigger.GetPreviousFireTimeUtc(),
@@ -409,7 +419,7 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
             var result = Convert.ToString(context.Result, CultureInfo.InvariantCulture);
             args = new object?[]
             {
-                context.JobDetail.Key.Name, context.JobDetail.Key.Group, TimeProvider.System.GetUtcNow(), trigger.Key.Name, trigger.Key.Group,
+                context.JobDetail.Key.Name, context.JobDetail.Key.Group, timeProvider.GetUtcNow(), trigger.Key.Name, trigger.Key.Group,
                 trigger.GetPreviousFireTimeUtc(), trigger.GetNextFireTimeUtc(), context.RefireCount, result
             };
 
@@ -440,7 +450,7 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
         {
             context.JobDetail.Key.Name,
             context.JobDetail.Key.Group,
-            TimeProvider.System.GetUtcNow(),
+            timeProvider.GetUtcNow(),
             trigger.Key.Name,
             trigger.Key.Group,
             trigger.GetPreviousFireTimeUtc(),
