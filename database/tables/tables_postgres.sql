@@ -1,16 +1,34 @@
-set client_min_messages = WARNING;
-DROP TABLE IF EXISTS qrtz_fired_triggers;
-DROP TABLE IF EXISTS qrtz_paused_trigger_grps;
-DROP TABLE IF EXISTS qrtz_scheduler_state;
-DROP TABLE IF EXISTS qrtz_locks;
-DROP TABLE IF EXISTS qrtz_simprop_triggers;
-DROP TABLE IF EXISTS qrtz_simple_triggers;
-DROP TABLE IF EXISTS qrtz_cron_triggers;
-DROP TABLE IF EXISTS qrtz_blob_triggers;
-DROP TABLE IF EXISTS qrtz_triggers;
-DROP TABLE IF EXISTS qrtz_job_details;
-DROP TABLE IF EXISTS qrtz_calendars;
-set client_min_messages = NOTICE;
+IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema LIKE 'public' AND table_type LIKE 'BASE TABLE' AND table_name = 'qrtz_fired_triggers') AND NOT EXISTS(SELECT * FROM qrtz_fired_triggers LIMIT 1)
+DROP TABLE qrtz_fired_triggers;
+
+IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema LIKE 'public' AND table_type LIKE 'BASE TABLE' AND table_name = 'qrtz_paused_trigger_grps') AND NOT EXISTS(SELECT * FROM qrtz_paused_trigger_grps LIMIT 1)
+DROP TABLE qrtz_paused_trigger_grps;
+
+IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema LIKE 'public' AND table_type LIKE 'BASE TABLE' AND table_name = 'qrtz_scheduler_state') AND NOT EXISTS(SELECT * FROM qrtz_scheduler_state LIMIT 1)
+DROP TABLE qrtz_scheduler_state;
+
+IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema LIKE 'public' AND table_type LIKE 'BASE TABLE' AND table_name = 'qrtz_locks') AND NOT EXISTS(SELECT * FROM qrtz_locks LIMIT 1)
+DROP TABLE qrtz_locks;
+
+IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema LIKE 'public' AND table_type LIKE 'BASE TABLE' AND table_name = 'qrtz_simprop_triggers') AND NOT EXISTS(SELECT * FROM qrtz_simprop_triggers LIMIT 1)
+DROP TABLE qrtz_simprop_triggers;
+
+IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema LIKE 'public' AND table_type LIKE 'BASE TABLE' AND table_name = 'qrtz_simple_triggers') AND NOT EXISTS(SELECT * FROM qrtz_simple_triggers LIMIT 1)
+DROP TABLE qrtz_simple_triggers;
+
+IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema LIKE 'public' AND table_type LIKE 'BASE TABLE' AND table_name = 'qrtz_cron_triggers') AND NOT EXISTS(SELECT * FROM qrtz_cron_triggers LIMIT 1)
+DROP TABLE qrtz_cron_triggers;
+IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema LIKE 'public' AND table_type LIKE 'BASE TABLE' AND table_name = 'qrtz_blob_triggers') AND NOT EXISTS(SELECT * FROM qrtz_blob_triggers LIMIT 1)
+DROP TABLE qrtz_blob_triggers;
+
+IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema LIKE 'public' AND table_type LIKE 'BASE TABLE' AND table_name = 'qrtz_triggers') AND NOT EXISTS(SELECT * FROM qrtz_triggers LIMIT 1)
+DROP TABLE qrtz_triggers;
+
+IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema LIKE 'public' AND table_type LIKE 'BASE TABLE' AND table_name = 'qrtzqrtz_job_details') AND NOT EXISTS(SELECT * FROM qrtz_job_details LIMIT 1)
+DROP TABLE qrtz_job_details;
+
+IF EXISTS (SELECT FROM information_schema.tables WHERE table_schema LIKE 'public' AND table_type LIKE 'BASE TABLE' AND table_name = 'qrtz_calendars') AND NOT EXISTS(SELECT * FROM qrtz_calendars LIMIT 1)
+DROP TABLE qrtz_calendars;
 
 CREATE TABLE qrtz_job_details
   (
