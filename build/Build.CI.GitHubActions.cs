@@ -33,6 +33,7 @@ using Nuke.Components;
     OnPushIncludePaths = ["**/*"],
     OnPushExcludePaths = ["docs/**/*", "package.json", "package-lock.json", "readme.md"],
     PublishArtifacts = true,
+    PublishCondition = "${{ runner.os == 'Windows' }}",
     InvokedTargets = [nameof(ICompile.Compile), nameof(UnitTest), nameof(IntegrationTest), nameof(IPack.Pack), nameof(Publish)],
     ImportSecrets = ["NUGET_API_KEY", "FEEDZ_API_KEY"],
     CacheKeyFiles = []

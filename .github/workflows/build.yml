@@ -43,6 +43,7 @@ jobs:
           FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
       - name: 'Publish: packages'
         uses: actions/upload-artifact@v3
+        if: ${{ runner.os == 'Windows' }}
         with:
           name: packages
           path: artifacts/packages
@@ -58,6 +59,7 @@ jobs:
           FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
       - name: 'Publish: packages'
         uses: actions/upload-artifact@v3
+        if: ${{ runner.os == 'Windows' }}
         with:
           name: packages
           path: artifacts/packages
@@ -73,6 +75,7 @@ jobs:
           FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
       - name: 'Publish: packages'
         uses: actions/upload-artifact@v3
+        if: ${{ runner.os == 'Windows' }}
         with:
           name: packages
           path: artifacts/packages
