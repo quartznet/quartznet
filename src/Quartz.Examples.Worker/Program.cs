@@ -58,7 +58,7 @@ public class Program
                     q.ScheduleJob<ExampleJob>(trigger => trigger
                         .WithIdentity("Combined Configuration Trigger")
                         .StartAt(DateBuilder.EvenSecondDate(DateTimeOffset.UtcNow))
-                        .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second))
+                        .WithDailyTimeIntervalSchedule(interval: 10, intervalUnit: IntervalUnit.Second)
                         .WithDescription("my awesome trigger configured for a job with single call")
                     );
 

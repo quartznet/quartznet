@@ -110,7 +110,7 @@ public class Startup
             q.ScheduleJob<ExampleJob>(trigger => trigger
                 .WithIdentity("Combined Configuration Trigger")
                 .StartAt(DateBuilder.EvenSecondDate(DateTimeOffset.UtcNow.AddSeconds(7)))
-                .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second))
+                .WithDailyTimeIntervalSchedule(interval: 10, intervalUnit: IntervalUnit.Second)
                 .WithDescription("my awesome trigger configured for a job with single call")
             );
 
@@ -177,7 +177,7 @@ public class Startup
                 .WithIdentity("Daily Trigger")
                 .ForJob(jobKey)
                 .StartAt(DateBuilder.EvenSecondDate(DateTimeOffset.UtcNow.AddSeconds(5)))
-                .WithDailyTimeIntervalSchedule(x => x.WithInterval(10, IntervalUnit.Second))
+                .WithDailyTimeIntervalSchedule(interval: 10, intervalUnit: IntervalUnit.Second)
                 .WithDescription("my awesome daily time interval trigger")
                 .ModifiedByCalendar(calendarName)
             );
