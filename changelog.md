@@ -5,6 +5,7 @@
 ## Release 3.NEXT, TBD
  
 * Fix Holiday Calendar with Nested Calendars sometimes crashing when resolving NextIncludedTime (#2270)
+* Add WithDailyTimeIntervalSchedule overload with explicit interval and interval unit (#1152)
 
 
 ## Release 3.8.1, Feb 17 2024
