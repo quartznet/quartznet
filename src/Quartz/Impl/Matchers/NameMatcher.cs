@@ -31,11 +31,6 @@ namespace Quartz.Impl.Matchers;
 [Serializable]
 public sealed class NameMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TKey>
 {
-    // ReSharper disable once UnusedMember.Local
-    private NameMatcher()
-    {
-    }
-
     private NameMatcher(string compareTo, StringOperator compareWith) : base(compareTo, compareWith)
     {
     }

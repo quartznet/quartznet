@@ -31,11 +31,6 @@ namespace Quartz.Impl.Matchers;
 [Serializable]
 public sealed class GroupMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TKey>
 {
-    // ReSharper disable once UnusedMember.Local
-    private GroupMatcher()
-    {
-    }
-
     private GroupMatcher(string compareTo, StringOperator compareWith) : base(compareTo, compareWith)
     {
     }
