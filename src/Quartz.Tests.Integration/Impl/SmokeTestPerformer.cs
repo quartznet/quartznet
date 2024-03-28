@@ -273,15 +273,15 @@ public class SmokeTestPerformer
                 Assert.IsTrue(await scheduler.CheckExists(simple.Key));
 
                 // QRTZNET-243
-                await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupContains("a").DeepClone());
-                await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEndsWith("a").DeepClone());
-                await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupStartsWith("a").DeepClone());
-                await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("a").DeepClone());
+                await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupContains("a"));
+                await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEndsWith("a"));
+                await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupStartsWith("a"));
+                await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("a"));
 
-                await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupContains("a").DeepClone());
-                await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEndsWith("a").DeepClone());
-                await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupStartsWith("a").DeepClone());
-                await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("a").DeepClone());
+                await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupContains("a"));
+                await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEndsWith("a"));
+                await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupStartsWith("a"));
+                await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("a"));
 
                 await scheduler.Start();
 

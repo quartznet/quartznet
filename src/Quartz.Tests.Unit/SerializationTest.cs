@@ -3,6 +3,7 @@ using System.Runtime.Serialization.Formatters.Binary;
 using NUnit.Framework;
 
 using Quartz.Impl.Calendar;
+using Quartz.Impl.Matchers;
 using Quartz.Tests.Unit.Utils;
 using Quartz.Util;
 
@@ -208,6 +209,39 @@ public class SerializationTest
         SchedulerContext clone = map.DeepClone();
         Assert.AreEqual("bar", clone["foo"]);
         Assert.AreEqual(123, clone["num"]);
+    }
+
+    [Test]
+    public void TestGroupMatcherSerialization()
+    {
+        GroupMatcher<TriggerKey> expected = GroupMatcher<TriggerKey>.GroupEquals(SchedulerConstants.DefaultGroup);
+
+        GroupMatcher<TriggerKey> got = SerializeAndDeserialize(expected);
+
+        Assert.AreEqual(expected.CompareToValue, got.CompareToValue);
+        Assert.AreEqual(expected.CompareWithOperator, got.CompareWithOperator);
+    }
+
+    [Test]
+    public void TestNameMatcherSerialization()
+    {
+        NameMatcher<JobKey> expected = NameMatcher<JobKey>.NameContains("foo");
+
+        NameMatcher<JobKey> got = SerializeAndDeserialize(expected);
+
+        Assert.AreEqual(expected.CompareToValue, got.CompareToValue);
+        Assert.AreEqual(expected.CompareWithOperator, got.CompareWithOperator);
+    }
+
+    private static T SerializeAndDeserialize<T>(T instance) where T : class
+    {
+        BinaryFormatter formatter = new();
+        using MemoryStream stream = new();
+
+        formatter.Serialize(stream, instance);
+        stream.Position = 0;
+
+        return (T)formatter.Deserialize(stream)!;
     }
 
     private static T Deserialize<T>() where T : class
