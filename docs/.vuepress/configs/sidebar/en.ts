@@ -32,6 +32,7 @@ export const sidebarEn: SidebarConfig = [
         text: "API Documentation",
         link: "http://quartznet.sourceforge.net/apidoc/3.0/html",
       },
+      "/documentation/quartz-3.x/db",
       "/documentation/quartz-3.x/migration-guide",
       "/documentation/quartz-3.x/miscellaneous-features",
     ],
