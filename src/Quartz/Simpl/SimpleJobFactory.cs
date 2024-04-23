@@ -19,6 +19,10 @@
 
 using System;
 
+#if NET6_0_OR_GREATER
+using System.Threading.Tasks;
+#endif
+
 using Quartz.Logging;
 using Quartz.Spi;
 using Quartz.Util;
@@ -79,6 +83,22 @@ namespace Quartz.Simpl
 				throw se;
 			}
 		}
+#if NET6_0_OR_GREATER
+        /// <summary>
+        /// Allows the job factory to destroy/cleanup the job if needed.
+        /// </summary>
+        public virtual async Task ReturnJob(IJob job)
+        {
+            if (job is IAsyncDisposable asyncDisposableJob)
+            {
+                await asyncDisposableJob.DisposeAsync().ConfigureAwait(false);
+            }
+            else if (job is IDisposable disposableJob)
+            {
+                disposableJob.Dispose();
+            }
+        }
+#else
 
 	    /// <summary>
 	    /// Allows the job factory to destroy/cleanup the job if needed.
@@ -89,5 +109,6 @@ namespace Quartz.Simpl
 	        var disposable = job as IDisposable;
 	        disposable?.Dispose();
 	    }
+#endif
 	}
 }
