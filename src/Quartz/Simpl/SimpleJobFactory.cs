@@ -37,7 +37,11 @@ namespace Quartz.Simpl
 	/// <seealso cref="PropertySettingJobFactory" />
 	/// <author>James House</author>
 	/// <author>Marko Lahma (.NET)</author>
-	public class SimpleJobFactory : IJobFactory
+#if NET6_0_OR_GREATER
+    public class SimpleJobFactory : IJobWithAsyncReturnFactory
+#else
+    public class SimpleJobFactory : IJobFactory
+#endif
 	{
 		private readonly ILog log;
 
@@ -87,7 +91,7 @@ namespace Quartz.Simpl
         /// <summary>
         /// Allows the job factory to destroy/cleanup the job if needed.
         /// </summary>
-        public virtual async Task ReturnJob(IJob job)
+        public virtual async Task ReturnJobAsync(IJob job)
         {
             if (job is IAsyncDisposable asyncDisposableJob)
             {
@@ -98,8 +102,7 @@ namespace Quartz.Simpl
                 disposableJob.Dispose();
             }
         }
-#else
-
+#endif
 	    /// <summary>
 	    /// Allows the job factory to destroy/cleanup the job if needed.
 	    /// No-op when using SimpleJobFactory.
@@ -109,6 +112,6 @@ namespace Quartz.Simpl
 	        var disposable = job as IDisposable;
 	        disposable?.Dispose();
 	    }
-#endif
+
 	}
 }

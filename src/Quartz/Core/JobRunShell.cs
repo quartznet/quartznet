@@ -307,7 +307,14 @@ namespace Quartz.Core
                     if (jobInstance != null)
                     {
 #if NET6_0_OR_GREATER
-                        await qs.JobFactory.ReturnJob(jobInstance).ConfigureAwait(false);
+                        if (qs.JobFactory is IJobWithAsyncReturnFactory asyncReturnFactory)
+                        {
+                            await asyncReturnFactory.ReturnJobAsync(jobInstance).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            qs.JobFactory.ReturnJob(jobInstance);
+                        }
 #else
                         qs.JobFactory.ReturnJob(jobInstance);
 #endif
