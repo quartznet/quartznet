@@ -63,5 +63,5 @@ public interface IJobFactory
     /// <summary>
     /// Allows the job factory to destroy/cleanup the job if needed.
     /// </summary>
-    void ReturnJob(IJob job);
+    Task ReturnJob(IJob job);
 }

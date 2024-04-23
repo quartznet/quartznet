@@ -301,7 +301,7 @@ public class JobRunShell : SchedulerListenerSupport
         finally
         {
             qs.RemoveInternalSchedulerListener(this);
-            qs.JobFactory.ReturnJob(job);
+            await qs.JobFactory.ReturnJob(job).ConfigureAwait(false);
             jec.Dispose();
         }
     }

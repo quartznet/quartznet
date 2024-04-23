@@ -59,12 +59,7 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
         return (activatorCache.CreateInstance(serviceProvider, bundle.JobDetail.JobType), false);
     }
 
-    public override void ReturnJob(IJob job)
-    {
-        (job as IDisposable)?.Dispose();
-    }
-
-    private sealed class ScopedJob : IJob, IJobWrapper, IDisposable
+    private sealed class ScopedJob : IJob, IJobWrapper, IAsyncDisposable
     {
         private readonly IServiceScope scope;
         private readonly bool canDispose;
@@ -79,13 +74,28 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
         internal IJob InnerJob { get; }
         public IJob Target => InnerJob;
 
-        public void Dispose()
+        public async ValueTask DisposeAsync()
         {
             if (canDispose)
             {
-                (InnerJob as IDisposable)?.Dispose();
+                if (InnerJob is IAsyncDisposable asyncDisposableInnerJob)
+                {
+                    await asyncDisposableInnerJob.DisposeAsync().ConfigureAwait(false);
+                }
+                else if (InnerJob is IDisposable disposableInnerJob)
+                {
+                    disposableInnerJob.Dispose();
+                }
             }
-            scope.Dispose();
+
+            if (scope is IAsyncDisposable scopeAsyncDisposable)
+            {
+                await scopeAsyncDisposable.DisposeAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                scope.Dispose();
+            }
         }
 
         public ValueTask Execute(IJobExecutionContext context)

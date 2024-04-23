@@ -84,11 +84,16 @@ public class SimpleJobFactory : IJobFactory
 
     /// <summary>
     /// Allows the job factory to destroy/cleanup the job if needed.
-    /// No-op when using SimpleJobFactory.
     /// </summary>
-    public virtual void ReturnJob(IJob job)
+    public virtual async Task ReturnJob(IJob job)
     {
-        var disposable = job as IDisposable;
-        disposable?.Dispose();
+        if(job is IAsyncDisposable asyncDisposableJob)
+        {
+            await asyncDisposableJob.DisposeAsync().ConfigureAwait(false);
+        }
+        else if(job is IDisposable disposableJob)
+        {
+            disposableJob.Dispose();
+        }
     }
 }
