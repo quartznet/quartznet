@@ -3,18 +3,19 @@
   "private": true,
   "type": "module",
   "dependencies": {
-    "@vuepress/bundler-vite": "^2.0.0-beta.66",
-    "@vuepress/bundler-webpack": "^2.0.0-beta.66",
-    "@vuepress/cli": "^2.0.0-beta.66",
-    "@vuepress/plugin-active-header-links": "^2.0.0-beta.66",
-    "@vuepress/plugin-back-to-top": "^2.0.0-beta.66",
-    "@vuepress/plugin-docsearch": "^2.0.0-beta.66",
-    "@vuepress/plugin-google-analytics": "^2.0.0-beta.66",
-    "@vuepress/plugin-register-components": "^2.0.0-beta.66",
-    "@vuepress/theme-default": "^2.0.0-beta.66",
-    "@vuepress/utils": "^2.0.0-beta.66",
-    "vuepress": "^2.0.0-beta.66",
-    "webpack": "^5.88.2"
+    "@vuepress/bundler-vite": "^2.0.0-rc.7",
+    "@vuepress/bundler-webpack": "^2.0.0-rc.7",
+    "@vuepress/cli": "^2.0.0-rc.7",
+    "@vuepress/plugin-active-header-links": "^2.0.0-rc.26",
+    "@vuepress/plugin-back-to-top": "^2.0.0-rc.26",
+    "@vuepress/plugin-docsearch": "^2.0.0-rc.26",
+    "@vuepress/plugin-google-analytics": "^2.0.0-rc.21",
+    "@vuepress/plugin-redirect": "^2.0.0-rc.26",
+    "@vuepress/plugin-register-components": "^2.0.0-rc.21",
+    "@vuepress/theme-default": "^2.0.0-rc.26",
+    "@vuepress/utils": "^2.0.0-rc.7",
+    "vuepress": "^2.0.0-rc.7",
+    "webpack": "^5.91.0"
   },
   "scripts": {
     "docs:build": "vuepress-cli build docs --clean-cache --clean-temp",
@@ -38,7 +39,7 @@
   },
   "homepage": "https://github.com/quartznet/quartznet",
   "devDependencies": {
-    "markdownlint": "^0.29.0",
-    "markdownlint-cli2": "^0.8.1"
+    "markdownlint": "^0.34.0",
+    "markdownlint-cli2": "^0.13.0"
   }
 }

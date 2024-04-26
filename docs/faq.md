@@ -1,6 +1,5 @@
 ---
 
 title:  FAQ
-redirect: documentation/faq.html
-layout: redirect
+redirectTo: documentation/faq.html
 ---

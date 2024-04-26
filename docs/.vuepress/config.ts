@@ -6,6 +6,7 @@ import { defineUserConfig } from '@vuepress/cli'
 import { docsearchPlugin } from '@vuepress/plugin-docsearch'
 import { registerComponentsPlugin } from '@vuepress/plugin-register-components'
 import { googleAnalyticsPlugin } from '@vuepress/plugin-google-analytics'
+import { redirectPlugin } from '@vuepress/plugin-redirect'
 import {head, navbarEn, sidebarEn} from "./configs";
 import * as path from "path";
 import { getDirname } from "@vuepress/utils";
@@ -33,7 +34,8 @@ export default defineUserConfig({
         }),
         registerComponentsPlugin({
             componentsDir: path.resolve(__dirname, './components'),
-        })
+        }),
+        redirectPlugin()
     ],
 
     theme: defaultTheme({
