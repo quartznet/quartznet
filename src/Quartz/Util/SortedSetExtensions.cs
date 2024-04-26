@@ -2,7 +2,7 @@ namespace Quartz.Util;
 
 internal static class SortedSetExtensions
 {
-    internal static bool TryGetMinValueStartingFrom(this SortedSet<int> set, DateTimeOffset start, bool dayHasNegativeOffset, out int minimumDay)
+    internal static bool TryGetMinValueStartingFrom(this SortedSet<int> set, DateTimeOffset start, bool allowValueBeforeStartDay, out int minimumDay)
     {
         minimumDay = set.Min;
         var startDay = start.Day;
@@ -13,8 +13,9 @@ internal static class SortedSetExtensions
             return true;
         }
 
-        // If the day has a negative offset and the minimum value is less than the start day, return the minimum value
-        if (set.Min < startDay && dayHasNegativeOffset)
+        // In cases such as W modifier finding a match earlier than the month day.
+        // If the flag allowValueBeforeStartDay is set and the minimum value is less than the start day, return the minimum value 
+        if (allowValueBeforeStartDay && set.Min < startDay)
         {
             return true;
         }

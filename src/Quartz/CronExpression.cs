@@ -1410,7 +1410,7 @@ public sealed class CronExpression : ISerializable
     private (SortedSet<int> daysOfMonthSet, bool dayHasNegativeOffset) CalculateDaysOfMonth(DateTimeOffset currentDate)
 {
     var daysOfMonthSet = new SortedSet<int>(daysOfMonth);
-    bool dayHasNegativeOffset = false;
+    var dayHasNegativeOffset = false;
 
     if (lastDayOfMonth)
     {
@@ -1444,7 +1444,7 @@ public sealed class CronExpression : ISerializable
 private int CalculateNearestWeekdayForLastDay(DateTimeOffset currentDate, int lastDayOfMonthWithOffset)
 {
     var checkDay = new DateTimeOffset(currentDate.Year, currentDate.Month, lastDayOfMonthWithOffset, currentDate.Hour, currentDate.Minute, currentDate.Second, currentDate.Millisecond, currentDate.Offset);
-    int calculatedDay = lastDayOfMonthWithOffset;
+    var calculatedDay = lastDayOfMonthWithOffset;
 
     switch (checkDay.DayOfWeek)
     {
@@ -1456,7 +1456,7 @@ private int CalculateNearestWeekdayForLastDay(DateTimeOffset currentDate, int la
             break;
     }
 
-    int calculatedLastDayWithOffset = calculatedDay - lastWeekdayOffset;
+    var calculatedLastDayWithOffset = calculatedDay - lastWeekdayOffset;
 
     // If the day has crossed to the prior month, reset to 1st.
     if (calculatedLastDayWithOffset <= 0)
@@ -1475,9 +1475,8 @@ private int CalculateNearestWeekdayForLastDay(DateTimeOffset currentDate, int la
 /// <returns>A tuple containing the updated set of days of the month and a flag indicating if any day has a negative offset.</returns>
 private (SortedSet<int> daysOfMonthSet, bool dayHasNegativeOffset) CalculateNearestWeekdayForDaysOfMonth(DateTimeOffset currentDate, SortedSet<int> daysOfMonthSet)
 {
-    bool dayHasNegativeOffset = false;
     int minDay = daysOfMonthSet.Min;
-    int lastDayOfMonth = GetLastDayOfMonth(currentDate.Month, currentDate.Year);
+    int endDayOfMonth = GetLastDayOfMonth(currentDate.Month, currentDate.Year);
 
     DateTimeOffset firstDayOfMonth = new DateTimeOffset(currentDate.Year, currentDate.Month, minDay, 0, 0, 0, currentDate.Offset);
     DayOfWeek dayOfWeek = firstDayOfMonth.DayOfWeek;
@@ -1488,7 +1487,7 @@ private (SortedSet<int> daysOfMonthSet, bool dayHasNegativeOffset) CalculateNear
         daysOfMonthSet.Remove(minDay);
     }
 
-    int adjustedDay = AdjustDayToNearestWeekday(minDay, dayOfWeek, lastDayOfMonth, out dayHasNegativeOffset);
+    var (adjustedDay,dayHasNegativeOffset) = AdjustDayToNearestWeekday(minDay, dayOfWeek, endDayOfMonth);
     daysOfMonthSet.Add(adjustedDay);
 
     return (daysOfMonthSet, dayHasNegativeOffset);
@@ -1499,12 +1498,11 @@ private (SortedSet<int> daysOfMonthSet, bool dayHasNegativeOffset) CalculateNear
 /// </summary>
 /// <param name="day">The day to adjust.</param>
 /// <param name="dayOfWeek">The day of the week.</param>
-/// <param name="lastDayOfMonth">The last day of the month.</param>
-/// <param name="dayHasNegativeOffset">A flag indicating if the adjusted day has a negative offset.</param>
-/// <returns>The adjusted day.</returns>
-private int AdjustDayToNearestWeekday(int day, DayOfWeek dayOfWeek, int lastDayOfMonth, out bool dayHasNegativeOffset)
+/// <param name="endDayOfMonth">The end day of the month.</param>
+/// <returns>The adjusted day and a flag to indicate adjust day has a negative offset</returns>
+private (int day, bool dayHasNegativeOffset) AdjustDayToNearestWeekday(int day, DayOfWeek dayOfWeek, int endDayOfMonth)
 {
-    dayHasNegativeOffset = false;
+    var dayHasNegativeOffset = false;
 
             // evict original date since it has a weekDayModifier
     switch (dayOfWeek)
@@ -1516,7 +1514,7 @@ private int AdjustDayToNearestWeekday(int day, DayOfWeek dayOfWeek, int lastDayO
             day -= 1;
             dayHasNegativeOffset = true;
             break;
-        case DayOfWeek.Sunday when day == lastDayOfMonth:
+        case DayOfWeek.Sunday when day == endDayOfMonth:
             day -= 2;
             dayHasNegativeOffset = true;
             break;
@@ -1525,7 +1523,7 @@ private int AdjustDayToNearestWeekday(int day, DayOfWeek dayOfWeek, int lastDayO
             break;
     }
 
-    return day;
+    return (day, dayHasNegativeOffset);
 }
     
     private NextFireTimeCursor ProgressNextFireTimeDayOfMonth(DateTimeOffset d)
@@ -1536,8 +1534,8 @@ private int AdjustDayToNearestWeekday(int day, DayOfWeek dayOfWeek, int lastDayO
         var tmon = month;
 
         // get day by day of month rule
-        var (daysOfMonthCalculated, dateHasNegativeOffset) = CalculateDaysOfMonth(d);
-        if (daysOfMonthCalculated.TryGetMinValueStartingFrom(d, dateHasNegativeOffset, out var min))
+        var (daysOfMonthCalculated, setIncludesDayBeforeStartDay) = CalculateDaysOfMonth(d);
+        if (daysOfMonthCalculated.TryGetMinValueStartingFrom(d, setIncludesDayBeforeStartDay, out var min))
         {
             t = day;
             day = min;
