@@ -648,8 +648,9 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     public void TestQRTZNET152_Nearest_Weekday_Expression_W_Does_Not_Work_In_CronTrigger()
     {
         CronExpression expression = new CronExpression("0 5 13 5W 1-12 ?");
-        DateTimeOffset test = new DateTimeOffset(2009, 3, 8, 0, 0, 0, TimeSpan.Zero);
+        DateTimeOffset test = new DateTimeOffset(2009, 3, 8, 0, 0, 0, TimeSpan.Zero); //Sunday
         DateTimeOffset d = expression.GetNextValidTimeAfter(test).Value;
+        // 2009-04-06 is Monday, Sunday is invalid for W
         Assert.AreEqual(new DateTimeOffset(2009, 4, 6, 13, 5, 0, TimeZoneUtil.GetUtcOffset(d, TimeZoneInfo.Local)).ToUniversalTime(), d);
         d = expression.GetNextValidTimeAfter(d).Value;
         Assert.AreEqual(new DateTimeOffset(2009, 5, 5, 13, 5, 0, TimeZoneUtil.GetUtcOffset(d, TimeZoneInfo.Local)), d);
