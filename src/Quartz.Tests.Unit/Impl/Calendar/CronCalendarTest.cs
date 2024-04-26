@@ -19,6 +19,8 @@
 
 #endregion
 
+using System.Collections;
+using FluentAssertions;
 using Quartz.Impl.Calendar;
 using Quartz.Simpl;
 
@@ -31,6 +33,13 @@ public class CronCalendarTest : SerializationTestSupport<CronCalendar, ICalendar
 {
     public CronCalendarTest(Type serializerType) : base(serializerType)
     {
+    }
+
+    [TestCaseSource(typeof(CronWeekdayModifierTestData), nameof(CronWeekdayModifierTestData.TestCases))]
+    public void CronWeekdayModifierReturnsNextExpectedFireTimeSet(CronExpression cronExpression, DateTimeOffset timeAfterDate, DateTimeOffset expectedNextFireTime)
+    {
+        var nextFireTime = cronExpression.GetTimeAfter(timeAfterDate);
+        nextFireTime.Value.Date.Should().Be(expectedNextFireTime.Date, "NextFireTime was not correct");
     }
 
     [Test]
@@ -80,5 +89,24 @@ public class CronCalendarTest : SerializationTestSupport<CronCalendar, ICalendar
         Assert.AreEqual(original.Description, deserialized.Description);
         Assert.AreEqual(original.CronExpression, deserialized.CronExpression);
         Assert.AreEqual(original.TimeZone, deserialized.TimeZone);
+    }
+}
+
+public class CronWeekdayModifierTestData
+{
+    public static IEnumerable TestCases
+    {
+        get
+        {
+            // params are CronExpression cronExpression, DateTimeOffset timeAfterDate, DateTimeOffset expectedNextFireTime
+            // Sat 15th, schedule should be 14th
+            yield return new TestCaseData(new CronExpression("0 0 12 15W * ?"), new DateTimeOffset(2024, 5, 15, 12, 0, 0, TimeSpan.Zero), new DateTimeOffset(2024, 6, 14, 12, 0, 0, TimeSpan.Zero)); 
+            yield return new TestCaseData(new CronExpression("0 0 12 15W * ?"), new DateTimeOffset(2024, 5, 10, 12, 0, 0, TimeSpan.Zero), new DateTimeOffset(2024, 5, 15, 12, 0, 0, TimeSpan.Zero));
+            yield return new TestCaseData(new CronExpression("0 0 12 15W * ?"), new DateTimeOffset(2024, 5, 22, 12, 0, 0, TimeSpan.Zero), new DateTimeOffset(2024, 6, 14, 12, 0, 0, TimeSpan.Zero));
+            // Sunday 15th schedule will be 16th
+            yield return new TestCaseData(new CronExpression("0 0 12 15W * ?"), new DateTimeOffset(2024, 8, 15, 12, 0, 0, TimeSpan.Zero), new DateTimeOffset(2024, 9, 16, 12, 0, 0, TimeSpan.Zero));
+            // 15th is Sunday, schedule will be 16th
+            yield return new TestCaseData(new CronExpression("0 0 12 15W * ?"), new DateTimeOffset(2023, 12, 15, 12, 0, 0, TimeSpan.Zero), new DateTimeOffset(2024, 1, 15, 12, 0, 0, TimeSpan.Zero));
+        }
     }
 }
