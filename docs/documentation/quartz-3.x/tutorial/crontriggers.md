@@ -19,15 +19,15 @@ endTime that specifies when the schedule should be discontinued.
 A cron expression is a string comprised of 6 or 7 fields separated by white space.
 Fields can contain any of the allowed values, along with various combinations of the allowed special characters for that field. The fields are as follows:
 
-| Field Name   | Mandatory | Allowed Values   | Allowed Special Characters |
-|--------------|-----------|------------------|----------------------------|
-| Seconds      | YES       | 0-59             | , - * /                    |
-| Minutes      | YES       | 0-59             | , - * /                    |
-| Hours        | YES       | 0-23             | , - * /                    |
-| Day of month | YES       | 1-31             | , - * ? / L W              |
-| Month        | YES       | 1-12 or JAN-DEC  | , - * /                    |
-| Day of week  | YES       | 1-7 or SUN-SAT   | , - * ? / L #              |
-| Year         | NO        | empty, 1970-2099 | , - * /                    |
+| Field Name   | Mandatory | Allowed Values   | Allowed Special Characters   |
+|--------------|-----------|------------------|------------------------------|
+| Seconds      | YES       | 0-59             | `, - * /`                    |
+| Minutes      | YES       | 0-59             | `, - * /`                    |
+| Hours        | YES       | 0-23             | `, - * /`                    |
+| Day of month | YES       | 1-31             | `, - * ? / L W`              |
+| Month        | YES       | 1-12 or JAN-DEC  | `, - * /`                    |
+| Day of week  | YES       | 1-7 or SUN-SAT   | `, - * ? / L #`              |
+| Year         | NO        | empty, 1970-2099 | `, - * /`                    |
 
 ::: tip
 For easy generation of cron intervals using UI you can use some of these services:
@@ -165,7 +165,7 @@ ITrigger trigger = TriggerBuilder.Create()
 ## CronTrigger Misfire Instructions
 
 The following instructions can be used to inform Quartz what it should do when a misfire occurs for CronTrigger.
-(Misfire situations were introduced in the More About Triggers section of this tutorial). These instructions are defined in  as
+(Misfire situations were introduced in the More About Triggers section of this tutorial). These instructions are defined in as
 constants (and API documentation has description for their behavior). The instructions include:
 
 - `MisfireInstruction.IgnoreMisfirePolicy`

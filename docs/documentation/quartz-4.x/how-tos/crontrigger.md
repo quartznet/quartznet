@@ -31,6 +31,7 @@ Fields can contain any of the allowed values, along with various combinations of
 | Year         | NO        | empty, 1970-2099 | , - * /                    |
 
 So cron expressions can be as simple as this: `* * * * ? *`
+
 or more complex, like this: `0/5 14,18,3-39,52 * ? JAN,MAR,SEP MON-FRI 2002-2010`
 
 ## Special characters
@@ -71,28 +72,28 @@ The legal characters and the names of months and days of the week are not case s
 
 Here are some full examples:
 
-| Expression               | Meaning                                                                                                                             |
-|:-------------------------|:------------------------------------------------------------------------------------------------------------------------------------|
-| 0 0 12 ** ?              | Fire at 12pm (noon) every day                                                                                                       |
-| 0 15 10 ? **             | Fire at 10:15am every day                                                                                                           |
-| 0 15 10 ** ?             | Fire at 10:15am every day                                                                                                           |
-| 0 15 10 ** ? *           | Fire at 10:15am every day                                                                                                           |
-| 0 15 10 ** ? 2005        | Fire at 10:15am every day during the year 2005                                                                                      |
-| 0 *14* * ?               | Fire every minute starting at 2pm and ending at 2:59pm, every day                                                                   |
-| 0 0/5 14 ** ?            | Fire every 5 minutes starting at 2pm and ending at 2:55pm, every day                                                                |
-| 0 0/5 14,18 ** ?         | Fire every 5 minutes starting at 2pm and ending at 2:55pm, AND fire every 5 minutes starting at 6pm and ending at 6:55pm, every day |
-| 0 0-5 14 ** ?            | Fire every minute starting at 2pm and ending at 2:05pm, every day                                                                   |
-| 0 10,44 14 ? 3 WED       | Fire at 2:10pm and at 2:44pm every Wednesday in the month of March.                                                                 |
-| 0 15 10 ? * MON-FRI      | Fire at 10:15am every Monday, Tuesday, Wednesday, Thursday and Friday                                                               |
-| 0 15 10 15 * ?           | Fire at 10:15am on the 15th day of every month                                                                                      |
-| 0 15 10 L * ?            | Fire at 10:15am on the last day of every month                                                                                      |
-| 0 15 10 L-2 * ?          | Fire at 10:15am on the 2nd-to-last last day of every month                                                                          |
-| 0 15 10 ? * 6L           | Fire at 10:15am on the last Friday of every month                                                                                   |
-| 0 15 10 ? * 6L           | Fire at 10:15am on the last Friday of every month                                                                                   |
-| 0 15 10 ? * 6L 2002-2005 | Fire at 10:15am on every last Friday of every month during the years 2002, 2003, 2004 and 2005                                      |
-| 0 15 10 ? * 6#3          | Fire at 10:15am on the third Friday of every month                                                                                  |
-| 0 0 12 1/5 * ?           | Fire at 12pm (noon) every 5 days every month, starting on the first day of the month.                                               |
-| 0 11 11 11 11 ?          | Fire every November 11th at 11:11am.                                                                                                |
+| Expression                 | Meaning                                                                                                                             |
+|:---------------------------|:------------------------------------------------------------------------------------------------------------------------------------|
+| `0 0 12 ** ?`              | Fire at 12pm (noon) every day                                                                                                       |
+| `0 15 10 ? **`             | Fire at 10:15am every day                                                                                                           |
+| `0 15 10 ** ?`             | Fire at 10:15am every day                                                                                                           |
+| `0 15 10 ** ? *`           | Fire at 10:15am every day                                                                                                           |
+| `0 15 10 ** ? 2005`        | Fire at 10:15am every day during the year 2005                                                                                      |
+| `0 *14* * ?`               | Fire every minute starting at 2pm and ending at 2:59pm, every day                                                                   |
+| `0 0/5 14 ** ?`            | Fire every 5 minutes starting at 2pm and ending at 2:55pm, every day                                                                |
+| `0 0/5 14,18 ** ?`         | Fire every 5 minutes starting at 2pm and ending at 2:55pm, AND fire every 5 minutes starting at 6pm and ending at 6:55pm, every day |
+| `0 0-5 14 ** ?`            | Fire every minute starting at 2pm and ending at 2:05pm, every day                                                                   |
+| `0 10,44 14 ? 3 WED`       | Fire at 2:10pm and at 2:44pm every Wednesday in the month of March.                                                                 |
+| `0 15 10 ? * MON-FRI`      | Fire at 10:15am every Monday, Tuesday, Wednesday, Thursday and Friday                                                               |
+| `0 15 10 15 * ?`           | Fire at 10:15am on the 15th day of every month                                                                                      |
+| `0 15 10 L * ?`            | Fire at 10:15am on the last day of every month                                                                                      |
+| `0 15 10 L-2 * ?`          | Fire at 10:15am on the 2nd-to-last last day of every month                                                                          |
+| `0 15 10 ? * 6L`           | Fire at 10:15am on the last Friday of every month                                                                                   |
+| `0 15 10 ? * 6L`           | Fire at 10:15am on the last Friday of every month                                                                                   |
+| `0 15 10 ? * 6L 2002-2005` | Fire at 10:15am on every last Friday of every month during the years 2002, 2003, 2004 and 2005                                      |
+| `0 15 10 ? * 6#3`          | Fire at 10:15am on the third Friday of every month                                                                                  |
+| `0 0 12 1/5 * ?`           | Fire at 12pm (noon) every 5 days every month, starting on the first day of the month.                                               |
+| `0 11 11 11 11 ?`          | Fire every November 11th at 11:11am.                                                                                                |
 
 ::: tip
 Pay attention to the effects of `?` and `*` in the day-of-week and day-of-month fields!
@@ -104,6 +105,6 @@ Pay attention to the effects of `?` and `*` in the day-of-week and day-of-month 
 Support for specifying both a day-of-week and a day-of-month value is not complete (you must currently use the `?` character in one of these fields).
 :::
 ::: warning
-Be careful when setting fire times between the hours of the morning when "daylight savings" changes occur in your locale (for US locales, this would typically be the hour before and after 2:00 AM - because the time shift can cause a skip or a repeat depending on whether the time moves back or jumps forward. You may find this wikipedia entry helpful in determining the specifics to your locale:
+Be careful when setting fire times between the hours of the morning when "daylight savings" changes occur in your locale (for US locales, this would typically be the hour before and after 2:00 AM - because the time shift can cause a skip or a repeat depending on whether the time moves back or jumps forward. You may find this Wikipedia entry helpful in determining the specifics to your locale:
 [https://secure.wikimedia.org/wikipedia/en/wiki/Daylight_saving_time_around_the_world](https://secure.wikimedia.org/wikipedia/en/wiki/Daylight_saving_time_around_the_world)
 :::

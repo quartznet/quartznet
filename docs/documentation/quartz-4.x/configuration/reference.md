@@ -437,8 +437,8 @@ If you explicitly choose to use this DB Semaphore, you can customize it further 
 
 ```text
 quartz.jobStore.lockHandler.type = Quartz.Impl.AdoJobStore.StdRowLockSemaphore
-quartz.jobStore.lockHandler.maxRetry = 7     # Default is 3
-quartz.jobStore.lockHandler.retryPeriod = 3000  # Default is 1000 millis
+quartz.jobStore.lockHandler.maxRetry = 7        # Default is 3
+quartz.jobStore.lockHandler.retryPeriod = 3000  # Default is 1000 (milliseconds)
 ```
 
 ### `quartz.jobStore.driverDelegateInitString`
