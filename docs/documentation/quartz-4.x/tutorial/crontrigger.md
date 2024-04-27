@@ -98,6 +98,10 @@ Here are some full examples:
 | `0 11 11 11 11 ?`          | Fire every November 11th at 11:11am.                                                                                                |
 | `0 15 10 1,2,3 * MON,FRI`  | Fire at 10:15am on the 1st, 2nd, 3rd of the month, and every Monday and Friday                                                      |
 
+::: tip
+Pay attention to the effects of '?' and '*' in the day-of-week and day-of-month fields!
+:::
+
 ## Notes
 
 ::: warning

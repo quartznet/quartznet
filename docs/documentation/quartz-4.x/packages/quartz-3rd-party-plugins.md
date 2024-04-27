@@ -21,6 +21,14 @@ A Quartz Scheduler JobStore using Redis via C#
 
 The project was a ported version of quartz-redis-jobstore (<https://github.com/jlinn/quartz-redis-jobstore>), currently it lacks of supporting redis-cluster. It uses StackExchange.Redis as the redis client.
 
+### [Quartz.NET-CosmosDB](https://github.com/Oriflame/cosmosdb-quartznet)
+
+JobStore implementation for Quartz.NET scheduler using Microsoft Azure CosmosDb.
+
+### [Quartz.NET-MongoDB](https://github.com/glucaci/mongodb-quartz-net)
+
+JobStore implementation for Quartz.NET scheduler using MongoDb.
+
 ## Dependency Injection
 
 ### [Autofac.Extras.Quartz](https://github.com/alphacloud/Autofac.Extras.Quartz)
