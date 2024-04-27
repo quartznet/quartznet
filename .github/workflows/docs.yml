@@ -6,6 +6,7 @@ on:
     paths:
       - 'docs/**'
       - 'package.json'
+      - 'package-lock.json'
       - '**/docs*.yml'
 jobs:
   build:
