@@ -90,5 +90,5 @@ function getAureliaDevAliases() {
       map[name] = path.resolve(packageLocation, `../../esm/index.dev.mjs`);
     } catch {/**/}
     return map;
-  });
+  }, {});
 }
