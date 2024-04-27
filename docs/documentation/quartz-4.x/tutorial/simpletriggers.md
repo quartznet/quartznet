@@ -99,7 +99,7 @@ so that you can be familiar with options available to you that may not have been
 ## SimpleTrigger Misfire Instructions
 
 SimpleTrigger has several instructions that can be used to inform Quartz.NET what it should do when a misfire occurs.
-(Misfire situations were introduced in the [More About Triggers](/documentation/quartz-3.x/tutorial/more-about-triggers.html) section of this tutorial).
+(Misfire situations were introduced in the [More About Triggers](/documentation/quartz-4.x/tutorial/more-about-triggers.html) section of this tutorial).
 These instructions are defined as constants on `MisfirePolicy.SimpleTrigger` (including API documentation describing their behavior).
 The instructions include:
 
