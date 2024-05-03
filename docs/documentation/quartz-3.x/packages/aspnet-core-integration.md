@@ -1,4 +1,5 @@
 ---
+
 title: ASP.NET Core Integration
 ---
 
@@ -64,11 +65,11 @@ public class SendEmailJob : IJob
     public Task Execute(IJobExecutionContext context)
     {
         // Code that sends a periodic email to the user (for example)
-        // Note: This method must always return a value
-        // This is especially important for trigger listeners watching job execution
+        // Note: This method must always return a value 
+        // This is especially important for trigger listers watching job execution 
         return Task.FromResult(true);
     }
-}
+}        
 ```
 
 After that, you just need to build Quartz trigger in `Program.cs`, which guarantees that the job will run according to the preset interval.
@@ -81,7 +82,7 @@ builder.Services.AddQuartz(q =>
     // Just use the name of your job that you created in the Jobs folder.
     var jobKey = new JobKey("SendEmailJob");
     q.AddJob<SendEmailJob>(opts => opts.WithIdentity(jobKey));
-
+    
     q.AddTrigger(opts => opts
         .ForJob(jobKey)
         .WithIdentity("SendEmailJob-trigger")
