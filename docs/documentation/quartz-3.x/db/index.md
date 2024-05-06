@@ -2,8 +2,7 @@
 title: Database Schema
 ---
 
-When using the JobStoreTX ADO, Quartz.Net will create 11 tables.
-
+When using ADO.NET-based job store (the usual being `JobStoreTX`), Quartz requires the creation of a set of tables. Creating the initial schema or migrating existing one is a manual step, as Quartz.NET does not create or migrate these automatically.
 
 | Table | Brief Description |
 | -- | -- |
@@ -20,7 +19,6 @@ When using the JobStoreTX ADO, Quartz.Net will create 11 tables.
 | qrtz_paused_trigger_grps | `IScheduler.PauseTriggers` data |
 
 The scripts to create these tables for various providers can be found [here](https://github.com/quartznet/quartznet/tree/main/database/tables)
-
 
 ## Quartz Triggers Table
 
