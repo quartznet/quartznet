@@ -9,13 +9,14 @@ public class QuartzSchedulerThreadTest
     [Test]
     public void Ctor_SchedulerAndResources([ValueSource(nameof(ValidIdleWaitTimes))] TimeSpan idleWaitTime)
     {
-        QuartzSchedulerResources resources = new QuartzSchedulerResources
+        QuartzSchedulerResources resources = new()
         {
             IdleWaitTime = idleWaitTime
         };
-        QuartzScheduler scheduler = new QuartzScheduler(resources);
 
-        var thread = new QuartzSchedulerThread(scheduler, resources);
+        QuartzScheduler scheduler = new(resources);
+
+        QuartzSchedulerThread thread = new(scheduler, resources);
         Assert.IsTrue(thread.Paused);
         Assert.IsFalse(thread.Halted);
         Assert.AreEqual((int) (idleWaitTime.TotalMilliseconds * 0.2), thread.IdleWaitVariableness);

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.VisualStudio.Threading;
 
 using Quartz.Logging;
 using Quartz.Util;
@@ -16,7 +17,9 @@ internal sealed class ClusterManager
 
     private QueuedTaskScheduler taskScheduler = null!;
     private readonly CancellationTokenSource cancellationTokenSource;
-    private Task task = null!;
+    private JoinableTask task = null!;
+    private JoinableTaskContext taskContext = null!;
+    private JoinableTaskFactory joinableTaskFactory = null!;
 
     private int numFails;
 
@@ -33,20 +36,31 @@ internal sealed class ClusterManager
         string threadName = $"QuartzScheduler_{jobStoreSupport.InstanceName}-{jobStoreSupport.InstanceId}_ClusterManager";
 
         taskScheduler = new QueuedTaskScheduler(threadCount: 1, threadPriority: ThreadPriority.AboveNormal, threadName: threadName, useForegroundThreads: !jobStoreSupport.MakeThreadsDaemons);
-        task = Task.Factory.StartNew(() => Run(cancellationTokenSource.Token), cancellationTokenSource.Token, TaskCreationOptions.HideScheduler, taskScheduler).Unwrap();
+        taskContext = new JoinableTaskContext();
+        joinableTaskFactory = taskContext.Factory;
+    
+        task = joinableTaskFactory.RunAsync(() =>
+            Task.Factory.StartNew(() => Run(cancellationTokenSource.Token), cancellationTokenSource.Token, TaskCreationOptions.HideScheduler, taskScheduler).Unwrap());
     }
 
     public async Task Shutdown()
     {
+#if NET5_0_OR_GREATER
+        await cancellationTokenSource.CancelAsync().ConfigureAwait(false);
+#else
         cancellationTokenSource.Cancel();
+#endif
+ 
         try
         {
             taskScheduler.Dispose();
-            await task.ConfigureAwait(false);
+            await task.JoinAsync().ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
         }
+
+        taskContext.Dispose();
     }
 
     private async ValueTask<bool> Manage()

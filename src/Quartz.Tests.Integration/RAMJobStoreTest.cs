@@ -558,7 +558,7 @@ public abstract class AbstractSchedulerTest
         }
         finally
         {
-            var task = Task.Run(async () =>
+            Task task = Task.Run(async () =>
             {
                 try
                 {
@@ -570,10 +570,11 @@ public abstract class AbstractSchedulerTest
                     throw new Exception("exception: " + ex.Message, ex);
                 }
             });
+
             await Task.Delay(1000);
             Assert.That(shutdown, Is.False);
             barrier.SignalAndWait(testTimeout);
-            await task;
+            await task.WaitAsync(testTimeout, TimeProvider.System);
             Assert.That(shutdown, Is.True);
         }
     }

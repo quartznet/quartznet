@@ -283,64 +283,56 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
         return null;
     }
 
-    private ValueTask<IDictionary?> ReadMapFromReader(DbDataReader rs, int colIndex)
+    private async ValueTask<IDictionary?> ReadMapFromReader(DbDataReader rs, int colIndex)
     {
-        var isDbNullTask = rs.IsDBNullAsync(colIndex);
-        if (isDbNullTask.IsCompleted && isDbNullTask.Result)
+        var isDbNullTask = await rs.IsDBNullAsync(colIndex).ConfigureAwait(false);
+        if (isDbNullTask)
         {
-            return new ValueTask<IDictionary?>((IDictionary?) null);
+            return null;
         }
 
-        return Awaited(isDbNullTask);
-
-        async ValueTask<IDictionary?> Awaited(Task<bool> isDbNull)
+        if (CanUseProperties)
         {
-            if (await isDbNull.ConfigureAwait(false))
-            {
-                return null;
-            }
-
-            if (CanUseProperties)
-            {
-                try
-                {
-                    var properties = await GetMapFromProperties(rs, colIndex).ConfigureAwait(false);
-                    return properties;
-                }
-                catch (InvalidCastException)
-                {
-                    // old data from user error or XML scheduling plugin data
-                    try
-                    {
-                        return await GetObjectFromBlob<IDictionary>(rs, colIndex).ConfigureAwait(false);
-                    }
-                    catch
-                    {
-                    }
-
-                    // throw original exception
-                    throw;
-                }
-            }
             try
             {
-                return await GetObjectFromBlob<IDictionary>(rs, colIndex).ConfigureAwait(false);
+                var properties = await GetMapFromProperties(rs, colIndex).ConfigureAwait(false);
+                return properties;
             }
             catch (InvalidCastException)
             {
-                // old data from user error?
+                // old data from user error or XML scheduling plugin data
                 try
                 {
-                    // we use this then
-                    return await GetMapFromProperties(rs, colIndex).ConfigureAwait(false);
+                    return await GetObjectFromBlob<IDictionary>(rs, colIndex).ConfigureAwait(false);
                 }
                 catch
                 {
+                    // Ignore
                 }
 
                 // throw original exception
                 throw;
             }
+        }
+        try
+        {
+            return await GetObjectFromBlob<IDictionary>(rs, colIndex).ConfigureAwait(false);
+        }
+        catch (InvalidCastException)
+        {
+            // old data from user error?
+            try
+            {
+                // we use this then
+                return await GetMapFromProperties(rs, colIndex).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Ignore
+            }
+
+            // throw original exception
+            throw;
         }
     }
 

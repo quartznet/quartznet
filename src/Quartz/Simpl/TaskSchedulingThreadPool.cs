@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 
 using Quartz.Logging;
 using Quartz.Spi;
@@ -18,7 +18,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     // The token source used to cancel thread pool execution at shutdown
     // Note that cancellation is not propagated to the user-scheduled tasks currently executing,
     // only to the thread pool functions themselves (such as scheduling tasks).
-    private readonly CancellationTokenSource shutdownCancellation = new CancellationTokenSource();
+    private readonly CancellationTokenSource shutdownCancellation = new();
 
     /// <summary>
     /// Allows us to wait until no running tasks remain.
@@ -39,7 +39,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     private int maxConcurrency;
     protected internal const int DefaultMaxConcurrency = 10;
 
-    private TaskScheduler scheduler = null!;
+    private TaskScheduler? scheduler;
     private bool isInitialized;
 
     /// <summary>
@@ -50,7 +50,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     /// Once the thread pool is initialized, any attempts to change the value
     /// will be silently ignored.
     /// </remarks>
-    public TaskScheduler Scheduler
+    public TaskScheduler? Scheduler
     {
         get => scheduler;
         set
@@ -106,7 +106,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     // ReSharper disable once UnusedMember.Global
     public string ThreadPriority
     {
-        set => logger.LogWarning("Thread priority is no longer supported for thread pool, ignoring");
+        set => logger.LogWarning("Thread priority is no longer supported for thread pool, ignoring: {value}", value);
     }
 
     /// <summary>
@@ -138,10 +138,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     {
         // Checking for null allows users to specify their own scheduler prior to initialization.
         // If this is undesirable, the scheduler should be set here unconditionally.
-        if (Scheduler == null)
-        {
-            Scheduler = GetDefaultScheduler();
-        }
+        Scheduler ??= GetDefaultScheduler();
 
         // Initialize the concurrency semaphore with the proper initial count
         concurrencySemaphore = new SemaphoreSlim(MaxConcurrency);
@@ -203,9 +200,12 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     /// <returns>
     /// <see langword="true"/> if the task was successfully scheduled; otherwise, <see langword="false"/>.
     /// </returns>
-    public bool RunInThread(Func<Task> runnable)
+    public bool RunInThread(Func<Task>? runnable)
     {
-        if (runnable == null || !isInitialized || shutdownCancellation.IsCancellationRequested) return false;
+        if (runnable == null || !isInitialized || shutdownCancellation.IsCancellationRequested)
+        {
+            return false;
+        }
 
         // Acquire the semaphore (return false if shutdown occurs while waiting)
         try
@@ -217,14 +217,14 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
             return false;
         }
 
-        // Wrap the runnable in a Task to start it asynchronously
-        var task = new Task<Task>(runnable);
-
-        // Unrap the task so that we can work with the underlying task
-        var unwrappedTask = task.Unwrap();
-
         lock (runningTasksCountdown)
         {
+            // Wrap the runnable in a Task to start it asynchronously
+            Task<Task> task = new(runnable);
+
+            // Register a callback to remove the task from the running list once it has completed
+            _ = task.Unwrap().ContinueWith(completeTask, shutdownCancellation.Token, TaskContinuationOptions.None, TaskScheduler.Default);
+
             // Now that the lock is held, shutdown can't proceed,
             // so double-check that no shutdown has started since the initial check.
             if (shutdownCancellation.IsCancellationRequested)
@@ -235,15 +235,10 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
 
             // Record an extra running task
             runningTasksCountdown.AddCount();
+
+            // Start the task using the task scheduler
+            task.Start(Scheduler!);
         }
-
-        // Register a callback to remove the task from the running list once it has completed
-#pragma warning disable MA0134
-        unwrappedTask.ContinueWith(completeTask);
-#pragma warning restore MA0134
-
-        // Start the task using the task scheduler
-        task.Start(Scheduler);
 
         return true;
     }
@@ -275,20 +270,24 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
         {
             lock (runningTasksCountdown)
             {
+                // Signal the initial count that we used to make sure the CountDownEvent didn't start
+                // in "signaled" state first so the log reflects actual jobs running.
+                runningTasksCountdown.Signal();
+
                 // Cancellation has been signaled, so no new tasks will begin once
                 // shutdown has acquired this lock
                 logger.LogDebug("Waiting for {ThreadCount} threads to complete.", runningTasksCountdown.CurrentCount.ToString());
+
+                // Wait for pending tasks to complete
+                runningTasksCountdown.Wait(CancellationToken.None);
             }
-
-            // Signal the initial count that we used to make sure the CountDownEvent didn't start
-            // in "signaled" state
-            runningTasksCountdown.Signal();
-
-            // Wait for pending tasks to complete
-            runningTasksCountdown.Wait();
 
             logger.LogDebug("No executing jobs remaining, all threads stopped.");
         }
+
+        shutdownCancellation.Dispose();
+        runningTasksCountdown.Dispose();
+        concurrencySemaphore.Dispose();
 
         logger.LogDebug("Shutdown of threadpool complete.");
     }

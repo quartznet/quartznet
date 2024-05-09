@@ -8,6 +8,7 @@
     <ProduceReferenceAssembly>false</ProduceReferenceAssembly>
     <IsPackable>false</IsPackable>
     <SonarQubeExclude>true</SonarQubeExclude>
+    <NoWarn>VSTHRD002,VSTHRD110,VSTHRD200</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>

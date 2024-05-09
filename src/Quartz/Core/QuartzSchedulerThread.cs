@@ -22,9 +22,10 @@
 using System.Data.Common;
 
 using Microsoft.Extensions.Logging;
-
+using Microsoft.VisualStudio.Threading;
 using Quartz.Logging;
 using Quartz.Spi;
+using Quartz.Util;
 
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
@@ -45,18 +46,24 @@ internal sealed class QuartzSchedulerThread
     private readonly QuartzScheduler qs;
     private readonly QuartzSchedulerResources qsRsrcs;
     private readonly int idleWaitVariableness;
-    private readonly object sigLock = new object();
+    private SemaphoreSlim sigSemaphore = new(1, 1);
 
-    private bool signaled;
+    private volatile bool signaled;
     private DateTimeOffset? signaledNextFireTimeUtc;
-    private bool paused;
-    private bool halted;
 
-    private readonly QuartzRandom random = new QuartzRandom();
+    // Put this object into the 'paused' state so processing doesn't start yet...
+    private readonly PauseTokenSource pauseSource = new(startPaused: true);
+    private readonly PauseToken pauseToken;
+    private CancellationTokenSource pauseCancellationTokenSource = null!;
+    private volatile bool halted;
+
+    private readonly QuartzRandom random = new();
 
     private CancellationTokenSource cancellationTokenSource = null!;
-    private Task task = null!;
-
+    private JoinableTask task = null!;
+    private JoinableTaskContext taskContext = null!;
+    private JoinableTaskFactory joinableTaskFactory = null!;
+    
     /// <summary>
     /// Gets the randomized idle wait time.
     /// </summary>
@@ -70,7 +77,7 @@ internal sealed class QuartzSchedulerThread
     /// Gets a value indicating whether this <see cref="QuartzSchedulerThread"/> is paused.
     /// </summary>
     /// <value><c>true</c> if paused; otherwise, <c>false</c>.</value>
-    internal bool Paused => paused;
+    internal bool Paused => pauseToken.IsPaused;
 
     /// <summary>
     /// Gets a value indicating whether this <see cref="QuartzSchedulerThread"/> is stopped.
@@ -78,7 +85,24 @@ internal sealed class QuartzSchedulerThread
     /// <value>
     /// <see langword="true"/> if stopped; otherwise, <see langword="false"/>.
     /// </value>
-    internal bool Halted => halted;
+    internal bool Halted
+    {
+        get
+        {
+            sigSemaphore.Wait(CancellationToken.None);
+            try
+            {
+                return halted;
+            }
+            finally
+            {
+                if (sigSemaphore.CurrentCount < 1)
+                {
+                    sigSemaphore.Release();
+                }
+            }
+        }
+    }
 
     /// <summary>
     /// Gets the maximum number of milliseconds to subtract from <see cref="QuartzSchedulerResources.IdleWaitTime"/>
@@ -104,11 +128,7 @@ internal sealed class QuartzSchedulerThread
         this.qs = qs;
         this.qsRsrcs = qsRsrcs;
         idleWaitVariableness = (int) (qsRsrcs.IdleWaitTime.TotalMilliseconds * 0.2);
-
-        // start the underlying thread, but put this object into the 'paused'
-        // state
-        // so processing doesn't start yet...
-        paused = true;
+        pauseToken = pauseSource.Token;
         halted = false;
     }
 
@@ -117,18 +137,10 @@ internal sealed class QuartzSchedulerThread
     /// </summary>
     internal void TogglePause(bool pause)
     {
-        lock (sigLock)
+        pauseSource.IsPaused = pause;
+        if (pause)
         {
-            paused = pause;
-
-            if (paused)
-            {
-                SignalSchedulingChange(SchedulerConstants.SchedulingSignalDateTime);
-            }
-            else
-            {
-                Monitor.PulseAll(sigLock);
-            }
+            SignalSchedulingChange(SchedulerConstants.SchedulingSignalDateTime);
         }
     }
 
@@ -137,17 +149,26 @@ internal sealed class QuartzSchedulerThread
     /// </summary>
     internal async Task Halt(bool wait)
     {
-        lock (sigLock)
+        await sigSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(!wait);
+        try
         {
             halted = true;
-
-            if (paused)
-            {
-                Monitor.PulseAll(sigLock);
-            }
-            else
+            if (!Paused)
             {
                 SignalSchedulingChange(SchedulerConstants.SchedulingSignalDateTime);
+            }
+
+#if NET5_0_OR_GREATER
+            await pauseCancellationTokenSource.CancelAsync().ConfigureAwait(false);
+#else
+            pauseCancellationTokenSource.Cancel();
+#endif
+        }
+        finally
+        {
+            if (sigSemaphore.CurrentCount < 1)
+            {
+                sigSemaphore.Release();
             }
         }
 
@@ -155,7 +176,7 @@ internal sealed class QuartzSchedulerThread
         {
             try
             {
-                await task.ConfigureAwait(false);
+                await task.JoinAsync().ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {
@@ -175,36 +196,67 @@ internal sealed class QuartzSchedulerThread
     /// </param>
     public void SignalSchedulingChange(DateTimeOffset? candidateNewNextFireTimeUtc)
     {
-        lock (sigLock)
+        sigSemaphore.Wait(CancellationToken.None);
+        try
         {
             signaled = true;
             signaledNextFireTimeUtc = candidateNewNextFireTimeUtc;
-            Monitor.PulseAll(sigLock);
+        }
+        finally
+        {
+            if (sigSemaphore.CurrentCount < 1)
+            {
+                sigSemaphore.Release();
+            }
         }
     }
 
     public void ClearSignaledSchedulingChange()
     {
-        lock (sigLock)
+        sigSemaphore.Wait(CancellationToken.None);
+        try
         {
             signaled = false;
             signaledNextFireTimeUtc = SchedulerConstants.SchedulingSignalDateTime;
+        }
+        finally
+        {
+            if (sigSemaphore.CurrentCount < 1)
+            {
+                sigSemaphore.Release();
+            }
         }
     }
 
     public bool IsScheduleChanged()
     {
-        lock (sigLock)
+        sigSemaphore.Wait(CancellationToken.None);
+        try
         {
             return signaled;
+        }
+        finally
+        {
+            if (sigSemaphore.CurrentCount < 1)
+            {
+                sigSemaphore.Release();
+            }
         }
     }
 
     public DateTimeOffset? GetSignaledNextFireTimeUtc()
     {
-        lock (sigLock)
+        sigSemaphore.Wait(CancellationToken.None);
+        try
         {
             return signaledNextFireTimeUtc;
+        }
+        finally
+        {
+            if (sigSemaphore.CurrentCount < 1)
+            {
+                sigSemaphore.Release();
+            }
         }
     }
 
@@ -215,56 +267,54 @@ internal sealed class QuartzSchedulerThread
     {
         int acquiresFailed = 0;
         Context.CallerId.Value = Guid.NewGuid();
+        CancellationToken runCancellationToken = cancellationTokenSource.Token;
 
         while (!halted)
         {
-            cancellationTokenSource.Token.ThrowIfCancellationRequested();
+            runCancellationToken.ThrowIfCancellationRequested();
             try
             {
-                // check if we're supposed to pause...
-                lock (sigLock)
+                try
                 {
-                    while (paused && !halted)
+                    // Check if we're supposed to pause. Reset fail counter.
+                    if (Paused)
                     {
-                        try
-                        {
-                            // wait until togglePause(false) is called...
-                            Monitor.Wait(sigLock, 1000);
-                        }
-                        catch (ThreadInterruptedException)
-                        {
-                        }
-
-                        // reset failure counter when paused, so that we don't
-                        // wait again after unpausing
                         acquiresFailed = 0;
-                    }
 
-                    if (halted)
-                    {
-                        break;
+                        // Waits until TogglePause(false) is called or Halting...
+                        await pauseToken.WaitWhilePausedAsync(pauseCancellationTokenSource.Token).ConfigureAwait(false);
                     }
                 }
-
+                catch (OperationCanceledException)
+                {
+                    // Ignore because this signal comes from Halt
+                }
+                
+                if (halted)
+                {
+                    break;
+                }
+                
                 // wait a bit, if reading from job store is consistently
-                // failing (e.g. DB is down or restarting)..
+                // failing (e.g. DB is down or restarting)
                 if (acquiresFailed > 1)
                 {
                     try
                     {
                         var delay = ComputeDelayForRepeatedErrors(qsRsrcs.JobStore, acquiresFailed);
-                        await Task.Delay(delay).ConfigureAwait(false);
+                        await Task.Delay(delay, runCancellationToken).ConfigureAwait(false);
                     }
                     catch
                     {
+                        // Ignore all
                     }
                 }
 
-                cancellationTokenSource.Token.ThrowIfCancellationRequested();
+                runCancellationToken.ThrowIfCancellationRequested();
                 int availThreadCount = qsRsrcs.ThreadPool.BlockForAvailableThreads();
                 if (availThreadCount > 0)
                 {
-                    List<IOperableTrigger> triggers;
+                    List<IOperableTrigger>? triggers;
 
                     DateTimeOffset now = qsRsrcs.TimeProvider.GetUtcNow();
 
@@ -308,7 +358,7 @@ internal sealed class QuartzSchedulerThread
                         continue;
                     }
 
-                    if (triggers != null && triggers.Count > 0)
+                    if (triggers.Count > 0)
                     {
                         now = qsRsrcs.TimeProvider.GetUtcNow();
                         DateTimeOffset triggerTime = triggers[0].GetNextFireTimeUtc()!.Value;
@@ -320,34 +370,32 @@ internal sealed class QuartzSchedulerThread
                             {
                                 break;
                             }
-                            lock (sigLock)
+                            
+                            if (halted)
                             {
-                                if (halted)
+                                break;
+                            }
+                            
+                            if (!await IsCandidateNewTimeEarlierWithinReason(triggerTime, false).ConfigureAwait(false))
+                            {
+                                // we could have blocked a long while
+                                // on 'synchronize', so we must recompute
+                                now = qsRsrcs.TimeProvider.GetUtcNow();
+                                timeUntilTrigger = triggerTime - now;
+                                
+                                // If signal is being processed wait the computed time, or continue.
+                                await sigSemaphore.WaitAsync(timeUntilTrigger, runCancellationToken).ConfigureAwait(false);
+                                if (sigSemaphore.CurrentCount < 1)
                                 {
-                                    break;
-                                }
-                                if (!IsCandidateNewTimeEarlierWithinReason(triggerTime, false))
-                                {
-                                    try
-                                    {
-                                        // we could have blocked a long while
-                                        // on 'synchronize', so we must recompute
-                                        now = qsRsrcs.TimeProvider.GetUtcNow();
-                                        timeUntilTrigger = triggerTime - now;
-                                        if (timeUntilTrigger > TimeSpan.Zero)
-                                        {
-                                            Monitor.Wait(sigLock, timeUntilTrigger);
-                                        }
-                                    }
-                                    catch (ThreadInterruptedException)
-                                    {
-                                    }
+                                    sigSemaphore.Release();
                                 }
                             }
+                            
                             if (await ReleaseIfScheduleChangedSignificantly(triggers, triggerTime).ConfigureAwait(false))
                             {
                                 break;
                             }
+                            
                             now = qsRsrcs.TimeProvider.GetUtcNow();
                             timeUntilTrigger = triggerTime - now;
                         }
@@ -359,22 +407,18 @@ internal sealed class QuartzSchedulerThread
                         }
 
                         // set triggers to 'executing'
-                        List<TriggerFiredResult> bndles = new List<TriggerFiredResult>();
+                        List<TriggerFiredResult> bundles = new();
 
-                        bool goAhead;
-                        lock (sigLock)
-                        {
-                            goAhead = !halted;
-                        }
-
-                        if (goAhead)
+                        if (!halted)
                         {
                             try
                             {
-                                var res = await qsRsrcs.JobStore.TriggersFired(triggers, CancellationToken.None).ConfigureAwait(false);
+                                IReadOnlyCollection<TriggerFiredResult>? res = await qsRsrcs.JobStore
+                                    .TriggersFired(triggers, CancellationToken.None).ConfigureAwait(false);
+
                                 if (res != null)
                                 {
-                                    bndles = res.ToList();
+                                    bundles = res.ToList();
                                 }
                             }
                             catch (SchedulerException se)
@@ -387,13 +431,14 @@ internal sealed class QuartzSchedulerThread
                                 {
                                     await qsRsrcs.JobStore.ReleaseAcquiredTrigger(t, CancellationToken.None).ConfigureAwait(false);
                                 }
+                                
                                 continue;
                             }
                         }
 
-                        for (int i = 0; i < bndles.Count; i++)
+                        for (int i = 0; i < bundles.Count; i++)
                         {
-                            TriggerFiredResult result = bndles[i];
+                            TriggerFiredResult result = bundles[i];
                             var bndle = result.TriggerFiredBundle;
                             var exception = result.Exception;
 
@@ -435,7 +480,7 @@ internal sealed class QuartzSchedulerThread
                             }
 
                             var threadPoolRunResult = qsRsrcs.ThreadPool.RunInThread(() => shell.Run(CancellationToken.None));
-                            if (threadPoolRunResult == false)
+                            if (!threadPoolRunResult)
                             {
                                 // this case should never happen, as it is indicative of the
                                 // scheduler being shutdown or a bug in the thread pool or
@@ -455,24 +500,19 @@ internal sealed class QuartzSchedulerThread
                     // while (!halted)
                 }
 
-                TimeSpan timeUntilContinue = GetRandomizedIdleWaitTime();
-                lock (sigLock)
+                if (!halted)
                 {
-                    if (!halted)
+                    // QTZ-336 A job might have been completed in the meantime, and we might have
+                    // missed the scheduled changed signal by not waiting for the notify() yet
+                    // Check that before waiting for too long in case this very job needs to be
+                    // scheduled very soon
+                    if (!IsScheduleChanged())
                     {
-                        try
+                        TimeSpan timeUntilContinue = GetRandomizedIdleWaitTime();
+                        await sigSemaphore.WaitAsync(timeUntilContinue, runCancellationToken).ConfigureAwait(false);
+                        if (sigSemaphore.CurrentCount < 1)
                         {
-                            // QTZ-336 A job might have been completed in the mean time and we might have
-                            // missed the scheduled changed signal by not waiting for the notify() yet
-                            // Check that before waiting for too long in case this very job needs to be
-                            // scheduled very soon
-                            if (!IsScheduleChanged())
-                            {
-                                Monitor.Wait(sigLock, timeUntilContinue);
-                            }
-                        }
-                        catch (ThreadInterruptedException)
-                        {
+                            sigSemaphore.Release();
                         }
                     }
                 }
@@ -516,22 +556,29 @@ internal sealed class QuartzSchedulerThread
 
     private async ValueTask<bool> ReleaseIfScheduleChangedSignificantly(List<IOperableTrigger> triggers, DateTimeOffset triggerTime)
     {
-        if (IsCandidateNewTimeEarlierWithinReason(triggerTime, true))
+        if (!await IsCandidateNewTimeEarlierWithinReason(triggerTime, true).ConfigureAwait(false))
         {
-            foreach (IOperableTrigger trigger in triggers)
-            {
-                // above call does a clearSignaledSchedulingChange()
-                await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger).ConfigureAwait(false);
-            }
-            triggers.Clear();
-            return true;
+            return false;
         }
 
-        return false;
+        foreach (IOperableTrigger trigger in triggers)
+        {
+            // above call does a clearSignaledSchedulingChange()
+            await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger).ConfigureAwait(false);
+        }
+            
+        triggers.Clear();
+        return true;
+
     }
 
-    private bool IsCandidateNewTimeEarlierWithinReason(DateTimeOffset oldTimeUtc, bool clearSignal)
+    private async Task<bool> IsCandidateNewTimeEarlierWithinReason(DateTimeOffset oldTimeUtc, bool clearSignal)
     {
+        if (!IsScheduleChanged())
+        {
+            return false;
+        }
+
         // So here's the deal: We know due to being signaled that 'the schedule'
         // has changed.  We may know (if getSignaledNextFireTime() != DateTimeOffset.MinValue) the
         // new earliest fire time.  We may not (in which case we will assume
@@ -549,25 +596,21 @@ internal sealed class QuartzSchedulerThread
         // it can abandon the acquired trigger and acquire a new one.  However
         // we have no current facility for having it tell us that, so we make
         // a somewhat educated but arbitrary guess.
-
-        lock (sigLock)
+        
+        bool earlier = false;
+        DateTimeOffset? nextFireTimeUtc = GetSignaledNextFireTimeUtc();
+        await sigSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
+        try
         {
-            if (!IsScheduleChanged())
-            {
-                return false;
-            }
-
-            bool earlier = false;
-
-            if (!GetSignaledNextFireTimeUtc().HasValue)
+            if (!nextFireTimeUtc.HasValue)
             {
                 earlier = true;
             }
-            else if (GetSignaledNextFireTimeUtc()!.Value < oldTimeUtc)
+            else if (nextFireTimeUtc.Value < oldTimeUtc)
             {
                 earlier = true;
             }
-
+            
             if (earlier)
             {
                 // so the new time is considered earlier, but is it enough earlier?
@@ -577,31 +620,55 @@ internal sealed class QuartzSchedulerThread
                     earlier = false;
                 }
             }
-
-            if (clearSignal)
-            {
-                ClearSignaledSchedulingChange();
-            }
-
-            return earlier;
         }
+        finally
+        {
+            if (sigSemaphore.CurrentCount < 1)
+            {
+                sigSemaphore.Release();
+            }
+        }
+
+        if (clearSignal)
+        {
+            ClearSignaledSchedulingChange();
+        }
+
+        return earlier;
     }
 
     public void Start()
     {
         cancellationTokenSource = new CancellationTokenSource();
-        task = Task.Run(Run);
+        pauseCancellationTokenSource = new CancellationTokenSource();
+        sigSemaphore = new SemaphoreSlim(1, 1);
+        taskContext = new JoinableTaskContext();
+        joinableTaskFactory = taskContext.Factory;
+    
+        task = joinableTaskFactory.RunAsync(Run);
     }
 
     public async Task Shutdown()
     {
+#if NET5_0_OR_GREATER
+        await cancellationTokenSource.CancelAsync().ConfigureAwait(false);
+#else
         cancellationTokenSource.Cancel();
+#endif
+
         try
         {
-            await task.ConfigureAwait(false);
+            await task.JoinAsync().ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
+        }
+        finally
+        {
+            sigSemaphore.Dispose();
+            cancellationTokenSource.Dispose();
+            pauseCancellationTokenSource.Dispose();
+            taskContext.Dispose();
         }
     }
 }
