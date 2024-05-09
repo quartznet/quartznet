@@ -63,7 +63,7 @@ internal sealed class QuartzSchedulerThread
     private JoinableTask task = null!;
     private JoinableTaskContext taskContext = null!;
     private JoinableTaskFactory joinableTaskFactory = null!;
-    
+
     /// <summary>
     /// Gets the randomized idle wait time.
     /// </summary>
@@ -138,9 +138,9 @@ internal sealed class QuartzSchedulerThread
     {
         pauseSource.IsPaused = pause;
         if (pause)
-        {
-            SignalSchedulingChange(SchedulerConstants.SchedulingSignalDateTime);
-        }
+            {
+                SignalSchedulingChange(SchedulerConstants.SchedulingSignalDateTime);
+            }
     }
 
     /// <summary>
@@ -162,9 +162,9 @@ internal sealed class QuartzSchedulerThread
 #else
             pauseCancellationTokenSource.Cancel();
 #endif
-        }
+            }
         finally
-        {
+            {
             if (sigSemaphore.CurrentCount < 1)
             {
                 sigSemaphore.Release();
@@ -273,11 +273,11 @@ internal sealed class QuartzSchedulerThread
             runCancellationToken.ThrowIfCancellationRequested();
             try
             {
-                try
-                {
+                        try
+                        {
                     // Check if we're supposed to pause. Reset fail counter.
                     if (Paused)
-                    {
+                        {
                         acquiresFailed = 0;
 
                         // Waits until TogglePause(false) is called or Halting...
@@ -287,13 +287,13 @@ internal sealed class QuartzSchedulerThread
                 catch (OperationCanceledException)
                 {
                     // Ignore because this signal comes from Halt
-                }
-                
-                if (halted)
-                {
-                    break;
-                }
-                
+                    }
+
+                    if (halted)
+                    {
+                        break;
+                    }
+
                 // wait a bit, if reading from job store is consistently
                 // failing (e.g. DB is down or restarting)
                 if (acquiresFailed > 1)
@@ -370,25 +370,25 @@ internal sealed class QuartzSchedulerThread
                                 break;
                             }
                             
-                            if (halted)
-                            {
-                                break;
-                            }
+                                if (halted)
+                                {
+                                    break;
+                                }
                             
                             if (!await IsCandidateNewTimeEarlierWithinReason(triggerTime, false).ConfigureAwait(false))
-                            {
-                                // we could have blocked a long while
-                                // on 'synchronize', so we must recompute
-                                now = qsRsrcs.TimeProvider.GetUtcNow();
-                                timeUntilTrigger = triggerTime - now;
+                                    {
+                                        // we could have blocked a long while
+                                        // on 'synchronize', so we must recompute
+                                        now = qsRsrcs.TimeProvider.GetUtcNow();
+                                        timeUntilTrigger = triggerTime - now;
                                 
                                 // If signal is being processed wait the computed time, or continue.
                                 await sigSemaphore.WaitAsync(timeUntilTrigger, runCancellationToken).ConfigureAwait(false);
                                 if (sigSemaphore.CurrentCount < 1)
-                                {
+                                    {
                                     sigSemaphore.Release();
+                                    }
                                 }
-                            }
                             
                             if (await ReleaseIfScheduleChangedSignificantly(triggers, triggerTime).ConfigureAwait(false))
                             {
@@ -499,14 +499,14 @@ internal sealed class QuartzSchedulerThread
                     // while (!halted)
                 }
 
-                if (!halted)
-                {
-                    // QTZ-336 A job might have been completed in the meantime, and we might have
-                    // missed the scheduled changed signal by not waiting for the notify() yet
-                    // Check that before waiting for too long in case this very job needs to be
-                    // scheduled very soon
-                    if (!IsScheduleChanged())
+                    if (!halted)
                     {
+                    // QTZ-336 A job might have been completed in the meantime, and we might have
+                            // missed the scheduled changed signal by not waiting for the notify() yet
+                            // Check that before waiting for too long in case this very job needs to be
+                            // scheduled very soon
+                            if (!IsScheduleChanged())
+                            {
                         TimeSpan timeUntilContinue = GetRandomizedIdleWaitTime();
                         await sigSemaphore.WaitAsync(timeUntilContinue, runCancellationToken).ConfigureAwait(false);
                         if (sigSemaphore.CurrentCount < 1)
@@ -560,23 +560,23 @@ internal sealed class QuartzSchedulerThread
             return false;
         }
 
-        foreach (IOperableTrigger trigger in triggers)
-        {
-            // above call does a clearSignaledSchedulingChange()
-            await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger).ConfigureAwait(false);
-        }
+            foreach (IOperableTrigger trigger in triggers)
+            {
+                // above call does a clearSignaledSchedulingChange()
+                await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger).ConfigureAwait(false);
+            }
             
-        triggers.Clear();
-        return true;
+            triggers.Clear();
+            return true;
 
-    }
+        }
 
     private async Task<bool> IsCandidateNewTimeEarlierWithinReason(DateTimeOffset oldTimeUtc, bool clearSignal)
     {
         if (!IsScheduleChanged())
         {
-            return false;
-        }
+        return false;
+    }
 
         // So here's the deal: We know due to being signaled that 'the schedule'
         // has changed.  We may know (if getSignaledNextFireTime() != DateTimeOffset.MinValue) the
@@ -595,8 +595,8 @@ internal sealed class QuartzSchedulerThread
         // it can abandon the acquired trigger and acquire a new one.  However
         // we have no current facility for having it tell us that, so we make
         // a somewhat educated but arbitrary guess.
-        
-        bool earlier = false;
+
+            bool earlier = false;
         DateTimeOffset? nextFireTimeUtc = GetSignaledNextFireTimeUtc();
         await sigSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         try
@@ -609,7 +609,7 @@ internal sealed class QuartzSchedulerThread
             {
                 earlier = true;
             }
-            
+
             if (earlier)
             {
                 // so the new time is considered earlier, but is it enough earlier?
@@ -628,13 +628,13 @@ internal sealed class QuartzSchedulerThread
             }
         }
 
-        if (clearSignal)
-        {
-            ClearSignaledSchedulingChange();
-        }
+            if (clearSignal)
+            {
+                ClearSignaledSchedulingChange();
+            }
 
-        return earlier;
-    }
+            return earlier;
+        }
 
     public void Start()
     {

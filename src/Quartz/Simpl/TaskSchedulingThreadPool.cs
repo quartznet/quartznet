@@ -199,7 +199,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     public bool RunInThread(Func<Task>? runnable)
     {
         if (runnable == null || !isInitialized || shutdownCancellation.IsCancellationRequested)
-        {
+    {
             return false;
         }
 
@@ -223,7 +223,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
                 return false;
             }
 
-            // Start the task using the task scheduler
+        // Start the task using the task scheduler
             tasks.Add(joinableTaskFactory.RunAsync(async () => 
             {
                 Task<Task> scheduledTask = Task.Factory.StartNew(runnable, 
@@ -235,7 +235,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
                 await scheduledTask.Unwrap().ConfigureAwait(false);
                 concurrencySemaphore.Release();
             }));
-        }
+    }
 
         return true;
     }
@@ -260,7 +260,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
                 // shutdown has acquired this lock
                 logger.LogDebug("Waiting for {ThreadCount} threads to complete.", tasks.Count().ToString());
 
-                // Wait for pending tasks to complete
+            // Wait for pending tasks to complete
 #pragma warning disable VSTHRD002 // Avoid problematic synchronous waits TODO: Make Shutdown Async
                 tasks.JoinTillEmptyAsync().GetAwaiter().GetResult();
 #pragma warning restore VSTHRD002 // Avoid problematic synchronous waits

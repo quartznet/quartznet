@@ -9,7 +9,6 @@
   <ItemGroup Condition=" '$(TargetFramework)' == 'net8.0' ">
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="8.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
-    <PackageVersion Include="Microsoft.Extensions.Options" Version="8.0.0" />
   </ItemGroup>
   <ItemGroup>
     <PackageVersion Include="Microsoft.Bcl.TimeProvider" Version="8.0.1" />
