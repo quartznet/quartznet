@@ -91,7 +91,7 @@ namespace Quartz.Simpl
         /// <summary>
         /// Allows the job factory to destroy/cleanup the job if needed.
         /// </summary>
-        public virtual async Task ReturnJobAsync(IJob job)
+        async Task IJobWithAsyncReturnFactory.ReturnJobAsync(IJob job)
         {
             if (job is IAsyncDisposable asyncDisposableJob)
             {

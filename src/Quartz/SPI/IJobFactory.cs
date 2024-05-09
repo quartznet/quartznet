@@ -70,7 +70,7 @@ namespace Quartz.Spi
 	}
    
 #if NET6_0_OR_GREATER
-    public interface IJobWithAsyncReturnFactory : IJobFactory
+    internal interface IJobWithAsyncReturnFactory : IJobFactory
     {
         /// <summary>
         /// Allows the job factory to destroy/cleanup the job if needed.
