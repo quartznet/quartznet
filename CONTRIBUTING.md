@@ -15,7 +15,12 @@ Run `build.cmd` or `build.sh` from the command line.
 
 ## Testing
 
-Run the build command with flags: `build Compile UnitTest IntegrationTest Pack`. This builds and runs tests like the CI server does.
+Some test dependencies are provided by a docker container. 
+
+* Run `docker compose up -d`
+* Run the build command with flags: `.\build.cmd Compile UnitTest IntegrationTest`
+
+This builds and runs tests like the CI server does.
 
 ## Bugs and feature requests?
 
