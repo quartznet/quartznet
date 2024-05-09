@@ -101,17 +101,32 @@ namespace Quartz.Simpl
             {
                 disposableJob.Dispose();
             }
+
+            // check for wrapped jobs only if the current job is not disposable
+            // disposable wrappers should handle inner disposal on its own
+            else if (job is IJobWrapper jobWrapper)
+            {
+                await ((IJobWithAsyncReturnFactory) this).ReturnJobAsync(jobWrapper.Target).ConfigureAwait(false);
+            }
         }
 #endif
-	    /// <summary>
-	    /// Allows the job factory to destroy/cleanup the job if needed.
-	    /// No-op when using SimpleJobFactory.
-	    /// </summary>
-	    public virtual void ReturnJob(IJob job)
-	    {
-	        var disposable = job as IDisposable;
-	        disposable?.Dispose();
-	    }
+        /// <summary>
+        /// Allows the job factory to destroy/cleanup the job if needed.
+        /// No-op when using SimpleJobFactory.
+        /// </summary>
+        public virtual void ReturnJob(IJob job)
+        {
+            if (job is IDisposable disposableJob)
+            {
+                disposableJob.Dispose();
+            }
 
+            // check for wrapped jobs only if the current job is not disposable
+            // disposable wrappers should handle inner disposal on its own
+            else if (job is IJobWrapper jobWrapper)
+            {
+                ReturnJob(jobWrapper.Target);
+            }
+        }
 	}
 }

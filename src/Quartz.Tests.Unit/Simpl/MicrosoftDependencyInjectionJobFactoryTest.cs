@@ -28,8 +28,11 @@ public class MicrosoftDependencyInjectionJobFactoryTest
         var schedulerBuilder = SchedulerBuilder.Create()
             .Build();
 
+        const string testValue = "test";
+
         var jobDetail = JobBuilder.Create<TestJob>()
             .StoreDurably()
+            .UsingJobData(nameof(TestJob.Test), testValue)
             .Build();
 
         var serviceCollection = new ServiceCollection();
@@ -48,6 +51,7 @@ public class MicrosoftDependencyInjectionJobFactoryTest
 
         TestJob.Executed.Should().BeTrue();
         TestJob.Disposed.Should().BeTrue();
+        TestJob.TestValue.Should().Be(testValue);
 
         Dependency.Disposed.Should().BeTrue();
     }
@@ -56,6 +60,9 @@ public class MicrosoftDependencyInjectionJobFactoryTest
     {
         public static bool Executed { get; set; }
         public static bool Disposed { get; set; }
+        public static string TestValue { get; set; }
+
+        public string Test { get; set; }
 
         public TestJob(Dependency dependency)
         {
@@ -64,6 +71,7 @@ public class MicrosoftDependencyInjectionJobFactoryTest
         public Task Execute(IJobExecutionContext context)
         {
             Executed = true;
+            TestValue = Test;
             return Task.CompletedTask;
         }
 

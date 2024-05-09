@@ -47,13 +47,6 @@ namespace Quartz.Simpl
             // the ambient context of a Job
         }
 
-        public override void SetObjectProperties(object obj, JobDataMap data)
-        {
-            // we need to check if job is actually a scoped job wrapper
-            var target = obj is ScopedJob scopedJob ? scopedJob.InnerJob : obj;
-            base.SetObjectProperties(target, data);
-        }
-
         private (IJob Job, bool FromContainer) CreateJob(TriggerFiredBundle bundle, IServiceProvider serviceProvider)
         {
             var job = (IJob?) serviceProvider.GetService(bundle.JobDetail.JobType);

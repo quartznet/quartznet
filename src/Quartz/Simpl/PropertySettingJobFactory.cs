@@ -132,13 +132,20 @@ namespace Quartz.Simpl
         /// </summary>
         /// <param name="obj">The object to set properties to.</param>
         /// <param name="data">The data to set.</param>
-		public virtual void SetObjectProperties(object obj, JobDataMap data)
-		{
-			foreach (string name in data.Keys)
-			{
-				SetObjectProperty(obj, name, data[name]);
-			}
-		}
+        public virtual void SetObjectProperties(object obj, JobDataMap data)
+        {
+            if (obj is IJobWrapper jobWrapper)
+            {
+                SetObjectProperties(jobWrapper.Target, data);
+            }
+            else
+            {
+                foreach (string name in data.Keys)
+                {
+                    SetObjectProperty(obj, name, data[name]);
+                }
+            }
+        }
 
 	    /// <summary>
 	    /// Sets specific property to object, handles conversion and error conditions.
