@@ -306,7 +306,18 @@ namespace Quartz.Core
                     var jobInstance = jec.jobInstance;
                     if (jobInstance != null)
                     {
+#if NET6_0_OR_GREATER
+                        if (qs.JobFactory is IJobWithAsyncReturnFactory asyncReturnFactory)
+                        {
+                            await asyncReturnFactory.ReturnJobAsync(jobInstance).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            qs.JobFactory.ReturnJob(jobInstance);
+                        }
+#else
                         qs.JobFactory.ReturnJob(jobInstance);
+#endif
                     }
 
                     jec.Dispose();

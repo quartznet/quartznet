@@ -17,6 +17,9 @@
  */
 #endregion
 
+#if NET6_0_OR_GREATER
+using System.Threading.Tasks;
+#endif
 using Quartz.Simpl;
 
 namespace Quartz.Spi
@@ -59,10 +62,21 @@ namespace Quartz.Spi
 	    /// <returns> the newly instantiated Job
 	    /// </returns>
 	    IJob NewJob(TriggerFiredBundle bundle, IScheduler scheduler);
-
+        
         /// <summary>
         /// Allows the job factory to destroy/cleanup the job if needed.
         /// </summary>
 	    void ReturnJob(IJob job);
 	}
+   
+#if NET6_0_OR_GREATER
+    internal interface IJobWithAsyncReturnFactory : IJobFactory
+    {
+        /// <summary>
+        /// Allows the job factory to destroy/cleanup the job if needed.
+        /// </summary>
+        Task ReturnJobAsync(IJob job);
+    }
+#endif
+
 }

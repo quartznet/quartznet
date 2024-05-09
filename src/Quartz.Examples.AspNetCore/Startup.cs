@@ -79,6 +79,9 @@ namespace Quartz.Examples.AspNetCore
             // custom connection provider
             services.AddSingleton<IDbProvider, CustomSqlServerConnectionProvider>();
 
+            // async disposable
+            services.AddScoped<AsyncDisposableDependency>();
+
             services.AddQuartz(q =>
             {
                 // handy when part of cluster or you want to otherwise identify multiple schedulers
@@ -150,6 +153,7 @@ namespace Quartz.Examples.AspNetCore
                     // this is the default
                     options.DefaultMaxRunTime = TimeSpan.FromMinutes(5);
                 });
+
                 q.ScheduleJob<SlowJob>(
                     triggerConfigurator => triggerConfigurator
                         .WithIdentity("slowJobTrigger")
@@ -160,6 +164,13 @@ namespace Quartz.Examples.AspNetCore
                         .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyAutoInterruptable, "true")
                         // allow only five seconds for this job, overriding default configuration
                         .UsingJobData(JobInterruptMonitorPlugin.JobDataMapKeyMaxRunTime, TimeSpan.FromSeconds(5).TotalMilliseconds.ToString(CultureInfo.InvariantCulture))
+                );
+
+                // async disposable dependencies
+                q.ScheduleJob<AsyncDisposableJob>(
+                    triggerConfigurator => triggerConfigurator
+                        .StartNow()
+                        .WithSimpleSchedule(x => x.WithIntervalInSeconds(5).WithRepeatCount(2))
                 );
 
                 const string calendarName = "myHolidayCalendar";
