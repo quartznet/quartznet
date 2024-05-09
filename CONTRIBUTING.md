@@ -11,7 +11,16 @@ Please start a discussion on the [core repo issue tracker](https://github.com/qu
 
 ## Building
 
-Run `build.cmd` or `build.sh` from the command line. This builds and runs tests.
+Run `build.cmd` or `build.sh` from the command line. 
+
+## Testing
+
+Some test dependencies are provided by a docker container. 
+
+* Run `docker compose up -d`
+* Run the build command with flags: `.\build.cmd Compile UnitTest IntegrationTest`
+
+This builds and runs tests like the CI server does.
 
 ## Bugs and feature requests?
 
