@@ -302,7 +302,9 @@ public class SchedulerTest
 
         var stopwatch = Stopwatch.StartNew();
 
-        await scheduler.Shutdown(true);
+        // There was a deadlock on shutdown, the test should fail instead of running forever.
+        CancellationTokenSource timeout = new(TimeSpan.FromSeconds(30));
+        await scheduler.Shutdown(true, timeout.Token);
 
         stopwatch.Stop();
 

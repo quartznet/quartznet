@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.VisualStudio.Threading;
 
 using Quartz.Logging;
 using Quartz.Spi;
@@ -23,12 +24,9 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     /// <summary>
     /// Allows us to wait until no running tasks remain.
     /// </summary>
-    private CountdownEvent runningTasksCountdown = null!;
-
-    /// <summary>
-    /// Cached delegate to mark a given task as complete.
-    /// </summary>
-    private Action<Task> completeTask = null!;
+    private JoinableTaskCollection tasks = null!;
+    private JoinableTaskContext taskContext = null!;
+    private JoinableTaskFactory joinableTaskFactory = null!;
 
     /// <summary>
     /// The semaphore used to limit concurrency and integers representing maximum
@@ -143,11 +141,9 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
         // Initialize the concurrency semaphore with the proper initial count
         concurrencySemaphore = new SemaphoreSlim(MaxConcurrency);
 
-        // We start with an initial count of one to make sure it doesn't start in "signaled" state
-        runningTasksCountdown = new CountdownEvent(1);
-
-        // Reduce allocations by caching the delegate to mark a task as complete
-        completeTask = SignalTaskComplete;
+        taskContext = new JoinableTaskContext();
+        joinableTaskFactory = taskContext.Factory;
+        tasks = new JoinableTaskCollection(taskContext, true);
 
         // Thread pool is ready to go
         isInitialized = true;
@@ -217,14 +213,8 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
             return false;
         }
 
-        lock (runningTasksCountdown)
+        lock (tasks)
         {
-            // Wrap the runnable in a Task to start it asynchronously
-            Task<Task> task = new(runnable);
-
-            // Register a callback to remove the task from the running list once it has completed
-            _ = task.Unwrap().ContinueWith(completeTask, shutdownCancellation.Token, TaskContinuationOptions.None, TaskScheduler.Default);
-
             // Now that the lock is held, shutdown can't proceed,
             // so double-check that no shutdown has started since the initial check.
             if (shutdownCancellation.IsCancellationRequested)
@@ -233,25 +223,21 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
                 return false;
             }
 
-            // Record an extra running task
-            runningTasksCountdown.AddCount();
-
             // Start the task using the task scheduler
-            task.Start(Scheduler!);
+            tasks.Add(joinableTaskFactory.RunAsync(async () => 
+            {
+                Task<Task> scheduledTask = Task.Factory.StartNew(runnable, 
+                    CancellationToken.None, 
+                    TaskCreationOptions.DenyChildAttach, 
+                    Scheduler!);
+
+                // Wait for the scheduled task to complete and then decrement semaphore
+                await scheduledTask.Unwrap().ConfigureAwait(false);
+                concurrencySemaphore.Release();
+            }));
         }
 
         return true;
-    }
-
-    /// <summary>
-    /// Decrements the number of running tasks and releases the concurrency semaphore so that more
-    /// tasks may begin running.
-    /// </summary>
-    /// <param name="completedTask">The task which has completed.</param>
-    private void SignalTaskComplete(Task completedTask)
-    {
-        concurrencySemaphore.Release();
-        runningTasksCountdown.Signal();
     }
 
     /// <summary>
@@ -268,26 +254,20 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
         // If waitForJobsToComplete is true, wait for running tasks to complete
         if (waitForJobsToComplete)
         {
-            lock (runningTasksCountdown)
+            lock (tasks)
             {
-                // Signal the initial count that we used to make sure the CountDownEvent didn't start
-                // in "signaled" state first so the log reflects actual jobs running.
-                runningTasksCountdown.Signal();
-
                 // Cancellation has been signaled, so no new tasks will begin once
                 // shutdown has acquired this lock
-                logger.LogDebug("Waiting for {ThreadCount} threads to complete.", runningTasksCountdown.CurrentCount.ToString());
+                logger.LogDebug("Waiting for {ThreadCount} threads to complete.", tasks.Count().ToString());
 
                 // Wait for pending tasks to complete
-                runningTasksCountdown.Wait(CancellationToken.None);
+#pragma warning disable VSTHRD002 // Avoid problematic synchronous waits TODO: Make Shutdown Async
+                tasks.JoinTillEmptyAsync().GetAwaiter().GetResult();
+#pragma warning restore VSTHRD002 // Avoid problematic synchronous waits
             }
 
             logger.LogDebug("No executing jobs remaining, all threads stopped.");
         }
-
-        shutdownCancellation.Dispose();
-        runningTasksCountdown.Dispose();
-        concurrencySemaphore.Dispose();
 
         logger.LogDebug("Shutdown of threadpool complete.");
     }
