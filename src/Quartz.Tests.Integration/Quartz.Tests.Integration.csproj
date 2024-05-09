@@ -4,8 +4,7 @@
     <TargetFrameworks>net8.0;net472</TargetFrameworks>
     <IsPackable>false</IsPackable>
     <Nullable>disable</Nullable>
-    <NoWarn>SYSLIB0011;CAC001</NoWarn>
-    <NoWarn>SYSLIB0011</NoWarn>
+    <NoWarn>SYSLIB0011;CAC001;VSTHRD002;VSTHRD110;VSTHRD200;VSTHRD103</NoWarn>
     <EnableUnsafeBinaryFormatterSerialization>true</EnableUnsafeBinaryFormatterSerialization>
     <SonarQubeExclude>true</SonarQubeExclude>
   </PropertyGroup>

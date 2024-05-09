@@ -363,7 +363,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (Exception e)
         {
+#if NET5_0_OR_GREATER
+            await conn.CloseAsync().ConfigureAwait(false);
+#else
             conn.Close();
+#endif
             ThrowHelper.ThrowJobPersistenceException("Failure setting up connection.", e);
             return default;
         }

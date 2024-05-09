@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Microsoft.VisualStudio.Threading;
 
 using Quartz.Logging;
 using Quartz.Util;
@@ -16,7 +17,9 @@ internal sealed class MisfireHandler
 
     private readonly CancellationTokenSource cancellationTokenSource;
     private readonly QueuedTaskScheduler taskScheduler;
-    private Task task = null!;
+    private JoinableTask task = null!;
+    private JoinableTaskContext taskContext;
+    private JoinableTaskFactory joinableTaskFactory;
 
     internal MisfireHandler(JobStoreSupport jobStoreSupport)
     {
@@ -26,11 +29,14 @@ internal sealed class MisfireHandler
         string threadName = $"QuartzScheduler_{jobStoreSupport.InstanceName}-{jobStoreSupport.InstanceId}_MisfireHandler";
         taskScheduler = new QueuedTaskScheduler(threadCount: 1, threadName: threadName, useForegroundThreads: !jobStoreSupport.MakeThreadsDaemons);
         cancellationTokenSource = new CancellationTokenSource();
+        taskContext = new JoinableTaskContext();
+        joinableTaskFactory = taskContext.Factory;
     }
 
     public void Initialize()
     {
-        task = Task.Factory.StartNew(Run, CancellationToken.None, TaskCreationOptions.HideScheduler, taskScheduler).Unwrap();
+        task = joinableTaskFactory.RunAsync(() =>
+            Task.Factory.StartNew(Run, CancellationToken.None, TaskCreationOptions.HideScheduler, taskScheduler).Unwrap());
     }
 
     private async Task Run()
@@ -72,15 +78,22 @@ internal sealed class MisfireHandler
 
     public async ValueTask Shutdown()
     {
+#if NET5_0_OR_GREATER
+        await cancellationTokenSource.CancelAsync().ConfigureAwait(false);
+#else
         cancellationTokenSource.Cancel();
+#endif
+        
         try
         {
             taskScheduler.Dispose();
-            await task.ConfigureAwait(false);
+            await task.JoinAsync().ConfigureAwait(false);
         }
         catch (OperationCanceledException)
         {
         }
+
+        taskContext.Dispose();
     }
 
     private async ValueTask<RecoverMisfiredJobsResult> Manage()
@@ -101,6 +114,7 @@ internal sealed class MisfireHandler
             }
             numFails++;
         }
+
         return RecoverMisfiredJobsResult.NoOp;
     }
 }

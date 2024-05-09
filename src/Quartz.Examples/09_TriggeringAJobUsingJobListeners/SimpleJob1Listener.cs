@@ -66,8 +66,8 @@ public class SimpleJob1Listener : IJobListener
         }
         catch (SchedulerException e)
         {
-            Console.Error.WriteLine("Unable to schedule job2!");
-            Console.Error.WriteLine(e.StackTrace);
+            await Console.Error.WriteLineAsync("Unable to schedule job2!");
+            await Console.Error.WriteLineAsync(e.StackTrace);
         }
     }
 }

@@ -63,7 +63,13 @@ public class ShutdownHookPlugin : ISchedulerPlugin
         CancellationToken cancellationToken = default)
     {
         logger.LogInformation("Registering Quartz Shutdown hook '{PluginName}'", pluginName);
-        AppDomain.CurrentDomain.ProcessExit += async (sender, ea) =>
+
+        AppDomain.CurrentDomain.ProcessExit += ProcessExit;
+        
+        return default;
+        
+#pragma warning disable VSTHRD100 // Avoid async void methods
+        async void ProcessExit(object sender, EventArgs ea)
         {
             logger.LogInformation("Shutting down Quartz...");
             try
@@ -74,8 +80,8 @@ public class ShutdownHookPlugin : ISchedulerPlugin
             {
                 logger.LogError(e, "Error shutting down Quartz: {ErrorMessage}", e.Message);
             }
-        };
-        return default;
+        }
+#pragma warning restore VSTHRD100 // Avoid async void methods
     }
 
     /// <summary>

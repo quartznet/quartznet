@@ -58,7 +58,7 @@ public sealed class QuartzHostedService : IHostedService
         using var combinedCancellationSource = CancellationTokenSource.CreateLinkedTokenSource(startupCancellationToken, applicationLifetime.ApplicationStarted);
 
         await Task.Delay(Timeout.InfiniteTimeSpan, combinedCancellationSource.Token) // Wait "indefinitely", until startup completes or is aborted
-            .ContinueWith(_ => { }, TaskContinuationOptions.OnlyOnCanceled) // Without an OperationCanceledException on cancellation
+            .ContinueWith(_ => { },  CancellationToken.None, TaskContinuationOptions.OnlyOnCanceled, TaskScheduler.Default) // Without an OperationCanceledException on cancellation
             .ConfigureAwait(false);
 
         if (!startupCancellationToken.IsCancellationRequested)
@@ -106,7 +106,9 @@ public sealed class QuartzHostedService : IHostedService
         try
         {
             // Wait until any ongoing startup logic has finished or the graceful shutdown period is over
-            await Task.WhenAny(startupTask, Task.Delay(Timeout.Infinite, cancellationToken)).ConfigureAwait(false);
+            await Task.WhenAny(startupTask
+                .ContinueWith(_ => { },  CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default), 
+                Task.Delay(Timeout.Infinite, cancellationToken)).ConfigureAwait(false);
         }
         finally
         {

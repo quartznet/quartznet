@@ -39,6 +39,8 @@
     <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />
     <PackageReference Include="Microsoft.Extensions.Options" />
+    <PackageReference Include="Microsoft.VisualStudio.Threading" />
+    <PackageVersion Include="Microsoft.VisualStudio.Threading" Version="17.10.48" />
   </ItemGroup>
 
   <ItemGroup>
