@@ -2,11 +2,13 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
-## Release 3.NEXT, TBD
+## Release 3.9.0, May 9 2024
  
 * Fix Holiday Calendar with Nested Calendars sometimes crashing when resolving NextIncludedTime (#2270)
 * Add WithDailyTimeIntervalSchedule overload with explicit interval and interval unit (#1152)
-
+* Improve performance of DailyCalendar.GetNextIncludedTimeUtc (#2285)
+* Add support for IAsyncDisposable jobs and MS DI resources (#2335)
+* Make IJobWrapper public (#2313)
 
 ## Release 3.8.1, Feb 17 2024
 
