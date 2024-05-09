@@ -11,7 +11,11 @@ Please start a discussion on the [core repo issue tracker](https://github.com/qu
 
 ## Building
 
-Run `build.cmd` or `build.sh` from the command line. This builds and runs tests.
+Run `build.cmd` or `build.sh` from the command line. 
+
+## Testing
+
+Run the build command with flags: `build Compile UnitTest IntegrationTest Pack`. This builds and runs tests like the CI server does.
 
 ## Bugs and feature requests?
 
