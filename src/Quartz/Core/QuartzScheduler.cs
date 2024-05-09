@@ -466,7 +466,10 @@ public sealed class QuartzScheduler :
             }
         }
 
-        resources.ThreadPool.Shutdown(waitForJobsToComplete);
+        // TODO: Waiting synchronously here can cause deadlock. Make ShutDown Async
+        await Task.Run(() =>
+            resources.ThreadPool.Shutdown(waitForJobsToComplete)
+        ).ConfigureAwait(false);
 
         // Scheduler thread may have be waiting for the fire time of an acquired
         // trigger and need time to release the trigger once halted, so make sure

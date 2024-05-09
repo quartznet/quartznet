@@ -129,7 +129,6 @@ internal sealed class QuartzSchedulerThread
         this.qsRsrcs = qsRsrcs;
         idleWaitVariableness = (int) (qsRsrcs.IdleWaitTime.TotalMilliseconds * 0.2);
         pauseToken = pauseSource.Token;
-        halted = false;
     }
 
     /// <summary>
@@ -662,13 +661,6 @@ internal sealed class QuartzSchedulerThread
         }
         catch (OperationCanceledException)
         {
-        }
-        finally
-        {
-            sigSemaphore.Dispose();
-            cancellationTokenSource.Dispose();
-            pauseCancellationTokenSource.Dispose();
-            taskContext.Dispose();
         }
     }
 }
