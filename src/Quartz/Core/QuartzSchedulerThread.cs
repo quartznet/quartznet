@@ -63,7 +63,7 @@ internal sealed class QuartzSchedulerThread
     private JoinableTask task = null!;
     private JoinableTaskContext taskContext = null!;
     private JoinableTaskFactory joinableTaskFactory = null!;
-    
+
     /// <summary>
     /// Gets the randomized idle wait time.
     /// </summary>
@@ -288,12 +288,12 @@ internal sealed class QuartzSchedulerThread
                 {
                     // Ignore because this signal comes from Halt
                 }
-                
+
                 if (halted)
                 {
                     break;
                 }
-                
+
                 // wait a bit, if reading from job store is consistently
                 // failing (e.g. DB is down or restarting)
                 if (acquiresFailed > 1)
@@ -565,7 +565,7 @@ internal sealed class QuartzSchedulerThread
             // above call does a clearSignaledSchedulingChange()
             await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger).ConfigureAwait(false);
         }
-            
+        
         triggers.Clear();
         return true;
 
@@ -595,7 +595,7 @@ internal sealed class QuartzSchedulerThread
         // it can abandon the acquired trigger and acquire a new one.  However
         // we have no current facility for having it tell us that, so we make
         // a somewhat educated but arbitrary guess.
-        
+
         bool earlier = false;
         DateTimeOffset? nextFireTimeUtc = GetSignaledNextFireTimeUtc();
         await sigSemaphore.WaitAsync(CancellationToken.None).ConfigureAwait(false);
@@ -609,7 +609,7 @@ internal sealed class QuartzSchedulerThread
             {
                 earlier = true;
             }
-            
+
             if (earlier)
             {
                 // so the new time is considered earlier, but is it enough earlier?
