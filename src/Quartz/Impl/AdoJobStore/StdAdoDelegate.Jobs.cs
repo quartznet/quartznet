@@ -285,20 +285,15 @@ public partial class StdAdoDelegate
     /// <param name="rs">The result set, already queued to the correct row.</param>
     /// <param name="colIndex">The column index for the BLOB.</param>
     /// <returns>The deserialized Object from the ResultSet BLOB.</returns>
-    protected virtual ValueTask<T?> GetJobDataFromBlob<T>(DbDataReader rs, int colIndex) where T : class
+    protected virtual async ValueTask<T?> GetJobDataFromBlob<T>(DbDataReader rs, int colIndex) where T : class
     {
-        if (CanUseProperties)
+        if (CanUseProperties && await rs.IsDBNullAsync(colIndex).ConfigureAwait(false))
         {
-            if (!rs.IsDBNull(colIndex))
-            {
-                // should be NameValueCollection
-                return GetObjectFromBlob<T>(rs, colIndex);
-            }
-
-            return new ValueTask<T?>((T?) null);
+            return null;
         }
 
-        return GetObjectFromBlob<T>(rs, colIndex);
+        // should be NameValueCollection
+        return await GetObjectFromBlob<T>(rs, colIndex).ConfigureAwait(false);
     }
 
     /// <summary>

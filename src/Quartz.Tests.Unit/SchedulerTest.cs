@@ -272,7 +272,7 @@ public class SchedulerTest
     }
 
     [Test]
-    public void TestShutdownWithWaitShouldBlockUntilAllTasksHaveCompleted()
+    public async Task TestShutdownWithWaitShouldBlockUntilAllTasksHaveCompleted()
     {
         var schedulerName = Guid.NewGuid().ToString();
         var executing = new ManualResetEvent(false);
@@ -284,8 +284,8 @@ public class SchedulerTest
         };
 
         var factory = new StdSchedulerFactory(properties);
-        var scheduler = factory.GetScheduler().GetAwaiter().GetResult();
-        scheduler.Start().GetAwaiter().GetResult();
+        var scheduler = await factory.GetScheduler();
+        await scheduler.Start();
 
         var job = JobBuilder.Create<TestJobWithDelay>()
             .UsingJobData(TestJobWithDelay.CreateJobDataMap(executing, completed))
@@ -295,14 +295,14 @@ public class SchedulerTest
             .ForJob(job)
             .StartNow()
             .Build();
-        scheduler.ScheduleJob(job, trigger).GetAwaiter().GetResult();
+        await scheduler.ScheduleJob(job, trigger);
 
         // Wait for job to start executing
         executing.WaitOne();
 
         var stopwatch = Stopwatch.StartNew();
 
-        scheduler.Shutdown(true).GetAwaiter().GetResult();
+        await scheduler.Shutdown(true);
 
         stopwatch.Stop();
 

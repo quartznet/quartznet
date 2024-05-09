@@ -69,7 +69,7 @@ public class LoggingJobHistoryPluginTest
     [Test]
     public void TestJobWasVetoedMessage()
     {
-        plugin.JobExecutionVetoed(CreateJobExecutionContext());
+        _ = plugin.JobExecutionVetoed(CreateJobExecutionContext());
 
         Assert.That(plugin.InfoMessages.Count, Is.EqualTo(1));
     }

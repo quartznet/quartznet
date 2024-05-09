@@ -48,7 +48,7 @@ public class JobExecutionAttributesInterfaceInheritanceTest
 
         public override string Name => "TestJobListener";
 
-        public override ValueTask JobWasExecuted(
+        public override async ValueTask JobWasExecuted(
             IJobExecutionContext context,
             JobExecutionException jobException,
             CancellationToken cancellationToken = default)
@@ -61,11 +61,10 @@ public class JobExecutionAttributesInterfaceInheritanceTest
                 }
                 catch (Exception e)
                 {
-                    Console.Error.WriteLine(e.ToString());
+                    await Console.Error.WriteLineAsync(e.ToString());
                     throw new AssertionException("Await on barrier was interrupted: " + e);
                 }
             }
-            return default;
         }
     }
 

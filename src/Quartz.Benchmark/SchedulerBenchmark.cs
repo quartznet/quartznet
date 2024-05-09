@@ -686,19 +686,18 @@ public class SchedulerBenchmark
 
         public static int RunCount => _runCount;
 
-        public ValueTask Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context)
         {
-            var runs = Interlocked.Increment(ref _runCount);
+            int runs = Interlocked.Increment(ref _runCount);
 
             if (runs < _operationsPerRun)
             {
-                Task.Delay(_delay).GetAwaiter().GetResult();
+                await Task.Delay(_delay).ConfigureAwait(false);
             }
             else if (runs == _operationsPerRun)
             {
                 Done.Set();
             }
-            return default;
         }
 
         public static void Initialize(int operationsPerRun)

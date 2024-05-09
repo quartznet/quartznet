@@ -47,7 +47,7 @@ public class JobInterruptMonitorPlugin : TriggerListenerSupport, ISchedulerPlugi
     private void ScheduleJobInterruptMonitor(string fireInstanceId, JobKey jobkey, TimeSpan delay)
     {
         var monitor = new InterruptMonitor(fireInstanceId, jobkey, scheduler, delay);
-#pragma warning disable MA0134
+#pragma warning disable MA0134, VSTHRD110
         Task.Factory.StartNew(
             monitor.Run,
             monitor.cancellationTokenSource.Token,

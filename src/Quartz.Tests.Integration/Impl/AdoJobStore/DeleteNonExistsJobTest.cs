@@ -137,10 +137,10 @@ public class DeleteNonExistsJobTest
 
     public class TestJob : IJob
     {
-        public ValueTask Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context)
         {
             logger.LogInformation("Job is executing {Context}", context);
-            return default;
+            await Task.Yield();
         }
     }
 }
