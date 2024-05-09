@@ -88,7 +88,15 @@ public class SimpleJobFactory : IJobFactory
     /// </summary>
     public virtual void ReturnJob(IJob job)
     {
-        var disposable = job as IDisposable;
-        disposable?.Dispose();
+        if (job is IDisposable disposableJob)
+        {
+            disposableJob.Dispose();
+        }
+        // check for wrapped jobs only if the current job is not disposable
+        // disposable wrappers should handle inner disposal on it's own
+        else if (job is IJobWrapper jobWrapper)
+        {
+            ReturnJob(jobWrapper.Target);
+        }
     }
 }

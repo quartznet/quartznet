@@ -1,6 +1,6 @@
 namespace Quartz;
 
-internal interface IJobWrapper
+public interface IJobWrapper
 {
     IJob Target { get; }
 }
