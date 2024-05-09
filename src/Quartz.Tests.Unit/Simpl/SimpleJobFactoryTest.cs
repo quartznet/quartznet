@@ -1,4 +1,4 @@
-using NUnit.Framework;
+﻿using NUnit.Framework;
 
 using Quartz.Simpl;
 
@@ -16,10 +16,10 @@ public class SimpleJobFactoryTest
     }
 
     [Test]
-    public void ShouldDisposeDisposableJobs()
+    public async Task ShouldDisposeDisposableJobs()
     {
         var disposableJob = new DisposableJob();
-        factory.ReturnJob(disposableJob);
+        await factory.ReturnJob(disposableJob);
         Assert.That(disposableJob.WasDisposed, Is.True, "job was not disposed");
     }
 

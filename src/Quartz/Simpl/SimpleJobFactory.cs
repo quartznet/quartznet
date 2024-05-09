@@ -86,8 +86,12 @@ public class SimpleJobFactory : IJobFactory
     /// Allows the job factory to destroy/cleanup the job if needed.
     /// No-op when using SimpleJobFactory.
     /// </summary>
-    public virtual void ReturnJob(IJob job)
+    public virtual ValueTask ReturnJob(IJob job)
     {
+        if (job is IAsyncDisposable asyncDisposableJob)
+        {
+            return asyncDisposableJob.DisposeAsync();
+        }
         if (job is IDisposable disposableJob)
         {
             disposableJob.Dispose();
@@ -96,7 +100,9 @@ public class SimpleJobFactory : IJobFactory
         // disposable wrappers should handle inner disposal on it's own
         else if (job is IJobWrapper jobWrapper)
         {
-            ReturnJob(jobWrapper.Target);
+            return ReturnJob(jobWrapper.Target);
         }
+
+        return default;
     }
 }
