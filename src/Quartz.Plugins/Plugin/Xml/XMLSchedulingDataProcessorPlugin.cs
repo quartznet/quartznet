@@ -403,8 +403,6 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
                     plugin.logger.LogWarning(ioe, "Error closing jobs file {FileName}", FileName);
                 }
             }
-
-            return default;
         }
     }
 }
