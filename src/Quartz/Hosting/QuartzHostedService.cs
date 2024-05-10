@@ -57,13 +57,16 @@ public sealed class QuartzHostedService : IHostedService
     {
         using var combinedCancellationSource = CancellationTokenSource.CreateLinkedTokenSource(startupCancellationToken, applicationLifetime.ApplicationStarted);
 
-        await Task.Delay(Timeout.InfiniteTimeSpan, combinedCancellationSource.Token) // Wait "indefinitely", until startup completes or is aborted
-            .ContinueWith(_ => { },  CancellationToken.None, TaskContinuationOptions.OnlyOnCanceled, TaskScheduler.Default) // Without an OperationCanceledException on cancellation
+        // Wait "indefinitely", until startup completes or is aborted
+        await Task.Delay(Timeout.InfiniteTimeSpan, combinedCancellationSource.Token) 
+            .ContinueWith(_ => { // Without an OperationCanceledException on cancellation
+                },  CancellationToken.None, TaskContinuationOptions.OnlyOnCanceled, TaskScheduler.Default) 
             .ConfigureAwait(false);
 
         if (!startupCancellationToken.IsCancellationRequested)
         {
-            await StartSchedulerAsync(applicationLifetime.ApplicationStopping).ConfigureAwait(false); // Startup has finished, but ApplicationStopping may still interrupt starting of the scheduler
+            // Startup has finished, but ApplicationStopping may still interrupt starting of the scheduler
+            await StartSchedulerAsync(applicationLifetime.ApplicationStopping).ConfigureAwait(false); 
         }
     }
 
