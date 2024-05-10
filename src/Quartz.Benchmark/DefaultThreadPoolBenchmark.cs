@@ -18,14 +18,14 @@ public class DefaultThreadPoolBenchmark
 
         for (var i = 0; i < 500_000; i++)
         {
-            threadPool!.RunInThread(() => Task.CompletedTask);
+            threadPool.RunInThread(() => Task.CompletedTask);
         }
 
         threadPool.Shutdown(true);
     }
 
     [Benchmark(OperationsPerInvoke = 1_000_000)]
-    public void RunInThread_CompletedTask_MaxConcurrencyIsMaxValue_MultiThreaded()
+    public async Task RunInThread_CompletedTask_MaxConcurrencyIsMaxValue_MultiThreaded()
     {
         var threadPool = new DefaultThreadPool
         {
@@ -33,7 +33,7 @@ public class DefaultThreadPoolBenchmark
         };
         threadPool.Initialize();
 
-        Execute(threadPool, 20, 50_000, (tp) => tp.RunInThread(() => Task.CompletedTask));
+        await Execute(threadPool, 20, 50_000, (tp) => tp.RunInThread(() => Task.CompletedTask));
 
         threadPool.Shutdown(true);
     }
@@ -45,26 +45,28 @@ public class DefaultThreadPoolBenchmark
         {
             MaxConcurrency = 16
         };
+        
         threadPool.Initialize();
 
         for (var i = 0; i < 500_000; i++)
         {
-            threadPool!.RunInThread(() => Task.CompletedTask);
+            threadPool.RunInThread(() => Task.CompletedTask);
         }
 
         threadPool.Shutdown(true);
     }
 
     [Benchmark(OperationsPerInvoke = 1_000_000)]
-    public void RunInThread_CompletedTask_MaxConcurrencyIsSixteen_MultiThreaded()
+    public async Task RunInThread_CompletedTask_MaxConcurrencyIsSixteen_MultiThreaded()
     {
         var threadPool = new DefaultThreadPool
         {
             MaxConcurrency = 16
         };
+        
         threadPool.Initialize();
 
-        Execute(threadPool, 20, 50_000, (tp) => tp.RunInThread(() => Task.CompletedTask));
+        await Execute(threadPool, 20, 50_000, (tp) => tp.RunInThread(() => Task.CompletedTask));
 
         threadPool.Shutdown(true);
     }
@@ -85,7 +87,7 @@ public class DefaultThreadPoolBenchmark
         threadPool.Shutdown(true);
     }
 
-    private static void Execute(DefaultThreadPool scheduler, int threadCount, int iterationsPerThread, Action<DefaultThreadPool> action)
+    private static async Task Execute(DefaultThreadPool scheduler, int threadCount, int iterationsPerThread, Action<DefaultThreadPool> action)
     {
         ManualResetEvent start = new ManualResetEvent(false);
 
@@ -106,6 +108,6 @@ public class DefaultThreadPoolBenchmark
 
         start.Set();
 
-        Task.WaitAll(tasks);
+        await Task.WhenAll(tasks);
     }
 }

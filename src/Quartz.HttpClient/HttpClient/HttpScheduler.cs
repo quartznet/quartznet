@@ -41,7 +41,9 @@ public class HttpScheduler : IScheduler
     {
         get
         {
-            var dto = httpClient.Get<SchedulerContextDto>($"{SchedulerEndpointUrl()}/context", jsonSerializerOptions, CancellationToken.None).GetAwaiter().GetResult();
+            var dto = httpClient.Get<SchedulerContextDto>($"{SchedulerEndpointUrl()}/context", jsonSerializerOptions, CancellationToken.None)
+                .AsTask().GetAwaiter().GetResult();
+
             return dto.AsContext();
         }
     }

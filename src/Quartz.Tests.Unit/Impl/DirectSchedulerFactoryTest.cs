@@ -63,7 +63,7 @@ public class DirectSchedulerFactoryTest
     {
         await _directSchedulerFactory.CreateScheduler(_threadPool, _jobStore);
 
-        var scheduler = _schedulerRepository.Lookup(DirectSchedulerFactory.DefaultSchedulerName).GetAwaiter().GetResult();
+        var scheduler = await _schedulerRepository.Lookup(DirectSchedulerFactory.DefaultSchedulerName);
         Assert.IsNotNull(scheduler);
         Assert.AreEqual(typeof(StdScheduler), scheduler.GetType());
 
@@ -86,7 +86,7 @@ public class DirectSchedulerFactoryTest
 
         await _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore);
 
-        var scheduler = _schedulerRepository.Lookup(schedulerName).GetAwaiter().GetResult();
+        var scheduler = await _schedulerRepository.Lookup(schedulerName);
         Assert.IsNotNull(scheduler);
         Assert.AreEqual(typeof(StdScheduler), scheduler.GetType());
 
@@ -128,7 +128,7 @@ public class DirectSchedulerFactoryTest
 
         await _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime);
 
-        var scheduler = _schedulerRepository.Lookup(schedulerName).GetAwaiter().GetResult();
+        var scheduler = await _schedulerRepository.Lookup(schedulerName);
         Assert.IsNotNull(scheduler);
         Assert.AreEqual(typeof(StdScheduler), scheduler.GetType());
 
@@ -185,7 +185,7 @@ public class DirectSchedulerFactoryTest
 
         await _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow);
 
-        var scheduler = _schedulerRepository.Lookup(schedulerName).GetAwaiter().GetResult();
+        var scheduler = await _schedulerRepository.Lookup(schedulerName);
         Assert.IsNotNull(scheduler);
         Assert.AreEqual(typeof(StdScheduler), scheduler.GetType());
 
@@ -245,7 +245,7 @@ public class DirectSchedulerFactoryTest
 
         await _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow, schedulerExporter);
 
-        var scheduler = _schedulerRepository.Lookup(schedulerName).GetAwaiter().GetResult();
+        var scheduler = await _schedulerRepository.Lookup(schedulerName);
         Assert.IsNotNull(scheduler);
         Assert.AreEqual(typeof(StdScheduler), scheduler.GetType());
 

@@ -131,7 +131,7 @@ public class QuartzServer : ServiceControl, IQuartzServer
     /// </summary>
     public bool Start(HostControl hostControl)
     {
-        Start().GetAwaiter().GetResult();
+        Start().AsTask().GetAwaiter().GetResult();
         return true;
     }
 
@@ -140,7 +140,7 @@ public class QuartzServer : ServiceControl, IQuartzServer
     /// </summary>
     public bool Stop(HostControl hostControl)
     {
-        Stop().GetAwaiter().GetResult();
+        Stop().AsTask().GetAwaiter().GetResult();
         return true;
     }
 }

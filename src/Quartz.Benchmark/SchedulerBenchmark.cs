@@ -390,7 +390,7 @@ public class SchedulerBenchmark
     /// </summary>
     /// <param name="operationsPerRun">The number of times the job should be executed.</param>
     /// <param name="threadCount">The maximum number of threads to use to execute the job.</param>
-    /// <param name="triggerCount">The number of triggers to create.</param>
+    /// <param name="repeatCount">The number of triggers to create.</param>
     public static void RunDisableConcurrent(int operationsPerRun,
         int threadCount,
         int jobCount,
@@ -484,7 +484,7 @@ public class SchedulerBenchmark
     /// </summary>
     /// <param name="operationsPerRun">The number of times the job should be executed.</param>
     /// <param name="threadCount">The maximum number of threads to use to execute the job.</param>
-    /// <param name="triggerCount">The number of triggers to create.</param>
+    /// <param name="repeatCount">The number of triggers to create.</param>
     public static void RunDelayedConcurrent(int operationsPerRun,
         int threadCount,
         int jobCount,
@@ -601,8 +601,8 @@ public class SchedulerBenchmark
     [DisallowConcurrentExecution]
     public class DisableConcurrentJob : IJob
     {
-        private static readonly ManualResetEvent Done = new ManualResetEvent(false);
-        private static int _runCount = 0;
+        private static readonly ManualResetEvent Done = new(false);
+        private static int _runCount;
         private static int _operationsPerRun;
 
         public static int RunCount => _runCount;
@@ -640,8 +640,8 @@ public class SchedulerBenchmark
 
     public class ConcurrentJob : IJob
     {
-        private static readonly ManualResetEvent Done = new ManualResetEvent(false);
-        private static int _runCount = 0;
+        private static readonly ManualResetEvent Done = new(false);
+        private static int _runCount;
         private static int _operationsPerRun;
 
         public static int RunCount => _runCount;
@@ -679,26 +679,25 @@ public class SchedulerBenchmark
 
     public class DelayedConcurrentJob : IJob
     {
-        private static readonly ManualResetEvent Done = new ManualResetEvent(false);
-        private static int _runCount = 0;
+        private static readonly ManualResetEvent Done = new(false);
+        private static int _runCount;
         private static int _operationsPerRun;
         private static readonly TimeSpan _delay = TimeSpan.FromMilliseconds(500);
 
         public static int RunCount => _runCount;
 
-        public ValueTask Execute(IJobExecutionContext context)
+        public async ValueTask Execute(IJobExecutionContext context)
         {
-            var runs = Interlocked.Increment(ref _runCount);
+            int runs = Interlocked.Increment(ref _runCount);
 
             if (runs < _operationsPerRun)
             {
-                Task.Delay(_delay).GetAwaiter().GetResult();
+                await Task.Delay(_delay).ConfigureAwait(false);
             }
             else if (runs == _operationsPerRun)
             {
                 Done.Set();
             }
-            return default;
         }
 
         public static void Initialize(int operationsPerRun)

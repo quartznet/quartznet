@@ -341,7 +341,7 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
 
         public string FileBasename { get; private set; } = null!;
 
-        public ValueTask Initialize(CancellationToken cancellationToken = default)
+        public async ValueTask Initialize(CancellationToken cancellationToken = default)
         {
             Stream? f = null;
             try
@@ -388,7 +388,15 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
             {
                 try
                 {
-                    f?.Dispose();
+                    if (f != null)
+                    {
+#if NET5_0_OR_GREATER
+                        await f.DisposeAsync().ConfigureAwait(false);
+#else
+                        await Task.Yield();
+                        f.Dispose();
+#endif
+                    }
                 }
                 catch (IOException ioe)
                 {
