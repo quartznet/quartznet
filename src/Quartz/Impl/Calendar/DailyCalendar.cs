@@ -833,7 +833,7 @@ public sealed class DailyCalendar : BaseCalendar
     /// <returns></returns>
     private static DateTimeOffset GetStartOfDay(DateTimeOffset time)
     {
-        return new DateTimeOffset(new DateTime(time.Year, time.Month, time.Day, 0, 0, 0, 0), time.Offset);
+        return new DateTimeOffset(time.Date, time.Offset);
     }
 
     /// <summary>
@@ -843,7 +843,7 @@ public sealed class DailyCalendar : BaseCalendar
     /// <returns></returns>
     private static DateTimeOffset GetEndOfDay(DateTimeOffset time)
     {
-        return new DateTimeOffset(new DateTime(time.Year, time.Month, time.Day, 23, 59, 59, 999), time.Offset);
+        return new DateTimeOffset(time.Date.AddDays(1).AddMilliseconds(-1), time.Offset);
     }
 
     /// <summary>

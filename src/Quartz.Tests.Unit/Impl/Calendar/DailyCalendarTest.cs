@@ -94,6 +94,9 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
         Assert.IsTrue(dailyCalendar.IsTimeIncluded(timeToCheck));
     }
 
+    /// <summary>
+    /// Ensure that the DailyCalendar use the same TimeZone offset for all the checks
+    /// </summary>
     [Test]
     public void TestTimeZone2()
     {
@@ -122,7 +125,7 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
         else if (timeZoneOffset < TimeSpan.Zero)
         {
             // Trigger must fire between midnight minus utc offset and midnight if negative offset.
-            fireTimes.Where(t => t.Hour >= 24 - timeZoneOffset.Hours && t.Hour <= 23).Should().NotBeEmpty();
+            fireTimes.Where(t => t.Hour >= 24 + timeZoneOffset.Hours && t.Hour <= 23).Should().NotBeEmpty();
         }
         else
         {
