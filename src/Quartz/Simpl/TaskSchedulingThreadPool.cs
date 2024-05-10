@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 
 using Quartz.Logging;
 using Quartz.Spi;
@@ -26,11 +26,6 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     private CountdownEvent runningTasksCountdown = null!;
 
     /// <summary>
-    /// Cached delegate to mark a given task as complete.
-    /// </summary>
-    private Action<Task> completeTask = null!;
-
-    /// <summary>
     /// The semaphore used to limit concurrency and integers representing maximum
     /// concurrent tasks.
     /// </summary>
@@ -39,7 +34,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     private int maxConcurrency;
     protected internal const int DefaultMaxConcurrency = 10;
 
-    private TaskScheduler scheduler = null!;
+    private TaskScheduler? scheduler;
     private bool isInitialized;
 
     /// <summary>
@@ -50,12 +45,15 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     /// Once the thread pool is initialized, any attempts to change the value
     /// will be silently ignored.
     /// </remarks>
-    public TaskScheduler Scheduler
+    public TaskScheduler? Scheduler
     {
         get => scheduler;
         set
         {
-            if (!isInitialized) scheduler = value;
+            if (!isInitialized)
+            {
+                scheduler = value;
+            }
         }
     }
 
@@ -86,7 +84,10 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
         get => maxConcurrency;
         set
         {
-            if (!isInitialized) maxConcurrency = value;
+            if (!isInitialized)
+            {
+                maxConcurrency = value;
+            }
         }
     }
 
@@ -106,7 +107,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     // ReSharper disable once UnusedMember.Global
     public string ThreadPriority
     {
-        set => logger.LogWarning("Thread priority is no longer supported for thread pool, ignoring");
+        set => logger.LogWarning("Thread priority is no longer supported for thread pool, ignoring {ThreadPriority}", value);
     }
 
     /// <summary>
@@ -138,19 +139,13 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     {
         // Checking for null allows users to specify their own scheduler prior to initialization.
         // If this is undesirable, the scheduler should be set here unconditionally.
-        if (Scheduler == null)
-        {
-            Scheduler = GetDefaultScheduler();
-        }
+        Scheduler ??= GetDefaultScheduler();
 
         // Initialize the concurrency semaphore with the proper initial count
         concurrencySemaphore = new SemaphoreSlim(MaxConcurrency);
 
         // We start with an initial count of one to make sure it doesn't start in "signaled" state
         runningTasksCountdown = new CountdownEvent(1);
-
-        // Reduce allocations by caching the delegate to mark a task as complete
-        completeTask = SignalTaskComplete;
 
         // Thread pool is ready to go
         isInitialized = true;
@@ -203,9 +198,12 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     /// <returns>
     /// <see langword="true"/> if the task was successfully scheduled; otherwise, <see langword="false"/>.
     /// </returns>
-    public bool RunInThread(Func<Task> runnable)
+    public bool RunInThread(Func<Task>? runnable)
     {
-        if (runnable == null || !isInitialized || shutdownCancellation.IsCancellationRequested) return false;
+        if (runnable == null || !isInitialized || shutdownCancellation.IsCancellationRequested)
+        {
+            return false;
+        }
 
         // Acquire the semaphore (return false if shutdown occurs while waiting)
         try
@@ -217,12 +215,6 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
             return false;
         }
 
-        // Wrap the runnable in a Task to start it asynchronously
-        var task = new Task<Task>(runnable);
-
-        // Unrap the task so that we can work with the underlying task
-        var unwrappedTask = task.Unwrap();
-
         lock (runningTasksCountdown)
         {
             // Now that the lock is held, shutdown can't proceed,
@@ -233,32 +225,32 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
                 return false;
             }
 
+            // Start the task using the task scheduler
+            _ = Task.Run(async () => 
+            {
+                Task<Task> scheduledTask = Task.Factory.StartNew(runnable, 
+                    CancellationToken.None, 
+                    TaskCreationOptions.DenyChildAttach, 
+                    Scheduler!);
+
+                // Wait for the scheduled task to complete and then decrement semaphore
+                await scheduledTask.Unwrap().ConfigureAwait(false);
+
+                lock (runningTasksCountdown)
+                {
+                    // Remove the task from the running list once it has completed
+                    concurrencySemaphore.Release();
+                    runningTasksCountdown.Signal();
+                }
+            }).ConfigureAwait(false);
+
             // Record an extra running task
             runningTasksCountdown.AddCount();
         }
 
-        // Register a callback to remove the task from the running list once it has completed
-#pragma warning disable MA0134
-        unwrappedTask.ContinueWith(completeTask);
-#pragma warning restore MA0134
-
-        // Start the task using the task scheduler
-        task.Start(Scheduler);
-
         return true;
     }
-
-    /// <summary>
-    /// Decrements the number of running tasks and releases the concurrency semaphore so that more
-    /// tasks may begin running.
-    /// </summary>
-    /// <param name="completedTask">The task which has completed.</param>
-    private void SignalTaskComplete(Task completedTask)
-    {
-        concurrencySemaphore.Release();
-        runningTasksCountdown.Signal();
-    }
-
+    
     /// <summary>
     /// Stops processing new tasks and optionally waits for currently running tasks to finish.
     /// </summary>
@@ -275,14 +267,13 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
         {
             lock (runningTasksCountdown)
             {
+                // Signal the initial count so the log reflects the actual remaining thread to wait on.
+                runningTasksCountdown.Signal();
+
                 // Cancellation has been signaled, so no new tasks will begin once
                 // shutdown has acquired this lock
                 logger.LogDebug("Waiting for {ThreadCount} threads to complete.", runningTasksCountdown.CurrentCount.ToString());
             }
-
-            // Signal the initial count that we used to make sure the CountDownEvent didn't start
-            // in "signaled" state
-            runningTasksCountdown.Signal();
 
             // Wait for pending tasks to complete
             runningTasksCountdown.Wait();

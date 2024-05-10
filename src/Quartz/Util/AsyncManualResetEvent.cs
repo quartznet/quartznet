@@ -84,7 +84,12 @@ public sealed class AsyncManualResetEvent
     public Task WaitAsync(CancellationToken cancellationToken)
     {
         Task waitTask = WaitAsync();
-        return waitTask.IsCompleted ? waitTask : waitTask.WaitAsync(cancellationToken);
+        if (waitTask.IsCompleted)
+        {
+            return waitTask;
+        }
+
+        return waitTask.WaitAsync(Timeout.InfiniteTimeSpan, TimeProvider.System, cancellationToken);
     }
 
     /// <summary>
@@ -101,13 +106,13 @@ public sealed class AsyncManualResetEvent
     /// <param name="cancellationToken">The cancellation token used to cancel the wait. If this token is already canceled, this method will first check whether the event is set.</param>
     public void Wait(CancellationToken cancellationToken)
     {
-        Task ret = WaitAsync(CancellationToken.None);
-        if (ret.IsCompleted)
+        Task waitTask = WaitAsync(CancellationToken.None);
+        if (waitTask.IsCompleted)
         {
             return;
         }
 
-        ret.Wait(cancellationToken);
+        waitTask.Wait(cancellationToken);
     }
 
     /// <summary>
