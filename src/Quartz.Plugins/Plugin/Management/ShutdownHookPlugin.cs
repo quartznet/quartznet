@@ -69,7 +69,7 @@ public class ShutdownHookPlugin : ISchedulerPlugin
         return default;
         
 #pragma warning disable VSTHRD100 // Avoid async void methods
-        async void ProcessExit(object sender, EventArgs ea)
+        async void ProcessExit(object? sender, EventArgs ea)
         {
             logger.LogInformation("Shutting down Quartz...");
             try
