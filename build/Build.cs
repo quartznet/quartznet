@@ -179,7 +179,7 @@ partial class Build : NukeBuild, ICompile, IPack
                 .EnableNoRestore()
                 .EnableNoBuild()
                 .SetConfiguration(configuration)
-                .SetFramework("net6.0")
+                .SetFramework("net8.0")
                 .SetLoggers("GitHubActions")
                 .SetFilter("TestCategory!=db-firebird&TestCategory!=db-oracle&TestCategory!=db-mysql&TestCategory!=db-sqlserver")
                 .CombineWith(integrationTestProjects, (_, testProject) => _

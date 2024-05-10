@@ -87,6 +87,11 @@ public sealed class JobType
         return ReferenceEquals(this, obj) || obj is JobType other && Equals(other);
     }
 
+    public override string ToString()
+    {
+        return FullName;
+    }
+
     public override int GetHashCode()
     {
         return FullName.GetHashCode();
