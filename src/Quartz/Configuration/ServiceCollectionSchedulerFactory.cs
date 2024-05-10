@@ -92,7 +92,7 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
     protected override string? GetNamedConnectionString(string connectionStringName)
     {
         var configuration = serviceProvider.GetService<IConfiguration>();
-        var connectionString = configuration.GetConnectionString(connectionStringName);
+        var connectionString = configuration?.GetConnectionString(connectionStringName);
         if (!string.IsNullOrWhiteSpace(connectionString))
         {
             return connectionString;
