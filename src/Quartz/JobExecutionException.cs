@@ -17,7 +17,6 @@
  */
 #endregion
 
-using System.Globalization;
 using System.Runtime.Serialization;
 
 namespace Quartz;
@@ -142,10 +141,5 @@ public sealed class JobExecutionException : SchedulerException
     /// </returns>
     /// <PermissionSet><IPermission class="System.Security.Permissions.FileIOPermission, mscorlib, Version=2.0.3600.0, Culture=neutral, PublicKeyToken=b77a5c561934e089" version="1" PathDiscovery="*AllFiles*"/></PermissionSet>
     public override string ToString()
-    {
-        return
-            string.Format(CultureInfo.InvariantCulture,
-                "Parameters: refire = {0}, unscheduleFiringTrigger = {1}, unscheduleAllTriggers = {2} \n {3}",
-                RefireImmediately, UnscheduleFiringTrigger, UnscheduleAllTriggers, base.ToString());
-    }
+        => $"Parameters: refire = {RefireImmediately}, unscheduleFiringTrigger = {UnscheduleFiringTrigger}, unscheduleAllTriggers = {UnscheduleAllTriggers} {Environment.NewLine} {base.ToString()}";
 }

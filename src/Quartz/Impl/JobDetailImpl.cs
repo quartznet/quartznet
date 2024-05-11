@@ -20,7 +20,6 @@
 #endregion
 
 using System.Collections.Concurrent;
-using System.Globalization;
 
 using Quartz.Util;
 
@@ -398,13 +397,7 @@ internal sealed class JobDetailImpl : IJobDetail
     /// Return a simple string representation of this object.
     /// </summary>
     public override string ToString()
-    {
-        return
-            string.Format(
-                CultureInfo.InvariantCulture,
-                "JobDetail '{0}':  jobType: '{1} persistJobDataAfterExecution: {2} concurrentExecutionDisallowed: {3} isDurable: {4} requestsRecovers: {5}",
-                FullName, JobType?.FullName, PersistJobDataAfterExecution, ConcurrentExecutionDisallowed, Durable, RequestsRecovery);
-    }
+        => $"JobDetail '{FullName}':  jobType: '{JobType?.FullName} persistJobDataAfterExecution: {PersistJobDataAfterExecution} concurrentExecutionDisallowed: {ConcurrentExecutionDisallowed} isDurable: {Durable} requestsRecovers: {RequestsRecovery}";
 
     /// <summary>
     /// Creates a new object that is a copy of the current instance.
