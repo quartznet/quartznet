@@ -418,7 +418,7 @@ public class XMLSchedulingDataProcessor
             string triggerJobGroup = triggerNode.Item.jobgroup.TrimEmptyToNull() ?? Key<string>.DefaultGroup;
 
             int triggerPriority = TriggerConstants.DefaultPriority;
-            if (!triggerNode.Item.priority.IsNullOrWhiteSpace())
+            if (!string.IsNullOrWhiteSpace(triggerNode.Item.priority))
             {
                 triggerPriority = Convert.ToInt32(triggerNode.Item.priority);
             }
@@ -452,14 +452,13 @@ public class XMLSchedulingDataProcessor
                     .WithInterval(repeatInterval)
                     .WithRepeatCount(repeatCount);
 
-                if (!simpleTrigger.misfireinstruction.IsNullOrWhiteSpace())
+                if (!string.IsNullOrWhiteSpace(simpleTrigger.misfireinstruction))
                 {
                     ((SimpleScheduleBuilder) sched).WithMisfireHandlingInstruction(ReadMisfireInstructionFromString(simpleTrigger.misfireinstruction));
                 }
             }
-            else if (triggerNode.Item is cronTriggerType)
+            else if (triggerNode.Item is cronTriggerType cronTrigger)
             {
-                cronTriggerType cronTrigger = (cronTriggerType) triggerNode.Item;
                 var cronExpression = cronTrigger.cronexpression.TrimEmptyToNull();
                 var timezoneString = cronTrigger.timezone.TrimEmptyToNull();
 
@@ -467,7 +466,7 @@ public class XMLSchedulingDataProcessor
                 sched = CronScheduleBuilder.CronSchedule(cronExpression!)
                     .InTimeZone(tz!);
 
-                if (!cronTrigger.misfireinstruction.IsNullOrWhiteSpace())
+                if (!string.IsNullOrWhiteSpace(cronTrigger.misfireinstruction))
                 {
                     ((CronScheduleBuilder) sched).WithMisfireHandlingInstruction(ReadMisfireInstructionFromString(cronTrigger.misfireinstruction));
                 }
@@ -483,7 +482,7 @@ public class XMLSchedulingDataProcessor
                 sched = CalendarIntervalScheduleBuilder.Create()
                     .WithInterval(repeatInterval, intervalUnit);
 
-                if (!calendarIntervalTrigger.misfireinstruction.IsNullOrWhiteSpace())
+                if (!string.IsNullOrWhiteSpace(calendarIntervalTrigger.misfireinstruction))
                 {
                     ((CalendarIntervalScheduleBuilder) sched).WithMisfireHandlingInstruction(ReadMisfireInstructionFromString(calendarIntervalTrigger.misfireinstruction));
                 }
