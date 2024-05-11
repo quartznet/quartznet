@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 
-using Quartz.Logging;
+using Quartz.Diagnostics;
 using Quartz.Spi;
 
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
@@ -42,6 +42,16 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     private TaskScheduler scheduler = null!;
     private bool isInitialized;
 
+    protected TaskSchedulingThreadPool() : this(DefaultMaxConcurrency)
+    {
+    }
+
+    protected TaskSchedulingThreadPool(int maxConcurrency)
+    {
+        logger = LogProvider.CreateLogger<TaskSchedulingThreadPool>();
+        MaxConcurrency = maxConcurrency;
+    }
+
     /// <summary>
     /// Gets or sets the <see cref="TaskScheduler"/> used to schedule tasks
     /// queued by users.
@@ -55,7 +65,10 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
         get => scheduler;
         set
         {
-            if (!isInitialized) scheduler = value;
+            if (!isInitialized)
+            {
+                scheduler = value;
+            }
         }
     }
 
@@ -86,7 +99,10 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
         get => maxConcurrency;
         set
         {
-            if (!isInitialized) maxConcurrency = value;
+            if (!isInitialized)
+            {
+                maxConcurrency = value;
+            }
         }
     }
 
@@ -103,12 +119,6 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
         set => MaxConcurrency = value;
     }
 
-    // ReSharper disable once UnusedMember.Global
-    public string ThreadPriority
-    {
-        set => logger.LogWarning("Thread priority is no longer supported for thread pool, ignoring");
-    }
-
     /// <summary>
     /// The number of tasks that can run concurrently in this thread pool
     /// </summary>
@@ -117,16 +127,6 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     public virtual string InstanceId { get; set; } = null!;
 
     public virtual string InstanceName { get; set; } = null!;
-
-    protected TaskSchedulingThreadPool() : this(DefaultMaxConcurrency)
-    {
-    }
-
-    protected TaskSchedulingThreadPool(int maxConcurrency)
-    {
-        logger = LogProvider.CreateLogger<TaskSchedulingThreadPool>();
-        MaxConcurrency = maxConcurrency;
-    }
 
     /// <summary>
     /// Initializes the thread pool for use

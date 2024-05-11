@@ -19,7 +19,7 @@
 
 using Microsoft.Extensions.Logging;
 
-using Quartz.Logging;
+using Quartz.Diagnostics;
 
 namespace Quartz.Tests.Integration;
 

@@ -1,18 +1,36 @@
-namespace Quartz.Logging;
+namespace Quartz.Diagnostics;
 
-public interface IJobDiagnosticData
+[Serializable]
+internal sealed class JobDiagnosticData : IJobDiagnosticData
 {
+    public JobDiagnosticData(IJobExecutionContext context)
+    {
+        Trigger = context.Trigger;
+        Recovering = context.Recovering;
+        RecoveringTriggerKey = context.RecoveringTriggerKey;
+        RefireCount = context.RefireCount;
+        MergedJobDataMap = context.MergedJobDataMap;
+        JobDetail = context.JobDetail;
+        FireTimeUtc = context.FireTimeUtc;
+        ScheduledFireTimeUtc = context.ScheduledFireTimeUtc;
+        PreviousFireTimeUtc = context.PreviousFireTimeUtc;
+        NextFireTimeUtc = context.NextFireTimeUtc;
+        FireInstanceId = context.FireInstanceId;
+        Result = context.Result;
+        JobRunTime = context.JobRunTime;
+    }
+
     /// <summary>
     /// Get a handle to the <see cref="ITrigger" /> instance that fired the
     /// <see cref="IJob" />.
     /// </summary>
-    ITrigger Trigger { get; }
+    public ITrigger Trigger { get; }
 
     /// <summary>
     /// If the <see cref="IJob" /> is being re-executed because of a 'recovery'
     /// situation, this method will return <see langword="true" />.
     /// </summary>
-    bool Recovering { get; }
+    public bool Recovering { get; }
 
     /// <summary>
     /// Returns the <see cref="TriggerKey" /> of the originally scheduled and now recovering job.
@@ -25,13 +43,13 @@ public interface IJobDiagnosticData
     /// accessed via the <see cref="SchedulerConstants.FailedJobOriginalTriggerFiretime" />
     /// element of this job's <see cref="JobDataMap" />.
     /// </remarks>
-    TriggerKey? RecoveringTriggerKey { get; }
+    public TriggerKey? RecoveringTriggerKey { get; }
 
     /// <summary>
     /// Gets the refire count.
     /// </summary>
     /// <value>The refire count.</value>
-    int RefireCount { get; }
+    public int RefireCount { get; }
 
     /// <summary>
     /// Get the convenience <see cref="JobDataMap" /> of this execution context.
@@ -54,12 +72,12 @@ public interface IJobDiagnosticData
     /// illegal state.
     /// </para>
     /// </remarks>
-    JobDataMap MergedJobDataMap { get; }
+    public JobDataMap MergedJobDataMap { get; }
 
     /// <summary>
     /// Get the <see cref="JobDetail" /> associated with the <see cref="IJob" />.
     /// </summary>
-    IJobDetail JobDetail { get; }
+    public IJobDetail JobDetail { get; }
 
     /// <summary>
     /// The actual time the trigger fired. For instance the scheduled time may
@@ -68,7 +86,7 @@ public interface IJobDiagnosticData
     /// </summary>
     /// <returns> Returns the fireTimeUtc.</returns>
     /// <seealso cref="ScheduledFireTimeUtc" />
-    DateTimeOffset FireTimeUtc { get; }
+    public DateTimeOffset FireTimeUtc { get; }
 
     /// <summary>
     /// The scheduled time the trigger fired for. For instance the scheduled
@@ -77,19 +95,19 @@ public interface IJobDiagnosticData
     /// </summary>
     /// <returns> Returns the scheduledFireTimeUtc.</returns>
     /// <seealso cref="FireTimeUtc" />
-    DateTimeOffset? ScheduledFireTimeUtc { get; }
+    public DateTimeOffset? ScheduledFireTimeUtc { get; }
 
     /// <summary>
     /// Gets the previous fire time.
     /// </summary>
     /// <value>The previous fire time.</value>
-    DateTimeOffset? PreviousFireTimeUtc { get; }
+    public DateTimeOffset? PreviousFireTimeUtc { get; }
 
     /// <summary>
     /// Gets the next fire time.
     /// </summary>
     /// <value>The next fire time.</value>
-    DateTimeOffset? NextFireTimeUtc { get; }
+    public DateTimeOffset? NextFireTimeUtc { get; }
 
     /// <summary>
     /// Get the unique Id that identifies this particular firing instance of the
@@ -98,7 +116,7 @@ public interface IJobDiagnosticData
     /// </summary>
     ///  <returns>the unique fire instance id</returns>
     /// <seealso cref="IScheduler.Interrupt(System.String, System.Threading.CancellationToken)" />
-    string FireInstanceId { get; }
+    public string FireInstanceId { get; }
 
     /// <summary>
     /// Returns the result (if any) that the <see cref="IJob" /> set before its
@@ -123,7 +141,7 @@ public interface IJobDiagnosticData
     /// execution.
     /// </para>
     /// </remarks>
-    object? Result { get; }
+    public object? Result { get; }
 
     /// <summary>
     /// The amount of time the job ran for.  The returned
@@ -131,5 +149,5 @@ public interface IJobDiagnosticData
     /// exception), and is therefore generally only useful to
     /// <see cref="IJobListener" />s and <see cref="ITriggerListener" />s.
     /// </summary>
-    TimeSpan JobRunTime { get; }
+    public TimeSpan JobRunTime { get; }
 }

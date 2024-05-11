@@ -24,7 +24,7 @@ using System.Runtime.InteropServices;
 
 using Microsoft.Extensions.Logging;
 
-using Quartz.Logging;
+using Quartz.Diagnostics;
 
 namespace Quartz.Job;
 

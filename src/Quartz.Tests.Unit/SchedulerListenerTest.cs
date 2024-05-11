@@ -3,7 +3,7 @@ using System.Collections.Specialized;
 using Microsoft.Extensions.Logging;
 
 using Quartz.Impl;
-using Quartz.Logging;
+using Quartz.Diagnostics;
 
 namespace Quartz.Tests.Unit;
 
