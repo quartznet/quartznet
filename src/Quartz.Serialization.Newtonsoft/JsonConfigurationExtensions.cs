@@ -5,7 +5,7 @@ namespace Quartz;
 public static class JsonConfigurationExtensions
 {
     /// <summary>
-    /// Use Newtonfsoft JSON as data serialization strategy.
+    /// Use Newtonsoft JSON as data serialization strategy.
     /// </summary>
     public static void UseNewtonsoftJsonSerializer(
         this SchedulerBuilder.PersistentStoreOptions persistentStoreOptions,

@@ -25,7 +25,6 @@ using Microsoft.Extensions.Logging;
 
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Logging;
-using Quartz.Util;
 
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 
@@ -178,7 +177,7 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
         get => sql;
         set
         {
-            if (!value.IsNullOrWhiteSpace())
+            if (!string.IsNullOrWhiteSpace(value))
             {
                 sql = value.Trim();
             }
@@ -191,7 +190,7 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
     {
         set
         {
-            if (!value.IsNullOrWhiteSpace())
+            if (!string.IsNullOrWhiteSpace(value))
             {
                 insertSql = value.Trim();
             }

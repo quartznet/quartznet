@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Runtime.InteropServices;
 
 namespace Quartz.Util;
@@ -13,7 +12,7 @@ internal static class StringExtensions
     /// </summary>
     /// <param name="s"></param>
     /// <returns></returns>
-    public static string? NullSafeTrim(this string? s)
+    internal static string? NullSafeTrim(this string? s)
     {
         return s?.Trim();
     }
@@ -23,7 +22,7 @@ internal static class StringExtensions
     /// </summary>
     /// <param name="s"></param>
     /// <returns></returns>
-    public static string? TrimEmptyToNull(this string s)
+    internal static string? TrimEmptyToNull(this string s)
     {
         if (s == null)
         {
@@ -40,24 +39,14 @@ internal static class StringExtensions
         return s;
     }
 
-    public static bool IsNullOrWhiteSpace(this string? s)
-    {
-        return s == null || s.Trim().Length == 0;
-    }
-
-    public static string FormatInvariant(this string s, params object?[] args)
-    {
-        return string.Format(CultureInfo.InvariantCulture, s, args);
-    }
-
     // based on https://www.meziantou.net/split-a-string-into-lines-without-allocation.htm
-    public static StringSplitEnumerator SpanSplit(this string str, char ch1, char ch2 = char.MinValue) => SpanSplit(str.AsSpan(), ch1, ch2);
+    internal static StringSplitEnumerator SpanSplit(this string str, char ch1, char ch2 = char.MinValue) => SpanSplit(str.AsSpan(), ch1, ch2);
 
-    public static StringSplitEnumerator SpanSplit(this ReadOnlySpan<char> span, char ch1, char ch2 = char.MinValue) => new(span, ch1, ch2);
+    internal static StringSplitEnumerator SpanSplit(this ReadOnlySpan<char> span, char ch1, char ch2 = char.MinValue) => new(span, ch1, ch2);
 
     // Must be a ref struct as it contains a ReadOnlySpan<char>
     [StructLayout(LayoutKind.Auto)]
-    public ref struct StringSplitEnumerator
+    internal ref struct StringSplitEnumerator
     {
         private ReadOnlySpan<char> _str;
         private readonly char ch1;
@@ -100,7 +89,7 @@ internal static class StringExtensions
     }
 
     [StructLayout(LayoutKind.Auto)]
-    public readonly ref struct StringSplitEntry
+    internal readonly ref struct StringSplitEntry
     {
         public StringSplitEntry(ReadOnlySpan<char> token, ReadOnlySpan<char> separator)
         {

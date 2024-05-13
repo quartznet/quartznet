@@ -17,7 +17,6 @@
  */
 #endregion
 
-using System.Globalization;
 using System.Runtime.Serialization;
 
 using Quartz.Spi;
@@ -558,13 +557,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// Return a simple string representation of this object.
     /// </summary>
     public override string ToString()
-    {
-        return
-            string.Format(
-                CultureInfo.InvariantCulture,
-                "Trigger '{0}':  triggerClass: '{1} calendar: '{2}' misfireInstruction: {3} nextFireTime: {4}",
-                key?.ToString(), GetType().FullName, CalendarName, MisfireInstruction, GetNextFireTimeUtc());
-    }
+        => $"Trigger '{key}':  triggerClass: '{GetType().FullName} calendar: '{CalendarName}' misfireInstruction: {MisfireInstruction} nextFireTime: {GetNextFireTimeUtc()}";
 
     /// <summary>
     /// Compare the next fire time of this <see cref="ITrigger" /> to that of
