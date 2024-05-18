@@ -5,8 +5,8 @@
   <ItemGroup Condition=" '$(TargetFramework)' == 'netstandard2.0' or '$(TargetFramework)' == 'net472' ">
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="2.1.1" />
     <PackageVersion Include="Microsoft.Extensions.Hosting.Abstractions" Version="2.1.1" />
-    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="2.1.1" />
-    <PackageVersion Include="Microsoft.Extensions.Options" Version="2.1.1" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="8.0.0" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="8.0.0" />
   </ItemGroup>
   <ItemGroup Condition=" '$(TargetFramework)' == 'net8.0' ">
     <PackageVersion Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
@@ -18,7 +18,7 @@
     <PackageVersion Include="Microsoft.Bcl.TimeProvider" Version="8.0.1" />
     <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="3.3.4" />
     <PackageVersion Include="NLog.Extensions.Logging" Version="5.3.11" />
-    <PackageVersion Include="AspNetCore.HealthChecks.UI" Version="8.0.0" />
+    <PackageVersion Include="AspNetCore.HealthChecks.UI" Version="8.0.1" />
     <PackageVersion Include="AspNetCore.HealthChecks.UI.Client" Version="8.0.0" />
     <PackageVersion Include="AspNetCore.HealthChecks.UI.InMemory.Storage" Version="8.0.0" />
     <PackageVersion Include="BenchmarkDotNet" Version="0.13.12" />
@@ -61,7 +61,7 @@
     <PackageVersion Include="System.Diagnostics.DiagnosticSource" Version="4.7.1" />
     <PackageVersion Include="System.Net.Http.Json" Version="5.0.0" />
     <PackageVersion Include="System.Reflection.Emit" Version="4.7.0" />
-    <PackageVersion Include="System.Text.Json" Version="6.0.0" />
+    <PackageVersion Include="System.Text.Json" Version="8.0.0" />
     <PackageVersion Include="TimeZoneConverter" Version="6.1.0" />
     <PackageVersion Include="Topshelf" Version="4.3.0" />
     <PackageVersion Include="log4net" Version="2.0.17" />
