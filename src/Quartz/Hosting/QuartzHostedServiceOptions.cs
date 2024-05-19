@@ -1,5 +1,12 @@
 namespace Quartz;
 
+#if NET8_0_OR_GREATER
+/// <summary>
+/// 
+/// </summary>
+public delegate Task QuartzHostedServiceHandler(IServiceProvider provider, CancellationToken cancellationToken);
+#endif
+
 public class QuartzHostedServiceOptions
 {
     /// <summary>
@@ -23,4 +30,26 @@ public class QuartzHostedServiceOptions
     /// This avoids the running of jobs <em>during</em> application startup.
     /// </summary>
     public bool AwaitApplicationStarted { get; set; } = true;
+
+#if NET8_0_OR_GREATER
+    /// <summary>
+    /// 
+    /// </summary>
+    public QuartzHostedServiceHandler? HostedServiceStartingHandler { get; set; }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public QuartzHostedServiceHandler? HostedServiceStartedHandler { get; set; }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public QuartzHostedServiceHandler? HostedServiceStoppingHandler { get; set; }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    public QuartzHostedServiceHandler? HostedServiceStoppedHandler { get; set; }
+#endif
 }

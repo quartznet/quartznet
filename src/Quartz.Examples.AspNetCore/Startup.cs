@@ -287,6 +287,47 @@ public class Startup
         {
             // when shutting down we want jobs to complete gracefully
             options.WaitForJobsToComplete = true;
+
+            options.HostedServiceStartingHandler = HostedServiceStartingHandler;
+            options.HostedServiceStartedHandler = HostedServiceStartedHandler;
+            options.HostedServiceStoppingHandler = HostedServiceStoppingHandler;
+            options.HostedServiceStoppedHandler = HostedServiceStoppedHandler;
+
+            static async Task HostedServiceStartingHandler(IServiceProvider provider, CancellationToken cancellationToken)
+            {
+                provider.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger(nameof(HostedServiceStartingHandler))
+                    .LogInformation("The {0} executes with a delay!!!", nameof(HostedServiceStartingHandler));
+
+                await Task.Delay(25, cancellationToken);
+            }
+
+            static async Task HostedServiceStartedHandler(IServiceProvider provider, CancellationToken cancellationToken)
+            {
+                provider.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger(nameof(HostedServiceStartedHandler))
+                    .LogInformation("The {0} executes with a delay!!!", nameof(HostedServiceStartedHandler));
+
+                await Task.Delay(25, cancellationToken);
+            }
+
+            static async Task HostedServiceStoppingHandler(IServiceProvider provider, CancellationToken cancellationToken)
+            {
+                provider.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger(nameof(HostedServiceStoppingHandler))
+                    .LogInformation("The {0} executes with a delay!!!", nameof(HostedServiceStoppingHandler));
+
+                await Task.Delay(25, cancellationToken);
+            }
+
+            static async Task HostedServiceStoppedHandler(IServiceProvider provider, CancellationToken cancellationToken)
+            {
+                provider.GetRequiredService<ILoggerFactory>()
+                    .CreateLogger(nameof(HostedServiceStoppedHandler))
+                    .LogInformation("The {0} executes with a delay!!!", nameof(HostedServiceStoppedHandler));
+
+                await Task.Delay(25, cancellationToken);
+            }
         });
 
         services

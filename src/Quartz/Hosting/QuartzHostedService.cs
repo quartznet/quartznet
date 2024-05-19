@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
-#if NET6_OR_GREATER
+#if NET6_0_OR_GREATER
 using Lifetime = Microsoft.Extensions.Hosting.IHostApplicationLifetime;
 #else
 using Lifetime = Microsoft.Extensions.Hosting.IApplicationLifetime;
@@ -9,15 +9,37 @@ using Lifetime = Microsoft.Extensions.Hosting.IApplicationLifetime;
 
 namespace Quartz;
 
+#if NET8_0_OR_GREATER
+public sealed class QuartzHostedService : IHostedLifecycleService, IHostedService
+#else
 public sealed class QuartzHostedService : IHostedService
+#endif
 {
     private readonly Lifetime applicationLifetime;
     private readonly ISchedulerFactory schedulerFactory;
     private readonly IOptions<QuartzHostedServiceOptions> options;
+
+#if NET8_0_OR_GREATER
+    private readonly IServiceProvider provider;
+#endif
+
     private IScheduler? scheduler;
     internal Task? startupTask;
     private bool schedulerWasStarted;
 
+#if NET8_0_OR_GREATER
+    public QuartzHostedService(
+        Lifetime applicationLifetime,
+        ISchedulerFactory schedulerFactory,
+        IOptions<QuartzHostedServiceOptions> options,
+        IServiceProvider provider)
+    {
+        this.applicationLifetime = applicationLifetime;
+        this.schedulerFactory = schedulerFactory;
+        this.options = options;
+        this.provider = provider;
+    }
+#else
     public QuartzHostedService(
         Lifetime applicationLifetime,
         ISchedulerFactory schedulerFactory,
@@ -27,6 +49,7 @@ public sealed class QuartzHostedService : IHostedService
         this.schedulerFactory = schedulerFactory;
         this.options = options;
     }
+#endif
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
@@ -116,4 +139,38 @@ public sealed class QuartzHostedService : IHostedService
             }
         }
     }
+
+#if NET8_0_OR_GREATER
+    public Task StartingAsync(CancellationToken cancellationToken)
+    {
+        return RunHostedServiceHandlerAsync(options.Value.HostedServiceStartingHandler, cancellationToken);
+    }
+
+    public Task StartedAsync(CancellationToken cancellationToken)
+    {
+        return RunHostedServiceHandlerAsync(options.Value.HostedServiceStartedHandler, cancellationToken);
+    }
+
+    public Task StoppingAsync(CancellationToken cancellationToken)
+    {
+        return RunHostedServiceHandlerAsync(options.Value.HostedServiceStoppingHandler, cancellationToken);
+    }
+
+    public Task StoppedAsync(CancellationToken cancellationToken)
+    {
+        return RunHostedServiceHandlerAsync(options.Value.HostedServiceStoppedHandler, cancellationToken);
+    }
+
+    private async Task RunHostedServiceHandlerAsync(QuartzHostedServiceHandler? handler, CancellationToken cancellationToken)
+    {
+        if (handler != null)
+        {
+            try
+            {
+                await handler(provider, cancellationToken).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) { /* Without an OperationCanceledException on cancellation */ }
+        }
+    }
+#endif
 }
