@@ -1,0 +1,33 @@
+name: QodanaCustomImageJob
+on:
+  workflow_dispatch:
+  pull_request:
+  push:
+    branches:
+      - main
+      - dev
+      - 'releases/*'
+
+jobs:
+  qodana:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+      - name: Login to Jetbrains Space
+        uses: docker/login-action@v2
+        with:
+          registry: registry.jetbrains.team
+          username: Dmitry.Golovinov
+          password: ${{ secrets.SPACE_PASSWORD }}
+      - run: docker pull registry.jetbrains.team/p/sa/containers/qodana-dotnet:241.17478.166
+      - name: 'Qodana Scan'
+        uses: JetBrains/qodana-action@v2024
+        with:
+          args: "--linter,registry.jetbrains.team/p/sa/containers/qodana-dotnet:241.17478.166"
+      - name: 'Upload artifacts'
+        uses: actions/upload-artifact@v3
+        with:
+          name: results
+          path: ${{ runner.temp }}/qodana/results/
