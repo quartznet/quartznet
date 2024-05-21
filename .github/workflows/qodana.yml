@@ -23,9 +23,11 @@ jobs:
           password: ${{ secrets.SPACE_PASSWORD }}
       - run: docker pull registry.jetbrains.team/p/sa/containers/qodana-dotnet:241.17478.166
       - name: 'Qodana Scan'
-        uses: JetBrains/qodana-action@v2024
+        uses: JetBrains/qodana-action@v2024.1
         with:
           args: "--linter,registry.jetbrains.team/p/sa/containers/qodana-dotnet:241.17478.166"
+        env:
+          QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
       - name: 'Upload artifacts'
         uses: actions/upload-artifact@v3
         with:
