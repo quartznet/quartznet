@@ -3872,7 +3872,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             {
                 if (retry % RetryableActionErrorLogThreshold == 0)
                 {
-                    await schedSignaler.NotifySchedulerListenersError("An error occurred while " + txCallback, jpe, cancellationToken).ConfigureAwait(false);
+                    await schedSignaler.NotifySchedulerListenersError("An error occurred during retry", jpe, cancellationToken).ConfigureAwait(false);
                 }
             }
             catch (Exception e)

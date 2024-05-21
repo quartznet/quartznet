@@ -92,4 +92,9 @@ public abstract class StringMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey
 
     public string CompareToValue { get; }
     public StringOperator CompareWithOperator { get; }
+
+    public override string ToString()
+    {
+        return $"{CompareWithOperator}({CompareToValue})";
+    }
 }

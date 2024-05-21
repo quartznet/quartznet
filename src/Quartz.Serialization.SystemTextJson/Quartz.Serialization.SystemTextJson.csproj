@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net472;netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>net472;netstandard2.0;net8.0</TargetFrameworks>
     <RootNamespace>Quartz</RootNamespace>
     <Title>Quartz.NET System.Text.Json Serialization</Title>
     <Description>Quartz.NET System.Text.Json Serialization Support; $(Description)</Description>
@@ -13,7 +13,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.Text.Json" />
+    <PackageReference Include="System.Text.Json" Condition="!$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))" />
   </ItemGroup>
 
 </Project>

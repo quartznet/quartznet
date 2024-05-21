@@ -11,7 +11,6 @@ using Quartz.Impl.Triggers;
 using Quartz.Job;
 using Quartz.Spi;
 using Quartz.Tests.Integration.Impl.AdoJobStore;
-using Quartz.Tests.Integration.Utils;
 using Quartz.Util;
 
 namespace Quartz.Tests.Integration.Impl;
