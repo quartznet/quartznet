@@ -1,22 +1,31 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Options;
 
+#if NET6_0_OR_GREATER
 using Lifetime = Microsoft.Extensions.Hosting.IHostApplicationLifetime;
+#else
+using Lifetime = Microsoft.Extensions.Hosting.IApplicationLifetime;
+#endif
 
 namespace Quartz;
 
+#if NET8_0_OR_GREATER
+public sealed class QuartzHostedService : IHostedLifecycleService, IHostedService
+#else
 public sealed class QuartzHostedService : IHostedService
+#endif
 {
     private readonly Lifetime applicationLifetime;
     private readonly ISchedulerFactory schedulerFactory;
     private readonly IOptions<QuartzHostedServiceOptions> options;
     private IScheduler? scheduler;
     internal Task? startupTask;
+    private bool schedulerWasStarted;
 
     public QuartzHostedService(
-        Lifetime applicationLifetime,
-        ISchedulerFactory schedulerFactory,
-        IOptions<QuartzHostedServiceOptions> options)
+    Lifetime applicationLifetime,
+    ISchedulerFactory schedulerFactory,
+    IOptions<QuartzHostedServiceOptions> options)
     {
         this.applicationLifetime = applicationLifetime;
         this.schedulerFactory = schedulerFactory;
@@ -53,7 +62,7 @@ public sealed class QuartzHostedService : IHostedService
         using var combinedCancellationSource = CancellationTokenSource.CreateLinkedTokenSource(startupCancellationToken, applicationLifetime.ApplicationStarted);
 
         await Task.Delay(Timeout.InfiniteTimeSpan, combinedCancellationSource.Token) // Wait "indefinitely", until startup completes or is aborted
-            .ContinueWith(_ => { },  CancellationToken.None, TaskContinuationOptions.OnlyOnCanceled, TaskScheduler.Default) // Without an OperationCanceledException on cancellation
+            .ContinueWith(_ => { }, CancellationToken.None, TaskContinuationOptions.OnlyOnCanceled, TaskScheduler.Default) // Without an OperationCanceledException on cancellation
             .ConfigureAwait(false);
 
         if (!startupCancellationToken.IsCancellationRequested)
@@ -71,6 +80,8 @@ public sealed class QuartzHostedService : IHostedService
         {
             throw new InvalidOperationException("The scheduler should have been initialized first.");
         }
+
+        schedulerWasStarted = true;
 
         // Avoid potential race conditions between ourselves and StopAsync, in case it has already made its attempt to stop the scheduler
         if (applicationLifetime.ApplicationStopping.IsCancellationRequested)
@@ -103,8 +114,79 @@ public sealed class QuartzHostedService : IHostedService
         }
         finally
         {
-            // we always need to call shutdown to ensure that we unbind the scheduler from global repository
-            await scheduler.Shutdown(options.Value.WaitForJobsToComplete, cancellationToken).ConfigureAwait(false);
+            if (schedulerWasStarted && !cancellationToken.IsCancellationRequested)
+            {
+                await scheduler.Shutdown(options.Value.WaitForJobsToComplete, cancellationToken).ConfigureAwait(false);
+            }
         }
     }
+
+#if NET8_0_OR_GREATER
+    private readonly IQuartzHostedLifecycleService? hostedLifecycleService;
+
+    public QuartzHostedService(
+        Lifetime applicationLifetime,
+        ISchedulerFactory schedulerFactory,
+        IOptions<QuartzHostedServiceOptions> options,
+        IQuartzHostedLifecycleService hostedLifecycleService) : this(applicationLifetime, schedulerFactory, options)
+    {
+        this.hostedLifecycleService = hostedLifecycleService;
+    }
+
+    public Task StartingAsync(CancellationToken cancellationToken)
+    {
+        if (hostedLifecycleService != null)
+        {
+            try
+            {
+                return hostedLifecycleService.StartingAsync(cancellationToken);
+            }
+            catch (OperationCanceledException) { /* Without an OperationCanceledException on cancellation */ }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task StartedAsync(CancellationToken cancellationToken)
+    {
+        if (hostedLifecycleService != null)
+        {
+            try
+            {
+                return hostedLifecycleService.StartedAsync(cancellationToken);
+            }
+            catch (OperationCanceledException) { /* Without an OperationCanceledException on cancellation */ }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task StoppingAsync(CancellationToken cancellationToken)
+    {
+        if (hostedLifecycleService != null)
+        {
+            try
+            {
+                return hostedLifecycleService.StoppingAsync(cancellationToken);
+            }
+            catch (OperationCanceledException) { /* Without an OperationCanceledException on cancellation */ }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    public Task StoppedAsync(CancellationToken cancellationToken)
+    {
+        if (hostedLifecycleService != null)
+        {
+            try
+            {
+                return hostedLifecycleService.StoppedAsync(cancellationToken);
+            }
+            catch (OperationCanceledException) { /* Without an OperationCanceledException on cancellation */ }
+        }
+
+        return Task.CompletedTask;
+    }
+#endif
 }
