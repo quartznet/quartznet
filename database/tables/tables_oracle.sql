@@ -8,30 +8,38 @@
 -- running in dedicated mode, so only consider the above as a hint ;-)
 --
 
-delete from qrtz_fired_triggers;
-delete from qrtz_simple_triggers;
-delete from qrtz_simprop_triggers;
-delete from qrtz_cron_triggers;
-delete from qrtz_blob_triggers;
-delete from qrtz_triggers;
-delete from qrtz_job_details;
-delete from qrtz_calendars;
-delete from qrtz_paused_trigger_grps;
-delete from qrtz_locks;
-delete from qrtz_scheduler_state;
+IF SELECT COUNT(table_name) FROM USER_TABLES WHERE TABLE_NAME = 'qrtz_calendars' AND NOT EXISTS(SELECT * FROM qrtz_calendars FETCH FIRST 1 ROWS ONLY)
+DROP TABLE qrtz_calendars;
 
-drop table qrtz_calendars;
-drop table qrtz_fired_triggers;
+IF SELECT COUNT(table_name) FROM USER_TABLES WHERE TABLE_NAME = 'qrtz_fired_triggers' AND NOT EXISTS(SELECT * FROM qrtz_fired_triggers FETCH FIRST 1 ROWS ONLY)
+DROP TABLE qrtz_fired_triggers;
+
+IF SELECT COUNT(table_name) FROM USER_TABLES WHERE TABLE_NAME = 'qrtz_blob_triggers' AND NOT EXISTS(SELECT * FROM qrtz_blob_triggers FETCH FIRST 1 ROWS ONLY)
 drop table qrtz_blob_triggers;
-drop table qrtz_cron_triggers;
-drop table qrtz_simple_triggers;
-drop table qrtz_simprop_triggers;
-drop table qrtz_triggers;
-drop table qrtz_job_details;
-drop table qrtz_paused_trigger_grps;
-drop table qrtz_locks;
-drop table qrtz_scheduler_state;
 
+IF SELECT COUNT(table_name) FROM USER_TABLES WHERE TABLE_NAME = 'qrtz_cron_triggers' AND NOT EXISTS(SELECT * FROM qrtz_cron_triggers FETCH FIRST 1 ROWS ONLY)
+drop table qrtz_cron_triggers;
+
+IF SELECT COUNT(table_name) FROM USER_TABLES WHERE TABLE_NAME = 'qrtz_simple_triggers' AND NOT EXISTS(SELECT * FROM qrtz_simple_triggers FETCH FIRST 1 ROWS ONLY)
+drop table qrtz_simple_triggers;
+
+IF SELECT COUNT(table_name) FROM USER_TABLES WHERE TABLE_NAME = 'qrtz_simprop_triggers' AND NOT EXISTS(SELECT * FROM qrtz_simprop_triggers FETCH FIRST 1 ROWS ONLY)
+drop table qrtz_simprop_triggers;
+
+IF SELECT COUNT(table_name) FROM USER_TABLES WHERE TABLE_NAME = 'qrtz_triggers' AND NOT EXISTS(SELECT * FROM qrtz_triggers FETCH FIRST 1 ROWS ONLY)
+drop table qrtz_triggers;
+
+IF SELECT COUNT(table_name) FROM USER_TABLES WHERE TABLE_NAME = 'qrtz_job_details' AND NOT EXISTS(SELECT * FROM qrtz_job_details FETCH FIRST 1 ROWS ONLY)
+drop table qrtz_job_details;
+
+IF SELECT COUNT(table_name) FROM USER_TABLES WHERE TABLE_NAME = 'qrtz_paused_trigger_grps' AND NOT EXISTS(SELECT * FROM qrtz_paused_trigger_grps FETCH FIRST 1 ROWS ONLY)
+drop table qrtz_paused_trigger_grps;
+
+IF SELECT COUNT(table_name) FROM USER_TABLES WHERE TABLE_NAME = 'qrtz_locks' AND NOT EXISTS(SELECT * FROM qrtz_locks FETCH FIRST 1 ROWS ONLY)
+drop table qrtz_locks;
+
+IF SELECT COUNT(table_name) FROM USER_TABLES WHERE TABLE_NAME = 'qrtz_scheduler_state' AND NOT EXISTS(SELECT * FROM qrtz_scheduler_state FETCH FIRST 1 ROWS ONLY)
+drop table qrtz_scheduler_state;
 
 CREATE TABLE qrtz_job_details
   (
