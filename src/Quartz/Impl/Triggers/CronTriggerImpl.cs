@@ -818,8 +818,8 @@ namespace Quartz.Impl.Triggers
         /// <seealso cref="JobExecutionException" />
         public override void Triggered(ICalendar? cal)
         {
-            previousFireTimeUtc = nextFireTimeUtc;
-            nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
+            previousFireTimeUtc = GetFireTimeAfter(previousFireTimeUtc ?? startTimeUtc);
+            nextFireTimeUtc = GetFireTimeAfter(previousFireTimeUtc);
 
             while (nextFireTimeUtc.HasValue && cal != null
                    && !cal.IsTimeIncluded(nextFireTimeUtc.Value))
