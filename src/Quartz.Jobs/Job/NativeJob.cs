@@ -131,7 +131,11 @@ public class NativeJob : IJob
             consumeStreams = data.GetBooleanValue(PropertyConsumeStreams);
         }
 
-        var workingDirectory = data.GetString(PropertyWorkingDirectory);
+        string? workingDirectory = null;
+        if (data.ContainsKey(PropertyWorkingDirectory))
+        {
+            workingDirectory = data.GetString(PropertyWorkingDirectory);
+        }
         int exitCode = RunNativeCommand(command, parameters, workingDirectory, wait, consumeStreams);
         context.Result = exitCode;
         return default;
