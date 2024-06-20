@@ -118,7 +118,8 @@ public class NativeJob : IJob
         JobDataMap data = context.MergedJobDataMap;
 
         string command = data.GetString(PropertyCommand) ?? throw new JobExecutionException("command missing");
-        string parameters = data.GetString(PropertyParameters) ?? "";
+        
+        string parameters = data.TryGetString(PropertyParameters, out string? paramValue) ? paramValue! : string.Empty;
 
         bool wait = true;
         if (data.ContainsKey(PropertyWaitForProcess))
