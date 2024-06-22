@@ -14,7 +14,7 @@ internal sealed class StringKeyDirtyFlagMapConverter : JsonConverter
 
     public override object ReadJson(JsonReader reader, Type objectType, object? existingValue, JsonSerializer serializer)
     {
-        IDictionary<string, object> innerMap = serializer.Deserialize<IDictionary<string, object>>(reader)!;
+        IDictionary<string, object?> innerMap = serializer.Deserialize<IDictionary<string, object?>>(reader)!;
         JobDataMap map = new JobDataMap(innerMap);
         return map;
     }

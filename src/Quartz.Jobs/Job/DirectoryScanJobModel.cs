@@ -9,8 +9,8 @@ namespace Quartz.Job;
 internal sealed class DirectoryScanJobModel
 {
     /// <summary>
-    /// We only want this type of object to be instantiated by inspecting the data 
-    /// of a IJobExecutionContext <see cref="IJobExecutionContext"/>. Use the 
+    /// We only want this type of object to be instantiated by inspecting the data
+    /// of a IJobExecutionContext <see cref="IJobExecutionContext"/>. Use the
     /// GetInstance() <see cref="GetInstance"/> method to create an instance of this
     /// object type
     /// </summary>
@@ -58,13 +58,13 @@ internal sealed class DirectoryScanJobModel
             JobDetailJobDataMap = context.JobDetail.JobDataMap,
             DirectoriesToScan = GetDirectoriesToScan(schedCtxt, mergedJobDataMap)
                 .Distinct().ToList(),
-            CurrentFileList = mergedJobDataMap.ContainsKey(DirectoryScanJob.CurrentFileList) ?
-                (List<FileInfo>) mergedJobDataMap[DirectoryScanJob.CurrentFileList]
-                : new List<FileInfo>(),
-            SearchPattern = mergedJobDataMap.ContainsKey(DirectoryScanJob.SearchPattern) ?
-                mergedJobDataMap.GetString(DirectoryScanJob.SearchPattern)! : "*",
-            IncludeSubDirectories = mergedJobDataMap.ContainsKey(DirectoryScanJob.IncludeSubDirectories)
-                                    && mergedJobDataMap.GetBooleanValue(DirectoryScanJob.IncludeSubDirectories)
+            CurrentFileList = mergedJobDataMap.TryGetValue(DirectoryScanJob.CurrentFileList, out object? value)
+                ? (List<FileInfo>) value
+                : [],
+            SearchPattern = mergedJobDataMap.TryGetString(DirectoryScanJob.SearchPattern, out string? pattern)
+                ? pattern ?? "*"
+                : "*",
+            IncludeSubDirectories = mergedJobDataMap.TryGetBoolean(DirectoryScanJob.IncludeSubDirectories, out bool includeSubDirectories) && includeSubDirectories,
         };
 
         return model;

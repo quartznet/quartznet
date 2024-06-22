@@ -1,4 +1,5 @@
 #region License
+
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
@@ -15,9 +16,11 @@
  * under the License.
  *
  */
+
 #endregion
 
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 
 using Microsoft.Extensions.Logging;
 
@@ -85,7 +88,6 @@ public class NativeJob : IJob
     private const string StreamTypeStandardOutput = "stdout";
     private const string StreamTypeError = "stderr";
 
-
     /// <summary>
     /// Gets the log.
     /// </summary>
@@ -121,14 +123,15 @@ public class NativeJob : IJob
         string parameters = data.GetString(PropertyParameters) ?? "";
 
         bool wait = true;
-        if (data.ContainsKey(PropertyWaitForProcess))
+        if (data.TryGetBoolean(PropertyWaitForProcess, out bool b))
         {
-            wait = data.GetBooleanValue(PropertyWaitForProcess);
+            wait = b;
         }
+
         bool consumeStreams = false;
-        if (data.ContainsKey(PropertyConsumeStreams))
+        if (data.TryGetBoolean(PropertyConsumeStreams, out b))
         {
-            consumeStreams = data.GetBooleanValue(PropertyConsumeStreams);
+            consumeStreams = b;
         }
 
         var workingDirectory = data.GetString(PropertyWorkingDirectory);
@@ -139,22 +142,13 @@ public class NativeJob : IJob
 
     private int RunNativeCommand(string command, string parameters, string? workingDirectory, bool wait, bool consumeStreams)
     {
-        string[] cmd;
-        string[] args = new string[2];
-        args[0] = command;
-        args[1] = parameters;
+        string[] args = [command, parameters];
         int result = -1;
 
         try
         {
-            //with this variable will be done the switching
-            string? osName = Environment.GetEnvironmentVariable("OS");
-            if (osName == null)
-            {
-                throw new JobExecutionException("Could not read environment variable for OS");
-            }
-
-            if (osName.ToLower().IndexOf("windows") > -1)
+            string[] cmd;
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 cmd = new string[args.Length + 2];
                 cmd[0] = "cmd.exe";
@@ -164,7 +158,7 @@ public class NativeJob : IJob
                     cmd[i + 2] = args[i];
                 }
             }
-            else if (osName.ToLower().IndexOf("linux") > -1)
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
                 cmd = new string[3];
                 cmd[0] = "/bin/sh";
@@ -224,12 +218,12 @@ public class NativeJob : IJob
                 result = proc.ExitCode;
             }
             // any error message?
-
         }
         catch (Exception x)
         {
             throw new JobExecutionException("Error launching native command: " + x.Message, x, false);
         }
+
         return result;
     }
 
@@ -285,6 +279,4 @@ public class NativeJob : IJob
             }
         }
     }
-
-
 }

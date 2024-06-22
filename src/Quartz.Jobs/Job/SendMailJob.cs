@@ -165,7 +165,7 @@ public class SendMailJob : IJob
 
     protected virtual string? GetOptionalParameter(JobDataMap data, string propertyName)
     {
-        var value = data.GetString(propertyName);
+        data.TryGetString(propertyName, out string? value);
         return string.IsNullOrEmpty(value) ? null : value;
     }
 

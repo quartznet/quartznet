@@ -49,28 +49,6 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     {
     }
 
-    // TODO (NetCore Port) - When serialized in an object collection, Json.Net deserializes all integer types as longs and all real number types
-    //                       as doubles. If needed, we could do some 'fix-ups' here if a different default was preferable (return numeric types as the
-    //                       smallest type they fit in, for example). For now, let's use the default Json.Net behavior and re-evaluate later if any
-    //                       cleanup is needed here.
-    //[OnDeserialized]
-    //private void CleanupDeserializedMap(StreamingContext ctx)
-    //{
-    //    foreach (var key in GetKeys())
-    //    {
-    //        var val = this[key];
-    //        if (val is long)
-    //        {
-    //            long longVal = (long)val;
-    //            if (longVal <= int.MaxValue && longVal >= int.MinValue)
-    //            {
-    //                Put(key, (int)longVal);
-    //                continue;
-    //            }
-    //        }
-    //    }
-    //}
-
     /// <summary>
     /// Serialization constructor.
     /// </summary>
@@ -81,142 +59,16 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     }
 
     /// <summary>
-    /// Determines whether the specified <see cref="T:System.Object"/> is equal to the current <see cref="T:System.Object"/>.
-    /// </summary>
-    /// <param name="obj">The <see cref="T:System.Object"/> to compare with the current <see cref="T:System.Object"/>.</param>
-    /// <returns>
-    /// 	<see langword="true"/> if the specified <see cref="T:System.Object"/> is equal to the
-    /// current <see cref="T:System.Object"/>; otherwise, <see langword="false"/>.
-    /// </returns>
-    public override bool Equals(object? obj)
-    {
-        return base.Equals(obj);
-    }
-
-    /// <summary>
-    /// Serves as a hash function for a particular type, suitable
-    /// for use in hashing algorithms and data structures like a hash table.
-    /// </summary>
-    /// <returns>
-    /// A hash code for the current <see cref="T:System.Object"/>.
-    /// </returns>
-    public override int GetHashCode()
-    {
-        return WrappedMap.GetHashCode();
-    }
-
-    /// <summary>
-    /// Gets the keys.
-    /// </summary>
-    /// <returns></returns>
-    public virtual IList<string> GetKeys()
-    {
-        return new List<string>(KeySet());
-    }
-
-    /// <summary>
-    /// Adds the name-value pairs in the given <see cref="IDictionary" /> to the <see cref="JobDataMap" />.
-    /// <para>
-    /// All keys must be <see cref="string" />s, and all values must be serializable.
-    /// </para>
-    /// </summary>
-    public override void PutAll(IDictionary<string, object> map)
-    {
-        foreach (KeyValuePair<string, object> pair in map)
-        {
-            Put(pair.Key, pair.Value);
-            // will throw ArgumentException if value not serializable
-        }
-    }
-
-    /// <summary>
-    /// Adds the given <see cref="int" /> value to the <see cref="IJob" />'s
-    /// data map.
-    /// </summary>
-    public virtual void Put(string key, int value)
-    {
-        base.Put(key, value);
-    }
-
-    /// <summary>
-    /// Adds the given <see cref="long" /> value to the <see cref="IJob" />'s
-    /// data map.
-    /// </summary>
-    public virtual void Put(string key, long value)
-    {
-        base.Put(key, value);
-    }
-
-    /// <summary>
-    /// Adds the given <see cref="float" /> value to the <see cref="IJob" />'s
-    /// data map.
-    /// </summary>
-    public virtual void Put(string key, float value)
-    {
-        base.Put(key, value);
-    }
-
-    /// <summary>
-    /// Adds the given <see cref="double" /> value to the <see cref="IJob" />'s
-    /// data map.
-    /// </summary>
-    public virtual void Put(string key, double value)
-    {
-        base.Put(key, value);
-    }
-
-    /// <summary>
-    /// Adds the given <see cref="bool" /> value to the <see cref="IJob" />'s
-    /// data map.
-    /// </summary>
-    public virtual void Put(string key, bool value)
-    {
-        base.Put(key, value);
-    }
-
-    /// <summary>
-    /// Adds the given <see cref="char" /> value to the <see cref="IJob" />'s
-    /// data map.
-    /// </summary>
-    public virtual void Put(string key, char value)
-    {
-        base.Put(key, value);
-    }
-
-    /// <summary>
-    /// Adds the given <see cref="string" /> value to the <see cref="IJob" />'s
-    /// data map.
-    /// </summary>
-    public virtual void Put(string key, string? value)
-    {
-        base.Put(key, value!);
-    }
-
-    /// <summary>
-    /// Adds the given <see cref="Guid" /> value to the <see cref="IJob" />'s
-    /// data map.
-    /// </summary>
-    public virtual void Put(string key, Guid value)
-    {
-        base.Put(key, value);
-    }
-
-    /// <summary>
     /// Retrieve the identified <see cref="int" /> value from the <see cref="JobDataMap" />.
     /// </summary>
     public virtual int GetInt(string key)
     {
-        var obj = this[key];
-
-        try
-        {
-            return Convert.ToInt32(obj);
-        }
-        catch (Exception)
+        if (!TryGetInt(key, out int value))
         {
             ThrowHelper.ThrowInvalidCastException("Identified object is not an Integer.");
-            return default;
         }
+
+        return value;
     }
 
     /// <summary>
@@ -224,17 +76,12 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// </summary>
     public virtual long GetLong(string key)
     {
-        var obj = this[key];
-
-        try
-        {
-            return Convert.ToInt64(obj);
-        }
-        catch (Exception)
+        if (!TryGetLong(key, out long value))
         {
             ThrowHelper.ThrowInvalidCastException("Identified object is not a Long.");
-            return default;
         }
+
+        return value;
     }
 
     /// <summary>
@@ -242,17 +89,12 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// </summary>
     public virtual float GetFloat(string key)
     {
-        var obj = this[key];
-
-        try
-        {
-            return Convert.ToSingle(obj);
-        }
-        catch (Exception)
+        if (!TryGetFloat(key, out float value))
         {
             ThrowHelper.ThrowInvalidCastException("Identified object is not a Float.");
-            return default;
         }
+
+        return value;
     }
 
     /// <summary>
@@ -260,17 +102,12 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// </summary>
     public virtual double GetDouble(string key)
     {
-        var obj = this[key];
-
-        try
-        {
-            return Convert.ToDouble(obj);
-        }
-        catch (Exception)
+        if (!TryGetDouble(key, out double value))
         {
             ThrowHelper.ThrowInvalidCastException("Identified object is not a Double.");
-            return default;
         }
+
+        return value;
     }
 
     /// <summary>
@@ -278,17 +115,12 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// </summary>
     public virtual bool GetBoolean(string key)
     {
-        var obj = this[key];
-
-        try
-        {
-            return Convert.ToBoolean(obj);
-        }
-        catch (Exception)
+        if (!TryGetBoolean(key, out bool value))
         {
             ThrowHelper.ThrowInvalidCastException("Identified object is not a Boolean.");
-            return default;
         }
+
+        return value;
     }
 
     /// <summary>
@@ -296,17 +128,12 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// </summary>
     public virtual char GetChar(string key)
     {
-        var obj = this[key];
-
-        try
-        {
-            return Convert.ToChar(obj);
-        }
-        catch (Exception)
+        if (!TryGetChar(key, out char value))
         {
             ThrowHelper.ThrowInvalidCastException("Identified object is not a Character.");
-            return default;
         }
+
+        return value;
     }
 
     /// <summary>
@@ -314,17 +141,8 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// </summary>
     public virtual string? GetString(string key)
     {
-        var obj = this[key];
-
-        try
-        {
-            return (string?) obj;
-        }
-        catch (Exception)
-        {
-            ThrowHelper.ThrowInvalidCastException("Identified object is not a String.");
-            return default;
-        }
+        TryGetString(key, out string? value);
+        return value;
     }
 
     /// <summary>
@@ -332,20 +150,12 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// </summary>
     public virtual DateTime GetDateTime(string key)
     {
-        var obj = this[key];
-
-        try
-        {
-            return
-                obj is DateTimeOffset dto
-                    ? dto.DateTime
-                    : Convert.ToDateTime(obj, CultureInfo.InvariantCulture);
-        }
-        catch (Exception)
+        if (!TryGetDateTime(key, out DateTime value))
         {
             ThrowHelper.ThrowInvalidCastException("Identified object is not a DateTime.");
-            return default;
         }
+
+        return value;
     }
 
     /// <summary>
@@ -353,8 +163,12 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// </summary>
     public virtual DateTimeOffset GetDateTimeOffset(string key)
     {
-        var obj = this[key];
-        return (DateTimeOffset) obj!;
+        if (!TryGetDateTimeOffset(key, out DateTimeOffset value))
+        {
+            ThrowHelper.ThrowInvalidCastException("Identified object is not a DateTimeOffset.");
+        }
+
+        return value;
     }
 
     /// <summary>
@@ -362,8 +176,12 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// </summary>
     public virtual TimeSpan GetTimeSpan(string key)
     {
-        var obj = this[key];
-        return (TimeSpan) obj!;
+        if (!TryGetTimeSpan(key, out TimeSpan value))
+        {
+            ThrowHelper.ThrowInvalidCastException("Identified object is not a TimeSpan.");
+        }
+
+        return value;
     }
 
     /// <summary>
@@ -371,17 +189,12 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// </summary>
     public virtual Guid GetGuid(string key)
     {
-        var obj = this[key];
-        return (Guid) obj!;
-    }
+        if (!TryGetGuid(key, out Guid value))
+        {
+            ThrowHelper.ThrowInvalidCastException("Identified object is not a Guid");
+        }
 
-    /// <summary>
-    /// Retrieve the identified <see cref="Guid" /> value from the <see cref="JobDataMap" />.
-    /// </summary>
-    public virtual Guid? GetNullableGuid(string key)
-    {
-        var obj = this[key];
-        return (Guid?) obj;
+        return value;
     }
 
     /// <summary>
@@ -389,9 +202,20 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// </summary>
     public virtual bool TryGetInt(string key, out int value)
     {
+        if (!TryGetValue(key, out object? obj))
+        {
+            value = default;
+            return false;
+        }
+
+        if (obj is string s)
+        {
+            return int.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
+        }
+
         try
         {
-            value = GetInt(key);
+            value = Convert.ToInt32(obj);
             return true;
         }
         catch
@@ -406,9 +230,21 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// </summary>
     public virtual bool TryGetBoolean(string key, out bool value)
     {
+        if (!TryGetValue(key, out object? obj))
+        {
+            value = default;
+            return false;
+        }
+
+        if (obj is string s)
+        {
+            value = string.Equals("true", s, StringComparison.OrdinalIgnoreCase);
+            return true;
+        }
+
         try
         {
-            value = GetBoolean(key);
+            value = Convert.ToBoolean(obj);
             return true;
         }
         catch
@@ -423,9 +259,20 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// </summary>
     public virtual bool TryGetDouble(string key, out double value)
     {
+        if (!TryGetValue(key, out object? obj))
+        {
+            value = default;
+            return false;
+        }
+
+        if (obj is string s)
+        {
+            return double.TryParse(s, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out value);
+        }
+
         try
         {
-            value = GetDouble(key);
+            value = Convert.ToDouble(obj);
             return true;
         }
         catch
@@ -440,9 +287,20 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// </summary>
     public virtual bool TryGetFloat(string key, out float value)
     {
+        if (!TryGetValue(key, out object? obj))
+        {
+            value = default;
+            return false;
+        }
+
+        if (obj is string s)
+        {
+            return float.TryParse(s, NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out value);
+        }
+
         try
         {
-            value = GetFloat(key);
+            value = Convert.ToSingle(obj);
             return true;
         }
         catch
@@ -457,9 +315,20 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// </summary>
     public virtual bool TryGetLong(string key, out long value)
     {
+        if (!TryGetValue(key, out object? obj))
+        {
+            value = default;
+            return false;
+        }
+
+        if (obj is string s)
+        {
+            return long.TryParse(s, NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
+        }
+
         try
         {
-            value = GetLong(key);
+            value = Convert.ToInt64(obj);
             return true;
         }
         catch
@@ -474,9 +343,23 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// </summary>
     public virtual bool TryGetDateTime(string key, out DateTime value)
     {
+        if (!TryGetValue(key, out object? obj))
+        {
+            value = default;
+            return false;
+        }
+
+        if (obj is string s)
+        {
+            return DateTime.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out value);
+        }
+
         try
         {
-            value = GetDateTime(key);
+            value = obj is DateTimeOffset dto
+                ? dto.DateTime
+                : Convert.ToDateTime(obj, CultureInfo.InvariantCulture);
+
             return true;
         }
         catch
@@ -491,9 +374,20 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// </summary>
     public virtual bool TryGetDateTimeOffset(string key, out DateTimeOffset value)
     {
+        if (!TryGetValue(key, out object? obj))
+        {
+            value = default;
+            return false;
+        }
+
+        if (obj is string s)
+        {
+            return DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.None, out value);
+        }
+
         try
         {
-            value = GetDateTimeOffset(key);
+            value = (DateTimeOffset) obj;
             return true;
         }
         catch
@@ -508,9 +402,20 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// </summary>
     public virtual bool TryGetTimeSpan(string key, out TimeSpan value)
     {
+        if (!TryGetValue(key, out object? obj))
+        {
+            value = default;
+            return false;
+        }
+
+        if (obj is string s)
+        {
+            return TimeSpan.TryParse(s, CultureInfo.InvariantCulture, out value);
+        }
+
         try
         {
-            value = GetTimeSpan(key);
+            value = (TimeSpan) obj;
             return true;
         }
         catch
@@ -525,31 +430,25 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// </summary>
     public virtual bool TryGetGuid(string key, out Guid value)
     {
-        try
+        if (!TryGetValue(key, out object? obj))
         {
-            value = GetGuid(key);
-            return true;
-        }
-        catch
-        {
-            value = default;
+            value = Guid.Empty;
             return false;
         }
-    }
 
-    /// <summary>
-    /// Try to retrieve the identified Nullable <see cref="Guid" /> value from the <see cref="JobDataMap" />.
-    /// </summary>
-    public virtual bool TryGetNullableGuid(string key, out Guid? value)
-    {
+        if (obj is string s)
+        {
+            return Guid.TryParse(s, out value);
+        }
+
         try
         {
-            value = GetNullableGuid(key);
+            value = (Guid) obj;
             return true;
         }
         catch
         {
-            value = default;
+            value = Guid.Empty;
             return false;
         }
     }
@@ -559,9 +458,15 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
     /// </summary>
     public virtual bool TryGetChar(string key, out char value)
     {
+        if (!TryGetValue(key, out object? obj))
+        {
+            value = default;
+            return false;
+        }
+
         try
         {
-            value = GetChar(key);
+            value = Convert.ToChar(obj);
             return true;
         }
         catch
@@ -570,4 +475,20 @@ public class StringKeyDirtyFlagMap : DirtyFlagMap<string, object>
             return false;
         }
     }
+
+    /// <summary>
+    /// Try to retrieve the identified <see cref="string" /> value from the <see cref="JobDataMap" />.
+    /// </summary>
+    public virtual bool TryGetString(string key, out string? value)
+    {
+        if (!TryGetValue(key, out object? obj) || (obj is not string && obj is not null))
+        {
+            value = default;
+            return false;
+        }
+
+        value = obj as string;
+        return true;
+    }
+
 }

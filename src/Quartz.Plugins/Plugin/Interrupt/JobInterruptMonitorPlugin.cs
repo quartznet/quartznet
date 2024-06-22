@@ -74,16 +74,16 @@ public class JobInterruptMonitorPlugin : TriggerListenerSupport, ISchedulerPlugi
         try
         {
             // Schedule Monitor only if the job wants AutoInterruptable functionality
-            if (context.JobDetail.JobDataMap.TryGetBooleanValue(JobDataMapKeyAutoInterruptable, out var value) && value)
+            if (context.JobDetail.JobDataMap.TryGetBoolean(JobDataMapKeyAutoInterruptable, out bool value) && value)
             {
-                var monitorPlugin = (JobInterruptMonitorPlugin) context.Scheduler.Context[JobInterruptMonitorKey];
+                var monitorPlugin = (JobInterruptMonitorPlugin) context.Scheduler.Context[JobInterruptMonitorKey]!;
 
                 // Get the MaxRuntime from MergedJobDataMap if NOT available use MaxRunTime from Plugin Configuration
                 var jobDataDelay = DefaultMaxRunTime;
 
                 if (context.MergedJobDataMap.GetString(JobDataMapKeyMaxRunTime) != null)
                 {
-                    jobDataDelay = TimeSpan.FromMilliseconds(context.MergedJobDataMap.GetLongValueFromString(JobDataMapKeyMaxRunTime));
+                    jobDataDelay = TimeSpan.FromMilliseconds(context.MergedJobDataMap.GetLong(JobDataMapKeyMaxRunTime));
                 }
 
                 monitorPlugin.ScheduleJobInterruptMonitor(context.FireInstanceId, context.JobDetail.Key, jobDataDelay);
