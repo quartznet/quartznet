@@ -120,7 +120,7 @@ namespace Quartz.Job
 			JobDataMap data = context.MergedJobDataMap;
 
 			string command = data.GetString(PropertyCommand) ?? throw new JobExecutionException("command missing");
-			string parameters = data.GetString(PropertyParameters) ?? "";
+			string parameters = data.TryGetString(PropertyParameters, out string? paramValue) ? paramValue! : string.Empty;
 
 		    bool wait = true;
 			if (data.ContainsKey(PropertyWaitForProcess))
@@ -133,7 +133,7 @@ namespace Quartz.Job
 				consumeStreams = data.GetBooleanValue(PropertyConsumeStreams);
 			}
 
-            var workingDirectory = data.GetString(PropertyWorkingDirectory);
+			data.TryGetString(PropertyWorkingDirectory, out var workingDirectory);
 			int exitCode = RunNativeCommand(command, parameters, workingDirectory, wait, consumeStreams);
 		    context.Result = exitCode;
             return Task.FromResult(true);
