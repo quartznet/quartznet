@@ -13,7 +13,7 @@ public static class JsonConfigurationExtensions
     {
         var options = new NewtonsoftJsonSerializerOptions();
         configure?.Invoke(options);
-        persistentStoreOptions.UseSerializer<JsonObjectSerializer>();
+        persistentStoreOptions.UseSerializer<NewtonsoftJsonObjectSerializer>();
     }
 }
 
@@ -21,6 +21,6 @@ public class NewtonsoftJsonSerializerOptions
 {
     public void AddCalendarSerializer<TCalendar>(ICalendarSerializer serializer)
     {
-        JsonObjectSerializer.AddCalendarSerializer<TCalendar>(serializer);
+        NewtonsoftJsonObjectSerializer.AddCalendarSerializer<TCalendar>(serializer);
     }
 }

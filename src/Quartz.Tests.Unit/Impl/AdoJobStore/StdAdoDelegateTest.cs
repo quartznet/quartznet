@@ -39,7 +39,8 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 
 /// <author>Marko Lahma (.NET)</author>
 [TestFixture(typeof(BinaryObjectSerializer))]
-[TestFixture(typeof(JsonObjectSerializer))]
+[TestFixture(typeof(NewtonsoftJsonObjectSerializer))]
+[TestFixture(typeof(SystemTextJsonObjectSerializer))]
 public class StdAdoDelegateTest
 {
     private readonly IObjectSerializer serializer;

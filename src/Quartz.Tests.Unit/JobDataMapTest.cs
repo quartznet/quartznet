@@ -31,7 +31,8 @@ namespace Quartz.Tests.Unit;
 /// </summary>
 /// <author>Marko Lahma (.NET)</author>
 [TestFixture(typeof(BinaryObjectSerializer))]
-[TestFixture(typeof(JsonObjectSerializer))]
+[TestFixture(typeof(NewtonsoftJsonObjectSerializer))]
+[TestFixture(typeof(SystemTextJsonObjectSerializer))]
 public class JobDataMapTest : SerializationTestSupport<JobDataMap>
 {
     public JobDataMapTest(Type serializerType) : base(serializerType)
@@ -54,7 +55,7 @@ public class JobDataMapTest : SerializationTestSupport<JobDataMap>
     {
         deserialized.Should().NotBeNull();
         deserialized.WrappedMap.Should().BeEquivalentTo(original.WrappedMap);
-        if (serializer is JsonObjectSerializer)
+        if (serializer is not BinaryObjectSerializer)
         {
             deserialized.Dirty.Should().BeFalse("should not be dirty when returning from serialization");
         }

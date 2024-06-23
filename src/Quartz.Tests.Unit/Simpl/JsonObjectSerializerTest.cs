@@ -6,18 +6,26 @@ using NUnit.Framework;
 
 using Quartz.Impl.Calendar;
 using Quartz.Simpl;
+using Quartz.Spi;
 
 namespace Quartz.Tests.Unit.Simpl;
 
-[TestFixture]
+[TestFixture(typeof(NewtonsoftJsonObjectSerializer))]
+[TestFixture(typeof(SystemTextJsonObjectSerializer))]
 public class JsonObjectSerializerTest
 {
-    private JsonObjectSerializer serializer;
+    private readonly Type serializerType;
+    private IObjectSerializer serializer;
+
+    public JsonObjectSerializerTest(Type serializerType)
+    {
+        this.serializerType = serializerType;
+    }
 
     [SetUp]
     public void SetUp()
     {
-        serializer = new JsonObjectSerializer();
+        serializer = (IObjectSerializer) Activator.CreateInstance(serializerType)!;
         serializer.Initialize();
     }
 

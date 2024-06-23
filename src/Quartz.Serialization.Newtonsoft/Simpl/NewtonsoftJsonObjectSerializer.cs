@@ -9,11 +9,10 @@ using Quartz.Spi;
 namespace Quartz.Simpl;
 
 /// <summary>
-/// Default object serialization strategy that uses <see cref="JsonSerializer" />
-/// under the hood.
+/// Object serialization strategy that uses <see cref="JsonSerializer" /> under the hood.
 /// </summary>
 /// <author>Marko Lahma</author>
-public class JsonObjectSerializer : IObjectSerializer
+public class NewtonsoftJsonObjectSerializer : IObjectSerializer
 {
     private JsonSerializer serializer = null!;
 

@@ -52,7 +52,7 @@ public class JobDataMapStorageTest : IntegrationTest
     {
         DatabaseHelper.RegisterDatabaseSettingsForProvider(provider, out var driverDelegateType);
 
-        var serializer = new JsonObjectSerializer();
+        var serializer = new NewtonsoftJsonObjectSerializer();
         serializer.Initialize();
         var jobStore = new JobStoreTX
         {

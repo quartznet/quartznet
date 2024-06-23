@@ -110,4 +110,9 @@ internal sealed class CalendarConverter : JsonConverter<ICalendar>
 
         return converter;
     }
+
+    internal static void AddCalendarConverter<TCalendar>(ICalendarSerializer serializer)
+    {
+        converters[typeof(TCalendar).AssemblyQualifiedNameWithoutVersion()] = serializer;
+    }
 }

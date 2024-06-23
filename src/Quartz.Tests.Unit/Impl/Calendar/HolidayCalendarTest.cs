@@ -27,7 +27,8 @@ namespace Quartz.Tests.Unit.Impl.Calendar;
 
 /// <author>Marko Lahma (.NET)</author>
 [TestFixture(typeof(BinaryObjectSerializer))]
-[TestFixture(typeof(JsonObjectSerializer))]
+[TestFixture(typeof(NewtonsoftJsonObjectSerializer))]
+[TestFixture(typeof(SystemTextJsonObjectSerializer))]
 public class HolidayCalendarTest : SerializationTestSupport<HolidayCalendar, ICalendar>
 {
     private HolidayCalendar cal;

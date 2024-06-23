@@ -52,3 +52,4 @@ exclude:
   - name: SuggestVarOrType_Elsewhere
   - name: SuggestVarOrType_SimpleTypes
   - name: UnusedMember.Global
+  - name: ForCanBeConvertedToForeach
