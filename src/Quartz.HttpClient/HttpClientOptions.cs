@@ -37,8 +37,7 @@ public class HttpClientOptions
             throw new InvalidOperationException("Scheduler name required");
         }
 
-        if ((string.IsNullOrWhiteSpace(HttpClientName) && HttpClient == null) ||
-            (!string.IsNullOrWhiteSpace(HttpClientName) && HttpClient != null))
+        if (string.IsNullOrWhiteSpace(HttpClientName) || HttpClient == null)
         {
             throw new InvalidOperationException("Either http client name or http client instance required");
         }
