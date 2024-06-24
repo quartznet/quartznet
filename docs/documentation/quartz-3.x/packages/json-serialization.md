@@ -19,8 +19,9 @@ You need to add NuGet package reference to your project which uses Quartz.
 var properties = new NameValueCollection
 {
 	["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
-	// "json" is alias for "Quartz.Simpl.JsonObjectSerializer, Quartz.Serialization.Json" 
-	["quartz.serializer.type"] = "json"
+	// "newtonsoft" and "json" are aliases for "Quartz.Simpl.JsonObjectSerializer, Quartz.Serialization.Json" 
+	// you should prefer "newtonsoft" as it's more explicit from Quartz 3.10 onwards
+	["quartz.serializer.type"] = "newtonsoft"
 };
 ISchedulerFactory schedulerFactory = new StdSchedulerFactory(properties);
 ```
