@@ -191,7 +191,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             await RunAdoJobStoreTest("SQLite", "SQLite", serializerType, properties, clustered: false);
         }
 
-        public static string[] GetSerializerTypes() => new[] {"json", "binary"};
+        public static string[] GetSerializerTypes() => ["newtonsoft", "binary"];
 
         private async Task RunAdoJobStoreTest(
             string dbProvider,
@@ -224,7 +224,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     db.ConnectionString = dbConnectionStrings[connectionStringId]
                 );
 
-                if (serializerType == "json")
+                if (serializerType == "newtonsoft")
                 {
                     store.UseNewtonsoftJsonSerializer(j =>
                     {

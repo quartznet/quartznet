@@ -30,7 +30,7 @@ namespace Quartz
         public static string PostgresConnectionString { get; }
 
 
-        public const string DefaultSerializerType = "json";
+        public const string DefaultSerializerType = "newtonsoft";
 
         public const string DefaultSqlServerProvider = "SqlServer";
 

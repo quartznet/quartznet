@@ -683,6 +683,11 @@ Please add configuration to your application config file to correctly initialize
                 // some aliases
                 if (objectSerializerType.Equals("json", StringComparison.OrdinalIgnoreCase))
                 {
+                    log.Warn("Using 'json' as serializer type can be ambiguous in the future. Please use 'newtonsoft' instead.");
+                    objectSerializerType = "Quartz.Simpl.JsonObjectSerializer, Quartz.Serialization.Json";
+                }
+                if (objectSerializerType.Equals("newtonsoft", StringComparison.OrdinalIgnoreCase))
+                {
                     objectSerializerType = "Quartz.Simpl.JsonObjectSerializer, Quartz.Serialization.Json";
                 }
                 if (objectSerializerType.Equals("binary", StringComparison.OrdinalIgnoreCase))

@@ -115,8 +115,9 @@ Configuring JSON serialization strategy (recommended):
 var properties = new NameValueCollection
 {
 	["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
-	// "json" is alias for "Quartz.Simpl.JsonObjectSerializer, Quartz.Serialization.Json" 
-	["quartz.serializer.type"] = "json"
+	// "newtonsoft" and "json" are aliases for "Quartz.Simpl.JsonObjectSerializer, Quartz.Serialization.Json"
+	// you should prefer "newtonsoft" as it's more explicit from Quartz 3.10 onwards
+	["quartz.serializer.type"] = "newtonsoft"
 };
 ISchedulerFactory sf = new StdSchedulerFactory(properties);
 ```
