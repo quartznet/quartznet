@@ -117,7 +117,7 @@ public class FileScanJob : IJob
             throw new JobExecutionException($"Required parameter '{FileScanListenerName}' not found in JobDataMap");
         }
 
-        IFileScanListener listener = (IFileScanListener) schedCtxt[listenerName];
+        IFileScanListener? listener = (IFileScanListener?) schedCtxt[listenerName];
 
         if (listener == null)
         {

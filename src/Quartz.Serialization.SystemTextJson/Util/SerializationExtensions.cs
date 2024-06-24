@@ -175,16 +175,16 @@ internal static class Utf8JsonWriterExtensions
 
     public static void WriteJobDataMapValue(this Utf8JsonWriter writer, JobDataMap jobDataMap)
     {
-        if (jobDataMap.Values.Any(x => x is not string))
+        if (jobDataMap.Values.Any(static x => x is not string))
         {
             throw new NotSupportedException("Only string values are supported in JobDataMap");
         }
 
         writer.WriteStartObject();
 
-        foreach (var keyValuePair in jobDataMap)
+        foreach (KeyValuePair<string, object?> keyValuePair in jobDataMap)
         {
-            writer.WriteString(keyValuePair.Key, (string) keyValuePair.Value);
+            writer.WriteString(keyValuePair.Key, (string?) keyValuePair.Value);
         }
 
         writer.WriteEndObject();

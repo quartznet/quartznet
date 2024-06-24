@@ -479,11 +479,10 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
         return retValue;
     }
 
-    protected object? GetKeyOfNonSerializableValue(IDictionary data)
+    protected object? GetKeyOfNonSerializableValue(JobDataMap data)
     {
-        foreach (var o in data)
+        foreach (KeyValuePair<string, object?> entry in data)
         {
-            var entry = (DictionaryEntry) o!;
             try
             {
                 SerializeObject(entry.Value);
@@ -528,10 +527,10 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
     /// <summary>
     /// Convert the JobDataMap into a list of properties.
     /// </summary>
-    protected virtual NameValueCollection ConvertToProperty(IDictionary<string, object> data)
+    protected virtual NameValueCollection ConvertToProperty(IDictionary<string, object?> data)
     {
         NameValueCollection properties = new NameValueCollection();
-        foreach (KeyValuePair<string, object> entry in data)
+        foreach (KeyValuePair<string, object?> entry in data)
         {
             string key = entry.Key;
             object val = entry.Value ?? string.Empty;

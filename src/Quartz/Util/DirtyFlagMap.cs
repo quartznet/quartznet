@@ -1,5 +1,3 @@
-#region License
-
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
@@ -17,8 +15,6 @@
  *
  */
 
-#endregion
-
 using System.Collections;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.Serialization;
@@ -33,19 +29,17 @@ namespace Quartz.Util;
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
-public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, ISerializable where TKey : notnull
+public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionary, ISerializable where TKey : notnull
 {
-    // JsonProperty attributes are used since Json.Net's default behavior is to serialize public members and the properties wrapping these fields are read-only
     private bool dirty;
-
-    private Dictionary<TKey, TValue> map;
+    private readonly Dictionary<TKey, TValue?> map;
 
     /// <summary>
     /// Create a DirtyFlagMap that 'wraps' a <see cref="Hashtable" />.
     /// </summary>
     public DirtyFlagMap()
     {
-        map = new Dictionary<TKey, TValue>();
+        map = new Dictionary<TKey, TValue?>();
     }
 
     /// <summary>
@@ -54,7 +48,13 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
     /// </summary>
     public DirtyFlagMap(int initialCapacity)
     {
-        map = new Dictionary<TKey, TValue>(initialCapacity);
+        map = new Dictionary<TKey, TValue?>(initialCapacity);
+    }
+
+    private DirtyFlagMap(DirtyFlagMap<TKey,TValue> other)
+    {
+        map = new Dictionary<TKey, TValue?>(other.map);
+        dirty = other.dirty;
     }
 
     // Make sure that future DirtyFlagMap version changes are done in a DCS-friendly way (with [OnSerializing] and [OnDeserialized] methods).
@@ -99,7 +99,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
                     // initialized correctly
                     oldMap.OnDeserialization(this);
 
-                    map = new Dictionary<TKey, TValue>();
+                    map = new Dictionary<TKey, TValue?>();
 #pragma warning disable 8605
                     foreach (DictionaryEntry entry in oldMap)
 #pragma warning restore 8605
@@ -110,12 +110,13 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
                 else
                 {
                     // new version
-                    map = (Dictionary<TKey, TValue>) o;
+                    map = (Dictionary<TKey, TValue?>) o;
                 }
+
                 break;
             case 1:
                 dirty = (bool) info.GetValue("dirty", typeof(bool))!;
-                map = (Dictionary<TKey, TValue>) info.GetValue("map", typeof(Dictionary<TKey, TValue>))!;
+                map = (Dictionary<TKey, TValue?>) info.GetValue("map", typeof(Dictionary<TKey, TValue?>))!;
                 break;
             default:
                 ThrowHelper.ThrowNotSupportedException("Unknown serialization version");
@@ -139,7 +140,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
     /// <param name="info">The <see cref="SerializationInfo"/> to populate with data.</param>
     /// <param name="context">The destination for this serialization.</param>
     [SecurityCritical]
-    protected virtual void GetObjectData(SerializationInfo info, StreamingContext context)
+    protected void GetObjectData(SerializationInfo info, StreamingContext context)
     {
         info.AddValue("version", 1);
         info.AddValue("dirty", dirty);
@@ -149,20 +150,18 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
     /// <summary>
     /// Determine whether the <see cref="IDictionary" /> is flagged dirty.
     /// </summary>
-    public virtual bool Dirty => dirty;
+    public bool Dirty => dirty;
 
     /// <summary>
     /// Get a direct handle to the underlying Map.
     /// </summary>
-    public virtual IDictionary<TKey, TValue> WrappedMap => map;
+    public IDictionary<TKey, TValue?> WrappedMap => map;
 
     /// <summary>
     /// Gets a value indicating whether this instance is empty.
     /// </summary>
     /// <value><c>true</c> if this instance is empty; otherwise, <c>false</c>.</value>
-    public virtual bool IsEmpty => map.Count == 0;
-
-    #region ICloneable Members
+    public bool IsEmpty => map.Count == 0;
 
     /// <summary>
     /// Creates a new object that is a copy of the current instance.
@@ -170,16 +169,10 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
     /// <returns>
     /// A new object that is a copy of this instance.
     /// </returns>
-    public virtual DirtyFlagMap<TKey, TValue> Clone()
+    internal virtual DirtyFlagMap<TKey, TValue> Clone()
     {
-        var copy = (DirtyFlagMap<TKey, TValue>) MemberwiseClone();
-        copy.map = new Dictionary<TKey, TValue>(map);
-        return copy;
+        return new DirtyFlagMap<TKey, TValue>(this);
     }
-
-    #endregion
-
-    #region IDictionary Members
 
     /// <summary>
     /// Gets the value associated with the specified key.
@@ -200,11 +193,11 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
     /// <summary>
     /// Gets or sets the <see cref="object"/> with the specified key.
     /// </summary>
-    public virtual TValue this[TKey key]
+    public TValue? this[TKey key]
     {
         get
         {
-            map.TryGetValue(key, out var temp);
+            map.TryGetValue(key, out TValue? temp);
             return temp!;
         }
         set
@@ -214,7 +207,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
         }
     }
 
-    public bool Remove(KeyValuePair<TKey, TValue> item)
+    public bool Remove(KeyValuePair<TKey, TValue?> item)
     {
         return Remove(item.Key);
     }
@@ -224,7 +217,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
     /// elements contained in the <see cref="T:System.Collections.ICollection"/>.
     /// </summary>
     /// <value></value>
-    public virtual int Count => map.Count;
+    public int Count => map.Count;
 
     ICollection IDictionary.Keys => map.Keys;
 
@@ -234,21 +227,21 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
     /// When implemented by a class, gets an <see cref="T:System.Collections.ICollection"/> containing the values in the <see cref="T:System.Collections.IDictionary"/>.
     /// </summary>
     /// <value></value>
-    public virtual ICollection<TValue> Values => map.Values;
+    public ICollection<TValue?> Values => map.Values;
 
-    public void Add(KeyValuePair<TKey, TValue> item)
+    public void Add(KeyValuePair<TKey, TValue?> item)
     {
         Put(item.Key, item.Value);
-    }
-
-    public bool Contains(object key)
-    {
-        return ((IDictionary) map).Contains(key);
     }
 
     public void Add(object key, object? value)
     {
         Put((TKey) key, (TValue) value!);
+    }
+
+    public bool Contains(object key)
+    {
+        return ((IDictionary) map).Contains(key);
     }
 
     /// <summary>
@@ -257,7 +250,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
     /// <exception cref="T:System.NotSupportedException">
     /// The <see cref="T:System.Collections.IDictionary"/> is read-only.
     /// </exception>
-    public virtual void Clear()
+    public void Clear()
     {
         if (map.Count != 0)
         {
@@ -269,7 +262,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
 
     IDictionaryEnumerator IDictionary.GetEnumerator()
     {
-        return ((IDictionary) map).GetEnumerator();
+        return map.GetEnumerator();
     }
 
     public void Remove(object key)
@@ -283,14 +276,14 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
         set => this[(TKey) key] = (TValue) value!;
     }
 
-    public bool Contains(KeyValuePair<TKey, TValue> item)
+    public bool Contains(KeyValuePair<TKey, TValue?> item)
     {
         return Contains(item.Key);
     }
 
-    public void CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
+    public void CopyTo(KeyValuePair<TKey, TValue?>[] array, int arrayIndex)
     {
-        ((ICollection<KeyValuePair<TKey, TValue>>) map).CopyTo(array, arrayIndex);
+        ((ICollection<KeyValuePair<TKey, TValue?>>) map).CopyTo(array, arrayIndex);
     }
 
     /// <summary>
@@ -302,7 +295,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
     /// </returns>
     /// <exception cref="T:System.ArgumentNullException">
     /// 	<paramref name="key "/>is <see langword="null"/>.</exception>
-    public virtual bool ContainsKey(TKey key)
+    public bool ContainsKey(TKey key)
     {
         return map.ContainsKey(key);
     }
@@ -319,7 +312,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
     /// 	<para>-or-</para>
     /// 	<para>The <see cref="T:System.Collections.IDictionary"/> has a fixed size.</para>
     /// </exception>
-    public virtual bool Remove(TKey key)
+    public bool Remove(TKey key)
     {
         bool remove = map.Remove(key);
         dirty |= remove;
@@ -333,7 +326,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
     /// <returns>
     /// An <see cref="T:System.Collections.IDictionaryEnumerator"/> for the <see cref="T:System.Collections.IDictionary"/>.
     /// </returns>
-    public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
+    public IEnumerator<KeyValuePair<TKey, TValue?>> GetEnumerator()
     {
         return map.GetEnumerator();
     }
@@ -352,7 +345,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
     /// 	<para>-or-</para>
     /// 	<para>The <see cref="T:System.Collections.IDictionary"/> has a fixed size.</para>
     /// </exception>
-    public virtual void Add(TKey key, [MaybeNull] TValue value)
+    public void Add(TKey key, TValue? value)
     {
         map.Add(key, value);
         dirty = true;
@@ -378,7 +371,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
     /// 	<para>The number of elements in the source <see cref="T:System.Collections.ICollection"/> is greater than the available space from <paramref name="index"/> to the end of the destination <paramref name="array"/>.</para>
     /// </exception>
     /// <exception cref="T:System.InvalidCastException">The type of the source <see cref="T:System.Collections.ICollection"/> cannot be cast automatically to the type of the destination <paramref name="array"/>.</exception>
-    public virtual void CopyTo(Array array, int index)
+    public void CopyTo(Array array, int index)
     {
         TKey[] keys = new TKey[Count];
         TValue[] values = new TValue[Count];
@@ -399,7 +392,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
     /// When implemented by a class, gets an <see cref="T:System.Collections.ICollection"/> containing the keys of the <see cref="T:System.Collections.IDictionary"/>.
     /// </summary>
     /// <value></value>
-    public virtual ICollection<TKey> Keys => map.Keys;
+    public ICollection<TKey> Keys => map.Keys;
 
     /// <summary>
     /// Gets a value indicating whether the <see cref="DirtyFlagMap{TKey,TValue}"/> is read-only.
@@ -419,7 +412,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
     /// In the default implementation of <see cref="DirtyFlagMap{TKey,TValue}"/>, this property always returns
     /// <see langword="false"/>.
     /// </value>
-    bool ICollection<KeyValuePair<TKey, TValue>>.IsReadOnly => false;
+    bool ICollection<KeyValuePair<TKey, TValue?>>.IsReadOnly => false;
 
     /// <summary>
     /// Gets a value indicating whether the <see cref="DirtyFlagMap{TKey,TValue}"/> has a fixed size.
@@ -450,12 +443,10 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
     /// </value>
     bool ICollection.IsSynchronized => false;
 
-    #endregion
-
     /// <summary>
     /// Clear the 'dirty' flag (set dirty flag to <see langword="false" />).
     /// </summary>
-    public virtual void ClearDirtyFlag()
+    public void ClearDirtyFlag()
     {
         dirty = false;
     }
@@ -467,18 +458,9 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
     /// <returns>
     /// 	<c>true</c> if the specified obj contains value; otherwise, <c>false</c>.
     /// </returns>
-    public virtual bool ContainsValue(TValue obj)
+    public bool ContainsValue(TValue obj)
     {
         return map.ContainsValue(obj);
-    }
-
-    /// <summary>
-    /// Gets the entries as a set.
-    /// </summary>
-    /// <returns></returns>
-    public virtual Dictionary<TKey, TValue>.Enumerator EntrySet()
-    {
-        return map.GetEnumerator();
     }
 
     /// <summary>
@@ -491,12 +473,12 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
     /// </returns>
     public override bool Equals(object? obj)
     {
-        if (!(obj is DirtyFlagMap<TKey, TValue>))
+        if (obj is not DirtyFlagMap<TKey, TValue> values)
         {
             return false;
         }
 
-        IDictionary targetAux = new Hashtable((IDictionary) obj);
+        IDictionary targetAux = new Hashtable(values);
 
         if (Count == targetAux.Count)
         {
@@ -517,6 +499,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
         {
             return false;
         }
+
         if (targetAux.Count == 0)
         {
             return true;
@@ -534,7 +517,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
     /// </returns>
     public override int GetHashCode()
     {
-        return map.GetHashCode() ^ dirty.GetHashCode();
+        return map.GetHashCode();
     }
 
     IEnumerator IEnumerable.GetEnumerator()
@@ -543,44 +526,31 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary
     }
 
     /// <summary>
-    /// Gets keyset for this map.
-    /// </summary>
-    /// <returns></returns>
-    public virtual ICollection<TKey> KeySet()
-    {
-        return new HashSet<TKey>(map.Keys);
-    }
-
-    /// <summary>
     /// Puts the value behind a specified key.
     /// </summary>
-    /// <param name="key">The key.</param>
-    /// <param name="val">The val.</param>
-    /// <returns></returns>
-    public virtual object? Put(TKey key, TValue val)
+    /// <param name="key">The key to use.</param>
+    /// <param name="val">The value to put.</param>
+    /// <returns>The existing value, if any</returns>
+    public object? Put(TKey key, TValue? val)
     {
-        map.TryGetValue(key, out var tempObject);
+        map.TryGetValue(key, out TValue? tempObject);
         map[key] = val;
         dirty = true;
         return tempObject;
     }
 
     /// <summary>
-    /// Puts all.
+    /// Puts all values from source dictionary into this map.
     /// </summary>
-    /// <param name="t">The t.</param>
-    public virtual void PutAll(IDictionary<TKey, TValue> t)
+    /// <param name="source">The source dictionary.</param>
+    public void PutAll(IDictionary<TKey, TValue?> source)
     {
-        if (t != null && t.Count > 0)
+        if (source != null && source.Count > 0)
         {
             dirty = true;
-
-            List<TKey> keys = new List<TKey>(t.Keys);
-            List<TValue> values = new List<TValue>(t.Values);
-
-            for (int i = 0; i < keys.Count; i++)
+            foreach (KeyValuePair<TKey, TValue?> pair in source)
             {
-                this[keys[i]] = values[i];
+                this[pair.Key] = pair.Value;
             }
         }
     }

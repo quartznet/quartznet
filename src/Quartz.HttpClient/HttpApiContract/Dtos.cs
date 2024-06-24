@@ -46,7 +46,7 @@ internal record KeyDto(string Name, string Group) : IValidatable
 
 internal record NamesDto(IReadOnlyCollection<string> Names);
 
-internal record SchedulerContextDto(Dictionary<string, string> Context)
+internal record SchedulerContextDto(Dictionary<string, string?> Context)
 {
     public static SchedulerContextDto Create(SchedulerContext context)
     {
@@ -60,13 +60,13 @@ internal record SchedulerContextDto(Dictionary<string, string> Context)
             throw new NotSupportedException("Only string values are supported in SchedulerContext");
         }
 
-        var data = context.ToDictionary(x => x.Key, x => (string) x.Value);
+        var data = context.ToDictionary(x => x.Key, x => (string?) x.Value);
         return new SchedulerContextDto(data);
     }
 
     public SchedulerContext AsContext()
     {
-        return new SchedulerContext(Context.ToDictionary(x => x.Key, x => (object) x.Value));
+        return new SchedulerContext(Context.ToDictionary(x => x.Key, x => (object?) x.Value));
     }
 }
 
