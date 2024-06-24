@@ -1,6 +1,7 @@
 using System.Text.Json;
 
 using Quartz.Impl.Calendar;
+using Quartz.Util;
 
 namespace Quartz.Calendars;
 
@@ -12,7 +13,7 @@ internal sealed class CronCalendarSerializer : CalendarSerializer<CronCalendar>
     {
     }
 
-    public const string CalendarTypeKey = "CronCalendar";
+    public static readonly string CalendarTypeKey = typeof(CronCalendar).AssemblyQualifiedNameWithoutVersion();
 
     public override string CalendarTypeForJson => CalendarTypeKey;
 

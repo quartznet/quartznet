@@ -494,7 +494,7 @@ internal sealed class CustomCalendar : BaseCalendar
     }
 }
 
-internal sealed class CustomCalendarSerializer : CalendarSerializer<CustomCalendar>
+internal sealed class CustomNewtonsoftCalendarSerializer : CalendarSerializer<CustomCalendar>
 {
     protected override CustomCalendar Create(JObject source)
     {

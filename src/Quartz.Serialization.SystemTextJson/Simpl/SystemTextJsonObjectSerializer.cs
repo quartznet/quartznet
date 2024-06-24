@@ -1,9 +1,11 @@
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 
 using Quartz.Calendars;
 using Quartz.Converters;
 using Quartz.Spi;
+using Quartz.Util;
 
 namespace Quartz.Simpl;
 
@@ -23,6 +25,27 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
     protected virtual JsonSerializerOptions CreateSerializerOptions()
     {
         JsonSerializerOptions options = new();
+        options.TypeInfoResolver = new DefaultJsonTypeInfoResolver()
+        {
+            Modifiers ={
+                typeInfo =>
+                {
+                    if (typeInfo.Type != typeof(Key<>))
+                    {
+                        return;
+                    }
+
+                    typeInfo.PolymorphismOptions = new()
+                    {
+                        TypeDiscriminatorPropertyName = "$type",
+                        DerivedTypes =
+                        {
+                            new JsonDerivedType(typeof(JobKey), typeof(JobKey).AssemblyQualifiedNameWithoutVersion())
+                        }
+                    };
+                }
+            }
+        };
         options.AddQuartzConverters();
         return options;
     }
@@ -39,7 +62,7 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
             ThrowHelper.ThrowInvalidOperationException("The serializer hasn't been initialized, did you forget to call Initialize()?");
         }
 
-        using var ms = new MemoryStream();
+        using MemoryStream ms = new();
         JsonSerializer.Serialize<object>(ms, obj, options);
 
         return ms.ToArray();
@@ -58,13 +81,13 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
 
         try
         {
-            using var ms = new MemoryStream(obj);
+            using MemoryStream ms = new(obj);
             return JsonSerializer.Deserialize<T?>(ms, options);
         }
         catch (JsonSerializationException e)
         {
-            var json = Encoding.UTF8.GetString(obj);
-            throw new JsonSerializationException("could not deserialize JSON: " + json, e);
+            string json = Encoding.UTF8.GetString(obj);
+            throw new JsonSerializationException($"Could not deserialize JSON: {json}", e);
         }
     }
 

@@ -23,8 +23,12 @@ public static class JsonConfigurationExtensions
     public static void AddQuartzConverters(this JsonSerializerOptions options)
     {
         options.Converters.Add(new CalendarConverter());
-        options.Converters.Add(new TriggerConverter());
+        options.Converters.Add(new CronExpressionConverter());
         options.Converters.Add(new JobDataMapConverter());
+        options.Converters.Add(new KeyConverter<JobKey>());
+        options.Converters.Add(new KeyConverter<TriggerKey>());
+        options.Converters.Add(new NameValueCollectionConverter());
+        options.Converters.Add(new TriggerConverter());
     }
 }
 

@@ -25,7 +25,7 @@ internal sealed class JobDataMapConverter : JsonConverter<JobDataMap>
     {
         try
         {
-            writer.WriteJobDataMapValue(value);
+            writer.WriteJobDataMapValue(value, options);
         }
         catch (Exception e)
         {

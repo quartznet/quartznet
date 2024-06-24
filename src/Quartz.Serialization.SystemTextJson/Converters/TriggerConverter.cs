@@ -87,7 +87,8 @@ internal sealed class TriggerConverter : JsonConverter<ITrigger>
             writer.WriteKey("JobKey", value.JobKey);
             writer.WriteString("Description", value.Description);
             writer.WriteString("CalendarName", value.CalendarName);
-            writer.WriteJobDataMap("JobDataMap", value.JobDataMap);
+            writer.WritePropertyName("JobDataMap");
+            writer.WriteJobDataMapValue(value.JobDataMap, options);
             writer.WriteNumber("MisfireInstruction", value.MisfireInstruction);
             writer.WriteString("StartTimeUtc", value.StartTimeUtc);
             writer.WriteString("EndTimeUtc", value.EndTimeUtc);

@@ -13,7 +13,7 @@ internal sealed class WeeklyCalendarSerializer : CalendarSerializer<WeeklyCalend
     {
     }
 
-    public const string CalendarTypeKey = "WeeklyCalendar";
+    public static readonly string CalendarTypeKey = typeof(WeeklyCalendar).AssemblyQualifiedNameWithoutVersion();
 
     public override string CalendarTypeForJson => CalendarTypeKey;
 

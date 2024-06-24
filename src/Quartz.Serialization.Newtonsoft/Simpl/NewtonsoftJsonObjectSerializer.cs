@@ -55,8 +55,8 @@ public class NewtonsoftJsonObjectSerializer : IObjectSerializer
             ThrowHelper.ThrowInvalidOperationException("The serializer hasn't been initialized, did you forget to call Initialize()?");
         }
 
-        using var ms = new MemoryStream();
-        using (var sw = new StreamWriter(ms))
+        using MemoryStream ms = new();
+        using (StreamWriter sw = new(ms))
         {
             serializer.Serialize(sw, obj, typeof(object));
         }
@@ -77,14 +77,14 @@ public class NewtonsoftJsonObjectSerializer : IObjectSerializer
 
         try
         {
-            using var ms = new MemoryStream(obj);
-            using var sr = new StreamReader(ms);
+            using MemoryStream ms = new(obj);
+            using StreamReader sr = new(ms);
             return (T?) serializer.Deserialize(sr, typeof(T));
         }
         catch (JsonSerializationException e)
         {
-            var json = Encoding.UTF8.GetString(obj);
-            throw new JsonSerializationException("could not deserialize JSON: " + json, e);
+            string json = Encoding.UTF8.GetString(obj);
+            throw new JsonSerializationException($"Could not deserialize JSON: {json}", e);
         }
     }
 

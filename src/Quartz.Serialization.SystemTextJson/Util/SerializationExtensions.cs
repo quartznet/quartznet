@@ -167,24 +167,14 @@ internal static class Utf8JsonWriterExtensions
         return new JobKey(name!, group!);
     }
 
-    public static void WriteJobDataMap(this Utf8JsonWriter writer, string propertyName, JobDataMap jobDataMap)
+    public static void WriteJobDataMapValue(this Utf8JsonWriter writer, JobDataMap jobDataMap, JsonSerializerOptions options)
     {
-        writer.WritePropertyName(propertyName);
-        writer.WriteJobDataMapValue(jobDataMap);
-    }
-
-    public static void WriteJobDataMapValue(this Utf8JsonWriter writer, JobDataMap jobDataMap)
-    {
-        if (jobDataMap.Values.Any(static x => x is not string))
-        {
-            throw new NotSupportedException("Only string values are supported in JobDataMap");
-        }
-
         writer.WriteStartObject();
 
         foreach (KeyValuePair<string, object?> keyValuePair in jobDataMap)
         {
-            writer.WriteString(keyValuePair.Key, (string?) keyValuePair.Value);
+            writer.WritePropertyName(keyValuePair.Key);
+            JsonSerializer.Serialize(writer, keyValuePair.Value, options);
         }
 
         writer.WriteEndObject();
@@ -194,10 +184,18 @@ internal static class Utf8JsonWriterExtensions
     {
         var result = new JobDataMap();
 
-        foreach (var property in jsonElement.EnumerateObject())
+        foreach (JsonProperty property in jsonElement.EnumerateObject())
         {
-            var value = property.Value.GetString();
-            result.Add(property.Name, value!);
+            object? value = property.Value.ValueKind switch
+            {
+                JsonValueKind.String => property.Value.GetString(),
+                JsonValueKind.True => true,
+                JsonValueKind.False => false,
+                JsonValueKind.Null => null,
+                _ => throw new JsonException($"Unsupported value kind: {property.Value.ValueKind}")
+            };
+
+            result.Add(property.Name, value);
         }
 
         return result;

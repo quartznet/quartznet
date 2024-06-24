@@ -13,7 +13,7 @@ internal sealed class HolidayCalendarSerializer : CalendarSerializer<HolidayCale
     {
     }
 
-    public const string CalendarTypeKey = "HolidayCalendar";
+    public static readonly string CalendarTypeKey = typeof(HolidayCalendar).AssemblyQualifiedNameWithoutVersion();
 
     public override string CalendarTypeForJson => CalendarTypeKey;
 

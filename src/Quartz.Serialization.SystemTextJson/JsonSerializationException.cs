@@ -1,6 +1,6 @@
 using System.Runtime.Serialization;
 
-namespace Quartz.Converters;
+namespace Quartz;
 
 public sealed class JsonSerializationException : SchedulerException
 {

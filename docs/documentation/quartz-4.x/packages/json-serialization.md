@@ -10,15 +10,15 @@ You should also strongly consider setting useProperties to true to restrict key-
 
 ## JSON.NET
 
-[Quartz.Serialization.Newtonsoft](https://www.nuget.org/packages/Quartz.Serialization.Newtonsoft) provides JSON serialization support for job stores using
-[Json.NET](https://www.newtonsoft.com/json) to handle the actual serialization process.
+[Quartz.Serialization.SystemTextJson](https://www.nuget.org/packages/Quartz.Serialization.SystemTextJson) provides JSON serialization support for job stores using
+System.Text.Json facilities to handle the actual serialization process.
 
 ### Installation
 
 You need to add NuGet package reference to your project which uses Quartz.
 
 ```shell
-Install-Package Quartz.Serialization.Newtonsoft
+Install-Package Quartz.Serialization.SystemTextJson
 ```
 
 ### Configuring
@@ -29,7 +29,7 @@ Install-Package Quartz.Serialization.Newtonsoft
 var properties = new NameValueCollection
 {
  ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
- ["quartz.serializer.type"] = "json"
+ ["quartz.serializer.type"] = "stj"
 };
 ISchedulerFactory schedulerFactory = new StdSchedulerFactory(properties);
 ```
@@ -47,7 +47,7 @@ config.UsePersistentStore(store =>
         db.ConnectionString = "my connection string"
     );
 
-    store.UseNewtonsoftJsonSerializer();
+    store.UseSystemTextJsonSerializer();
 });
 ISchedulerFactory schedulerFactory = config.Build();
 ```
@@ -65,14 +65,14 @@ There's now official solution for migration as there can be quirks in every setu
 public class MigratorSerializer : IObjectSerializer
 {
     private BinaryObjectSerializer binarySerializer;
-    private JsonObjectSerializer jsonSerializer;
+    private SystemTextJsonObjectSerializer jsonSerializer;
 
     public MigratorSerializer()
     {
         this.binarySerializer = new BinaryObjectSerializer();
         // you might need custom configuration, see sections about customizing
         // in documentation
-        this.jsonSerializer = new JsonObjectSerializer();
+        this.jsonSerializer = new SystemTextJsonObjectSerializer();
     }
 
     public T DeSerialize<T>(byte[] data) where T : class
@@ -103,27 +103,27 @@ public class MigratorSerializer : IObjectSerializer
 }
 ```
 
-### Customizing JSON.NET
+### Customizing serializer options
 
- If you need to customize JSON.NET settings, you need to inherit custom implementation and override `CreateSerializerSettings`.
+ If you need to customize serializer options, you need to inherit custom implementation and override `CreateSerializerOptions`.
 
 ```csharp
-class CustomJsonSerializer : JsonObjectSerializer
+class CustomJsonSerializer : SystemTextJsonObjectSerializer
 {
-    protected override JsonSerializerSettings CreateSerializerSettings()
+    protected override JsonSerializerOptions CreateSerializerOptions()
     {
-        var settings = base.CreateSerializerSettings();
-        settings.Converters.Add(new MyCustomConverter());
-        return settings;
+        var options = base.CreateSerializerOptions();
+        options.Converters.Add(new MyCustomConverter());
+        return options;
     }
-} 
+}
 ```
 
 **And then configure it to use**
 
 ```csharp
 store.UseSerializer<CustomJsonSerializer>();
-// or 
+// or
 "quartz.serializer.type" = "MyProject.CustomJsonSerializer, MyProject"
 ```
 
@@ -166,15 +166,14 @@ class CustomCalendarSerializer : CalendarSerializer<CustomCalendar>
         return new CustomCalendar();
     }
 
-    protected override void SerializeFields(JsonWriter writer, CustomCalendar calendar)
+    protected override void SerializeFields(Utf8JsonWriter writer, CustomCalendar calendar)
     {
-        writer.WritePropertyName("SomeCustomProperty");
-        writer.WriteValue(calendar.SomeCustomProperty);
+        writer.WriteString("SomeCustomProperty", calendar.SomeCustomProperty);
     }
 
-    protected override void DeserializeFields(CustomCalendar calendar, JObject source)
+    protected override void DeserializeFields(CustomCalendar calendar, JsonElement jsonElement)
     {
-        calendar.SomeCustomProperty = source["SomeCustomProperty"]!.Value<bool>();
+        calendar.SomeCustomProperty = jsonElement.GetProperty("SomeCustomProperty").GetBoolean()
     }
 }
 ```
@@ -185,12 +184,12 @@ class CustomCalendarSerializer : CalendarSerializer<CustomCalendar>
 var config = SchedulerBuilder.Create();
 config.UsePersistentStore(store =>
 {
-    store.UseNewtonsoftJsonSerializer(json =>
+    store.UseSystemTextJsonSerializer(json =>
     {
         json.AddCalendarSerializer<CustomCalendar>(new CustomCalendarSerializer());
     });
 });
 
 // or just globally which is what above code calls
-JsonObjectSerializer.AddCalendarSerializer<CustomCalendar>(new CustomCalendarSerializer());
+SystemTextJsonObjectSerializer.AddCalendarSerializer<CustomCalendar>(new CustomCalendarSerializer());
 ```
