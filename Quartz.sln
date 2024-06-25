@@ -64,6 +64,8 @@ EndProjectSection
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "_build", "build\_build.csproj", "{1252A3D8-2CF1-4AF6-A80C-A9889634543B}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Quartz.Serialization.SystemTextJson", "src\Quartz.Serialization.SystemTextJson\Quartz.Serialization.SystemTextJson.csproj", "{31C5AC18-356B-4059-9A90-0479C0A15176}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -140,6 +142,10 @@ Global
 		{A41539B5-18CC-4881-9E88-3C0BA55716D3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{A41539B5-18CC-4881-9E88-3C0BA55716D3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{A41539B5-18CC-4881-9E88-3C0BA55716D3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{31C5AC18-356B-4059-9A90-0479C0A15176}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{31C5AC18-356B-4059-9A90-0479C0A15176}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{31C5AC18-356B-4059-9A90-0479C0A15176}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{31C5AC18-356B-4059-9A90-0479C0A15176}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

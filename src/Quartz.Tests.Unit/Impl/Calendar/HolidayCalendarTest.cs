@@ -30,6 +30,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
     /// <author>Marko Lahma (.NET)</author>
     [TestFixture(typeof(BinaryObjectSerializer))]
     [TestFixture(typeof(JsonObjectSerializer))]
+    [TestFixture(typeof(SystemTextJsonObjectSerializer))]
     public class HolidayCalendarTest : SerializationTestSupport<HolidayCalendar, ICalendar>
     {
         private HolidayCalendar cal;
@@ -59,7 +60,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             DateTime excluded = new DateTime(2007, 12, 31);
             cal.AddExcludedDate(excluded);
 
-            Assert.AreEqual(new DateTimeOffset(2008, 1, 1, 0,0,0, cal.TimeZone.BaseUtcOffset), cal.GetNextIncludedTimeUtc(excluded));
+            Assert.AreEqual(new DateTimeOffset(2008, 1, 1, 0, 0, 0, cal.TimeZone.BaseUtcOffset), cal.GetNextIncludedTimeUtc(excluded));
         }
 
         /// <summary>
@@ -83,7 +84,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             HolidayCalendar c = new HolidayCalendar();
             c.TimeZone = tz;
 
-            DateTimeOffset excludedDay = new DateTimeOffset(2012, 11, 4, 0,0,0, TimeSpan.Zero);
+            DateTimeOffset excludedDay = new DateTimeOffset(2012, 11, 4, 0, 0, 0, TimeSpan.Zero);
             c.AddExcludedDate(excludedDay.DateTime);
 
             // 11/5/2012 12:00:00 AM -04:00  translate into 11/4/2012 11:00:00 PM -05:00 (EST)

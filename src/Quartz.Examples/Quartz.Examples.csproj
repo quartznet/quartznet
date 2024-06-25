@@ -11,6 +11,7 @@
     <Compile Include="..\Quartz.Tests.Unit\TestConstants.cs" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\Quartz.Serialization.SystemTextJson\Quartz.Serialization.SystemTextJson.csproj" />
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
     <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj" />
     <ProjectReference Include="..\Quartz.Serialization.Json\Quartz.Serialization.Json.csproj" />

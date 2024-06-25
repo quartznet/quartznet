@@ -31,12 +31,13 @@ namespace Quartz.Tests.Unit.Impl.Calendar
     /// <author>Marko Lahma (.NET)</author>
     [TestFixture(typeof(BinaryObjectSerializer))]
     [TestFixture(typeof(JsonObjectSerializer))]
+    [TestFixture(typeof(SystemTextJsonObjectSerializer))]
     public class CronCalendarTest : SerializationTestSupport<CronCalendar, ICalendar>
     {
         public CronCalendarTest(Type serializerType) : base(serializerType)
         {
         }
-        
+
         [Test]
         public void TestTimeIncluded()
         {

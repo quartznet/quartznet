@@ -40,6 +40,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
     /// <author>Marko Lahma (.NET)</author>
     [TestFixture(typeof(BinaryObjectSerializer))]
     [TestFixture(typeof(JsonObjectSerializer))]
+    [TestFixture(typeof(SystemTextJsonObjectSerializer))]
     public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalendar>
     {
         public DailyCalendarTest(Type serializerType) : base(serializerType)
@@ -71,19 +72,6 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             Assert.AreEqual(expectedStartTime, dailyCalendar.GetTimeRangeStartingTimeUtc(d).DateTime);
             Assert.AreEqual(expectedEndTime, dailyCalendar.GetTimeRangeEndingTimeUtc(d).DateTime);
         }
-        
-        [Test]
-        public void EnsureCalendarCanWorkWithMillisecondPrecision()
-        {
-            var  calendar = new DailyCalendar("14:25:10:05", "14:50");
-            
-            var time = new DateTime(2024, 2, 5, 10, 6, 0, DateTimeKind.Utc);
-            var expected = new DateTime(2024, 2, 5, 10, 6, 0,1, DateTimeKind.Utc);
-
-            var d = calendar.GetNextIncludedTimeUtc(time); 
-            d.Should().Be(expected);
-        }
-        
 
         [Test]
         public void TestStringInvertTimeRange()
@@ -110,6 +98,9 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             Assert.IsTrue(dailyCalendar.IsTimeIncluded(timeToCheck));
         }
 
+        /// <summary>
+        /// Ensure that the DailyCalendar use the same TimeZone offset for all the checks
+        /// </summary>
         [Test]
         public void TestTimeZone2()
         {
@@ -138,7 +129,7 @@ namespace Quartz.Tests.Unit.Impl.Calendar
             else if (timeZoneOffset < TimeSpan.Zero)
             {
                 // Trigger must fire between midnight minus utc offset and midnight if negative offset.
-                fireTimes.Where(t => t.Hour >= 24 - timeZoneOffset.Hours && t.Hour <= 23).Should().NotBeEmpty();
+                fireTimes.Where(t => t.Hour >= 24 + timeZoneOffset.Hours && t.Hour <= 23).Should().NotBeEmpty();
             }
             else
             {

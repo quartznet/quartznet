@@ -1,26 +1,27 @@
 using System.Threading.Tasks;
 
- namespace Quartz.Tests.Integration;
-
- public class RAMSchedulerTest : AbstractSchedulerTest
+ namespace Quartz.Tests.Integration
  {
-     public RAMSchedulerTest() : base("memory", "default-serializer")
+     public class RAMSchedulerTest : AbstractSchedulerTest
      {
-     }
-
-     protected override Task<IScheduler> CreateScheduler(string name, int threadPoolSize)
-     {
-         var config = SchedulerBuilder.Create("AUTO", name + "Scheduler");
-
-         config.UseDefaultThreadPool(x =>
+         public RAMSchedulerTest() : base("memory", "default-serializer")
          {
-             x.MaxConcurrency = threadPoolSize;
-         });
+         }
 
-         return config.BuildScheduler();
-     }
+         protected override Task<IScheduler> CreateScheduler(string name, int threadPoolSize)
+         {
+             var config = SchedulerBuilder.Create("AUTO", name + "Scheduler");
 
-     public RAMSchedulerTest(string provider) : base(provider, "default-serializer")
-     {
+             config.UseDefaultThreadPool(x =>
+             {
+                 x.MaxConcurrency = threadPoolSize;
+             });
+
+             return config.BuildScheduler();
+         }
+
+         public RAMSchedulerTest(string provider) : base(provider, "default-serializer")
+         {
+         }
      }
  }

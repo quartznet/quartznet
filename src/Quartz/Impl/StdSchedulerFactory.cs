@@ -690,6 +690,10 @@ Please add configuration to your application config file to correctly initialize
                 {
                     objectSerializerType = "Quartz.Simpl.JsonObjectSerializer, Quartz.Serialization.Json";
                 }
+                if (objectSerializerType.Equals("stj", StringComparison.OrdinalIgnoreCase))
+                {
+                    objectSerializerType = "Quartz.Simpl.SystemTextJsonObjectSerializer, Quartz.Serialization.SystemTextJson";
+                }
                 if (objectSerializerType.Equals("binary", StringComparison.OrdinalIgnoreCase))
                 {
                     objectSerializerType = typeof(BinaryObjectSerializer).AssemblyQualifiedNameWithoutVersion();

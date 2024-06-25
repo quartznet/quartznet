@@ -29,6 +29,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Quartz.Extensions.DependencyInjection\Quartz.Extensions.DependencyInjection.csproj" />
     <ProjectReference Include="..\Quartz.Extensions.Hosting\Quartz.Extensions.Hosting.csproj" />
+    <ProjectReference Include="..\Quartz.Serialization.SystemTextJson\Quartz.Serialization.SystemTextJson.csproj" />
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
     <ProjectReference Include="..\Quartz.Jobs\Quartz.Jobs.csproj" />
     <ProjectReference Include="..\Quartz.Plugins\Quartz.Plugins.csproj" />
