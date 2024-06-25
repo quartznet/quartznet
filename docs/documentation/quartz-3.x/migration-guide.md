@@ -117,7 +117,7 @@ var properties = new NameValueCollection
  ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
  // "newtonsoft" and "json" are aliases for "Quartz.Simpl.JsonObjectSerializer, Quartz.Serialization.Json"
  // you should prefer "newtonsoft" as it's more explicit from Quartz 3.10 onwards
- ["quartz.serializer.type"] = "json"
+ ["quartz.serializer.type"] = "newtonsoft"
 };
 ISchedulerFactory sf = new StdSchedulerFactory(properties);
 ```
