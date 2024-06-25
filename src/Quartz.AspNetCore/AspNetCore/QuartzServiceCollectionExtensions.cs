@@ -53,7 +53,7 @@ public static class QuartzServiceCollectionExtensions
                 return;
             }
 
-            options.AddQuartzConverters();
+            options.AddQuartzConverters(newtonsoftCompatibilityMode: false);
         }
     }
 

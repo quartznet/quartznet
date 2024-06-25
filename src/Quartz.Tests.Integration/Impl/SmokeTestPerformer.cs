@@ -9,6 +9,7 @@ using Quartz.Impl.Calendar;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
+using Quartz.Serialization.Newtonsoft;
 using Quartz.Spi;
 using Quartz.Tests.Integration.Impl.AdoJobStore;
 using Quartz.Util;
@@ -494,7 +495,7 @@ internal sealed class CustomCalendar : BaseCalendar
     }
 }
 
-internal sealed class CustomCalendarSerializer : CalendarSerializer<CustomCalendar>
+internal sealed class CustomNewtonsoftCalendarSerializer : CalendarSerializer<CustomCalendar>
 {
     protected override CustomCalendar Create(JObject source)
     {

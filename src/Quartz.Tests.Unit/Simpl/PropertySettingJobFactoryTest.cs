@@ -44,8 +44,9 @@ public class PropertySettingJobFactoryTest
 
     [Test]
     [TestCase(null)]
-    [TestCase(typeof(JsonObjectSerializer))]
     [TestCase(typeof(BinaryObjectSerializer))]
+    [TestCase(typeof(NewtonsoftJsonObjectSerializer))]
+    [TestCase(typeof(SystemTextJsonObjectSerializer))]
     public void TestSetObjectPropsPrimitives(Type serializerType)
     {
         JobDataMap jobDataMap = new JobDataMap();

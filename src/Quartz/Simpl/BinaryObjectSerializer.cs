@@ -23,8 +23,8 @@ internal sealed class BinaryObjectSerializer : IObjectSerializer
     public byte[] Serialize<T>(T obj) where T : class
     {
 #pragma warning disable SYSLIB0011
-        using MemoryStream ms = new MemoryStream();
-        BinaryFormatter bf = new BinaryFormatter();
+        using MemoryStream ms = new();
+        BinaryFormatter bf = new();
         bf.Serialize(ms, obj);
         return ms.ToArray();
 #pragma warning restore SYSLIB0011
@@ -37,9 +37,9 @@ internal sealed class BinaryObjectSerializer : IObjectSerializer
     public T? DeSerialize<T>(byte[] data) where T : class
     {
 #pragma warning disable SYSLIB0011
-        using MemoryStream ms = new MemoryStream(data);
-        BinaryFormatter bf = new BinaryFormatter();
-        return (T) bf.Deserialize(ms);
+        using MemoryStream ms = new(data);
+        BinaryFormatter bf = new();
+        return (T?) bf.Deserialize(ms);
 #pragma warning restore SYSLIB0011
     }
 }

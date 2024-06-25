@@ -163,5 +163,6 @@ This is recommended configuration because it greatly decreases the possibility o
  You should also strongly consider setting useProperties to true to restrict key-values to be strings.
  :::
 
- // "json" is alias for "Quartz.Simpl.JsonObjectSerializer, Quartz.Serialization.Json"
- quartz.serializer.type = json
+ // "newtonsoft" and "json" are aliases for "Quartz.Simpl.JsonObjectSerializer, Quartz.Serialization.Json"
+ // you should prefer "newtonsoft" as it's more explicit from Quartz 3.10 onwards
+ quartz.serializer.type = newtonsoft

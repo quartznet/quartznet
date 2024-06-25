@@ -36,7 +36,8 @@ namespace Quartz.Tests.Unit.Impl.Calendar;
 /// </summary>
 /// <author>Marko Lahma (.NET)</author>
 [TestFixture(typeof(BinaryObjectSerializer))]
-[TestFixture(typeof(JsonObjectSerializer))]
+[TestFixture(typeof(NewtonsoftJsonObjectSerializer))]
+[TestFixture(typeof(SystemTextJsonObjectSerializer))]
 public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalendar>
 {
     public DailyCalendarTest(Type serializerType) : base(serializerType)

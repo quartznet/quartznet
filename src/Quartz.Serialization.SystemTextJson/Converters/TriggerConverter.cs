@@ -24,27 +24,27 @@ internal sealed class TriggerConverter : JsonConverter<ITrigger>
         { typeof(SimpleTriggerImpl).AssemblyQualifiedNameWithoutVersion(), SimpleTriggerSerializer.Instance }
     };
 
-    public override bool CanConvert(Type objectType) => typeof(ITrigger).IsAssignableFrom(objectType);
+    public override bool CanConvert(Type typeToConvert) => typeof(ITrigger).IsAssignableFrom(typeToConvert);
 
     public override ITrigger Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         try
         {
             var rootElement = JsonDocument.ParseValue(ref reader).RootElement;
-            var type = rootElement.GetProperty("TriggerType").GetString();
+            var type = rootElement.GetProperty(options.GetPropertyName("TriggerType")).GetString();
 
             var triggerSerializer = GetTriggerSerializer(type);
-            var scheduleBuilder = triggerSerializer.CreateScheduleBuilder(rootElement);
+            var scheduleBuilder = triggerSerializer.CreateScheduleBuilder(rootElement, options);
 
-            var key = rootElement.GetProperty("Key").GetTriggerKey();
-            var jobKey = rootElement.GetProperty("JobKey").GetJobKey();
-            var description = rootElement.GetProperty("Description").GetString();
-            var calendarName = rootElement.GetProperty("CalendarName").GetString();
-            var jobDataMap = rootElement.GetProperty("JobDataMap").GetJobDataMap();
-            var misfireInstruction = rootElement.GetProperty("MisfireInstruction").GetInt32();
-            var endTimeUtc = rootElement.GetProperty("EndTimeUtc").GetDateTimeOffsetOrNull();
-            var startTimeUtc = rootElement.GetProperty("StartTimeUtc").GetDateTimeOffset();
-            var priority = rootElement.GetProperty("Priority").GetInt32();
+            var key = rootElement.GetProperty(options.GetPropertyName("Key")).GetTriggerKey(options);
+            var jobKey = rootElement.GetProperty(options.GetPropertyName("JobKey")).GetJobKey(options);
+            var description = rootElement.GetProperty(options.GetPropertyName("Description")).GetString();
+            var calendarName = rootElement.GetProperty(options.GetPropertyName("CalendarName")).GetString();
+            var jobDataMap = rootElement.GetProperty(options.GetPropertyName("JobDataMap")).GetJobDataMap(options);
+            var misfireInstruction = rootElement.GetProperty(options.GetPropertyName("MisfireInstruction")).GetInt32();
+            var endTimeUtc = rootElement.GetProperty(options.GetPropertyName("EndTimeUtc")).GetDateTimeOffsetOrNull();
+            var startTimeUtc = rootElement.GetProperty(options.GetPropertyName("StartTimeUtc")).GetDateTimeOffset();
+            var priority = rootElement.GetProperty(options.GetPropertyName("Priority")).GetInt32();
 
             var builder = TriggerBuilder.Create()
                 .WithSchedule(scheduleBuilder)
@@ -81,19 +81,20 @@ internal sealed class TriggerConverter : JsonConverter<ITrigger>
             var type = value.GetType().AssemblyQualifiedNameWithoutVersion();
             var triggerSerializer = GetTriggerSerializer(type);
 
-            writer.WriteString("TriggerType", triggerSerializer.TriggerTypeForJson);
+            writer.WriteString(options.GetPropertyName("TriggerType"), triggerSerializer.TriggerTypeForJson);
 
-            writer.WriteKey("Key", value.Key);
-            writer.WriteKey("JobKey", value.JobKey);
-            writer.WriteString("Description", value.Description);
-            writer.WriteString("CalendarName", value.CalendarName);
-            writer.WriteJobDataMap("JobDataMap", value.JobDataMap);
-            writer.WriteNumber("MisfireInstruction", value.MisfireInstruction);
-            writer.WriteString("StartTimeUtc", value.StartTimeUtc);
-            writer.WriteString("EndTimeUtc", value.EndTimeUtc);
-            writer.WriteNumber("Priority", value.Priority);
+            writer.WriteKey(options.GetPropertyName("Key"), value.Key, options);
+            writer.WriteKey(options.GetPropertyName("JobKey"), value.JobKey, options);
+            writer.WriteString(options.GetPropertyName("Description"), value.Description);
+            writer.WriteString(options.GetPropertyName("CalendarName"), value.CalendarName);
+            writer.WritePropertyName(options.GetPropertyName("JobDataMap"));
+            writer.WriteJobDataMapValue(value.JobDataMap, options);
+            writer.WriteNumber(options.GetPropertyName("MisfireInstruction"), value.MisfireInstruction);
+            writer.WriteString(options.GetPropertyName("StartTimeUtc"), value.StartTimeUtc);
+            writer.WriteString(options.GetPropertyName("EndTimeUtc"), value.EndTimeUtc);
+            writer.WriteNumber(options.GetPropertyName("Priority"), value.Priority);
 
-            triggerSerializer.SerializeFields(writer, value);
+            triggerSerializer.SerializeFields(writer, value, options);
             writer.WriteEndObject();
         }
         catch (Exception e)
@@ -106,7 +107,7 @@ internal sealed class TriggerConverter : JsonConverter<ITrigger>
     {
         if (string.IsNullOrWhiteSpace(typeName) || !converters.TryGetValue(typeName!, out var converter))
         {
-            throw new ArgumentException("Don't know how to handle " + typeName, nameof(typeName));
+            throw new ArgumentException($"Don't know how to handle {typeName}", nameof(typeName));
         }
 
         return converter;

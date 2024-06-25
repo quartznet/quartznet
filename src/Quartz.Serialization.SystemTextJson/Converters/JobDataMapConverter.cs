@@ -12,7 +12,7 @@ internal sealed class JobDataMapConverter : JsonConverter<JobDataMap>
         try
         {
             var rootElement = JsonDocument.ParseValue(ref reader).RootElement;
-            var result = rootElement.GetJobDataMap();
+            var result = rootElement.GetJobDataMap(options);
             return result;
         }
         catch (Exception e)
@@ -25,7 +25,7 @@ internal sealed class JobDataMapConverter : JsonConverter<JobDataMap>
     {
         try
         {
-            writer.WriteJobDataMapValue(value);
+            writer.WriteJobDataMapValue(value, options);
         }
         catch (Exception e)
         {

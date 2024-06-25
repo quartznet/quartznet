@@ -23,7 +23,7 @@ Quartz NuGet package was split to more specific packages.
   * SendMailJob
 * [Quartz.Plugins](https://www.nuget.org/packages/Quartz.Plugins) is now a separate NuGet dependency you might need
   * XMLSchedulingDataProcessorPlugin
-  
+
 Check that you reference the required NuGet packages and that your configuration references also the correct assembly.
 
 ### Database schema changes
@@ -103,7 +103,7 @@ Configuring binary serialization strategy:
 var properties = new NameValueCollection
 {
  ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
- // "binary" is alias for "Quartz.Simpl.BinaryObjectSerializer, Quartz" 
+ // "binary" is alias for "Quartz.Simpl.BinaryObjectSerializer, Quartz"
  ["quartz.serializer.type"] = "binary"
 };
 ISchedulerFactory sf = new StdSchedulerFactory(properties);
@@ -115,8 +115,9 @@ Configuring JSON serialization strategy (recommended):
 var properties = new NameValueCollection
 {
  ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
- // "json" is alias for "Quartz.Simpl.JsonObjectSerializer, Quartz.Serialization.Json" 
- ["quartz.serializer.type"] = "json"
+ // "newtonsoft" and "json" are aliases for "Quartz.Simpl.JsonObjectSerializer, Quartz.Serialization.Json"
+ // you should prefer "newtonsoft" as it's more explicit from Quartz 3.10 onwards
+ ["quartz.serializer.type"] = "newtonsoft"
 };
 ISchedulerFactory sf = new StdSchedulerFactory(properties);
 ```

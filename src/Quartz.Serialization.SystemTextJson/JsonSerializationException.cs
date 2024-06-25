@@ -1,7 +1,8 @@
 using System.Runtime.Serialization;
 
-namespace Quartz.Converters;
+namespace Quartz;
 
+[Serializable]
 public sealed class JsonSerializationException : SchedulerException
 {
     public JsonSerializationException(string message) : base(message)
@@ -12,7 +13,7 @@ public sealed class JsonSerializationException : SchedulerException
     {
     }
 
-    public JsonSerializationException(SerializationInfo info, StreamingContext context) : base(info, context)
+    private JsonSerializationException(SerializationInfo info, StreamingContext context) : base(info, context)
     {
     }
 }

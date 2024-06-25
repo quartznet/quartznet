@@ -68,22 +68,22 @@ internal static class Utf8JsonWriterExtensions
         return (T) result;
     }
 
-    public static void WriteTimeOfDay(this Utf8JsonWriter writer, string propertyName, TimeOfDay value)
+    public static void WriteTimeOfDay(this Utf8JsonWriter writer, string propertyName, TimeOfDay value, JsonSerializerOptions options)
     {
         writer.WriteStartObject(propertyName);
 
-        writer.WriteNumber("Hour", value.Hour);
-        writer.WriteNumber("Minute", value.Minute);
-        writer.WriteNumber("Second", value.Second);
+        writer.WriteNumber(options.GetPropertyName("Hour"), value.Hour);
+        writer.WriteNumber(options.GetPropertyName("Minute"), value.Minute);
+        writer.WriteNumber(options.GetPropertyName("Second"), value.Second);
 
         writer.WriteEndObject();
     }
 
-    public static TimeOfDay GetTimeOfDay(this JsonElement jsonElement)
+    public static TimeOfDay GetTimeOfDay(this JsonElement jsonElement, JsonSerializerOptions options)
     {
-        var hour = jsonElement.GetProperty("Hour").GetInt32();
-        var minute = jsonElement.GetProperty("Minute").GetInt32();
-        var second = jsonElement.GetProperty("Second").GetInt32();
+        var hour = jsonElement.GetProperty(options.GetPropertyName("Hour")).GetInt32();
+        var minute = jsonElement.GetProperty(options.GetPropertyName("Minute")).GetInt32();
+        var second = jsonElement.GetProperty(options.GetPropertyName("Second")).GetInt32();
 
         return new TimeOfDay(hour, minute, second);
     }
@@ -132,7 +132,7 @@ internal static class Utf8JsonWriterExtensions
         return result;
     }
 
-    public static void WriteKey<T>(this Utf8JsonWriter writer, string propertyName, Key<T>? key)
+    public static void WriteKey<T>(this Utf8JsonWriter writer, string propertyName, Key<T>? key, JsonSerializerOptions options)
     {
         if (key == null)
         {
@@ -141,65 +141,96 @@ internal static class Utf8JsonWriterExtensions
         }
 
         writer.WriteStartObject(propertyName);
-        writer.WriteString("Name", key.Name);
-        writer.WriteString("Group", key.Group);
+        writer.WriteString(options.GetPropertyName("Name"), key.Name);
+        writer.WriteString(options.GetPropertyName("Group"), key.Group);
         writer.WriteEndObject();
     }
 
-    public static TriggerKey GetTriggerKey(this JsonElement jsonElement)
+    public static TriggerKey GetTriggerKey(this JsonElement jsonElement, JsonSerializerOptions options)
     {
-        var name = jsonElement.GetProperty("Name").GetString();
-        var group = jsonElement.GetProperty("Group").GetString();
+        var name = jsonElement.GetProperty(options.GetPropertyName("Name")).GetString();
+        var group = jsonElement.GetProperty(options.GetPropertyName("Group")).GetString();
 
         return new TriggerKey(name!, group!);
     }
 
-    public static JobKey? GetJobKey(this JsonElement jsonElement)
+    public static JobKey? GetJobKey(this JsonElement jsonElement, JsonSerializerOptions options)
     {
         if (jsonElement.ValueKind == JsonValueKind.Null)
         {
             return null;
         }
 
-        var name = jsonElement.GetProperty("Name").GetString();
-        var group = jsonElement.GetProperty("Group").GetString();
+        var name = jsonElement.GetProperty(options.GetPropertyName("Name")).GetString();
+        var group = jsonElement.GetProperty(options.GetPropertyName("Group")).GetString();
 
         return new JobKey(name!, group!);
     }
 
-    public static void WriteJobDataMap(this Utf8JsonWriter writer, string propertyName, JobDataMap jobDataMap)
+    public static void WriteJobDataMapValue(this Utf8JsonWriter writer, JobDataMap jobDataMap, JsonSerializerOptions options)
     {
-        writer.WritePropertyName(propertyName);
-        writer.WriteJobDataMapValue(jobDataMap);
-    }
-
-    public static void WriteJobDataMapValue(this Utf8JsonWriter writer, JobDataMap jobDataMap)
-    {
-        if (jobDataMap.Values.Any(static x => x is not string))
-        {
-            throw new NotSupportedException("Only string values are supported in JobDataMap");
-        }
-
         writer.WriteStartObject();
 
         foreach (KeyValuePair<string, object?> keyValuePair in jobDataMap)
         {
-            writer.WriteString(keyValuePair.Key, (string?) keyValuePair.Value);
+            writer.WritePropertyName(keyValuePair.Key);
+            JsonSerializer.Serialize(writer, keyValuePair.Value, options);
         }
 
         writer.WriteEndObject();
     }
 
-    public static JobDataMap GetJobDataMap(this JsonElement jsonElement)
+    public static JobDataMap GetJobDataMap(this JsonElement jsonElement, JsonSerializerOptions options)
     {
         var result = new JobDataMap();
 
-        foreach (var property in jsonElement.EnumerateObject())
+        foreach (JsonProperty property in jsonElement.EnumerateObject())
         {
-            var value = property.Value.GetString();
-            result.Add(property.Name, value!);
+            object? value;
+            switch (property.Value.ValueKind)
+            {
+                case JsonValueKind.String:
+                    value = property.Value.GetString();
+                    break;
+                case JsonValueKind.True:
+                    value = true;
+                    break;
+                case JsonValueKind.False:
+                    value = false;
+                    break;
+                case JsonValueKind.Null:
+                    value = null;
+                    break;
+                case JsonValueKind.Number:
+                    if (property.Value.TryGetInt32(out int intValue))
+                    {
+                        value = intValue;
+                    }
+                    else if (property.Value.TryGetInt64(out long longValue))
+                    {
+                        value = longValue;
+                    }
+                    else
+                    {
+                        value = property.Value.GetDouble();
+                    }
+                    break;
+                case JsonValueKind.Object:
+                    value = property.Value.Deserialize<Dictionary<string, string>>(options);
+                    break;
+                default:
+                    throw new JsonException($"Unsupported value kind: {property.Value.ValueKind}");
+            }
+
+            result.Add(property.Name, value);
         }
 
+        result.ClearDirtyFlag();
         return result;
+    }
+
+    internal static string GetPropertyName(this JsonSerializerOptions options, string propertyName)
+    {
+        return options.PropertyNamingPolicy?.ConvertName(propertyName) ?? propertyName;
     }
 }

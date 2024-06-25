@@ -703,9 +703,13 @@ Please add configuration to your application config file to correctly initialize
         if (objectSerializerType != null)
         {
             // some aliases
-            if (objectSerializerType.Equals("json", StringComparison.OrdinalIgnoreCase))
+            if (objectSerializerType.Equals("newtonsoft", StringComparison.OrdinalIgnoreCase))
             {
-                objectSerializerType = "Quartz.Simpl.JsonObjectSerializer, Quartz.Serialization.Newtonsoft";
+                objectSerializerType = "Quartz.Simpl.NewtonsoftJsonObjectSerializer, Quartz.Serialization.Newtonsoft";
+            }
+            if (objectSerializerType.Equals("stj", StringComparison.OrdinalIgnoreCase))
+            {
+                objectSerializerType = "Quartz.Simpl.SystemTextJsonObjectSerializer, Quartz.Serialization.SystemTextJson";
             }
             if (objectSerializerType.Equals("binary", StringComparison.OrdinalIgnoreCase))
             {

@@ -9,9 +9,9 @@ using Quartz.Tests.Integration.Utils;
 namespace Quartz.Tests.Integration;
 
 [TestFixture(typeof(BinaryObjectSerializer), TestConstants.DefaultSqlServerProvider, Category = "db-sqlserver")]
-[TestFixture(typeof(JsonObjectSerializer), TestConstants.DefaultSqlServerProvider, Category = "db-sqlserver")]
+[TestFixture(typeof(NewtonsoftJsonObjectSerializer), TestConstants.DefaultSqlServerProvider, Category = "db-sqlserver")]
 [TestFixture(typeof(BinaryObjectSerializer), TestConstants.PostgresProvider, Category = "db-postgres")]
-[TestFixture(typeof(JsonObjectSerializer), TestConstants.PostgresProvider, Category = "db-postgres")]
+[TestFixture(typeof(NewtonsoftJsonObjectSerializer), TestConstants.PostgresProvider, Category = "db-postgres")]
 public class AdoSchedulerTest : AbstractSchedulerTest
 {
     private readonly IObjectSerializer serializer;

@@ -242,7 +242,7 @@ public class Startup
                     // this is the default
                     sqlServer.TablePrefix = "QRTZ_";
                 });
-                s.UseJsonSerializer();
+                s.UseSystemTextJsonSerializer();
                 s.UseClustering(c =>
                 {
                     c.CheckinMisfireThreshold = TimeSpan.FromSeconds(20);

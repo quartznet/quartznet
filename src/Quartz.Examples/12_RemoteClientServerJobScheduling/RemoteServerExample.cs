@@ -46,7 +46,7 @@ public class RemoteServerJobSchedulingExample : IExample
             ["quartz.scheduler.instanceName"] = "RemoteServer",
             ["quartz.threadPool.type"] = typeof(DefaultThreadPool).AssemblyQualifiedNameWithoutVersion(),
             ["quartz.threadPool.threadCount"] = "5",
-            ["quartz.serializer.type"] = "json",
+            ["quartz.serializer.type"] = "stj",
             ["quartz.scheduler.exporter.type"] = "Quartz.Simpl.RemotingSchedulerExporter, Quartz",
             ["quartz.scheduler.exporter.port"] = "555",
             ["quartz.scheduler.exporter.bindName"] = "QuartzScheduler",

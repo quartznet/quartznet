@@ -3,7 +3,6 @@ using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-using Quartz.Converters;
 using Quartz.HttpApiContract;
 
 namespace Quartz.AspNetCore.HttpApi.Util;

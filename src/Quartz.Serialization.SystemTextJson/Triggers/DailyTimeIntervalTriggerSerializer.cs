@@ -16,15 +16,15 @@ internal sealed class DailyTimeIntervalTriggerSerializer : TriggerSerializer<IDa
 
     public override string TriggerTypeForJson => TriggerTypeKey;
 
-    public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement)
+    public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, JsonSerializerOptions options)
     {
-        var repeatCount = jsonElement.GetProperty("RepeatCount").GetInt32();
-        var repeatIntervalUnit = jsonElement.GetProperty("RepeatIntervalUnit").GetEnum<IntervalUnit>();
-        var repeatInterval = jsonElement.GetProperty("RepeatInterval").GetInt32();
-        var startTimeOfDay = jsonElement.GetProperty("StartTimeOfDay").GetTimeOfDay();
-        var endTimeOfDay = jsonElement.GetProperty("EndTimeOfDay").GetTimeOfDay();
-        var daysOfWeek = jsonElement.GetProperty("DaysOfWeek").GetArray(x => x.GetEnum<DayOfWeek>());
-        var timeZone = jsonElement.GetProperty("TimeZone").GetTimeZone();
+        var repeatCount = jsonElement.GetProperty(options.GetPropertyName("RepeatCount")).GetInt32();
+        var repeatIntervalUnit = jsonElement.GetProperty(options.GetPropertyName("RepeatIntervalUnit")).GetEnum<IntervalUnit>();
+        var repeatInterval = jsonElement.GetProperty(options.GetPropertyName("RepeatInterval")).GetInt32();
+        var startTimeOfDay = jsonElement.GetProperty(options.GetPropertyName("StartTimeOfDay")).GetTimeOfDay(options);
+        var endTimeOfDay = jsonElement.GetProperty(options.GetPropertyName("EndTimeOfDay")).GetTimeOfDay(options);
+        var daysOfWeek = jsonElement.GetProperty(options.GetPropertyName("DaysOfWeek")).GetArray(x => x.GetEnum<DayOfWeek>());
+        var timeZone = jsonElement.GetProperty(options.GetPropertyName("TimeZone")).GetTimeZone();
 
         return DailyTimeIntervalScheduleBuilder.Create()
             .WithRepeatCount(repeatCount)
@@ -35,14 +35,14 @@ internal sealed class DailyTimeIntervalTriggerSerializer : TriggerSerializer<IDa
             .InTimeZone(timeZone);
     }
 
-    protected override void SerializeFields(Utf8JsonWriter writer, IDailyTimeIntervalTrigger trigger)
+    protected override void SerializeFields(Utf8JsonWriter writer, IDailyTimeIntervalTrigger trigger, JsonSerializerOptions options)
     {
-        writer.WriteNumber("RepeatCount", trigger.RepeatCount);
-        writer.WriteNumber("RepeatInterval", trigger.RepeatInterval);
-        writer.WriteEnum("RepeatIntervalUnit", trigger.RepeatIntervalUnit);
-        writer.WriteTimeOfDay("StartTimeOfDay", trigger.StartTimeOfDay);
-        writer.WriteTimeOfDay("EndTimeOfDay", trigger.EndTimeOfDay);
-        writer.WriteArray("DaysOfWeek", trigger.DaysOfWeek, (w, v) => w.WriteEnumValue(v));
-        writer.WriteTimeZoneInfo("TimeZone", trigger.TimeZone);
+        writer.WriteNumber(options.GetPropertyName("RepeatCount"), trigger.RepeatCount);
+        writer.WriteNumber(options.GetPropertyName("RepeatInterval"), trigger.RepeatInterval);
+        writer.WriteEnum(options.GetPropertyName("RepeatIntervalUnit"), trigger.RepeatIntervalUnit);
+        writer.WriteTimeOfDay(options.GetPropertyName("StartTimeOfDay"), trigger.StartTimeOfDay, options);
+        writer.WriteTimeOfDay(options.GetPropertyName("EndTimeOfDay"), trigger.EndTimeOfDay, options);
+        writer.WriteArray(options.GetPropertyName("DaysOfWeek"), trigger.DaysOfWeek, (w, v) => w.WriteEnumValue(v));
+        writer.WriteTimeZoneInfo(options.GetPropertyName("TimeZone"), trigger.TimeZone);
     }
 }

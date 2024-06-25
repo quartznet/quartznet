@@ -3,13 +3,14 @@ using Newtonsoft.Json.Linq;
 
 using Quartz.Calendars;
 using Quartz.Impl.Calendar;
+using Quartz.Serialization.Newtonsoft;
 using Quartz.Util;
 
 namespace Quartz.Converters;
 
 internal sealed class CalendarConverter : JsonConverter
 {
-    private static readonly Dictionary<string, ICalendarSerializer> converters = new Dictionary<string, ICalendarSerializer>
+    private static readonly Dictionary<string, ICalendarSerializer> converters = new()
     {
         {typeof(BaseCalendar).AssemblyQualifiedNameWithoutVersion(), new BaseCalendarSerializer()},
         {typeof(AnnualCalendar).AssemblyQualifiedNameWithoutVersion(), new AnnualCalendarSerializer()},
@@ -24,7 +25,7 @@ internal sealed class CalendarConverter : JsonConverter
     {
         if (!converters.TryGetValue(typeName, out var converter))
         {
-            throw new ArgumentException("don't know how to handle " + typeName, nameof(typeName));
+            throw new ArgumentException($"don't know how to handle {typeName}", nameof(typeName));
         }
 
         return converter;
@@ -32,7 +33,7 @@ internal sealed class CalendarConverter : JsonConverter
 
     public override void WriteJson(JsonWriter writer, object? value, JsonSerializer serializer)
     {
-        if (!(value is ICalendar calendar))
+        if (value is not ICalendar calendar)
         {
             throw new ArgumentException("The value must implement ICalendar", nameof(value));
         }

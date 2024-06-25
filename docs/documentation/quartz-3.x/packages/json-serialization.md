@@ -27,8 +27,9 @@ Install-Package Quartz.Serialization.Json
 var properties = new NameValueCollection
 {
  ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
- // "json" is alias for "Quartz.Simpl.JsonObjectSerializer, Quartz.Serialization.Json" 
- ["quartz.serializer.type"] = "json"
+ // "newtonsoft" and "json" are aliases for "Quartz.Simpl.JsonObjectSerializer, Quartz.Serialization.Json"
+ // you should prefer "newtonsoft" as it's more explicit from Quartz 3.10 onwards
+ ["quartz.serializer.type"] = "newtonsoft"
 };
 ISchedulerFactory schedulerFactory = new StdSchedulerFactory(properties);
 ```
@@ -115,14 +116,14 @@ class CustomJsonSerializer : JsonObjectSerializer
         settings.Converters.Add(new MyCustomConverter());
         return settings;
     }
-} 
+}
 ```
 
 **And then configure it to use**
 
 ```csharp
 store.UseSerializer<CustomJsonSerializer>();
-// or 
+// or
 "quartz.serializer.type" = "MyProject.CustomJsonSerializer, MyProject"
 ```
 

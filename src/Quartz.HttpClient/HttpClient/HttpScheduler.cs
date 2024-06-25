@@ -27,7 +27,7 @@ public class HttpScheduler : IScheduler
         }
 
         this.jsonSerializerOptions = jsonSerializerOptions ?? new JsonSerializerOptions(JsonSerializerDefaults.Web);
-        this.jsonSerializerOptions.AddQuartzConverters();
+        this.jsonSerializerOptions.AddQuartzConverters(newtonsoftCompatibilityMode: false);
     }
 
     public string SchedulerName { get; }

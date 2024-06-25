@@ -1,35 +1,28 @@
 using System.Text.Json;
 
 using Quartz.Impl.Calendar;
+using Quartz.Serialization.SystemTextJson;
 using Quartz.Util;
 
 namespace Quartz.Calendars;
 
 internal sealed class HolidayCalendarSerializer : CalendarSerializer<HolidayCalendar>
 {
-    public static HolidayCalendarSerializer Instance { get; } = new();
+    public override string CalendarTypeName => "HolidayCalendar";
 
-    private HolidayCalendarSerializer()
-    {
-    }
-
-    public const string CalendarTypeKey = "HolidayCalendar";
-
-    public override string CalendarTypeForJson => CalendarTypeKey;
-
-    protected override HolidayCalendar Create(JsonElement jsonElement)
+    protected override HolidayCalendar Create(JsonElement jsonElement, JsonSerializerOptions options)
     {
         return new HolidayCalendar();
     }
 
-    protected override void SerializeFields(Utf8JsonWriter writer, HolidayCalendar calendar)
+    protected override void SerializeFields(Utf8JsonWriter writer, HolidayCalendar calendar, JsonSerializerOptions options)
     {
-        writer.WriteDateTimeArray("ExcludedDates", calendar.ExcludedDates);
+        writer.WriteDateTimeArray(options.GetPropertyName("ExcludedDates"), calendar.ExcludedDates);
     }
 
-    protected override void DeserializeFields(HolidayCalendar calendar, JsonElement jsonElement)
+    protected override void DeserializeFields(HolidayCalendar calendar, JsonElement jsonElement, JsonSerializerOptions options)
     {
-        var excludedDates = jsonElement.GetProperty("ExcludedDates").GetDateTimeArray();
+        var excludedDates = jsonElement.GetProperty(options.GetPropertyName("ExcludedDates")).GetDateTimeArray();
         foreach (var date in excludedDates)
         {
             calendar.AddExcludedDate(date);

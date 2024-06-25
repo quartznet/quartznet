@@ -25,7 +25,7 @@ public static class TestConstants
     public static string PostgresPassword { get; }
     public static string PostgresConnectionString { get; }
 
-    public const string DefaultSerializerType = "json";
+    public const string DefaultSerializerType = "stj";
 
     public const string DefaultSqlServerProvider = "SqlServer";
 

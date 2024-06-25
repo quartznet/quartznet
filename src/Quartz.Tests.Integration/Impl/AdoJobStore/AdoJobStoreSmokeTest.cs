@@ -175,7 +175,7 @@ public class AdoJobStoreSmokeTest
         await RunAdoJobStoreTest("SQLite", "SQLite", serializerType, properties, clustered: false);
     }
 
-    public static string[] GetSerializerTypes() => new[] { "json", "binary" };
+    public static string[] GetSerializerTypes() => ["stj", "newtonsoft", "binary"];
 
     private Task RunAdoJobStoreTest(string dbProvider, string connectionStringId, string serializerType)
     {
@@ -213,11 +213,18 @@ public class AdoJobStoreSmokeTest
                 db.ConnectionString = dbConnectionStrings[connectionStringId]
             );
 
-            if (serializerType == "json")
+            if (serializerType == "stj")
+            {
+                store.UseSystemTextJsonSerializer(j =>
+                {
+                    //j.AddCalendarSerializer<CustomCalendar>(new CustomNewtonsoftCalendarSerializer());
+                });
+            }
+            else if (serializerType == "newtonsoft")
             {
                 store.UseNewtonsoftJsonSerializer(j =>
                 {
-                    j.AddCalendarSerializer<CustomCalendar>(new CustomCalendarSerializer());
+                    j.AddCalendarSerializer<CustomCalendar>(new CustomNewtonsoftCalendarSerializer());
                 });
             }
             else

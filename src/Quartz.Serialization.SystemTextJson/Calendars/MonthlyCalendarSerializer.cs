@@ -1,34 +1,27 @@
 using System.Text.Json;
 
 using Quartz.Impl.Calendar;
+using Quartz.Serialization.SystemTextJson;
 using Quartz.Util;
 
 namespace Quartz.Calendars;
 
 internal sealed class MonthlyCalendarSerializer : CalendarSerializer<MonthlyCalendar>
 {
-    public static MonthlyCalendarSerializer Instance { get; } = new();
+    public override string CalendarTypeName => "MonthlyCalendar";
 
-    private MonthlyCalendarSerializer()
-    {
-    }
-
-    public const string CalendarTypeKey = "MonthlyCalendar";
-
-    public override string CalendarTypeForJson => CalendarTypeKey;
-
-    protected override MonthlyCalendar Create(JsonElement jsonElement)
+    protected override MonthlyCalendar Create(JsonElement jsonElement, JsonSerializerOptions options)
     {
         return new MonthlyCalendar();
     }
 
-    protected override void SerializeFields(Utf8JsonWriter writer, MonthlyCalendar calendar)
+    protected override void SerializeFields(Utf8JsonWriter writer, MonthlyCalendar calendar, JsonSerializerOptions options)
     {
-        writer.WriteBooleanArray("ExcludedDays", calendar.DaysExcluded);
+        writer.WriteBooleanArray(options.GetPropertyName("ExcludedDays"), calendar.DaysExcluded);
     }
 
-    protected override void DeserializeFields(MonthlyCalendar calendar, JsonElement jsonElement)
+    protected override void DeserializeFields(MonthlyCalendar calendar, JsonElement jsonElement, JsonSerializerOptions options)
     {
-        calendar.DaysExcluded = jsonElement.GetProperty("ExcludedDays").GetBooleanArray();
+        calendar.DaysExcluded = jsonElement.GetProperty(options.GetPropertyName("ExcludedDays")).GetBooleanArray();
     }
 }

@@ -4,16 +4,16 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
 using Quartz.Converters;
+using Quartz.Serialization.Newtonsoft;
 using Quartz.Spi;
 
 namespace Quartz.Simpl;
 
 /// <summary>
-/// Default object serialization strategy that uses <see cref="JsonSerializer" />
-/// under the hood.
+/// Object serialization strategy that uses <see cref="JsonSerializer" /> under the hood.
 /// </summary>
 /// <author>Marko Lahma</author>
-public class JsonObjectSerializer : IObjectSerializer
+public class NewtonsoftJsonObjectSerializer : IObjectSerializer
 {
     private JsonSerializer serializer = null!;
 
@@ -56,8 +56,8 @@ public class JsonObjectSerializer : IObjectSerializer
             ThrowHelper.ThrowInvalidOperationException("The serializer hasn't been initialized, did you forget to call Initialize()?");
         }
 
-        using var ms = new MemoryStream();
-        using (var sw = new StreamWriter(ms))
+        using MemoryStream ms = new();
+        using (StreamWriter sw = new(ms))
         {
             serializer.Serialize(sw, obj, typeof(object));
         }
@@ -68,8 +68,8 @@ public class JsonObjectSerializer : IObjectSerializer
     /// <summary>
     /// Deserializes object from byte array presentation.
     /// </summary>
-    /// <param name="obj">Data to deserialize object from.</param>
-    public T? DeSerialize<T>(byte[] obj) where T : class
+    /// <param name="data">Data to deserialize object from.</param>
+    public T? DeSerialize<T>(byte[] data) where T : class
     {
         if (serializer is null)
         {
@@ -78,14 +78,14 @@ public class JsonObjectSerializer : IObjectSerializer
 
         try
         {
-            using var ms = new MemoryStream(obj);
-            using var sr = new StreamReader(ms);
+            using MemoryStream ms = new(data);
+            using StreamReader sr = new(ms);
             return (T?) serializer.Deserialize(sr, typeof(T));
         }
         catch (JsonSerializationException e)
         {
-            var json = Encoding.UTF8.GetString(obj);
-            throw new JsonSerializationException("could not deserialize JSON: " + json, e);
+            string json = Encoding.UTF8.GetString(data);
+            throw new JsonSerializationException($"Could not deserialize JSON: {json}", e);
         }
     }
 
