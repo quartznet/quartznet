@@ -24,7 +24,7 @@ public class SchedulerEndpointsTest : WebApiTest
 
         // This endpoint is not used by HttpScheduler
         using var httpClient = WebApplicationFactory.CreateClient();
-        var result = await httpClient.Get<SchedulerHeaderDto[]>("schedulers", new System.Text.Json.JsonSerializerOptions(JsonSerializerDefaults.Web), CancellationToken.None);
+        var result = await httpClient.Get<SchedulerHeaderDto[]>("schedulers", new JsonSerializerOptions(JsonSerializerDefaults.Web), CancellationToken.None);
 
         result.Length.Should().Be(2);
         result.Should().ContainSingle(x => x.SchedulerInstanceId == TestData.SchedulerInstanceId);

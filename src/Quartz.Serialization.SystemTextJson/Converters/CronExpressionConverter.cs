@@ -12,8 +12,8 @@ internal sealed class CronExpressionConverter : JsonConverter<CronExpression>
         writer.WriteStartObject();
 
         writer.WriteString("$type", value.GetType().AssemblyQualifiedNameWithoutVersion());
-        writer.WriteString("CronExpression", value.CronExpressionString);
-        writer.WriteString("TimeZoneId", value.TimeZone?.Id);
+        writer.WriteString(options.GetPropertyName("CronExpression"), value.CronExpressionString);
+        writer.WriteString(options.GetPropertyName("TimeZoneId"), value.TimeZone?.Id);
 
         writer.WriteEndObject();
     }
@@ -22,10 +22,10 @@ internal sealed class CronExpressionConverter : JsonConverter<CronExpression>
     {
         var rootElement = JsonDocument.ParseValue(ref reader).RootElement;
 
-        var cronExpressionString = rootElement.GetProperty("CronExpression").GetString()!;
+        var cronExpressionString = rootElement.GetProperty(options.GetPropertyName("CronExpression")).GetString()!;
 
         var cronExpression = new CronExpression(cronExpressionString);
-        string? timeZoneId = rootElement.GetProperty("TimeZoneId").GetString();
+        string? timeZoneId = rootElement.GetProperty(options.GetPropertyName("TimeZoneId")).GetString();
         if (!string.IsNullOrEmpty(timeZoneId))
         {
             cronExpression.TimeZone = TimeZoneUtil.FindTimeZoneById(timeZoneId!);

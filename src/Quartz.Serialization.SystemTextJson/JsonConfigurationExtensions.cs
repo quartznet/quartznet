@@ -24,8 +24,8 @@ public static class JsonConfigurationExtensions
         options.Converters.Add(new CalendarConverter(newtonsoftCompatibilityMode));
         options.Converters.Add(new CronExpressionConverter());
         options.Converters.Add(new JobDataMapConverter());
-        options.Converters.Add(new KeyConverter<JobKey>());
-        options.Converters.Add(new KeyConverter<TriggerKey>());
+        options.Converters.Add(new JobKeyConverter());
+        options.Converters.Add(new TriggerKeyConverter());
         options.Converters.Add(new NameValueCollectionConverter());
         options.Converters.Add(new TriggerConverter());
     }

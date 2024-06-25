@@ -10,18 +10,18 @@ internal sealed class WeeklyCalendarSerializer : CalendarSerializer<WeeklyCalend
 {
     public override string CalendarTypeName => "WeeklyCalendar";
 
-    protected override WeeklyCalendar Create(JsonElement jsonElement)
+    protected override WeeklyCalendar Create(JsonElement jsonElement, JsonSerializerOptions options)
     {
         return new WeeklyCalendar();
     }
 
-    protected override void SerializeFields(Utf8JsonWriter writer, WeeklyCalendar calendar)
+    protected override void SerializeFields(Utf8JsonWriter writer, WeeklyCalendar calendar, JsonSerializerOptions options)
     {
-        writer.WriteBooleanArray("ExcludedDays", calendar.DaysExcluded);
+        writer.WriteBooleanArray(options.GetPropertyName("ExcludedDays"), calendar.DaysExcluded);
     }
 
-    protected override void DeserializeFields(WeeklyCalendar calendar, JsonElement jsonElement)
+    protected override void DeserializeFields(WeeklyCalendar calendar, JsonElement jsonElement, JsonSerializerOptions options)
     {
-        calendar.DaysExcluded = jsonElement.GetProperty("ExcludedDays").GetBooleanArray();
+        calendar.DaysExcluded = jsonElement.GetProperty(options.GetPropertyName("ExcludedDays")).GetBooleanArray();
     }
 }

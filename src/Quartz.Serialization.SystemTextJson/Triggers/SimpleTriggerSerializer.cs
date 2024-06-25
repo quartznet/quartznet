@@ -16,19 +16,19 @@ internal sealed class SimpleTriggerSerializer : TriggerSerializer<ISimpleTrigger
 
     public override string TriggerTypeForJson => TriggerTypeKey;
 
-    public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement)
+    public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, JsonSerializerOptions options)
     {
-        var repeatInterval = jsonElement.GetProperty("RepeatIntervalTimeSpan").GetTimeSpan();
-        var repeatCount = jsonElement.GetProperty("RepeatCount").GetInt32();
+        var repeatInterval = jsonElement.GetProperty(options.GetPropertyName("RepeatIntervalTimeSpan")).GetTimeSpan();
+        var repeatCount = jsonElement.GetProperty(options.GetPropertyName("RepeatCount")).GetInt32();
 
         return SimpleScheduleBuilder.Create()
             .WithInterval(repeatInterval)
             .WithRepeatCount(repeatCount);
     }
 
-    protected override void SerializeFields(Utf8JsonWriter writer, ISimpleTrigger trigger)
+    protected override void SerializeFields(Utf8JsonWriter writer, ISimpleTrigger trigger, JsonSerializerOptions options)
     {
-        writer.WriteNumber("RepeatCount", trigger.RepeatCount);
-        writer.WriteString("RepeatIntervalTimeSpan", trigger.RepeatInterval);
+        writer.WriteNumber(options.GetPropertyName("RepeatCount"), trigger.RepeatCount);
+        writer.WriteString(options.GetPropertyName("RepeatIntervalTimeSpan"), trigger.RepeatInterval);
     }
 }

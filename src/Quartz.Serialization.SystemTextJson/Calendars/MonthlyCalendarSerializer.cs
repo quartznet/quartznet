@@ -10,18 +10,18 @@ internal sealed class MonthlyCalendarSerializer : CalendarSerializer<MonthlyCale
 {
     public override string CalendarTypeName => "MonthlyCalendar";
 
-    protected override MonthlyCalendar Create(JsonElement jsonElement)
+    protected override MonthlyCalendar Create(JsonElement jsonElement, JsonSerializerOptions options)
     {
         return new MonthlyCalendar();
     }
 
-    protected override void SerializeFields(Utf8JsonWriter writer, MonthlyCalendar calendar)
+    protected override void SerializeFields(Utf8JsonWriter writer, MonthlyCalendar calendar, JsonSerializerOptions options)
     {
-        writer.WriteBooleanArray("ExcludedDays", calendar.DaysExcluded);
+        writer.WriteBooleanArray(options.GetPropertyName("ExcludedDays"), calendar.DaysExcluded);
     }
 
-    protected override void DeserializeFields(MonthlyCalendar calendar, JsonElement jsonElement)
+    protected override void DeserializeFields(MonthlyCalendar calendar, JsonElement jsonElement, JsonSerializerOptions options)
     {
-        calendar.DaysExcluded = jsonElement.GetProperty("ExcludedDays").GetBooleanArray();
+        calendar.DaysExcluded = jsonElement.GetProperty(options.GetPropertyName("ExcludedDays")).GetBooleanArray();
     }
 }

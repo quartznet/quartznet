@@ -71,8 +71,9 @@
   * `Task` return types and parameters have been changed to `ValueTask`.  Any consumers of Quartz expecting a `Task` will require to update the signatures to `ValueTask`,
      or use the `AsTask()` Method on ValueTask to Return the `ValueTask` as a `Task`  (#988)
 
-  * To configure JSON serialization to be used in job store instead of old `UseJsonSerializer` you should now use `UseNewtonsoftJsonSerializer`
-    and replace old package reference `Quartz.Serialization.Json` with `Quartz.Serialization.Newtonsoft`
+  * To configure JSON serialization to be used in job store instead of old `UseJsonSerializer` you should now use either `UseSystemTextJsonSerializer` or `UseNewtonsoftJsonSerializer`
+    and replace old package reference `Quartz.Serialization.Json` with either `Quartz.Serialization.SystemTextJson` or `Quartz.Serialization.Newtonsoft`. Change was made to distinguish the two common
+    serializers that are being used (System.Text.Json and JSON.NET).
 
   * `Quartz.Extensions.DependencyInjection` and `Quartz.Extensions.Hosting` were merged to be part of main Quartz package, you can now remove those package references
 
