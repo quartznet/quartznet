@@ -68,8 +68,8 @@ public class NewtonsoftJsonObjectSerializer : IObjectSerializer
     /// <summary>
     /// Deserializes object from byte array presentation.
     /// </summary>
-    /// <param name="obj">Data to deserialize object from.</param>
-    public T? DeSerialize<T>(byte[] obj) where T : class
+    /// <param name="data">Data to deserialize object from.</param>
+    public T? DeSerialize<T>(byte[] data) where T : class
     {
         if (serializer is null)
         {
@@ -78,13 +78,13 @@ public class NewtonsoftJsonObjectSerializer : IObjectSerializer
 
         try
         {
-            using MemoryStream ms = new(obj);
+            using MemoryStream ms = new(data);
             using StreamReader sr = new(ms);
             return (T?) serializer.Deserialize(sr, typeof(T));
         }
         catch (JsonSerializationException e)
         {
-            string json = Encoding.UTF8.GetString(obj);
+            string json = Encoding.UTF8.GetString(data);
             throw new JsonSerializationException($"Could not deserialize JSON: {json}", e);
         }
     }

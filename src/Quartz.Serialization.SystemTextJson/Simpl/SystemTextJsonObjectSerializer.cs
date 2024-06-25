@@ -20,9 +20,7 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
 
     protected virtual JsonSerializerOptions CreateSerializerOptions()
     {
-        JsonSerializerOptions options = new();
-        options.AddQuartzConverters(newtonsoftCompatibilityMode: true);
-        return options;
+        return new JsonSerializerOptions().AddQuartzConverters(newtonsoftCompatibilityMode: true);
     }
 
     /// <summary>
@@ -46,8 +44,8 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
     /// <summary>
     /// Deserializes object from byte array presentation.
     /// </summary>
-    /// <param name="obj">Data to deserialize object from.</param>
-    public T? DeSerialize<T>(byte[] obj) where T : class
+    /// <param name="data">Data to deserialize object from.</param>
+    public T? DeSerialize<T>(byte[] data) where T : class
     {
         if (options is null)
         {
@@ -56,12 +54,12 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
 
         try
         {
-            using MemoryStream ms = new(obj);
+            using MemoryStream ms = new(data);
             return JsonSerializer.Deserialize<T?>(ms, options);
         }
         catch (JsonSerializationException e)
         {
-            string json = Encoding.UTF8.GetString(obj);
+            string json = Encoding.UTF8.GetString(data);
             throw new JsonSerializationException($"Could not deserialize JSON: {json}", e);
         }
     }

@@ -19,7 +19,7 @@ public static class JsonConfigurationExtensions
         persistentStoreOptions.UseSerializer<SystemTextJsonObjectSerializer>();
     }
 
-    internal static void AddQuartzConverters(this JsonSerializerOptions options, bool newtonsoftCompatibilityMode)
+    internal static JsonSerializerOptions AddQuartzConverters(this JsonSerializerOptions options, bool newtonsoftCompatibilityMode)
     {
         options.Converters.Add(new CalendarConverter(newtonsoftCompatibilityMode));
         options.Converters.Add(new CronExpressionConverter());
@@ -28,6 +28,7 @@ public static class JsonConfigurationExtensions
         options.Converters.Add(new TriggerKeyConverter());
         options.Converters.Add(new NameValueCollectionConverter());
         options.Converters.Add(new TriggerConverter());
+        return options;
     }
 }
 

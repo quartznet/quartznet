@@ -31,9 +31,9 @@ internal sealed class CalendarConverter : JsonConverter<ICalendar>
         converters[serializer.CalendarTypeName] = serializer;
     }
 
-    public override bool CanConvert(Type objectType)
+    public override bool CanConvert(Type typeToConvert)
     {
-        return typeof(ICalendar).IsAssignableFrom(objectType);
+        return typeof(ICalendar).IsAssignableFrom(typeToConvert);
     }
 
     public override ICalendar Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)

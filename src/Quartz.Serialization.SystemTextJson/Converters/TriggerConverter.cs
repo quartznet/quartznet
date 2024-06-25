@@ -24,7 +24,7 @@ internal sealed class TriggerConverter : JsonConverter<ITrigger>
         { typeof(SimpleTriggerImpl).AssemblyQualifiedNameWithoutVersion(), SimpleTriggerSerializer.Instance }
     };
 
-    public override bool CanConvert(Type objectType) => typeof(ITrigger).IsAssignableFrom(objectType);
+    public override bool CanConvert(Type typeToConvert) => typeof(ITrigger).IsAssignableFrom(typeToConvert);
 
     public override ITrigger Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
