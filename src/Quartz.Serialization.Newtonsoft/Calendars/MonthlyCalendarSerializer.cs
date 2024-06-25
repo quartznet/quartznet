@@ -2,6 +2,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 using Quartz.Impl.Calendar;
+using Quartz.Serialization.Newtonsoft;
 
 namespace Quartz.Calendars;
 

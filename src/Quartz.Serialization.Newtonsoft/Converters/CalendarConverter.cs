@@ -3,6 +3,7 @@ using Newtonsoft.Json.Linq;
 
 using Quartz.Calendars;
 using Quartz.Impl.Calendar;
+using Quartz.Serialization.Newtonsoft;
 using Quartz.Util;
 
 namespace Quartz.Converters;

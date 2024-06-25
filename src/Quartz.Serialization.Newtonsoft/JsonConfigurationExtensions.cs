@@ -1,3 +1,4 @@
+using Quartz.Serialization.Newtonsoft;
 using Quartz.Simpl;
 
 namespace Quartz;

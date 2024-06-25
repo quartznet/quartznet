@@ -1,21 +1,14 @@
 using System.Text.Json;
 
 using Quartz.Impl.Calendar;
+using Quartz.Serialization.SystemTextJson;
 using Quartz.Util;
 
 namespace Quartz.Calendars;
 
 internal sealed class MonthlyCalendarSerializer : CalendarSerializer<MonthlyCalendar>
 {
-    public static MonthlyCalendarSerializer Instance { get; } = new();
-
-    private MonthlyCalendarSerializer()
-    {
-    }
-
-    public static readonly string CalendarTypeKey = typeof(MonthlyCalendar).AssemblyQualifiedNameWithoutVersion();
-
-    public override string CalendarTypeForJson => CalendarTypeKey;
+    public override string CalendarTypeName => "MonthlyCalendar";
 
     protected override MonthlyCalendar Create(JsonElement jsonElement)
     {

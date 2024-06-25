@@ -9,6 +9,7 @@ using NUnit.Framework;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
 using Quartz.Simpl;
+using Quartz.Spi;
 
 namespace Quartz.Tests.Unit.Simpl;
 
@@ -92,13 +93,15 @@ public class JsonObjectSerializerTest
     [Test]
     public void SerializeNameValueCollection()
     {
-        var collection = new NameValueCollection
-        {
-            {"key", "value"},
-            {"key2", null}
-        };
+        var collection = new NameValueCollection { { "key", "value" }, { "key2", null } };
 
-        CompareSerialization(collection);
+        CompareSerialization(collection, (deserialized, original) =>
+        {
+            original.Count.Should().Be(2);
+            deserialized.Count.Should().Be(2);
+            deserialized["key"].Should().Be(original["key"]);
+            deserialized["key2"].Should().Be(original["key2"]);
+        });
     }
 
     [Test]
@@ -106,15 +109,22 @@ public class JsonObjectSerializerTest
     {
         var collection = new JobDataMap
         {
-            {"key", "value"},
-            {"key2", DateTimeOffset.UtcNow.DateTime},
-            {"key3", true}
+            { "key", "value" },
+            { "key2", new DateTime(1982, 6, 28, 1, 1, 1, DateTimeKind.Unspecified) },
+            { "key3", true },
+            { "key4", 123 },
+            { "key5", 12.34 },
         };
 
         CompareSerialization(collection, (deserialized, original) =>
         {
-            deserialized.Keys.Should().ContainInOrder(original.Keys);
-            deserialized.Values.Should().ContainInOrder(original.Values);
+            original.Should().HaveCount(5);
+            deserialized.Should().HaveCount(5);
+            deserialized["key"].Should().Be(original["key"]);
+            deserialized.GetDateTime("key2").Should().Be(original.GetDateTime("key2"));
+            deserialized["key3"].Should().Be(original["key3"]);
+            deserialized["key4"].Should().Be(original["key4"]);
+            deserialized["key5"].Should().Be(original["key5"]);
         });
     }
 
@@ -140,102 +150,68 @@ public class JsonObjectSerializerTest
     }
 
     [Test]
-    [Ignore("Currently trigger serialization isn't being used")]
     public void SerializeCalendarIntervalTrigger()
     {
-        var trigger = new CalendarIntervalTriggerImpl("name", "group", DateTimeOffset.UtcNow,  DateTimeOffset.UtcNow.AddDays(1), IntervalUnit.Second, 42);
+        var trigger = new CalendarIntervalTriggerImpl("name", "group", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(1), IntervalUnit.Second, 42);
 
-        CompareSerialization(trigger);
+        CompareSerialization(trigger, systemTextJsonOnly: true);
     }
 
     [Test]
-    [Ignore("Currently trigger serialization isn't being used")]
     public void SerializeCronTrigger()
     {
         var trigger = new CronTriggerImpl("name", "group", "jobName", "jobGroup", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(1), "0/5 * * * * ?", TimeZoneInfo.Local);
 
-        CompareSerialization(trigger);
+        CompareSerialization(trigger, systemTextJsonOnly: true);
     }
 
     [Test]
-    [Ignore("Currently trigger serialization isn't being used")]
     public void SerializeDailyTimeIntervalTrigger()
     {
         var trigger = new DailyTimeIntervalTriggerImpl("name", "group", "jobName", "jobGroup", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(1), TimeOfDay.HourAndMinuteOfDay(3, 30), TimeOfDay.HourAndMinuteOfDay(4, 40), IntervalUnit.Second, 42);
 
-        CompareSerialization(trigger);
+        CompareSerialization(trigger, systemTextJsonOnly: true);
     }
 
     [Test]
-    [Ignore("Currently trigger serialization isn't being used")]
     public void SerializeSimpleTrigger()
     {
         var trigger = new SimpleTriggerImpl("name", "group", "jobName", "jobGroup", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(1), 10, TimeSpan.FromSeconds(42));
 
-        CompareSerialization(trigger);
+        CompareSerialization(trigger, systemTextJsonOnly: true);
     }
 
-    private void CompareSerialization<T>(T original, Action<T, T> asserter = null) where T : class
+    private void CompareSerialization<T>(T original, Action<T, T> asserter = null, bool systemTextJsonOnly = false) where T : class
     {
-        var bytes = newtonsoftSerializer.Serialize(original);
+        (IObjectSerializer, IObjectSerializer)[] comparisons = systemTextJsonOnly
+            ?
+            [
+                (systemTextJsonSerializer, systemTextJsonSerializer)
+            ]
+            :
+            [
+                (newtonsoftSerializer, newtonsoftSerializer),
+                (newtonsoftSerializer, systemTextJsonSerializer),
+                (systemTextJsonSerializer, newtonsoftSerializer),
+                (systemTextJsonSerializer, systemTextJsonSerializer),
+            ];
 
-        WriteJson(bytes);
-
-        var deserialized = newtonsoftSerializer.DeSerialize<T>(bytes);
-
-        if (asserter != null)
+        foreach (var (serializer, deserializer) in comparisons)
         {
-            asserter(deserialized, original);
-        }
-        else
-        {
-            deserialized.Should().Be(original);
-        }
+            byte[] bytes = serializer.Serialize(original);
 
-        bytes = systemTextJsonSerializer.Serialize(original);
+            WriteJson(bytes);
 
-        WriteJson(bytes);
+            T deserialized = deserializer.DeSerialize<T>(bytes);
 
-        deserialized = newtonsoftSerializer.DeSerialize<T>(bytes);
-
-        if (asserter != null)
-        {
-            asserter(deserialized, original);
-        }
-        else
-        {
-            deserialized.Should().Be(original);
-        }
-
-
-        bytes = newtonsoftSerializer.Serialize(original);
-
-        WriteJson(bytes);
-
-        deserialized = systemTextJsonSerializer.DeSerialize<T>(bytes);
-
-        if (asserter != null)
-        {
-            asserter(deserialized, original);
-        }
-        else
-        {
-            deserialized.Should().Be(original);
-        }
-
-        bytes = systemTextJsonSerializer.Serialize(original);
-
-        WriteJson(bytes);
-
-        deserialized = systemTextJsonSerializer.DeSerialize<T>(bytes);
-
-        if (asserter != null)
-        {
-            asserter(deserialized, original);
-        }
-        else
-        {
-            deserialized.Should().Be(original);
+            if (asserter != null)
+            {
+                asserter(deserialized, original);
+            }
+            else
+            {
+                deserialized.Should().Be(original);
+            }
         }
     }
 

@@ -3,24 +3,38 @@ using System.Text.Json.Serialization;
 
 using Quartz.Calendars;
 using Quartz.Impl.Calendar;
+using Quartz.Serialization.SystemTextJson;
 using Quartz.Util;
 
 namespace Quartz.Converters;
 
 internal sealed class CalendarConverter : JsonConverter<ICalendar>
 {
-    private static readonly Dictionary<string, ICalendarSerializer> converters = new()
-    {
-        { BaseCalendarSerializer.CalendarTypeKey, BaseCalendarSerializer.Instance },
-        { AnnualCalendarSerializer.CalendarTypeKey, AnnualCalendarSerializer.Instance },
-        { CronCalendarSerializer.CalendarTypeKey, CronCalendarSerializer.Instance },
-        { DailyCalendarSerializer.CalendarTypeKey, DailyCalendarSerializer.Instance },
-        { HolidayCalendarSerializer.CalendarTypeKey, HolidayCalendarSerializer.Instance },
-        { MonthlyCalendarSerializer.CalendarTypeKey, MonthlyCalendarSerializer.Instance },
-        { WeeklyCalendarSerializer.CalendarTypeKey, WeeklyCalendarSerializer.Instance },
-    };
+    private readonly bool newtonsoftCompatibilityMode;
+    private readonly Dictionary<string, ICalendarSerializer> converters = new (StringComparer.OrdinalIgnoreCase);
 
-    public override bool CanConvert(Type objectType) => typeof(ICalendar).IsAssignableFrom(objectType);
+    internal CalendarConverter(bool newtonsoftCompatibilityMode)
+    {
+        this.newtonsoftCompatibilityMode = newtonsoftCompatibilityMode;
+        AddSerializer<BaseCalendar>(new BaseCalendarSerializer());
+        AddSerializer<AnnualCalendar>(new AnnualCalendarSerializer());
+        AddSerializer<CronCalendar>(new CronCalendarSerializer());
+        AddSerializer<DailyCalendar>(new DailyCalendarSerializer());
+        AddSerializer<HolidayCalendar>(new HolidayCalendarSerializer());
+        AddSerializer<MonthlyCalendar>(new MonthlyCalendarSerializer());
+        AddSerializer<WeeklyCalendar>(new WeeklyCalendarSerializer());
+    }
+
+    private void AddSerializer<TCalendar>(ICalendarSerializer serializer) where TCalendar : class, ICalendar
+    {
+        converters[typeof(TCalendar).AssemblyQualifiedNameWithoutVersion()] = serializer;
+        converters[serializer.CalendarTypeName] = serializer;
+    }
+
+    public override bool CanConvert(Type objectType)
+    {
+        return typeof(ICalendar).IsAssignableFrom(objectType);
+    }
 
     public override ICalendar Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
@@ -29,9 +43,9 @@ internal sealed class CalendarConverter : JsonConverter<ICalendar>
             var rootElement = JsonDocument.ParseValue(ref reader).RootElement;
             return DeserializeCalendar(rootElement);
 
-            static ICalendar DeserializeCalendar(JsonElement rootElement)
+            ICalendar DeserializeCalendar(JsonElement rootElement)
             {
-                var type = rootElement.GetProperty("$type").GetString();
+                var type = rootElement.GetProperty(newtonsoftCompatibilityMode ? "$type" : "Type").GetString();
 
                 var calendarSerializer = GetCalendarSerializer(type);
                 var calendar = calendarSerializer.Create(rootElement);
@@ -65,7 +79,10 @@ internal sealed class CalendarConverter : JsonConverter<ICalendar>
             var type = value.GetType().AssemblyQualifiedNameWithoutVersion();
             var calendarSerializer = GetCalendarSerializer(type);
 
-            writer.WriteString("$type", calendarSerializer.CalendarTypeForJson);
+            string typeProperty = newtonsoftCompatibilityMode ? "$type" : "Type";
+            string typeValue = newtonsoftCompatibilityMode ? type : calendarSerializer.CalendarTypeName;
+            writer.WriteString(typeProperty, typeValue);
+
             writer.WriteString("Description", value.Description);
 
             writer.WritePropertyName("BaseCalendar");
@@ -92,17 +109,17 @@ internal sealed class CalendarConverter : JsonConverter<ICalendar>
         }
     }
 
-    private static ICalendarSerializer GetCalendarSerializer(string? typeName)
+    private ICalendarSerializer GetCalendarSerializer(string? typeName)
     {
         if (string.IsNullOrWhiteSpace(typeName) || !converters.TryGetValue(typeName!, out var converter))
         {
-            throw new ArgumentException("Don't know how to handle " + typeName, nameof(typeName));
+            throw new ArgumentException($"Don't know how to handle {typeName}", nameof(typeName));
         }
 
         return converter;
     }
 
-    internal static void AddCalendarConverter<TCalendar>(ICalendarSerializer serializer)
+    internal void AddCalendarConverter<TCalendar>(ICalendarSerializer serializer)
     {
         converters[typeof(TCalendar).AssemblyQualifiedNameWithoutVersion()] = serializer;
     }

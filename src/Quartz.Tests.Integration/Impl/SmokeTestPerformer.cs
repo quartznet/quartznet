@@ -9,6 +9,7 @@ using Quartz.Impl.Calendar;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Job;
+using Quartz.Serialization.Newtonsoft;
 using Quartz.Spi;
 using Quartz.Tests.Integration.Impl.AdoJobStore;
 using Quartz.Util;

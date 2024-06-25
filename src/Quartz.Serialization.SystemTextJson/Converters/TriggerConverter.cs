@@ -40,7 +40,7 @@ internal sealed class TriggerConverter : JsonConverter<ITrigger>
             var jobKey = rootElement.GetProperty("JobKey").GetJobKey();
             var description = rootElement.GetProperty("Description").GetString();
             var calendarName = rootElement.GetProperty("CalendarName").GetString();
-            var jobDataMap = rootElement.GetProperty("JobDataMap").GetJobDataMap();
+            var jobDataMap = rootElement.GetProperty("JobDataMap").GetJobDataMap(options);
             var misfireInstruction = rootElement.GetProperty("MisfireInstruction").GetInt32();
             var endTimeUtc = rootElement.GetProperty("EndTimeUtc").GetDateTimeOffsetOrNull();
             var startTimeUtc = rootElement.GetProperty("StartTimeUtc").GetDateTimeOffset();

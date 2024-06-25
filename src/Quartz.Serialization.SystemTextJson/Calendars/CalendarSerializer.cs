@@ -1,23 +1,23 @@
 using System.Text.Json;
 
-namespace Quartz.Calendars;
+namespace Quartz.Serialization.SystemTextJson;
 
-public interface ICalendarSerializer
+internal interface ICalendarSerializer
 {
     ICalendar Create(JsonElement jsonElement);
-
-    string CalendarTypeForJson { get; }
 
     void SerializeFields(Utf8JsonWriter writer, ICalendar calendar);
 
     void DeserializeFields(ICalendar calendar, JsonElement jsonElement);
+
+    string CalendarTypeName { get; }
 }
 
 internal abstract class CalendarSerializer<TCalendar> : ICalendarSerializer where TCalendar : ICalendar
 {
     ICalendar ICalendarSerializer.Create(JsonElement jsonElement) => Create(jsonElement);
 
-    public abstract string CalendarTypeForJson { get; }
+    public abstract string CalendarTypeName { get; }
 
     void ICalendarSerializer.SerializeFields(Utf8JsonWriter writer, ICalendar calendar) => SerializeFields(writer, (TCalendar) calendar);
 

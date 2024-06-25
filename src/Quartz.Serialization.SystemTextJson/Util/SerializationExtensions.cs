@@ -180,24 +180,52 @@ internal static class Utf8JsonWriterExtensions
         writer.WriteEndObject();
     }
 
-    public static JobDataMap GetJobDataMap(this JsonElement jsonElement)
+    public static JobDataMap GetJobDataMap(this JsonElement jsonElement, JsonSerializerOptions options)
     {
         var result = new JobDataMap();
 
         foreach (JsonProperty property in jsonElement.EnumerateObject())
         {
-            object? value = property.Value.ValueKind switch
+            object? value;
+            switch (property.Value.ValueKind)
             {
-                JsonValueKind.String => property.Value.GetString(),
-                JsonValueKind.True => true,
-                JsonValueKind.False => false,
-                JsonValueKind.Null => null,
-                _ => throw new JsonException($"Unsupported value kind: {property.Value.ValueKind}")
-            };
+                case JsonValueKind.String:
+                    value = property.Value.GetString();
+                    break;
+                case JsonValueKind.True:
+                    value = true;
+                    break;
+                case JsonValueKind.False:
+                    value = false;
+                    break;
+                case JsonValueKind.Null:
+                    value = null;
+                    break;
+                case JsonValueKind.Number:
+                    if (property.Value.TryGetInt32(out int intValue))
+                    {
+                        value = intValue;
+                    }
+                    else if (property.Value.TryGetInt64(out long longValue))
+                    {
+                        value = longValue;
+                    }
+                    else
+                    {
+                        value = property.Value.GetDouble();
+                    }
+                    break;
+                case JsonValueKind.Object:
+                    value = property.Value.Deserialize<Dictionary<string, string>>(options);
+                    break;
+                default:
+                    throw new JsonException($"Unsupported value kind: {property.Value.ValueKind}");
+            }
 
             result.Add(property.Name, value);
         }
 
+        result.ClearDirtyFlag();
         return result;
     }
 }

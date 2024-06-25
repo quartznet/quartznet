@@ -1,6 +1,5 @@
 using System.Text.Json;
 
-using Quartz.Calendars;
 using Quartz.Converters;
 using Quartz.Simpl;
 
@@ -20,9 +19,9 @@ public static class JsonConfigurationExtensions
         persistentStoreOptions.UseSerializer<SystemTextJsonObjectSerializer>();
     }
 
-    public static void AddQuartzConverters(this JsonSerializerOptions options)
+    internal static void AddQuartzConverters(this JsonSerializerOptions options, bool newtonsoftCompatibilityMode)
     {
-        options.Converters.Add(new CalendarConverter());
+        options.Converters.Add(new CalendarConverter(newtonsoftCompatibilityMode));
         options.Converters.Add(new CronExpressionConverter());
         options.Converters.Add(new JobDataMapConverter());
         options.Converters.Add(new KeyConverter<JobKey>());
@@ -32,10 +31,4 @@ public static class JsonConfigurationExtensions
     }
 }
 
-public class SystemTextJsonSerializerOptions
-{
-    public void AddCalendarSerializer<TCalendar>(ICalendarSerializer serializer)
-    {
-        SystemTextJsonObjectSerializer.AddCalendarSerializer<TCalendar>(serializer);
-    }
-}
+public class SystemTextJsonSerializerOptions;

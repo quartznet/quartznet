@@ -2,6 +2,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
 using Quartz.Impl.Calendar;
+using Quartz.Serialization.Newtonsoft;
 
 namespace Quartz.Calendars;
 
@@ -29,7 +30,7 @@ internal sealed class AnnualCalendarSerializer : CalendarSerializer<AnnualCalend
         var excludedDates = source["ExcludedDays"]!.Values<DateTimeOffset>();
         foreach (var date in excludedDates)
         {
-            annualCalendar.SetDayExcluded(date.DateTime, true);
+            annualCalendar.SetDayExcluded(date.DateTime, exclude: true);
         }
     }
 }

@@ -1,11 +1,7 @@
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization.Metadata;
 
-using Quartz.Calendars;
-using Quartz.Converters;
 using Quartz.Spi;
-using Quartz.Util;
 
 namespace Quartz.Simpl;
 
@@ -25,28 +21,7 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
     protected virtual JsonSerializerOptions CreateSerializerOptions()
     {
         JsonSerializerOptions options = new();
-        options.TypeInfoResolver = new DefaultJsonTypeInfoResolver()
-        {
-            Modifiers ={
-                typeInfo =>
-                {
-                    if (typeInfo.Type != typeof(Key<>))
-                    {
-                        return;
-                    }
-
-                    typeInfo.PolymorphismOptions = new()
-                    {
-                        TypeDiscriminatorPropertyName = "$type",
-                        DerivedTypes =
-                        {
-                            new JsonDerivedType(typeof(JobKey), typeof(JobKey).AssemblyQualifiedNameWithoutVersion())
-                        }
-                    };
-                }
-            }
-        };
-        options.AddQuartzConverters();
+        options.AddQuartzConverters(newtonsoftCompatibilityMode: true);
         return options;
     }
 
@@ -89,10 +64,5 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
             string json = Encoding.UTF8.GetString(obj);
             throw new JsonSerializationException($"Could not deserialize JSON: {json}", e);
         }
-    }
-
-    public static void AddCalendarSerializer<TCalendar>(ICalendarSerializer serializer)
-    {
-        CalendarConverter.AddCalendarConverter<TCalendar>(serializer);
     }
 }
