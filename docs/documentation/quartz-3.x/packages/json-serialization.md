@@ -38,7 +38,7 @@ config.UsePersistentStore(store =>
         db.ConnectionString = "my connection string"
     );
 
-    store.UseJsonSerializer();
+    store.UseNewtonsoftJsonSerializer();
 });
 ISchedulerFactory schedulerFactory = config.Build();
 ``` 
