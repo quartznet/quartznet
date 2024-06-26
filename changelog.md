@@ -2,6 +2,18 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+## Release 3.10.0, Jun 26 2024
+
+* NEW FEATURES
+  * Add support for `System.Text.Json` serializer (#2416)
+ 
+* CHANGES
+  * Use `newtonsoft` as preferred JSON serializer type alias (#2412)
+  * Change `NativeJob` to use `RuntimeInformation.IsOSPlatform` instead of env var (#2411)
+
+* FIXES 
+  * Fix `NativeJob` crashing when working directory parameter missing (#2407)
+
 ## Release 3.9.0, May 9 2024
  
 * Fix Holiday Calendar with Nested Calendars sometimes crashing when resolving NextIncludedTime (#2270)
