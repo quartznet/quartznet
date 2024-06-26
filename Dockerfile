@@ -11,6 +11,7 @@ RUN echo "deb http://download.mono-project.com/repo/debian wheezy-libjpeg62-comp
 RUN mkdir /app
 ADD src/Quartz app/src/Quartz
 ADD src/Quartz.Serialization.Json app/src/Quartz.Serialization.Json
+ADD src/Quartz.Serialization.SystemTextJson app/src/Quartz.Serialization.SystemTextJson
 ADD src/Quartz.Examples app/src/Quartz.Examples
 ADD src/Quartz.Tests.Unit app/src/Quartz.Tests.Unit
 ADD src/Quartz.Tests.Integration app/src/Quartz.Tests.Integration

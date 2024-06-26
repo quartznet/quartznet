@@ -1,27 +1,33 @@
-﻿using System;
+using System;
 using System.Collections.Specialized;
 using System.Diagnostics;
 using System.IO;
-using System.Linq;
 using System.Text;
+
+using FluentAssertions;
 
 using NUnit.Framework;
 
 using Quartz.Impl.Calendar;
+using Quartz.Impl.Triggers;
 using Quartz.Simpl;
+using Quartz.Spi;
 
 namespace Quartz.Tests.Unit.Simpl
 {
-    [TestFixture]
     public class JsonObjectSerializerTest
     {
-        private JsonObjectSerializer serializer;
+        private JsonObjectSerializer newtonsoftSerializer;
+        private SystemTextJsonObjectSerializer systemTextJsonSerializer;
 
         [SetUp]
         public void SetUp()
         {
-            serializer = new JsonObjectSerializer();
-            serializer.Initialize();
+            newtonsoftSerializer = new JsonObjectSerializer();
+            newtonsoftSerializer.Initialize();
+
+            systemTextJsonSerializer = new SystemTextJsonObjectSerializer();
+            systemTextJsonSerializer.Initialize();
         }
 
         [Test]
@@ -89,13 +95,15 @@ namespace Quartz.Tests.Unit.Simpl
         [Test]
         public void SerializeNameValueCollection()
         {
-            var collection = new NameValueCollection
-            {
-                {"key", "value"},
-                {"key2", null}
-            };
+            var collection = new NameValueCollection { { "key", "value" }, { "key2", null } };
 
-            CompareSerialization(collection);
+            CompareSerialization(collection, (deserialized, original) =>
+            {
+                original.Count.Should().Be(2);
+                deserialized.Count.Should().Be(2);
+                deserialized["key"].Should().Be(original["key"]);
+                deserialized["key2"].Should().Be(original["key2"]);
+            });
         }
 
         [Test]
@@ -103,15 +111,22 @@ namespace Quartz.Tests.Unit.Simpl
         {
             var collection = new JobDataMap
             {
-                {"key", "value"},
-                {"key2", DateTimeOffset.UtcNow},
-                {"jobKey", new JobKey("name", "group")}
+                { "key", "value" },
+                { "key2", new DateTime(1982, 6, 28, 1, 1, 1, DateTimeKind.Unspecified) },
+                { "key3", true },
+                { "key4", 123 },
+                { "key5", 12.34 },
             };
 
             CompareSerialization(collection, (deserialized, original) =>
             {
-                Assert.That(deserialized.Keys.SequenceEqual(original.Keys));
-                Assert.That(deserialized.Values.SequenceEqual(original.Values));
+                original.Should().HaveCount(5);
+                deserialized.Should().HaveCount(5);
+                deserialized["key"].Should().Be(original["key"]);
+                deserialized.GetDateTime("key2").Should().Be(original.GetDateTime("key2"));
+                deserialized["key3"].Should().Be(original["key3"]);
+                deserialized["key4"].Should().Be(original["key4"]);
+                deserialized["key5"].Should().Be(original["key5"]);
             });
         }
 
@@ -136,21 +151,69 @@ namespace Quartz.Tests.Unit.Simpl
             CompareSerialization(cronExpression);
         }
 
-        private void CompareSerialization<T>(T original, Action<T, T> asserter = null) where T : class
+        [Test]
+        public void SerializeCalendarIntervalTrigger()
         {
-            var bytes = serializer.Serialize(original);
+            var trigger = new CalendarIntervalTriggerImpl("name", "group", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(1), IntervalUnit.Second, 42);
 
-            WriteJson(bytes);
+            CompareSerialization(trigger, systemTextJsonOnly: true);
+        }
 
-            var deserialized = serializer.DeSerialize<T>(bytes);
+        [Test]
+        public void SerializeCronTrigger()
+        {
+            var trigger = new CronTriggerImpl("name", "group", "jobName", "jobGroup", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(1), "0/5 * * * * ?", TimeZoneInfo.Local);
 
-            if (asserter != null)
+            CompareSerialization(trigger, systemTextJsonOnly: true);
+        }
+
+        [Test]
+        public void SerializeDailyTimeIntervalTrigger()
+        {
+            var trigger = new DailyTimeIntervalTriggerImpl("name", "group", "jobName", "jobGroup", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(1), TimeOfDay.HourAndMinuteOfDay(3, 30), TimeOfDay.HourAndMinuteOfDay(4, 40), IntervalUnit.Second, 42);
+
+            CompareSerialization(trigger, systemTextJsonOnly: true);
+        }
+
+        [Test]
+        public void SerializeSimpleTrigger()
+        {
+            var trigger = new SimpleTriggerImpl("name", "group", "jobName", "jobGroup", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(1), 10, TimeSpan.FromSeconds(42));
+
+            CompareSerialization(trigger, systemTextJsonOnly: true);
+        }
+
+        private void CompareSerialization<T>(T original, Action<T, T> asserter = null, bool systemTextJsonOnly = false) where T : class
+        {
+            (IObjectSerializer, IObjectSerializer)[] comparisons = systemTextJsonOnly
+                ?
+                [
+                    (systemTextJsonSerializer, systemTextJsonSerializer)
+                ]
+                :
+                [
+                    (newtonsoftSerializer, newtonsoftSerializer),
+                    (newtonsoftSerializer, systemTextJsonSerializer),
+                    (systemTextJsonSerializer, newtonsoftSerializer),
+                    (systemTextJsonSerializer, systemTextJsonSerializer),
+                ];
+
+            foreach (var (serializer, deserializer) in comparisons)
             {
-                asserter(deserialized, original);
-            }
-            else
-            {
-                Assert.That(deserialized, Is.EqualTo(original));
+                byte[] bytes = serializer.Serialize(original);
+
+                WriteJson(bytes);
+
+                T deserialized = deserializer.DeSerialize<T>(bytes);
+
+                if (asserter != null)
+                {
+                    asserter(deserialized, original);
+                }
+                else
+                {
+                    deserialized.Should().Be(original);
+                }
             }
         }
 
@@ -161,11 +224,9 @@ namespace Quartz.Tests.Unit.Simpl
                 return;
             }
 
-            using (var reader = new StringReader(Encoding.UTF8.GetString(bytes)))
-            {
-                var json = reader.ReadToEnd();
-                Console.WriteLine(json);
-            }
+            using StringReader reader = new(Encoding.UTF8.GetString(bytes));
+            string json = reader.ReadToEnd();
+            Console.WriteLine(json);
         }
     }
 }

@@ -35,6 +35,7 @@ namespace Quartz.Tests.Unit
     /// <author>Marko Lahma (.NET)</author>
     [TestFixture(typeof(BinaryObjectSerializer))]
     [TestFixture(typeof(JsonObjectSerializer))]
+    [TestFixture(typeof(SystemTextJsonObjectSerializer))]
     public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
         private static readonly TimeZoneInfo testTimeZone = TimeZoneInfo.Local;

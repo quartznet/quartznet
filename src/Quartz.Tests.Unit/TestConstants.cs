@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 
 // ReSharper disable once CheckNamespace
 namespace Quartz
@@ -30,7 +30,7 @@ namespace Quartz
         public static string PostgresConnectionString { get; }
 
 
-        public const string DefaultSerializerType = "newtonsoft";
+        public const string DefaultSerializerType = "stj";
 
         public const string DefaultSqlServerProvider = "SqlServer";
 

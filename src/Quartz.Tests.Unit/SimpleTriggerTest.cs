@@ -37,6 +37,7 @@ namespace Quartz.Tests.Unit
     /// </summary>
     [TestFixture(typeof(BinaryObjectSerializer))]
     [TestFixture(typeof(JsonObjectSerializer))]
+    [TestFixture(typeof(SystemTextJsonObjectSerializer))]
     public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
     {
         private static readonly DateTimeOffset StartTime;
@@ -78,10 +79,8 @@ namespace Quartz.Tests.Unit
         protected override void VerifyMatch(SimpleTriggerImpl original, SimpleTriggerImpl deserialized)
         {
             Assert.IsNotNull(deserialized);
-            Assert.AreEqual(original.Name, deserialized.Name);
-            Assert.AreEqual(original.Group, deserialized.Group);
-            Assert.AreEqual(original.JobName, deserialized.JobName);
-            Assert.AreEqual(original.JobGroup, deserialized.JobGroup);
+            Assert.AreEqual(original.Key, deserialized.Key);
+            Assert.AreEqual(original.JobKey, deserialized.JobKey);
             Assert.AreEqual(original.StartTimeUtc, deserialized.StartTimeUtc);
             Assert.AreEqual(original.EndTimeUtc, deserialized.EndTimeUtc);
             Assert.AreEqual(original.RepeatCount, deserialized.RepeatCount);
@@ -141,8 +140,8 @@ namespace Quartz.Tests.Unit
             simpleTrigger.JobDataMap.Put("K2", "V2");
             clone = simpleTrigger.Clone();
             Assert.AreEqual(2, clone.JobDataMap.Count);
-            Assert.AreEqual("V1", clone.JobDataMap.Get("K1"));
-            Assert.AreEqual("V2", clone.JobDataMap.Get("K2"));
+            Assert.AreEqual("V1", clone.JobDataMap["K1"]);
+            Assert.AreEqual("V2", clone.JobDataMap["K2"]);
 
             // Make sure sub-object collections have really been cloned by ensuring
             // their modification does not change the source Trigger
@@ -150,8 +149,8 @@ namespace Quartz.Tests.Unit
             Assert.AreEqual(1, clone.JobDataMap.Count);
 
             Assert.AreEqual(2, simpleTrigger.JobDataMap.Count);
-            Assert.AreEqual("V1", simpleTrigger.JobDataMap.Get("K1"));
-            Assert.AreEqual("V2", simpleTrigger.JobDataMap.Get("K2"));
+            Assert.AreEqual("V1", simpleTrigger.JobDataMap["K1"]);
+            Assert.AreEqual("V2", simpleTrigger.JobDataMap["K2"]);
         }
 
         // QRTZNET-73

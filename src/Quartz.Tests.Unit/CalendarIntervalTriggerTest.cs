@@ -16,6 +16,7 @@ namespace Quartz.Tests.Unit
 {
     [TestFixture(typeof(BinaryObjectSerializer))]
     [TestFixture(typeof(JsonObjectSerializer))]
+    [TestFixture(typeof(SystemTextJsonObjectSerializer))]
     public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarIntervalTriggerImpl>
     {
         public CalendarIntervalTriggerTest(Type serializerType) : base(serializerType)
@@ -74,7 +75,7 @@ namespace Quartz.Tests.Unit
                 RepeatInterval = 6 // every six weeks
             };
 
-            DateTimeOffset targetCalendar = startCalendar.AddDays(7*6*4); // jump 24 weeks (4 intervals)
+            DateTimeOffset targetCalendar = startCalendar.AddDays(7 * 6 * 4); // jump 24 weeks (4 intervals)
 
             var fireTimes = TriggerUtils.ComputeFireTimes(yearlyTrigger, null, 7);
             DateTimeOffset fifthTime = fireTimes[4]; // get the fifth fire time
@@ -727,7 +728,7 @@ namespace Quartz.Tests.Unit
             var firstFireTime = TriggerUtils.ComputeFireTimes(dailyTrigger, null, 1).First();
             Assert.That(firstFireTime, Is.EqualTo(new DateTimeOffset(2017, 1, 4, 13, 0, 0, TimeSpan.FromHours(-2))));
         }
-        
+
         [Test]
         public void TriggerBuilderShouldHandleIgnoreMisfirePolicy()
         {
@@ -740,7 +741,7 @@ namespace Quartz.Tests.Unit
             var trigger2 = trigger1
                 .GetTriggerBuilder()
                 .Build();
-            
+
             trigger1.MisfireInstruction.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
             trigger2.MisfireInstruction.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
         }
@@ -752,8 +753,7 @@ namespace Quartz.Tests.Unit
 
             var t = new CalendarIntervalTriggerImpl
             {
-                Name = "test",
-                Group = "testGroup",
+                Key = new TriggerKey("test", "testGroup"),
                 CalendarName = "MyCalendar",
                 Description = "CronTriggerDesc",
                 JobDataMap = jobDataMap,
@@ -767,10 +767,8 @@ namespace Quartz.Tests.Unit
         protected override void VerifyMatch(CalendarIntervalTriggerImpl original, CalendarIntervalTriggerImpl deserialized)
         {
             Assert.IsNotNull(deserialized);
-            Assert.AreEqual(original.Name, deserialized.Name);
-            Assert.AreEqual(original.Group, deserialized.Group);
-            Assert.AreEqual(original.JobName, deserialized.JobName);
-            Assert.AreEqual(original.JobGroup, deserialized.JobGroup);
+            Assert.AreEqual(original.Key, deserialized.Key);
+            Assert.AreEqual(original.JobKey, deserialized.JobKey);
             Assert.That(deserialized.StartTimeUtc, Is.EqualTo(original.StartTimeUtc).Within(TimeSpan.FromSeconds(1)));
             Assert.AreEqual(original.EndTimeUtc, deserialized.EndTimeUtc);
             Assert.AreEqual(original.CalendarName, deserialized.CalendarName);

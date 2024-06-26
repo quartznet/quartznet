@@ -43,6 +43,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
     /// <author>Marko Lahma (.NET)</author>
     [TestFixture(typeof(BinaryObjectSerializer))]
     [TestFixture(typeof(JsonObjectSerializer))]
+    [TestFixture(typeof(SystemTextJsonObjectSerializer))]
     public class StdAdoDelegateTest
     {
         private readonly IObjectSerializer serializer;
@@ -266,14 +267,15 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             var dbProvider = A.Fake<IDbProvider>();
             A.CallTo(() => dbProvider.CreateCommand())
                 .Returns(command);
-                
+
             var dbMetadata = new DbMetadata
             {
                 BindByName = true,
                 ParameterNamePrefix = "@"
             };
             dbMetadata.Init();
-            A.CallTo(() => dbProvider.Metadata).Returns(dbMetadata);
+            A.CallTo(() => dbProvider.Metadata)
+                .Returns(dbMetadata);
 
             var delegateInitializationArgs = new DelegateInitializationArgs
             {
@@ -307,19 +309,19 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
             Assert.IsTrue(jobDetail.ConcurrentExecutionDisallowed);
 
             var expectedCommandText = "SELECT "
-                + "JOB_NAME,"
-                + "JOB_GROUP,"
-                + "DESCRIPTION,"
-                + "JOB_CLASS_NAME,"
-                + "IS_DURABLE,"
-                + "REQUESTS_RECOVERY,"
-                + "JOB_DATA,"
-                + "IS_NONCONCURRENT,"
-                + "IS_UPDATE_DATA "
-                + "FROM QRTZ_JOB_DETAILS "
-                + "WHERE SCHED_NAME = @schedulerName "
-                + "AND JOB_NAME = @jobName "
-                + "AND JOB_GROUP = @jobGroup";
+                                      + "JOB_NAME,"
+                                      + "JOB_GROUP,"
+                                      + "DESCRIPTION,"
+                                      + "JOB_CLASS_NAME,"
+                                      + "IS_DURABLE,"
+                                      + "REQUESTS_RECOVERY,"
+                                      + "JOB_DATA,"
+                                      + "IS_NONCONCURRENT,"
+                                      + "IS_UPDATE_DATA "
+                                      + "FROM QRTZ_JOB_DETAILS "
+                                      + "WHERE SCHED_NAME = @schedulerName "
+                                      + "AND JOB_NAME = @jobName "
+                                      + "AND JOB_GROUP = @jobGroup";
             Assert.AreEqual(expectedCommandText, command.CommandText);
         }
 
@@ -479,7 +481,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
 
         public override object SyncRoot => throw new NotImplementedException();
 
-#if !NETCORE
+#if NETFRAMEWORK
         public override bool IsFixedSize => throw new NotImplementedException();
 
         public override bool IsReadOnly => throw new NotImplementedException();
@@ -521,7 +523,7 @@ namespace Quartz.Tests.Unit.Impl.AdoJobStore
         }
     }
 
-    public class TestTriggerPersistenceDelegate : SimpleTriggerPersistenceDelegate
+    internal class TestTriggerPersistenceDelegate : SimpleTriggerPersistenceDelegate
     {
     }
 }

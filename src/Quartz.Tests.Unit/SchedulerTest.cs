@@ -13,7 +13,6 @@ using Quartz.Job;
 using Quartz.Spi;
 
 using System.IO;
-using System.Threading;
 
 namespace Quartz.Tests.Unit
 {
