@@ -425,14 +425,6 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
         }
 
         /// <summary>
-        /// Configure binary serialization, consider using JSON instead which requires extra package Quartz.Serialization.Newtonsoft.
-        /// </summary>
-        public void UseBinarySerializer()
-        {
-            UseSerializer<BinaryObjectSerializer>();
-        }
-
-        /// <summary>
         /// Use custom serializer.
         /// </summary>
         public void UseSerializer<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>() where T : IObjectSerializer

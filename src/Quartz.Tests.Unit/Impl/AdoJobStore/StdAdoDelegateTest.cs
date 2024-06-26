@@ -38,7 +38,6 @@ using Quartz.Util;
 namespace Quartz.Tests.Unit.Impl.AdoJobStore;
 
 /// <author>Marko Lahma (.NET)</author>
-[TestFixture(typeof(BinaryObjectSerializer))]
 [TestFixture(typeof(NewtonsoftJsonObjectSerializer))]
 [TestFixture(typeof(SystemTextJsonObjectSerializer))]
 public class StdAdoDelegateTest
@@ -54,8 +53,6 @@ public class StdAdoDelegateTest
     [Test]
     public void TestSerializeJobData()
     {
-        bool binary = serializer.GetType() == typeof(BinaryObjectSerializer);
-
         var args = new DelegateInitializationArgs();
         args.TablePrefix = "QRTZ_";
         args.InstanceName = "TESTSCHED";
@@ -83,21 +80,10 @@ public class StdAdoDelegateTest
         try
         {
             del.SerializeJobData(jdm);
-            if (binary)
-            {
-                Assert.Fail("Private types should not be serializable by binary serialization");
-            }
         }
         catch (SerializationException e)
         {
-            if (binary)
-            {
-                Assert.IsTrue(e.Message.IndexOf("key3", StringComparison.Ordinal) >= 0);
-            }
-            else
-            {
-                Assert.Fail($"Private types should be serializable when not using binary serialization: {e}");
-            }
+            Assert.Fail($"Private types should be serializable when not using binary serialization: {e}");
         }
     }
 
