@@ -713,7 +713,7 @@ Please add configuration to your application config file to correctly initialize
             }
             if (objectSerializerType.Equals("binary", StringComparison.OrdinalIgnoreCase))
             {
-                objectSerializerType = typeof(BinaryObjectSerializer).AssemblyQualifiedNameWithoutVersion();
+                throw new SchedulerException("Binary serialization is not supported anymore. Use JSON serialization instead. You can also manually configure custom serializer.");
             }
 
             tProps = cfg.GetPropertyGroup(PropertyObjectSerializer, stripPrefix: true);

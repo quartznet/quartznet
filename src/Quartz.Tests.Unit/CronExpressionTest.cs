@@ -33,7 +33,6 @@ using Quartz.Util;
 namespace Quartz.Tests.Unit;
 
 /// <author>Marko Lahma (.NET)</author>
-[TestFixture(typeof(BinaryObjectSerializer))]
 [TestFixture(typeof(NewtonsoftJsonObjectSerializer))]
 [TestFixture(typeof(SystemTextJsonObjectSerializer))]
 public class CronExpressionTest : SerializationTestSupport<CronExpression>

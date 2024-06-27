@@ -175,7 +175,7 @@ public class AdoJobStoreSmokeTest
         await RunAdoJobStoreTest("SQLite", "SQLite", serializerType, properties, clustered: false);
     }
 
-    public static string[] GetSerializerTypes() => ["stj", "newtonsoft", "binary"];
+    public static string[] GetSerializerTypes() => ["stj", "newtonsoft"];
 
     private Task RunAdoJobStoreTest(string dbProvider, string connectionStringId, string serializerType)
     {
@@ -229,7 +229,7 @@ public class AdoJobStoreSmokeTest
             }
             else
             {
-                store.UseBinarySerializer();
+                throw new ArgumentException($"Cannot handle serializer type: {serializerType}", nameof(serializerType));
             }
         });
 

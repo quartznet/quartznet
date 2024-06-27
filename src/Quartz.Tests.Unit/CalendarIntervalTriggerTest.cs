@@ -11,7 +11,6 @@ using TimeZoneConverter;
 
 namespace Quartz.Tests.Unit;
 
-[TestFixture(typeof(BinaryObjectSerializer))]
 [TestFixture(typeof(NewtonsoftJsonObjectSerializer))]
 [TestFixture(typeof(SystemTextJsonObjectSerializer))]
 public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarIntervalTriggerImpl>
