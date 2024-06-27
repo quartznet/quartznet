@@ -71,7 +71,7 @@ public class MigratorSerializer : IObjectSerializer
             var result = this.jsonSerializer.DeSerialize<T>(data);
             return result;
         }
-        catch (JsonReaderException)
+        catch (JsonException
         {
             // Presumably, the data was not JSON, we instead use the binary serializer
             return this.binarySerializer.DeSerialize<T>(data);
@@ -91,9 +91,9 @@ public class MigratorSerializer : IObjectSerializer
 }
 ```
 
-## Customizing JSON.NET
+## Customizing serialization
  
- If you need to customize JSON.NET settings, you need to inherit custom implementation and override `CreateSerializerSettings`.
+ If you need to customize serialization, you need to inherit custom implementation and override `CreateSerializerOptions`.
  
  ```csharp
 class CustomJsonSerializer : SystemTextJsonObjectSerializer
