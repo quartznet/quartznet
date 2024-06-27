@@ -1,11 +1,15 @@
 ---
 
-title : JSON Serialization
+title : Serialization (Newtonsoft Json.NET)
 ---
 
 ::: tip
 JSON is recommended persistent format to store data in database for greenfield projects.
 You should also strongly consider setting useProperties to true to restrict key-values to be strings.
+:::
+
+::: tip
+You might want to consider using [System.Text.Json](../packages/system-text-json) for JSON serialization.
 :::
 
 [Quartz.Serialization.Json](https://www.nuget.org/packages/Quartz.Serialization.Json) provides JSON serialization support for job stores using

@@ -155,14 +155,35 @@ This is recommended configuration because it greatly decreases the possibility o
 
 ### Choosing a serializer
 
- Quartz.NET supports both binary and JSON serialization.
- JSON serialization comes from separate [Quartz.Serialization.Json](../packages/json-serialization) NuGet package.
+Quartz.NET supports both binary and JSON serialization. Using binary serialization is discouraged as it will no longer be supported in future versions.
+
+ * JSON serialization based on System.Text.Json comes from separate [Quartz.Serialization.SystemTextJson](../packages/system-text-json) NuGet package
+ * JSON serialization based on Newtonsoft.Json comes from separate [Quartz.Serialization.Json](../packages/json-serialization) NuGet package
 
  ::: tip
  JSON is recommended persistent format to store data in database for greenfield projects.
  You should also strongly consider setting useProperties to true to restrict key-values to be strings.
  :::
 
- // "newtonsoft" and "json" are aliases for "Quartz.Simpl.JsonObjectSerializer, Quartz.Serialization.Json"
- // you should prefer "newtonsoft" as it's more explicit from Quartz 3.10 onwards
- quartz.serializer.type = newtonsoft
+#### Using code
+
+```csharp
+var config = SchedulerBuilder.Create();
+config.UsePersistentStore(store =>
+{
+    // it's generally recommended to stick with
+    // string property keys and values when serializing
+    store.UseProperties = true;
+
+    ....
+
+    store.UseSystemTextJsonSerializer();
+});
+ISchedulerFactory schedulerFactory = config.Build();
+```
+
+#### Using properties
+
+    // "stj" is an alias for "Quartz.Simpl.SystemTextJsonObjectSerializer, Quartz.Serialization.SystemTextJson"
+    // "newtonsoft" and "json" are aliases for "Quartz.Simpl.JsonObjectSerializer, Quartz.Serialization.Json"
+    quartz.serializer.type = stj

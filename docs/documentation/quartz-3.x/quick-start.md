@@ -31,13 +31,13 @@ or from NuGet Command-Line:
 Install-Package Quartz
 ```
 
-If you want to add JSON Serialization, just add the [Quartz.Serialization.Json](packages/json-serialization) package the same way.
+If you want to add JSON Serialization, just add either [Quartz.Serialization.SystemTextJson](packages/system-text-json) or [Quartz.Serialization.Json](packages/json-serialization) package the same way.
 
 ### Zip Archive
 
 **Short version**: Once you've downloaded Quartz.NET, unzip it somewhere, grab the `Quartz.dll` from bin directory and start to use it.
 
-Quartz core library does not have any hard binary dependencies. You can opt-in to more dependencies when you choose to use JSON serialization package, which requires JSON.NET.
+Quartz core library does not have any hard binary dependencies. You can opt-in to more dependencies when you choose to use JSON serialization package.
 You need to have at least `Quartz.dll` beside your app binaries to successfully run Quartz.NET. So just add it as a references to your Visual Studio project that uses them.
 You can find these dlls from extracted archive from path **bin\your-target-framework-version\release\Quartz**.
 
@@ -58,19 +58,19 @@ var properties = new NameValueCollection();
 IScheduler scheduler = await SchedulerBuilder.Create(properties)
     // default max concurrency is 10
     .UseDefaultThreadPool(x => x.MaxConcurrency = 5)
-    // this is the default 
+    // this is the default
     // .WithMisfireThreshold(TimeSpan.FromSeconds(60))
     .UsePersistentStore(x =>
     {
         // force job data map values to be considered as strings
-        // prevents nasty surprises if object is accidentally serialized and then 
+        // prevents nasty surprises if object is accidentally serialized and then
         // serialization format breaks, defaults to false
         x.UseProperties = true;
         x.UseClustering();
-        // there are other SQL providers supported too 
+        // there are other SQL providers supported too
         x.UseSqlServer("my connection string");
-        // this requires Quartz.Serialization.Json NuGet package
-        x.UseJsonSerializer();
+        // this requires Quartz.Serialization.SystemTextJson NuGet package
+        x.UseSystemTextJsonSerializer();
     })
     // job initialization plugin handles our xml reading, without it defaults are used
     // requires Quartz.Plugins NuGet package

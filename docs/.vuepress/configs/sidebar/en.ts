@@ -54,6 +54,7 @@ export const sidebarEn: SidebarConfig = [
         text: "Quartz Core Additions",
         children: [
           "/documentation/quartz-3.x/packages/quartz-jobs",
+          "/documentation/quartz-3.x/packages/system-text-json",
           "/documentation/quartz-3.x/packages/json-serialization",
           "/documentation/quartz-3.x/packages/quartz-plugins",
         ],

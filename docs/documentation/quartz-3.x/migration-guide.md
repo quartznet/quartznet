@@ -91,11 +91,11 @@ If you have created custom implementations of services used by Quartz, you're go
 
 You need to now explicitly state whether you want to use binary or json serialization if you are using persistent job store (AdoJobStore) when you configure your scheduler.
 
-* For existing setups you should use the old binary serialization to ensure things work like before (see [Quartz.Serialization.Json documentation](packages/json-serialization.md) for migration path)
+* For existing setups you should use the old binary serialization to ensure things work like before (see [Quartz.Serialization.SystemTextJson documentation](packages/system-text-json) for migration path)
 * For new projects the JSON serialization is recommended as it should be marginally faster and more robust as it's not dealing with binary versioning issues
 * JSON is more secure and generally the way to use moving forward
 
-If you choose to go with JSON serialization, remember to add NuGet package reference **[Quartz.Serialization.Json](https://www.nuget.org/packages/Quartz.Serialization.Json/)** to your project.
+If you choose to go with JSON serialization, remember to add NuGet package reference to either **[Quartz.Serialization.SystemTextJson](https://www.nuget.org/packages/Quartz.Serialization.SystemTextJson/)** or **[Quartz.Serialization.Json](https://www.nuget.org/packages/Quartz.Serialization.Json/)** to your project.
 
 Configuring binary serialization strategy:
 

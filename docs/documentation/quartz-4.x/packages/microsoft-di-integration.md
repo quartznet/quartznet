@@ -194,7 +194,7 @@ public void ConfigureServices(IServiceCollection services)
                 // this is the default
                 sqlServer.TablePrefix = "QRTZ_";
             });
-            s.UseNewtonsoftJsonSerializer();
+            s.UseSystemTextJsonSerializer();
             s.UseClustering(c =>
             {
                 c.CheckinMisfireThreshold = TimeSpan.FromSeconds(20);
