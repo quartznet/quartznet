@@ -35,10 +35,7 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
             ThrowHelper.ThrowInvalidOperationException("The serializer hasn't been initialized, did you forget to call Initialize()?");
         }
 
-        using MemoryStream ms = new();
-        JsonSerializer.Serialize<object>(ms, obj, options);
-
-        return ms.ToArray();
+        return JsonSerializer.SerializeToUtf8Bytes<object>(obj, options);
     }
 
     /// <summary>
@@ -54,8 +51,7 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
 
         try
         {
-            using MemoryStream ms = new(data);
-            return JsonSerializer.Deserialize<T?>(ms, options);
+            return JsonSerializer.Deserialize<T?>(data, options);
         }
         catch (JsonSerializationException e)
         {
