@@ -50,10 +50,7 @@ public class JobStoreTX : JobStoreSupport
     /// the normal connection because it is not CMT.
     /// </summary>
     /// <seealso cref="JobStoreSupport.GetConnection()" />
-    protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection()
-    {
-        return GetConnection();
-    }
+    protected override ValueTask<ConnectionAndTransactionHolder> GetNonManagedTXConnection() => GetConnection();
 
     /// <summary>
     /// Execute the given callback having optionally acquired the given lock.

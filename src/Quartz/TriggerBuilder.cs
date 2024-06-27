@@ -90,10 +90,7 @@ public sealed class TriggerBuilder
     /// </remarks>
     /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     /// <returns>the new TriggerBuilder</returns>
-    public static TriggerBuilder Create(TimeProvider? timeProvider = null)
-    {
-        return new TriggerBuilder(timeProvider ?? TimeProvider.System);
-    }
+    public static TriggerBuilder Create(TimeProvider? timeProvider = null) => new TriggerBuilder(timeProvider ?? TimeProvider.System);
 
     /// <summary>
     /// Produce the <see cref="ITrigger" />.
@@ -147,6 +144,7 @@ public sealed class TriggerBuilder
     public TriggerBuilder WithIdentity(string name)
     {
         key = new TriggerKey(name);
+
         return this;
     }
 
@@ -166,6 +164,7 @@ public sealed class TriggerBuilder
     public TriggerBuilder WithIdentity(string name, string group)
     {
         key = new TriggerKey(name, group);
+
         return this;
     }
 
@@ -183,6 +182,7 @@ public sealed class TriggerBuilder
     public TriggerBuilder WithIdentity(TriggerKey key)
     {
         this.key = key;
+
         return this;
     }
 
@@ -197,6 +197,7 @@ public sealed class TriggerBuilder
     public TriggerBuilder WithDescription(string? description)
     {
         this.description = description;
+
         return this;
     }
 
@@ -214,6 +215,7 @@ public sealed class TriggerBuilder
     public TriggerBuilder WithPriority(int priority)
     {
         this.priority = priority;
+
         return this;
     }
 
@@ -230,6 +232,7 @@ public sealed class TriggerBuilder
     public TriggerBuilder ModifiedByCalendar(string? calendarName)
     {
         this.calendarName = calendarName;
+
         return this;
     }
 
@@ -248,6 +251,7 @@ public sealed class TriggerBuilder
     public TriggerBuilder StartAt(DateTimeOffset startTimeUtc)
     {
         startTime = startTimeUtc;
+
         return this;
     }
 
@@ -263,6 +267,7 @@ public sealed class TriggerBuilder
     public TriggerBuilder StartNow()
     {
         startTime = timeProvider.GetUtcNow();
+
         return this;
     }
 
@@ -279,6 +284,7 @@ public sealed class TriggerBuilder
     public TriggerBuilder EndAt(DateTimeOffset? endTimeUtc)
     {
         endTime = endTimeUtc;
+
         return this;
     }
 
@@ -299,6 +305,7 @@ public sealed class TriggerBuilder
     public TriggerBuilder WithSchedule(IScheduleBuilder scheduleBuilder)
     {
         this.scheduleBuilder = scheduleBuilder;
+
         return this;
     }
 
@@ -314,6 +321,7 @@ public sealed class TriggerBuilder
     public TriggerBuilder ForJob(JobKey jobKey)
     {
         this.jobKey = jobKey;
+
         return this;
     }
 
@@ -330,6 +338,7 @@ public sealed class TriggerBuilder
     public TriggerBuilder ForJob(string jobName)
     {
         jobKey = new JobKey(jobName);
+
         return this;
     }
 
@@ -347,6 +356,7 @@ public sealed class TriggerBuilder
     public TriggerBuilder ForJob(string jobName, string jobGroup)
     {
         jobKey = new JobKey(jobName, jobGroup);
+
         return this;
     }
 
@@ -367,6 +377,7 @@ public sealed class TriggerBuilder
             ThrowHelper.ThrowArgumentException("The given job has not yet had a name assigned to it.");
         }
         jobKey = k;
+
         return this;
     }
 
@@ -380,6 +391,7 @@ public sealed class TriggerBuilder
     public TriggerBuilder UsingJobData(string key, string value)
     {
         jobDataMap.Put(key, value);
+
         return this;
     }
 
@@ -393,6 +405,7 @@ public sealed class TriggerBuilder
     public TriggerBuilder UsingJobData(string key, int value)
     {
         jobDataMap.Put(key, value);
+
         return this;
     }
 
@@ -406,6 +419,7 @@ public sealed class TriggerBuilder
     public TriggerBuilder UsingJobData(string key, long value)
     {
         jobDataMap.Put(key, value);
+
         return this;
     }
 
@@ -420,6 +434,7 @@ public sealed class TriggerBuilder
     public TriggerBuilder UsingJobData(string key, float value)
     {
         jobDataMap.Put(key, value);
+
         return this;
     }
 
@@ -434,6 +449,7 @@ public sealed class TriggerBuilder
     public TriggerBuilder UsingJobData(string key, double value)
     {
         jobDataMap.Put(key, value);
+
         return this;
     }
 
@@ -448,6 +464,7 @@ public sealed class TriggerBuilder
     public TriggerBuilder UsingJobData(string key, decimal value)
     {
         jobDataMap.Put(key, value);
+
         return this;
     }
 
@@ -461,6 +478,7 @@ public sealed class TriggerBuilder
     public TriggerBuilder UsingJobData(string key, bool value)
     {
         jobDataMap.Put(key, value);
+
         return this;
     }
 
@@ -474,6 +492,7 @@ public sealed class TriggerBuilder
     public TriggerBuilder UsingJobData(string key, Guid value)
     {
         jobDataMap.Put(key, value);
+
         return this;
     }
 
@@ -487,6 +506,7 @@ public sealed class TriggerBuilder
     public TriggerBuilder UsingJobData(string key, char value)
     {
         jobDataMap.Put(key, value);
+
         return this;
     }
 
@@ -508,8 +528,5 @@ public sealed class TriggerBuilder
         return this;
     }
 
-    internal void ClearDirty()
-    {
-        jobDataMap?.ClearDirtyFlag();
-    }
+    internal void ClearDirty() => jobDataMap?.ClearDirtyFlag();
 }

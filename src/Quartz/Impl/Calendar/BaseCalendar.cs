@@ -55,19 +55,13 @@ public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
     /// Initializes a new instance of the <see cref="BaseCalendar"/> class.
     /// </summary>
     /// <param name="baseCalendar">The base calendar.</param>
-    public BaseCalendar(ICalendar? baseCalendar)
-    {
-        CalendarBase = baseCalendar;
-    }
+    public BaseCalendar(ICalendar? baseCalendar) => CalendarBase = baseCalendar;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="BaseCalendar"/> class.
     /// </summary>
     /// <param name="timeZone">The time zone.</param>
-    public BaseCalendar(TimeZoneInfo timeZone)
-    {
-        this.timeZone = timeZone;
-    }
+    public BaseCalendar(TimeZoneInfo timeZone) => this.timeZone = timeZone;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="BaseCalendar"/> class.
@@ -156,6 +150,7 @@ public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
             {
                 timeZone = TimeZoneInfo.Local;
             }
+
             return timeZone;
         }
         set => timeZone = value;
@@ -225,6 +220,7 @@ public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
     public virtual ICalendar Clone()
     {
         var clone = CloneFields(new BaseCalendar());
+
         return clone;
     }
 
@@ -233,6 +229,7 @@ public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
         clone.Description = Description;
         clone.TimeZone = TimeZone;
         clone.CalendarBase = CalendarBase?.Clone();
+
         return clone;
     }
 
@@ -240,6 +237,7 @@ public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
     {
         if (ReferenceEquals(null, other)) return false;
         if (ReferenceEquals(this, other)) return true;
+
         return Equals(CalendarBase, other.CalendarBase) && string.Equals(Description, other.Description) && Equals(TimeZone, other.TimeZone);
     }
 
@@ -248,6 +246,7 @@ public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
         if (ReferenceEquals(null, obj)) return false;
         if (ReferenceEquals(this, obj)) return true;
         if (obj.GetType() != GetType()) return false;
+
         return Equals((BaseCalendar) obj);
     }
 

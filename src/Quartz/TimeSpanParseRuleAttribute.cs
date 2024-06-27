@@ -1,4 +1,4 @@
-﻿namespace Quartz;
+namespace Quartz;
 
 /// <summary>
 /// Attribute to use with public <see cref="TimeSpan" /> properties that
@@ -15,10 +15,7 @@ internal sealed class TimeSpanParseRuleAttribute : Attribute
     /// Initializes a new instance of the <see cref="TimeSpanParseRuleAttribute"/> class.
     /// </summary>
     /// <param name="rule">The rule.</param>
-    public TimeSpanParseRuleAttribute(TimeSpanParseRule rule)
-    {
-        Rule = rule;
-    }
+    public TimeSpanParseRuleAttribute(TimeSpanParseRule rule) => Rule = rule;
 
     /// <summary>
     /// Gets the rule.

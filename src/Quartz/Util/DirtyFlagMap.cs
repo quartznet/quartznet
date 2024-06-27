@@ -37,19 +37,13 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
     /// <summary>
     /// Create a DirtyFlagMap that 'wraps' a <see cref="Hashtable" />.
     /// </summary>
-    public DirtyFlagMap()
-    {
-        map = new Dictionary<TKey, TValue?>();
-    }
+    public DirtyFlagMap() => map = new Dictionary<TKey, TValue?>();
 
     /// <summary>
     /// Create a DirtyFlagMap that 'wraps' a <see cref="Hashtable" /> that has the
     /// given initial capacity.
     /// </summary>
-    public DirtyFlagMap(int initialCapacity)
-    {
-        map = new Dictionary<TKey, TValue?>(initialCapacity);
-    }
+    public DirtyFlagMap(int initialCapacity) => map = new Dictionary<TKey, TValue?>(initialCapacity);
 
     private DirtyFlagMap(DirtyFlagMap<TKey,TValue> other)
     {
@@ -169,10 +163,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
     /// <returns>
     /// A new object that is a copy of this instance.
     /// </returns>
-    internal virtual DirtyFlagMap<TKey, TValue> Clone()
-    {
-        return new DirtyFlagMap<TKey, TValue>(this);
-    }
+    internal virtual DirtyFlagMap<TKey, TValue> Clone() => new DirtyFlagMap<TKey, TValue>(this);
 
     /// <summary>
     /// Gets the value associated with the specified key.
@@ -184,11 +175,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
     /// otherwise, <see langword="false"/>.
     /// </returns>
 #pragma warning disable CS8767 // Nullability of reference types in type of parameter doesn't match implicitly implemented member (possibly because of nullability attributes).
-    public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value)
-#pragma warning restore CS8767 // Nullability of reference types in type of parameter doesn't match implicitly implemented member (possibly because of nullability attributes).
-    {
-        return map.TryGetValue(key, out value);
-    }
+    public bool TryGetValue(TKey key, [MaybeNullWhen(false)] out TValue value) => map.TryGetValue(key, out value);
 
     /// <summary>
     /// Gets or sets the <see cref="object"/> with the specified key.
@@ -207,10 +194,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
         }
     }
 
-    public bool Remove(KeyValuePair<TKey, TValue?> item)
-    {
-        return Remove(item.Key);
-    }
+    public bool Remove(KeyValuePair<TKey, TValue?> item) => Remove(item.Key);
 
     /// <summary>
     /// When implemented by a class, gets the number of
@@ -234,15 +218,9 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
         Put(item.Key, item.Value);
     }
 
-    public void Add(object key, object? value)
-    {
-        Put((TKey) key, (TValue) value!);
-    }
+    public void Add(object key, object? value) => Put((TKey) key, (TValue) value!);
 
-    public bool Contains(object key)
-    {
-        return ((IDictionary) map).Contains(key);
-    }
+    public bool Contains(object key) => ((IDictionary) map).Contains(key);
 
     /// <summary>
     /// When implemented by a class, removes all elements from the <see cref="T:System.Collections.IDictionary"/>.
@@ -260,15 +238,9 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
         map.Clear();
     }
 
-    IDictionaryEnumerator IDictionary.GetEnumerator()
-    {
-        return map.GetEnumerator();
-    }
+    IDictionaryEnumerator IDictionary.GetEnumerator() => map.GetEnumerator();
 
-    public void Remove(object key)
-    {
-        Remove((TKey) key);
-    }
+    public void Remove(object key) => Remove((TKey) key);
 
     object? IDictionary.this[object key]
     {
@@ -277,9 +249,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
     }
 
     public bool Contains(KeyValuePair<TKey, TValue?> item)
-    {
-        return Contains(item.Key);
-    }
+    => Contains(item.Key);
 
     public void CopyTo(KeyValuePair<TKey, TValue?>[] array, int arrayIndex)
     {
@@ -296,9 +266,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
     /// <exception cref="T:System.ArgumentNullException">
     /// 	<paramref name="key "/>is <see langword="null"/>.</exception>
     public bool ContainsKey(TKey key)
-    {
-        return map.ContainsKey(key);
-    }
+    => map.ContainsKey(key);
 
     /// <summary>
     /// When implemented by a class, removes the element with the
@@ -327,9 +295,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
     /// An <see cref="T:System.Collections.IDictionaryEnumerator"/> for the <see cref="T:System.Collections.IDictionary"/>.
     /// </returns>
     public IEnumerator<KeyValuePair<TKey, TValue?>> GetEnumerator()
-    {
-        return map.GetEnumerator();
-    }
+    => map.GetEnumerator();
 
     /// <summary>
     /// When implemented by a class, adds an element with the provided key and value to the <see cref="T:System.Collections.IDictionary"/>.
@@ -459,9 +425,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
     /// 	<c>true</c> if the specified obj contains value; otherwise, <c>false</c>.
     /// </returns>
     public bool ContainsValue(TValue obj)
-    {
-        return map.ContainsValue(obj);
-    }
+    => map.ContainsValue(obj);
 
     /// <summary>
     /// Determines whether the specified <see cref="T:System.Object"/> is equal to the current <see cref="T:System.Object"/>.
@@ -521,9 +485,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
     }
 
     IEnumerator IEnumerable.GetEnumerator()
-    {
-        return GetEnumerator();
-    }
+    => GetEnumerator();
 
     /// <summary>
     /// Puts the value behind a specified key.

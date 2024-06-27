@@ -39,24 +39,15 @@ public sealed class EverythingMatcher<TKey> : IMatcher<TKey> where TKey : Key<TK
     /// Create an EverythingMatcher that matches all jobs.
     /// </summary>
     /// <returns></returns>
-    public static EverythingMatcher<JobKey> AllJobs()
-    {
-        return new EverythingMatcher<JobKey>();
-    }
+    public static EverythingMatcher<JobKey> AllJobs() => new EverythingMatcher<JobKey>();
 
     /// <summary>
     /// Create an EverythingMatcher that matches all triggers.
     /// </summary>
     /// <returns></returns>
-    public static EverythingMatcher<TriggerKey> AllTriggers()
-    {
-        return new EverythingMatcher<TriggerKey>();
-    }
+    public static EverythingMatcher<TriggerKey> AllTriggers() => new EverythingMatcher<TriggerKey>();
 
-    public bool IsMatch(TKey key)
-    {
-        return true;
-    }
+    public bool IsMatch(TKey key) => true;
 
     public override bool Equals(object? obj)
     {
@@ -68,8 +59,5 @@ public sealed class EverythingMatcher<TKey> : IMatcher<TKey> where TKey : Key<TK
         return obj.GetType() == GetType();
     }
 
-    public override int GetHashCode()
-    {
-        return GetType().Name.GetHashCode();
-    }
+    public override int GetHashCode() => GetType().Name.GetHashCode();
 }

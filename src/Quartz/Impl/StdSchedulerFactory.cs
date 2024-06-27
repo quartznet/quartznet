@@ -199,27 +199,18 @@ public class StdSchedulerFactory : ISchedulerFactory
     /// </para>
     /// </summary>
     public virtual ValueTask<IReadOnlyList<IScheduler>> GetAllSchedulers(
-        CancellationToken cancellationToken = default)
-    {
-        return SchedulerRepository.Instance.LookupAll(cancellationToken);
-    }
+        CancellationToken cancellationToken = default) => SchedulerRepository.Instance.LookupAll(cancellationToken);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="StdSchedulerFactory"/> class.
     /// </summary>
-    public StdSchedulerFactory()
-    {
-        this.logger = LogProvider.CreateLogger<StdSchedulerFactory>();
-    }
+    public StdSchedulerFactory() => this.logger = LogProvider.CreateLogger<StdSchedulerFactory>();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="StdSchedulerFactory"/> class.
     /// </summary>
     /// <param name="props">The props.</param>
-    public StdSchedulerFactory(NameValueCollection props) : this()
-    {
-        Initialize(props);
-    }
+    public StdSchedulerFactory(NameValueCollection props) : this() => Initialize(props);
 
     /// <summary>
     /// Initialize the <see cref="ISchedulerFactory" />.
@@ -713,7 +704,7 @@ Please add configuration to your application config file to correctly initialize
             }
             if (objectSerializerType.Equals("binary", StringComparison.OrdinalIgnoreCase))
             {
-                throw new SchedulerException("Binary serialization is not supported anymore. Use JSON serialization instead. You can also manually configure custom serializer.");
+                objectSerializerType = typeof(BinaryObjectSerializer).AssemblyQualifiedNameWithoutVersion();
             }
 
             tProps = cfg.GetPropertyGroup(PropertyObjectSerializer, stripPrefix: true);

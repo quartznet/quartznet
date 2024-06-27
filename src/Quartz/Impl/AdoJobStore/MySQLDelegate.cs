@@ -30,10 +30,7 @@ public class MySQLDelegate : StdAdoDelegate
     /// MySQL version with LIMIT support.
     /// </summary>
     /// <returns></returns>
-    protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
-    {
-        return SqlSelectNextTriggerToAcquire + " LIMIT " + maxCount;
-    }
+    protected override string GetSelectNextTriggerToAcquireSql(int maxCount) => SqlSelectNextTriggerToAcquire + " LIMIT " + maxCount;
 
     protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
     {
@@ -41,6 +38,7 @@ public class MySQLDelegate : StdAdoDelegate
         {
             return SqlSelectHasMisfiredTriggersInState + " LIMIT " + count;
         }
+
         return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
     }
 }

@@ -15,10 +15,7 @@ internal sealed class ExecutingJobsManager : IJobListener
     /// <summary>
     /// Initializes a new <see cref="ExecutingJobsManager"/> instance.
     /// </summary>
-    public ExecutingJobsManager()
-    {
-        Name = GetType().ToString();
-    }
+    public ExecutingJobsManager() => Name = GetType().ToString();
 
     /// <summary>
     /// Get the name of the <see cref="IJobListener" />.
@@ -58,6 +55,7 @@ internal sealed class ExecutingJobsManager : IJobListener
     {
         Interlocked.Increment(ref numJobsFired);
         executingJobs[((IOperableTrigger) context.Trigger).FireInstanceId] = context;
+
         return default;
     }
 
@@ -66,6 +64,7 @@ internal sealed class ExecutingJobsManager : IJobListener
         CancellationToken cancellationToken = default)
     {
         executingJobs.TryRemove(((IOperableTrigger) context.Trigger).FireInstanceId, out _);
+
         return default;
     }
 

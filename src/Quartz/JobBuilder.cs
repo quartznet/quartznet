@@ -88,10 +88,7 @@ public sealed class JobBuilder : IJobConfigurator
     /// Create a JobBuilder with which to define a <see cref="IJobDetail" />.
     /// </summary>
     /// <returns>a new JobBuilder</returns>
-    public static JobBuilder Create()
-    {
-        return new JobBuilder();
-    }
+    public static JobBuilder Create() => new JobBuilder();
 
     /// <summary>
     /// Create a JobBuilder with which to define a <see cref="IJobDetail" />,
@@ -102,6 +99,7 @@ public sealed class JobBuilder : IJobConfigurator
     {
         JobBuilder b = new JobBuilder();
         b.OfType(jobType);
+
         return b;
     }
 
@@ -114,6 +112,7 @@ public sealed class JobBuilder : IJobConfigurator
     {
         JobBuilder b = new JobBuilder();
         b.OfType(typeof(T));
+
         return b;
     }
 
@@ -174,6 +173,7 @@ public sealed class JobBuilder : IJobConfigurator
     public JobBuilder DisallowConcurrentExecution(bool concurrentExecutionDisallowed = true)
     {
         _concurrentExecutionDisallowed = concurrentExecutionDisallowed;
+
         return this;
     }
 
@@ -192,6 +192,7 @@ public sealed class JobBuilder : IJobConfigurator
     public JobBuilder PersistJobDataAfterExecution(bool persistJobDataAfterExecution = true)
     {
         _persistJobDataAfterExecution = persistJobDataAfterExecution;
+
         return this;
     }
 
@@ -210,6 +211,7 @@ public sealed class JobBuilder : IJobConfigurator
     public JobBuilder WithIdentity(string name)
     {
         _key = new JobKey(name);
+
         return this;
     }
 
@@ -229,6 +231,7 @@ public sealed class JobBuilder : IJobConfigurator
     public JobBuilder WithIdentity(string name, string group)
     {
         _key = new JobKey(name, group);
+
         return this;
     }
 
@@ -246,6 +249,7 @@ public sealed class JobBuilder : IJobConfigurator
     public JobBuilder WithIdentity(JobKey key)
     {
         this._key = key;
+
         return this;
     }
 
@@ -258,6 +262,7 @@ public sealed class JobBuilder : IJobConfigurator
     public JobBuilder WithDescription(string? description)
     {
         this._description = description;
+
         return this;
     }
 
@@ -269,6 +274,7 @@ public sealed class JobBuilder : IJobConfigurator
     public JobBuilder OfType(string typeName)
     {
         _jobType = typeName;
+
         return this;
     }
 
@@ -278,10 +284,8 @@ public sealed class JobBuilder : IJobConfigurator
     /// </summary>
     /// <returns>the updated JobBuilder</returns>
     /// <seealso cref="IJobDetail.JobType" />
-    public JobBuilder OfType<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>()
-    {
-        return OfType(typeof(T));
-    }
+    public JobBuilder OfType<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>() =>
+        OfType(typeof(T));
 
     /// <summary>
     /// Set the class which will be instantiated and executed when a
@@ -292,6 +296,7 @@ public sealed class JobBuilder : IJobConfigurator
     public JobBuilder OfType([DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] Type type)
     {
         _jobType = new JobType(type);
+
         return this;
     }
 
@@ -308,6 +313,7 @@ public sealed class JobBuilder : IJobConfigurator
     public JobBuilder RequestRecovery(bool shouldRecover = true)
     {
         this._shouldRecover = shouldRecover;
+
         return this;
     }
 
@@ -324,6 +330,7 @@ public sealed class JobBuilder : IJobConfigurator
     public JobBuilder StoreDurably(bool durability = true)
     {
         this._durability = durability;
+
         return this;
     }
 
@@ -335,6 +342,7 @@ public sealed class JobBuilder : IJobConfigurator
     public JobBuilder UsingJobData(string key, string? value)
     {
         jobDataMap.Put(key, value);
+
         return this;
     }
 
@@ -346,6 +354,7 @@ public sealed class JobBuilder : IJobConfigurator
     public JobBuilder UsingJobData(string key, int value)
     {
         jobDataMap.Put(key, value);
+
         return this;
     }
 
@@ -357,6 +366,7 @@ public sealed class JobBuilder : IJobConfigurator
     public JobBuilder UsingJobData(string key, long value)
     {
         jobDataMap.Put(key, value);
+
         return this;
     }
 
@@ -368,6 +378,7 @@ public sealed class JobBuilder : IJobConfigurator
     public JobBuilder UsingJobData(string key, float value)
     {
         jobDataMap.Put(key, value);
+
         return this;
     }
 
@@ -379,6 +390,7 @@ public sealed class JobBuilder : IJobConfigurator
     public JobBuilder UsingJobData(string key, double value)
     {
         jobDataMap.Put(key, value);
+
         return this;
     }
 
@@ -390,6 +402,7 @@ public sealed class JobBuilder : IJobConfigurator
     public JobBuilder UsingJobData(string key, bool value)
     {
         jobDataMap.Put(key, value);
+
         return this;
     }
 
@@ -401,6 +414,7 @@ public sealed class JobBuilder : IJobConfigurator
     public JobBuilder UsingJobData(string key, Guid value)
     {
         jobDataMap.Put(key, value);
+
         return this;
     }
 
@@ -412,6 +426,7 @@ public sealed class JobBuilder : IJobConfigurator
     public JobBuilder UsingJobData(string key, char value)
     {
         jobDataMap.Put(key, value);
+
         return this;
     }
 
@@ -428,6 +443,7 @@ public sealed class JobBuilder : IJobConfigurator
             ThrowHelper.ThrowArgumentNullException(nameof(newJobDataMap));
         }
         jobDataMap.PutAll(newJobDataMap);
+
         return this;
     }
 
@@ -444,6 +460,7 @@ public sealed class JobBuilder : IJobConfigurator
             ThrowHelper.ThrowArgumentNullException(nameof(newJobDataMap));
         }
         jobDataMap = newJobDataMap;
+
         return this;
     }
 }

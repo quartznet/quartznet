@@ -53,10 +53,7 @@ internal sealed class DBConnectionManager : IDbConnectionManager
     /// <summary>
     /// Private constructor
     /// </summary>
-    private DBConnectionManager()
-    {
-        logger = LogProvider.CreateLogger<DBConnectionManager>();
-    }
+    private DBConnectionManager() => logger = LogProvider.CreateLogger<DBConnectionManager>();
 
     /// <summary>
     /// Adds the connection provider.
@@ -77,6 +74,7 @@ internal sealed class DBConnectionManager : IDbConnectionManager
     public DbConnection GetConnection(string dataSourceName)
     {
         var provider = GetDbProvider(dataSourceName);
+
         return provider.CreateConnection();
     }
 
@@ -90,10 +88,7 @@ internal sealed class DBConnectionManager : IDbConnectionManager
         provider.Shutdown();
     }
 
-    public DbMetadata GetDbMetadata(string dsName)
-    {
-        return GetDbProvider(dsName).Metadata;
-    }
+    public DbMetadata GetDbMetadata(string dsName) => GetDbProvider(dsName).Metadata;
 
     /// <summary>
     /// Gets the db provider.

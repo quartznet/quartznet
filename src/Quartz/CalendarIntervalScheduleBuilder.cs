@@ -55,10 +55,7 @@ public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarI
     /// Create a CalendarIntervalScheduleBuilder.
     /// </summary>
     /// <returns></returns>
-    public static CalendarIntervalScheduleBuilder Create()
-    {
-        return new CalendarIntervalScheduleBuilder();
-    }
+    public static CalendarIntervalScheduleBuilder Create() => new CalendarIntervalScheduleBuilder();
 
     /// <summary>
     /// Build the actual Trigger -- NOT intended to be invoked by end users,
@@ -94,6 +91,7 @@ public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarI
         ValidateInterval(interval);
         this.interval = interval;
         intervalUnit = unit;
+
         return this;
     }
 
@@ -112,6 +110,7 @@ public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarI
         ValidateInterval(intervalInSeconds);
         interval = intervalInSeconds;
         intervalUnit = IntervalUnit.Second;
+
         return this;
     }
 
@@ -130,6 +129,7 @@ public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarI
         ValidateInterval(intervalInMinutes);
         interval = intervalInMinutes;
         intervalUnit = IntervalUnit.Minute;
+
         return this;
     }
 
@@ -148,6 +148,7 @@ public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarI
         ValidateInterval(intervalInHours);
         interval = intervalInHours;
         intervalUnit = IntervalUnit.Hour;
+
         return this;
     }
 
@@ -166,6 +167,7 @@ public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarI
         ValidateInterval(intervalInDays);
         interval = intervalInDays;
         intervalUnit = IntervalUnit.Day;
+
         return this;
     }
 
@@ -184,6 +186,7 @@ public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarI
         ValidateInterval(intervalInWeeks);
         interval = intervalInWeeks;
         intervalUnit = IntervalUnit.Week;
+
         return this;
     }
 
@@ -202,6 +205,7 @@ public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarI
         ValidateInterval(intervalInMonths);
         interval = intervalInMonths;
         intervalUnit = IntervalUnit.Month;
+
         return this;
     }
 
@@ -220,6 +224,7 @@ public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarI
         ValidateInterval(intervalInYears);
         interval = intervalInYears;
         intervalUnit = IntervalUnit.Year;
+
         return this;
     }
 
@@ -234,6 +239,7 @@ public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarI
     public CalendarIntervalScheduleBuilder WithMisfireHandlingInstructionIgnoreMisfires()
     {
         misfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
+
         return this;
     }
 
@@ -249,6 +255,7 @@ public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarI
     public CalendarIntervalScheduleBuilder WithMisfireHandlingInstructionDoNothing()
     {
         misfireInstruction = MisfireInstruction.CalendarIntervalTrigger.DoNothing;
+
         return this;
     }
 
@@ -263,6 +270,7 @@ public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarI
     public CalendarIntervalScheduleBuilder WithMisfireHandlingInstructionFireAndProceed()
     {
         misfireInstruction = MisfireInstruction.CalendarIntervalTrigger.FireOnceNow;
+
         return this;
     }
 
@@ -275,6 +283,7 @@ public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarI
     public CalendarIntervalScheduleBuilder InTimeZone(TimeZoneInfo? timezone)
     {
         timeZone = timezone;
+
         return this;
     }
 
@@ -306,6 +315,7 @@ public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarI
     public CalendarIntervalScheduleBuilder PreserveHourOfDayAcrossDaylightSavings(bool preserveHourOfDay)
     {
         preserveHourOfDayAcrossDaylightSavings = preserveHourOfDay;
+
         return this;
     }
 
@@ -330,6 +340,7 @@ public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarI
     public CalendarIntervalScheduleBuilder SkipDayIfHourDoesNotExist(bool skipDay)
     {
         skipDayIfHourDoesNotExist = skipDay;
+
         return this;
     }
 
@@ -345,6 +356,7 @@ public sealed class CalendarIntervalScheduleBuilder : ScheduleBuilder<ICalendarI
     internal CalendarIntervalScheduleBuilder WithMisfireHandlingInstruction(int readMisfireInstructionFromString)
     {
         misfireInstruction = readMisfireInstructionFromString;
+
         return this;
     }
 }
@@ -357,12 +369,14 @@ public static class CalendarIntervalTriggerBuilderExtensions
     public static TriggerBuilder WithCalendarIntervalSchedule(this TriggerBuilder triggerBuilder)
     {
         CalendarIntervalScheduleBuilder builder = CalendarIntervalScheduleBuilder.Create();
+
         return triggerBuilder.WithSchedule(builder);
     }
 
     public static TriggerBuilder WithCalendarIntervalSchedule(this TriggerBuilder triggerBuilder, Action<CalendarIntervalScheduleBuilder> action)
     {
         CalendarIntervalScheduleBuilder builder = CalendarIntervalScheduleBuilder.Create();
+
         action(builder);
         return triggerBuilder.WithSchedule(builder);
     }

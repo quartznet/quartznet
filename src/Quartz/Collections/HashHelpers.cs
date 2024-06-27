@@ -48,8 +48,10 @@ internal static partial class HashHelpers
                 if ((candidate % divisor) == 0)
                     return false;
             }
+
             return true;
         }
+
         return (candidate == 2);
     }
 
@@ -72,6 +74,7 @@ internal static partial class HashHelpers
             if (IsPrime(i) && ((i - 1) % HashPrime != 0))
                 return i;
         }
+
         return min;
     }
 
@@ -85,6 +88,7 @@ internal static partial class HashHelpers
         if ((uint) newSize > MaxPrimeArrayLength && MaxPrimeArrayLength > oldSize)
         {
             Debug.Assert(MaxPrimeArrayLength == GetPrime(MaxPrimeArrayLength), "Invalid MaxPrimeArrayLength");
+
             return MaxPrimeArrayLength;
         }
 

@@ -50,10 +50,7 @@ public sealed class SchedulerContext : StringKeyDirtyFlagMap
     /// <summary>
     /// Create a <see cref="JobDataMap" /> with the given data.
     /// </summary>
-    public SchedulerContext(IDictionary<string, object?> map) : this()
-    {
-        PutAll(map);
-    }
+    public SchedulerContext(IDictionary<string, object?> map) : this() => PutAll(map);
 
     /// <summary>
     /// Serialization constructor.

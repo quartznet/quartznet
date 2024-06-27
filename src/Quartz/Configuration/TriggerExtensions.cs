@@ -7,6 +7,7 @@ public static class TriggerExtensions
         DailyTimeIntervalScheduleBuilder schedule)
     {
         triggerBuilder.WithSchedule(schedule);
+
         return triggerBuilder;
     }
 
@@ -35,6 +36,7 @@ public static class TriggerExtensions
         builder.WithInterval(interval, intervalUnit);
         action?.Invoke(builder);
         triggerBuilder.WithSchedule(builder);
+
         return triggerBuilder;
     }
 
@@ -45,6 +47,7 @@ public static class TriggerExtensions
         CalendarIntervalScheduleBuilder builder = CalendarIntervalScheduleBuilder.Create();
         action?.Invoke(builder);
         triggerBuilder.WithSchedule(builder);
+
         return triggerBuilder;
     }
 
@@ -53,6 +56,7 @@ public static class TriggerExtensions
         CalendarIntervalScheduleBuilder schedule)
     {
         triggerBuilder.WithSchedule(schedule);
+
         return triggerBuilder;
     }
 
@@ -64,6 +68,7 @@ public static class TriggerExtensions
         CronScheduleBuilder builder = CronScheduleBuilder.CronSchedule(cronExpression);
         action?.Invoke(builder);
         triggerBuilder.WithSchedule(builder);
+
         return triggerBuilder;
     }
 
@@ -72,6 +77,7 @@ public static class TriggerExtensions
         CronScheduleBuilder schedule)
     {
         triggerBuilder.WithSchedule(schedule);
+
         return triggerBuilder;
     }
 
@@ -82,6 +88,7 @@ public static class TriggerExtensions
         SimpleScheduleBuilder builder = SimpleScheduleBuilder.Create();
         action?.Invoke(builder);
         triggerBuilder.WithSchedule(builder);
+
         return triggerBuilder;
     }
 
@@ -90,6 +97,7 @@ public static class TriggerExtensions
         SimpleScheduleBuilder schedule)
     {
         triggerBuilder.WithSchedule(schedule);
+
         return triggerBuilder;
     }
 }

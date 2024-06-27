@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -133,20 +133,15 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
         SaturdayAndSunday = new HashSet<DayOfWeek>(SaturdayAndSunday);
     }
 
-    private DailyTimeIntervalScheduleBuilder(TimeProvider timeProvider)
-    {
-        this.timeProvider = timeProvider;
-    }
+    private DailyTimeIntervalScheduleBuilder(TimeProvider timeProvider) => this.timeProvider = timeProvider;
 
     /// <summary>
     /// Create a DailyTimeIntervalScheduleBuilder
     /// </summary>
     /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     /// <returns>The new DailyTimeIntervalScheduleBuilder</returns>
-    public static DailyTimeIntervalScheduleBuilder Create(TimeProvider? timeProvider = null)
-    {
-        return new DailyTimeIntervalScheduleBuilder(timeProvider ?? TimeProvider.System);
-    }
+    public static DailyTimeIntervalScheduleBuilder Create(TimeProvider? timeProvider = null) =>
+        new DailyTimeIntervalScheduleBuilder(timeProvider ?? TimeProvider.System);
 
     /// <summary>
     /// Build the actual Trigger -- NOT intended to be invoked by end users,
@@ -214,6 +209,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
         ValidateInterval(interval);
         this.interval = interval;
         intervalUnit = unit;
+
         return this;
     }
 
@@ -228,6 +224,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
     public DailyTimeIntervalScheduleBuilder WithIntervalInSeconds(int intervalInSeconds)
     {
         WithInterval(intervalInSeconds, IntervalUnit.Second);
+
         return this;
     }
 
@@ -242,6 +239,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
     public DailyTimeIntervalScheduleBuilder WithIntervalInMinutes(int intervalInMinutes)
     {
         WithInterval(intervalInMinutes, IntervalUnit.Minute);
+
         return this;
     }
 
@@ -256,6 +254,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
     public DailyTimeIntervalScheduleBuilder WithIntervalInHours(int intervalInHours)
     {
         WithInterval(intervalInHours, IntervalUnit.Hour);
+
         return this;
     }
 
@@ -281,6 +280,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
         }
 
         daysOfWeek = new HashSet<DayOfWeek>(onDaysOfWeek);
+
         return this;
     }
 
@@ -289,10 +289,8 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
     /// </summary>
     /// <param name="onDaysOfWeek">a variable length list of week days representing the days of the week</param>
     /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
-    public DailyTimeIntervalScheduleBuilder OnDaysOfTheWeek(params DayOfWeek[] onDaysOfWeek)
-    {
-        return OnDaysOfTheWeek((IReadOnlyCollection<DayOfWeek>) onDaysOfWeek);
-    }
+    public DailyTimeIntervalScheduleBuilder OnDaysOfTheWeek(params DayOfWeek[] onDaysOfWeek) =>
+        OnDaysOfTheWeek((IReadOnlyCollection<DayOfWeek>) onDaysOfWeek);
 
     /// <summary>
     /// Set the trigger to fire on the days from Monday through Friday.
@@ -301,6 +299,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
     public DailyTimeIntervalScheduleBuilder OnMondayThroughFriday()
     {
         daysOfWeek = new HashSet<DayOfWeek>(MondayThroughFriday);
+
         return this;
     }
 
@@ -311,6 +310,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
     public DailyTimeIntervalScheduleBuilder OnSaturdayAndSunday()
     {
         daysOfWeek = new HashSet<DayOfWeek>(SaturdayAndSunday);
+
         return this;
     }
 
@@ -321,6 +321,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
     public DailyTimeIntervalScheduleBuilder OnEveryDay()
     {
         daysOfWeek = new HashSet<DayOfWeek>(AllDaysOfTheWeek);
+
         return this;
     }
 
@@ -336,6 +337,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
             ThrowHelper.ThrowArgumentException("Start time of day cannot be null!", nameof(timeOfDayUtc));
         }
         startTimeOfDayUtc = timeOfDayUtc;
+
         return this;
     }
 
@@ -347,6 +349,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
     public DailyTimeIntervalScheduleBuilder EndingDailyAt(TimeOfDay timeOfDayUtc)
     {
         endTimeOfDayUtc = timeOfDayUtc;
+
         return this;
     }
 
@@ -419,6 +422,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
         DateTime cal = timeProvider.GetUtcNow().Date;
         cal = cal.Add(endTimeOfDayDate.TimeOfDay);
         endTimeOfDayUtc = TimeOfDay.HourMinuteAndSecondOfDay(cal.Hour, cal.Minute, cal.Second);
+
         return this;
     }
 
@@ -431,6 +435,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
     public DailyTimeIntervalScheduleBuilder WithMisfireHandlingInstructionIgnoreMisfires()
     {
         misfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
+
         return this;
     }
 
@@ -443,6 +448,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
     public DailyTimeIntervalScheduleBuilder WithMisfireHandlingInstructionDoNothing()
     {
         misfireInstruction = MisfireInstruction.DailyTimeIntervalTrigger.DoNothing;
+
         return this;
     }
 
@@ -455,6 +461,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
     public DailyTimeIntervalScheduleBuilder WithMisfireHandlingInstructionFireAndProceed()
     {
         misfireInstruction = MisfireInstruction.DailyTimeIntervalTrigger.FireOnceNow;
+
         return this;
     }
 
@@ -469,6 +476,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
     public DailyTimeIntervalScheduleBuilder WithRepeatCount(int repeatCount)
     {
         this.repeatCount = repeatCount;
+
         return this;
     }
 
@@ -481,6 +489,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
     public DailyTimeIntervalScheduleBuilder InTimeZone(TimeZoneInfo timezone)
     {
         timeZone = timezone;
+
         return this;
     }
 
@@ -502,6 +511,7 @@ public static class DailyTimeIntervalTriggerBuilderExtensions
     public static TriggerBuilder WithDailyTimeIntervalSchedule(this TriggerBuilder triggerBuilder)
     {
         DailyTimeIntervalScheduleBuilder builder = DailyTimeIntervalScheduleBuilder.Create();
+
         return triggerBuilder.WithSchedule(builder);
     }
 
@@ -509,6 +519,7 @@ public static class DailyTimeIntervalTriggerBuilderExtensions
     {
         DailyTimeIntervalScheduleBuilder builder = DailyTimeIntervalScheduleBuilder.Create();
         action(builder);
+
         return triggerBuilder.WithSchedule(builder);
     }
 }

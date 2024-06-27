@@ -36,13 +36,11 @@ public sealed class CalendarIntervalTriggerPersistenceDelegate : SimplePropertie
     public override bool CanHandleTriggerType(IOperableTrigger trigger)
     {
         var calendarIntervalTriggerImpl = trigger as CalendarIntervalTriggerImpl;
+
         return calendarIntervalTriggerImpl != null && !calendarIntervalTriggerImpl.HasAdditionalProperties;
     }
 
-    public override string GetHandledTriggerTypeDiscriminator()
-    {
-        return AdoConstants.TriggerTypeCalendarInterval;
-    }
+    public override string GetHandledTriggerTypeDiscriminator() => AdoConstants.TriggerTypeCalendarInterval;
 
     protected override SimplePropertiesTriggerProperties GetTriggerProperties(IOperableTrigger trigger)
     {

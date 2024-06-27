@@ -32,15 +32,9 @@ namespace Quartz.Impl;
 /// </summary>
 /// <seealso cref="DisallowConcurrentExecutionAttribute"/>
 /// <seealso cref="PersistJobDataAfterExecutionAttribute"/>
-internal sealed class JobTypeInformation
+internal sealed class JobTypeInformation(bool concurrentExecutionDisallowed, bool persistJobDataAfterExecution)
 {
     private static readonly ConcurrentDictionary<Type, JobTypeInformation> jobTypeCache = new ConcurrentDictionary<Type, JobTypeInformation>();
-
-    public JobTypeInformation(bool concurrentExecutionDisallowed, bool persistJobDataAfterExecution)
-    {
-        ConcurrentExecutionDisallowed = concurrentExecutionDisallowed;
-        PersistJobDataAfterExecution = persistJobDataAfterExecution;
-    }
 
     /// <summary>
     /// Return information about JobType as an instance
@@ -49,10 +43,7 @@ internal sealed class JobTypeInformation
     /// <returns>
     /// An <see cref="JobTypeInformation"/> object that describe specified type
     /// </returns>
-    public static JobTypeInformation GetOrCreate(Type jobType)
-    {
-        return jobTypeCache.GetOrAdd(jobType, jt => Create(jt));
-    }
+    public static JobTypeInformation GetOrCreate(Type jobType) => jobTypeCache.GetOrAdd(jobType, jt => Create(jt));
 
     private static JobTypeInformation Create(Type jobType)
     {
@@ -62,8 +53,8 @@ internal sealed class JobTypeInformation
         return new JobTypeInformation(concurrentExecutionDisallowed, persistJobDataAfterExecution);
     }
 
-    public bool ConcurrentExecutionDisallowed { get; }
-    public bool PersistJobDataAfterExecution { get; }
+    public bool ConcurrentExecutionDisallowed { get; } = concurrentExecutionDisallowed;
+    public bool PersistJobDataAfterExecution { get; } = persistJobDataAfterExecution;
 }
 
 /// <summary>

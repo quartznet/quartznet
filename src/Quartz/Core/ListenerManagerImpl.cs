@@ -88,6 +88,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
             }
 
             matchers.Add(matcher);
+
             return true;
         }
     }
@@ -354,6 +355,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
             }
 
             matchers.Add(matcher);
+
             return true;
         }
     }

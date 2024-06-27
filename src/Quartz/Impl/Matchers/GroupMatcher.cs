@@ -40,51 +40,38 @@ public sealed class GroupMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TK
     /// </summary>
     /// <param name="compareTo"></param>
     /// <returns></returns>
-    public static GroupMatcher<TKey> GroupEquals(string compareTo)
-    {
-        return new GroupMatcher<TKey>(compareTo, StringOperator.Equality);
-    }
+    public static GroupMatcher<TKey> GroupEquals(string compareTo) =>
+        new GroupMatcher<TKey>(compareTo, StringOperator.Equality);
 
     /// <summary>
     /// Create a GroupMatcher that matches groups starting with the given string.
     /// </summary>
     /// <param name="compareTo"></param>
     /// <returns></returns>
-    public static GroupMatcher<TKey> GroupStartsWith(string compareTo)
-    {
-        return new GroupMatcher<TKey>(compareTo, StringOperator.StartsWith);
-    }
+    public static GroupMatcher<TKey> GroupStartsWith(string compareTo) =>
+        new GroupMatcher<TKey>(compareTo, StringOperator.StartsWith);
 
     /// <summary>
     /// Create a GroupMatcher that matches groups ending with the given string.
     /// </summary>
     /// <param name="compareTo"></param>
     /// <returns></returns>
-    public static GroupMatcher<TKey> GroupEndsWith(string compareTo)
-    {
-        return new GroupMatcher<TKey>(compareTo, StringOperator.EndsWith);
-    }
+    public static GroupMatcher<TKey> GroupEndsWith(string compareTo) =>
+        new GroupMatcher<TKey>(compareTo, StringOperator.EndsWith);
 
     /// <summary>
     /// Create a GroupMatcher that matches groups containing the given string.
     /// </summary>
     /// <param name="compareTo"></param>
     /// <returns></returns>
-    public static GroupMatcher<TKey> GroupContains(string compareTo)
-    {
-        return new GroupMatcher<TKey>(compareTo, StringOperator.Contains);
-    }
+    public static GroupMatcher<TKey> GroupContains(string compareTo) =>
+        new GroupMatcher<TKey>(compareTo, StringOperator.Contains);
 
     /// <summary>
     /// Create a GroupMatcher that matches all.
     /// </summary>
-    public static GroupMatcher<TKey> AnyGroup()
-    {
-        return new GroupMatcher<TKey>("", StringOperator.Anything);
-    }
+    public static GroupMatcher<TKey> AnyGroup() =>
+        new GroupMatcher<TKey>("", StringOperator.Anything);
 
-    protected override string GetValue(TKey key)
-    {
-        return key.Group;
-    }
+    protected override string GetValue(TKey key) => key.Group;
 }

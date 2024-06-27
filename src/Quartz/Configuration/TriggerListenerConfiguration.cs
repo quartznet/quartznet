@@ -1,13 +1,7 @@
 namespace Quartz.Configuration;
 
-internal sealed class TriggerListenerConfiguration
+internal sealed class TriggerListenerConfiguration(Type listenerType, IMatcher<TriggerKey>[] matchers)
 {
-    public TriggerListenerConfiguration(Type listenerType, IMatcher<TriggerKey>[] matchers)
-    {
-        ListenerType = listenerType;
-        Matchers = matchers;
-    }
-
-    public Type ListenerType { get; }
-    public IMatcher<TriggerKey>[] Matchers { get; }
+    public Type ListenerType { get; } = listenerType;
+    public IMatcher<TriggerKey>[] Matchers { get; } = matchers;
 }

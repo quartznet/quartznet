@@ -128,9 +128,8 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
         }
     }
 
-    public TriggerBuilder GetTriggerBuilder()
-    {
-        return TriggerBuilder.Create()
+    public TriggerBuilder GetTriggerBuilder() =>
+        TriggerBuilder.Create()
             .ForJob(JobKey)
             .ModifiedByCalendar(CalendarName)
             .UsingJobData(JobDataMap)
@@ -140,7 +139,6 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
             .WithPriority(Priority)
             .StartAt(StartTimeUtc)
             .WithSchedule(GetScheduleBuilder());
-    }
 
     public abstract IScheduleBuilder GetScheduleBuilder();
 
@@ -172,6 +170,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
             {
                 jobDataMap = new JobDataMap();
             }
+
             return jobDataMap;
         }
 
@@ -301,10 +300,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
         get;
     }
 
-    protected AbstractTrigger()
-    {
-        this.timeProvider = TimeProvider.System;
-    }
+    protected AbstractTrigger() => this.timeProvider = TimeProvider.System;
 
     /// <summary>
     /// Create a <see cref="ITrigger" /> with no specified name, group, or <see cref="IJobDetail" />.
@@ -314,10 +310,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// the <see cref="ITrigger" /> can be placed into a <see cref="IScheduler" />.
     /// </remarks>
     /// <param name="timeProvider">Time provider instance to use</param>
-    protected AbstractTrigger(TimeProvider timeProvider)
-    {
-        this.timeProvider = timeProvider;
-    }
+    protected AbstractTrigger(TimeProvider timeProvider) => this.timeProvider = timeProvider;
 
     /// <summary>
     /// Create a <see cref="ITrigger" /> with the given name, and default group.
@@ -344,10 +337,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// <param name="group">The group.</param>
     /// <param name="timeProvider">Time provider instance to use</param>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
-    protected AbstractTrigger(string name, string group, TimeProvider timeProvider) : this(timeProvider)
-    {
-        Key = new TriggerKey(name, group);
-    }
+    protected AbstractTrigger(string name, string group, TimeProvider timeProvider) : this(timeProvider) => Key = new TriggerKey(name, group);
 
     /// <summary>
     /// Create a <see cref="ITrigger" /> with the given name, and group.
@@ -591,10 +581,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// <returns>
     /// true if the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>; otherwise, false.
     /// </returns>
-    public override bool Equals(object? obj)
-    {
-        return Equals(obj as AbstractTrigger);
-    }
+    public override bool Equals(object? obj) => Equals(obj as AbstractTrigger);
 
     /// <summary>
     /// Trigger equality is based upon the equality of the TriggerKey.

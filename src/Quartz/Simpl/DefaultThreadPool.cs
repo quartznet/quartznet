@@ -1,4 +1,4 @@
-﻿namespace Quartz.Simpl;
+namespace Quartz.Simpl;
 
 /// <summary>
 /// An implementation of the TaskSchedulerThreadPool using the default task scheduler
@@ -9,8 +9,5 @@ public sealed class DefaultThreadPool : TaskSchedulingThreadPool
     /// Returns TaskScheduler.Default
     /// </summary>
     /// <returns>TaskScheduler.Default</returns>
-    protected override TaskScheduler GetDefaultScheduler()
-    {
-        return TaskScheduler.Default;
-    }
+    protected override TaskScheduler GetDefaultScheduler() => TaskScheduler.Default;
 }

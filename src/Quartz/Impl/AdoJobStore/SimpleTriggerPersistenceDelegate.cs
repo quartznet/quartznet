@@ -42,15 +42,10 @@ internal class SimpleTriggerPersistenceDelegate : ITriggerPersistenceDelegate
         DbAccessor = dbAccessor;
     }
 
-    public string GetHandledTriggerTypeDiscriminator()
-    {
-        return AdoConstants.TriggerTypeSimple;
-    }
+    public string GetHandledTriggerTypeDiscriminator() => AdoConstants.TriggerTypeSimple;
 
-    public bool CanHandleTriggerType(IOperableTrigger trigger)
-    {
-        return trigger is SimpleTriggerImpl impl && !impl.HasAdditionalProperties;
-    }
+    public bool CanHandleTriggerType(IOperableTrigger trigger) =>
+        trigger is SimpleTriggerImpl impl && !impl.HasAdditionalProperties;
 
     public async ValueTask<int> DeleteExtendedTriggerProperties(
         ConnectionAndTransactionHolder conn,

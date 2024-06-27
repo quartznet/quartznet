@@ -43,10 +43,7 @@ public abstract class StringMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey
 
     protected abstract string GetValue(TKey key);
 
-    public bool IsMatch(TKey key)
-    {
-        return CompareWithOperator.Evaluate(GetValue(key), CompareToValue);
-    }
+    public bool IsMatch(TKey key) => CompareWithOperator.Evaluate(GetValue(key), CompareToValue);
 
     public override int GetHashCode()
     {
@@ -54,6 +51,7 @@ public abstract class StringMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey
         int result = 1;
         result = Prime * result + (CompareToValue?.GetHashCode() ?? 0);
         result = Prime * result + CompareWithOperator.GetHashCode();
+
         return result;
     }
 
@@ -93,8 +91,5 @@ public abstract class StringMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey
     public string CompareToValue { get; }
     public StringOperator CompareWithOperator { get; }
 
-    public override string ToString()
-    {
-        return $"{CompareWithOperator}({CompareToValue})";
-    }
+    public override string ToString() => $"{CompareWithOperator}({CompareToValue})";
 }

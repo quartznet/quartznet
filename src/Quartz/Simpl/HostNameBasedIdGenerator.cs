@@ -38,10 +38,7 @@ public abstract class HostNameBasedIdGenerator : IInstanceIdGenerator
 
     private readonly ILogger<HostNameBasedIdGenerator> logger;
 
-    protected HostNameBasedIdGenerator()
-    {
-        logger = LogProvider.CreateLogger<HostNameBasedIdGenerator>();
-    }
+    protected HostNameBasedIdGenerator() => logger = LogProvider.CreateLogger<HostNameBasedIdGenerator>();
 
     /// <summary>
     /// Generate the instance id for a <see cref="IScheduler" />
@@ -75,11 +72,8 @@ public abstract class HostNameBasedIdGenerator : IInstanceIdGenerator
     }
 
     protected virtual ValueTask<IPHostEntry> GetHostAddress(
-        CancellationToken cancellationToken = default)
-    {
-        return new ValueTask<IPHostEntry>(new IPHostEntry
+        CancellationToken cancellationToken = default) => new ValueTask<IPHostEntry>(new IPHostEntry
         {
             HostName = Dns.GetHostName()
         });
-    }
 }

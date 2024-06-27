@@ -39,10 +39,7 @@ public class SimpleJobFactory : IJobFactory
 {
     private readonly ILogger<SimpleJobFactory> logger;
 
-    public SimpleJobFactory()
-    {
-        logger = LogProvider.CreateLogger<SimpleJobFactory>();
-    }
+    public SimpleJobFactory() => logger = LogProvider.CreateLogger<SimpleJobFactory>();
 
     /// <summary>
     /// Called by the scheduler at the time of the trigger firing, in order to

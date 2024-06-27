@@ -61,10 +61,8 @@ internal sealed class QuartzSchedulerThread
     /// Gets the randomized idle wait time.
     /// </summary>
     /// <value>The randomized idle wait time.</value>
-    private TimeSpan GetRandomizedIdleWaitTime()
-    {
-        return qsRsrcs.IdleWaitTime - TimeSpan.FromMilliseconds(random.Next(idleWaitVariableness));
-    }
+    private TimeSpan GetRandomizedIdleWaitTime() =>
+        qsRsrcs.IdleWaitTime - TimeSpan.FromMilliseconds(random.Next(idleWaitVariableness));
 
     /// <summary>
     /// Gets a value indicating whether this <see cref="QuartzSchedulerThread"/> is paused.

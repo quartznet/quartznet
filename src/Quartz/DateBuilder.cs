@@ -88,10 +88,7 @@ public sealed class DateBuilder
     /// </summary>
     /// <param name="timeProvider"></param>
     /// <returns></returns>
-    public static DateBuilder NewDate(TimeProvider? timeProvider = null)
-    {
-        return new DateBuilder(timeProvider ?? TimeProvider.System);
-    }
+    public static DateBuilder NewDate(TimeProvider? timeProvider = null) => new DateBuilder(timeProvider ?? TimeProvider.System);
 
     /// <summary>
     /// Create a DateBuilder, with initial settings for the current date and time in the given timezone.
@@ -99,10 +96,8 @@ public sealed class DateBuilder
     /// <param name="tz">Time zone to use.</param>
     /// <param name="timeProvider"></param>
     /// <returns></returns>
-    public static DateBuilder NewDateInTimeZone(TimeZoneInfo tz, TimeProvider? timeProvider = null)
-    {
-        return new DateBuilder(timeProvider ?? TimeProvider.System, tz);
-    }
+    public static DateBuilder NewDateInTimeZone(TimeZoneInfo tz, TimeProvider? timeProvider = null) =>
+        new DateBuilder(timeProvider ?? TimeProvider.System, tz);
 
     /// <summary>
     /// Build the <see cref="DateTimeOffset" /> defined by this builder instance.
@@ -112,6 +107,7 @@ public sealed class DateBuilder
     {
         DateTime dt = new DateTime(year, month, day, hour, minute, second);
         TimeSpan offset = TimeZoneUtil.GetUtcOffset(dt, tz ?? TimeZoneInfo.Local);
+
         return new DateTimeOffset(dt, offset);
     }
 
@@ -125,6 +121,7 @@ public sealed class DateBuilder
         ValidateHour(hour);
 
         this.hour = hour;
+
         return this;
     }
 
@@ -138,6 +135,7 @@ public sealed class DateBuilder
         ValidateMinute(minute);
 
         this.minute = minute;
+
         return this;
     }
 
@@ -151,6 +149,7 @@ public sealed class DateBuilder
         ValidateSecond(second);
 
         this.second = second;
+
         return this;
     }
 
@@ -163,6 +162,7 @@ public sealed class DateBuilder
         this.hour = hour;
         this.second = second;
         this.minute = minute;
+
         return this;
     }
 
@@ -176,6 +176,7 @@ public sealed class DateBuilder
         ValidateDayOfMonth(day);
 
         this.day = day;
+
         return this;
     }
 
@@ -189,6 +190,7 @@ public sealed class DateBuilder
         ValidateMonth(month);
 
         this.month = month;
+
         return this;
     }
 
@@ -199,6 +201,7 @@ public sealed class DateBuilder
 
         this.month = month;
         this.day = day;
+
         return this;
     }
 
@@ -212,6 +215,7 @@ public sealed class DateBuilder
         ValidateYear(year);
 
         this.year = year;
+
         return this;
     }
 
@@ -223,13 +227,12 @@ public sealed class DateBuilder
     public DateBuilder InTimeZone(TimeZoneInfo tz)
     {
         this.tz = tz;
+
         return this;
     }
 
-    public static DateTimeOffset FutureDate(int interval, IntervalUnit unit, TimeProvider? timeProvider = null)
-    {
-        return TranslatedAdd((timeProvider ?? TimeProvider.System).GetLocalNow(), unit, interval);
-    }
+    public static DateTimeOffset FutureDate(int interval, IntervalUnit unit, TimeProvider? timeProvider = null) =>
+        TranslatedAdd((timeProvider ?? TimeProvider.System).GetLocalNow(), unit, interval);
 
     /// <summary>
     /// Get a <see cref="DateTimeOffset" /> object that represents the given time, on tomorrow's date.
@@ -260,10 +263,8 @@ public sealed class DateBuilder
     /// <summary>
     /// Get a <see cref="DateTimeOffset" /> object that represents the given time, on today's date (equivalent to <see cref="DateOf(int,int,int,TimeProvider)" />).
     /// </summary>
-    public static DateTimeOffset TodayAt(int hour, int minute, int second, TimeProvider? timeProvider = null)
-    {
-        return DateOf(hour, minute, second, timeProvider);
-    }
+    public static DateTimeOffset TodayAt(int hour, int minute, int second, TimeProvider? timeProvider = null) =>
+        DateOf(hour, minute, second, timeProvider);
 
     private static DateTimeOffset TranslatedAdd(DateTimeOffset date, IntervalUnit unit, int amountToAdd)
     {
@@ -307,6 +308,7 @@ public sealed class DateBuilder
 
         DateTimeOffset c = (timeProvider ?? TimeProvider.System).GetLocalNow();
         DateTime dt = new DateTime(c.Year, c.Month, c.Day, hour, minute, second);
+
         return new DateTimeOffset(dt, TimeZoneUtil.GetUtcOffset(dt, TimeZoneInfo.Local));
     }
 
@@ -331,6 +333,7 @@ public sealed class DateBuilder
 
         DateTimeOffset c = (timeProvider ?? TimeProvider.System).GetLocalNow();
         DateTime dt = new DateTime(c.Year, month, dayOfMonth, hour, minute, second);
+
         return new DateTimeOffset(dt, TimeZoneUtil.GetUtcOffset(dt, TimeZoneInfo.Local));
     }
 
@@ -357,6 +360,7 @@ public sealed class DateBuilder
         ValidateYear(year);
 
         DateTime dt = new DateTime(year, month, dayOfMonth, hour, minute, second);
+
         return new DateTimeOffset(dt, TimeZoneUtil.GetUtcOffset(dt, TimeZoneInfo.Local));
     }
 
@@ -370,10 +374,8 @@ public sealed class DateBuilder
     /// </remarks>
     /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     /// <returns>the new rounded date</returns>
-    public static DateTimeOffset EvenHourDateAfterNow(TimeProvider? timeProvider = null)
-    {
-        return EvenHourDate(date: null, timeProvider);
-    }
+    public static DateTimeOffset EvenHourDateAfterNow(TimeProvider? timeProvider = null) =>
+        EvenHourDate(date: null, timeProvider);
 
     /// <summary>
     /// Returns a date that is rounded to the next even hour above the given date.
@@ -394,6 +396,7 @@ public sealed class DateBuilder
             date = (timeProvider ?? TimeProvider.System).GetLocalNow();
         }
         DateTimeOffset d = date.Value.AddHours(1);
+
         return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, 0, 0, d.Offset);
     }
 
@@ -413,6 +416,7 @@ public sealed class DateBuilder
         {
             date = (timeProvider ?? TimeProvider.System).GetLocalNow();
         }
+
         return new DateTimeOffset(date.Value.Year, date.Value.Month, date.Value.Day, date.Value.Hour, 0, 0, date.Value.Offset);
     }
 
@@ -428,10 +432,7 @@ public sealed class DateBuilder
     /// </remarks>
     /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     /// <returns>the new rounded date</returns>
-    public static DateTimeOffset EvenMinuteDateAfterNow(TimeProvider? timeProvider = null)
-    {
-        return EvenMinuteDate((timeProvider ?? TimeProvider.System).GetLocalNow());
-    }
+    public static DateTimeOffset EvenMinuteDateAfterNow(TimeProvider? timeProvider = null) => EvenMinuteDate((timeProvider ?? TimeProvider.System).GetLocalNow());
 
     /// <summary>
     /// Returns a date that is rounded to the next even minute above the given date.
@@ -453,6 +454,7 @@ public sealed class DateBuilder
 
         DateTimeOffset d = date.Value;
         d = d.AddMinutes(1);
+
         return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0, d.Offset);
     }
 
@@ -474,6 +476,7 @@ public sealed class DateBuilder
         }
 
         DateTimeOffset d = date.Value;
+
         return new DateTimeOffset(d.Year, d.Month, d.Day, d.Hour, d.Minute, 0, d.Offset);
     }
 
@@ -481,10 +484,8 @@ public sealed class DateBuilder
     /// Returns a date that is rounded to the next even second after the current time.
     /// </summary>
     /// <returns>the new rounded date</returns>
-    public static DateTimeOffset EvenSecondDateAfterNow(TimeProvider? timeProvider = null)
-    {
-        return EvenSecondDate((timeProvider ?? TimeProvider.System).GetLocalNow());
-    }
+    public static DateTimeOffset EvenSecondDateAfterNow(TimeProvider? timeProvider = null) =>
+        EvenSecondDate((timeProvider ?? TimeProvider.System).GetLocalNow());
 
     /// <summary>
     /// Returns a date that is rounded to the next even second above the given date.
@@ -496,6 +497,7 @@ public sealed class DateBuilder
     public static DateTimeOffset EvenSecondDate(DateTimeOffset date)
     {
         date = date.AddSeconds(1);
+
         return new DateTimeOffset(date.Year, date.Month, date.Day, date.Hour, date.Minute, date.Second, 0, date.Offset);
     }
 
@@ -513,10 +515,8 @@ public sealed class DateBuilder
     /// the Date to round, if <see langword="null" /> the current time will
     /// be used
     /// <returns>the new rounded date</returns>
-    public static DateTimeOffset EvenSecondDateBefore(DateTimeOffset date)
-    {
-        return new DateTimeOffset(date.Year, date.Month, date.Day, date.Hour, date.Minute, date.Second, 0, date.Offset);
-    }
+    public static DateTimeOffset EvenSecondDateBefore(DateTimeOffset date) =>
+        new DateTimeOffset(date.Year, date.Month, date.Day, date.Hour, date.Minute, date.Second, 0, date.Offset);
 
     /// <summary>
     /// Returns a date that is rounded to the next even multiple of the given
@@ -630,6 +630,7 @@ public sealed class DateBuilder
         {
             return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, nextMinuteOccurance, 0, 0, c.Offset);
         }
+
         return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, 0, 0, 0, c.Offset).AddHours(1);
     }
 
@@ -671,6 +672,7 @@ public sealed class DateBuilder
         {
             return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, c.Minute, nextSecondOccurance, 0, c.Offset);
         }
+
         return new DateTimeOffset(c.Year, c.Month, c.Day, c.Hour, c.Minute, 0, 0, c.Offset).AddMinutes(1);
     }
 

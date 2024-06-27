@@ -1,4 +1,4 @@
-﻿using System.Collections.Specialized;
+using System.Collections.Specialized;
 
 using Quartz.Util;
 
@@ -7,21 +7,16 @@ namespace Quartz.Impl.AdoJobStore.Common;
 /// <summary>
 /// The DbMetadata factory based on embedded assembly resource
 /// </summary>
-internal sealed class EmbeddedAssemblyResourceDbMetadataFactory : DbMetadataFactory
+/// <remarks>
+/// Initializes a new instance of the <see cref="EmbeddedAssemblyResourceDbMetadataFactory"/> class.
+/// </remarks>
+/// <param name="resourceName">Name of the resource.</param>
+/// <param name="propertyGroupName">Name of the property group (The prefix of the provider name).</param>
+internal sealed class EmbeddedAssemblyResourceDbMetadataFactory(string resourceName, string propertyGroupName)
+    : DbMetadataFactory
 {
-    private readonly string resourceName;
-    private readonly string propertyGroupName;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="EmbeddedAssemblyResourceDbMetadataFactory"/> class.
-    /// </summary>
-    /// <param name="resourceName">Name of the resource.</param>
-    /// <param name="propertyGroupName">Name of the property group (The prefix of the provider name).</param>
-    public EmbeddedAssemblyResourceDbMetadataFactory(string resourceName, string propertyGroupName)
-    {
-        this.resourceName = resourceName;
-        this.propertyGroupName = propertyGroupName;
-    }
+    private readonly string resourceName = resourceName;
+    private readonly string propertyGroupName = propertyGroupName;
 
     /// <summary>
     /// Gets the supported provider names.
@@ -31,6 +26,7 @@ internal sealed class EmbeddedAssemblyResourceDbMetadataFactory : DbMetadataFact
     {
         PropertiesParser pp = PropertiesParser.ReadFromEmbeddedAssemblyResource(resourceName);
         var result = pp.GetPropertyGroups(propertyGroupName);
+
         return result;
     }
 
@@ -66,6 +62,7 @@ internal sealed class EmbeddedAssemblyResourceDbMetadataFactory : DbMetadataFact
         catch (Exception ex)
         {
             ThrowHelper.ThrowArgumentException("Error while reading metadata information for provider '" + providerName + "'", nameof(providerName), ex);
+
             return default!;
         }
     }

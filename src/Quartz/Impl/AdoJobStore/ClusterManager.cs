@@ -67,6 +67,7 @@ internal sealed class ClusterManager
             }
             numFails++;
         }
+
         return res;
     }
 

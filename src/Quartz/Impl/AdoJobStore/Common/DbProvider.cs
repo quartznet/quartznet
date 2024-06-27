@@ -113,6 +113,7 @@ public class DbProvider : IDbProvider
                 {
                     result = dbMetadataFactory.GetDbMetadata(providerName);
                     RegisterDbMetadata(providerName, result);
+
                     return result;
                 }
             }
@@ -138,6 +139,7 @@ public class DbProvider : IDbProvider
         {
             sb.Append("\t").Append(providerName).Append(Environment.NewLine);
         }
+
         return sb.ToString();
     }
 
@@ -146,6 +148,7 @@ public class DbProvider : IDbProvider
     {
         var command = ObjectUtils.InstantiateType<DbCommand>(Metadata.CommandType);
         commandBindByNamePropertySetter?.Invoke(command, new object[] { Metadata.BindByName });
+
         return command;
     }
 
@@ -154,6 +157,7 @@ public class DbProvider : IDbProvider
     {
         var conn = ObjectUtils.InstantiateType<DbConnection>(Metadata.ConnectionType);
         conn.ConnectionString = ConnectionString;
+
         return conn;
     }
 
@@ -162,10 +166,7 @@ public class DbProvider : IDbProvider
     /// placeholders in SQL statements or Stored Procedure variables.
     /// </summary>
     /// <returns>A new <see cref="IDbDataParameter"/></returns>
-    public virtual DbParameter CreateParameter()
-    {
-        return ObjectUtils.InstantiateType<DbParameter>(Metadata.ParameterType);
-    }
+    public virtual DbParameter CreateParameter() => ObjectUtils.InstantiateType<DbParameter>(Metadata.ParameterType);
 
     /// <inheritdoc />
     public string ConnectionString { get; set; }

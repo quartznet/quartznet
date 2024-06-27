@@ -49,34 +49,28 @@ namespace Quartz.Core;
 /// <seealso cref="ITrigger" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public class JobRunShell : SchedulerListenerSupport
+/// <remarks>
+/// Create a JobRunShell instance with the given settings.
+/// </remarks>
+/// <param name="scheduler">The <see cref="IScheduler" /> instance that should be made
+/// available within the <see cref="IJobExecutionContext" />.</param>
+/// <param name="bundle"></param>
+public class JobRunShell(IScheduler scheduler, TriggerFiredBundle bundle) : SchedulerListenerSupport
 {
-    private readonly ILogger<JobRunShell> logger;
+    private readonly ILogger<JobRunShell> logger = LogProvider.CreateLogger<JobRunShell>();
 #if DIAGNOSTICS_SOURCE
     private readonly JobDiagnosticsWriter jobExecutionJobDiagnostics = new JobDiagnosticsWriter();
 #endif
 
     private JobExecutionContextImpl? jec;
     private QuartzScheduler? qs;
-    private readonly IScheduler scheduler;
-    private readonly TriggerFiredBundle firedTriggerBundle;
-
-    /// <summary>
-    /// Create a JobRunShell instance with the given settings.
-    /// </summary>
-    /// <param name="scheduler">The <see cref="IScheduler" /> instance that should be made
-    /// available within the <see cref="IJobExecutionContext" />.</param>
-    /// <param name="bundle"></param>
-    public JobRunShell(IScheduler scheduler, TriggerFiredBundle bundle)
-    {
-        this.scheduler = scheduler;
-        firedTriggerBundle = bundle;
-        logger = LogProvider.CreateLogger<JobRunShell>();
-    }
+    private readonly IScheduler scheduler = scheduler;
+    private readonly TriggerFiredBundle firedTriggerBundle = bundle;
 
     public override ValueTask SchedulerShuttingdown(CancellationToken cancellationToken = default)
     {
         RequestShutdown();
+
         return default;
     }
 
@@ -345,6 +339,7 @@ public class JobRunShell : SchedulerListenerSupport
         {
             var msg = $"Unable to notify TriggerListener(s) while firing trigger (Trigger and Job will NOT be fired!). trigger= {ctx.Trigger.Key} job= {ctx.JobDetail.Key}";
             await qs!.NotifySchedulerListenersError(msg, se, cancellationToken).ConfigureAwait(false);
+
             return false;
         }
 
@@ -416,7 +411,9 @@ public class JobRunShell : SchedulerListenerSupport
             try
             {
                 var task = qs.NotifyTriggerListenersComplete(ctx, instCode, cancellationToken);
-                return task.IsCompletedSuccessfully ? new ValueTask<bool>(true) : DoNotify(task, qs, ctx, cancellationToken);
+
+                return task.IsCompletedSuccessfully ? new ValueTask<bool>(true)
+                    : DoNotify(task, qs, ctx, cancellationToken);
             }
             catch (SchedulerException se)
             {
@@ -465,13 +462,8 @@ public class JobRunShell : SchedulerListenerSupport
     }
 
     [Serializable]
-    internal sealed class VetoedException : Exception
+    internal sealed class VetoedException(JobRunShell shell) : Exception
     {
-        public VetoedException(JobRunShell shell)
-        {
-            EnclosingInstance = shell;
-        }
-
-        public JobRunShell EnclosingInstance { get; }
+        public JobRunShell EnclosingInstance { get; } = shell;
     }
 }

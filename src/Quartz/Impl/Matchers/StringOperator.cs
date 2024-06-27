@@ -38,46 +38,31 @@ public abstract class StringOperator : IEquatable<StringOperator>
     [Serializable]
     private sealed class EqualityOperator : StringOperator
     {
-        public override bool Evaluate(string value, string compareTo)
-        {
-            return string.Equals(value, compareTo);
-        }
+        public override bool Evaluate(string value, string compareTo) => string.Equals(value, compareTo);
     }
 
     [Serializable]
     private sealed class StartsWithOperator : StringOperator
     {
-        public override bool Evaluate(string value, string compareTo)
-        {
-            return value != null && value.StartsWith(compareTo);
-        }
+        public override bool Evaluate(string value, string compareTo) => value != null && value.StartsWith(compareTo);
     }
 
     [Serializable]
     private sealed class EndsWithOperator : StringOperator
     {
-        public override bool Evaluate(string value, string compareTo)
-        {
-            return value != null && value.EndsWith(compareTo);
-        }
+        public override bool Evaluate(string value, string compareTo) => value != null && value.EndsWith(compareTo);
     }
 
     [Serializable]
     private sealed class ContainsOperator : StringOperator
     {
-        public override bool Evaluate(string value, string compareTo)
-        {
-            return value != null && value.Contains(compareTo);
-        }
+        public override bool Evaluate(string value, string compareTo) => value != null && value.Contains(compareTo);
     }
 
     [Serializable]
     private sealed class AnythingOperator : StringOperator
     {
-        public override bool Evaluate(string value, string compareTo)
-        {
-            return true;
-        }
+        public override bool Evaluate(string value, string compareTo) => true;
     }
 
     /// <summary>
@@ -90,10 +75,7 @@ public abstract class StringOperator : IEquatable<StringOperator>
     /// are the same instance, or the <see cref="Type"/> of the current <see cref="StringOperator"/>
     /// equals that of <paramref name="obj"/>; otherwise, <see langword="true"/>.
     /// </returns>
-    public override bool Equals(object? obj)
-    {
-        return Equals(obj as StringOperator);
-    }
+    public override bool Equals(object? obj) => Equals(obj as StringOperator);
 
     /// <summary>
     /// Returns a value indicating whether this instance and a specified <see cref="StringOperator"/>
@@ -126,8 +108,5 @@ public abstract class StringOperator : IEquatable<StringOperator>
     /// The hash code of the <see cref="Type"/> of the current <see cref="StringOperator"/>
     /// instance.
     /// </returns>
-    public override int GetHashCode()
-    {
-        return GetType().GetHashCode();
-    }
+    public override int GetHashCode() => GetType().GetHashCode();
 }

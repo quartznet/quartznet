@@ -26,39 +26,26 @@ namespace Quartz.Impl.AdoJobStore;
 /// </summary>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public class TriggerStatus
+/// <remarks>
+/// Construct a new TriggerStatus with the status name and nextFireTime.
+/// </remarks>
+public class TriggerStatus(
+    string status,
+    DateTimeOffset? nextFireTime,
+    TriggerKey triggerKey,
+    JobKey jobKey)
 {
-    // TODO: Repackage under spi or root pkg ?, put status constants here.
+    public JobKey JobKey { get; set; } = jobKey;
 
-    /// <summary>
-    /// Construct a new TriggerStatus with the status name and nextFireTime.
-    /// </summary>
-    public TriggerStatus(
-        string status,
-        DateTimeOffset? nextFireTime,
-        TriggerKey triggerKey,
-        JobKey jobKey)
-    {
-        Status = status;
-        NextFireTimeUtc = nextFireTime;
-        Key = triggerKey;
-        JobKey = jobKey;
-    }
+    public TriggerKey Key { get; set; } = triggerKey;
 
-    public JobKey JobKey { get; set; }
+    public string Status { get; } = status;
 
-    public TriggerKey Key { get; set; }
-
-    public string Status { get; }
-
-    public DateTimeOffset? NextFireTimeUtc { get; }
+    public DateTimeOffset? NextFireTimeUtc { get; } = nextFireTime;
 
     /// <summary>
     /// Return the string representation of the TriggerStatus.
     /// </summary>
     /// <returns></returns>
-    public override string ToString()
-    {
-        return "status: " + Status + ", next Fire = " + NextFireTimeUtc;
-    }
+    public override string ToString() => "status: " + Status + ", next Fire = " + NextFireTimeUtc;
 }

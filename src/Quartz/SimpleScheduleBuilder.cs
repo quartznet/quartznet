@@ -74,10 +74,7 @@ public sealed class SimpleScheduleBuilder : ScheduleBuilder<ISimpleTrigger>
     /// <remarks>
     /// </remarks>
     /// <returns>the new SimpleScheduleBuilder</returns>
-    public static SimpleScheduleBuilder Create()
-    {
-        return new SimpleScheduleBuilder();
-    }
+    public static SimpleScheduleBuilder Create() => new SimpleScheduleBuilder();
 
     /// <summary>
     /// Create a SimpleScheduleBuilder set to repeat forever with a 1 minute interval.
@@ -346,10 +343,7 @@ public sealed class SimpleScheduleBuilder : ScheduleBuilder<ISimpleTrigger>
     /// <returns>the updated SimpleScheduleBuilder</returns>
     /// <seealso cref="ISimpleTrigger.RepeatInterval" />
     /// <seealso cref="WithRepeatCount(int)" />
-    public SimpleScheduleBuilder WithIntervalInSeconds(int seconds)
-    {
-        return WithInterval(TimeSpan.FromSeconds(seconds));
-    }
+    public SimpleScheduleBuilder WithIntervalInSeconds(int seconds) => WithInterval(TimeSpan.FromSeconds(seconds));
 
     /// <summary>
     /// Specify a the number of time the trigger will repeat - total number of
@@ -364,6 +358,7 @@ public sealed class SimpleScheduleBuilder : ScheduleBuilder<ISimpleTrigger>
     public SimpleScheduleBuilder WithRepeatCount(int repeatCount)
     {
         this.repeatCount = repeatCount;
+
         return this;
     }
 
@@ -379,6 +374,7 @@ public sealed class SimpleScheduleBuilder : ScheduleBuilder<ISimpleTrigger>
     public SimpleScheduleBuilder RepeatForever()
     {
         repeatCount = SimpleTriggerImpl.RepeatIndefinitely;
+
         return this;
     }
 
@@ -394,6 +390,7 @@ public sealed class SimpleScheduleBuilder : ScheduleBuilder<ISimpleTrigger>
     public SimpleScheduleBuilder WithMisfireHandlingInstructionIgnoreMisfires()
     {
         misfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
+
         return this;
     }
 
@@ -408,6 +405,7 @@ public sealed class SimpleScheduleBuilder : ScheduleBuilder<ISimpleTrigger>
     public SimpleScheduleBuilder WithMisfireHandlingInstructionFireNow()
     {
         misfireInstruction = MisfireInstruction.SimpleTrigger.FireNow;
+
         return this;
     }
 
@@ -422,6 +420,7 @@ public sealed class SimpleScheduleBuilder : ScheduleBuilder<ISimpleTrigger>
     public SimpleScheduleBuilder WithMisfireHandlingInstructionNextWithExistingCount()
     {
         misfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNextWithExistingCount;
+
         return this;
     }
 
@@ -436,6 +435,7 @@ public sealed class SimpleScheduleBuilder : ScheduleBuilder<ISimpleTrigger>
     public SimpleScheduleBuilder WithMisfireHandlingInstructionNextWithRemainingCount()
     {
         misfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount;
+
         return this;
     }
 
@@ -450,6 +450,7 @@ public sealed class SimpleScheduleBuilder : ScheduleBuilder<ISimpleTrigger>
     public SimpleScheduleBuilder WithMisfireHandlingInstructionNowWithExistingCount()
     {
         misfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount;
+
         return this;
     }
 
@@ -464,24 +465,20 @@ public sealed class SimpleScheduleBuilder : ScheduleBuilder<ISimpleTrigger>
     public SimpleScheduleBuilder WithMisfireHandlingInstructionNowWithRemainingCount()
     {
         misfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNowWithRemainingRepeatCount;
+
         return this;
     }
 
     internal SimpleScheduleBuilder WithMisfireHandlingInstruction(int readMisfireInstructionFromString)
     {
         misfireInstruction = readMisfireInstructionFromString;
+
         return this;
     }
 
-    public SimpleScheduleBuilder WithIntervalInMinutes(int minutes)
-    {
-        return WithInterval(TimeSpan.FromMinutes(minutes));
-    }
+    public SimpleScheduleBuilder WithIntervalInMinutes(int minutes) => WithInterval(TimeSpan.FromMinutes(minutes));
 
-    public SimpleScheduleBuilder WithIntervalInHours(int hours)
-    {
-        return WithInterval(TimeSpan.FromHours(hours));
-    }
+    public SimpleScheduleBuilder WithIntervalInHours(int hours) => WithInterval(TimeSpan.FromHours(hours));
 }
 
 /// <summary>
@@ -492,6 +489,7 @@ public static class SimpleScheduleTriggerBuilderExtensions
     public static TriggerBuilder WithSimpleSchedule(this TriggerBuilder triggerBuilder)
     {
         SimpleScheduleBuilder builder = SimpleScheduleBuilder.Create();
+
         return triggerBuilder.WithSchedule(builder);
     }
 
@@ -499,6 +497,7 @@ public static class SimpleScheduleTriggerBuilderExtensions
     {
         SimpleScheduleBuilder builder = SimpleScheduleBuilder.Create();
         action(builder);
+
         return triggerBuilder.WithSchedule(builder);
     }
 }

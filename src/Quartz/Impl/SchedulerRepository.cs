@@ -36,10 +36,7 @@ public sealed class SchedulerRepository
     /// <value>The instance.</value>
     public static SchedulerRepository Instance { get; } = new SchedulerRepository();
 
-    private SchedulerRepository()
-    {
-        schedulers = new Dictionary<string, IScheduler>(StringComparer.OrdinalIgnoreCase);
-    }
+    private SchedulerRepository() => schedulers = new Dictionary<string, IScheduler>(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Binds the specified sched.
@@ -81,6 +78,7 @@ public sealed class SchedulerRepository
         lock (syncRoot)
         {
             schedulers.TryGetValue(schedName, out var retValue);
+
             return new ValueTask<IScheduler?>(retValue);
         }
     }
@@ -95,6 +93,7 @@ public sealed class SchedulerRepository
         lock (syncRoot)
         {
             IReadOnlyList<IScheduler> result = new List<IScheduler>(schedulers.Values);
+
             return new ValueTask<IReadOnlyList<IScheduler>>(result);
         }
     }

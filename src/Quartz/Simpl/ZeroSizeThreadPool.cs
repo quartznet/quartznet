@@ -45,10 +45,7 @@ public sealed class ZeroSizeThreadPool : IThreadPool
     /// <summary>
     /// Initializes a new instance of the <see cref="ZeroSizeThreadPool"/> class.
     /// </summary>
-    public ZeroSizeThreadPool()
-    {
-        logger = LogProvider.CreateLogger<ZeroSizeThreadPool>();
-    }
+    public ZeroSizeThreadPool() => logger = LogProvider.CreateLogger<ZeroSizeThreadPool>();
 
     /// <summary>
     /// Gets the log.
@@ -96,10 +93,7 @@ public sealed class ZeroSizeThreadPool : IThreadPool
     /// shutting down.
     /// </summary>
     /// <param name="waitForJobsToComplete"></param>
-    public void Shutdown(bool waitForJobsToComplete = true)
-    {
-        logger.LogDebug("Shutdown complete");
-    }
+    public void Shutdown(bool waitForJobsToComplete = true) => logger.LogDebug("Shutdown complete");
 
     /// <summary>
     /// Execute the given <see cref="Task" /> in the next

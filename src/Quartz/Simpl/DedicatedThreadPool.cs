@@ -1,4 +1,4 @@
-﻿using Quartz.Util;
+using Quartz.Util;
 
 namespace Quartz.Simpl;
 
@@ -12,8 +12,5 @@ internal sealed class DedicatedThreadPool : TaskSchedulingThreadPool
     /// Returns a QueuedTaskScheduler
     /// </summary>
     /// <returns>QueuedTaskScheduler with threadCount == MaxConcurrency</returns>
-    protected override TaskScheduler GetDefaultScheduler()
-    {
-        return new QueuedTaskScheduler(MaxConcurrency);
-    }
+    protected override TaskScheduler GetDefaultScheduler() => new QueuedTaskScheduler(MaxConcurrency);
 }

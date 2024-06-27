@@ -26,6 +26,7 @@ internal sealed class IDictionaryDebugView<K, V> where K : notnull
         {
             KeyValuePair<K, V>[] items = new KeyValuePair<K, V>[_dict.Count];
             _dict.CopyTo(items, 0);
+
             return items;
         }
     }

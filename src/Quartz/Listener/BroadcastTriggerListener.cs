@@ -71,22 +71,14 @@ public sealed class BroadcastTriggerListener : ITriggerListener
     /// </remarks>
     /// <param name="name">the name of this instance</param>
     /// <param name="listeners">the initial List of TriggerListeners to broadcast to.</param>
-    public BroadcastTriggerListener(string name, IReadOnlyCollection<ITriggerListener> listeners) : this(name)
-    {
-        this.listeners.AddRange(listeners);
-    }
+    public BroadcastTriggerListener(string name, IReadOnlyCollection<ITriggerListener> listeners)
+        : this(name) => this.listeners.AddRange(listeners);
 
     public string Name { get; }
 
-    public void AddListener(ITriggerListener listener)
-    {
-        listeners.Add(listener);
-    }
+    public void AddListener(ITriggerListener listener) => listeners.Add(listener);
 
-    public bool RemoveListener(ITriggerListener listener)
-    {
-        return listeners.Remove(listener);
-    }
+    public bool RemoveListener(ITriggerListener listener) => listeners.Remove(listener);
 
     public bool RemoveListener(string listenerName)
     {
@@ -104,10 +96,8 @@ public sealed class BroadcastTriggerListener : ITriggerListener
     public ValueTask TriggerFired(
         ITrigger trigger,
         IJobExecutionContext context,
-        CancellationToken cancellationToken = default)
-    {
-        return IterateListenersInGuard(l => l.TriggerFired(trigger, context, cancellationToken), nameof(TriggerFired));
-    }
+        CancellationToken cancellationToken = default) =>
+        IterateListenersInGuard(l => l.TriggerFired(trigger, context, cancellationToken), nameof(TriggerFired));
 
     public async ValueTask<bool> VetoJobExecution(
         ITrigger trigger,
@@ -125,19 +115,15 @@ public sealed class BroadcastTriggerListener : ITriggerListener
         return false;
     }
 
-    public ValueTask TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = default)
-    {
-        return IterateListenersInGuard(l => l.TriggerMisfired(trigger, cancellationToken), nameof(TriggerMisfired));
-    }
+    public ValueTask TriggerMisfired(ITrigger trigger, CancellationToken cancellationToken = default) =>
+        IterateListenersInGuard(l => l.TriggerMisfired(trigger, cancellationToken), nameof(TriggerMisfired));
 
     public ValueTask TriggerComplete(
         ITrigger trigger,
         IJobExecutionContext context,
         SchedulerInstruction triggerInstructionCode,
-        CancellationToken cancellationToken = default)
-    {
-        return IterateListenersInGuard(l => l.TriggerComplete(trigger, context, triggerInstructionCode, cancellationToken), nameof(TriggerComplete));
-    }
+        CancellationToken cancellationToken = default) =>
+        IterateListenersInGuard(l => l.TriggerComplete(trigger, context, triggerInstructionCode, cancellationToken), nameof(TriggerComplete));
 
     private async ValueTask IterateListenersInGuard(Func<ITriggerListener, ValueTask> action, string methodName)
     {

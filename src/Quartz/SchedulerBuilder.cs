@@ -46,10 +46,7 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
     /// </summary>
     /// <param name="properties">Base properties, if any.</param>
     /// <returns>New scheduler builder instance that can be used to build configuration.</returns>
-    public static SchedulerBuilder Create(NameValueCollection? properties = null)
-    {
-        return new SchedulerBuilder(properties);
-    }
+    public static SchedulerBuilder Create(NameValueCollection? properties = null) => new SchedulerBuilder(properties);
 
     /// <summary>
     /// UNSTABLE API. Creates a new scheduler configuration to build desired setup.
@@ -66,6 +63,7 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
         {
             builder.SchedulerName = name;
         }
+
         return builder;
     }
 
@@ -75,6 +73,7 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
     public SchedulerBuilder WithId(string id)
     {
         SchedulerId = id;
+
         return this;
     }
 
@@ -84,6 +83,7 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
     public SchedulerBuilder WithName(string name)
     {
         SchedulerName = name;
+
         return this;
     }
 
@@ -93,6 +93,7 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
     public SchedulerBuilder UseTimeProvider<T>() where T : TimeProvider, new()
     {
         SetProperty(StdSchedulerFactory.PropertyTimeProviderType, typeof(T).AssemblyQualifiedNameWithoutVersion());
+
         return this;
     }
 
@@ -119,13 +120,12 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
     {
         SetProperty(StdSchedulerFactory.PropertyJobStoreType, typeof(RAMJobStore).AssemblyQualifiedNameWithoutVersion());
         options?.Invoke(new InMemoryStoreOptions(this));
+
         return this;
     }
 
-    public SchedulerBuilder UsePersistentStore(Action<PersistentStoreOptions> options)
-    {
-        return UsePersistentStore<JobStoreTX>(options);
-    }
+    public SchedulerBuilder UsePersistentStore(Action<PersistentStoreOptions> options) =>
+        UsePersistentStore<JobStoreTX>(options);
 
     public SchedulerBuilder UsePersistentStore<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(Action<PersistentStoreOptions> options) where T : IJobStore
     {
@@ -135,28 +135,28 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
         }
 
         options(new PersistentStoreOptions(this, typeof(T)));
+
         return this;
     }
 
     public SchedulerBuilder UseJobFactory<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>() where T : IJobFactory
     {
         SetProperty(StdSchedulerFactory.PropertySchedulerJobFactoryType, typeof(T).AssemblyQualifiedNameWithoutVersion());
+
         return this;
     }
 
     public SchedulerBuilder UseTypeLoader<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>() where T : ITypeLoadHelper
     {
         SetProperty(StdSchedulerFactory.PropertySchedulerTypeLoadHelperType, typeof(T).AssemblyQualifiedNameWithoutVersion());
+
         return this;
     }
 
     /// <summary>
     /// Finalizes the configuration and builds the scheduler factoryh.
     /// </summary>
-    public StdSchedulerFactory Build()
-    {
-        return new StdSchedulerFactory(Properties);
-    }
+    public StdSchedulerFactory Build() => new StdSchedulerFactory(Properties);
 
     /// <summary>
     /// Finalizes the configuration and builds the actual scheduler.
@@ -164,6 +164,7 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
     public ValueTask<IScheduler> BuildScheduler()
     {
         var schedulerFactory = new StdSchedulerFactory(Properties);
+
         return schedulerFactory.GetScheduler();
     }
 
@@ -175,6 +176,7 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
     {
         SetProperty("quartz.threadPool.type", typeof(T).AssemblyQualifiedNameWithoutVersion());
         configure?.Invoke(new ThreadPoolOptions(this));
+
         return this;
     }
 
@@ -184,16 +186,15 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
     public SchedulerBuilder UseZeroSizeThreadPool(Action<ThreadPoolOptions>? configure = null)
     {
         UseThreadPool<ZeroSizeThreadPool>(configure);
+
         return this;
     }
 
     /// <summary>
     /// Uses the default thread pool, which uses the default task scheduler.
     /// </summary>
-    public SchedulerBuilder UseDefaultThreadPool(Action<ThreadPoolOptions>? configure = null)
-    {
-        return UseDefaultThreadPool(TaskSchedulingThreadPool.DefaultMaxConcurrency, configure);
-    }
+    public SchedulerBuilder UseDefaultThreadPool(Action<ThreadPoolOptions>? configure = null) =>
+        UseDefaultThreadPool(TaskSchedulingThreadPool.DefaultMaxConcurrency, configure);
 
     /// <summary>
     /// Uses the default thread pool, which uses the default task scheduler.
@@ -205,6 +206,7 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
             options.MaxConcurrency = maxConcurrency;
             configure?.Invoke(options);
         });
+
         return this;
     }
 
@@ -214,6 +216,7 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
     public SchedulerBuilder UseDedicatedThreadPool(Action<ThreadPoolOptions>? configure = null)
     {
         UseThreadPool<DedicatedThreadPool>(configure);
+
         return this;
     }
 
@@ -240,6 +243,7 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
         SetProperty(StdSchedulerFactory.PropertySchedulerProxy, "true");
         SetProperty(StdSchedulerFactory.PropertySchedulerProxyType, typeof(T).AssemblyQualifiedNameWithoutVersion());
         SetProperty("quartz.scheduler.proxy.address", address);
+
         return this;
     }
 
@@ -247,6 +251,7 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
     public SchedulerBuilder WithMisfireThreshold(TimeSpan threshold)
     {
         MisfireThreshold = threshold;
+
         return this;
     }
 
@@ -264,6 +269,7 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
     public SchedulerBuilder WithMaxBatchSize(int batchSize)
     {
         MaxBatchSize = batchSize;
+
         return this;
     }
 
@@ -281,6 +287,7 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
     public SchedulerBuilder WithBatchTriggerAcquisitionFireAheadTimeWindow(TimeSpan timeWindow)
     {
         BatchTriggerAcquisitionFireAheadTimeWindow = timeWindow;
+
         return this;
     }
 
@@ -307,6 +314,7 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
     public SchedulerBuilder WithInterruptJobsOnShutdown(bool interrupt)
     {
         InterruptJobsOnShutdown = interrupt;
+
         return this;
     }
 
@@ -325,6 +333,7 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
     public SchedulerBuilder WithInterruptJobsOnShutdownWithWait(bool interruptWithWait)
     {
         InterruptJobsOnShutdownWithWait = interruptWithWait;
+
         return this;
     }
 
@@ -425,6 +434,14 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
         }
 
         /// <summary>
+        /// Configure binary serialization, consider using JSON instead which requires extra package Quartz.Serialization.Newtonsoft.
+        /// </summary>
+        public void UseBinarySerializer()
+        {
+            UseSerializer<BinaryObjectSerializer>();
+        }
+
+        /// <summary>
         /// Use custom serializer.
         /// </summary>
         public void UseSerializer<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>() where T : IObjectSerializer
@@ -474,16 +491,11 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
         }
     }
 
-    public sealed class AdoProviderOptions
+    public sealed class AdoProviderOptions(PersistentStoreOptions options)
     {
         public const string DefaultDataSourceName = "default";
 
-        private readonly PersistentStoreOptions options;
-
-        public AdoProviderOptions(PersistentStoreOptions options)
-        {
-            this.options = options;
-        }
+        private readonly PersistentStoreOptions options = options;
 
         /// <summary>
         /// The prefix that should be pre-pended to all table names, defaults to QRTZ_.
@@ -531,10 +543,7 @@ public static class AdoProviderExtensions
 {
     public static void UseSqlServer(
         this SchedulerBuilder.PersistentStoreOptions options,
-        string connectionString)
-    {
-        options.UseSqlServer(c => c.ConnectionString = connectionString);
-    }
+        string connectionString) => options.UseSqlServer(c => c.ConnectionString = connectionString);
 
     public static void UseSqlServer(
         this SchedulerBuilder.PersistentStoreOptions options,
@@ -569,24 +578,15 @@ public static class AdoProviderExtensions
 
     public static void UseMySql(
         this SchedulerBuilder.PersistentStoreOptions options,
-        string connectionString)
-    {
-        options.UseMySql(c => c.ConnectionString = connectionString);
-    }
+        string connectionString) => options.UseMySql(c => c.ConnectionString = connectionString);
 
     public static void UseMySql(
         this SchedulerBuilder.PersistentStoreOptions options,
-        Action<SchedulerBuilder.AdoProviderOptions> configurer)
-    {
-        UseMySqlInternal(options, "MySql", configurer);
-    }
+        Action<SchedulerBuilder.AdoProviderOptions> configurer) => UseMySqlInternal(options, "MySql", configurer);
 
     public static void UseMySqlConnector(
         this SchedulerBuilder.PersistentStoreOptions options,
-        Action<SchedulerBuilder.AdoProviderOptions> configurer)
-    {
-        UseMySqlInternal(options, "MySqlConnector", configurer);
-    }
+        Action<SchedulerBuilder.AdoProviderOptions> configurer) => UseMySqlInternal(options, "MySqlConnector", configurer);
 
     internal static void UseMySqlInternal(
         this SchedulerBuilder.PersistentStoreOptions options,
@@ -603,10 +603,7 @@ public static class AdoProviderExtensions
 
     public static void UseFirebird(
         this SchedulerBuilder.PersistentStoreOptions options,
-        string connectionString)
-    {
-        options.UseFirebird(c => c.ConnectionString = connectionString);
-    }
+        string connectionString) => options.UseFirebird(c => c.ConnectionString = connectionString);
 
     public static void UseFirebird(
         this SchedulerBuilder.PersistentStoreOptions options,
@@ -622,10 +619,7 @@ public static class AdoProviderExtensions
 
     public static void UseOracle(
         this SchedulerBuilder.PersistentStoreOptions options,
-        string connectionString)
-    {
-        options.UseOracle(c => c.ConnectionString = connectionString);
-    }
+        string connectionString) => options.UseOracle(c => c.ConnectionString = connectionString);
 
     public static void UseOracle(
         this SchedulerBuilder.PersistentStoreOptions options,
@@ -644,40 +638,28 @@ public static class AdoProviderExtensions
     /// </summary>
     public static void UseSQLite(
         this SchedulerBuilder.PersistentStoreOptions options,
-        string connectionString)
-    {
-        options.UseSQLite(c => c.ConnectionString = connectionString);
-    }
+        string connectionString) => options.UseSQLite(c => c.ConnectionString = connectionString);
 
     /// <summary>
     /// Configures the scheduler to use System.Data.Sqlite data source provider.
     /// </summary>
     public static void UseSQLite(
         this SchedulerBuilder.PersistentStoreOptions options,
-        Action<SchedulerBuilder.AdoProviderOptions> configurer)
-    {
-        options.UseSQLite("SQLite", configurer);
-    }
+        Action<SchedulerBuilder.AdoProviderOptions> configurer) => options.UseSQLite("SQLite", configurer);
 
     /// <summary>
     /// Configures the scheduler to use Microsoft.Data.Sqlite data source provider.
     /// </summary>
     public static void UseMicrosoftSQLite(
         this SchedulerBuilder.PersistentStoreOptions options,
-        string connectionString)
-    {
-        options.UseMicrosoftSQLite(c => c.ConnectionString = connectionString);
-    }
+        string connectionString) => options.UseMicrosoftSQLite(c => c.ConnectionString = connectionString);
 
     /// <summary>
     /// Configures the scheduler to use System.Data.Sqlite data source provider.
     /// </summary>
     public static void UseMicrosoftSQLite(
         this SchedulerBuilder.PersistentStoreOptions options,
-        Action<SchedulerBuilder.AdoProviderOptions> configurer)
-    {
-        options.UseSQLite("SQLite-Microsoft", configurer);
-    }
+        Action<SchedulerBuilder.AdoProviderOptions> configurer) => options.UseSQLite("SQLite-Microsoft", configurer);
 
     private static void UseSQLite(
         this SchedulerBuilder.PersistentStoreOptions options,

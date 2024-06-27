@@ -91,18 +91,13 @@ public sealed class DirectSchedulerFactory : ISchedulerFactory
     /// StdSchedulerFactory instance.).
     /// </para>
     /// </summary>
-    public ValueTask<IReadOnlyList<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default)
-    {
-        return SchedulerRepository.Instance.LookupAll(cancellationToken);
-    }
+    public ValueTask<IReadOnlyList<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default) =>
+        SchedulerRepository.Instance.LookupAll(cancellationToken);
 
     /// <summary>
     /// Initializes a new instance of the <see cref="DirectSchedulerFactory"/> class.
     /// </summary>
-    private DirectSchedulerFactory()
-    {
-        logger = LogProvider.CreateLogger<DirectSchedulerFactory>();
-    }
+    private DirectSchedulerFactory() => logger = LogProvider.CreateLogger<DirectSchedulerFactory>();
 
     /// <summary>
     /// Creates an in memory job store (<see cref="RAMJobStore" />)
@@ -116,6 +111,7 @@ public sealed class DirectSchedulerFactory : ISchedulerFactory
         };
         threadPool.Initialize();
         IJobStore jobStore = new RAMJobStore();
+
         return CreateScheduler(threadPool, jobStore);
     }
 
@@ -158,10 +154,8 @@ public sealed class DirectSchedulerFactory : ISchedulerFactory
     /// <param name="threadPool">The thread pool for executing jobs</param>
     /// <param name="jobStore">The type of job store</param>
     /// <exception cref="SchedulerException">Initialization failed.</exception>
-    public ValueTask CreateScheduler(IThreadPool threadPool, IJobStore jobStore)
-    {
-        return CreateScheduler(DefaultSchedulerName, DefaultInstanceId, threadPool, jobStore);
-    }
+    public ValueTask CreateScheduler(IThreadPool threadPool, IJobStore jobStore) =>
+        CreateScheduler(DefaultSchedulerName, DefaultInstanceId, threadPool, jobStore);
 
     /// <summary>
     /// Same as <see cref="DirectSchedulerFactory.CreateScheduler(IThreadPool, IJobStore)" />,
@@ -173,11 +167,8 @@ public sealed class DirectSchedulerFactory : ISchedulerFactory
     /// <param name="threadPool">The thread pool for executing jobs</param>
     /// <param name="jobStore">The type of job store</param>
     /// <exception cref="SchedulerException">Initialization failed.</exception>
-    public ValueTask CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool,
-        IJobStore jobStore)
-    {
-        return CreateScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, QuartzSchedulerResources.DefaultIdleWaitTime);
-    }
+    public ValueTask CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool, IJobStore jobStore) =>
+        CreateScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, QuartzSchedulerResources.DefaultIdleWaitTime);
 
     /// <summary>
     /// Creates a scheduler using the specified thread pool and job store and
@@ -190,11 +181,8 @@ public sealed class DirectSchedulerFactory : ISchedulerFactory
     /// <param name="idleWaitTime">The idle wait time.</param>
     /// <exception cref="SchedulerException">Initialization failed.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="idleWaitTime"/> is less than <see cref="TimeSpan.Zero"/>.</exception>
-    public ValueTask CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool,
-        IJobStore jobStore, TimeSpan idleWaitTime)
-    {
-        return CreateScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, null, idleWaitTime);
-    }
+    public ValueTask CreateScheduler(string schedulerName, string schedulerInstanceId, IThreadPool threadPool, IJobStore jobStore, TimeSpan idleWaitTime) =>
+        CreateScheduler(schedulerName, schedulerInstanceId, threadPool, jobStore, null, idleWaitTime);
 
     /// <summary>
     /// Creates a scheduler using the specified thread pool and job store, and
@@ -213,9 +201,7 @@ public sealed class DirectSchedulerFactory : ISchedulerFactory
         IThreadPool threadPool,
         IJobStore jobStore,
         IDictionary<string, ISchedulerPlugin>? schedulerPluginMap,
-        TimeSpan idleWaitTime)
-    {
-        return CreateScheduler(
+        TimeSpan idleWaitTime) => CreateScheduler(
             schedulerName,
             schedulerInstanceId,
             threadPool,
@@ -224,7 +210,6 @@ public sealed class DirectSchedulerFactory : ISchedulerFactory
             idleWaitTime,
             QuartzSchedulerResources.DefaultMaxBatchSize,
             QuartzSchedulerResources.DefaultBatchTimeWindow);
-    }
 
     /// <summary>
     /// Creates a scheduler using the specified thread pool and job store and
@@ -249,9 +234,7 @@ public sealed class DirectSchedulerFactory : ISchedulerFactory
         IDictionary<string, ISchedulerPlugin>? schedulerPluginMap,
         TimeSpan idleWaitTime,
         int maxBatchSize,
-        TimeSpan batchTimeWindow)
-    {
-        return CreateScheduler(
+        TimeSpan batchTimeWindow) => CreateScheduler(
             schedulerName,
             schedulerInstanceId,
             threadPool,
@@ -261,7 +244,6 @@ public sealed class DirectSchedulerFactory : ISchedulerFactory
             maxBatchSize,
             batchTimeWindow,
             null);
-    }
 
     /// <summary>
     /// Creates a scheduler using the specified thread pool and job store and
@@ -400,6 +382,7 @@ public sealed class DirectSchedulerFactory : ISchedulerFactory
     public ValueTask<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default)
     {
         SchedulerRepository schedRep = SchedulerRepository.Instance;
+
         return schedRep.Lookup(schedName, cancellationToken);
     }
 }

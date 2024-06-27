@@ -70,22 +70,14 @@ public sealed class BroadcastJobListener : IJobListener
     /// <param name="logger">logger</param>
     /// <param name="name">the name of this instance</param>
     /// <param name="listeners">the initial List of JobListeners to broadcast to.</param>
-    public BroadcastJobListener(ILogger<BroadcastJobListener> logger, string name, List<IJobListener> listeners) : this(logger, name)
-    {
-        this.listeners.AddRange(listeners);
-    }
+    public BroadcastJobListener(ILogger<BroadcastJobListener> logger, string name, List<IJobListener> listeners)
+        : this(logger, name) => this.listeners.AddRange(listeners);
 
     public string Name { get; }
 
-    public void AddListener(IJobListener listener)
-    {
-        listeners.Add(listener);
-    }
+    public void AddListener(IJobListener listener) => listeners.Add(listener);
 
-    public bool RemoveListener(IJobListener listener)
-    {
-        return listeners.Remove(listener);
-    }
+    public bool RemoveListener(IJobListener listener) => listeners.Remove(listener);
 
     public bool RemoveListener(string listenerName)
     {
@@ -93,6 +85,7 @@ public sealed class BroadcastJobListener : IJobListener
         if (listener != null)
         {
             listeners.Remove(listener);
+
             return true;
         }
         return false;
@@ -102,24 +95,18 @@ public sealed class BroadcastJobListener : IJobListener
 
     public ValueTask JobToBeExecuted(
         IJobExecutionContext context,
-        CancellationToken cancellationToken = default)
-    {
-        return IterateListenersInGuard(l => l.JobToBeExecuted(context, cancellationToken), nameof(JobToBeExecuted));
-    }
+        CancellationToken cancellationToken = default) =>
+        IterateListenersInGuard(l => l.JobToBeExecuted(context, cancellationToken), nameof(JobToBeExecuted));
 
     public ValueTask JobExecutionVetoed(
         IJobExecutionContext context,
-        CancellationToken cancellationToken = default)
-    {
-        return IterateListenersInGuard(l => l.JobExecutionVetoed(context, cancellationToken), nameof(JobExecutionVetoed));
-    }
+        CancellationToken cancellationToken = default) =>
+        IterateListenersInGuard(l => l.JobExecutionVetoed(context, cancellationToken), nameof(JobExecutionVetoed));
 
     public ValueTask JobWasExecuted(IJobExecutionContext context,
         JobExecutionException? jobException,
-        CancellationToken cancellationToken = default)
-    {
-        return IterateListenersInGuard(l => l.JobWasExecuted(context, jobException, cancellationToken), nameof(JobWasExecuted));
-    }
+        CancellationToken cancellationToken = default) =>
+        IterateListenersInGuard(l => l.JobWasExecuted(context, jobException, cancellationToken), nameof(JobWasExecuted));
 
     private async ValueTask IterateListenersInGuard(Func<IJobListener, ValueTask> action, string methodName)
     {

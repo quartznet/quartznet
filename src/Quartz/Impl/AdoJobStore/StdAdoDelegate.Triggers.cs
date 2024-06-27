@@ -26,6 +26,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "newState", newState);
         AddCommandParameter(cmd, "oldState1", oldState1);
         AddCommandParameter(cmd, "oldState2", oldState2);
+
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 
@@ -131,11 +132,9 @@ public partial class StdAdoDelegate
         }
     }
 
-    protected virtual string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
-    {
+    protected virtual string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count) =>
         // by default we don't support limits, this is db specific
-        return SqlSelectHasMisfiredTriggersInState;
-    }
+        SqlSelectHasMisfiredTriggersInState;
 
     /// <inheritdoc />
     public virtual async ValueTask<int> CountMisfiredTriggersInState(
@@ -263,6 +262,7 @@ public partial class StdAdoDelegate
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlDeleteInstancesFiredTriggers));
         AddCommandParameter(cmd, "schedulerName", schedName);
         AddCommandParameter(cmd, "instanceName", instanceName);
+
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 

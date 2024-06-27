@@ -55,10 +55,7 @@ public class PropertySettingJobFactory : SimpleJobFactory
 {
     private readonly ILogger<PropertySettingJobFactory> logger;
 
-    public PropertySettingJobFactory()
-    {
-        logger = LogProvider.CreateLogger<PropertySettingJobFactory>();
-    }
+    public PropertySettingJobFactory() => logger = LogProvider.CreateLogger<PropertySettingJobFactory>();
 
     /// <summary>
     /// Whether the JobInstantiation should fail and throw and exception if
@@ -120,13 +117,12 @@ public class PropertySettingJobFactory : SimpleJobFactory
         jobDataMap.PutAll(scheduler.Context);
         jobDataMap.PutAll(bundle.JobDetail.JobDataMap);
         jobDataMap.PutAll(bundle.Trigger.JobDataMap);
+
         return jobDataMap;
     }
 
-    protected virtual IJob InstantiateJob(TriggerFiredBundle bundle, IScheduler scheduler)
-    {
-        return base.NewJob(bundle, scheduler);
-    }
+    protected virtual IJob InstantiateJob(TriggerFiredBundle bundle, IScheduler scheduler) =>
+        base.NewJob(bundle, scheduler);
 
     /// <summary>
     /// Sets the object properties.
@@ -221,10 +217,8 @@ public class PropertySettingJobFactory : SimpleJobFactory
         }
     }
 
-    protected virtual object? ConvertValueIfNecessary(Type requiredType, object? newValue)
-    {
-        return ObjectUtils.ConvertValueIfNecessary(requiredType, newValue);
-    }
+    protected virtual object? ConvertValueIfNecessary(Type requiredType, object? newValue) =>
+        ObjectUtils.ConvertValueIfNecessary(requiredType, newValue);
 
     private void HandleError(string message, Exception? e = null)
     {

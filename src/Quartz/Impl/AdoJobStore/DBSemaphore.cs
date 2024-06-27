@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -126,6 +126,7 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
             {
                 logger.LogDebug("Lock '{LockName}' Is already owned by: {RequestorId}", lockName, requestorId);
             }
+
             return false;
         }
     }
@@ -162,10 +163,7 @@ public abstract class DBSemaphore : StdAdoConstants, ISemaphore, ITablePrefixAwa
     /// Determine whether the calling thread owns a lock on the identified
     /// resource.
     /// </summary>
-    private bool IsLockOwner(in ThreadLockKey key)
-    {
-        return locks.ContainsKey(key);
-    }
+    private bool IsLockOwner(in ThreadLockKey key) => locks.ContainsKey(key);
 
     /// <summary>
     /// This Semaphore implementation does use the database.

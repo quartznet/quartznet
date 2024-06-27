@@ -80,10 +80,7 @@ public sealed class DailyCalendar : BaseCalendar
     private int rangeEndingSecond;
     private int rangeEndingMillis;
 
-    private DailyCalendar(TimeProvider timeProvider)
-    {
-        this.timeProvider = timeProvider;
-    }
+    private DailyCalendar(TimeProvider timeProvider) => this.timeProvider = timeProvider;
 
     /// <summary>
     /// Create a <see cref="DailyCalendar" /> with a time range defined by the
@@ -120,10 +117,7 @@ public sealed class DailyCalendar : BaseCalendar
     /// <param name="rangeEndingTime">The range ending time in millis.</param>
     /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
     public DailyCalendar(string rangeStartingTime, string rangeEndingTime, TimeProvider? timeProvider = null)
-        : this(timeProvider ?? TimeProvider.System)
-    {
-        SetTimeRange(rangeStartingTime, rangeEndingTime);
-    }
+        : this(timeProvider ?? TimeProvider.System) => SetTimeRange(rangeStartingTime, rangeEndingTime);
 
     /// <summary>
     /// Create a <see cref="DailyCalendar"/> with a time range defined by the
@@ -207,8 +201,7 @@ public sealed class DailyCalendar : BaseCalendar
         int rangeEndingMinute,
         int rangeEndingSecond,
         int rangeEndingMillis,
-        TimeProvider? timeProvider = null) : this(timeProvider ?? TimeProvider.System)
-    {
+        TimeProvider? timeProvider = null) : this(timeProvider ?? TimeProvider.System) =>
         SetTimeRange(
             rangeStartingHourOfDay,
             rangeStartingMinute,
@@ -218,7 +211,6 @@ public sealed class DailyCalendar : BaseCalendar
             rangeEndingMinute,
             rangeEndingSecond,
             rangeEndingMillis);
-    }
 
     /// <summary>
     /// Create a <see cref="DailyCalendar"/> with a time range defined by the
@@ -300,10 +292,8 @@ public sealed class DailyCalendar : BaseCalendar
     public DailyCalendar(
         DateTime rangeStartingCalendarUtc,
         DateTime rangeEndingCalendarUtc,
-        TimeProvider? timeProvider = null) : this(timeProvider ?? TimeProvider.System)
-    {
+        TimeProvider? timeProvider = null) : this(timeProvider ?? TimeProvider.System) =>
         SetTimeRange(rangeStartingCalendarUtc, rangeEndingCalendarUtc);
-    }
 
     /// <summary>
     /// Create a <see cref="DailyCalendar"/> with a time range defined by the
@@ -361,10 +351,8 @@ public sealed class DailyCalendar : BaseCalendar
     /// <param name="rangeStartingTimeInMillis">The range starting time in millis.</param>
     /// <param name="rangeEndingTimeInMillis">The range ending time in millis.</param>
     /// <param name="timeProvider">Time provider instance to use, defaults to <see cref="TimeProvider.System"/></param>
-    public DailyCalendar(long rangeStartingTimeInMillis, long rangeEndingTimeInMillis, TimeProvider? timeProvider = null) : this(timeProvider ?? TimeProvider.System)
-    {
-        SetTimeRange(rangeStartingTimeInMillis, rangeEndingTimeInMillis);
-    }
+    public DailyCalendar(long rangeStartingTimeInMillis, long rangeEndingTimeInMillis, TimeProvider? timeProvider = null)
+        : this(timeProvider ?? TimeProvider.System) => SetTimeRange(rangeStartingTimeInMillis, rangeEndingTimeInMillis);
 
     /// <summary>
     /// Create a <see cref="DailyCalendar"/> with a time range defined by the
@@ -583,6 +571,7 @@ public sealed class DailyCalendar : BaseCalendar
             InvertTimeRange = InvertTimeRange
         };
         CloneFields(clone);
+
         return clone;
     }
 
@@ -599,6 +588,7 @@ public sealed class DailyCalendar : BaseCalendar
         DateTimeOffset rangeStartingTime = new DateTimeOffset(timeUtc.Year, timeUtc.Month, timeUtc.Day,
             rangeStartingHourOfDay, rangeStartingMinute,
             rangeStartingSecond, rangeStartingMillis, timeUtc.Offset);
+
         return rangeStartingTime;
     }
 
@@ -615,6 +605,7 @@ public sealed class DailyCalendar : BaseCalendar
         DateTimeOffset rangeEndingTime = new DateTimeOffset(timeUtc.Year, timeUtc.Month, timeUtc.Day,
             rangeEndingHourOfDay, rangeEndingMinute,
             rangeEndingSecond, rangeEndingMillis, timeUtc.Offset);
+
         return rangeEndingTime;
     }
 
@@ -628,10 +619,8 @@ public sealed class DailyCalendar : BaseCalendar
     public string RangeStartingTime => FormatTimeRange(rangeStartingHourOfDay, rangeStartingMinute, rangeStartingSecond, rangeStartingMillis);
     public string RangeEndingTime => FormatTimeRange(rangeEndingHourOfDay, rangeEndingMinute, rangeEndingSecond, rangeEndingMillis);
 
-    private static string FormatTimeRange(int hourOfDay, int minute, int seconds, int milliseconds)
-    {
-        return $"{hourOfDay.ToString(TwoDigitFormat, CultureInfo.InvariantCulture)}:{minute.ToString(TwoDigitFormat, CultureInfo.InvariantCulture)}:{seconds.ToString(TwoDigitFormat, CultureInfo.InvariantCulture)}:{milliseconds.ToString(ThreeDigitFormat, CultureInfo.InvariantCulture)}";
-    }
+    private static string FormatTimeRange(int hourOfDay, int minute, int seconds, int milliseconds) =>
+        $"{hourOfDay.ToString(TwoDigitFormat, CultureInfo.InvariantCulture)}:{minute.ToString(TwoDigitFormat, CultureInfo.InvariantCulture)}:{seconds.ToString(TwoDigitFormat, CultureInfo.InvariantCulture)}:{milliseconds.ToString(ThreeDigitFormat, CultureInfo.InvariantCulture)}";
 
     /// <summary>
     /// Returns a <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>.
@@ -657,6 +646,7 @@ public sealed class DailyCalendar : BaseCalendar
         buffer.Append(" - ");
         buffer.Append(RangeEndingTime);
         buffer.AppendFormat("', inverted: {0}", InvertTimeRange);
+
         return buffer.ToString();
     }
 
@@ -801,8 +791,7 @@ public sealed class DailyCalendar : BaseCalendar
     /// <param name="rangeStartingCalendarUtc">The range starting calendar.</param>
     /// <param name="rangeEndingCalendarUtc">The range ending calendar.</param>
     public void SetTimeRange(DateTime rangeStartingCalendarUtc,
-        DateTime rangeEndingCalendarUtc)
-    {
+        DateTime rangeEndingCalendarUtc) =>
         SetTimeRange(
             rangeStartingCalendarUtc.Hour,
             rangeStartingCalendarUtc.Minute,
@@ -812,7 +801,6 @@ public sealed class DailyCalendar : BaseCalendar
             rangeEndingCalendarUtc.Minute,
             rangeEndingCalendarUtc.Second,
             rangeEndingCalendarUtc.Millisecond);
-    }
 
     /// <summary>
     /// Sets the time range for the <see cref="DailyCalendar" /> to the times
@@ -820,31 +808,23 @@ public sealed class DailyCalendar : BaseCalendar
     /// </summary>
     /// <param name="rangeStartingTime">The range starting time.</param>
     /// <param name="rangeEndingTime">The range ending time.</param>
-    public void SetTimeRange(long rangeStartingTime,
-        long rangeEndingTime)
-    {
+    public void SetTimeRange(long rangeStartingTime, long rangeEndingTime) =>
         SetTimeRange(new DateTime(rangeStartingTime), new DateTime(rangeEndingTime));
-    }
 
     /// <summary>
     /// Gets the start of day, practically zeroes time part.
     /// </summary>
     /// <param name="time">The time.</param>
     /// <returns></returns>
-    private static DateTimeOffset GetStartOfDay(DateTimeOffset time)
-    {
-        return new DateTimeOffset(time.Date, time.Offset);
-    }
+    private static DateTimeOffset GetStartOfDay(DateTimeOffset time) => new DateTimeOffset(time.Date, time.Offset);
 
     /// <summary>
     /// Gets the end of day, practically sets time parts to maximum allowed values.
     /// </summary>
     /// <param name="time">The time.</param>
     /// <returns></returns>
-    private static DateTimeOffset GetEndOfDay(DateTimeOffset time)
-    {
-        return new DateTimeOffset(time.Date.AddDays(1).AddMilliseconds(-1), time.Offset);
-    }
+    private static DateTimeOffset GetEndOfDay(DateTimeOffset time) =>
+        new DateTimeOffset(time.Date.AddDays(1).AddMilliseconds(-1), time.Offset);
 
     /// <summary>
     /// Checks the specified values for validity as a set of time values.
@@ -909,6 +889,7 @@ public sealed class DailyCalendar : BaseCalendar
     {
         if (!(obj is DailyCalendar))
             return false;
+
         return Equals((DailyCalendar) obj);
     }
 }

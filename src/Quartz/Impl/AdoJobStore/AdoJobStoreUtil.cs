@@ -35,8 +35,6 @@ internal static class AdoJobStoreUtil
     /// <param name="query">The unsubstituted query</param>
     /// <param name="tablePrefix">The table prefix</param>
     /// <returns>The query, with proper table prefix substituted</returns>
-    public static string ReplaceTablePrefix(string query, string tablePrefix)
-    {
-        return string.Format(CultureInfo.InvariantCulture, query, tablePrefix);
-    }
+    public static string ReplaceTablePrefix(string query, string tablePrefix) =>
+        string.Format(CultureInfo.InvariantCulture, query, tablePrefix);
 }

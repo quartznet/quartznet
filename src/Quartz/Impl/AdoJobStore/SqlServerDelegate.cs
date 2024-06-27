@@ -55,6 +55,7 @@ public class SqlServerDelegate : StdAdoDelegate
 
             return sqlSelectHasMisfiredTriggersInState;
         }
+
         return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
     }
 

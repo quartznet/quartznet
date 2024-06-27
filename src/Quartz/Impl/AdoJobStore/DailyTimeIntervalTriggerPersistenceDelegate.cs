@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -41,14 +41,12 @@ internal sealed class DailyTimeIntervalTriggerPersistenceDelegate : SimpleProper
     public override bool CanHandleTriggerType(IOperableTrigger trigger)
     {
         var dailyTimeIntervalTrigger = trigger as DailyTimeIntervalTriggerImpl;
+
         return dailyTimeIntervalTrigger != null &&
                !dailyTimeIntervalTrigger.HasAdditionalProperties;
     }
 
-    public override string GetHandledTriggerTypeDiscriminator()
-    {
-        return AdoConstants.TriggerTypeDailyTimeInterval;
-    }
+    public override string GetHandledTriggerTypeDiscriminator() => AdoConstants.TriggerTypeDailyTimeInterval;
 
     protected override SimplePropertiesTriggerProperties GetTriggerProperties(IOperableTrigger trigger)
     {
@@ -90,6 +88,7 @@ internal sealed class DailyTimeIntervalTriggerPersistenceDelegate : SimpleProper
         props.String3 = timeOfDayBuffer.ToString();
         props.Long1 = dailyTrigger.RepeatCount;
         props.TimeZoneId = dailyTrigger.TimeZone.Id;
+
         return props;
     }
 

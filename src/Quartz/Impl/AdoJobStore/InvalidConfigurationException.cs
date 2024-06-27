@@ -25,9 +25,6 @@ namespace Quartz.Impl.AdoJobStore;
 /// </summary>
 /// <author>  <a href="mailto:jeff@binaryfeed.org">Jeffrey Wescott</a></author>
 /// <author>Marko Lahma (.NET)</author>
-public sealed class InvalidConfigurationException : SchedulerException
+public sealed class InvalidConfigurationException(string message) : SchedulerException(message)
 {
-    public InvalidConfigurationException(string message) : base(message)
-    {
-    }
 }

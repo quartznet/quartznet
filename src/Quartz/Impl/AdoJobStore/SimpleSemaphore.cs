@@ -41,10 +41,7 @@ internal sealed class SimpleSemaphore : ISemaphore
 
     private readonly ILogger<SimpleSemaphore> logger;
 
-    public SimpleSemaphore()
-    {
-        logger = LogProvider.CreateLogger<SimpleSemaphore>();
-    }
+    public SimpleSemaphore() => logger = LogProvider.CreateLogger<SimpleSemaphore>();
 
     /// <summary>
     /// Grants a lock on the identified resource to the calling thread (blocking
@@ -149,6 +146,7 @@ internal sealed class SimpleSemaphore : ISemaphore
         }
 
         ThrowHelper.ThrowNotSupportedException();
+
         return null!;
     }
 
@@ -160,6 +158,7 @@ internal sealed class SimpleSemaphore : ISemaphore
         public bool IsLockOwner(Guid requestorId)
         {
             var temp = owner;
+
             return temp != null && temp.Value == requestorId;
 
         }

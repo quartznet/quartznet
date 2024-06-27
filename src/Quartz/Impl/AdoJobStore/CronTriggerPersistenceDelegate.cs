@@ -47,15 +47,10 @@ internal sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelega
 
     private string SchedName { get; set; } = null!;
 
-    public string GetHandledTriggerTypeDiscriminator()
-    {
-        return AdoConstants.TriggerTypeCron;
-    }
+    public string GetHandledTriggerTypeDiscriminator() => AdoConstants.TriggerTypeCron;
 
-    public bool CanHandleTriggerType(IOperableTrigger trigger)
-    {
-        return trigger is CronTriggerImpl impl && !impl.HasAdditionalProperties;
-    }
+    public bool CanHandleTriggerType(IOperableTrigger trigger) =>
+        trigger is CronTriggerImpl impl && !impl.HasAdditionalProperties;
 
     public async ValueTask<int> DeleteExtendedTriggerProperties(
         ConnectionAndTransactionHolder conn,
@@ -106,6 +101,7 @@ internal sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelega
         }
 
         ThrowHelper.ThrowInvalidOperationException("No record found for selection of Trigger with key: '" + triggerKey + "' and statement: " + AdoJobStoreUtil.ReplaceTablePrefix(StdAdoConstants.SqlSelectCronTriggers, TablePrefix));
+
         return default;
     }
 

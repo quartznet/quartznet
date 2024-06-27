@@ -37,17 +37,11 @@ internal sealed class StdJobRunShellFactory : IJobRunShellFactory
     /// that should be made available within the <see cref="JobRunShell" /> and
     /// the <see cref="IJobExecutionContext" /> s within it.
     /// </summary>
-    public void Initialize(IScheduler sched)
-    {
-        scheduler = sched;
-    }
+    public void Initialize(IScheduler sched) => scheduler = sched;
 
     /// <summary>
     /// Called by the <see cref="QuartzSchedulerThread" /> to obtain instances of
     /// <see cref="JobRunShell" />.
     /// </summary>
-    public JobRunShell CreateJobRunShell(TriggerFiredBundle bndle)
-    {
-        return new JobRunShell(scheduler, bndle);
-    }
+    public JobRunShell CreateJobRunShell(TriggerFiredBundle bndle) => new JobRunShell(scheduler, bndle);
 }

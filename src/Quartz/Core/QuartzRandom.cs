@@ -8,17 +8,17 @@ internal sealed class QuartzRandom
     private readonly RNGCryptoServiceProvider random;
 #pragma warning restore SYSLIB0023
 
-    internal QuartzRandom()
-    {
+    internal QuartzRandom() =>
 #pragma warning disable SYSLIB0023
         random = new RNGCryptoServiceProvider();
 #pragma warning restore SYSLIB0023
-    }
+
 
     private double NextDouble()
     {
         byte[] buf = new byte[4];
         random.GetBytes(buf);
+
         return (double) BitConverter.ToUInt32(buf, 0) / uint.MaxValue;
     }
 
@@ -27,19 +27,12 @@ internal sealed class QuartzRandom
     /// </summary>
     /// <param name="maxValue"></param>
     /// <returns>int between 0 and maxValue</returns>
-    public int Next(int maxValue)
-    {
-        return Next(0, maxValue);
-
-    }
+    public int Next(int maxValue) => Next(0, maxValue);
     /// <summary>
     /// Random number generator
     /// </summary>
     /// <returns>a positive integer</returns>
-    public int Next()
-    {
-        return Next(0, int.MaxValue);
-    }
+    public int Next() => Next(0, int.MaxValue);
     /// <summary>
     /// Random number generator
     /// </summary>
@@ -54,6 +47,7 @@ internal sealed class QuartzRandom
         }
 
         long range = (long) maxValue - minValue;
+
         return (int) Math.Floor(NextDouble() * range) + minValue;
     }
 }

@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -88,10 +88,7 @@ public sealed class TimeOfDay
     /// <param name="minute">The minute of the hour, between 0 and 59.</param>
     /// <param name="second">The second of the minute, between 0 and 59.</param>
     /// <returns></returns>
-    public static TimeOfDay HourMinuteAndSecondOfDay(int hour, int minute, int second)
-    {
-        return new TimeOfDay(hour, minute, second);
-    }
+    public static TimeOfDay HourMinuteAndSecondOfDay(int hour, int minute, int second) => new TimeOfDay(hour, minute, second);
 
     /// <summary>
     /// Create a TimeOfDay instance for the given hour, minute (at the zero second of the minute)..
@@ -99,10 +96,7 @@ public sealed class TimeOfDay
     /// <param name="hour">The hour of day, between 0 and 23.</param>
     /// <param name="minute">The minute of the hour, between 0 and 59.</param>
     /// <returns>The newly instantiated TimeOfDay</returns>
-    public static TimeOfDay HourAndMinuteOfDay(int hour, int minute)
-    {
-        return new TimeOfDay(hour, minute);
-    }
+    public static TimeOfDay HourAndMinuteOfDay(int hour, int minute) => new TimeOfDay(hour, minute);
 
     /// <summary>
     /// The hour of the day (between 0 and 23).
@@ -166,10 +160,7 @@ public sealed class TimeOfDay
         return timeOfDay.Hour == Hour && timeOfDay.Minute == Minute && timeOfDay.Second == Second;
     }
 
-    public override int GetHashCode()
-    {
-        return (Hour + 1) ^ (Minute + 1) ^ (Second + 1);
-    }
+    public override int GetHashCode() => (Hour + 1) ^ (Minute + 1) ^ (Second + 1);
 
     /// <summary>
     /// Return a date with time of day reset to this object values. The millisecond value will be zero.
@@ -193,11 +184,9 @@ public sealed class TimeOfDay
     {
         DateTimeOffset cal = new DateTimeOffset(dateTime.Date, dateTime.Offset);
         TimeSpan t = new TimeSpan(0, Hour, Minute, Second);
+
         return cal.Add(t);
     }
 
-    public override string ToString()
-    {
-        return "TimeOfDay[" + Hour + ":" + Minute + ":" + Second + "]";
-    }
+    public override string ToString() => "TimeOfDay[" + Hour + ":" + Minute + ":" + Second + "]";
 }

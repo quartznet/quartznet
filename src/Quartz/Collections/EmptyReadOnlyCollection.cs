@@ -10,10 +10,7 @@ internal sealed class EmptyReadOnlyCollection<T> : IReadOnlyCollection<T>
 
     IEnumerator<T> IEnumerable<T>.GetEnumerator() => EmptyEnumerator<T>.Instance;
 
-    IEnumerator IEnumerable.GetEnumerator()
-    {
-        return GetEnumerator();
-    }
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
     public int Count => 0;
 }

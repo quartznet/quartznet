@@ -117,10 +117,8 @@ public sealed class JobDataMap : StringKeyDirtyFlagMap
     /// <summary>
     /// Adds the given value as a string version using the default ToString operation.
     /// </summary>
-    public void PutAsString<T>(string key, T value) where T : IConvertible
-    {
+    public void PutAsString<T>(string key, T value) where T : IConvertible =>
         Put(key, value.ToString(CultureInfo.InvariantCulture));
-    }
 
     /// <summary>
     /// Adds the given <see cref="DateTimeOffset" /> value as a string version to the
@@ -162,8 +160,5 @@ public sealed class JobDataMap : StringKeyDirtyFlagMap
         Put(key, strValue!);
     }
 
-    internal override DirtyFlagMap<string, object> Clone()
-    {
-        return new JobDataMap(WrappedMap);
-    }
+    internal override DirtyFlagMap<string, object> Clone() => new JobDataMap(WrappedMap);
 }

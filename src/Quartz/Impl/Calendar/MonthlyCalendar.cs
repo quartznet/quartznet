@@ -49,19 +49,13 @@ public sealed class MonthlyCalendar : BaseCalendar
     /// <summary>
     /// Initializes a new instance of the <see cref="MonthlyCalendar"/> class.
     /// </summary>
-    public MonthlyCalendar()
-    {
-        Init();
-    }
+    public MonthlyCalendar() => Init();
 
     /// <summary>
     /// Constructor
     /// </summary>
     /// <param name="baseCalendar">The base calendar.</param>
-    public MonthlyCalendar(ICalendar baseCalendar) : base(baseCalendar)
-    {
-        Init();
-    }
+    public MonthlyCalendar(ICalendar baseCalendar) : base(baseCalendar) => Init();
 
     /// <summary>
     /// Serialization constructor.
@@ -143,6 +137,7 @@ public sealed class MonthlyCalendar : BaseCalendar
             ThrowHelper.ThrowArgumentException(
                 $"The day parameter must be in the range of 1 to {MaxDaysInMonth}");
         }
+
         return excludeDays[day - 1];
     }
 
@@ -256,6 +251,7 @@ public sealed class MonthlyCalendar : BaseCalendar
         bool[] excludeCopy = new bool[excludeDays.Length];
         Array.Copy(excludeDays, excludeCopy, excludeDays.Length);
         clone.excludeDays = excludeCopy;
+
         return clone;
     }
 

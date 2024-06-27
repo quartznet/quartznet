@@ -9,24 +9,17 @@ using Lifetime = Microsoft.Extensions.Hosting.IApplicationLifetime;
 
 namespace Quartz;
 
-public sealed class QuartzHostedService : IHostedService
+public sealed class QuartzHostedService(
+    Lifetime applicationLifetime,
+    ISchedulerFactory schedulerFactory,
+    IOptions<QuartzHostedServiceOptions> options) : IHostedService
 {
-    private readonly Lifetime applicationLifetime;
-    private readonly ISchedulerFactory schedulerFactory;
-    private readonly IOptions<QuartzHostedServiceOptions> options;
+    private readonly Lifetime applicationLifetime = applicationLifetime;
+    private readonly ISchedulerFactory schedulerFactory = schedulerFactory;
+    private readonly IOptions<QuartzHostedServiceOptions> options = options;
     private IScheduler? scheduler;
     internal Task? startupTask;
     private bool schedulerWasStarted;
-
-    public QuartzHostedService(
-        Lifetime applicationLifetime,
-        ISchedulerFactory schedulerFactory,
-        IOptions<QuartzHostedServiceOptions> options)
-    {
-        this.applicationLifetime = applicationLifetime;
-        this.schedulerFactory = schedulerFactory;
-        this.options = options;
-    }
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {

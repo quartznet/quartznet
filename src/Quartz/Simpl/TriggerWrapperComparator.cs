@@ -7,15 +7,9 @@ internal sealed class TriggerWrapperComparator : IComparer<TriggerWrapper>, IEqu
 {
     private readonly TriggerTimeComparator ttc = new TriggerTimeComparator();
 
-    public int Compare(TriggerWrapper? trig1, TriggerWrapper? trig2)
-    {
-        return ttc.Compare(trig1?.Trigger, trig2?.Trigger);
-    }
+    public int Compare(TriggerWrapper? trig1, TriggerWrapper? trig2) => ttc.Compare(trig1?.Trigger, trig2?.Trigger);
 
-    public override bool Equals(object? obj)
-    {
-        return obj is TriggerWrapperComparator;
-    }
+    public override bool Equals(object? obj) => obj is TriggerWrapperComparator;
 
     /// <summary>
     /// Indicates whether the current object is equal to another object of the same type.
@@ -24,10 +18,7 @@ internal sealed class TriggerWrapperComparator : IComparer<TriggerWrapper>, IEqu
     /// true if the current object is equal to the <paramref name="other"/> parameter; otherwise, false.
     /// </returns>
     /// <param name="other">An object to compare with this object.</param>
-    public bool Equals(TriggerWrapperComparator? other)
-    {
-        return true;
-    }
+    public bool Equals(TriggerWrapperComparator? other) => true;
 
     /// <summary>
     /// Serves as a hash function for a particular type.
@@ -36,8 +27,5 @@ internal sealed class TriggerWrapperComparator : IComparer<TriggerWrapper>, IEqu
     /// A hash code for the current <see cref="T:System.Object"/>.
     /// </returns>
     /// <filterpriority>2</filterpriority>
-    public override int GetHashCode()
-    {
-        return ttc.GetHashCode();
-    }
+    public override int GetHashCode() => ttc.GetHashCode();
 }

@@ -24,8 +24,5 @@ internal sealed class JobWrapper
         return false;
     }
 
-    public override int GetHashCode()
-    {
-        return Key.GetHashCode();
-    }
+    public override int GetHashCode() => Key.GetHashCode();
 }

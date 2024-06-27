@@ -86,10 +86,8 @@ public sealed class CronCalendar : BaseCalendar
     /// </param>
     /// <param name="expression">a string representation of the desired cron expression</param>
     /// <param name="timeZone"></param>
-    public CronCalendar(ICalendar? baseCalendar, string expression, TimeZoneInfo? timeZone) : base(baseCalendar, timeZone)
-    {
+    public CronCalendar(ICalendar? baseCalendar, string expression, TimeZoneInfo? timeZone) : base(baseCalendar, timeZone) =>
         cronExpression = new CronExpression(expression);
-    }
 
     /// <summary>
     /// Serialization constructor.
@@ -199,6 +197,7 @@ public sealed class CronCalendar : BaseCalendar
         var clone = new CronCalendar();
         clone.cronExpression = (CronExpression) cronExpression.Clone();
         CloneFields(clone);
+
         return clone;
     }
 
@@ -223,6 +222,7 @@ public sealed class CronCalendar : BaseCalendar
         buffer.Append("], excluded cron expression: '");
         buffer.Append(cronExpression);
         buffer.Append("'");
+
         return buffer.ToString();
     }
 

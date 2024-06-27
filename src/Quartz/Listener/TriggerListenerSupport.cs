@@ -50,32 +50,20 @@ public abstract class TriggerListenerSupport : ITriggerListener
     public virtual ValueTask TriggerFired(
         ITrigger trigger,
         IJobExecutionContext context,
-        CancellationToken cancellationToken = default)
-    {
-        return default;
-    }
+        CancellationToken cancellationToken = default) => default;
 
     public virtual ValueTask<bool> VetoJobExecution(
         ITrigger trigger,
         IJobExecutionContext context,
-        CancellationToken cancellationToken = default)
-    {
-        return new ValueTask<bool>(false);
-    }
+        CancellationToken cancellationToken = default) => new ValueTask<bool>(false);
 
     public virtual ValueTask TriggerMisfired(
         ITrigger trigger,
-        CancellationToken cancellationToken = default)
-    {
-        return default;
-    }
+        CancellationToken cancellationToken = default) => default;
 
     public virtual ValueTask TriggerComplete(
         ITrigger trigger,
         IJobExecutionContext context,
         SchedulerInstruction triggerInstructionCode,
-        CancellationToken cancellationToken = default)
-    {
-        return default;
-    }
+        CancellationToken cancellationToken = default) => default;
 }

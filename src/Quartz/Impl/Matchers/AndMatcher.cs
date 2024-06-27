@@ -54,15 +54,10 @@ public sealed class AndMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     /// <param name="leftOperand"></param>
     /// <param name="rightOperand"></param>
     /// <returns></returns>
-    public static AndMatcher<T> And<T>(IMatcher<T> leftOperand, IMatcher<T> rightOperand) where T : Key<T>
-    {
-        return new AndMatcher<T>(leftOperand, rightOperand);
-    }
+    public static AndMatcher<T> And<T>(IMatcher<T> leftOperand, IMatcher<T> rightOperand) where T : Key<T> =>
+        new AndMatcher<T>(leftOperand, rightOperand);
 
-    public bool IsMatch(TKey key)
-    {
-        return LeftOperand.IsMatch(key) && RightOperand.IsMatch(key);
-    }
+    public bool IsMatch(TKey key) => LeftOperand.IsMatch(key) && RightOperand.IsMatch(key);
 
     public IMatcher<TKey> LeftOperand { get; private set; } = null!;
     public IMatcher<TKey> RightOperand { get; private set; } = null!;
@@ -73,6 +68,7 @@ public sealed class AndMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
         int result = 1;
         result = Prime * result + (LeftOperand == null ? 0 : LeftOperand.GetHashCode());
         result = Prime * result + (RightOperand == null ? 0 : RightOperand.GetHashCode());
+
         return result;
     }
 

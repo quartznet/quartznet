@@ -51,15 +51,9 @@ public sealed class NotMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     /// <typeparam name="T"></typeparam>
     /// <param name="operand"></param>
     /// <returns></returns>
-    public static NotMatcher<T> Not<T>(IMatcher<T> operand) where T : Key<T>
-    {
-        return new NotMatcher<T>(operand);
-    }
+    public static NotMatcher<T> Not<T>(IMatcher<T> operand) where T : Key<T> => new NotMatcher<T>(operand);
 
-    public bool IsMatch(TKey key)
-    {
-        return !Operand.IsMatch(key);
-    }
+    public bool IsMatch(TKey key) => !Operand.IsMatch(key);
 
     public IMatcher<TKey> Operand { get; private set; } = null!;
 
@@ -68,6 +62,7 @@ public sealed class NotMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
         const int Prime = 31;
         int result = 1;
         result = Prime * result + (Operand == null ? 0 : Operand.GetHashCode());
+
         return result;
     }
 

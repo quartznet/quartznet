@@ -13,6 +13,7 @@ public static class QuartzServiceCollectionExtensions
         {
             services.Configure(configure);
         }
+
         return services.AddSingleton<IHostedService, QuartzHostedService>();
     }
 }

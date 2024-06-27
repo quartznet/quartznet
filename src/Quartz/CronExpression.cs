@@ -356,10 +356,7 @@ public sealed class CronExpression : ISerializable
     /// </summary>
     /// <param name="date">the date/time at which to begin the search for the next valid date/time</param>
     /// <returns>the next valid date/time</returns>
-    public DateTimeOffset? GetNextValidTimeAfter(DateTimeOffset date)
-    {
-        return GetTimeAfter(date);
-    }
+    public DateTimeOffset? GetNextValidTimeAfter(DateTimeOffset date) => GetTimeAfter(date);
 
     /// <summary>
     /// Returns the next date/time <i>after</i> the given date/time which does
@@ -413,10 +410,7 @@ public sealed class CronExpression : ISerializable
     /// Returns the string representation of the <see cref="CronExpression" />
     /// </summary>
     /// <returns>The string representation of the <see cref="CronExpression" /></returns>
-    public override string ToString()
-    {
-        return CronExpressionString;
-    }
+    public override string ToString() => CronExpressionString;
 
     /// <summary>
     /// Indicates whether the specified cron expression can be parsed into a

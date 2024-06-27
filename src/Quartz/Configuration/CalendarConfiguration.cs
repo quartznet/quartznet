@@ -1,21 +1,13 @@
 namespace Quartz.Configuration;
 
-internal sealed class CalendarConfiguration
+internal sealed class CalendarConfiguration(
+    string name,
+    ICalendar calendar,
+    bool replace,
+    bool updateTriggers)
 {
-    public CalendarConfiguration(
-        string name,
-        ICalendar calendar,
-        bool replace,
-        bool updateTriggers)
-    {
-        Name = name;
-        Calendar = calendar;
-        Replace = replace;
-        UpdateTriggers = updateTriggers;
-    }
-
-    public string Name { get; }
-    public ICalendar Calendar { get; }
-    public bool Replace { get; }
-    public bool UpdateTriggers { get; }
+    public string Name { get; } = name;
+    public ICalendar Calendar { get; } = calendar;
+    public bool Replace { get; } = replace;
+    public bool UpdateTriggers { get; } = updateTriggers;
 }

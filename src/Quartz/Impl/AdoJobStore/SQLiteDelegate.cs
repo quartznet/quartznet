@@ -34,10 +34,7 @@ public class SQLiteDelegate : StdAdoDelegate
     /// SQLite version with LIMIT support.
     /// </summary>
     /// <returns></returns>
-    protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
-    {
-        return SqlSelectNextTriggerToAcquire + " LIMIT " + maxCount;
-    }
+    protected override string GetSelectNextTriggerToAcquireSql(int maxCount) => SqlSelectNextTriggerToAcquire + " LIMIT " + maxCount;
 
     protected override ValueTask<byte[]?> ReadBytesFromBlob(IDataReader dr, int colIndex, CancellationToken cancellationToken)
     {
@@ -46,7 +43,7 @@ public class SQLiteDelegate : StdAdoDelegate
         {
             if (dr.IsDBNull(colIndex))
             {
-                return new ValueTask<byte[]?>((byte[]?)null);
+                return new ValueTask<byte[]?>((byte[]?) null);
             }
 
             // workaround for GetBytes not being implemented
@@ -56,8 +53,9 @@ public class SQLiteDelegate : StdAdoDelegate
                 getFieldValueMethod = method!.MakeGenericMethod(typeof(byte[]));
             }
 
-            var value = getFieldValueMethod.Invoke(dr, new object[] {colIndex});
+            var value = getFieldValueMethod.Invoke(dr, new object[] { colIndex });
             var byteArray = (byte[]?) value;
+
             return new ValueTask<byte[]?>(byteArray);
         }
 #endif
@@ -70,6 +68,7 @@ public class SQLiteDelegate : StdAdoDelegate
         {
             return SqlSelectHasMisfiredTriggersInState + " LIMIT " + count;
         }
+
         return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
     }
 }

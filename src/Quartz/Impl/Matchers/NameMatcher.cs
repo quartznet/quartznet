@@ -40,43 +40,32 @@ public sealed class NameMatcher<TKey> : StringMatcher<TKey> where TKey : Key<TKe
     /// </summary>
     /// <param name="compareTo"></param>
     /// <returns></returns>
-    public static NameMatcher<TKey> NameEquals(string compareTo)
-    {
-        return new NameMatcher<TKey>(compareTo, StringOperator.Equality);
-    }
+    public static NameMatcher<TKey> NameEquals(string compareTo) =>
+        new NameMatcher<TKey>(compareTo, StringOperator.Equality);
 
     /// <summary>
     /// Create a NameMatcher that matches names starting with the given string.
     /// </summary>
     /// <param name="compareTo"></param>
     /// <returns></returns>
-    public static NameMatcher<TKey> NameStartsWith(string compareTo)
-    {
-        return new NameMatcher<TKey>(compareTo, StringOperator.StartsWith);
-    }
+    public static NameMatcher<TKey> NameStartsWith(string compareTo) =>
+        new NameMatcher<TKey>(compareTo, StringOperator.StartsWith);
 
     /// <summary>
     /// Create a NameMatcher that matches names ending with the given string.
     /// </summary>
     /// <param name="compareTo"></param>
     /// <returns></returns>
-    public static NameMatcher<TKey> NameEndsWith(string compareTo)
-    {
-        return new NameMatcher<TKey>(compareTo, StringOperator.EndsWith);
-    }
+    public static NameMatcher<TKey> NameEndsWith(string compareTo) =>
+        new NameMatcher<TKey>(compareTo, StringOperator.EndsWith);
 
     /// <summary>
     /// Create a NameMatcher that matches names containing the given string.
     /// </summary>
     /// <param name="compareTo"></param>
     /// <returns></returns>
-    public static NameMatcher<TKey> NameContains(string compareTo)
-    {
-        return new NameMatcher<TKey>(compareTo, StringOperator.Contains);
-    }
+    public static NameMatcher<TKey> NameContains(string compareTo) =>
+        new NameMatcher<TKey>(compareTo, StringOperator.Contains);
 
-    protected override string GetValue(TKey key)
-    {
-        return key.Name;
-    }
+    protected override string GetValue(TKey key) => key.Name;
 }

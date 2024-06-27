@@ -57,6 +57,7 @@ public class QuartzOptions : Dictionary<string, string?>
         var builder = JobBuilder.Create(jobType);
         configure(builder);
         jobDetails.Add(builder.Build());
+
         return this;
     }
 
@@ -65,6 +66,7 @@ public class QuartzOptions : Dictionary<string, string?>
         var builder = JobBuilder.Create<T>();
         configure(builder);
         jobDetails.Add(builder.Build());
+
         return this;
     }
 
@@ -73,6 +75,7 @@ public class QuartzOptions : Dictionary<string, string?>
         var builder = TriggerBuilder.Create();
         configure(builder);
         triggers.Add(builder.Build());
+
         return this;
     }
 

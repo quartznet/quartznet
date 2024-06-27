@@ -18,6 +18,7 @@ internal static class DataReaderExtensions
         {
             return null;
         }
+
         return (string) columnValue;
     }
 
@@ -27,6 +28,7 @@ internal static class DataReaderExtensions
     public static int GetInt32(this IDataReader reader, string columnName)
     {
         object columnValue = reader[columnName];
+
         return Convert.ToInt32(columnValue, CultureInfo.InvariantCulture);
     }
 
@@ -36,6 +38,7 @@ internal static class DataReaderExtensions
     public static long GetInt64(this IDataReader reader, string columnName)
     {
         object columnValue = reader[columnName];
+
         return Convert.ToInt64(columnValue, CultureInfo.InvariantCulture);
     }
 
@@ -49,6 +52,7 @@ internal static class DataReaderExtensions
         {
             return null;
         }
+
         return Convert.ToInt64(columnValue, CultureInfo.InvariantCulture);
     }
 
@@ -58,6 +62,7 @@ internal static class DataReaderExtensions
     public static decimal GetDecimal(this IDataReader reader, string columnName)
     {
         object columnValue = reader[columnName];
+
         return Convert.ToDecimal(columnValue, CultureInfo.InvariantCulture);
     }
 }

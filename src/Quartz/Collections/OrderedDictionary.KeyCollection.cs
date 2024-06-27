@@ -40,10 +40,7 @@ internal partial class OrderedDictionary<TKey, TValue>
 
         bool ICollection<TKey>.IsReadOnly => true;
 
-        internal KeyCollection(OrderedDictionary<TKey, TValue> orderedDictionary)
-        {
-            _orderedDictionary = orderedDictionary;
-        }
+        internal KeyCollection(OrderedDictionary<TKey, TValue> orderedDictionary) => _orderedDictionary = orderedDictionary;
 
         /// <summary>
         /// Returns an enumerator that iterates through the <see cref="OrderedDictionary{TKey, TValue}.KeyCollection" />.
@@ -148,6 +145,7 @@ internal partial class OrderedDictionary<TKey, TValue>
                     return true;
                 }
                 _current = default!;
+
                 return false;
             }
 

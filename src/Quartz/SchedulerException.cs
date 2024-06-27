@@ -90,6 +90,7 @@ public class SchedulerException : Exception
         {
             return base.ToString();
         }
+
         return $"{base.ToString()} [See nested exception: {InnerException}]";
     }
 }

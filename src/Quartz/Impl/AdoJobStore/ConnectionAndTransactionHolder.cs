@@ -32,23 +32,17 @@ namespace Quartz.Impl.AdoJobStore;
 /// Unit of work for AdoJobStore operations.
 /// </summary>
 /// <author>Marko Lahma</author>
-public sealed class ConnectionAndTransactionHolder : IDisposable
+/// <remarks>
+/// Initializes a new instance of the <see cref="ConnectionAndTransactionHolder"/> class.
+/// </remarks>
+/// <param name="connection">The connection.</param>
+/// <param name="transaction">The transaction.</param>
+public sealed class ConnectionAndTransactionHolder(DbConnection connection, DbTransaction? transaction) : IDisposable
 {
     private DateTimeOffset? sigChangeForTxCompletion;
 
-    private readonly DbConnection connection;
-    private DbTransaction? transaction;
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="ConnectionAndTransactionHolder"/> class.
-    /// </summary>
-    /// <param name="connection">The connection.</param>
-    /// <param name="transaction">The transaction.</param>
-    public ConnectionAndTransactionHolder(DbConnection connection, DbTransaction? transaction)
-    {
-        this.connection = connection;
-        this.transaction = transaction;
-    }
+    private readonly DbConnection connection = connection;
+    private DbTransaction? transaction = transaction;
 
     public DbConnection Connection => connection;
 

@@ -74,6 +74,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "schedulerName", schedName);
         AddCommandParameter(cmd, "jobName", jobKey.Name);
         AddCommandParameter(cmd, "jobGroup", jobKey.Group);
+
         return await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
     }
 

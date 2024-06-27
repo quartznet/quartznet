@@ -29,6 +29,7 @@ internal sealed class JobDiagnosticsWriter
         activity.AddTag(DiagnosticHeaders.JobName, context.JobDetail.Key.Name);
 
         diagnosticListener.StartActivity(activity, new JobDiagnosticData(context));
+
         return activity;
     }
 

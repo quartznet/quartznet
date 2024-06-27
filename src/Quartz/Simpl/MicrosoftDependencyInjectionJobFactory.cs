@@ -8,19 +8,13 @@ namespace Quartz.Simpl;
 /// <summary>
 /// Integrates job instantiation with Microsoft DI system.
 /// </summary>
-public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
+public class MicrosoftDependencyInjectionJobFactory(
+    IServiceProvider serviceProvider,
+    IOptions<QuartzOptions> options) : PropertySettingJobFactory
 {
-    private readonly IServiceProvider serviceProvider;
-    private readonly IOptions<QuartzOptions> options;
+    private readonly IServiceProvider serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
+    private readonly IOptions<QuartzOptions> options = options ?? throw new ArgumentNullException(nameof(options));
     private readonly JobActivatorCache activatorCache = new();
-
-    public MicrosoftDependencyInjectionJobFactory(
-        IServiceProvider serviceProvider,
-        IOptions<QuartzOptions> options)
-    {
-        this.serviceProvider = serviceProvider ?? throw new ArgumentNullException(nameof(serviceProvider));
-        this.options = options ?? throw new ArgumentNullException(nameof(options));
-    }
 
     protected override IJob InstantiateJob(TriggerFiredBundle bundle, IScheduler scheduler)
     {
@@ -80,10 +74,7 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
             scope.Dispose();
         }
 
-        public ValueTask Execute(IJobExecutionContext context)
-        {
-            return Target.Execute(context);
-        }
+        public ValueTask Execute(IJobExecutionContext context) => Target.Execute(context);
     }
 
 #if NET6_0_OR_GREATER

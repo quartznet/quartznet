@@ -54,15 +54,10 @@ public sealed class OrMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     /// <param name="leftOperand"></param>
     /// <param name="rightOperand"></param>
     /// <returns></returns>
-    public static OrMatcher<T> Or<T>(IMatcher<T> leftOperand, IMatcher<T> rightOperand) where T : Key<T>
-    {
-        return new OrMatcher<T>(leftOperand, rightOperand);
-    }
+    public static OrMatcher<T> Or<T>(IMatcher<T> leftOperand, IMatcher<T> rightOperand) where T : Key<T> =>
+        new OrMatcher<T>(leftOperand, rightOperand);
 
-    public bool IsMatch(TKey key)
-    {
-        return LeftOperand.IsMatch(key) || RightOperand.IsMatch(key);
-    }
+    public bool IsMatch(TKey key) => LeftOperand.IsMatch(key) || RightOperand.IsMatch(key);
 
     public IMatcher<TKey> LeftOperand { get; private set; } = null!;
 
@@ -74,6 +69,7 @@ public sealed class OrMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
         int result = 1;
         result = prime * result + (LeftOperand?.GetHashCode() ?? 0);
         result = prime * result + (RightOperand?.GetHashCode() ?? 0);
+
         return result;
     }
 

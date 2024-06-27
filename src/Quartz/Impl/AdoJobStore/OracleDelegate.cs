@@ -30,10 +30,8 @@ public class OracleDelegate : StdAdoDelegate
     /// <summary>
     /// Creates the SQL for select next trigger to acquire.
     /// </summary>
-    protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
-    {
-        return "SELECT * FROM (" + SqlSelectNextTriggerToAcquire + ") WHERE rownum <= " + maxCount;
-    }
+    protected override string GetSelectNextTriggerToAcquireSql(int maxCount) =>
+        "SELECT * FROM (" + SqlSelectNextTriggerToAcquire + ") WHERE rownum <= " + maxCount;
 
     protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
     {
@@ -41,6 +39,7 @@ public class OracleDelegate : StdAdoDelegate
         {
             return "SELECT * FROM (" + SqlSelectHasMisfiredTriggersInState + ") WHERE rownum <= " + count;
         }
+
         return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
     }
 
@@ -49,10 +48,7 @@ public class OracleDelegate : StdAdoDelegate
     /// </summary>
     /// <param name="booleanValue">Value to map to database.</param>
     /// <returns></returns>
-    public override object GetDbBooleanValue(bool booleanValue)
-    {
-        return booleanValue ? "1" : "0";
-    }
+    public override object GetDbBooleanValue(bool booleanValue) => booleanValue ? "1" : "0";
 
     public override bool GetBooleanFromDbValue(object columnValue)
     {
@@ -63,6 +59,7 @@ public class OracleDelegate : StdAdoDelegate
         }
 
         ThrowHelper.ThrowArgumentException("Value must be non-null.");
+
         return false;
     }
 }

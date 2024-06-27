@@ -10,10 +10,8 @@ public class FirebirdDelegate : StdAdoDelegate
     /// FireBird version with ROWS support.
     /// </summary>
     /// <returns></returns>
-    protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
-    {
-        return SqlSelectNextTriggerToAcquire + " ROWS " + maxCount;
-    }
+    protected override string GetSelectNextTriggerToAcquireSql(int maxCount) =>
+        SqlSelectNextTriggerToAcquire + " ROWS " + maxCount;
 
     protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)
     {
@@ -21,6 +19,7 @@ public class FirebirdDelegate : StdAdoDelegate
         {
             return SqlSelectHasMisfiredTriggersInState + " ROWS " + count;
         }
+
         return base.GetSelectNextMisfiredTriggersInStateToAcquireSql(count);
     }
 }

@@ -47,19 +47,13 @@ public sealed class WeeklyCalendar : BaseCalendar
     /// <summary>
     /// Initializes a new instance of the <see cref="WeeklyCalendar"/> class.
     /// </summary>
-    public WeeklyCalendar()
-    {
-        Init();
-    }
+    public WeeklyCalendar() => Init();
 
     /// <summary>
     /// Initializes a new instance of the <see cref="WeeklyCalendar"/> class.
     /// </summary>
     /// <param name="baseCalendar">The base calendar.</param>
-    public WeeklyCalendar(ICalendar baseCalendar) : base(baseCalendar)
-    {
-        Init();
-    }
+    public WeeklyCalendar(ICalendar baseCalendar) : base(baseCalendar) => Init();
 
     /// <summary>
     /// Serialization constructor.
@@ -138,10 +132,7 @@ public sealed class WeeklyCalendar : BaseCalendar
     /// Return true, if wday is defined to be excluded. E. g.
     /// saturday and sunday.
     /// </summary>
-    public bool IsDayExcluded(DayOfWeek wday)
-    {
-        return excludeDays[(int) wday];
-    }
+    public bool IsDayExcluded(DayOfWeek wday) => excludeDays[(int) wday];
 
     /// <summary>
     /// Redefine a certain day of the week to be excluded (true) or included
@@ -218,6 +209,7 @@ public sealed class WeeklyCalendar : BaseCalendar
         }
 
         timeUtc = TimeZoneUtil.ConvertTime(timeUtc, TimeZone); //apply the timezone
+
         return !IsDayExcluded(timeUtc.DayOfWeek);
     }
 
@@ -269,6 +261,7 @@ public sealed class WeeklyCalendar : BaseCalendar
         bool[] excludeCopy = new bool[excludeDays.Length];
         Array.Copy(excludeDays, excludeCopy, excludeDays.Length);
         clone.excludeDays = excludeCopy;
+
         return clone;
     }
 

@@ -45,16 +45,10 @@ public interface IAdoUtil
 /// Common helper methods for working with ADO.NET.
 /// </summary>
 /// <author>Marko Lahma</author>
-internal sealed class AdoUtil : IAdoUtil
+internal sealed class AdoUtil(IDbProvider dbProvider) : IAdoUtil
 {
-    private readonly ILogger logger;
-    private readonly IDbProvider dbProvider;
-
-    public AdoUtil(IDbProvider dbProvider)
-    {
-        this.logger = LogProvider.CreateLogger<AdoUtil>();
-        this.dbProvider = dbProvider;
-    }
+    private readonly ILogger logger = LogProvider.CreateLogger<AdoUtil>();
+    private readonly IDbProvider dbProvider = dbProvider;
 
     public void AddCommandParameter(IDbCommand cmd, string paramName, object? paramValue)
     {

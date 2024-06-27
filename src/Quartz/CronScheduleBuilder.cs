@@ -102,6 +102,7 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>
     public static CronScheduleBuilder CronSchedule(string cronExpression)
     {
         CronExpression.ValidateExpression(cronExpression);
+
         return CronScheduleNoParseException(cronExpression);
     }
 
@@ -133,10 +134,7 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>
     /// <param name="cronExpression">the cron expression to base the schedule on.</param>
     /// <returns>the new CronScheduleBuilder</returns>
     /// <seealso cref="CronExpression" />
-    public static CronScheduleBuilder CronSchedule(CronExpression cronExpression)
-    {
-        return new CronScheduleBuilder(cronExpression);
-    }
+    public static CronScheduleBuilder CronSchedule(CronExpression cronExpression) => new CronScheduleBuilder(cronExpression);
 
     /// <summary>
     /// Create a CronScheduleBuilder with a cron-expression that sets the
@@ -243,6 +241,7 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>
     public CronScheduleBuilder InTimeZone(TimeZoneInfo tz)
     {
         cronExpression.TimeZone = tz;
+
         return this;
     }
 
@@ -258,6 +257,7 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>
     public CronScheduleBuilder WithMisfireHandlingInstructionIgnoreMisfires()
     {
         misfireInstruction = MisfireInstruction.IgnoreMisfirePolicy;
+
         return this;
     }
 
@@ -272,6 +272,7 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>
     public CronScheduleBuilder WithMisfireHandlingInstructionDoNothing()
     {
         misfireInstruction = MisfireInstruction.CronTrigger.DoNothing;
+
         return this;
     }
 
@@ -286,12 +287,14 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>
     public CronScheduleBuilder WithMisfireHandlingInstructionFireAndProceed()
     {
         misfireInstruction = MisfireInstruction.CronTrigger.FireOnceNow;
+
         return this;
     }
 
     internal CronScheduleBuilder WithMisfireHandlingInstruction(int readMisfireInstructionFromString)
     {
         misfireInstruction = readMisfireInstructionFromString;
+
         return this;
     }
 }
@@ -304,6 +307,7 @@ public static class CronScheduleTriggerBuilderExtensions
     public static TriggerBuilder WithCronSchedule(this TriggerBuilder triggerBuilder, string cronExpression)
     {
         CronScheduleBuilder builder = CronScheduleBuilder.CronSchedule(cronExpression);
+
         return triggerBuilder.WithSchedule(builder);
     }
 
@@ -311,6 +315,7 @@ public static class CronScheduleTriggerBuilderExtensions
     {
         CronScheduleBuilder builder = CronScheduleBuilder.CronSchedule(cronExpression);
         action(builder);
+
         return triggerBuilder.WithSchedule(builder);
     }
 }

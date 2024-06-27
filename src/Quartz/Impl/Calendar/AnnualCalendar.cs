@@ -136,10 +136,7 @@ public sealed class AnnualCalendar : BaseCalendar
     /// <summary>
     /// Return true, if day is defined to be excluded.
     /// </summary>
-    public bool IsDayExcluded(DateTimeOffset day)
-    {
-        return IsDateTimeExcluded(day, true);
-    }
+    public bool IsDayExcluded(DateTimeOffset day) => IsDateTimeExcluded(day, true);
 
     private bool IsDateTimeExcluded(DateTimeOffset day, bool checkBaseCalendar)
     {
@@ -182,7 +179,7 @@ public sealed class AnnualCalendar : BaseCalendar
     /// </summary>
     public void SetDayExcluded(DateTimeOffset day, bool exclude)
     {
-        DateTime d = new (FixedYear, day.Month, day.Day, 0, 0, 0);
+        DateTime d = new(FixedYear, day.Month, day.Day, 0, 0, 0);
 
         if (exclude)
         {
@@ -288,6 +285,7 @@ public sealed class AnnualCalendar : BaseCalendar
                 toReturn = toReturn && obj.excludeDays.Contains(date);
             }
         }
+
         return toReturn;
     }
 
@@ -306,6 +304,7 @@ public sealed class AnnualCalendar : BaseCalendar
         var clone = new AnnualCalendar();
         CloneFields(clone);
         clone.excludeDays = new SortedSet<DateTime>(excludeDays);
+
         return clone;
     }
 }

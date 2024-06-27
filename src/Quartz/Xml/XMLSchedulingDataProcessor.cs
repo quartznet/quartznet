@@ -57,7 +57,13 @@ namespace Quartz.Xml;
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 /// <author>Christian Krumm (.NET Bugfix)</author>
-public class XMLSchedulingDataProcessor
+/// <remarks>
+/// Constructor for XMLSchedulingDataProcessor.
+/// </remarks>
+public class XMLSchedulingDataProcessor(
+    ILogger<XMLSchedulingDataProcessor> logger,
+    ITypeLoadHelper typeLoadHelper,
+    TimeProvider timeProvider)
 {
     public const string QuartzXmlFileName = "quartz_jobs.xml";
     public const string QuartzXsdResourceName = "Quartz.Xml.job_scheduling_data_2_0.xsd";
@@ -78,24 +84,8 @@ public class XMLSchedulingDataProcessor
     private readonly List<string> jobGroupsToNeverDelete = new List<string>();
     private readonly List<string> triggerGroupsToNeverDelete = new List<string>();
 
-    private readonly ILogger<XMLSchedulingDataProcessor> logger;
-    private readonly TimeProvider timeProvider;
-
-    /// <summary>
-    /// Constructor for XMLSchedulingDataProcessor.
-    /// </summary>
-    public XMLSchedulingDataProcessor(
-        ILogger<XMLSchedulingDataProcessor> logger,
-        ITypeLoadHelper typeLoadHelper,
-        TimeProvider timeProvider)
-    {
-        this.logger = logger;
-        TypeLoadHelper = typeLoadHelper;
-        this.timeProvider = timeProvider;
-
-        OverWriteExistingData = true;
-        IgnoreDuplicates = false;
-    }
+    private readonly ILogger<XMLSchedulingDataProcessor> logger = logger;
+    private readonly TimeProvider timeProvider = timeProvider;
 
     /// <summary>
     /// Whether the existing scheduling data (with same identifiers) will be
@@ -107,7 +97,7 @@ public class XMLSchedulingDataProcessor
     /// error will occur.
     /// </remarks>
     /// <seealso cref="IgnoreDuplicates" />
-    public virtual bool OverWriteExistingData { get; set; }
+    public virtual bool OverWriteExistingData { get; set; } = true;
 
     /// <summary>
     /// If true (and <see cref="OverWriteExistingData" /> is false) then any
@@ -115,7 +105,7 @@ public class XMLSchedulingDataProcessor
     /// in the scheduler will be ignored, and no error will be produced.
     /// </summary>
     /// <seealso cref="OverWriteExistingData"/>
-    public virtual bool IgnoreDuplicates { get; set; }
+    public virtual bool IgnoreDuplicates { get; set; } = false;
 
     /// <summary>
     /// If true (and <see cref="OverWriteExistingData" /> is true) then any
@@ -130,29 +120,23 @@ public class XMLSchedulingDataProcessor
 
     protected virtual IReadOnlyList<ITrigger> LoadedTriggers => loadedTriggers.AsReadOnly();
 
-    protected ITypeLoadHelper TypeLoadHelper { get; }
+    protected ITypeLoadHelper TypeLoadHelper { get; } = typeLoadHelper;
 
     /// <summary>
     /// Process the xml file in the default location (a file named
     /// "quartz_jobs.xml" in the current working directory).
     /// </summary>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public virtual ValueTask ProcessFile(CancellationToken cancellationToken = default)
-    {
-        return ProcessFile(QuartzXmlFileName, cancellationToken);
-    }
+    public virtual ValueTask ProcessFile(CancellationToken cancellationToken = default) =>
+        ProcessFile(QuartzXmlFileName, cancellationToken);
 
     /// <summary>
     /// Process the xml file named <see param="fileName" />.
     /// </summary>
     /// <param name="fileName">meta data file name.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public virtual ValueTask ProcessFile(
-        string fileName,
-        CancellationToken cancellationToken = default)
-    {
-        return ProcessFile(fileName, fileName, cancellationToken);
-    }
+    public virtual ValueTask ProcessFile(string fileName, CancellationToken cancellationToken = default) =>
+        ProcessFile(fileName, fileName, cancellationToken);
 
     /// <summary>
     /// Process the xmlfile named <see param="fileName" /> with the given system

@@ -76,28 +76,21 @@ public sealed class JobExecutionException : SchedulerException
     /// Create a JobExecutionException with the 're-fire immediately' flag set
     /// to the given value.
     /// </summary>
-    public JobExecutionException(bool refireImmediately)
-    {
-        RefireImmediately = refireImmediately;
-    }
+    public JobExecutionException(bool refireImmediately) => RefireImmediately = refireImmediately;
 
     /// <summary>
     /// Create a JobExecutionException with the given underlying exception, and
     /// the 're-fire immediately' flag set to the given value.
     /// </summary>
-    public JobExecutionException(Exception innerException, bool refireImmediately) : base(innerException)
-    {
-        RefireImmediately = refireImmediately;
-    }
+    public JobExecutionException(Exception innerException, bool refireImmediately)
+        : base(innerException) => RefireImmediately = refireImmediately;
 
     /// <summary>
     /// Create a JobExecutionException with the given message, and underlying
     /// exception, and the 're-fire immediately' flag set to the given value.
     /// </summary>
-    public JobExecutionException(string message, Exception innerException, bool refireImmediately) : base(message, innerException)
-    {
-        RefireImmediately = refireImmediately;
-    }
+    public JobExecutionException(string message, Exception innerException, bool refireImmediately)
+        : base(message, innerException) => RefireImmediately = refireImmediately;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="JobExecutionException"/> class.

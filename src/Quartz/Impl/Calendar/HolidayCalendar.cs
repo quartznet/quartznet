@@ -65,10 +65,7 @@ public sealed class HolidayCalendar : BaseCalendar
     /// Initializes a new instance of the <see cref="HolidayCalendar"/> class.
     /// </summary>
     /// <param name="baseCalendar">The base calendar.</param>
-    public HolidayCalendar(ICalendar baseCalendar)
-    {
-        CalendarBase = baseCalendar;
-    }
+    public HolidayCalendar(ICalendar baseCalendar) => CalendarBase = baseCalendar;
 
     // Make sure that future calendar version changes are done in a DCS-friendly way (with [OnSerializing] and [OnDeserialized] methods).
     /// <summary>
@@ -134,6 +131,7 @@ public sealed class HolidayCalendar : BaseCalendar
         // apply the timezone
         timeStampUtc = TimeZoneUtil.ConvertTime(timeStampUtc, TimeZone);
         var lookFor = timeStampUtc.Date;
+
         return !dates.Contains(lookFor);
     }
 
@@ -181,6 +179,7 @@ public sealed class HolidayCalendar : BaseCalendar
         HolidayCalendar clone = new HolidayCalendar();
         CloneFields(clone);
         clone.dates = new SortedSet<DateTime>(dates);
+
         return clone;
     }
 

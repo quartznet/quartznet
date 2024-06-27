@@ -70,13 +70,7 @@ public sealed class JobKey : Key<JobKey>
     {
     }
 
-    public static JobKey Create(string name)
-    {
-        return new JobKey(name);
-    }
+    public static JobKey Create(string name) => new JobKey(name);
 
-    public static JobKey Create(string name, string group)
-    {
-        return new JobKey(name, group);
-    }
+    public static JobKey Create(string name, string group) => new JobKey(name, group);
 }

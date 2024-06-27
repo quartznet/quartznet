@@ -36,10 +36,7 @@ public sealed class KeyMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
     }
 
-    private KeyMatcher(TKey compareTo)
-    {
-        CompareToValue = compareTo;
-    }
+    private KeyMatcher(TKey compareTo) => CompareToValue = compareTo;
 
     /// <summary>
     /// Create a KeyMatcher that matches Keys that equal the given key.
@@ -47,15 +44,9 @@ public sealed class KeyMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     /// <typeparam name="T"></typeparam>
     /// <param name="compareTo"></param>
     /// <returns></returns>
-    public static KeyMatcher<T> KeyEquals<T>(T compareTo) where T : Key<T>
-    {
-        return new KeyMatcher<T>(compareTo);
-    }
+    public static KeyMatcher<T> KeyEquals<T>(T compareTo) where T : Key<T> => new KeyMatcher<T>(compareTo);
 
-    public bool IsMatch(TKey key)
-    {
-        return CompareToValue.Equals(key);
-    }
+    public bool IsMatch(TKey key) => CompareToValue.Equals(key);
 
     public TKey CompareToValue { get; private set; } = null!;
 
@@ -64,6 +55,7 @@ public sealed class KeyMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
         const int Prime = 31;
         int result = 1;
         result = Prime * result + (CompareToValue == null ? 0 : CompareToValue.GetHashCode());
+
         return result;
     }
 

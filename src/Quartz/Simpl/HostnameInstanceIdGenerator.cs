@@ -41,8 +41,6 @@ internal sealed class HostnameInstanceIdGenerator : HostNameBasedIdGenerator
     /// </summary>
     /// <param name="cancellationToken"></param>
     /// <returns>The clusterwide unique instance id.</returns>
-    public override ValueTask<string?> GenerateInstanceId(CancellationToken cancellationToken = default)
-    {
-        return GetHostName(IdMaxLength, cancellationToken);
-    }
+    public override ValueTask<string?> GenerateInstanceId(CancellationToken cancellationToken = default) =>
+        GetHostName(IdMaxLength, cancellationToken);
 }

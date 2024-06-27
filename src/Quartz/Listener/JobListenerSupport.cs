@@ -59,10 +59,7 @@ public abstract class JobListenerSupport : IJobListener
     /// <seealso cref="JobExecutionVetoed"/>
     public virtual ValueTask JobToBeExecuted(
         IJobExecutionContext context,
-        CancellationToken cancellationToken = default)
-    {
-        return default;
-    }
+        CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called by the <see cref="IScheduler"/> when a <see cref="IJobDetail"/>
@@ -75,10 +72,7 @@ public abstract class JobListenerSupport : IJobListener
     /// <seealso cref="JobToBeExecuted"/>
     public virtual ValueTask JobExecutionVetoed(
         IJobExecutionContext context,
-        CancellationToken cancellationToken = default)
-    {
-        return default;
-    }
+        CancellationToken cancellationToken = default) => default;
 
     /// <summary>
     /// Called by the <see cref="IScheduler"/> after a <see cref="IJobDetail"/>
@@ -90,8 +84,5 @@ public abstract class JobListenerSupport : IJobListener
     /// <param name="cancellationToken">The cancellation instruction.</param>
     public virtual ValueTask JobWasExecuted(IJobExecutionContext context,
         JobExecutionException? jobException,
-        CancellationToken cancellationToken = default)
-    {
-        return default;
-    }
+        CancellationToken cancellationToken = default) => default;
 }

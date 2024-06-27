@@ -1,4 +1,4 @@
-﻿using System.Collections.Specialized;
+using System.Collections.Specialized;
 
 using Quartz.Util;
 
@@ -40,6 +40,7 @@ internal sealed class ConfigurationBasedDbMetadataFactory : DbMetadataFactory
     private PropertiesParser GetPropertiesParser()
     {
         var result = new PropertiesParser(properties);
+
         return result;
     }
 
@@ -51,6 +52,7 @@ internal sealed class ConfigurationBasedDbMetadataFactory : DbMetadataFactory
     {
         PropertiesParser pp = GetPropertiesParser();
         var result = pp.GetPropertyGroups(propertyGroupName);
+
         return result;
     }
 
@@ -75,6 +77,7 @@ internal sealed class ConfigurationBasedDbMetadataFactory : DbMetadataFactory
         catch (Exception ex)
         {
             ThrowHelper.ThrowArgumentException("Error while reading metadata information for provider '" + providerName + "'", nameof(providerName), ex);
+
             return default!;
         }
     }

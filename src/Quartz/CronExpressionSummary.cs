@@ -24,40 +24,23 @@ using System.Text;
 
 namespace Quartz;
 
-internal readonly struct CronExpressionSummary
+internal readonly struct CronExpressionSummary(CronField seconds, CronField minutes, CronField hours, CronField daysOfMonth,
+    CronField months, CronField daysOfWeek, bool lastDayOfWeek, bool nearestWeekday, int nthDayOfWeek,
+    bool lastDayOfMonth, bool calendarDayOfWeek, bool calendarDayOfMonth, CronField years)
 {
-    public CronExpressionSummary(CronField seconds, CronField minutes, CronField hours, CronField daysOfMonth,
-        CronField months, CronField daysOfWeek, bool lastDayOfWeek, bool nearestWeekday, int nthDayOfWeek,
-        bool lastDayOfMonth, bool calendarDayOfWeek, bool calendarDayOfMonth, CronField years)
-    {
-        Seconds = seconds;
-        Minutes = minutes;
-        Hours = hours;
-        DaysOfMonth = daysOfMonth;
-        Months = months;
-        DaysOfWeek = daysOfWeek;
-        LastDayOfWeek = lastDayOfWeek;
-        NearestWeekday = nearestWeekday;
-        NthDayOfWeek = nthDayOfWeek;
-        LastDayOfMonth = lastDayOfMonth;
-        CalendarDayOfWeek = calendarDayOfWeek;
-        CalendarDayOfMonth = calendarDayOfMonth;
-        Years = years;
-    }
-
-    public CronField Seconds { get; }
-    public CronField Minutes { get; }
-    public CronField Hours { get; }
-    public CronField DaysOfMonth { get; }
-    public CronField Months { get; }
-    public CronField DaysOfWeek { get; }
-    public bool LastDayOfWeek { get; }
-    public bool NearestWeekday { get; }
-    public int NthDayOfWeek { get; }
-    public bool LastDayOfMonth { get; }
-    public bool CalendarDayOfWeek { get; }
-    public bool CalendarDayOfMonth { get; }
-    public CronField Years { get; }
+    public CronField Seconds { get; } = seconds;
+    public CronField Minutes { get; } = minutes;
+    public CronField Hours { get; } = hours;
+    public CronField DaysOfMonth { get; } = daysOfMonth;
+    public CronField Months { get; } = months;
+    public CronField DaysOfWeek { get; } = daysOfWeek;
+    public bool LastDayOfWeek { get; } = lastDayOfWeek;
+    public bool NearestWeekday { get; } = nearestWeekday;
+    public int NthDayOfWeek { get; } = nthDayOfWeek;
+    public bool LastDayOfMonth { get; } = lastDayOfMonth;
+    public bool CalendarDayOfWeek { get; } = calendarDayOfWeek;
+    public bool CalendarDayOfMonth { get; } = calendarDayOfMonth;
+    public CronField Years { get; } = years;
 
     /// <summary>
     /// Gets the expression set summary.
@@ -122,6 +105,7 @@ internal readonly struct CronExpressionSummary
         buf.AppendLine(CalendarDayOfMonth.ToString());
         buf.Append("years: ");
         buf.AppendLine(GetExpressionSetSummary(Years));
+
         return buf.ToString();
     }
 }
