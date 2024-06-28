@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 using Quartz.Util;
 
-namespace Quartz.Converters;
+namespace Quartz.Serialization.Json.Converters;
 
 internal sealed class JobKeyConverter : KeyConverter<JobKey>
 {
@@ -12,7 +12,6 @@ internal sealed class JobKeyConverter : KeyConverter<JobKey>
         return new JobKey(name, group);
     }
 }
-
 
 internal sealed class TriggerKeyConverter : KeyConverter<TriggerKey>
 {

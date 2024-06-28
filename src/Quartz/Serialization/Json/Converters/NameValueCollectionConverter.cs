@@ -2,7 +2,7 @@ using System.Collections.Specialized;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Quartz.Converters;
+namespace Quartz.Serialization.Json.Converters;
 
 /// <summary>
 /// Custom converter for (de)serializing <see cref="NameValueCollection" />.

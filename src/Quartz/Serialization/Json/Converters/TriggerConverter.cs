@@ -2,11 +2,11 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 
 using Quartz.Impl.Triggers;
+using Quartz.Serialization.Json.Triggers;
 using Quartz.Spi;
-using Quartz.Triggers;
 using Quartz.Util;
 
-namespace Quartz.Converters;
+namespace Quartz.Serialization.Json.Converters;
 
 internal sealed class TriggerConverter : JsonConverter<ITrigger>
 {

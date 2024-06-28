@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-using Quartz.Converters;
+using Quartz.Serialization.Json.Converters;
 using Quartz.Simpl;
 
 namespace Quartz;

@@ -1,12 +1,11 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-using Quartz.Calendars;
 using Quartz.Impl.Calendar;
-using Quartz.Serialization.SystemTextJson;
+using Quartz.Serialization.Json.Calendars;
 using Quartz.Util;
 
-namespace Quartz.Converters;
+namespace Quartz.Serialization.Json.Converters;
 
 internal sealed class CalendarConverter : JsonConverter<ICalendar>
 {
