@@ -1,9 +1,8 @@
 using System.Text.Json;
 
 using Quartz.Impl.Calendar;
-using Quartz.Serialization.SystemTextJson;
 
-namespace Quartz.Calendars;
+namespace Quartz.Serialization.Json.Calendars;
 
 internal sealed class BaseCalendarSerializer : CalendarSerializer<BaseCalendar>
 {

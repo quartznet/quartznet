@@ -72,10 +72,10 @@
      or use the `AsTask()` Method on ValueTask to Return the `ValueTask` as a `Task`  (#988)
 
   * To configure JSON serialization to be used in job store instead of old `UseJsonSerializer` you should now use either `UseSystemTextJsonSerializer` or `UseNewtonsoftJsonSerializer`
-    and replace old package reference `Quartz.Serialization.Json` with either `Quartz.Serialization.SystemTextJson` or `Quartz.Serialization.Newtonsoft`. Change was made to distinguish the two common
+    and remove the old package reference `Quartz.Serialization.Json` (and if Newtonsoft used, reference `Quartz.Serialization.Newtonsoft`). Change was made to distinguish the two common
     serializers that are being used (System.Text.Json and JSON.NET).
 
-  * `Quartz.Extensions.DependencyInjection` and `Quartz.Extensions.Hosting` were merged to be part of main Quartz package, you can now remove those package references
+  * `Quartz.Extensions.DependencyInjection`, `Quartz.Extensions.Hosting` and `Quartz.Serialization.SystemTextJson`  were merged to be part of main Quartz package, you can now remove those package references
 
   * `JobStoreSupport`'s `GetNonManagedTXConnection` and `GetConnection` return signatures changed from `ConnectionAndTransactionHolder` to `ValueTask<ConnectionAndTransactionHolder>`
 

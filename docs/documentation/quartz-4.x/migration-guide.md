@@ -77,5 +77,5 @@ Further information on configuring Microsoft.Logging can be found [at Microsoft 
 ### JSON Serialization
 
 To configure JSON serialization to be used in job store instead of old `UseJsonSerializer` you should now use either `UseSystemTextJsonSerializer` or `UseNewtonsoftJsonSerializer`
-and replace old package reference `Quartz.Serialization.Json` with either `Quartz.Serialization.SystemTextJson` or `Quartz.Serialization.Newtonsoft`. Change was made to distinguish the two common
+and remove the old package reference `Quartz.Serialization.Json` (and if Newtonsoft used, reference `Quartz.Serialization.Newtonsoft`). Change was made to distinguish the two common
 serializers that are being used (System.Text.Json and JSON.NET).

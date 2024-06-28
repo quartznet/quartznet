@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 using Quartz.Util;
 
-namespace Quartz.Converters;
+namespace Quartz.Serialization.Json.Converters;
 
 internal sealed class JobDataMapConverter : JsonConverter<JobDataMap>
 {

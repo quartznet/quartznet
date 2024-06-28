@@ -2,7 +2,7 @@ using System.Text.Json;
 
 using Quartz.Util;
 
-namespace Quartz.Triggers;
+namespace Quartz.Serialization.Json.Triggers;
 
 internal sealed class DailyTimeIntervalTriggerSerializer : TriggerSerializer<IDailyTimeIntervalTrigger>
 {

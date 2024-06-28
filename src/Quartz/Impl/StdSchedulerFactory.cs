@@ -709,7 +709,7 @@ Please add configuration to your application config file to correctly initialize
             }
             if (objectSerializerType.Equals("stj", StringComparison.OrdinalIgnoreCase))
             {
-                objectSerializerType = "Quartz.Simpl.SystemTextJsonObjectSerializer, Quartz.Serialization.SystemTextJson";
+                objectSerializerType = typeof(SystemTextJsonObjectSerializer).AssemblyQualifiedNameWithoutVersion();
             }
             if (objectSerializerType.Equals("binary", StringComparison.OrdinalIgnoreCase))
             {

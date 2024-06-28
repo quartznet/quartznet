@@ -1,6 +1,6 @@
 using System.Text.Json;
 
-namespace Quartz.Triggers;
+namespace Quartz.Serialization.Json.Triggers;
 
 public interface ITriggerSerializer
 {
