@@ -80,25 +80,19 @@ public class RemoteScheduler : IScheduler
     /// <summary>
     /// Returns the name of the <see cref="IScheduler" />.
     /// </summary>
-    public virtual string SchedulerName
-    {
-        get { return ReadPropertyInGuard(x => x.SchedulerName); }
-    }
+    public virtual string SchedulerName => ReadPropertyInGuard(x => x.SchedulerName);
 
     /// <summary>
     /// Returns the instance Id of the <see cref="IScheduler" />.
     /// </summary>
-    public virtual string SchedulerInstanceId
-    {
-        get { return ReadPropertyInGuard(x => x.SchedulerInstanceId); }
-    }
+    public virtual string SchedulerInstanceId => ReadPropertyInGuard(x => x.SchedulerInstanceId);
 
     /// <summary>
     /// Get a <see cref="SchedulerMetaData"/> object describing the settings
     /// and capabilities of the scheduler instance.
     /// <para>
-    /// Note that the data returned is an 'instantaneous' snap-shot, and that as
-    /// soon as it's returned, the meta data values may be different.
+    /// Note that the data returned is an 'instantaneous' snapshot, and that as
+    /// soon as it's returned, the metadata values may be different.
     /// </para>
     /// </summary>
     /// <returns></returns>
@@ -124,41 +118,30 @@ public class RemoteScheduler : IScheduler
     /// <summary>
     /// Returns the <see cref="SchedulerContext" /> of the <see cref="IScheduler" />.
     /// </summary>
-    public virtual SchedulerContext Context
+    public virtual SchedulerContext Context => ReadPropertyInGuard(x => x.SchedulerContext);
+
+    /// <summary>
+    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+    /// </summary>
+    public virtual bool InStandbyMode => ReadPropertyInGuard(x => x.InStandbyMode);
+
+    /// <summary>
+    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+    /// </summary>
+    public virtual bool IsShutdown => ReadPropertyInGuard(x => x.IsShutdown);
+
+    /// <summary>
+    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
+    /// </summary>
+    public virtual ValueTask<List<IJobExecutionContext>> GetCurrentlyExecutingJobs(CancellationToken cancellationToken = default)
     {
-        get { return ReadPropertyInGuard(x => x.SchedulerContext); }
+        return new ValueTask<List<IJobExecutionContext>>(ReadPropertyInGuard(x => x.GetCurrentlyExecutingJobs()));
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual bool InStandbyMode
-    {
-        get { return ReadPropertyInGuard(x => x.InStandbyMode); }
-    }
-
-    /// <summary>
-    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-    /// </summary>
-    public virtual bool IsShutdown
-    {
-        get { return ReadPropertyInGuard(x => x.IsShutdown); }
-    }
-
-    /// <summary>
-    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-    /// </summary>
-    public virtual ValueTask<IReadOnlyCollection<IJobExecutionContext>> GetCurrentlyExecutingJobs(
-        CancellationToken cancellationToken = default)
-    {
-        return new ValueTask<IReadOnlyCollection<IJobExecutionContext>>(ReadPropertyInGuard(x => x.CurrentlyExecutingJobs));
-    }
-
-    /// <summary>
-    /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
-    /// </summary>
-    public virtual ValueTask<IReadOnlyCollection<string>> GetJobGroupNames(
-        CancellationToken cancellationToken = default)
+    public virtual ValueTask<List<string>> GetJobGroupNames(CancellationToken cancellationToken = default)
     {
         return CallInGuard(x => x.GetJobGroupNames());
     }
@@ -166,8 +149,7 @@ public class RemoteScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<IReadOnlyCollection<string>> GetTriggerGroupNames(
-        CancellationToken cancellationToken = default)
+    public virtual ValueTask<List<string>> GetTriggerGroupNames(CancellationToken cancellationToken = default)
     {
         return CallInGuard(x => x.GetTriggerGroupNames());
     }
@@ -176,8 +158,7 @@ public class RemoteScheduler : IScheduler
     /// Get the names of all <see cref="ITrigger" /> groups that are paused.
     /// </summary>
     /// <value></value>
-    public virtual ValueTask<IReadOnlyCollection<string>> GetPausedTriggerGroups(
-        CancellationToken cancellationToken = default)
+    public virtual ValueTask<List<string>> GetPausedTriggerGroups(CancellationToken cancellationToken = default)
     {
         return CallInGuard(x => x.GetPausedTriggerGroups());
     }
@@ -495,9 +476,7 @@ public class RemoteScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<IReadOnlyCollection<JobKey>> GetJobKeys(
-        GroupMatcher<JobKey> matcher,
-        CancellationToken cancellationToken = default)
+    public virtual ValueTask<List<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         return CallInGuard(x => x.GetJobKeys(matcher));
     }
@@ -505,9 +484,7 @@ public class RemoteScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<IReadOnlyCollection<ITrigger>> GetTriggersOfJob(
-        JobKey jobKey,
-        CancellationToken cancellationToken = default)
+    public virtual ValueTask<List<ITrigger>> GetTriggersOfJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         return CallInGuard(x => x.GetTriggersOfJob(jobKey));
     }
@@ -515,9 +492,7 @@ public class RemoteScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<IReadOnlyCollection<TriggerKey>> GetTriggerKeys(
-        GroupMatcher<TriggerKey> matcher,
-        CancellationToken cancellationToken = default)
+    public virtual ValueTask<List<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
         return CallInGuard(x => x.GetTriggerKeys(matcher));
     }
@@ -533,9 +508,7 @@ public class RemoteScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<bool> CheckExists(
-        JobKey jobKey,
-        CancellationToken cancellationToken = default)
+    public virtual ValueTask<bool> CheckExists(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         return CallInGuard(x => x.CheckExists(jobKey));
     }
@@ -543,9 +516,7 @@ public class RemoteScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<bool> CheckExists(
-        TriggerKey triggerKey,
-        CancellationToken cancellationToken = default)
+    public virtual ValueTask<bool> CheckExists(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         return CallInGuard(x => x.CheckExists(triggerKey));
     }
@@ -561,9 +532,7 @@ public class RemoteScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<ITrigger?> GetTrigger(
-        TriggerKey triggerKey,
-        CancellationToken cancellationToken = default)
+    public virtual ValueTask<ITrigger?> GetTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         return CallInGuard(x => x.GetTrigger(triggerKey));
     }
@@ -571,9 +540,7 @@ public class RemoteScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<TriggerState> GetTriggerState(
-        TriggerKey triggerKey,
-        CancellationToken cancellationToken = default)
+    public virtual ValueTask<TriggerState> GetTriggerState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         return CallInGuard(x => x.GetTriggerState(triggerKey));
     }
@@ -592,41 +559,36 @@ public class RemoteScheduler : IScheduler
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
     public virtual ValueTask AddCalendar(
-        string calName,
+        string name,
         ICalendar calendar,
         bool replace,
         bool updateTriggers,
         CancellationToken cancellationToken = default)
     {
-        return CallInGuard(x => x.AddCalendar(calName, calendar, replace, updateTriggers));
+        return CallInGuard(x => x.AddCalendar(name, calendar, replace, updateTriggers));
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<bool> DeleteCalendar(
-        string calName,
-        CancellationToken cancellationToken = default)
+    public virtual ValueTask<bool> DeleteCalendar(string name, CancellationToken cancellationToken = default)
     {
-        return CallInGuard(x => x.DeleteCalendar(calName));
+        return CallInGuard(x => x.DeleteCalendar(name));
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<ICalendar?> GetCalendar(
-        string calName,
-        CancellationToken cancellationToken = default)
+    public virtual ValueTask<ICalendar?> GetCalendar(string name, CancellationToken cancellationToken = default)
     {
-        return CallInGuard(x => x.GetCalendar(calName));
+        return CallInGuard(x => x.GetCalendar(name));
     }
 
     /// <summary>
     /// Get the names of all registered <see cref="ICalendar"/>.
     /// </summary>
     /// <returns></returns>
-    public ValueTask<IReadOnlyCollection<string>> GetCalendarNames(
-        CancellationToken cancellationToken = default)
+    public ValueTask<List<string>> GetCalendarNames(CancellationToken cancellationToken = default)
     {
         return CallInGuard(x => x.GetCalendarNames());
     }

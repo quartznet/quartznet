@@ -51,7 +51,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     private string tablePrefix = DefaultTablePrefix;
     private bool useProperties;
     protected Type delegateType;
-    protected readonly Dictionary<string, ICalendar?> calendarCache = new Dictionary<string, ICalendar?>();
+    protected readonly Dictionary<string, ICalendar?> calendarCache = [];
     private IDriverDelegate driverDelegate = null!;
     private TimeSpan misfireThreshold = TimeSpan.FromMinutes(1); // one minute
     private TimeSpan? misfirehandlerFrequence;
@@ -870,18 +870,18 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <summary>
     /// Store the given <see cref="IJobDetail" /> and <see cref="IOperableTrigger" />.
     /// </summary>
-    /// <param name="newJob">Job to be stored.</param>
-    /// <param name="newTrigger">Trigger to be stored.</param>
+    /// <param name="job">Job to be stored.</param>
+    /// <param name="trigger">Trigger to be stored.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     public async ValueTask StoreJobAndTrigger(
-        IJobDetail newJob,
-        IOperableTrigger newTrigger,
+        IJobDetail job,
+        IOperableTrigger trigger,
         CancellationToken cancellationToken = default)
     {
         await ExecuteInLock<object?>(LockOnInsert ? LockTriggerAccess : null, async conn =>
         {
-            await StoreJob(conn, newJob, false, cancellationToken).ConfigureAwait(false);
-            await StoreTrigger(conn, newTrigger, newJob, false, StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
+            await StoreJob(conn, job, false, cancellationToken).ConfigureAwait(false);
+            await StoreTrigger(conn, trigger, job, false, StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
             return null;
         }, cancellationToken).ConfigureAwait(false);
     }
@@ -889,11 +889,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <summary>
     /// Returns true if the given JobGroup is paused.
     /// </summary>
-    /// <param name="groupName"></param>
+    /// <param name="group"></param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns></returns>
     public ValueTask<bool> IsJobGroupPaused(
-        string groupName,
+        string group,
         CancellationToken cancellationToken = default)
     {
         ThrowHelper.ThrowNotImplementedException();
@@ -903,11 +903,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <summary>
     /// Returns true if the given TriggerGroup is paused.
     /// </summary>
-    /// <param name="groupName"></param>
+    /// <param name="group"></param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns></returns>
     public ValueTask<bool> IsTriggerGroupPaused(
-        string groupName,
+        string group,
         CancellationToken cancellationToken = default)
     {
         ThrowHelper.ThrowNotImplementedException();
@@ -917,21 +917,18 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <summary>
     /// Stores the given <see cref="IJobDetail" />.
     /// </summary>
-    /// <param name="newJob">The <see cref="IJobDetail" /> to be stored.</param>
+    /// <param name="job">The <see cref="IJobDetail" /> to be stored.</param>
     /// <param name="replaceExisting">
-    /// If <see langword="true" />, any <see cref="IJob" /> existing in the
-    /// <see cref="IJobStore" /> with the same name &amp; group should be over-written.
+    ///     If <see langword="true" />, any <see cref="IJob" /> existing in the
+    ///     <see cref="IJobStore" /> with the same name &amp; group should be over-written.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public ValueTask<object> StoreJob(
-        IJobDetail newJob,
-        bool replaceExisting,
-        CancellationToken cancellationToken = default)
+    public async ValueTask StoreJob(IJobDetail job, bool replaceExisting, CancellationToken cancellationToken = default)
     {
-        return ExecuteInLock(
+        await ExecuteInLock(
             LockOnInsert || replaceExisting ? LockTriggerAccess : null,
-            conn => StoreJob(conn, newJob, replaceExisting, cancellationToken),
-            cancellationToken);
+            conn => StoreJob(conn, job, replaceExisting, cancellationToken),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary> <para>
@@ -992,26 +989,23 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <summary>
     /// Store the given <see cref="ITrigger" />.
     /// </summary>
-    /// <param name="newTrigger">The <see cref="ITrigger" /> to be stored.</param>
+    /// <param name="trigger">The <see cref="ITrigger" /> to be stored.</param>
     /// <param name="replaceExisting">
-    /// If <see langword="true" />, any <see cref="ITrigger" /> existing in
-    /// the <see cref="IJobStore" /> with the same name &amp; group should
-    /// be over-written.
+    ///     If <see langword="true" />, any <see cref="ITrigger" /> existing in
+    ///     the <see cref="IJobStore" /> with the same name &amp; group should
+    ///     be over-written.
     /// </param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <exception cref="ObjectAlreadyExistsException">
     /// if a <see cref="ITrigger" /> with the same name/group already
     /// exists, and replaceExisting is set to false.
     /// </exception>
-    public ValueTask<object> StoreTrigger(
-        IOperableTrigger newTrigger,
-        bool replaceExisting,
-        CancellationToken cancellationToken = default)
+    public async ValueTask StoreTrigger(IOperableTrigger trigger, bool replaceExisting, CancellationToken cancellationToken = default)
     {
-        return ExecuteInLock(
+        await ExecuteInLock(
             LockOnInsert || replaceExisting ? LockTriggerAccess : null,
-            conn => StoreTrigger(conn, newTrigger, null, replaceExisting, StateWaiting, false, false, cancellationToken),
-            cancellationToken);
+            conn => StoreTrigger(conn, trigger, null, replaceExisting, StateWaiting, false, false, cancellationToken),
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -1187,12 +1181,9 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }, cancellationToken);
     }
 
-    public ValueTask<object> StoreJobsAndTriggers(
-        IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs,
-        bool replace,
-        CancellationToken cancellationToken = default)
+    public async ValueTask StoreJobsAndTriggers(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
     {
-        return ExecuteInLock(
+        await ExecuteInLock(
             LockOnInsert || replace ? LockTriggerAccess : null, async conn =>
             {
                 // TODO: make this more efficient with a true bulk operation...
@@ -1206,7 +1197,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                         await StoreTrigger(conn, (IOperableTrigger) trigger, job, replace, StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
                     }
                 }
-            }, cancellationToken);
+            }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -1376,11 +1367,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <see cref="IJobStore.ReplaceTrigger(TriggerKey, IOperableTrigger, CancellationToken)" />
     public ValueTask<bool> ReplaceTrigger(
         TriggerKey triggerKey,
-        IOperableTrigger newTrigger,
+        IOperableTrigger trigger,
         CancellationToken cancellationToken = default)
     {
         return ExecuteInLock(LockTriggerAccess,
-            conn => ReplaceTrigger(conn, triggerKey, newTrigger, cancellationToken),
+            conn => ReplaceTrigger(conn, triggerKey, trigger, cancellationToken),
             cancellationToken);
     }
 
@@ -1525,12 +1516,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
     }
 
-    public ValueTask<object> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public async ValueTask ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        return ExecuteInLock(
+        await ExecuteInLock(
             LockTriggerAccess,
             conn => ResetTriggerFromErrorState(conn, triggerKey, cancellationToken),
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
     }
 
     private async ValueTask ResetTriggerFromErrorState(
@@ -1668,17 +1659,17 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <see cref="ITrigger" />s pointing to non-existent calendars, then a
     /// <see cref="JobPersistenceException" /> will be thrown.
     /// </remarks>
-    /// <param name="calName">The name of the <see cref="ICalendar" /> to be removed.</param>
+    /// <param name="name">The name of the <see cref="ICalendar" /> to be removed.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>
     /// <see langword="true" /> if a <see cref="ICalendar" /> with the given name
     /// was found and removed from the store.
     ///</returns>
     public ValueTask<bool> RemoveCalendar(
-        string calName,
+        string name,
         CancellationToken cancellationToken = default)
     {
-        return ExecuteInLock(LockTriggerAccess, conn => RemoveCalendar(conn, calName, cancellationToken), cancellationToken);
+        return ExecuteInLock(LockTriggerAccess, conn => RemoveCalendar(conn, name, cancellationToken), cancellationToken);
     }
 
     protected virtual async ValueTask<bool> RemoveCalendar(
@@ -1710,13 +1701,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <summary>
     /// Retrieve the given <see cref="ITrigger" />.
     /// </summary>
-    /// <param name="calName">The name of the <see cref="ICalendar" /> to be retrieved.</param>
+    /// <param name="name">The name of the <see cref="ICalendar" /> to be retrieved.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>The desired <see cref="ICalendar" />, or null if there is no match.</returns>
-    public ValueTask<ICalendar?> RetrieveCalendar(string calName, CancellationToken cancellationToken = default)
+    public ValueTask<ICalendar?> RetrieveCalendar(string name, CancellationToken cancellationToken = default)
     {
         return ExecuteWithoutLock( // no locks necessary for read...
-            conn => RetrieveCalendar(conn, calName, cancellationToken),
+            conn => RetrieveCalendar(conn, name, cancellationToken),
             cancellationToken);
     }
 
@@ -1841,18 +1832,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// If there are no jobs in the given group name, the result should be a
     /// zero-length array (not <see langword="null" />).
     /// </remarks>
-    public ValueTask<IReadOnlyCollection<JobKey>> GetJobKeys(
-        GroupMatcher<JobKey> matcher,
-        CancellationToken cancellationToken = default)
+    public ValueTask<List<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         // no locks necessary for read...
         return ExecuteWithoutLock(conn => GetJobNames(conn, matcher, cancellationToken), cancellationToken);
     }
 
-    protected virtual async ValueTask<IReadOnlyCollection<JobKey>> GetJobNames(
-        ConnectionAndTransactionHolder conn,
-        GroupMatcher<JobKey> matcher,
-        CancellationToken cancellationToken = default)
+    protected virtual async ValueTask<List<JobKey>> GetJobNames(ConnectionAndTransactionHolder conn, GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -1871,15 +1857,15 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// </summary>
     /// <remarks>
     /// </remarks>
-    /// <param name="calName">the identifier to check for</param>
+    /// <param name="name">the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a calendar exists with the given identifier</returns>
     public ValueTask<bool> CalendarExists(
-        string calName,
+        string name,
         CancellationToken cancellationToken = default)
     {
         return ExecuteWithoutLock( // no locks necessary for read...
-            conn => CheckExists(conn, calName, cancellationToken),
+            conn => CheckExists(conn, name, cancellationToken),
             cancellationToken);
     }
 
@@ -1971,9 +1957,9 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// </summary>
     /// <remarks>
     /// </remarks>
-    public ValueTask<object> ClearAllSchedulingData(CancellationToken cancellationToken = default)
+    public async ValueTask ClearAllSchedulingData(CancellationToken cancellationToken = default)
     {
-        return ExecuteInLock(LockTriggerAccess, conn => ClearAllSchedulingData(conn, cancellationToken), cancellationToken);
+        await ExecuteInLock(LockTriggerAccess, conn => ClearAllSchedulingData(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
     }
 
     protected async ValueTask ClearAllSchedulingData(
@@ -1998,18 +1984,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// If there are no triggers in the given group name, the result should be a
     /// zero-length array (not <see langword="null" />).
     /// </remarks>
-    public ValueTask<IReadOnlyCollection<TriggerKey>> GetTriggerKeys(
-        GroupMatcher<TriggerKey> matcher,
-        CancellationToken cancellationToken = default)
+    public ValueTask<List<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
         // no locks necessary for read...
         return ExecuteWithoutLock(conn => GetTriggerNames(conn, matcher, cancellationToken), cancellationToken);
     }
 
-    protected virtual async ValueTask<IReadOnlyCollection<TriggerKey>> GetTriggerNames(
-        ConnectionAndTransactionHolder conn,
-        GroupMatcher<TriggerKey> matcher,
-        CancellationToken cancellationToken = default)
+    protected virtual async ValueTask<List<TriggerKey>> GetTriggerNames(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -2026,21 +2007,16 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// Get the names of all of the <see cref="IJob" />
     /// groups.
     /// </summary>
-    ///
     /// <remarks>
-    /// If there are no known group names, the result should be a zero-length
-    /// array (not <see langword="null" />).
+    /// If there are no known group names, the result should be a zero-length array (not <see langword="null" />).
     /// </remarks>
-    public ValueTask<IReadOnlyCollection<string>> GetJobGroupNames(
-        CancellationToken cancellationToken = default)
+    public ValueTask<List<string>> GetJobGroupNames(CancellationToken cancellationToken = default)
     {
         // no locks necessary for read...
         return ExecuteWithoutLock(conn => GetJobGroupNames(conn, cancellationToken), cancellationToken);
     }
 
-    protected virtual async ValueTask<IReadOnlyCollection<string>> GetJobGroupNames(
-        ConnectionAndTransactionHolder conn,
-        CancellationToken cancellationToken = default)
+    protected virtual async ValueTask<List<string>> GetJobGroupNames(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -2062,16 +2038,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// If there are no known group names, the result should be a zero-length
     /// array (not <see langword="null" />).
     /// </remarks>
-    public ValueTask<IReadOnlyCollection<string>> GetTriggerGroupNames(
-        CancellationToken cancellationToken = default)
+    public ValueTask<List<string>> GetTriggerGroupNames(CancellationToken cancellationToken = default)
     {
         // no locks necessary for read...
         return ExecuteWithoutLock(conn => GetTriggerGroupNames(conn, cancellationToken), cancellationToken);
     }
 
-    protected virtual async ValueTask<IReadOnlyCollection<string>> GetTriggerGroupNames(
-        ConnectionAndTransactionHolder conn,
-        CancellationToken cancellationToken = default)
+    protected virtual async ValueTask<List<string>> GetTriggerGroupNames(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -2092,16 +2065,13 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// If there are no Calendars in the given group name, the result should be
     /// a zero-length array (not <see langword="null" />).
     /// </remarks>
-    public ValueTask<IReadOnlyCollection<string>> GetCalendarNames(
-        CancellationToken cancellationToken = default)
+    public ValueTask<List<string>> GetCalendarNames(CancellationToken cancellationToken = default)
     {
         // no locks necessary for read...
         return ExecuteWithoutLock(conn => GetCalendarNames(conn, cancellationToken), cancellationToken);
     }
 
-    protected virtual async ValueTask<IReadOnlyCollection<string>> GetCalendarNames(
-        ConnectionAndTransactionHolder conn,
-        CancellationToken cancellationToken = default)
+    protected virtual async ValueTask<List<string>> GetCalendarNames(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -2120,7 +2090,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <remarks>
     /// If there are no matches, a zero-length array should be returned.
     /// </remarks>
-    public ValueTask<IReadOnlyCollection<IOperableTrigger>> GetTriggersForJob(
+    public ValueTask<List<IOperableTrigger>> GetTriggersForJob(
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
@@ -2128,10 +2098,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         return ExecuteWithoutLock(conn => GetTriggersForJob(conn, jobKey, cancellationToken), cancellationToken);
     }
 
-    protected virtual async ValueTask<IReadOnlyCollection<IOperableTrigger>> GetTriggersForJob(
-        ConnectionAndTransactionHolder conn,
-        JobKey jobKey,
-        CancellationToken cancellationToken = default)
+    protected virtual async ValueTask<List<IOperableTrigger>> GetTriggersForJob(ConnectionAndTransactionHolder conn, JobKey jobKey, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -2147,11 +2114,9 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <summary>
     /// Pause the <see cref="ITrigger" /> with the given name.
     /// </summary>
-    public ValueTask<object> PauseTrigger(
-        TriggerKey triggerKey,
-        CancellationToken cancellationToken = default)
+    public async ValueTask PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        return ExecuteInLock(LockTriggerAccess, conn => PauseTrigger(conn, triggerKey, cancellationToken), cancellationToken);
+        await ExecuteInLock(LockTriggerAccess, conn => PauseTrigger(conn, triggerKey, cancellationToken), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -2187,18 +2152,16 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// pausing all of its current <see cref="ITrigger" />s.
     /// </summary>
     /// <seealso cref="ResumeJob(JobKey,CancellationToken)" />
-    public virtual ValueTask<object> PauseJob(
-        JobKey jobKey,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        return ExecuteInLock(LockTriggerAccess, async conn =>
+        await ExecuteInLock(LockTriggerAccess, async conn =>
         {
             var triggers = await GetTriggersForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
             foreach (IOperableTrigger trigger in triggers)
             {
                 await PauseTrigger(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
             }
-        }, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -2206,9 +2169,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// group - by pausing all of their <see cref="ITrigger" />s.
     /// </summary>
     /// <seealso cref="ResumeJobs" />
-    public virtual ValueTask<IReadOnlyCollection<string>> PauseJobs(
-        GroupMatcher<JobKey> matcher,
-        CancellationToken cancellationToken = default)
+    public virtual ValueTask<List<string>> PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         return ExecuteInLock(LockTriggerAccess, async conn =>
         {
@@ -2225,7 +2186,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 groupNames.Add(jobKey.Group);
             }
 
-            return (IReadOnlyCollection<string>) groupNames;
+            return new List<string>(groupNames);
         }, cancellationToken);
     }
 
@@ -2253,7 +2214,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
             if (lst.Count > 0)
             {
-                FiredTriggerRecord rec = lst.First();
+                FiredTriggerRecord rec = lst[0];
                 if (rec.JobDisallowsConcurrentExecution) // TODO: worry about failed/recovering/volatile job  states?
                 {
                     return StatePaused.Equals(currentState) ? StatePausedBlocked : StateBlocked;
@@ -2269,11 +2230,9 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
     }
 
-    public virtual ValueTask<object> ResumeTrigger(
-        TriggerKey triggerKey,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        return ExecuteInLock(LockTriggerAccess, conn => ResumeTrigger(conn, triggerKey, cancellationToken), cancellationToken);
+        await ExecuteInLock(LockTriggerAccess, conn => ResumeTrigger(conn, triggerKey, cancellationToken), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -2337,18 +2296,16 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// instruction will be applied.
     /// </remarks>
     /// <seealso cref="PauseJob(JobKey,CancellationToken)" />
-    public virtual ValueTask<object> ResumeJob(
-        JobKey jobKey,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        return ExecuteInLock(LockTriggerAccess, async conn =>
+        await ExecuteInLock(LockTriggerAccess, async conn =>
         {
             var triggers = await GetTriggersForJob(conn, jobKey, cancellationToken).ConfigureAwait(false);
             foreach (IOperableTrigger trigger in triggers)
             {
                 await ResumeTrigger(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
             }
-        }, cancellationToken);
+        }, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -2361,13 +2318,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// misfire instruction will be applied.
     /// </remarks>
     /// <seealso cref="PauseJobs" />
-    public virtual ValueTask<IReadOnlyCollection<string>> ResumeJobs(
-        GroupMatcher<JobKey> matcher,
-        CancellationToken cancellationToken = default)
+    public virtual ValueTask<List<string>> ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         return ExecuteInLock(LockTriggerAccess, async conn =>
         {
-            IReadOnlyCollection<JobKey> jobKeys = await GetJobNames(conn, matcher, cancellationToken).ConfigureAwait(false);
+            var jobKeys = await GetJobNames(conn, matcher, cancellationToken).ConfigureAwait(false);
             var groupNames = new HashSet<string>();
 
             foreach (JobKey jobKey in jobKeys)
@@ -2379,7 +2334,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 }
                 groupNames.Add(jobKey.Group);
             }
-            return (IReadOnlyCollection<string>) groupNames;
+            return groupNames.ToList();
         }, cancellationToken);
     }
 
@@ -2387,7 +2342,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// Pause all of the <see cref="ITrigger" />s in the given group.
     /// </summary>
     /// <seealso cref="ResumeTriggers(Quartz.Impl.Matchers.GroupMatcher{Quartz.TriggerKey}, CancellationToken)" />
-    public virtual ValueTask<IReadOnlyCollection<string>> PauseTriggers(
+    public virtual ValueTask<List<string>> PauseTriggers(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
@@ -2400,10 +2355,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <summary>
     /// Pause all of the <see cref="ITrigger" />s in the given group.
     /// </summary>
-    public virtual async ValueTask<IReadOnlyCollection<string>> PauseTriggerGroup(
-        ConnectionAndTransactionHolder conn,
-        GroupMatcher<TriggerKey> matcher,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask<List<string>> PauseTriggerGroup(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -2431,7 +2383,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 }
             }
 
-            return new HashSet<string>(groups);
+            return groups;
         }
         catch (Exception e)
         {
@@ -2440,7 +2392,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
     }
 
-    public ValueTask<IReadOnlyCollection<string>> GetPausedTriggerGroups(CancellationToken cancellationToken = default)
+    public ValueTask<List<string>> GetPausedTriggerGroups(CancellationToken cancellationToken = default)
     {
         // no locks necessary for read...
         return ExecuteWithoutLock(conn => GetPausedTriggerGroups(conn, cancellationToken), cancellationToken);
@@ -2450,7 +2402,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// Pause all of the <see cref="ITrigger" />s in the
     /// given group.
     /// </summary>
-    public virtual async ValueTask<IReadOnlyCollection<string>> GetPausedTriggerGroups(
+    public virtual async ValueTask<List<string>> GetPausedTriggerGroups(
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default)
     {
@@ -2465,7 +2417,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
     }
 
-    public virtual ValueTask<IReadOnlyCollection<string>> ResumeTriggers(
+    public virtual ValueTask<List<string>> ResumeTriggers(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
@@ -2482,7 +2434,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <see cref="ITrigger" />'s misfire instruction will be applied.
     /// </para>
     /// </summary>
-    public virtual async ValueTask<IReadOnlyCollection<string>> ResumeTriggers(
+    public virtual async ValueTask<List<string>> ResumeTriggers(
         ConnectionAndTransactionHolder conn,
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
@@ -2492,7 +2444,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             await Delegate.DeletePausedTriggerGroup(conn, matcher, cancellationToken).ConfigureAwait(false);
             var groups = new HashSet<string>();
 
-            IReadOnlyCollection<TriggerKey> keys = await Delegate.SelectTriggersInGroup(conn, matcher, cancellationToken).ConfigureAwait(false);
+            List<TriggerKey>? keys = await Delegate.SelectTriggersInGroup(conn, matcher, cancellationToken).ConfigureAwait(false);
 
             foreach (TriggerKey key in keys)
             {
@@ -2542,9 +2494,9 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
     }
 
-    public virtual ValueTask<object> PauseAll(CancellationToken cancellationToken = default)
+    public virtual async ValueTask PauseAll(CancellationToken cancellationToken = default)
     {
-        return ExecuteInLock(LockTriggerAccess, conn => PauseAll(conn, cancellationToken), cancellationToken);
+        await ExecuteInLock(LockTriggerAccess, conn => PauseAll(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -2589,9 +2541,9 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <see cref="ITrigger" />'s misfire instruction will be applied.
     /// </remarks>
     /// <seealso cref="PauseAll(CancellationToken)" />
-    public virtual ValueTask<object> ResumeAll(CancellationToken cancellationToken = default)
+    public virtual async ValueTask ResumeAll(CancellationToken cancellationToken = default)
     {
-        return ExecuteInLock(LockTriggerAccess, conn => ResumeAll(conn, cancellationToken), cancellationToken);
+        await ExecuteInLock(LockTriggerAccess, conn => ResumeAll(conn, cancellationToken), cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -2631,11 +2583,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// by the calling scheduler.
     /// </summary>
     /// <seealso cref="ReleaseAcquiredTrigger(IOperableTrigger, CancellationToken)" />
-    public virtual ValueTask<IReadOnlyCollection<IOperableTrigger>> AcquireNextTriggers(
-        DateTimeOffset noLaterThan,
-        int maxCount,
-        TimeSpan timeWindow,
-        CancellationToken cancellationToken = default)
+    public virtual ValueTask<List<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow, CancellationToken cancellationToken = default)
     {
         string? lockName;
         if (AcquireTriggersWithinLock || maxCount > 1)
@@ -2680,7 +2628,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     // TODO: this really ought to return something like a FiredTriggerBundle,
     // so that the fireInstanceId doesn't have to be on the trigger...
 
-    protected virtual async ValueTask<IReadOnlyCollection<IOperableTrigger>> AcquireNextTrigger(
+    protected virtual async ValueTask<List<IOperableTrigger>> AcquireNextTrigger(
         ConnectionAndTransactionHolder conn,
         DateTimeOffset noLaterThan,
         int maxCount,
@@ -2818,14 +2766,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// fire the given <see cref="ITrigger" />, that it had previously acquired
     /// (reserved).
     /// </summary>
-    public ValueTask<object> ReleaseAcquiredTrigger(
-        IOperableTrigger trigger,
-        CancellationToken cancellationToken = default)
+    public async ValueTask ReleaseAcquiredTrigger(IOperableTrigger trigger, CancellationToken cancellationToken = default)
     {
-        return RetryExecuteInNonManagedTXLock(
+        await RetryExecuteInNonManagedTXLock(
             LockTriggerAccess,
             conn => ReleaseAcquiredTrigger(conn, trigger, cancellationToken),
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
     }
 
     protected virtual async ValueTask ReleaseAcquiredTrigger(
@@ -2845,9 +2791,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
     }
 
-    public virtual ValueTask<IReadOnlyCollection<TriggerFiredResult>> TriggersFired(
-        IReadOnlyCollection<IOperableTrigger> triggers,
-        CancellationToken cancellationToken = default)
+    public virtual ValueTask<List<TriggerFiredResult>> TriggersFired(IReadOnlyCollection<IOperableTrigger> triggers, CancellationToken cancellationToken = default)
     {
         return ExecuteInNonManagedTXLock(
             LockTriggerAccess,
@@ -2877,7 +2821,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                     results.Add(result);
                 }
 
-                return (IReadOnlyCollection<TriggerFiredResult>) results;
+                return results;
             },
             async (conn, result) =>
             {
@@ -3030,16 +2974,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// in the given <see cref="IJobDetail" /> should be updated if the <see cref="IJob" />
     /// is stateful.
     /// </summary>
-    public virtual ValueTask<object> TriggeredJobComplete(
-        IOperableTrigger trigger,
-        IJobDetail jobDetail,
-        SchedulerInstruction triggerInstCode,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstCode, CancellationToken cancellationToken = default)
     {
-        return RetryExecuteInNonManagedTXLock(
+        await RetryExecuteInNonManagedTXLock(
             LockTriggerAccess,
             conn => TriggeredJobComplete(conn, trigger, jobDetail, triggerInstCode, cancellationToken),
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
     }
 
     protected virtual async ValueTask TriggeredJobComplete(
@@ -3192,9 +3132,9 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
     }
 
-    protected internal virtual void SignalSchedulingChangeImmediately(DateTimeOffset? candidateNewNextFireTime)
+    protected internal virtual ValueTask SignalSchedulingChangeImmediately(DateTimeOffset? candidateNewNextFireTime)
     {
-        schedSignaler.SignalSchedulingChange(candidateNewNextFireTime);
+        return schedSignaler.SignalSchedulingChange(candidateNewNextFireTime);
     }
 
     //---------------------------------------------------------------------------
@@ -3358,7 +3298,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <param name="cancellationToken">The cancellation instruction.</param>
     private async ValueTask<IReadOnlyList<SchedulerStateRecord>> FindOrphanedFailedInstances(
         ConnectionAndTransactionHolder conn,
-        IReadOnlyCollection<SchedulerStateRecord> schedulerStateRecords,
+        List<SchedulerStateRecord> schedulerStateRecords,
         CancellationToken cancellationToken)
     {
         List<SchedulerStateRecord> orphanedInstances = new List<SchedulerStateRecord>();
@@ -3990,7 +3930,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             DateTimeOffset? sigTime = conn.SignalSchedulingChangeOnTxCompletion;
             if (sigTime != null)
             {
-                SignalSchedulingChangeImmediately(sigTime);
+                await SignalSchedulingChangeImmediately(sigTime).ConfigureAwait(false);
             }
 
             return result;

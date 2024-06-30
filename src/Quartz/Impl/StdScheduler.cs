@@ -83,8 +83,8 @@ internal class StdScheduler : IScheduler
     /// Get a <see cref="SchedulerMetaData"/> object describing the settings
     /// and capabilities of the scheduler instance.
     /// <para>
-    /// Note that the data returned is an 'instantaneous' snap-shot, and that as
-    /// soon as it's returned, the meta data values may be different.
+    /// Note that the data returned is an 'instantaneous' snapshot, and that as
+    /// soon as it's returned, the metadata values may be different.
     /// </para>
     /// </summary>
     /// <returns></returns>
@@ -141,17 +141,15 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public ValueTask<IReadOnlyCollection<IJobExecutionContext>> GetCurrentlyExecutingJobs(
-        CancellationToken cancellationToken = default)
+    public ValueTask<List<IJobExecutionContext>> GetCurrentlyExecutingJobs(CancellationToken cancellationToken = default)
     {
-        return new ValueTask<IReadOnlyCollection<IJobExecutionContext>>(sched.CurrentlyExecutingJobs);
+        return new ValueTask<List<IJobExecutionContext>>(sched.GetCurrentlyExecutingJobs());
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public ValueTask Clear(
-        CancellationToken cancellationToken = default)
+    public ValueTask Clear(CancellationToken cancellationToken = default)
     {
         return sched.Clear(cancellationToken);
     }
@@ -159,8 +157,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public ValueTask<IReadOnlyCollection<string>> GetPausedTriggerGroups(
-        CancellationToken cancellationToken = default)
+    public ValueTask<List<string>> GetPausedTriggerGroups(CancellationToken cancellationToken = default)
     {
         return sched.GetPausedTriggerGroups(cancellationToken);
     }
@@ -173,8 +170,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<IReadOnlyCollection<string>> GetJobGroupNames(
-        CancellationToken cancellationToken = default)
+    public virtual ValueTask<List<string>> GetJobGroupNames(CancellationToken cancellationToken = default)
     {
         return sched.GetJobGroupNames(cancellationToken);
     }
@@ -182,8 +178,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<IReadOnlyCollection<string>> GetTriggerGroupNames(
-        CancellationToken cancellationToken = default)
+    public virtual ValueTask<List<string>> GetTriggerGroupNames(CancellationToken cancellationToken = default)
     {
         return sched.GetTriggerGroupNames(cancellationToken);
     }
@@ -483,9 +478,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<IReadOnlyCollection<ITrigger>> GetTriggersOfJob(
-        JobKey jobKey,
-        CancellationToken cancellationToken = default)
+    public virtual ValueTask<List<ITrigger>> GetTriggersOfJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         return sched.GetTriggersOfJob(jobKey, cancellationToken);
     }
@@ -493,9 +486,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<IReadOnlyCollection<JobKey>> GetJobKeys(
-        GroupMatcher<JobKey> matcher,
-        CancellationToken cancellationToken = default)
+    public virtual ValueTask<List<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         return sched.GetJobKeys(matcher, cancellationToken);
     }
@@ -503,9 +494,7 @@ internal class StdScheduler : IScheduler
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<IReadOnlyCollection<TriggerKey>> GetTriggerKeys(
-        GroupMatcher<TriggerKey> matcher,
-        CancellationToken cancellationToken = default)
+    public virtual ValueTask<List<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
         return sched.GetTriggerKeys(matcher, cancellationToken);
     }
@@ -550,39 +539,38 @@ internal class StdScheduler : IScheduler
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
     public virtual ValueTask AddCalendar(
-        string calName,
+        string name,
         ICalendar calendar,
         bool replace,
         bool updateTriggers,
         CancellationToken cancellationToken = default)
     {
-        return sched.AddCalendar(calName, calendar, replace, updateTriggers, cancellationToken);
+        return sched.AddCalendar(name, calendar, replace, updateTriggers, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
     public virtual ValueTask<bool> DeleteCalendar(
-        string calName,
+        string name,
         CancellationToken cancellationToken = default)
     {
-        return sched.DeleteCalendar(calName, cancellationToken);
+        return sched.DeleteCalendar(name, cancellationToken);
     }
 
     /// <summary>
     /// Calls the equivalent method on the 'proxied' <see cref="QuartzScheduler" />.
     /// </summary>
-    public virtual ValueTask<ICalendar?> GetCalendar(string calName, CancellationToken cancellationToken = default)
+    public virtual ValueTask<ICalendar?> GetCalendar(string name, CancellationToken cancellationToken = default)
     {
-        return sched.GetCalendar(calName, cancellationToken);
+        return sched.GetCalendar(name, cancellationToken);
     }
 
     /// <summary>
     /// Get the names of all registered <see cref="ICalendar"/>.
     /// </summary>
     /// <returns></returns>
-    public ValueTask<IReadOnlyCollection<string>> GetCalendarNames(
-        CancellationToken cancellationToken = default)
+    public ValueTask<List<string>> GetCalendarNames(CancellationToken cancellationToken = default)
     {
         return sched.GetCalendarNames(cancellationToken);
     }

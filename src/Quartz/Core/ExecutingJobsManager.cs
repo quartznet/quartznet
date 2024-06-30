@@ -50,7 +50,7 @@ internal sealed class ExecutingJobsManager : IJobListener
     /// <value>
     /// The jobs that are currently executing.
     /// </value>
-    public IReadOnlyCollection<IJobExecutionContext> ExecutingJobs => new List<IJobExecutionContext>(executingJobs.Values);
+    public List<IJobExecutionContext> GetExecutingJobs => [..executingJobs.Values];
 
     public ValueTask JobToBeExecuted(
         IJobExecutionContext context,

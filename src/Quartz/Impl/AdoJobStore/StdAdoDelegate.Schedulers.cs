@@ -52,13 +52,10 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
-    public virtual async ValueTask<IReadOnlyCollection<SchedulerStateRecord>> SelectSchedulerStateRecords(
-        ConnectionAndTransactionHolder conn,
-        string? instanceName,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask<List<SchedulerStateRecord>> SelectSchedulerStateRecords(ConnectionAndTransactionHolder conn, string? instanceName, CancellationToken cancellationToken = default)
     {
         DbCommand cmd;
-        List<SchedulerStateRecord> list = new List<SchedulerStateRecord>();
+        List<SchedulerStateRecord> list = [];
 
         if (instanceName != null)
         {

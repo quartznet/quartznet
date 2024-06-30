@@ -365,7 +365,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
     /// <param name="matcher"></param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>An array of <see cref="String" /> job names.</returns>
-    public virtual async ValueTask<IReadOnlyCollection<JobKey>> SelectJobsInGroup(
+    public virtual async ValueTask<List<JobKey>> SelectJobsInGroup(
         ConnectionAndTransactionHolder conn,
         GroupMatcher<JobKey> matcher,
         CancellationToken cancellationToken = default)
@@ -388,7 +388,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
         AddCommandParameter(cmd, "jobGroup", parameter);
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        var list = new HashSet<JobKey>();
+        var list = new List<JobKey>();
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             list.Add(new JobKey(rs.GetString(0), rs.GetString(1)));

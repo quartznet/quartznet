@@ -50,7 +50,7 @@ public interface IRemotableQuartzScheduler
 
     void Clear();
 
-    IReadOnlyCollection<IJobExecutionContext> CurrentlyExecutingJobs { get; }
+    List<IJobExecutionContext> GetCurrentlyExecutingJobs();
 
     /// <summary>
     /// Starts this instance.
@@ -121,7 +121,7 @@ public interface IRemotableQuartzScheduler
 
     void ResumeTriggers(GroupMatcher<TriggerKey> matcher);
 
-    IReadOnlyCollection<string> GetPausedTriggerGroups();
+    List<string> GetPausedTriggerGroups();
 
     void ResumeJob(JobKey jobKey);
 
@@ -131,15 +131,15 @@ public interface IRemotableQuartzScheduler
 
     void ResumeAll();
 
-    IReadOnlyCollection<string> GetJobGroupNames();
+    List<string> GetJobGroupNames();
 
-    IReadOnlyCollection<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher);
+    List<JobKey> GetJobKeys(GroupMatcher<JobKey> matcher);
 
-    IReadOnlyCollection<ITrigger> GetTriggersOfJob(JobKey jobKey);
+    List<ITrigger> GetTriggersOfJob(JobKey jobKey);
 
-    IReadOnlyCollection<string> GetTriggerGroupNames();
+    List<string> GetTriggerGroupNames();
 
-    IReadOnlyCollection<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher);
+    List<TriggerKey> GetTriggerKeys(GroupMatcher<TriggerKey> matcher);
 
     IJobDetail? GetJobDetail(JobKey jobKey);
 
@@ -149,13 +149,13 @@ public interface IRemotableQuartzScheduler
 
     void ResetTriggerFromErrorState(TriggerKey triggerKey);
 
-    void AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers);
+    void AddCalendar(string name, ICalendar calendar, bool replace, bool updateTriggers);
 
-    bool DeleteCalendar(string calName);
+    bool DeleteCalendar(string name);
 
-    ICalendar? GetCalendar(string calName);
+    ICalendar? GetCalendar(string name);
 
-    IReadOnlyCollection<string> GetCalendarNames();
+    List<string> GetCalendarNames();
 
     bool Interrupt(JobKey jobKey);
 

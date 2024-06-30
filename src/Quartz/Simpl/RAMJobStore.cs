@@ -170,7 +170,7 @@ public class RAMJobStore : IJobStore
     /// Clears (deletes!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
     /// <see cref="ICalendar"/>s.
     /// </summary>
-    public ValueTask<object> ClearAllSchedulingData(CancellationToken cancellationToken = default)
+    public ValueTask ClearAllSchedulingData(CancellationToken cancellationToken = default)
     {
         lock (lockObject)
         {
@@ -252,7 +252,7 @@ public class RAMJobStore : IJobStore
     /// <see cref="IJobStore" /> with the same name and group should be
     /// over-written.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public virtual ValueTask<object> StoreJob(
+    public virtual ValueTask StoreJob(
         IJobDetail newJob,
         bool replaceExisting,
         CancellationToken cancellationToken = default)
@@ -370,7 +370,7 @@ public class RAMJobStore : IJobStore
         }
     }
 
-    public ValueTask<object> StoreJobsAndTriggers(
+    public ValueTask StoreJobsAndTriggers(
         IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs,
         bool replace,
         CancellationToken cancellationToken = default)
@@ -434,7 +434,7 @@ public class RAMJobStore : IJobStore
     /// the <see cref="IJobStore" /> with the same name and group should
     /// be over-written.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public virtual ValueTask<object> StoreTrigger(
+    public virtual ValueTask StoreTrigger(
         IOperableTrigger newTrigger,
         bool replaceExisting,
         CancellationToken cancellationToken = default)
@@ -761,7 +761,7 @@ public class RAMJobStore : IJobStore
         return new ValueTask<TriggerState>(TriggerState.Normal);
     }
 
-    public ValueTask<object> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public ValueTask ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         lock (lockObject)
         {
@@ -942,11 +942,11 @@ public class RAMJobStore : IJobStore
     /// Get the names of all of the <see cref="IJob" /> s that
     /// match the given group matcher.
     /// </summary>
-    public virtual ValueTask<IReadOnlyCollection<JobKey>> GetJobKeys(
+    public virtual ValueTask<List<JobKey>> GetJobKeys(
         GroupMatcher<JobKey> matcher,
         CancellationToken cancellationToken = default)
     {
-        return new ValueTask<IReadOnlyCollection<JobKey>>(GetJobKeysInternal(matcher));
+        return new ValueTask<List<JobKey>>(GetJobKeysInternal(matcher).ToList());
     }
 
     private HashSet<JobKey> GetJobKeysInternal(GroupMatcher<JobKey> matcher)
@@ -992,21 +992,21 @@ public class RAMJobStore : IJobStore
     /// a zero-length array (not <see langword="null" />).
     /// </para>
     /// </summary>
-    public virtual ValueTask<IReadOnlyCollection<string>> GetCalendarNames(
+    public virtual ValueTask<List<string>> GetCalendarNames(
         CancellationToken cancellationToken = default)
     {
-        return new ValueTask<IReadOnlyCollection<string>>(new List<string>(calendarsByName.Keys));
+        return new ValueTask<List<string>>(new List<string>(calendarsByName.Keys));
     }
 
     /// <summary>
     /// Get the names of all of the <see cref="ITrigger" /> s
     /// that have the given group name.
     /// </summary>
-    public virtual ValueTask<IReadOnlyCollection<TriggerKey>> GetTriggerKeys(
+    public virtual ValueTask<List<TriggerKey>> GetTriggerKeys(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
-        return new ValueTask<IReadOnlyCollection<TriggerKey>>(GetTriggerKeysInternal(matcher));
+        return new ValueTask<List<TriggerKey>>(GetTriggerKeysInternal(matcher).ToList());
     }
 
     private HashSet<TriggerKey> GetTriggerKeysInternal(GroupMatcher<TriggerKey> matcher)
@@ -1048,19 +1048,19 @@ public class RAMJobStore : IJobStore
     /// Get the names of all of the <see cref="IJob" />
     /// groups.
     /// </summary>
-    public virtual ValueTask<IReadOnlyCollection<string>> GetJobGroupNames(
+    public virtual ValueTask<List<string>> GetJobGroupNames(
         CancellationToken cancellationToken = default)
     {
-        return new ValueTask<IReadOnlyCollection<string>>(new List<string>(jobsByGroup.Keys));
+        return new ValueTask<List<string>>(new List<string>(jobsByGroup.Keys));
     }
 
     /// <summary>
     /// Get the names of all of the <see cref="ITrigger" /> groups.
     /// </summary>
-    public virtual ValueTask<IReadOnlyCollection<string>> GetTriggerGroupNames(
+    public virtual ValueTask<List<string>> GetTriggerGroupNames(
         CancellationToken cancellationToken = default)
     {
-        return new ValueTask<IReadOnlyCollection<string>>(new List<string>(triggersByGroup.Keys));
+        return new ValueTask<List<string>>(new List<string>(triggersByGroup.Keys));
     }
 
     /// <summary>
@@ -1069,11 +1069,11 @@ public class RAMJobStore : IJobStore
     /// If there are no matches, a zero-length array should be returned.
     /// </para>
     /// </summary>
-    public virtual ValueTask<IReadOnlyCollection<IOperableTrigger>> GetTriggersForJob(
+    public virtual ValueTask<List<IOperableTrigger>> GetTriggersForJob(
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        return new ValueTask<IReadOnlyCollection<IOperableTrigger>>(GetTriggersForJobInternal(jobKey));
+        return new ValueTask<List<IOperableTrigger>>(GetTriggersForJobInternal(jobKey).ToList());
     }
 
     private IOperableTrigger[] GetTriggersForJobInternal(JobKey jobKey)
@@ -1134,7 +1134,7 @@ public class RAMJobStore : IJobStore
     /// <summary>
     /// Pause the <see cref="ITrigger" /> with the given name.
     /// </summary>
-    public virtual ValueTask<object> PauseTrigger(
+    public virtual ValueTask PauseTrigger(
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
@@ -1177,14 +1177,14 @@ public class RAMJobStore : IJobStore
     /// paused.
     /// </para>
     /// </summary>
-    public virtual ValueTask<IReadOnlyCollection<string>> PauseTriggers(
+    public virtual ValueTask<List<string>> PauseTriggers(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
-        return new ValueTask<IReadOnlyCollection<string>>(PauseTriggersInternal(matcher));
+        return new ValueTask<List<string>>(PauseTriggersInternal(matcher));
     }
 
-    private IReadOnlyCollection<string> PauseTriggersInternal(GroupMatcher<TriggerKey> matcher)
+    private List<string> PauseTriggersInternal(GroupMatcher<TriggerKey> matcher)
     {
         lock (lockObject)
         {
@@ -1222,7 +1222,7 @@ public class RAMJobStore : IJobStore
                 }
             }
 
-            return pausedGroups;
+            return pausedGroups.ToList();
         }
     }
 
@@ -1230,7 +1230,7 @@ public class RAMJobStore : IJobStore
     /// Pause the <see cref="IJobDetail" /> with the given
     /// name - by pausing all of its current <see cref="ITrigger" />s.
     /// </summary>
-    public virtual ValueTask<object> PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
+    public virtual ValueTask PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         lock (lockObject)
         {
@@ -1252,7 +1252,7 @@ public class RAMJobStore : IJobStore
     /// paused.
     /// </para>
     /// </summary>
-    public virtual ValueTask<IReadOnlyCollection<string>> PauseJobs(
+    public virtual ValueTask<List<string>> PauseJobs(
         GroupMatcher<JobKey> matcher,
         CancellationToken cancellationToken = default)
     {
@@ -1292,7 +1292,7 @@ public class RAMJobStore : IJobStore
                     }
                 }
             }
-            return new ValueTask<IReadOnlyCollection<string>>(pausedGroups);
+            return new ValueTask<List<string>>(pausedGroups);
         }
     }
 
@@ -1303,7 +1303,7 @@ public class RAMJobStore : IJobStore
     /// If the <see cref="ITrigger" /> missed one or more fire-times, then the
     /// <see cref="ITrigger" />'s misfire instruction will be applied.
     /// </remarks>
-    public virtual ValueTask<object> ResumeTrigger(
+    public virtual ValueTask ResumeTrigger(
         TriggerKey triggerKey,
         CancellationToken cancellationToken = default)
     {
@@ -1354,11 +1354,11 @@ public class RAMJobStore : IJobStore
     /// <see cref="ITrigger" />'s misfire instruction will be applied.
     /// </para>
     /// </summary>
-    public virtual ValueTask<IReadOnlyCollection<string>> ResumeTriggers(
+    public virtual ValueTask<List<string>> ResumeTriggers(
         GroupMatcher<TriggerKey> matcher,
         CancellationToken cancellationToken = default)
     {
-        return new ValueTask<IReadOnlyCollection<string>>(ResumeTriggersInternal(matcher));
+        return new ValueTask<List<string>>(ResumeTriggersInternal(matcher).ToList());
     }
 
     private HashSet<string> ResumeTriggersInternal(GroupMatcher<TriggerKey> matcher)
@@ -1419,7 +1419,7 @@ public class RAMJobStore : IJobStore
     /// instruction will be applied.
     /// </para>
     /// </summary>
-    public virtual ValueTask<object> ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
+    public virtual ValueTask ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         lock (lockObject)
         {
@@ -1441,13 +1441,13 @@ public class RAMJobStore : IJobStore
     /// misfire instruction will be applied.
     /// </para>
     /// </summary>
-    public virtual ValueTask<IReadOnlyCollection<string>> ResumeJobs(
+    public virtual ValueTask<List<string>> ResumeJobs(
         GroupMatcher<JobKey> matcher,
         CancellationToken cancellationToken = default)
     {
         lock (lockObject)
         {
-            var resumedGroups = new HashSet<string>();
+            var resumedGroups = new List<string>();
             var keys = GetJobKeysInternal(matcher);
 
             foreach (string pausedJobGroup in pausedJobGroups)
@@ -1471,7 +1471,7 @@ public class RAMJobStore : IJobStore
                     ResumeTriggerInternal(trigger.Key);
                 }
             }
-            return new ValueTask<IReadOnlyCollection<string>>(resumedGroups);
+            return new ValueTask<List<string>>(resumedGroups);
         }
     }
 
@@ -1484,7 +1484,7 @@ public class RAMJobStore : IJobStore
     /// </para>
     /// </summary>
     /// <seealso cref="ResumeAll(CancellationToken)" />
-    public virtual ValueTask<object> PauseAll(CancellationToken cancellationToken = default)
+    public virtual ValueTask PauseAll(CancellationToken cancellationToken = default)
     {
         lock (lockObject)
         {
@@ -1505,7 +1505,7 @@ public class RAMJobStore : IJobStore
     /// </para>
     /// </summary>
     /// <seealso cref="PauseAll(CancellationToken)" />
-    public virtual ValueTask<object> ResumeAll(CancellationToken cancellationToken = default)
+    public virtual ValueTask ResumeAll(CancellationToken cancellationToken = default)
     {
         lock (lockObject)
         {
@@ -1586,7 +1586,7 @@ public class RAMJobStore : IJobStore
     /// by the calling scheduler.
     /// </summary>
     /// <seealso cref="ITrigger" />
-    public virtual ValueTask<IReadOnlyCollection<IOperableTrigger>> AcquireNextTriggers(
+    public virtual ValueTask<List<IOperableTrigger>> AcquireNextTriggers(
         DateTimeOffset noLaterThan,
         int maxCount,
         TimeSpan timeWindow,
@@ -1597,7 +1597,7 @@ public class RAMJobStore : IJobStore
             // return empty list if store has no triggers.
             if (timeTriggers.Count == 0)
             {
-                return new ValueTask<IReadOnlyCollection<IOperableTrigger>>(Array.Empty<IOperableTrigger>());
+                return new ValueTask<List<IOperableTrigger>>(new List<IOperableTrigger>());
             }
 
             var result = new List<IOperableTrigger>();
@@ -1697,7 +1697,7 @@ public class RAMJobStore : IJobStore
                 }
             }
 
-            return new ValueTask<IReadOnlyCollection<IOperableTrigger>>(result);
+            return new ValueTask<List<IOperableTrigger>>(result);
         }
     }
 
@@ -1706,7 +1706,7 @@ public class RAMJobStore : IJobStore
     /// fire the given <see cref="ITrigger" />, that it had previously acquired
     /// (reserved).
     /// </summary>
-    public virtual ValueTask<object> ReleaseAcquiredTrigger(
+    public virtual ValueTask ReleaseAcquiredTrigger(
         IOperableTrigger trigger,
         CancellationToken cancellationToken = default)
     {
@@ -1726,7 +1726,7 @@ public class RAMJobStore : IJobStore
     /// given <see cref="ITrigger" /> (executing its associated <see cref="IJob" />),
     /// that it had previously acquired (reserved).
     /// </summary>
-    public virtual ValueTask<IReadOnlyCollection<TriggerFiredResult>> TriggersFired(
+    public virtual ValueTask<List<TriggerFiredResult>> TriggersFired(
         IReadOnlyCollection<IOperableTrigger> triggers,
         CancellationToken cancellationToken = default)
     {
@@ -1807,7 +1807,7 @@ public class RAMJobStore : IJobStore
 
                 results.Add(new TriggerFiredResult(bndle));
             }
-            return new ValueTask<IReadOnlyCollection<TriggerFiredResult>>(results);
+            return new ValueTask<List<TriggerFiredResult>>(results);
         }
     }
 
@@ -1818,7 +1818,7 @@ public class RAMJobStore : IJobStore
     /// in the given <see cref="IJobDetail" /> should be updated if the <see cref="IJob" />
     /// is stateful.
     /// </summary>
-    public virtual ValueTask<object> TriggeredJobComplete(
+    public virtual ValueTask TriggeredJobComplete(
         IOperableTrigger trigger,
         IJobDetail jobDetail,
         SchedulerInstruction triggerInstCode,
@@ -1864,7 +1864,7 @@ public class RAMJobStore : IJobStore
                         }
                     }
 
-                    signaler.SignalSchedulingChange(null, cancellationToken);
+                    signaler.SignalSchedulingChange(null, cancellationToken).GetAwaiter().GetResult();
                 }
             }
             else
@@ -1897,31 +1897,31 @@ public class RAMJobStore : IJobStore
                     else
                     {
                         RemoveTriggerInternal(trigger.Key);
-                        signaler.SignalSchedulingChange(null, cancellationToken);
+                        signaler.SignalSchedulingChange(null, cancellationToken).GetAwaiter().GetResult();
                     }
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetTriggerComplete)
                 {
                     tw.state = InternalTriggerState.Complete;
                     timeTriggers.Remove(tw);
-                    signaler.SignalSchedulingChange(null, cancellationToken);
+                    signaler.SignalSchedulingChange(null, cancellationToken).GetAwaiter().GetResult();
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetTriggerError)
                 {
                     logger.LogInformation("Trigger {TriggerKey} set to ERROR state.", trigger.Key);
                     tw.state = InternalTriggerState.Error;
-                    signaler.SignalSchedulingChange(null, cancellationToken);
+                    signaler.SignalSchedulingChange(null, cancellationToken).GetAwaiter().GetResult();
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersError)
                 {
                     logger.LogInformation("All triggers of Job {JobKey} set to ERROR state.", trigger.JobKey);
                     SetAllTriggersOfJobToState(trigger.JobKey, InternalTriggerState.Error);
-                    signaler.SignalSchedulingChange(null, cancellationToken);
+                    signaler.SignalSchedulingChange(null, cancellationToken).GetAwaiter().GetResult();
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersComplete)
                 {
                     SetAllTriggersOfJobToState(trigger.JobKey, InternalTriggerState.Complete);
-                    signaler.SignalSchedulingChange(null, cancellationToken);
+                    signaler.SignalSchedulingChange(null, cancellationToken).GetAwaiter().GetResult();
                 }
             }
         }
@@ -2013,10 +2013,10 @@ public class RAMJobStore : IJobStore
     }
 
     /// <seealso cref="IJobStore.GetPausedTriggerGroups" />
-    public virtual ValueTask<IReadOnlyCollection<string>> GetPausedTriggerGroups(
+    public virtual ValueTask<List<string>> GetPausedTriggerGroups(
         CancellationToken cancellationToken = default)
     {
-        var data = new HashSet<string>(pausedTriggerGroups);
-        return new ValueTask<IReadOnlyCollection<string>>(data);
+        var data = new List<string>(pausedTriggerGroups);
+        return new ValueTask<List<string>>(data);
     }
 }

@@ -96,7 +96,7 @@ public class CollectDurationBetweenFireTimesJob : IJob
 /// </summary>
 public class SlowRAMJobStore : RAMJobStore
 {
-    public override async ValueTask<IReadOnlyCollection<IOperableTrigger>> AcquireNextTriggers(
+    public override async ValueTask<List<IOperableTrigger>> AcquireNextTriggers(
         DateTimeOffset noLaterThan,
         int maxCount,
         TimeSpan timeWindow,

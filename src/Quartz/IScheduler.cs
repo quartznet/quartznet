@@ -175,8 +175,7 @@ public interface IScheduler
     /// </para>
     /// </remarks>
     /// <seealso cref="IJobExecutionContext" />
-    ValueTask<IReadOnlyCollection<IJobExecutionContext>> GetCurrentlyExecutingJobs(
-        CancellationToken cancellationToken = default);
+    ValueTask<List<IJobExecutionContext>> GetCurrentlyExecutingJobs(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Set the <see cref="JobFactory" /> that will be responsible for producing
@@ -204,17 +203,17 @@ public interface IScheduler
     /// <summary>
     /// Get the names of all known <see cref="IJobDetail" /> groups.
     /// </summary>
-    ValueTask<IReadOnlyCollection<string>> GetJobGroupNames(CancellationToken cancellationToken = default);
+    ValueTask<List<string>> GetJobGroupNames(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get the names of all known <see cref="ITrigger" /> groups.
     /// </summary>
-    ValueTask<IReadOnlyCollection<string>> GetTriggerGroupNames(CancellationToken cancellationToken = default);
+    ValueTask<List<string>> GetTriggerGroupNames(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get the names of all <see cref="ITrigger" /> groups that are paused.
     /// </summary>
-    ValueTask<IReadOnlyCollection<string>> GetPausedTriggerGroups(CancellationToken cancellationToken = default);
+    ValueTask<List<string>> GetPausedTriggerGroups(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Starts the <see cref="IScheduler" />'s threads that fire <see cref="ITrigger" />s.
@@ -324,7 +323,7 @@ public interface IScheduler
         CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Schedule all of the given jobs with the related set of triggers.
+    /// Schedule all the given jobs with the related set of triggers.
     /// </summary>
     /// <remarks>
     /// <para>If any of the given jobs or triggers already exist (or more
@@ -371,9 +370,7 @@ public interface IScheduler
     /// single long duration of time (rather than lots of small durations
     /// of time).
     /// </remarks>
-    ValueTask<bool> UnscheduleJobs(
-        IReadOnlyCollection<TriggerKey> triggerKeys,
-        CancellationToken cancellationToken = default);
+    ValueTask<bool> UnscheduleJobs(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Remove (delete) the <see cref="ITrigger" /> with the
@@ -454,9 +451,7 @@ public interface IScheduler
     /// true if all of the Jobs were found and deleted, false if
     /// one or more were not deleted.
     /// </returns>
-    ValueTask<bool> DeleteJobs(
-        IReadOnlyCollection<JobKey> jobKeys,
-        CancellationToken cancellationToken = default);
+    ValueTask<bool> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Trigger the identified <see cref="IJobDetail" />
@@ -620,37 +615,31 @@ public interface IScheduler
     /// <summary>
     /// Get the keys of all the <see cref="IJobDetail" />s in the matching groups.
     /// </summary>
-    ValueTask<IReadOnlyCollection<JobKey>> GetJobKeys(
-        GroupMatcher<JobKey> matcher,
-        CancellationToken cancellationToken = default);
+    ValueTask<List<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get all <see cref="ITrigger" /> s that are associated with the
     /// identified <see cref="IJobDetail" />.
     /// </summary>
     /// <remarks>
-    /// The returned Trigger objects will be snap-shots of the actual stored
+    /// The returned Trigger objects will be snapshots of the actual stored
     /// triggers.  If you wish to modify a trigger, you must re-store the
     /// trigger afterward (e.g. see <see cref="RescheduleJob(TriggerKey, ITrigger, CancellationToken)" />).
     /// </remarks>
-    ValueTask<IReadOnlyCollection<ITrigger>> GetTriggersOfJob(
-        JobKey jobKey,
-        CancellationToken cancellationToken = default);
+    ValueTask<List<ITrigger>> GetTriggersOfJob(JobKey jobKey, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get the names of all the <see cref="ITrigger" />s in the given
     /// groups.
     /// </summary>
-    ValueTask<IReadOnlyCollection<TriggerKey>> GetTriggerKeys(
-        GroupMatcher<TriggerKey> matcher,
-        CancellationToken cancellationToken = default);
+    ValueTask<List<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get the <see cref="IJobDetail" /> for the <see cref="IJob" />
     /// instance with the given key .
     /// </summary>
     /// <remarks>
-    /// The returned JobDetail object will be a snap-shot of the actual stored
+    /// The returned JobDetail object will be a snapshot of the actual stored
     /// JobDetail.  If you wish to modify the JobDetail, you must re-store the
     /// JobDetail afterward (e.g. see <see cref="AddJob(IJobDetail, bool, CancellationToken)" />).
     /// </remarks>
@@ -699,7 +688,7 @@ public interface IScheduler
     /// <summary>
     /// Add (register) the given <see cref="ICalendar" /> to the Scheduler.
     /// </summary>
-    /// <param name="calName">Name of the calendar.</param>
+    /// <param name="name">Name of the calendar.</param>
     /// <param name="calendar">The calendar.</param>
     /// <param name="replace">if set to <c>true</c> [replace].</param>
     /// <param name="updateTriggers">whether or not to update existing triggers that
@@ -707,7 +696,7 @@ public interface IScheduler
     /// based on the new trigger.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     ValueTask AddCalendar(
-        string calName,
+        string name,
         ICalendar calendar,
         bool replace,
         bool updateTriggers,
@@ -721,20 +710,20 @@ public interface IScheduler
     /// <see cref="ITrigger" />s pointing to non-existent calendars, then a
     /// <see cref="SchedulerException" /> will be thrown.
     /// </remarks>
-    /// <param name="calName">Name of the calendar.</param>
+    /// <param name="name">Name of the calendar.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if the Calendar was found and deleted.</returns>
-    ValueTask<bool> DeleteCalendar(string calName, CancellationToken cancellationToken = default);
+    ValueTask<bool> DeleteCalendar(string name, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get the <see cref="ICalendar" /> instance with the given name.
     /// </summary>
-    ValueTask<ICalendar?> GetCalendar(string calName, CancellationToken cancellationToken = default);
+    ValueTask<ICalendar?> GetCalendar(string name, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get the names of all registered <see cref="ICalendar" />.
     /// </summary>
-    ValueTask<IReadOnlyCollection<string>> GetCalendarNames(CancellationToken cancellationToken = default);
+    ValueTask<List<string>> GetCalendarNames(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Request the cancellation, within this Scheduler instance, of all

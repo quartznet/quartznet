@@ -95,7 +95,7 @@ internal sealed class ClusterManager
 
             if (await Manage().ConfigureAwait(false))
             {
-                jobStoreSupport.SignalSchedulingChangeImmediately(SchedulerConstants.SchedulingSignalDateTime);
+                await jobStoreSupport.SignalSchedulingChangeImmediately(SchedulerConstants.SchedulingSignalDateTime).ConfigureAwait(false);
             }
         }
         // ReSharper disable once FunctionNeverReturns

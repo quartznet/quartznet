@@ -498,10 +498,11 @@ public class RAMJobStoreTest
             return default;
         }
 
-        public void SignalSchedulingChange(
+        public ValueTask SignalSchedulingChange(
             DateTimeOffset? candidateNewNextFireTimeUtc,
             CancellationToken cancellationToken = default)
         {
+            return default;
         }
 
         public ValueTask NotifySchedulerListenersError(

@@ -11,7 +11,8 @@ using Nuke.Components;
     OnPullRequestExcludePaths = ["docs/**/*", "package.json", "package-lock.json", "readme.md"],
     PublishArtifacts = false,
     InvokedTargets = [nameof(ICompile.Compile), nameof(UnitTest), nameof(PublishAot)],
-    CacheKeyFiles = []
+    CacheKeyFiles = [],
+    TimeoutMinutes = 10
 )]
 [GitHubActions(
     "pr-tests-integration-postgres",
@@ -21,7 +22,8 @@ using Nuke.Components;
     OnPullRequestExcludePaths = ["docs/**/*", "package.json", "package-lock.json", "readme.md"],
     PublishArtifacts = false,
     InvokedTargets = [nameof(ICompile.Compile), nameof(IntegrationTest)],
-    CacheKeyFiles = []
+    CacheKeyFiles = [],
+    TimeoutMinutes = 10
 )]
 [GitHubActions(
     "build",
@@ -36,6 +38,7 @@ using Nuke.Components;
     PublishCondition = "${{ runner.os == 'Windows' }}",
     InvokedTargets = [nameof(ICompile.Compile), nameof(UnitTest), nameof(IntegrationTest), nameof(IPack.Pack), nameof(Publish)],
     ImportSecrets = ["NUGET_API_KEY", "FEEDZ_API_KEY"],
-    CacheKeyFiles = []
+    CacheKeyFiles = [],
+    TimeoutMinutes = 10
 )]
 public partial class Build;

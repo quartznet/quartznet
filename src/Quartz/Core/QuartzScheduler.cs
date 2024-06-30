@@ -179,7 +179,7 @@ public sealed class QuartzScheduler :
     /// soon as it's returned, the true list of executing jobs may be different.
     /// </para>
     /// </summary>
-    public IReadOnlyCollection<IJobExecutionContext> CurrentlyExecutingJobs => jobMgr.ExecutingJobs;
+    public List<IJobExecutionContext> GetCurrentlyExecutingJobs() => jobMgr.GetExecutingJobs;
 
     /// <summary>
     /// Register the given <see cref="ISchedulerListener" /> with the
@@ -345,7 +345,7 @@ public sealed class QuartzScheduler :
             await resources.JobStore.SchedulerResumed(cancellationToken).ConfigureAwait(false);
         }
 
-        schedThread.TogglePause(false);
+        schedThread.TogglePause(pause: false);
 
         logger.LogInformation("Scheduler {SchedulerIdentifier} started.", resources.GetUniqueIdentifier());
 
@@ -389,7 +389,7 @@ public sealed class QuartzScheduler :
     public async ValueTask Standby(CancellationToken cancellationToken = default)
     {
         await resources.JobStore.SchedulerPaused(cancellationToken).ConfigureAwait(false);
-        schedThread.TogglePause(true);
+        schedThread.TogglePause(pause: true);
         logger.LogInformation("Scheduler {SchedulerIdentifier} paused.", resources.GetUniqueIdentifier());
         await NotifySchedulerListenersInStandbyMode(cancellationToken).ConfigureAwait(false);
     }
@@ -461,7 +461,7 @@ public sealed class QuartzScheduler :
         if (resources.InterruptJobsOnShutdown && !waitForJobsToComplete
             || resources.InterruptJobsOnShutdownWithWait && waitForJobsToComplete)
         {
-            var jobs = CurrentlyExecutingJobs.OfType<ICancellableJobExecutionContext>();
+            var jobs = GetCurrentlyExecutingJobs().OfType<ICancellableJobExecutionContext>();
             foreach (var job in jobs)
             {
                 job.Cancel();
@@ -1124,8 +1124,7 @@ public sealed class QuartzScheduler :
     /// Gets the paused trigger groups.
     /// </summary>
     /// <returns></returns>
-    public ValueTask<IReadOnlyCollection<string>> GetPausedTriggerGroups(
-        CancellationToken cancellationToken = default)
+    public ValueTask<List<string>> GetPausedTriggerGroups(CancellationToken cancellationToken = default)
     {
         return resources.JobStore.GetPausedTriggerGroups(cancellationToken);
     }
@@ -1139,14 +1138,12 @@ public sealed class QuartzScheduler :
     /// instruction will be applied.
     /// </para>
     /// </summary>
-    public async ValueTask ResumeJob(
-        JobKey jobKey,
-        CancellationToken cancellationToken = default)
+    public async ValueTask ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         ValidateState();
 
         await resources.JobStore.ResumeJob(jobKey, cancellationToken).ConfigureAwait(false);
-        NotifySchedulerThread(null);
+        NotifySchedulerThread(candidateNewNextFireTimeUtc: null);
         await NotifySchedulerListenersResumedJob(jobKey, cancellationToken).ConfigureAwait(false);
     }
 
@@ -1215,8 +1212,7 @@ public sealed class QuartzScheduler :
     /// <summary>
     /// Get the names of all known <see cref="IJob" /> groups.
     /// </summary>
-    public ValueTask<IReadOnlyCollection<string>> GetJobGroupNames(
-        CancellationToken cancellationToken = default)
+    public ValueTask<List<string>> GetJobGroupNames(CancellationToken cancellationToken = default)
     {
         ValidateState();
 
@@ -1227,9 +1223,7 @@ public sealed class QuartzScheduler :
     /// Get the names of all the <see cref="IJob" />s in the
     /// given group.
     /// </summary>
-    public ValueTask<IReadOnlyCollection<JobKey>> GetJobKeys(
-        GroupMatcher<JobKey> matcher,
-        CancellationToken cancellationToken = default)
+    public ValueTask<List<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
         ValidateState();
 
@@ -1245,9 +1239,7 @@ public sealed class QuartzScheduler :
     /// Get all <see cref="ITrigger" /> s that are associated with the
     /// identified <see cref="IJobDetail" />.
     /// </summary>
-    public async ValueTask<IReadOnlyCollection<ITrigger>> GetTriggersOfJob(
-        JobKey jobKey,
-        CancellationToken cancellationToken = default)
+    public async ValueTask<List<ITrigger>> GetTriggersOfJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         ValidateState();
 
@@ -1265,7 +1257,7 @@ public sealed class QuartzScheduler :
     /// Get the names of all known <see cref="ITrigger" />
     /// groups.
     /// </summary>
-    public ValueTask<IReadOnlyCollection<string>> GetTriggerGroupNames(
+    public ValueTask<List<string>> GetTriggerGroupNames(
         CancellationToken cancellationToken = default)
     {
         ValidateState();
@@ -1276,9 +1268,7 @@ public sealed class QuartzScheduler :
     /// Get the names of all the <see cref="ITrigger" />s in
     /// the matching groups.
     /// </summary>
-    public ValueTask<IReadOnlyCollection<TriggerKey>> GetTriggerKeys(
-        GroupMatcher<TriggerKey> matcher,
-        CancellationToken cancellationToken = default)
+    public ValueTask<List<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
         ValidateState();
 
@@ -1379,7 +1369,7 @@ public sealed class QuartzScheduler :
         return resources.JobStore.GetTriggerState(triggerKey, cancellationToken);
     }
 
-    public ValueTask<object> ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public ValueTask ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
         ValidateState();
 
@@ -1390,44 +1380,39 @@ public sealed class QuartzScheduler :
     /// Add (register) the given <see cref="ICalendar" /> to the Scheduler.
     /// </summary>
     public ValueTask AddCalendar(
-        string calName,
+        string name,
         ICalendar calendar,
         bool replace,
         bool updateTriggers,
         CancellationToken cancellationToken = default)
     {
         ValidateState();
-        return resources.JobStore.StoreCalendar(calName, calendar, replace, updateTriggers, cancellationToken);
+        return resources.JobStore.StoreCalendar(name, calendar, replace, updateTriggers, cancellationToken);
     }
 
     /// <summary>
     /// Delete the identified <see cref="ICalendar" /> from the Scheduler.
     /// </summary>
     /// <returns> true if the Calendar was found and deleted.</returns>
-    public ValueTask<bool> DeleteCalendar(
-        string calName,
-        CancellationToken cancellationToken = default)
+    public ValueTask<bool> DeleteCalendar(string name, CancellationToken cancellationToken = default)
     {
         ValidateState();
-        return resources.JobStore.RemoveCalendar(calName, cancellationToken);
+        return resources.JobStore.RemoveCalendar(name, cancellationToken);
     }
 
     /// <summary>
     /// Get the <see cref="ICalendar" /> instance with the given name.
     /// </summary>
-    public ValueTask<ICalendar?> GetCalendar(
-        string calName,
-        CancellationToken cancellationToken = default)
+    public ValueTask<ICalendar?> GetCalendar(string name, CancellationToken cancellationToken = default)
     {
         ValidateState();
-        return resources.JobStore.RetrieveCalendar(calName, cancellationToken);
+        return resources.JobStore.RetrieveCalendar(name, cancellationToken);
     }
 
     /// <summary>
     /// Get the names of all registered <see cref="ICalendar" />s.
     /// </summary>
-    public ValueTask<IReadOnlyCollection<string>> GetCalendarNames(
-        CancellationToken cancellationToken = default)
+    public ValueTask<List<string>> GetCalendarNames(CancellationToken cancellationToken = default)
     {
         ValidateState();
         return resources.JobStore.GetCalendarNames(cancellationToken);
@@ -1435,7 +1420,7 @@ public sealed class QuartzScheduler :
 
     public IListenerManager ListenerManager { get; } = new ListenerManagerImpl();
 
-    public ValueTask<object> NotifyJobStoreJobVetoed(
+    public ValueTask NotifyJobStoreJobVetoed(
         IOperableTrigger trigger,
         IJobDetail detail,
         SchedulerInstruction instCode,
@@ -1447,7 +1432,7 @@ public sealed class QuartzScheduler :
     /// <summary>
     /// Notifies the job store job complete.
     /// </summary>
-    public ValueTask<object> NotifyJobStoreJobComplete(
+    public ValueTask NotifyJobStoreJobComplete(
         IOperableTrigger trigger,
         IJobDetail detail,
         SchedulerInstruction instCode,
@@ -2087,7 +2072,7 @@ public sealed class QuartzScheduler :
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
-        var cancellableJobs = CurrentlyExecutingJobs.OfType<ICancellableJobExecutionContext>();
+        var cancellableJobs = GetCurrentlyExecutingJobs().OfType<ICancellableJobExecutionContext>();
 
         bool interrupted = false;
 
@@ -2128,7 +2113,7 @@ public sealed class QuartzScheduler :
         string fireInstanceId,
         CancellationToken cancellationToken = default)
     {
-        var cancellableJobs = CurrentlyExecutingJobs.OfType<ICancellableJobExecutionContext>();
+        var cancellableJobs = GetCurrentlyExecutingJobs().OfType<ICancellableJobExecutionContext>();
 
         bool interrupted = false;
 
@@ -2311,7 +2296,7 @@ public sealed class QuartzScheduler :
         ResumeTriggers(matcher).ConfigureAwait(false).GetAwaiter().GetResult();
     }
 
-    IReadOnlyCollection<string> IRemotableQuartzScheduler.GetPausedTriggerGroups()
+    List<string> IRemotableQuartzScheduler.GetPausedTriggerGroups()
     {
         return GetPausedTriggerGroups().ConfigureAwait(false).GetAwaiter().GetResult();
     }
@@ -2336,27 +2321,27 @@ public sealed class QuartzScheduler :
         ResumeAll().ConfigureAwait(false).GetAwaiter().GetResult();
     }
 
-    IReadOnlyCollection<string> IRemotableQuartzScheduler.GetJobGroupNames()
+    List<string> IRemotableQuartzScheduler.GetJobGroupNames()
     {
         return GetJobGroupNames().ConfigureAwait(false).GetAwaiter().GetResult();
     }
 
-    IReadOnlyCollection<JobKey> IRemotableQuartzScheduler.GetJobKeys(GroupMatcher<JobKey> matcher)
+    List<JobKey> IRemotableQuartzScheduler.GetJobKeys(GroupMatcher<JobKey> matcher)
     {
         return GetJobKeys(matcher).ConfigureAwait(false).GetAwaiter().GetResult();
     }
 
-    IReadOnlyCollection<ITrigger> IRemotableQuartzScheduler.GetTriggersOfJob(JobKey jobKey)
+    List<ITrigger> IRemotableQuartzScheduler.GetTriggersOfJob(JobKey jobKey)
     {
         return GetTriggersOfJob(jobKey).ConfigureAwait(false).GetAwaiter().GetResult();
     }
 
-    IReadOnlyCollection<string> IRemotableQuartzScheduler.GetTriggerGroupNames()
+    List<string> IRemotableQuartzScheduler.GetTriggerGroupNames()
     {
         return GetTriggerGroupNames().ConfigureAwait(false).GetAwaiter().GetResult();
     }
 
-    IReadOnlyCollection<TriggerKey> IRemotableQuartzScheduler.GetTriggerKeys(GroupMatcher<TriggerKey> matcher)
+    List<TriggerKey> IRemotableQuartzScheduler.GetTriggerKeys(GroupMatcher<TriggerKey> matcher)
     {
         return GetTriggerKeys(matcher).ConfigureAwait(false).GetAwaiter().GetResult();
     }
@@ -2381,22 +2366,22 @@ public sealed class QuartzScheduler :
         ResetTriggerFromErrorState(triggerKey).ConfigureAwait(false).GetAwaiter().GetResult();
     }
 
-    void IRemotableQuartzScheduler.AddCalendar(string calName, ICalendar calendar, bool replace, bool updateTriggers)
+    void IRemotableQuartzScheduler.AddCalendar(string name, ICalendar calendar, bool replace, bool updateTriggers)
     {
-        AddCalendar(calName, calendar, replace, updateTriggers).ConfigureAwait(false).GetAwaiter().GetResult();
+        AddCalendar(name, calendar, replace, updateTriggers).ConfigureAwait(false).GetAwaiter().GetResult();
     }
 
-    bool IRemotableQuartzScheduler.DeleteCalendar(string calName)
+    bool IRemotableQuartzScheduler.DeleteCalendar(string name)
     {
-        return DeleteCalendar(calName).ConfigureAwait(false).GetAwaiter().GetResult();
+        return DeleteCalendar(name).ConfigureAwait(false).GetAwaiter().GetResult();
     }
 
-    ICalendar? IRemotableQuartzScheduler.GetCalendar(string calName)
+    ICalendar? IRemotableQuartzScheduler.GetCalendar(string name)
     {
-        return GetCalendar(calName).ConfigureAwait(false).GetAwaiter().GetResult();
+        return GetCalendar(name).ConfigureAwait(false).GetAwaiter().GetResult();
     }
 
-    IReadOnlyCollection<string> IRemotableQuartzScheduler.GetCalendarNames()
+    List<string> IRemotableQuartzScheduler.GetCalendarNames()
     {
         return GetCalendarNames().ConfigureAwait(false).GetAwaiter().GetResult();
     }

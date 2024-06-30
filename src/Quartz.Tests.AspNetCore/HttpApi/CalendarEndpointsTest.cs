@@ -14,7 +14,7 @@ public class CalendarEndpointsTest : WebApiTest
     [Test]
     public async Task GetCalendarNamesShouldWork()
     {
-        A.CallTo(() => FakeScheduler.GetCalendarNames(A<CancellationToken>._)).Returns(new[] { "Calendar 1", "Calendar 2" });
+        A.CallTo(() => FakeScheduler.GetCalendarNames(A<CancellationToken>._)).Returns(["Calendar 1", "Calendar 2"]);
 
         var calendarNames = await HttpScheduler.GetCalendarNames();
 
