@@ -780,7 +780,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
     }
 
     // Returns the index of the next entry in the bucket
-    private void AddEntryToBucket(ref Entry entry, int entryIndex, int[] buckets)
+    private static void AddEntryToBucket(ref Entry entry, int entryIndex, int[] buckets)
     {
         ref int b = ref buckets[(int) (entry.HashCode % (uint) buckets.Length)];
         entry.Next = b - 1;

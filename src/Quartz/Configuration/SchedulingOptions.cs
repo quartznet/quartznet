@@ -20,7 +20,7 @@ public class SchedulingOptions
     /// in the scheduler will be ignored, and no error will be produced.
     /// </summary>
     /// <seealso cref="OverWriteExistingData"/>
-    public bool IgnoreDuplicates { get; set; } = false;
+    public bool IgnoreDuplicates { get; set; }
 
     /// <summary>
     /// If true (and <see cref="OverWriteExistingData" /> is true) then any
@@ -29,5 +29,5 @@ public class SchedulingOptions
     /// new trigger's last fire time will be updated to old trigger's last fire time
     /// and trigger's next fire time will updated to be next from this last fire time.
     /// </summary>
-    public bool ScheduleTriggerRelativeToReplacedTrigger { get; set; } = false;
+    public bool ScheduleTriggerRelativeToReplacedTrigger { get; set; }
 }

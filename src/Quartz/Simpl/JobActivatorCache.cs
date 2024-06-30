@@ -11,15 +11,9 @@ internal sealed class JobActivatorCache
 
     public IJob CreateInstance(IServiceProvider serviceProvider, Type jobType)
     {
-        if (serviceProvider is null)
-        {
-            throw new ArgumentNullException(nameof(serviceProvider));
-        }
+        ArgumentNullException.ThrowIfNull(serviceProvider);
 
-        if (jobType is null)
-        {
-            throw new ArgumentNullException(nameof(jobType));
-        }
+        ArgumentNullException.ThrowIfNull(jobType);
 
         var factory = activatorCache.GetOrAdd(jobType, createFactory);
         return (IJob) factory(serviceProvider, null);

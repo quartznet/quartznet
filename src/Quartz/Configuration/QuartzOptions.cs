@@ -7,8 +7,8 @@ namespace Quartz;
 
 public class QuartzOptions : Dictionary<string, string?>
 {
-    internal readonly List<IJobDetail> jobDetails = new();
-    internal readonly List<ITrigger> triggers = new();
+    internal readonly List<IJobDetail> _jobDetails = new();
+    internal readonly List<ITrigger> _triggers = new();
 
     public string? SchedulerId
     {
@@ -48,15 +48,15 @@ public class QuartzOptions : Dictionary<string, string?>
 
     public JobFactoryOptions JobFactory { get; set; } = new();
 
-    public IReadOnlyList<IJobDetail> JobDetails => jobDetails;
+    public IReadOnlyList<IJobDetail> JobDetails => _jobDetails;
 
-    public IReadOnlyList<ITrigger> Triggers => triggers;
+    public IReadOnlyList<ITrigger> Triggers => _triggers;
 
     public QuartzOptions AddJob(Type jobType, Action<JobBuilder> configure)
     {
         var builder = JobBuilder.Create(jobType);
         configure(builder);
-        jobDetails.Add(builder.Build());
+        _jobDetails.Add(builder.Build());
         return this;
     }
 
@@ -64,7 +64,7 @@ public class QuartzOptions : Dictionary<string, string?>
     {
         var builder = JobBuilder.Create<T>();
         configure(builder);
-        jobDetails.Add(builder.Build());
+        _jobDetails.Add(builder.Build());
         return this;
     }
 
@@ -72,7 +72,7 @@ public class QuartzOptions : Dictionary<string, string?>
     {
         var builder = TriggerBuilder.Create();
         configure(builder);
-        triggers.Add(builder.Build());
+        _triggers.Add(builder.Build());
         return this;
     }
 

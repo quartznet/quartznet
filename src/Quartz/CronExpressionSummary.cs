@@ -82,7 +82,7 @@ internal readonly struct CronExpressionSummary
             var val = iVal.ToString(CultureInfo.InvariantCulture);
             if (!first)
             {
-                buf.Append(",");
+                buf.Append(',');
             }
 
             buf.Append(val);

@@ -10,6 +10,8 @@
 
     <!-- Microsoft.Extensions.TimeProvider.Testing 8.6.0 doesn't support net472 and has not been tested with it... -->
     <SuppressTfmSupportBuildWarnings>true</SuppressTfmSupportBuildWarnings>
+
+    <AnalysisLevel>none</AnalysisLevel>
   </PropertyGroup>
 
   <ItemGroup>

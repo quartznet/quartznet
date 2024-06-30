@@ -64,10 +64,7 @@ internal record JobDetailDto(
 
     public static JobDetailDto Create(IJobDetail jobDetail)
     {
-        if (jobDetail is null)
-        {
-            throw new ArgumentNullException(nameof(jobDetail));
-        }
+        ArgumentNullException.ThrowIfNull(jobDetail);
 
         return new JobDetailDto(
             Name: jobDetail.Key.Name,

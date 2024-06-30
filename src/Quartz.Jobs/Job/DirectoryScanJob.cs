@@ -98,7 +98,7 @@ public class DirectoryScanJob : IJob
             AddToList(allFiles, dirAllFiles);
         });
 
-        if (updatedFiles.Any() || deletedFiles.Any())
+        if (updatedFiles.Count > 0 || deletedFiles.Count > 0)
         {
             foreach (var fileInfo in updatedFiles)
             {
@@ -106,13 +106,13 @@ public class DirectoryScanJob : IJob
             }
 
             // notify call back...
-            if (updatedFiles.Any())
+            if (updatedFiles.Count > 0)
             {
                 model.DirectoryScanListener.FilesUpdatedOrAdded(updatedFiles);
                 DateTime latestWriteTimeFromFiles = updatedFiles.Select(x => x.LastWriteTime).Max();
                 model.UpdateLastModifiedDate(latestWriteTimeFromFiles);
             }
-            if (deletedFiles.Any())
+            if (deletedFiles.Count > 0)
             {
                 model.DirectoryScanListener.FilesDeleted(deletedFiles);
             }
@@ -173,7 +173,7 @@ public class DirectoryScanJob : IJob
                 return false;
             }
 
-            return x.FullName.Equals(y.FullName);
+            return x.FullName == y.FullName;
         }
 
         public int GetHashCode(FileInfo obj)

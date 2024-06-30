@@ -452,6 +452,8 @@ public class LoggingTriggerHistoryPlugin : ISchedulerPlugin, ITriggerListener
 
     protected virtual void WriteInfo(string message)
     {
+#pragma warning disable CA2254
         logger.LogInformation(message);
+#pragma warning restore CA2254
     }
 }

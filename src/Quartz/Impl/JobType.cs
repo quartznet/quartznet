@@ -63,7 +63,7 @@ public sealed class JobType
 
     public Type Type => type.Value;
 
-    private string GetFullName(Type jobType)
+    private static string GetFullName(Type jobType)
     {
         if (jobType.AssemblyQualifiedName is null)
         {

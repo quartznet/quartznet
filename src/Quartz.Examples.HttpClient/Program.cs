@@ -87,7 +87,9 @@ while (true)
     }
 }
 
+#pragma warning disable CA1852
 internal class MyHttpSchedulerProxyFactory : HttpSchedulerProxyFactory
+#pragma warning restore CA1852
 {
     protected override HttpClient CreateHttpClient(string address)
     {
@@ -97,7 +99,9 @@ internal class MyHttpSchedulerProxyFactory : HttpSchedulerProxyFactory
     }
 }
 
+#pragma warning disable CA1050
 public interface IMyScheduler : IScheduler
+#pragma warning restore CA1050
 {
 }
 

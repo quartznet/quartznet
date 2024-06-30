@@ -222,7 +222,7 @@ public sealed class CronCalendar : BaseCalendar
         }
         buffer.Append("], excluded cron expression: '");
         buffer.Append(cronExpression);
-        buffer.Append("'");
+        buffer.Append('\'');
         return buffer.ToString();
     }
 

@@ -21,6 +21,7 @@ public class AsyncDisposableJob : IJob, IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
+        GC.SuppressFinalize(this);
         logger.LogInformation("{JobType} async-disposing", GetType().Name);
         return ValueTask.CompletedTask;
     }
@@ -38,6 +39,7 @@ public class AsyncDisposableDependency : IAsyncDisposable
 
     public ValueTask DisposeAsync()
     {
+        GC.SuppressFinalize(this);
         logger.LogInformation("AsyncDisposableDependency async-disposing");
         return ValueTask.CompletedTask;
     }

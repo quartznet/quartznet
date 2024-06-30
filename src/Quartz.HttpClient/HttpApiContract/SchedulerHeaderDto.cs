@@ -4,10 +4,7 @@ internal record SchedulerHeaderDto(string Name, string SchedulerInstanceId, Sche
 {
     public static SchedulerHeaderDto Create(IScheduler scheduler)
     {
-        if (scheduler is null)
-        {
-            throw new ArgumentNullException(nameof(scheduler));
-        }
+        ArgumentNullException.ThrowIfNull(scheduler);
 
         return new SchedulerHeaderDto(scheduler.SchedulerName, scheduler.SchedulerInstanceId, TranslateStatus(scheduler));
     }

@@ -173,10 +173,7 @@ public class HttpScheduler : IScheduler
 
     public ValueTask<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger, CancellationToken cancellationToken = default)
     {
-        if (jobDetail is null)
-        {
-            throw new ArgumentNullException(nameof(jobDetail));
-        }
+        ArgumentNullException.ThrowIfNull(jobDetail);
 
         return DoScheduleJob(jobDetail, trigger, cancellationToken);
     }
@@ -188,10 +185,7 @@ public class HttpScheduler : IScheduler
 
     private async ValueTask<DateTimeOffset> DoScheduleJob(IJobDetail? jobDetail, ITrigger trigger, CancellationToken cancellationToken)
     {
-        if (trigger is null)
-        {
-            throw new ArgumentNullException(nameof(trigger));
-        }
+        ArgumentNullException.ThrowIfNull(trigger);
 
         var jobDetailsDto = jobDetail is not null ? JobDetailDto.Create(jobDetail) : null;
         var result = await httpClient.PostWithResponse<ScheduleJobRequest, ScheduleJobResponse>(
@@ -206,10 +200,7 @@ public class HttpScheduler : IScheduler
 
     public ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
     {
-        if (triggersAndJobs is null)
-        {
-            throw new ArgumentNullException(nameof(triggersAndJobs));
-        }
+        ArgumentNullException.ThrowIfNull(triggersAndJobs);
 
         var requestItems = triggersAndJobs.Select(CreateRequestItem).ToArray();
         var request = new ScheduleJobsRequest(requestItems, replace);
@@ -246,10 +237,7 @@ public class HttpScheduler : IScheduler
 
     public async ValueTask<bool> UnscheduleJobs(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
     {
-        if (triggerKeys is null)
-        {
-            throw new ArgumentNullException(nameof(triggerKeys));
-        }
+        ArgumentNullException.ThrowIfNull(triggerKeys);
 
         var result = await httpClient.PostWithResponse<UnscheduleJobsRequest, UnscheduleJobsResponse>(
             $"{TriggerEndpointUrl()}/unschedule",
@@ -263,10 +251,7 @@ public class HttpScheduler : IScheduler
 
     public async ValueTask<DateTimeOffset?> RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger, CancellationToken cancellationToken = default)
     {
-        if (newTrigger is null)
-        {
-            throw new ArgumentNullException(nameof(newTrigger));
-        }
+        ArgumentNullException.ThrowIfNull(newTrigger);
 
         var result = await httpClient.PostWithResponse<RescheduleJobRequest, RescheduleJobResponse>(
             $"{TriggerEndpointUrl(triggerKey)}/reschedule",
@@ -308,10 +293,7 @@ public class HttpScheduler : IScheduler
 
     public async ValueTask<bool> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
     {
-        if (jobKeys is null)
-        {
-            throw new ArgumentNullException(nameof(jobKeys));
-        }
+        ArgumentNullException.ThrowIfNull(jobKeys);
 
         var result = await httpClient.PostWithResponse<DeleteJobsRequest, DeleteJobsResponse>(
             $"{JobEndpointUrl()}/delete",
@@ -330,10 +312,7 @@ public class HttpScheduler : IScheduler
 
     public ValueTask TriggerJob(JobKey jobKey, JobDataMap data, CancellationToken cancellationToken = default)
     {
-        if (data is null)
-        {
-            throw new ArgumentNullException(nameof(data));
-        }
+        ArgumentNullException.ThrowIfNull(data);
 
         var request = new TriggerJobRequest(data);
         return httpClient.Post($"{JobEndpointUrl(jobKey)}/trigger", request, jsonSerializerOptions, cancellationToken);
@@ -454,10 +433,7 @@ public class HttpScheduler : IScheduler
             throw new ArgumentException("Calendar name required", nameof(calName));
         }
 
-        if (calendar is null)
-        {
-            throw new ArgumentNullException(nameof(calendar));
-        }
+        ArgumentNullException.ThrowIfNull(calendar);
 
         var requestContent = new AddCalendarRequest(calName, calendar, replace, updateTriggers);
         return httpClient.Post(CalendarEndpointUrl(), requestContent, jsonSerializerOptions, cancellationToken);
@@ -559,7 +535,9 @@ public class HttpScheduler : IScheduler
 
     private SchedulerDto GetSchedulerDetailsSync()
     {
+#pragma warning disable CA2012
         var schedulerDto = GetSchedulerDetails(CancellationToken.None).ConfigureAwait(false).GetAwaiter().GetResult();
+#pragma warning restore CA2012
         return schedulerDto;
     }
 

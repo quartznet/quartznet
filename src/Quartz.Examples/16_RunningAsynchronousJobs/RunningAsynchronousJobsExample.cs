@@ -31,7 +31,7 @@ public class RunningAsynchronousJobsExample : IExample
 {
     public virtual async Task Run()
     {
-        ISchedulerFactory sf = new StdSchedulerFactory();
+        StdSchedulerFactory sf = new StdSchedulerFactory();
         IScheduler sched = await sf.GetScheduler();
 
         Console.WriteLine("------- Initialization Complete -----------");

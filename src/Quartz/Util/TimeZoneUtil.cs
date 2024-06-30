@@ -49,7 +49,9 @@ public static class TimeZoneUtil
         timeZoneIdAliases["Asia/Karachi"] = "Pakistan Standard Time";
     }
 
+#pragma warning disable CA2211
     public static Func<string, TimeZoneInfo?> CustomResolver = id => null;
+#pragma warning restore CA2211
 
     /// <summary>
     /// TimeZoneInfo.ConvertTime is not supported under mono

@@ -21,7 +21,7 @@ internal sealed class CalendarConverter : JsonConverter
         {typeof(WeeklyCalendar).AssemblyQualifiedNameWithoutVersion(), new WeeklyCalendarSerializer()}
     };
 
-    private ICalendarSerializer GetCalendarConverter(string typeName)
+    private static ICalendarSerializer GetCalendarConverter(string typeName)
     {
         if (!converters.TryGetValue(typeName, out var converter))
         {

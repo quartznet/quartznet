@@ -48,7 +48,7 @@ internal sealed class SimpleTypeLoadHelper : ITypeLoadHelper
         if (type is null && name.EndsWith(QuartzAssemblyTypePostfix, StringComparison.Ordinal))
         {
             // we've moved jobs to new assembly try that too
-            var newName = name.Substring(0, name.Length - QuartzAssemblyTypePostfix.Length) + QuartzJobsAssemblyTypePostfix;
+            var newName = string.Concat(name.AsSpan(0, name.Length - QuartzAssemblyTypePostfix.Length), QuartzJobsAssemblyTypePostfix);
             type = Type.GetType(newName);
         }
         if (type is null)

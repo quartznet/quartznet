@@ -127,7 +127,7 @@ public static class ServiceCollectionExtensions
 
         options.Services.Configure<QuartzOptions>(x =>
         {
-            x.jobDetails.Add(jobDetail);
+            x._jobDetails.Add(jobDetail);
         });
 
         return options;
@@ -152,7 +152,7 @@ public static class ServiceCollectionExtensions
 
         options.Services.Configure<QuartzOptions>(x =>
         {
-            x.triggers.Add(trigger);
+            x._triggers.Add(trigger);
         });
 
         return options;
@@ -166,17 +166,14 @@ public static class ServiceCollectionExtensions
         Action<ITriggerConfigurator> trigger,
         Action<IJobConfigurator>? job = null) where T : IJob
     {
-        if (trigger is null)
-        {
-            throw new ArgumentNullException(nameof(trigger));
-        }
+        ArgumentNullException.ThrowIfNull(trigger);
 
         var jobConfigurator = JobBuilder.Create();
         var jobDetail = ConfigureAndBuildJobDetail(typeof(T), jobConfigurator, job, out var jobHasCustomKey);
 
         options.Services.Configure<QuartzOptions>(quartzOptions =>
         {
-            quartzOptions.jobDetails.Add(jobDetail);
+            quartzOptions._jobDetails.Add(jobDetail);
         });
 
         var triggerConfigurator = new TriggerConfigurator();
@@ -202,7 +199,7 @@ public static class ServiceCollectionExtensions
 
         options.Services.Configure<QuartzOptions>(quartzOptions =>
         {
-            quartzOptions.triggers.Add(t);
+            quartzOptions._triggers.Add(t);
         });
 
         return options;

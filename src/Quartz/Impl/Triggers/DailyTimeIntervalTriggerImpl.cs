@@ -70,7 +70,9 @@ namespace Quartz.Impl.Triggers;
 /// <author>Zemian Deng saltnlight5@gmail.com</author>
 /// <author>Nuno Maia (.NET)</author>
 [Serializable]
+#pragma warning disable CA1708
 public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIntervalTrigger
+#pragma warning restore CA1708
 {
     /// <summary>
     /// Used to indicate the 'repeat count' of the trigger is indefinite. Or in

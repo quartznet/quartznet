@@ -33,7 +33,7 @@ internal static class CalendarEndpoints
         string schedulerName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
         {
             var calendarNames = await scheduler.GetCalendarNames(cancellationToken).ConfigureAwait(false);
             return new NamesDto(calendarNames);
@@ -47,7 +47,7 @@ internal static class CalendarEndpoints
         string calendarName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
         {
             var calendar = await scheduler.GetCalendarOrThrow(calendarName, cancellationToken).ConfigureAwait(false);
             return calendar;
@@ -62,8 +62,8 @@ internal static class CalendarEndpoints
         AddCalendarRequest request,
         CancellationToken cancellationToken = default)
     {
-        endpointHelper.AssertIsValid(request);
-        return endpointHelper.ExecuteWithOkResponse(
+        EndpointHelper.AssertIsValid(request);
+        return EndpointHelper.ExecuteWithOkResponse(
             schedulerName,
             scheduler => scheduler.AddCalendar(request.CalendarName, request.Calendar, request.Replace, request.UpdateTriggers, cancellationToken).AsTask()
         );
@@ -76,7 +76,7 @@ internal static class CalendarEndpoints
         string calendarName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
         {
             var calendarFound = await scheduler.DeleteCalendar(calendarName, cancellationToken).ConfigureAwait(false);
             return new DeleteCalendarResponse(calendarFound);

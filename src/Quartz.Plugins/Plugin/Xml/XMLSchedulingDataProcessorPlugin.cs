@@ -296,15 +296,12 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
         }
         catch (Exception e)
         {
-            var message = "Could not schedule jobs and triggers from file " + jobFile.FileName + ": " + e.Message;
             if (FailOnSchedulingError)
             {
-                throw new SchedulerException(message, e);
+                throw new SchedulerException($"Could not schedule jobs and triggers from file {jobFile.FileName}: {e.Message}", e);
             }
-            else
-            {
-                logger.LogError(e, message);
-            }
+
+            logger.LogError(e, "Could not schedule jobs and triggers from file {FileName}: {Message}", jobFile.FileName, e.Message);
         }
     }
 

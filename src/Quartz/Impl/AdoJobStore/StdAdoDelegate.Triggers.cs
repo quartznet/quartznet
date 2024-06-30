@@ -687,7 +687,7 @@ public partial class StdAdoDelegate
                 endTimeUtc = GetDateTimeFromDbValue(rs[ColumnEndTime]);
 
                 // check if we access fast path
-                if (triggerType.Equals(TriggerTypeCron) || triggerType.Equals(TriggerTypeSimple))
+                if (triggerType is TriggerTypeCron or TriggerTypeSimple)
                 {
                     tDel = FindTriggerPersistenceDelegate(triggerType);
                     triggerProps = tDel!.ReadTriggerPropertyBundle(rs);
@@ -696,7 +696,7 @@ public partial class StdAdoDelegate
         }
 
         IOperableTrigger? trigger = null;
-        if (triggerType.Equals(TriggerTypeBlob))
+        if (triggerType == TriggerTypeBlob)
         {
             using var cmd2 = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectBlobTrigger));
             AddCommandParameter(cmd2, "schedulerName", schedName);
@@ -931,7 +931,7 @@ public partial class StdAdoDelegate
         if (IsMatcherEquals(matcher))
         {
             sql = ReplaceTablePrefix(SqlSelectTriggersInGroup);
-            parameter = ToSqlEqualsClause(matcher);
+            parameter = StdAdoDelegate.ToSqlEqualsClause(matcher);
         }
         else
         {
@@ -1202,7 +1202,7 @@ public partial class StdAdoDelegate
             rec.Priority = Convert.ToInt32(rs[ColumnPriority], CultureInfo.InvariantCulture);
             rec.SchedulerInstanceId = rs.GetString(ColumnInstanceName)!;
             rec.TriggerKey = new TriggerKey(rs.GetString(ColumnTriggerName)!, rs.GetString(ColumnTriggerGroup)!);
-            if (!rec.FireInstanceState.Equals(StateAcquired))
+            if (rec.FireInstanceState != (StateAcquired))
             {
                 rec.JobDisallowsConcurrentExecution = GetBooleanFromDbValue(rs[ColumnIsNonConcurrent]);
                 rec.JobRequestsRecovery = GetBooleanFromDbValue(rs[ColumnRequestsRecovery]);
@@ -1251,7 +1251,7 @@ public partial class StdAdoDelegate
             rec.Priority = Convert.ToInt32(rs[ColumnPriority], CultureInfo.InvariantCulture);
             rec.SchedulerInstanceId = rs.GetString(ColumnInstanceName)!;
             rec.TriggerKey = new TriggerKey(rs.GetString(ColumnTriggerName)!, rs.GetString(ColumnTriggerGroup)!);
-            if (!rec.FireInstanceState.Equals(StateAcquired))
+            if (rec.FireInstanceState != StateAcquired)
             {
                 rec.JobDisallowsConcurrentExecution = GetBooleanFromDbValue(rs[ColumnIsNonConcurrent]);
                 rec.JobRequestsRecovery = GetBooleanFromDbValue(rs[ColumnRequestsRecovery]);
@@ -1283,7 +1283,7 @@ public partial class StdAdoDelegate
             rec.ScheduleTimestamp = GetDateTimeFromDbValue(rs[ColumnScheduledTime]) ?? DateTimeOffset.MinValue;
             rec.SchedulerInstanceId = rs.GetString(ColumnInstanceName)!;
             rec.TriggerKey = new TriggerKey(rs.GetString(ColumnTriggerName)!, rs.GetString(ColumnTriggerGroup)!);
-            if (!rec.FireInstanceState.Equals(StateAcquired))
+            if (rec.FireInstanceState != StateAcquired)
             {
                 rec.JobDisallowsConcurrentExecution = GetBooleanFromDbValue(rs[ColumnIsNonConcurrent]);
                 rec.JobRequestsRecovery = GetBooleanFromDbValue(rs[ColumnRequestsRecovery]);

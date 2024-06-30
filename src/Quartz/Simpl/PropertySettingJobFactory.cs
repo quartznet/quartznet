@@ -235,6 +235,7 @@ public class PropertySettingJobFactory : SimpleJobFactory
 
         if (WarnIfPropertyNotFound)
         {
+#pragma warning disable CA2254
             if (e is null)
             {
                 logger.LogWarning(message);
@@ -243,6 +244,7 @@ public class PropertySettingJobFactory : SimpleJobFactory
             {
                 logger.LogWarning(e, message);
             }
+#pragma warning restore CA2254
         }
     }
 }

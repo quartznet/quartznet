@@ -17,6 +17,7 @@ public class ExampleJob : IJob, IDisposable
 
     public void Dispose()
     {
+        GC.SuppressFinalize(this);
         logger.LogInformation("Example job disposing");
     }
 }

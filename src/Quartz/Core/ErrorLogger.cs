@@ -17,7 +17,9 @@ internal sealed class ErrorLogger : SchedulerListenerSupport
         SchedulerException cause,
         CancellationToken cancellationToken = default)
     {
+#pragma warning disable CA2254
         logger.LogError(cause, msg);
+#pragma warning restore CA2254
         return default;
     }
 }

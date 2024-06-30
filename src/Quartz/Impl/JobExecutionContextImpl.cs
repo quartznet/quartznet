@@ -65,7 +65,9 @@ namespace Quartz.Impl;
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
+#pragma warning disable CA1708
 public sealed class JobExecutionContextImpl : ICancellableJobExecutionContext, IDisposable
+#pragma warning restore CA1708
 {
     private readonly ITrigger trigger;
     private readonly IJobDetail jobDetail;

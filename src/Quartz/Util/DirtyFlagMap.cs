@@ -29,7 +29,9 @@ namespace Quartz.Util;
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
+#pragma warning disable CA1710
 public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionary, ISerializable where TKey : notnull
+#pragma warning restore CA1710
 {
     private bool dirty;
     private readonly Dictionary<TKey, TValue?> map;
@@ -476,7 +478,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
             return false;
         }
 
-        IDictionary targetAux = new Hashtable(values);
+        Hashtable targetAux = new Hashtable(values);
 
         if (Count == targetAux.Count)
         {
