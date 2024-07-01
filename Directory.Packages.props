@@ -27,7 +27,7 @@
     <PackageVersion Include="FluentAssertions" Version="6.12.0" />
     <PackageVersion Include="MELT" Version="0.9.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="6.0.18" />
-    <PackageVersion Include="Microsoft.Data.SQLite" Version="8.0.0" />
+    <PackageVersion Include="Microsoft.Data.SQLite" Version="8.0.6" />
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="5.1.4" />
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="2.1.1" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="2.1.1" />
