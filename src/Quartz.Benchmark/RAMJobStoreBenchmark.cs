@@ -28,7 +28,7 @@ public class RAMJobStoreBenchmark
     private IOperableTrigger? _triggerForRamJobStore9;
 
     [GlobalSetup]
-    public void GlobalSetup()
+    public async Task GlobalSetup()
     {
         _noOpJob = JobBuilder.Create<NoOpJob>().WithIdentity(nameof(_noOpJob), "Group1").Build();
         _noOpJobNoConcurrent1 = JobBuilder.Create<NoOpJobDisallowConcurrent>().WithIdentity(nameof(_noOpJobNoConcurrent1), "Group2").Build();
@@ -40,21 +40,21 @@ public class RAMJobStoreBenchmark
 
         // A RAMJobStore that is empty
         _ramJobStore1 = new RAMJobStore();
-        _ramJobStore1.Initialize(new NullJobTypeLoader(), new NoOpSignaler()).GetAwaiter().GetResult();
+        await _ramJobStore1.Initialize(new NullJobTypeLoader(), new NoOpSignaler());
 
         // A RAMJobStore with:
         // * a no-op job that allows concurrent execution
         // * no triggers
         _ramJobStore2 = new RAMJobStore();
-        _ramJobStore2.Initialize(new NullJobTypeLoader(), new NoOpSignaler()).GetAwaiter().GetResult();
-        _ramJobStore2.StoreJob(_noOpJob, false).GetAwaiter().GetResult();
+        await _ramJobStore2.Initialize(new NullJobTypeLoader(), new NoOpSignaler());
+        await _ramJobStore2.StoreJob(_noOpJob, false);
 
         // A RAMJobStore with:
         // * a no-op job that disallows concurrent execution
         // * no triggers
         _ramJobStore3 = new RAMJobStore();
-        _ramJobStore3.Initialize(new NullJobTypeLoader(), new NoOpSignaler()).GetAwaiter().GetResult();
-        _ramJobStore3.StoreJob(_noOpJobNoConcurrent1, false).GetAwaiter().GetResult();
+        await _ramJobStore3.Initialize(new NullJobTypeLoader(), new NoOpSignaler());
+        await _ramJobStore3.StoreJob(_noOpJobNoConcurrent1, false);
 
         // A RAMJobStore with:
         // * a no-op job that allows concurrent execution
@@ -62,28 +62,28 @@ public class RAMJobStoreBenchmark
         //   - 10 triggers with the IgnoreMisfirePolicy misfire instructions, and a computed next fire time
         //   - 1 trigger with the IgnoreMisfirePolicy misfire instructions, and DateTimeOffset.UtcNow plus one day as next fire time
         _ramJobStore4 = new RAMJobStore();
-        _ramJobStore4.Initialize(new NullJobTypeLoader(), new NoOpSignaler()).GetAwaiter().GetResult();
-        _ramJobStore4.StoreJob(_noOpJob, false).GetAwaiter().GetResult();
-        _ramJobStore4.StoreTrigger(CreateTrigger(new TriggerKey("1"), _noOpJob, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false).GetAwaiter().GetResult();
-        _ramJobStore4.StoreTrigger(CreateTrigger(new TriggerKey("2"), _noOpJob, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false).GetAwaiter().GetResult();
-        _ramJobStore4.StoreTrigger(CreateTrigger(new TriggerKey("3"), _noOpJob, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false).GetAwaiter().GetResult();
-        _ramJobStore4.StoreTrigger(CreateTrigger(new TriggerKey("4"), _noOpJob, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false).GetAwaiter().GetResult();
-        _ramJobStore4.StoreTrigger(CreateTrigger(new TriggerKey("5"), _noOpJob, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false).GetAwaiter().GetResult();
-        _ramJobStore4.StoreTrigger(CreateTrigger(new TriggerKey("6"), _noOpJob, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false).GetAwaiter().GetResult();
-        _ramJobStore4.StoreTrigger(CreateTrigger(new TriggerKey("7"), _noOpJob, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false).GetAwaiter().GetResult();
-        _ramJobStore4.StoreTrigger(CreateTrigger(new TriggerKey("8"), _noOpJob, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false).GetAwaiter().GetResult();
-        _ramJobStore4.StoreTrigger(CreateTrigger(new TriggerKey("9"), _noOpJob, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false).GetAwaiter().GetResult();
-        _ramJobStore4.StoreTrigger(CreateTrigger(new TriggerKey("10"), _noOpJob, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false).GetAwaiter().GetResult();
-        _ramJobStore4.StoreTrigger(CreateTrigger(new TriggerKey("11"), _noOpJob, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy, DateTimeOffset.UtcNow.AddDays(1)), false).GetAwaiter().GetResult();
+        await _ramJobStore4.Initialize(new NullJobTypeLoader(), new NoOpSignaler());
+        await _ramJobStore4.StoreJob(_noOpJob, false);
+        await _ramJobStore4.StoreTrigger(CreateTrigger(new TriggerKey("1"), _noOpJob, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false);
+        await _ramJobStore4.StoreTrigger(CreateTrigger(new TriggerKey("2"), _noOpJob, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false);
+        await _ramJobStore4.StoreTrigger(CreateTrigger(new TriggerKey("3"), _noOpJob, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false);
+        await _ramJobStore4.StoreTrigger(CreateTrigger(new TriggerKey("4"), _noOpJob, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false);
+        await _ramJobStore4.StoreTrigger(CreateTrigger(new TriggerKey("5"), _noOpJob, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false);
+        await _ramJobStore4.StoreTrigger(CreateTrigger(new TriggerKey("6"), _noOpJob, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false);
+        await _ramJobStore4.StoreTrigger(CreateTrigger(new TriggerKey("7"), _noOpJob, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false);
+        await _ramJobStore4.StoreTrigger(CreateTrigger(new TriggerKey("8"), _noOpJob, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false);
+        await _ramJobStore4.StoreTrigger(CreateTrigger(new TriggerKey("9"), _noOpJob, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false);
+        await _ramJobStore4.StoreTrigger(CreateTrigger(new TriggerKey("10"), _noOpJob, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false);
+        await _ramJobStore4.StoreTrigger(CreateTrigger(new TriggerKey("11"), _noOpJob, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy, DateTimeOffset.UtcNow.AddDays(1)), false);
 
         // A RAMJobStore with:
         // * a no-op job that allows concurrent execution
         //   triggers:
         //   - 1 trigger with the IgnoreMisfirePolicy misfire instructions, and a computed next fire time
         _ramJobStore5 = new RAMJobStore();
-        _ramJobStore5.Initialize(new NullJobTypeLoader(), new NoOpSignaler()).GetAwaiter().GetResult();
-        _ramJobStore5.StoreJob(_noOpJob, false).GetAwaiter().GetResult();
-        _ramJobStore5.StoreTrigger(CreateTrigger(new TriggerKey("1"), _noOpJob, TimeSpan.FromSeconds(1), MisfireInstruction.IgnoreMisfirePolicy), false).GetAwaiter().GetResult();
+        await _ramJobStore5.Initialize(new NullJobTypeLoader(), new NoOpSignaler());
+        await _ramJobStore5.StoreJob(_noOpJob, false);
+        await _ramJobStore5.StoreTrigger(CreateTrigger(new TriggerKey("1"), _noOpJob, TimeSpan.FromSeconds(1), MisfireInstruction.IgnoreMisfirePolicy), false);
 
         // A RAMJobStore with:
         // * a no-op job that disallows concurrent execution
@@ -93,15 +93,15 @@ public class RAMJobStoreBenchmark
         //   triggers:
         //   - 3 triggers with the IgnoreMisfirePolicy misfire instructions, and a computed next fire time
         _ramJobStore6 = new RAMJobStore();
-        _ramJobStore6.Initialize(new NullJobTypeLoader(), new NoOpSignaler()).GetAwaiter().GetResult();
-        _ramJobStore6.StoreJob(_noOpJobNoConcurrent1, false).GetAwaiter().GetResult();
-        _ramJobStore6.StoreJob(_noOpJobNoConcurrent2, false).GetAwaiter().GetResult();
-        _ramJobStore6.StoreTrigger(CreateTrigger(new TriggerKey("1a"), _noOpJobNoConcurrent1, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false).GetAwaiter().GetResult();
-        _ramJobStore6.StoreTrigger(CreateTrigger(new TriggerKey("1b"), _noOpJobNoConcurrent1, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false).GetAwaiter().GetResult();
-        _ramJobStore6.StoreTrigger(CreateTrigger(new TriggerKey("1c"), _noOpJobNoConcurrent1, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false).GetAwaiter().GetResult();
-        _ramJobStore6.StoreTrigger(CreateTrigger(new TriggerKey("2a"), _noOpJobNoConcurrent2, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false).GetAwaiter().GetResult();
-        _ramJobStore6.StoreTrigger(CreateTrigger(new TriggerKey("2b"), _noOpJobNoConcurrent2, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false).GetAwaiter().GetResult();
-        _ramJobStore6.StoreTrigger(CreateTrigger(new TriggerKey("2c"), _noOpJobNoConcurrent2, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false).GetAwaiter().GetResult();
+        await _ramJobStore6.Initialize(new NullJobTypeLoader(), new NoOpSignaler());
+        await _ramJobStore6.StoreJob(_noOpJobNoConcurrent1, false);
+        await _ramJobStore6.StoreJob(_noOpJobNoConcurrent2, false);
+        await _ramJobStore6.StoreTrigger(CreateTrigger(new TriggerKey("1a"), _noOpJobNoConcurrent1, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false);
+        await _ramJobStore6.StoreTrigger(CreateTrigger(new TriggerKey("1b"), _noOpJobNoConcurrent1, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false);
+        await _ramJobStore6.StoreTrigger(CreateTrigger(new TriggerKey("1c"), _noOpJobNoConcurrent1, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false);
+        await _ramJobStore6.StoreTrigger(CreateTrigger(new TriggerKey("2a"), _noOpJobNoConcurrent2, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false);
+        await _ramJobStore6.StoreTrigger(CreateTrigger(new TriggerKey("2b"), _noOpJobNoConcurrent2, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false);
+        await _ramJobStore6.StoreTrigger(CreateTrigger(new TriggerKey("2c"), _noOpJobNoConcurrent2, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false);
 
         // A RAMJobStore with:
         // * a no-op job that disallows concurrent execution
@@ -111,11 +111,11 @@ public class RAMJobStoreBenchmark
         //   triggers:
         //   - 1 trigger with the IgnoreMisfirePolicy misfire instructions, and a computed next fire time
         _ramJobStore7 = new RAMJobStore();
-        _ramJobStore7.Initialize(new NullJobTypeLoader(), new NoOpSignaler()).GetAwaiter().GetResult();
-        _ramJobStore7.StoreJob(_noOpJobNoConcurrent1, false).GetAwaiter().GetResult();
-        _ramJobStore7.StoreJob(_noOpJob, false).GetAwaiter().GetResult();
-        _ramJobStore7.StoreTrigger(CreateTrigger(new TriggerKey("1"), _noOpJobNoConcurrent1, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false).GetAwaiter().GetResult();
-        _ramJobStore7.StoreTrigger(CreateTrigger(new TriggerKey("2"), _noOpJob, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false).GetAwaiter().GetResult();
+        await _ramJobStore7.Initialize(new NullJobTypeLoader(), new NoOpSignaler());
+        await _ramJobStore7.StoreJob(_noOpJobNoConcurrent1, false);
+        await _ramJobStore7.StoreJob(_noOpJob, false);
+        await _ramJobStore7.StoreTrigger(CreateTrigger(new TriggerKey("1"), _noOpJobNoConcurrent1, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false);
+        await _ramJobStore7.StoreTrigger(CreateTrigger(new TriggerKey("2"), _noOpJob, TimeSpan.FromTicks(1000), MisfireInstruction.IgnoreMisfirePolicy), false);
 
         // A RAMJobStore with:
         // * a no-op job that allows concurrent execution
@@ -127,37 +127,37 @@ public class RAMJobStoreBenchmark
         // The triggers use a specialized trigger type that allows misfires to be applied repeatedly while keeping the
         // order of the time triggers stable.
         _ramJobStore8 = new RAMJobStore { MisfireThreshold = TimeSpan.FromMilliseconds(1) };
-        _ramJobStore8.Initialize(new NullJobTypeLoader(), new NoOpSignaler()).GetAwaiter().GetResult();
-        _ramJobStore8.StoreJob(_noOpJob, false).GetAwaiter().GetResult();
-        _ramJobStore8.StoreTrigger(CreateTrigger<MisfireTrigger>(new TriggerKey("1"), _noOpJob, TimeSpan.FromTicks(1), MisfireInstruction.SimpleTrigger.FireNow, DateTimeOffset.MinValue), false).GetAwaiter().GetResult();
-        _ramJobStore8.StoreTrigger(CreateTrigger<MisfireTrigger>(new TriggerKey("2"), _noOpJob, TimeSpan.FromTicks(1), MisfireInstruction.SimpleTrigger.FireNow, DateTimeOffset.MinValue), false).GetAwaiter().GetResult();
-        _ramJobStore8.StoreTrigger(CreateTrigger<MisfireTrigger>(new TriggerKey("3"), _noOpJob, TimeSpan.FromTicks(1), MisfireInstruction.SimpleTrigger.FireNow, DateTimeOffset.MinValue), false).GetAwaiter().GetResult();
-        _ramJobStore8.StoreTrigger(CreateTrigger<MisfireTrigger>(new TriggerKey("4"), _noOpJob, TimeSpan.FromTicks(1), MisfireInstruction.SimpleTrigger.FireNow, DateTimeOffset.MinValue), false).GetAwaiter().GetResult();
-        _ramJobStore8.StoreTrigger(CreateTrigger<MisfireTrigger>(new TriggerKey("5"), _noOpJob, TimeSpan.FromTicks(1), MisfireInstruction.SimpleTrigger.FireNow, DateTimeOffset.MinValue), false).GetAwaiter().GetResult();
-        _ramJobStore8.StoreTrigger(CreateTrigger<MisfireTrigger>(new TriggerKey("6"), _noOpJob, TimeSpan.FromTicks(1), MisfireInstruction.SimpleTrigger.FireNow, DateTimeOffset.MinValue), false).GetAwaiter().GetResult();
-        _ramJobStore8.StoreTrigger(CreateTrigger<MisfireTrigger>(new TriggerKey("7"), _noOpJob, TimeSpan.FromTicks(1), MisfireInstruction.SimpleTrigger.FireNow, DateTimeOffset.MinValue), false).GetAwaiter().GetResult();
-        _ramJobStore8.StoreTrigger(CreateTrigger<MisfireTrigger>(new TriggerKey("8"), _noOpJob, TimeSpan.FromTicks(1), MisfireInstruction.IgnoreMisfirePolicy, DateTimeOffset.MinValue), false).GetAwaiter().GetResult();
+        await _ramJobStore8.Initialize(new NullJobTypeLoader(), new NoOpSignaler());
+        await _ramJobStore8.StoreJob(_noOpJob, false);
+        await _ramJobStore8.StoreTrigger(CreateTrigger<MisfireTrigger>(new TriggerKey("1"), _noOpJob, TimeSpan.FromTicks(1), MisfireInstruction.SimpleTrigger.FireNow, DateTimeOffset.MinValue), false);
+        await _ramJobStore8.StoreTrigger(CreateTrigger<MisfireTrigger>(new TriggerKey("2"), _noOpJob, TimeSpan.FromTicks(1), MisfireInstruction.SimpleTrigger.FireNow, DateTimeOffset.MinValue), false);
+        await _ramJobStore8.StoreTrigger(CreateTrigger<MisfireTrigger>(new TriggerKey("3"), _noOpJob, TimeSpan.FromTicks(1), MisfireInstruction.SimpleTrigger.FireNow, DateTimeOffset.MinValue), false);
+        await _ramJobStore8.StoreTrigger(CreateTrigger<MisfireTrigger>(new TriggerKey("4"), _noOpJob, TimeSpan.FromTicks(1), MisfireInstruction.SimpleTrigger.FireNow, DateTimeOffset.MinValue), false);
+        await _ramJobStore8.StoreTrigger(CreateTrigger<MisfireTrigger>(new TriggerKey("5"), _noOpJob, TimeSpan.FromTicks(1), MisfireInstruction.SimpleTrigger.FireNow, DateTimeOffset.MinValue), false);
+        await _ramJobStore8.StoreTrigger(CreateTrigger<MisfireTrigger>(new TriggerKey("6"), _noOpJob, TimeSpan.FromTicks(1), MisfireInstruction.SimpleTrigger.FireNow, DateTimeOffset.MinValue), false);
+        await _ramJobStore8.StoreTrigger(CreateTrigger<MisfireTrigger>(new TriggerKey("7"), _noOpJob, TimeSpan.FromTicks(1), MisfireInstruction.SimpleTrigger.FireNow, DateTimeOffset.MinValue), false);
+        await _ramJobStore8.StoreTrigger(CreateTrigger<MisfireTrigger>(new TriggerKey("8"), _noOpJob, TimeSpan.FromTicks(1), MisfireInstruction.IgnoreMisfirePolicy, DateTimeOffset.MinValue), false);
 
         // A RAMJobStore with:
         // * a no-op job that disallows concurrent execution
         //   triggers:
         //   - 3 triggers with the IgnoreMisfirePolicy misfire instructions, a repeat interval of TimeSpan.MaxValue and a computed next fire time
         _ramJobStore9 = new RAMJobStore();
-        _ramJobStore9.Initialize(new NullJobTypeLoader(), new NoOpSignaler()).GetAwaiter().GetResult();
-        _ramJobStore9.StoreJob(_noOpJobNoConcurrent1, false).GetAwaiter().GetResult();
+        await _ramJobStore9.Initialize(new NullJobTypeLoader(), new NoOpSignaler());
+        await _ramJobStore9.StoreJob(_noOpJobNoConcurrent1, false);
         _triggerForRamJobStore9 = CreateTrigger(new TriggerKey("1"), _noOpJobNoConcurrent1, TimeSpan.MaxValue, MisfireInstruction.IgnoreMisfirePolicy);
-        _ramJobStore9.StoreTrigger(_triggerForRamJobStore9, false).GetAwaiter().GetResult();
-        _ramJobStore9.StoreTrigger(CreateTrigger(new TriggerKey("2"), _noOpJobNoConcurrent1, TimeSpan.MaxValue, MisfireInstruction.IgnoreMisfirePolicy), false).GetAwaiter().GetResult();
-        _ramJobStore9.StoreTrigger(CreateTrigger(new TriggerKey("3"), _noOpJobNoConcurrent1, TimeSpan.MaxValue, MisfireInstruction.IgnoreMisfirePolicy), false).GetAwaiter().GetResult();
+        await _ramJobStore9.StoreTrigger(_triggerForRamJobStore9, false);
+        await _ramJobStore9.StoreTrigger(CreateTrigger(new TriggerKey("2"), _noOpJobNoConcurrent1, TimeSpan.MaxValue, MisfireInstruction.IgnoreMisfirePolicy), false);
+        await _ramJobStore9.StoreTrigger(CreateTrigger(new TriggerKey("3"), _noOpJobNoConcurrent1, TimeSpan.MaxValue, MisfireInstruction.IgnoreMisfirePolicy), false);
 
         // A RAMJobStore with:
         // * a no-op job that disallows concurrent execution
         // * a no-op job that allows concurrent execution
         // * no triggers for either job
         _ramJobStore10 = new RAMJobStore();
-        _ramJobStore10.Initialize(new NullJobTypeLoader(), new NoOpSignaler()).GetAwaiter().GetResult();
-        _ramJobStore10.StoreJob(_noOpJobNoConcurrent1, false).GetAwaiter().GetResult();
-        _ramJobStore10.StoreJob(_noOpJob, false).GetAwaiter().GetResult();
+        await _ramJobStore10.Initialize(new NullJobTypeLoader(), new NoOpSignaler());
+        await _ramJobStore10.StoreJob(_noOpJobNoConcurrent1, false);
+        await _ramJobStore10.StoreJob(_noOpJob, false);
     }
 
     [GlobalCleanup]
@@ -176,9 +176,9 @@ public class RAMJobStoreBenchmark
     }
 
     [Benchmark]
-    public void StoreTrigger_ReplaceExisting_SingleThreaded()
+    public async Task StoreTrigger_ReplaceExisting_SingleThreaded()
     {
-        _ramJobStore2!.StoreTrigger(_trigger1!, true);
+       await _ramJobStore2!.StoreTrigger(_trigger1!, true);
     }
 
     [Benchmark(OperationsPerInvoke = 200_000)]
@@ -188,13 +188,13 @@ public class RAMJobStoreBenchmark
 
         var tasks = Enumerable.Range(0, 20).Select(i =>
         {
-            return Task.Run(() =>
+            return Task.Run(async () =>
             {
                 start.WaitOne();
 
                 for (var j = 0; j < 10_000; j++)
                 {
-                    _ramJobStore2!.StoreTrigger(_trigger1!, true);
+                    await _ramJobStore2!.StoreTrigger(_trigger1!, true);
                 }
             });
         }).ToArray();
@@ -205,42 +205,42 @@ public class RAMJobStoreBenchmark
     }
 
     [Benchmark(OperationsPerInvoke = 100_000)]
-    public void StoreAndRemoveJob_NoTriggersExistForJob()
+    public async Task StoreAndRemoveJob_NoTriggersExistForJob()
     {
         var job = _noOpJob!;
 
         for (var i = 0; i < 100_000; i++)
         {
-            _ramJobStore1!.StoreJob(job, true);
-            _ramJobStore1.RemoveJob(job.Key);
+            await _ramJobStore1!.StoreJob(job, true);
+            await _ramJobStore1.RemoveJob(job.Key);
         }
     }
 
     [Benchmark(OperationsPerInvoke = 100_000)]
-    public void StoreAndRemoveJob_TriggersExistForJob()
+    public async Task StoreAndRemoveJob_TriggersExistForJob()
     {
         for (var i = 0; i < 100_000; i++)
         {
-            _ramJobStore1!.StoreJob(_noOpJob!, true);
-            _ramJobStore1.StoreTrigger(_trigger1!, true);
-            _ramJobStore1.StoreTrigger(_trigger2!, true);
-            _ramJobStore1.RemoveJob(_noOpJob!.Key);
+            await _ramJobStore1!.StoreJob(_noOpJob!, true);
+            await _ramJobStore1.StoreTrigger(_trigger1!, true);
+            await _ramJobStore1.StoreTrigger(_trigger2!, true);
+            await _ramJobStore1.RemoveJob(_noOpJob!.Key);
         }
     }
 
     [Benchmark(OperationsPerInvoke = 100_000)]
-    public void ResumeJobs_EqualsMatch_NoMatchingPausedGroupsAndNoMatchingPausedTriggers()
+    public async Task ResumeJobs_EqualsMatch_NoMatchingPausedGroupsAndNoMatchingPausedTriggers()
     {
         var matcher = GroupMatcher<JobKey>.GroupEquals(_noOpJob!.Key.Group);
 
         for (var i = 0; i < 100_000; i++)
         {
-            _ramJobStore2!.ResumeJobs(matcher);
+            await _ramJobStore2!.ResumeJobs(matcher);
         }
     }
 
     [Benchmark(OperationsPerInvoke = 100_000)]
-    public void ResumeJobs_StartsWithMatch_NoMatchingPausedGroupsAndNoMatchingPausedTriggers()
+    public async Task ResumeJobs_StartsWithMatch_NoMatchingPausedGroupsAndNoMatchingPausedTriggers()
     {
         var jobStore = _ramJobStore2!;
         var job = _noOpJob!;
@@ -248,24 +248,24 @@ public class RAMJobStoreBenchmark
 
         for (var i = 0; i < 100_000; i++)
         {
-            jobStore.ResumeJobs(matcher);
+            await jobStore.ResumeJobs(matcher);
         }
     }
 
     [Benchmark(OperationsPerInvoke = 300_000)]
-    public void TriggeredJobComplete_ConcurrentExecutionDisallowed_TriggersForJob()
+    public async Task TriggeredJobComplete_ConcurrentExecutionDisallowed_TriggersForJob()
     {
         var jobStore = _ramJobStore9!;
         var job = _noOpJobNoConcurrent1!;
 
         for (var i = 0; i < 300_000; i++)
         {
-            jobStore.TriggeredJobComplete(_triggerForRamJobStore9!, job, SchedulerInstruction.NoInstruction);
+            await jobStore.TriggeredJobComplete(_triggerForRamJobStore9!, job, SchedulerInstruction.NoInstruction);
         }
     }
 
     [Benchmark(OperationsPerInvoke = 300_000)]
-    public void TriggeredJobComplete_ConcurrentExecutionDisallowed_NoTriggersForJob()
+    public async Task TriggeredJobComplete_ConcurrentExecutionDisallowed_NoTriggersForJob()
     {
         var jobStore = _ramJobStore3!;
         var job = _noOpJobNoConcurrent1!;
@@ -274,18 +274,18 @@ public class RAMJobStoreBenchmark
 
         for (var i = 0; i < 300_000; i++)
         {
-            jobStore.TriggeredJobComplete(trigger, job, SchedulerInstruction.NoInstruction);
+            await jobStore.TriggeredJobComplete(trigger, job, SchedulerInstruction.NoInstruction);
         }
     }
 
     [Benchmark(OperationsPerInvoke = 300_000)]
-    public void AcquireNextTriggers_NoTimeTriggersAvailable()
+    public async Task AcquireNextTriggers_NoTimeTriggersAvailable()
     {
         var jobStore = _ramJobStore1!;
 
         for (var i = 0; i < 300_000; i++)
         {
-            var triggers = jobStore.AcquireNextTriggers(DateTimeOffset.MaxValue, 1, TimeSpan.MinValue).GetAwaiter().GetResult();
+            var triggers = await jobStore.AcquireNextTriggers(DateTimeOffset.MaxValue, 1, TimeSpan.MinValue);
 
             if (triggers.Count != 0)
             {
@@ -295,139 +295,137 @@ public class RAMJobStoreBenchmark
     }
 
     [Benchmark(OperationsPerInvoke = 300_000)]
-    public void AcquireNextTriggers_MaxCountIsOneAndAtLeastOneMatchingTimerTriggerAvailable()
+    public async Task AcquireNextTriggers_MaxCountIsOneAndAtLeastOneMatchingTimerTriggerAvailable()
     {
         var batchTimeWindow = TimeSpan.FromTicks(100_000);
         var jobStore = _ramJobStore5!;
 
         for (var i = 0; i < 300_000; i++)
         {
-            var triggers = jobStore.AcquireNextTriggers(DateTimeOffset.MaxValue, 1, batchTimeWindow).GetAwaiter().GetResult().ToArray();
+            var triggers = await jobStore.AcquireNextTriggers(DateTimeOffset.MaxValue, 1, batchTimeWindow);
 
             foreach (var trigger in triggers)
             {
-                jobStore.ReleaseAcquiredTrigger(trigger).GetAwaiter().GetResult();
+                await jobStore.ReleaseAcquiredTrigger(trigger);
             }
 
-            if (triggers.Length != 1)
+            if (triggers.Count != 1)
             {
-                throw new Exception($"Expected to acquire 1 trigger, but was {triggers.Length}.");
+                throw new Exception($"Expected to acquire 1 trigger, but was {triggers.Count}.");
             }
         }
     }
 
     [Benchmark(OperationsPerInvoke = 300_000)]
-    public void AcquireNextTriggers_MultipleTimeTriggersForJobThatAllowsConcurrentExecution()
+    public async Task AcquireNextTriggers_MultipleTimeTriggersForJobThatAllowsConcurrentExecution()
     {
         var batchTimeWindow = TimeSpan.FromTicks(100_000);
         var jobStore = _ramJobStore4!;
 
         for (var i = 0; i < 300_000; i++)
         {
-            var triggers = jobStore.AcquireNextTriggers(DateTimeOffset.MaxValue, 15, batchTimeWindow).GetAwaiter().GetResult().ToArray();
+            var triggers = await jobStore.AcquireNextTriggers(DateTimeOffset.MaxValue, 15, batchTimeWindow);
 
             foreach (var trigger in triggers)
             {
-                jobStore.ReleaseAcquiredTrigger(trigger).GetAwaiter().GetResult();
+                await jobStore.ReleaseAcquiredTrigger(trigger);
             }
 
-            if (triggers.Length != 10)
+            if (triggers.Count != 10)
             {
-                throw new Exception($"Expected to acquire 10 triggers, but was {triggers.Length}.");
+                throw new Exception($"Expected to acquire 10 triggers, but was {triggers.Count}.");
             }
         }
     }
 
     [Benchmark(OperationsPerInvoke = 300_000)]
-    public void AcquireAndRelease_MultipleTriggersForJobThatDisallowsConcurrentExecution()
+    public async Task AcquireAndRelease_MultipleTriggersForJobThatDisallowsConcurrentExecution()
     {
         var batchTimeWindow = TimeSpan.FromTicks(100_000);
         var jobStore = _ramJobStore6!;
 
         for (var i = 0; i < 300_000; i++)
         {
-            var triggers = jobStore.AcquireNextTriggers(DateTimeOffset.MaxValue, 2, batchTimeWindow).GetAwaiter().GetResult().ToArray();
+            var triggers = await jobStore.AcquireNextTriggers(DateTimeOffset.MaxValue, 2, batchTimeWindow);
 
             foreach (var trigger in triggers)
             {
-                jobStore.ReleaseAcquiredTrigger(trigger).GetAwaiter().GetResult();
+                await jobStore.ReleaseAcquiredTrigger(trigger);
             }
 
-            if (triggers.Length != 2)
+            if (triggers.Count != 2)
             {
-                throw new Exception($"Expected to acquire 2 triggers, but was {triggers.Length}.");
+                throw new Exception($"Expected to acquire 2 triggers, but was {triggers.Count}.");
             }
         }
     }
 
     [Benchmark(OperationsPerInvoke = 300_000)]
-    public void AcquireAndFire_Misfires()
+    public async Task AcquireAndFire_Misfires()
     {
         var batchTimeWindow = TimeSpan.FromTicks(100_000);
         var jobStore = _ramJobStore8!;
 
         for (var i = 0; i < 300_000; i++)
         {
-            var triggers = jobStore.AcquireNextTriggers(DateTimeOffset.UtcNow.AddDays(1), 1, batchTimeWindow).GetAwaiter().GetResult().ToArray();
+            var triggers = await jobStore.AcquireNextTriggers(DateTimeOffset.UtcNow.AddDays(1), 1, batchTimeWindow);
 
-            foreach (var trigger in triggers)
+            if (triggers.Count != 1)
             {
-                jobStore.TriggersFired(new[] { triggers[0] }).GetAwaiter().GetResult();
+                throw new Exception($"Expected to acquire 1 triggers, but was {triggers.Count}.");
             }
 
-            if (triggers.Length != 1)
-            {
-                throw new Exception($"Expected to acquire 1 triggers, but was {triggers.Length}.");
-            }
+            IOperableTrigger operableTrigger = triggers.First();
+            await jobStore.TriggersFired([operableTrigger]);
 
-            if (triggers[0].MisfireInstruction != MisfireInstruction.IgnoreMisfirePolicy)
+            if (operableTrigger.MisfireInstruction != MisfireInstruction.IgnoreMisfirePolicy)
             {
-                throw new Exception($"Expected acquired triggers to have {MisfireInstruction.IgnoreMisfirePolicy} as misfire instruction, but was {triggers[0].MisfireInstruction} for trigger ${triggers[0].Key}.");
+                throw new Exception($"Expected acquired triggers to have {MisfireInstruction.IgnoreMisfirePolicy} as misfire instruction, but was {operableTrigger.MisfireInstruction} for trigger ${operableTrigger.Key}.");
             }
         }
     }
 
     [Benchmark(OperationsPerInvoke = 300_000)]
-    public void AcquireAndRelease_OneTriggerForJobsThatDisallowConcurrentExecutionAndOneTriggerForJobThatAllowsConcurrentExecution()
+    public async Task AcquireAndRelease_OneTriggerForJobsThatDisallowConcurrentExecutionAndOneTriggerForJobThatAllowsConcurrentExecution()
     {
         var batchTimeWindow = TimeSpan.FromTicks(100_000);
         var jobStore = _ramJobStore7!;
 
         for (var i = 0; i < 300_000; i++)
         {
-            var triggers = jobStore.AcquireNextTriggers(DateTimeOffset.MaxValue, 2, batchTimeWindow).GetAwaiter().GetResult().ToArray();
-            if (triggers.Length != 2)
+            var triggers = await jobStore.AcquireNextTriggers(DateTimeOffset.MaxValue, 2, batchTimeWindow);
+            if (triggers.Count != 2)
             {
-                throw new Exception($"Expected to acquire 2 triggers, but was {triggers.Length}.");
+                throw new Exception($"Expected to acquire 2 triggers, but was {triggers.Count}.");
             }
 
             foreach (var trigger in triggers)
             {
-                jobStore.ReleaseAcquiredTrigger(trigger).GetAwaiter().GetResult();
+                await jobStore.ReleaseAcquiredTrigger(trigger);
             }
         }
     }
 
     [Benchmark(OperationsPerInvoke = 300_000)]
-    public void AcquireAndFireAndComplete_MultipleTriggersForJobsThatDisallowConcurrentExecution()
+    public async Task AcquireAndFireAndComplete_MultipleTriggersForJobsThatDisallowConcurrentExecution()
     {
         var batchTimeWindow = TimeSpan.FromTicks(100_000);
         var jobStore = _ramJobStore6!;
 
         for (var i = 0; i < 300_000; i++)
         {
-            var triggers = jobStore.AcquireNextTriggers(DateTimeOffset.MaxValue, 3, batchTimeWindow).GetAwaiter().GetResult().ToArray();
-            if (triggers.Length != 2)
+            var triggers = await jobStore.AcquireNextTriggers(DateTimeOffset.MaxValue, 3, batchTimeWindow);
+            if (triggers.Count != 2)
             {
-                throw new Exception($"Expected to acquire 2 triggers, but was {triggers.Length}.");
+                throw new Exception($"Expected to acquire 2 triggers, but was {triggers.Count}.");
             }
 
-            jobStore.TriggersFired(triggers).GetAwaiter().GetResult();
+            await jobStore.TriggersFired(triggers);
 
             foreach (var trigger in triggers)
             {
-                var job = jobStore.RetrieveJob(trigger.JobKey).GetAwaiter().GetResult();
-                jobStore.TriggeredJobComplete(trigger, job!, SchedulerInstruction.NoInstruction);
+                var job = await jobStore.RetrieveJob(trigger.JobKey);
+                await jobStore.TriggeredJobComplete(trigger, job!, SchedulerInstruction.NoInstruction);
             }
         }
     }
