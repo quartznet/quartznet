@@ -12,12 +12,11 @@ namespace Quartz.Converters;
 
 internal sealed class CalendarConverter : JsonConverter<ICalendar>
 {
+    private static readonly Dictionary<string, ICalendarSerializer> converters = new(StringComparer.OrdinalIgnoreCase);
     private readonly bool newtonsoftCompatibilityMode;
-    private readonly Dictionary<string, ICalendarSerializer> converters = new (StringComparer.OrdinalIgnoreCase);
 
-    internal CalendarConverter(bool newtonsoftCompatibilityMode)
+    static CalendarConverter()
     {
-        this.newtonsoftCompatibilityMode = newtonsoftCompatibilityMode;
         AddSerializer<BaseCalendar>(new BaseCalendarSerializer());
         AddSerializer<AnnualCalendar>(new AnnualCalendarSerializer());
         AddSerializer<CronCalendar>(new CronCalendarSerializer());
@@ -27,10 +26,9 @@ internal sealed class CalendarConverter : JsonConverter<ICalendar>
         AddSerializer<WeeklyCalendar>(new WeeklyCalendarSerializer());
     }
 
-    private void AddSerializer<TCalendar>(ICalendarSerializer serializer) where TCalendar : class, ICalendar
+    internal CalendarConverter(bool newtonsoftCompatibilityMode)
     {
-        converters[typeof(TCalendar).AssemblyQualifiedNameWithoutVersion()] = serializer;
-        converters[serializer.CalendarTypeName] = serializer;
+        this.newtonsoftCompatibilityMode = newtonsoftCompatibilityMode;
     }
 
     public override bool CanConvert(Type typeToConvert)
@@ -88,6 +86,11 @@ internal sealed class CalendarConverter : JsonConverter<ICalendar>
 
             writer.WriteString(options.GetPropertyName("Description"), value.Description);
 
+            if (value is BaseCalendar baseCalendar)
+            {
+                writer.WriteString(options.GetPropertyName("TimeZoneId"), baseCalendar.TimeZone.Id);
+            }
+
             writer.WritePropertyName(options.GetPropertyName("BaseCalendar"));
             if (value.CalendarBase != null)
             {
@@ -96,11 +99,6 @@ internal sealed class CalendarConverter : JsonConverter<ICalendar>
             else
             {
                 writer.WriteNullValue();
-            }
-
-            if (value is BaseCalendar baseCalendar)
-            {
-                writer.WriteString(options.GetPropertyName("TimeZoneId"), baseCalendar.TimeZone.Id);
             }
 
             calendarSerializer.SerializeFields(writer, value, options);
@@ -120,5 +118,11 @@ internal sealed class CalendarConverter : JsonConverter<ICalendar>
         }
 
         return converter;
+    }
+
+    internal static void AddSerializer<TCalendar>(ICalendarSerializer serializer) where TCalendar : ICalendar
+    {
+        converters[typeof(TCalendar).AssemblyQualifiedNameWithoutVersion()] = serializer;
+        converters[serializer.CalendarTypeName] = serializer;
     }
 }

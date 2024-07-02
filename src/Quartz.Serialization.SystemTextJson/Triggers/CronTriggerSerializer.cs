@@ -12,9 +12,7 @@ internal sealed class CronTriggerSerializer : TriggerSerializer<ICronTrigger>
     {
     }
 
-    public const string TriggerTypeKey = "CronTrigger";
-
-    public override string TriggerTypeForJson => TriggerTypeKey;
+    public override string TriggerTypeForJson => "CronTrigger";
 
     public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, JsonSerializerOptions options)
     {

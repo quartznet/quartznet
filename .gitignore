@@ -92,3 +92,5 @@ docs/.vuepress/.temp
 
 /node_modules
 BenchmarkDotNet.Artifacts
+
+*.received.*

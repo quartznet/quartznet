@@ -1,0 +1,14 @@
+﻿{
+  "$type": "Quartz.Impl.Calendar.AnnualCalendar, Quartz",
+  "Description": "Test AnnualCalendar",
+  "TimeZoneId": "UTC",
+  "BaseCalendar": {
+    "$type": "Quartz.Impl.Calendar.BaseCalendar, Quartz",
+    "Description": null,
+    "TimeZoneId": "UTC",
+    "BaseCalendar": null
+  },
+  "ExcludedDays": [
+    "2000-07-01T00:00:00"
+  ]
+}

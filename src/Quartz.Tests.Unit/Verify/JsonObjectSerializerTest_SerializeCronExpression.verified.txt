@@ -1,0 +1,5 @@
+﻿{
+  "$type": "Quartz.CronExpression, Quartz",
+  "CronExpression": "0/5 * * * * ?",
+  "TimeZoneId": "UTC"
+}

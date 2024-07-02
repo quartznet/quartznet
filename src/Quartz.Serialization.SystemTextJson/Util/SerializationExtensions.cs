@@ -237,4 +237,9 @@ internal static class Utf8JsonWriterExtensions
     {
         return options.PropertyNamingPolicy?.ConvertName(propertyName) ?? propertyName;
     }
+
+    public static JsonElement? GetPropertyOrNull(this JsonElement element, string propertyName)
+    {
+        return element.TryGetProperty(propertyName, out var result) ? result : null;
+    }
 }
