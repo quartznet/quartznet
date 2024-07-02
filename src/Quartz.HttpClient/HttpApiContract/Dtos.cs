@@ -44,7 +44,7 @@ internal record KeyDto(string Name, string Group) : IValidatable
     public override string ToString() => Group + '.' + Name;
 }
 
-internal record NamesDto(IReadOnlyCollection<string> Names);
+internal record NamesDto(List<string> Names);
 
 internal record SchedulerContextDto(Dictionary<string, string?> Context)
 {

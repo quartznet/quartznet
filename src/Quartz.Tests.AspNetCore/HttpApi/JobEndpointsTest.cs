@@ -19,7 +19,7 @@ public class JobEndpointsTest : WebApiTest
     public async Task GetJobKeysShouldWork()
     {
         A.CallTo(() => FakeScheduler.GetJobKeys(A<GroupMatcher<JobKey>>._, A<CancellationToken>._))
-            .Returns(new[] { jobKeyOne, jobKeyTwo });
+            .Returns([jobKeyOne, jobKeyTwo]);
 
         var jobKeys = await HttpScheduler.GetJobKeys(GroupMatcher<JobKey>.AnyGroup());
 
@@ -79,8 +79,8 @@ public class JobEndpointsTest : WebApiTest
     [Test]
     public async Task GetJobTriggersShouldWork()
     {
-        A.CallTo(() => FakeScheduler.GetTriggersOfJob(jobKeyOne, A<CancellationToken>._)).Returns(new[] { TestData.SimpleTrigger, TestData.CronTrigger });
-        A.CallTo(() => FakeScheduler.GetTriggersOfJob(jobKeyTwo, A<CancellationToken>._)).Returns(Array.Empty<ITrigger>());
+        A.CallTo(() => FakeScheduler.GetTriggersOfJob(jobKeyOne, A<CancellationToken>._)).Returns([TestData.SimpleTrigger, TestData.CronTrigger]);
+        A.CallTo(() => FakeScheduler.GetTriggersOfJob(jobKeyTwo, A<CancellationToken>._)).Returns([]);
 
         var triggers = await HttpScheduler.GetTriggersOfJob(jobKeyOne);
         triggers.Count.Should().Be(2);
@@ -98,7 +98,7 @@ public class JobEndpointsTest : WebApiTest
     [Test]
     public async Task CurrentlyExecutingJobsShouldWork()
     {
-        A.CallTo(() => FakeScheduler.GetCurrentlyExecutingJobs(A<CancellationToken>._)).Returns(new[] { TestData.ExecutingJobOne, TestData.ExecutingJobTwo });
+        A.CallTo(() => FakeScheduler.GetCurrentlyExecutingJobs(A<CancellationToken>._)).Returns([TestData.ExecutingJobOne, TestData.ExecutingJobTwo]);
 
         var jobs = await HttpScheduler.GetCurrentlyExecutingJobs();
         jobs.Count.Should().Be(2);
@@ -271,7 +271,7 @@ public class JobEndpointsTest : WebApiTest
     [Test]
     public async Task GetJobGroupNamesShouldWork()
     {
-        A.CallTo(() => FakeScheduler.GetJobGroupNames(A<CancellationToken>._)).Returns(new[] { "group1", "group2" });
+        A.CallTo(() => FakeScheduler.GetJobGroupNames(A<CancellationToken>._)).Returns(["group1", "group2"]);
 
         var jobGroupNames = await HttpScheduler.GetJobGroupNames();
 

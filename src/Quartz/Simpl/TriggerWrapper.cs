@@ -7,15 +7,9 @@ namespace Quartz.Simpl;
 /// </summary>
 internal sealed class TriggerWrapper : IEquatable<TriggerWrapper>
 {
-    /// <summary>
-    /// The key used
-    /// </summary>
-    public TriggerKey TriggerKey { get; }
+    public TriggerKey TriggerKey => Trigger.Key;
 
-    /// <summary>
-    /// Job's key
-    /// </summary>
-    public JobKey JobKey { get; }
+    public JobKey JobKey => Trigger.JobKey;
 
     /// <summary>
     /// The trigger
@@ -30,8 +24,6 @@ internal sealed class TriggerWrapper : IEquatable<TriggerWrapper>
     internal TriggerWrapper(IOperableTrigger trigger)
     {
         Trigger = trigger;
-        TriggerKey = trigger.Key;
-        JobKey = trigger.JobKey;
     }
 
     public bool Equals(TriggerWrapper? other)

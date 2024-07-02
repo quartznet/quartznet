@@ -149,12 +149,12 @@ public class QuartzSchedulerTest
 
         var scheduler = CreateQuartzScheduler("A", "B", 5);
 
-        executingJobs = scheduler.CurrentlyExecutingJobs;
+        executingJobs = scheduler.GetCurrentlyExecutingJobs();
         Assert.AreEqual(0, executingJobs.Count);
 
         scheduler.Start().GetAwaiter().GetResult();
 
-        executingJobs = scheduler.CurrentlyExecutingJobs;
+        executingJobs = scheduler.GetCurrentlyExecutingJobs();
         Assert.AreEqual(0, executingJobs.Count);
 
         ScheduleJobs<DelayedJob>(scheduler, 3, true, false, 1, TimeSpan.FromMilliseconds(1), 1);
@@ -162,17 +162,17 @@ public class QuartzSchedulerTest
 
         Thread.Sleep(150);
 
-        executingJobs = scheduler.CurrentlyExecutingJobs;
+        executingJobs = scheduler.GetCurrentlyExecutingJobs();
         Assert.AreEqual(4, executingJobs.Count);
 
         Thread.Sleep(150);
 
-        executingJobs = scheduler.CurrentlyExecutingJobs;
+        executingJobs = scheduler.GetCurrentlyExecutingJobs();
         Assert.AreEqual(3, executingJobs.Count);
 
         Thread.Sleep(300);
 
-        executingJobs = scheduler.CurrentlyExecutingJobs;
+        executingJobs = scheduler.GetCurrentlyExecutingJobs();
         Assert.AreEqual(0, executingJobs.Count);
 
         scheduler.Shutdown(true).GetAwaiter().GetResult();

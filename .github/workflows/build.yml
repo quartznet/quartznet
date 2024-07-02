@@ -34,6 +34,7 @@ jobs:
   windows-latest:
     name: windows-latest
     runs-on: windows-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v3
       - name: 'Run: Compile, UnitTest, IntegrationTest, Pack, Publish'
@@ -50,6 +51,7 @@ jobs:
   ubuntu-latest:
     name: ubuntu-latest
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v3
       - name: 'Run: Compile, UnitTest, IntegrationTest, Pack, Publish'
@@ -66,6 +68,7 @@ jobs:
   macos-latest:
     name: macos-latest
     runs-on: macos-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v3
       - name: 'Run: Compile, UnitTest, IntegrationTest, Pack, Publish'

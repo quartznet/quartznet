@@ -38,8 +38,7 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
-    public virtual async ValueTask<IReadOnlyCollection<TriggerKey>> SelectTriggerNamesForJob(
-        ConnectionAndTransactionHolder conn,
+    public virtual async ValueTask<List<TriggerKey>> SelectTriggerNamesForJob(ConnectionAndTransactionHolder conn,
         JobKey jobKey,
         CancellationToken cancellationToken = default)
     {
@@ -171,9 +170,7 @@ public partial class StdAdoDelegate
     }
 
     /// <inheritdoc />
-    public virtual async ValueTask<IReadOnlyCollection<string>> SelectJobGroups(
-        ConnectionAndTransactionHolder conn,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask<List<string>> SelectJobGroups(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default)
     {
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectJobGroups));
         AddCommandParameter(cmd, "schedulerName", schedName);

@@ -54,7 +54,7 @@ public interface ISchedulerSignaler
     /// <summary>
     /// Signals the scheduling change.
     /// </summary>
-    void SignalSchedulingChange(
+    ValueTask SignalSchedulingChange(
         DateTimeOffset? candidateNewNextFireTimeUtc,
         CancellationToken cancellationToken = default);
 
