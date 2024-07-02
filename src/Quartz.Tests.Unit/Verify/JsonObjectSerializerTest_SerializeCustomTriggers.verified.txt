@@ -1,0 +1,26 @@
+﻿{
+  "TriggerType": "TestTrigger",
+  "Key": {
+    "Name": "SimpleTriggerKey",
+    "Group": "SimpleTriggerGroup"
+  },
+  "JobKey": {
+    "Name": "SimpleJobKey",
+    "Group": "SimpleJobGroup"
+  },
+  "Description": "Custom trigger description",
+  "CalendarName": "SomeRandomCalendar",
+  "JobDataMap": {
+    "Key": "34"
+  },
+  "MisfireInstruction": -1,
+  "StartTimeUtc": "2024-07-01T00:00:00+00:00",
+  "EndTimeUtc": "2025-07-01T00:00:00.5+00:00",
+  "Priority": 100,
+  "NextFireTimeUtc": "2024-07-05T00:00:00+00:00",
+  "PreviousFireTimeUtc": "2024-07-04T00:00:00+00:00",
+  "RepeatCount": 10,
+  "RepeatIntervalTimeSpan": "1.00:00:00",
+  "TimesTriggered": 4,
+  "CustomProperty": 56
+}

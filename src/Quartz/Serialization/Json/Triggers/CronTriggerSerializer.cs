@@ -1,7 +1,5 @@
 using System.Text.Json;
 
-using Quartz.Util;
-
 namespace Quartz.Serialization.Json.Triggers;
 
 internal sealed class CronTriggerSerializer : TriggerSerializer<ICronTrigger>
@@ -12,9 +10,7 @@ internal sealed class CronTriggerSerializer : TriggerSerializer<ICronTrigger>
     {
     }
 
-    public const string TriggerTypeKey = "CronTrigger";
-
-    public override string TriggerTypeForJson => TriggerTypeKey;
+    public override string TriggerTypeForJson => "CronTrigger";
 
     public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, JsonSerializerOptions options)
     {

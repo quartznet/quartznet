@@ -1,7 +1,5 @@
 using System.Text.Json;
 
-using Quartz.Util;
-
 namespace Quartz.Serialization.Json.Triggers;
 
 internal sealed class SimpleTriggerSerializer : TriggerSerializer<ISimpleTrigger>
@@ -12,9 +10,7 @@ internal sealed class SimpleTriggerSerializer : TriggerSerializer<ISimpleTrigger
     {
     }
 
-    public const string TriggerTypeKey = "SimpleTrigger";
-
-    public override string TriggerTypeForJson => TriggerTypeKey;
+    public override string TriggerTypeForJson => "SimpleTrigger";
 
     public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, JsonSerializerOptions options)
     {
@@ -30,5 +26,13 @@ internal sealed class SimpleTriggerSerializer : TriggerSerializer<ISimpleTrigger
     {
         writer.WriteNumber(options.GetPropertyName("RepeatCount"), trigger.RepeatCount);
         writer.WriteString(options.GetPropertyName("RepeatIntervalTimeSpan"), trigger.RepeatInterval);
+        writer.WriteNumber(options.GetPropertyName("TimesTriggered"), trigger.TimesTriggered);
+    }
+
+    protected override void DeserializeFields(ISimpleTrigger trigger, JsonElement jsonElement, JsonSerializerOptions options)
+    {
+        // This property might not exist in the JSON if trigger was serialized with older version
+        var timesTriggered = jsonElement.GetPropertyOrNull(options.GetPropertyName("TimesTriggered"))?.GetInt32();
+        trigger.TimesTriggered = timesTriggered ?? 0;
     }
 }

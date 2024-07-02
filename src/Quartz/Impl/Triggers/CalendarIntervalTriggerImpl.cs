@@ -56,8 +56,8 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
 {
     private DateTimeOffset startTime;
     private DateTimeOffset? endTime;
-    private DateTimeOffset? nextFireTimeUtc; // Making a public property which called GetNextFireTime/SetNextFireTime would make the json attribute unnecessary
-    private DateTimeOffset? previousFireTimeUtc; // Making a public property which called GetPreviousFireTime/SetPreviousFireTime would make the json attribute unnecessary
+    private DateTimeOffset? nextFireTimeUtc;
+    private DateTimeOffset? previousFireTimeUtc;
     private int repeatInterval;
     internal TimeZoneInfo? timeZone;
 

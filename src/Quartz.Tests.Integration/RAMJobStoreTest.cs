@@ -1,9 +1,13 @@
+using System.Text.Json;
+
 using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
-using Quartz.Simpl;
+using Quartz.Serialization.Json;
+using Quartz.Serialization.Json.Triggers;
+using Quartz.Spi;
 
 namespace Quartz.Tests.Integration;
 
@@ -287,26 +291,21 @@ public abstract class AbstractSchedulerTest
         var cronTrigger = (CronTriggerImpl) trigger;
         Assert.That(cronTrigger.CronExpressionString, Is.EqualTo("0/5 * * * * ?"));
 
-
-        // TODO blob STJ serializer
-        if (serializerType != nameof(SystemTextJsonObjectSerializer))
+        var blobTrigger = new TestBlobCronTriggerImpl
         {
-            var blobTrigger = new TestBlobCronTriggerImpl
-            {
-                StartTimeUtc = DateTimeOffset.UtcNow,
-                Key = new TriggerKey("t1"),
-                CronExpression = new CronExpression("0/10 * * * * ?")
-            };
+            StartTimeUtc = DateTimeOffset.UtcNow,
+            Key = new TriggerKey("t1"),
+            CronExpression = new CronExpression("0/10 * * * * ?")
+        };
 
-            await sched.ScheduleJob(job, new[] { blobTrigger }, true);
+        await sched.ScheduleJob(job, new[] { blobTrigger }, true);
 
-            trigger = await sched.GetTrigger(new TriggerKey("t1"));
+        trigger = await sched.GetTrigger(new TriggerKey("t1"));
 
-            Assert.That(trigger, Is.Not.Null);
-            Assert.That(trigger, Is.InstanceOf<TestBlobCronTriggerImpl>());
-            blobTrigger = (TestBlobCronTriggerImpl) trigger;
-            Assert.That(blobTrigger.CronExpressionString, Is.EqualTo("0/10 * * * * ?"));
-        }
+        Assert.That(trigger, Is.Not.Null);
+        Assert.That(trigger, Is.InstanceOf<TestBlobCronTriggerImpl>());
+        blobTrigger = (TestBlobCronTriggerImpl) trigger;
+        Assert.That(blobTrigger.CronExpressionString, Is.EqualTo("0/10 * * * * ?"));
 
         trigger = TriggerBuilder.Create()
             .WithIdentity("t1")
@@ -587,5 +586,36 @@ public abstract class AbstractSchedulerTest
     public class TestBlobCronTriggerImpl : CronTriggerImpl
     {
         public override bool HasAdditionalProperties => true;
+
+        public sealed class SystemTextJsonSerializer : TriggerSerializer<TestBlobCronTriggerImpl>
+        {
+            public override string TriggerTypeForJson => "TestBlobCronTrigger";
+
+            public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, JsonSerializerOptions options)
+            {
+                var cronExpressionString = jsonElement.GetProperty("CronExpressionString").GetString()!;
+                var timeZone = jsonElement.GetProperty("TimeZone").GetTimeZone();
+
+                var trigger = new TestBlobCronTriggerImpl
+                {
+                    CronExpression = new CronExpression(cronExpressionString),
+                    TimeZone = timeZone,
+                    MisfireInstruction = Quartz.MisfireInstruction.SmartPolicy
+                };
+
+                return new StaticScheduleBuilder(trigger);
+            }
+
+            protected override void SerializeFields(Utf8JsonWriter writer, TestBlobCronTriggerImpl trigger, JsonSerializerOptions options)
+            {
+                writer.WriteString("CronExpressionString", trigger.CronExpressionString);
+                writer.WriteTimeZoneInfo("TimeZone", trigger.TimeZone);
+            }
+
+            private sealed class StaticScheduleBuilder(IMutableTrigger trigger) : IScheduleBuilder
+            {
+                public IMutableTrigger Build() => trigger;
+            }
+        }
     }
 }

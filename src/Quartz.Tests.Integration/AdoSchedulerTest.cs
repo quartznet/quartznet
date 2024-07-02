@@ -16,6 +16,11 @@ public class AdoSchedulerTest : AbstractSchedulerTest
 {
     private readonly IObjectSerializer serializer;
 
+    static AdoSchedulerTest()
+    {
+        SystemTextJsonObjectSerializer.AddTriggerSerializer<TestBlobCronTriggerImpl>(new TestBlobCronTriggerImpl.SystemTextJsonSerializer());
+    }
+
     public AdoSchedulerTest(Type serializerType, string provider) : base(provider, serializerType.Name)
     {
         serializer = (IObjectSerializer) Activator.CreateInstance(serializerType);

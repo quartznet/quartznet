@@ -1,6 +1,8 @@
 using System.Text.Json;
 
+using Quartz.Serialization.Json.Calendars;
 using Quartz.Serialization.Json.Converters;
+using Quartz.Serialization.Json.Triggers;
 using Quartz.Simpl;
 
 namespace Quartz;
@@ -8,7 +10,7 @@ namespace Quartz;
 public static class JsonConfigurationExtensions
 {
     /// <summary>
-    /// Use Newtonsoft JSON as data serialization strategy.
+    /// Use System.Text.Json as data serialization strategy.
     /// </summary>
     public static void UseSystemTextJsonSerializer(
         this SchedulerBuilder.PersistentStoreOptions persistentStoreOptions,
@@ -33,4 +35,23 @@ public static class JsonConfigurationExtensions
     }
 }
 
-public class SystemTextJsonSerializerOptions;
+public class SystemTextJsonSerializerOptions
+{
+    /// <summary>
+    /// Add serializer for custom trigger
+    /// </summary>
+    public SystemTextJsonSerializerOptions AddTriggerSerializer<TTrigger>(ITriggerSerializer serializer) where TTrigger : ITrigger
+    {
+        SystemTextJsonObjectSerializer.AddTriggerSerializer<TTrigger>(serializer);
+        return this;
+    }
+
+    /// <summary>
+    /// Add serializer for custom calendar
+    /// </summary>
+    public SystemTextJsonSerializerOptions AddCalendarSerializer<TCalendar>(ICalendarSerializer serializer) where TCalendar : ICalendar
+    {
+        SystemTextJsonObjectSerializer.AddCalendarSerializer<TCalendar>(serializer);
+        return this;
+    }
+}

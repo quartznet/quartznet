@@ -1,0 +1,6 @@
+﻿{
+  "$type": "Quartz.Impl.Calendar.BaseCalendar, Quartz",
+  "Description": "Test BaseCalendar",
+  "TimeZoneId": "UTC",
+  "BaseCalendar": null
+}

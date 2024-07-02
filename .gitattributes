@@ -25,3 +25,7 @@
 *.sh      eol=lf
 *.conf    eol=lf
 dotnet-test-nunit eol=lf
+
+*.verified.txt text eol=lf working-tree-encoding=UTF-8
+*.verified.xml text eol=lf working-tree-encoding=UTF-8
+*.verified.json text eol=lf working-tree-encoding=UTF-8

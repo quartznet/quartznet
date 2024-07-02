@@ -1,4 +1,5 @@
 using System.Runtime.Serialization;
+using System.Text.Json;
 
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -18,7 +19,7 @@ namespace Quartz.Tests.Integration.Impl;
 
 public class SmokeTestPerformer
 {
-    public async Task Test(IScheduler scheduler, bool clearJobs, bool scheduleJobs, bool testCustomeCalendar)
+    public async Task Test(IScheduler scheduler, bool clearJobs, bool scheduleJobs)
     {
         try
         {
@@ -40,7 +41,7 @@ public class SmokeTestPerformer
                 cal.SetDayExcluded(new DateTime(2018, 7, 4), true);
                 await scheduler.AddCalendar("annualCalendar", cal, false, true);
 
-                IOperableTrigger calendarsTrigger = new SimpleTriggerImpl("calendarsTrigger", "test", 20, TimeSpan.FromMilliseconds(5));
+                IOperableTrigger calendarsTrigger = new SimpleTriggerImpl("calendarsTrigger", "test", 20, TimeSpan.FromHours(2));
                 calendarsTrigger.CalendarName = "annualCalendar";
 
                 var jd = JobBuilder.Create<NoOpJob>()
@@ -65,14 +66,10 @@ public class SmokeTestPerformer
                 await scheduler.AddCalendar("cronCalendar", cronCalendar, true, true);
                 await scheduler.AddCalendar("holidayCalendar", holidayCalendar, true, true);
 
-                // TODO blob STJ serializer
-                if (testCustomeCalendar)
-                {
-                    await scheduler.AddCalendar("customCalendar", new CustomCalendar(), true, true);
-                    var customCalendar = (CustomCalendar) await scheduler.GetCalendar("customCalendar");
-                    Assert.That(customCalendar, Is.Not.Null);
-                    Assert.That(customCalendar.SomeCustomProperty, Is.True);
-                }
+                await scheduler.AddCalendar("customCalendar", new CustomCalendar(), true, true);
+                var customCalendar = (CustomCalendar) await scheduler.GetCalendar("customCalendar");
+                Assert.That(customCalendar, Is.Not.Null);
+                Assert.That(customCalendar.SomeCustomProperty, Is.True);
 
                 Assert.IsNotNull(await scheduler.GetCalendar("annualCalendar"));
 
@@ -515,5 +512,25 @@ internal sealed class CustomNewtonsoftCalendarSerializer : CalendarSerializer<Cu
     protected override void DeserializeFields(CustomCalendar calendar, JObject source)
     {
         calendar.SomeCustomProperty = source["SomeCustomProperty"]!.Value<bool>();
+    }
+}
+
+internal sealed class CustomSystemTextJosnCalendarSerializer : Serialization.Json.Calendars.CalendarSerializer<CustomCalendar>
+{
+    public override string CalendarTypeName => "Custom";
+
+    protected override CustomCalendar Create(JsonElement jsonElement, JsonSerializerOptions options)
+    {
+        return new CustomCalendar();
+    }
+
+    protected override void SerializeFields(Utf8JsonWriter writer, CustomCalendar calendar, JsonSerializerOptions options)
+    {
+        writer.WriteBoolean("SomeCustomProperty", calendar.SomeCustomProperty);
+    }
+
+    protected override void DeserializeFields(CustomCalendar calendar, JsonElement jsonElement, JsonSerializerOptions options)
+    {
+        calendar.SomeCustomProperty = jsonElement.GetProperty("SomeCustomProperty").GetBoolean();
     }
 }

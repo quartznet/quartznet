@@ -1,7 +1,5 @@
 using System.Text.Json;
 
-using Quartz.Util;
-
 namespace Quartz.Serialization.Json.Triggers;
 
 internal sealed class DailyTimeIntervalTriggerSerializer : TriggerSerializer<IDailyTimeIntervalTrigger>
@@ -12,9 +10,7 @@ internal sealed class DailyTimeIntervalTriggerSerializer : TriggerSerializer<IDa
     {
     }
 
-    public const string TriggerTypeKey = "DailyTimeIntervalTrigger";
-
-    public override string TriggerTypeForJson => TriggerTypeKey;
+    public override string TriggerTypeForJson => "DailyTimeIntervalTrigger";
 
     public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, JsonSerializerOptions options)
     {
@@ -44,5 +40,13 @@ internal sealed class DailyTimeIntervalTriggerSerializer : TriggerSerializer<IDa
         writer.WriteTimeOfDay(options.GetPropertyName("EndTimeOfDay"), trigger.EndTimeOfDay, options);
         writer.WriteArray(options.GetPropertyName("DaysOfWeek"), trigger.DaysOfWeek, (w, v) => w.WriteEnumValue(v));
         writer.WriteTimeZoneInfo(options.GetPropertyName("TimeZone"), trigger.TimeZone);
+        writer.WriteNumber(options.GetPropertyName("TimesTriggered"), trigger.TimesTriggered);
+    }
+
+    protected override void DeserializeFields(IDailyTimeIntervalTrigger trigger, JsonElement jsonElement, JsonSerializerOptions options)
+    {
+        // This property might not exist in the JSON if trigger was serialized with older version
+        var timesTriggered = jsonElement.GetPropertyOrNull(options.GetPropertyName("TimesTriggered"))?.GetInt32();
+        trigger.TimesTriggered = timesTriggered ?? 0;
     }
 }

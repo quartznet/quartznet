@@ -6,8 +6,6 @@ namespace Quartz.Spi;
 [Serializable]
 public sealed class TriggerFiredResult
 {
-    // JsonProperty attributes are used since Json.Net's default behavior is to serialize public members and the properties wrapping these fields are read-only
-
     ///<summary>
     /// Constructor.
     ///</summary>

@@ -1,0 +1,15 @@
+﻿{
+  "$type": "Quartz.Impl.Calendar.WeeklyCalendar, Quartz",
+  "Description": "Test WeeklyCalendar",
+  "TimeZoneId": "UTC",
+  "BaseCalendar": null,
+  "ExcludedDays": [
+    true,
+    false,
+    false,
+    true,
+    true,
+    true,
+    true
+  ]
+}
