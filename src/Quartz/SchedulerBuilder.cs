@@ -525,7 +525,10 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
             options.SetProperty($"quartz.dataSource.{DefaultDataSourceName}.connectionProvider.type", typeof(T).AssemblyQualifiedNameWithoutVersion());
         }
 #if NET8_0_OR_GREATER
-        public void UseDbDataSourceConnectionProvider()
+        /// <summary>
+        /// Use a <see cref="DataSourceDbProvider"/>. Requires <see cref="ServiceCollectionExtensions.AddDataSourceProvider"/> to have been called.
+        /// </summary>
+        public void UseDataSourceConnectionProvider()
         {
             UseConnectionProvider<DataSourceDbProvider>();
         }
