@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Globalization;
 using System.Text.Json;
 
@@ -169,14 +170,14 @@ internal static class Utf8JsonWriterExtensions
         return new JobKey(name!, group!);
     }
 
-    public static void WriteJobDataMapValue(this Utf8JsonWriter writer, JobDataMap jobDataMap, JsonSerializerOptions options)
+    public static void WriteJobDataMapValue<T>(this Utf8JsonWriter writer, T jobDataMap, JsonSerializerOptions options) where T : IDictionary
     {
         writer.WriteStartObject();
 
-        foreach (KeyValuePair<string, object?> keyValuePair in jobDataMap)
+        foreach (object? key in jobDataMap.Keys)
         {
-            writer.WritePropertyName(keyValuePair.Key);
-            JsonSerializer.Serialize(writer, keyValuePair.Value, options);
+            writer.WritePropertyName(key.ToString()!);
+            JsonSerializer.Serialize(writer, jobDataMap[key], options);
         }
 
         writer.WriteEndObject();

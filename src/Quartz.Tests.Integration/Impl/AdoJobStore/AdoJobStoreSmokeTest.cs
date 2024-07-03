@@ -93,7 +93,7 @@ public class AdoJobStoreSmokeTest
     [TestCaseSource(nameof(GetSerializerTypes))]
     public async Task TestSQLiteMicrosoft(string serializerType)
     {
-        var dbFilename = $"test-{serializerType}.db";
+        var dbFilename = $"test-sqlite-ms-{serializerType}.db";
 
         if (File.Exists(dbFilename))
         {
@@ -150,7 +150,7 @@ public class AdoJobStoreSmokeTest
     [TestCaseSource(nameof(GetSerializerTypes))]
     public async Task TestSQLite(string serializerType)
     {
-        var dbFilename = $"test-{serializerType}.db";
+        var dbFilename = $"test-sqlite-{serializerType}.db";
 
         while (File.Exists(dbFilename))
         {
@@ -217,6 +217,7 @@ public class AdoJobStoreSmokeTest
             {
                 store.UseSystemTextJsonSerializer(j =>
                 {
+                    // TODO blob STJ calendar support
                     //j.AddCalendarSerializer<CustomCalendar>(new CustomNewtonsoftCalendarSerializer());
                 });
             }
@@ -247,7 +248,7 @@ public class AdoJobStoreSmokeTest
         // First we must get a reference to a scheduler
         IScheduler sched = await config.BuildScheduler();
         SmokeTestPerformer performer = new SmokeTestPerformer();
-        await performer.Test(sched, clearJobs, scheduleJobs);
+        await performer.Test(sched, clearJobs, scheduleJobs, testCustomeCalendar: serializerType != "stj");
 
         //Assert.IsEmpty(testLoggerHelper.LogEntries.Where(le => le.LogLevel == LogLevel.Error), "Found error from logging output");
     }
