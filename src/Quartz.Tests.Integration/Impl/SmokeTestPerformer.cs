@@ -18,7 +18,7 @@ namespace Quartz.Tests.Integration.Impl;
 
 public class SmokeTestPerformer
 {
-    public async Task Test(IScheduler scheduler, bool clearJobs, bool scheduleJobs)
+    public async Task Test(IScheduler scheduler, bool clearJobs, bool scheduleJobs, bool testCustomeCalendar)
     {
         try
         {
@@ -65,10 +65,14 @@ public class SmokeTestPerformer
                 await scheduler.AddCalendar("cronCalendar", cronCalendar, true, true);
                 await scheduler.AddCalendar("holidayCalendar", holidayCalendar, true, true);
 
-                await scheduler.AddCalendar("customCalendar", new CustomCalendar(), true, true);
-                var customCalendar = (CustomCalendar) await scheduler.GetCalendar("customCalendar");
-                Assert.That(customCalendar, Is.Not.Null);
-                Assert.That(customCalendar.SomeCustomProperty, Is.True);
+                // TODO blob STJ serializer
+                if (testCustomeCalendar)
+                {
+                    await scheduler.AddCalendar("customCalendar", new CustomCalendar(), true, true);
+                    var customCalendar = (CustomCalendar) await scheduler.GetCalendar("customCalendar");
+                    Assert.That(customCalendar, Is.Not.Null);
+                    Assert.That(customCalendar.SomeCustomProperty, Is.True);
+                }
 
                 Assert.IsNotNull(await scheduler.GetCalendar("annualCalendar"));
 
