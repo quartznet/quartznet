@@ -19,9 +19,9 @@ internal sealed class DailyCalendarSerializer : CalendarSerializer<DailyCalendar
 
     protected override void SerializeFields(Utf8JsonWriter writer, DailyCalendar calendar, JsonSerializerOptions options)
     {
+        writer.WriteBoolean(options.GetPropertyName("InvertTimeRange"), calendar.InvertTimeRange);
         writer.WriteString(options.GetPropertyName("RangeStartingTime"), calendar.RangeStartingTime);
         writer.WriteString(options.GetPropertyName("RangeEndingTime"), calendar.RangeEndingTime);
-        writer.WriteBoolean(options.GetPropertyName("InvertTimeRange"), calendar.InvertTimeRange);
     }
 
     protected override void DeserializeFields(DailyCalendar calendar, JsonElement jsonElement, JsonSerializerOptions options)

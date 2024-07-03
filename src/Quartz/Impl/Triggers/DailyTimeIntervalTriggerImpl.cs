@@ -86,8 +86,8 @@ namespace Quartz.Impl.Triggers
 
         private DateTimeOffset startTimeUtc;
         private DateTimeOffset? endTimeUtc;
-        private DateTimeOffset? nextFireTimeUtc; // Making a public property which called GetNextFireTime/SetNextFireTime would make the json attribute unnecessary
-        private DateTimeOffset? previousFireTimeUtc; // Making a public property which called GetPreviousFireTime/SetPreviousFireTime would make the json attribute unnecessary
+        private DateTimeOffset? nextFireTimeUtc;
+        private DateTimeOffset? previousFireTimeUtc;
         private int repeatInterval = 1;
         private IntervalUnit repeatIntervalUnit = IntervalUnit.Minute;
         private HashSet<DayOfWeek> daysOfWeek = null!;

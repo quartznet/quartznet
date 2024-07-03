@@ -41,8 +41,8 @@ namespace Quartz.Impl.Triggers
         public const int RepeatIndefinitely = -1;
         private const int YearToGiveupSchedulingAt = 2299;
 
-        private DateTimeOffset? nextFireTimeUtc; // Making a public property which called GetNextFireTime/SetNextFireTime would make the json attribute unnecessary
-        private DateTimeOffset? previousFireTimeUtc; // Making a public property which called GetPreviousFireTime/SetPreviousFireTime would make the json attribute unnecessary
+        private DateTimeOffset? nextFireTimeUtc;
+        private DateTimeOffset? previousFireTimeUtc;
 
         private int repeatCount;
         private TimeSpan repeatInterval = TimeSpan.Zero;

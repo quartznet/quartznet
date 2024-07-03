@@ -66,9 +66,6 @@ namespace Quartz.Impl.Calendar
         private const string TwoDigitFormat = "00";
         private const string ThreeDigitFormat = "000";
 
-        // JsonProperty attributes are necessary because no public field/property exposes these directly
-        // Adding RangeStartingTimeUTC and RangeEndingTimeUTC properties with getters/setters to control
-        // these would remove the need for the attribute.
         private int rangeStartingHourOfDay;
         private int rangeStartingMinute;
         private int rangeStartingSecond;

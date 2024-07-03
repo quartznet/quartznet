@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace Quartz.Serialization.SystemTextJson;
 
-internal interface ICalendarSerializer
+public interface ICalendarSerializer
 {
     ICalendar Create(JsonElement jsonElement, JsonSerializerOptions options);
 
@@ -13,7 +13,7 @@ internal interface ICalendarSerializer
     string CalendarTypeName { get; }
 }
 
-internal abstract class CalendarSerializer<TCalendar> : ICalendarSerializer where TCalendar : ICalendar
+public abstract class CalendarSerializer<TCalendar> : ICalendarSerializer where TCalendar : ICalendar
 {
     ICalendar ICalendarSerializer.Create(JsonElement jsonElement, JsonSerializerOptions options) => Create(jsonElement, options);
 

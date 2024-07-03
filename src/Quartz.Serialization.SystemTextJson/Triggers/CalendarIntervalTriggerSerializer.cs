@@ -12,9 +12,7 @@ internal sealed class CalendarIntervalTriggerSerializer : TriggerSerializer<ICal
     {
     }
 
-    public const string TriggerTypeKey = "CalendarIntervalTrigger";
-
-    public override string TriggerTypeForJson => TriggerTypeKey;
+    public override string TriggerTypeForJson => "CalendarIntervalTrigger";
 
     public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, JsonSerializerOptions options)
     {
@@ -38,5 +36,13 @@ internal sealed class CalendarIntervalTriggerSerializer : TriggerSerializer<ICal
         writer.WriteTimeZoneInfo(options.GetPropertyName("TimeZone"), trigger.TimeZone);
         writer.WriteBoolean(options.GetPropertyName("PreserveHourOfDayAcrossDaylightSavings"), trigger.PreserveHourOfDayAcrossDaylightSavings);
         writer.WriteBoolean(options.GetPropertyName("SkipDayIfHourDoesNotExist"), trigger.SkipDayIfHourDoesNotExist);
+        writer.WriteNumber(options.GetPropertyName("TimesTriggered"), trigger.TimesTriggered);
+    }
+
+    protected override void DeserializeFields(ICalendarIntervalTrigger trigger, JsonElement jsonElement, JsonSerializerOptions options)
+    {
+        // This properties might not exist in the JSON if trigger was serialized with older version
+        var timesTriggered = jsonElement.GetPropertyOrNull(options.GetPropertyName("TimesTriggered"))?.GetInt32();
+        trigger.TimesTriggered = timesTriggered ?? 0;
     }
 }

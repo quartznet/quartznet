@@ -2,7 +2,10 @@ using System;
 using System.Text;
 using System.Text.Json;
 
+using Quartz.Converters;
+using Quartz.Serialization.SystemTextJson;
 using Quartz.Spi;
+using Quartz.Triggers;
 
 namespace Quartz.Simpl;
 
@@ -59,5 +62,15 @@ public class SystemTextJsonObjectSerializer : IObjectSerializer
             string json = Encoding.UTF8.GetString(data);
             throw new JsonSerializationException($"Could not deserialize JSON: {json}", e);
         }
+    }
+
+    public static void AddTriggerSerializer<TTrigger>(ITriggerSerializer serializer) where TTrigger : ITrigger
+    {
+        TriggerConverter.AddTriggerSerializer<TTrigger>(serializer);
+    }
+
+    public static void AddCalendarSerializer<TCalendar>(ICalendarSerializer serializer) where TCalendar : ICalendar
+    {
+        CalendarConverter.AddSerializer<TCalendar>(serializer);
     }
 }

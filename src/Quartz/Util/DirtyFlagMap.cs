@@ -37,7 +37,6 @@ namespace Quartz.Util
     [Serializable]
     public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue>, IDictionary, ISerializable where TKey : notnull
     {
-        // JsonProperty attributes are used since Json.Net's default behavior is to serialize public members and the properties wrapping these fields are read-only
         private bool dirty;
 
         private Dictionary<TKey, TValue> map;

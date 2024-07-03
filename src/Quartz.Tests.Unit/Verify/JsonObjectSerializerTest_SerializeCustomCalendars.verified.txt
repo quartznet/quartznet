@@ -1,0 +1,12 @@
+﻿{
+  "$type": "Quartz.Tests.Unit.Simpl.JsonSerializationTestCalendar, Quartz.Tests.Unit",
+  "Description": "Custom calendar",
+  "TimeZoneId": "UTC",
+  "BaseCalendar": {
+    "$type": "Quartz.Impl.Calendar.BaseCalendar, Quartz",
+    "Description": "Base calendar",
+    "TimeZoneId": "UTC",
+    "BaseCalendar": null
+  },
+  "CustomProperty": 42
+}

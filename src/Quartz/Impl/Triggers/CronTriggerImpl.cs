@@ -182,8 +182,8 @@ namespace Quartz.Impl.Triggers
         private CronExpression? cronEx;
         private DateTimeOffset startTimeUtc = DateTimeOffset.MinValue;
         private DateTimeOffset? endTimeUtc;
-        private DateTimeOffset? nextFireTimeUtc; // Making a public property which called GetNextFireTime/SetNextFireTime would make the json attribute unnecessary
-        private DateTimeOffset? previousFireTimeUtc; // Making a public property which called GetPreviousFireTime/SetPreviousFireTime would make the json attribute unnecessary
+        private DateTimeOffset? nextFireTimeUtc;
+        private DateTimeOffset? previousFireTimeUtc;
 
         [NonSerialized] private TimeZoneInfo? timeZone;
 

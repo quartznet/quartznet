@@ -1,0 +1,37 @@
+﻿{
+  "TriggerType": "DailyTimeIntervalTrigger",
+  "Key": {
+    "Name": "DailyTimeIntervalTriggerKey",
+    "Group": "DailyTimeIntervalTriggerGroup"
+  },
+  "JobKey": null,
+  "Description": "DailyTimeIntervalTrigger description",
+  "CalendarName": null,
+  "JobDataMap": {},
+  "MisfireInstruction": 0,
+  "StartTimeUtc": "2024-07-01T03:30:00+00:00",
+  "EndTimeUtc": "2024-07-02T00:00:01+00:00",
+  "Priority": 5,
+  "NextFireTimeUtc": "2024-07-01T03:32:06+00:00",
+  "PreviousFireTimeUtc": "2024-07-01T03:31:24+00:00",
+  "RepeatCount": 1000,
+  "RepeatInterval": 42,
+  "RepeatIntervalUnit": "Second",
+  "StartTimeOfDay": {
+    "Hour": 3,
+    "Minute": 30,
+    "Second": 0
+  },
+  "EndTimeOfDay": {
+    "Hour": 4,
+    "Minute": 40,
+    "Second": 0
+  },
+  "DaysOfWeek": [
+    "Monday",
+    "Wednesday",
+    "Friday"
+  ],
+  "TimeZone": "UTC",
+  "TimesTriggered": 4
+}

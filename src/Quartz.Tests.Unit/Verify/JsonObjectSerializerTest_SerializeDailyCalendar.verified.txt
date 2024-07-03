@@ -1,0 +1,14 @@
+﻿{
+  "$type": "Quartz.Impl.Calendar.DailyCalendar, Quartz",
+  "Description": null,
+  "TimeZoneId": "UTC",
+  "BaseCalendar": {
+    "$type": "Quartz.Impl.Calendar.BaseCalendar, Quartz",
+    "Description": null,
+    "TimeZoneId": "UTC",
+    "BaseCalendar": null
+  },
+  "InvertTimeRange": true,
+  "RangeStartingTime": "01:01:01:001",
+  "RangeEndingTime": "02:02:02:002"
+}
