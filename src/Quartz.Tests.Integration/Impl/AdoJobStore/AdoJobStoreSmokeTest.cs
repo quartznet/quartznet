@@ -9,6 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Microsoft.Data.Sqlite;
+
 using NUnit.Framework;
 
 using Quartz.Impl;
@@ -109,9 +110,9 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         [TestCaseSource(nameof(GetSerializerTypes))]
         public async Task TestSQLiteMicrosoft(string serializerType)
         {
-	        var dbFilename = $"test-{serializerType}.db";
+            var dbFilename = $"test-sqlite-ms-{serializerType}.db";
 
-	        if (File.Exists(dbFilename))
+            if (File.Exists(dbFilename))
             {
                 File.Delete(dbFilename);
             }
@@ -166,9 +167,9 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         [TestCaseSource(nameof(GetSerializerTypes))]
         public async Task TestSQLite(string serializerType)
         {
-	        var dbFilename = $"test-{serializerType}.db";
+            var dbFilename = $"test-sqlite-{serializerType}.db";
 
-	        while (File.Exists(dbFilename))
+            while (File.Exists(dbFilename))
             {
                 File.Delete(dbFilename);
             }
@@ -251,7 +252,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             // First we must get a reference to a scheduler
             IScheduler sched = await config.BuildScheduler();
             SmokeTestPerformer performer = new SmokeTestPerformer();
-            await performer.Test(sched, clearJobs, scheduleJobs);
+            await performer.Test(sched, clearJobs, scheduleJobs, testCustomCalendar: true);
 
             Assert.IsEmpty(FailFastLoggerFactoryAdapter.Errors, "Found error from logging output");
         }
@@ -275,8 +276,11 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             IScheduler sched = await sf.GetScheduler();
             await sched.Clear();
 
-            JobDetailImpl jobWithData = new JobDetailImpl("datajob", "jobgroup", typeof(NoOpJob));
-            jobWithData.JobDataMap["testkey"] = "testvalue";
+            var jobWithData = JobBuilder.Create<NoOpJob>()
+                .WithIdentity(new JobKey("datajob", "jobgroup"))
+                .UsingJobData("testkey", "testvalue")
+                .Build();
+
             IOperableTrigger triggerWithData = new SimpleTriggerImpl("datatrigger", "triggergroup", 20, TimeSpan.FromSeconds(5));
             triggerWithData.JobDataMap.Add("testkey", "testvalue");
             triggerWithData.EndTimeUtc = DateTime.UtcNow.AddYears(10);
@@ -311,6 +315,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
 
         [Test]
         [Explicit]
+        [Category("db-sqlserver")]
         [TestCaseSource(nameof(GetSerializerTypes))]
         public async Task TestSqlServerStress(string serializerType)
         {
@@ -351,7 +356,9 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     for (int i = 0; i < 100000; ++i)
                     {
                         ITrigger trigger = new SimpleTriggerImpl("calendarsTrigger", "test", SimpleTriggerImpl.RepeatIndefinitely, TimeSpan.FromSeconds(1));
-                        JobDetailImpl jd = new JobDetailImpl("testJob", "test", typeof(NoOpJob));
+                        var jd = JobBuilder.Create<NoOpJob>()
+                            .WithIdentity(new JobKey("testJob", "test"))
+                            .Build();
                         await sched.ScheduleJob(jd, trigger);
                     }
                 }
@@ -408,7 +415,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             properties.Add(StdSchedulerFactory.PropertySchedulerTypeLoadHelperType, typeof(SpecialClassLoadHelper).AssemblyQualifiedName);
             var scheduler = await CreateScheduler(properties);
 
-            await scheduler.DeleteJobs(new[] {JobKey.Create("bad"), JobKey.Create("good")});
+            await scheduler.DeleteJobs(new[] { JobKey.Create("bad"), JobKey.Create("good") });
 
             await scheduler.Start();
 
@@ -494,15 +501,22 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             {
                 await sched.Clear();
 
-                JobDetailImpl lonelyJob = new JobDetailImpl("lonelyJob", "lonelyGroup", typeof(SimpleRecoveryJob));
-                lonelyJob.Durable = true;
-                lonelyJob.RequestsRecovery = true;
+                var lonelyJob = JobBuilder.Create()
+                    .OfType<SimpleRecoveryJob>()
+                    .WithIdentity(new JobKey("lonelyJob", "lonelyGroup"))
+                    .StoreDurably(true)
+                    .RequestRecovery(true)
+                    .Build();
+
                 await sched.AddJob(lonelyJob, false);
                 await sched.AddJob(lonelyJob, true);
 
                 string schedId = sched.SchedulerInstanceId;
 
-                JobDetailImpl job = new JobDetailImpl("job_to_use", schedId, typeof(SimpleRecoveryJob));
+                var job = JobBuilder.Create()
+                    .OfType<SimpleRecoveryJob>()
+                    .WithIdentity(new JobKey("job_to_use", schedId))
+                    .Build();
 
                 for (int i = 0; i < 100000; ++i)
                 {

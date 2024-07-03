@@ -31,7 +31,7 @@ namespace Quartz.Tests.Integration.Impl
             IScheduler sched = await sf.GetScheduler();
 
             SmokeTestPerformer performer = new SmokeTestPerformer();
-            await performer.Test(sched, true, true);
+            await performer.Test(sched, clearJobs: true, scheduleJobs: true, testCustomCalendar: true);
         }
     }
 }
