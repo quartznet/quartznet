@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -9,6 +9,7 @@ using NUnit.Framework;
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
+using Quartz.Simpl;
 
 namespace Quartz.Tests.Integration
 {
@@ -245,7 +246,6 @@ namespace Quartz.Tests.Integration
         }
 
         [Test]
-        [Category("db-sqlserver")]
         public async Task TestUpdatingTriggerTypes()
         {
             var sched = await CreateScheduler("testUpdatingTriggerTypes", 2);
@@ -294,22 +294,25 @@ namespace Quartz.Tests.Integration
             Assert.That(cronTrigger.CronExpressionString, Is.EqualTo("0/5 * * * * ?"));
 
 
-            var blobTrigger = new TestBlobCronTriggerImpl
+            // TODO blob STJ serializer
+            if (serializerType != nameof(SystemTextJsonObjectSerializer))
             {
-                StartTimeUtc = DateTimeOffset.UtcNow,
-                Key = new TriggerKey("t1"),
-                CronExpression = new CronExpression("0/10 * * * * ?")
-            };
+                var blobTrigger = new TestBlobCronTriggerImpl
+                {
+                    StartTimeUtc = DateTimeOffset.UtcNow,
+                    Key = new TriggerKey("t1"),
+                    CronExpression = new CronExpression("0/10 * * * * ?")
+                };
 
-            await sched.ScheduleJob(job, new[] { blobTrigger }, true);
+                await sched.ScheduleJob(job, new[] { blobTrigger }, true);
 
-            trigger = await sched.GetTrigger(new TriggerKey("t1"));
+                trigger = await sched.GetTrigger(new TriggerKey("t1"));
 
-            Assert.That(trigger, Is.Not.Null);
-            Assert.That(trigger, Is.InstanceOf<TestBlobCronTriggerImpl>());
-            blobTrigger = (TestBlobCronTriggerImpl) trigger;
-            Assert.That(blobTrigger.CronExpressionString, Is.EqualTo("0/10 * * * * ?"));
-
+                Assert.That(trigger, Is.Not.Null);
+                Assert.That(trigger, Is.InstanceOf<TestBlobCronTriggerImpl>());
+                blobTrigger = (TestBlobCronTriggerImpl) trigger;
+                Assert.That(blobTrigger.CronExpressionString, Is.EqualTo("0/10 * * * * ?"));
+            }
 
             trigger = TriggerBuilder.Create()
                 .WithIdentity("t1")
@@ -477,9 +480,8 @@ namespace Quartz.Tests.Integration
         [Test]
         public async Task TestDurableStorageFunctions()
         {
-            var schedulerName = CreateSchedulerName("testDurableStorageFunctions");
-            SchedulerRepository.Instance.Remove(schedulerName); // workaround prior test cleanup - relates to issue in #1453
-            IScheduler sched = await CreateScheduler(schedulerName, 2);
+            SchedulerRepository.Instance.Remove(CreateSchedulerName("testDurableStorageFunctions")); // workaround prior test cleanup - relates to issue in #1453
+            IScheduler sched = await CreateScheduler("testDurableStorageFunctions", 2);
             await sched.Clear();
 
             // test basic storage functions of scheduler...

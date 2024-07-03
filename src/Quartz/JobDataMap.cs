@@ -95,11 +95,9 @@ namespace Quartz
         /// </summary>
         public JobDataMap(IDictionary map) : this(map.Count)
         {
-#pragma warning disable 8605
-            foreach (DictionaryEntry entry in map)
-#pragma warning restore 8605
+            foreach (var key in map.Keys)
             {
-                Put((string) entry.Key, entry.Value!);
+                Put((string) key, map[key]!);
             }
 
             // When constructing a new data map from another existing map, we should NOT mark dirty flag as true

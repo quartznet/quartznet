@@ -209,7 +209,7 @@ partial class Build : NukeBuild
                 .SetConfiguration(Configuration)
                 .SetFramework("net6.0")
                 .SetLoggers("GitHubActions")
-                .SetFilter("TestCategory!=db-firebird&TestCategory!=db-oracle&TestCategory!=db-mysql&TestCategory!=db-sqlserver")
+                .SetProcessArgumentConfigurator(a => a.Add(" -- NUnit.Where=\"cat !~ firebird and cat !~ oracle and cat !~ mysql and cat !~ sqlserver\""))
                 .CombineWith(integrationTestProjects, (_, testProject) => _
                     .SetProjectFile(Solution.GetAllProjects(testProject).First())
                 )

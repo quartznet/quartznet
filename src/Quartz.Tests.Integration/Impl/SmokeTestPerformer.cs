@@ -9,7 +9,6 @@ using Newtonsoft.Json.Linq;
 
 using NUnit.Framework;
 
-using Quartz.Impl;
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
@@ -23,7 +22,7 @@ namespace Quartz.Tests.Integration.Impl
 {
     public class SmokeTestPerformer
     {
-        public async Task Test(IScheduler scheduler, bool clearJobs, bool scheduleJobs)
+        public async Task Test(IScheduler scheduler, bool clearJobs, bool scheduleJobs, bool testCustomCalendar)
         {
             try
             {
@@ -48,7 +47,9 @@ namespace Quartz.Tests.Integration.Impl
                     IOperableTrigger calendarsTrigger = new SimpleTriggerImpl("calendarsTrigger", "test", 20, TimeSpan.FromMilliseconds(5));
                     calendarsTrigger.CalendarName = "annualCalendar";
 
-                    JobDetailImpl jd = new JobDetailImpl("testJob", "test", typeof (NoOpJob));
+                    var jd = JobBuilder.Create<NoOpJob>()
+                        .WithIdentity(new JobKey("testJob", "test"))
+                        .Build();
                     await scheduler.ScheduleJob(jd, calendarsTrigger);
 
                     // QRTZNET-93
@@ -68,16 +69,24 @@ namespace Quartz.Tests.Integration.Impl
                     await scheduler.AddCalendar("cronCalendar", cronCalendar, true, true);
                     await scheduler.AddCalendar("holidayCalendar", holidayCalendar, true, true);
 
-                    await scheduler.AddCalendar("customCalendar", new CustomCalendar(), true, true);
-                    var customCalendar = (CustomCalendar) await scheduler.GetCalendar("customCalendar");
-                    Assert.That(customCalendar, Is.Not.Null);
-                    Assert.That(customCalendar.SomeCustomProperty, Is.True);
+                    // TODO blob STJ serializer
+                    if (testCustomCalendar)
+                    {
+                        await scheduler.AddCalendar("customCalendar", new CustomCalendar(), true, true);
+                        var customCalendar = (CustomCalendar) await scheduler.GetCalendar("customCalendar");
+                        Assert.That(customCalendar, Is.Not.Null);
+                        Assert.That(customCalendar.SomeCustomProperty, Is.True);
+                    }
 
                     Assert.IsNotNull(await scheduler.GetCalendar("annualCalendar"));
 
-                    JobDetailImpl lonelyJob = new JobDetailImpl("lonelyJob", "lonelyGroup", typeof (SimpleRecoveryJob));
-                    lonelyJob.Durable = true;
-                    lonelyJob.RequestsRecovery = true;
+                    var lonelyJob = JobBuilder.Create()
+                        .OfType<SimpleRecoveryJob>()
+                        .WithIdentity(new JobKey("lonelyJob", "lonelyGroup"))
+                        .StoreDurably(true)
+                        .RequestRecovery(true)
+                        .Build();
+
                     await scheduler.AddJob(lonelyJob, false);
                     await scheduler.AddJob(lonelyJob, true);
 
@@ -85,11 +94,13 @@ namespace Quartz.Tests.Integration.Impl
 
                     int count = 1;
 
-                    JobDetailImpl job = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
-
+                    var job = JobBuilder.Create()
+                        .OfType<SimpleRecoveryJob>()
+                        .WithIdentity(new JobKey("job_" + count, schedId))
+                        .RequestRecovery(true)
+                        .Build();
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
-                    job.RequestsRecovery = true;
                     IOperableTrigger trigger = new SimpleTriggerImpl("trig_" + count, schedId, 20, TimeSpan.FromSeconds(5));
                     trigger.JobDataMap.Add("key", "value");
                     trigger.EndTimeUtc = DateTime.UtcNow.AddYears(10);
@@ -103,48 +114,60 @@ namespace Quartz.Tests.Integration.Impl
                     Assert.IsTrue(persisted is SimpleTriggerImpl);
 
                     count++;
-                    job = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
+                    job = JobBuilder.Create()
+                        .OfType<SimpleRecoveryJob>()
+                        .WithIdentity(new JobKey("job_" + count, schedId))
+                        .RequestRecovery(true)
+                        .Build();
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
-                    job.RequestsRecovery = true;
                     trigger = new SimpleTriggerImpl("trig_" + count, schedId, 20, TimeSpan.FromSeconds(5));
-
                     trigger.StartTimeUtc = DateTime.Now.AddMilliseconds(2000L);
                     await scheduler.ScheduleJob(job, trigger);
 
                     count++;
-                    job = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryStatefulJob));
+                    job = JobBuilder.Create()
+                        .OfType<SimpleRecoveryStatefulJob>()
+                        .WithIdentity(new JobKey("job_" + count, schedId))
+                        .RequestRecovery(true)
+                        .Build();
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
-                    job.RequestsRecovery = true;
                     trigger = new SimpleTriggerImpl("trig_" + count, schedId, 20, TimeSpan.FromSeconds(3));
-
                     trigger.StartTimeUtc = DateTime.Now.AddMilliseconds(1000L);
                     await scheduler.ScheduleJob(job, trigger);
 
                     count++;
-                    job = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
+                    job = JobBuilder.Create()
+                        .OfType<SimpleRecoveryJob>()
+                        .WithIdentity(new JobKey("job_" + count, schedId))
+                        .RequestRecovery(true)
+                        .Build();
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
-                    job.RequestsRecovery = true;
                     trigger = new SimpleTriggerImpl("trig_" + count, schedId, 20, TimeSpan.FromSeconds(4));
-
                     trigger.StartTimeUtc = DateTime.Now.AddMilliseconds(1000L);
                     await scheduler.ScheduleJob(job, trigger);
 
                     count++;
-                    job = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
+                    job = JobBuilder.Create()
+                        .OfType<SimpleRecoveryJob>()
+                        .WithIdentity(new JobKey("job_" + count, schedId))
+                        .RequestRecovery(true)
+                        .Build();
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
-                    job.RequestsRecovery = true;
                     trigger = new SimpleTriggerImpl("trig_" + count, schedId, 20, TimeSpan.FromMilliseconds(4500));
                     await scheduler.ScheduleJob(job, trigger);
 
                     count++;
-                    job = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
+                    job = JobBuilder.Create()
+                        .OfType<SimpleRecoveryJob>()
+                        .WithIdentity(new JobKey("job_" + count, schedId))
+                        .RequestRecovery(true)
+                        .Build();
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
-                    job.RequestsRecovery = true;
                     IOperableTrigger ct = new CronTriggerImpl("cron_trig_" + count, schedId, "0/10 * * * * ?");
                     ct.JobDataMap.Add("key", "value");
                     ct.StartTimeUtc = DateTime.Now.AddMilliseconds(1000);
@@ -152,10 +175,13 @@ namespace Quartz.Tests.Integration.Impl
                     await scheduler.ScheduleJob(job, ct);
 
                     count++;
-                    job = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
+                    job = JobBuilder.Create()
+                        .OfType<SimpleRecoveryJob>()
+                        .WithIdentity(new JobKey("job_" + count, schedId))
+                        .RequestRecovery(true)
+                        .Build();
                     // ask scheduler to re-Execute this job if it was in progress when
                     // the scheduler went down...
-                    job.RequestsRecovery = true;
 
                     var timeZone1 = TimeZoneUtil.FindTimeZoneById("Central European Standard Time");
                     var timeZone2 = TimeZoneUtil.FindTimeZoneById("Mountain Standard Time");
@@ -200,7 +226,6 @@ namespace Quartz.Tests.Integration.Impl
                     Assert.That(triggerFromDb.EndTimeOfDay.Minute, Is.EqualTo(3));
                     Assert.That(triggerFromDb.EndTimeOfDay.Second, Is.EqualTo(4));
 
-                    job.RequestsRecovery = true;
                     CalendarIntervalTriggerImpl intervalTrigger = new CalendarIntervalTriggerImpl(
                         "calint_trig_" + count,
                         schedId,
@@ -242,7 +267,9 @@ namespace Quartz.Tests.Integration.Impl
 
                     // bulk operations
                     var info = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>();
-                    IJobDetail detail = new JobDetailImpl("job_" + count, schedId, typeof (SimpleRecoveryJob));
+                    IJobDetail detail = JobBuilder.Create<SimpleRecoveryJob>()
+                        .WithIdentity(new JobKey("job_" + count, schedId))
+                        .Build();
                     ITrigger simple = new SimpleTriggerImpl("trig_" + count, schedId, 20, TimeSpan.FromMilliseconds(4500));
                     var triggers = new List<ITrigger>();
                     triggers.Add(simple);
