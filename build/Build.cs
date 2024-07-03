@@ -181,7 +181,7 @@ partial class Build : NukeBuild, ICompile, IPack
                 .SetConfiguration(configuration)
                 .SetFramework("net8.0")
                 .SetLoggers("GitHubActions")
-                .SetFilter("TestCategory=db-postgres")
+                .SetFilter("\"TestCategory!=db-firebird&TestCategory!=db-oracle&TestCategory!=db-mysql&TestCategory!=db-sqlserver\"")
                 .CombineWith(integrationTestProjects, (_, testProject) => _
                     .SetProjectFile(solution.GetAllProjects(testProject).First())
                 )
