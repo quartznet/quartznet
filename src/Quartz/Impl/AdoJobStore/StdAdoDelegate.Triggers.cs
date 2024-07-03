@@ -36,7 +36,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "schedulerName", schedName);
         AddCommandParameter(cmd, "timestamp", GetDbDateTimeValue(ts));
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        List<TriggerKey> list = new List<TriggerKey>();
+        List<TriggerKey> list = [];
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             string triggerName = rs.GetString(ColumnTriggerName)!;
@@ -54,7 +54,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "schedulerName", schedName);
         AddCommandParameter(cmd, "state", state);
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        List<TriggerKey> list = new List<TriggerKey>();
+        List<TriggerKey> list = [];
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             list.Add(new TriggerKey(rs.GetString(0), rs.GetString(1)));
@@ -75,7 +75,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "state", state);
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        List<TriggerKey> list = new List<TriggerKey>();
+        List<TriggerKey> list = [];
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             string triggerName = rs.GetString(ColumnTriggerName)!;
@@ -160,7 +160,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "state", state);
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        List<TriggerKey> list = new List<TriggerKey>();
+        List<TriggerKey> list = [];
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             string triggerName = rs.GetString(ColumnTriggerName)!;
@@ -173,9 +173,9 @@ public partial class StdAdoDelegate
     /// <inheritdoc />
     public virtual async ValueTask<List<IOperableTrigger>> SelectTriggersForRecoveringJobs(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default)
     {
-        List<IOperableTrigger> triggers = new List<IOperableTrigger>();
-        List<FiredTriggerRecord> triggerData = new List<FiredTriggerRecord>();
-        List<TriggerKey> keys = new List<TriggerKey>();
+        List<IOperableTrigger> triggers = [];
+        List<FiredTriggerRecord> triggerData = [];
+        List<TriggerKey> keys = [];
 
         using (var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectInstancesRecoverableFiredTriggers)))
         {
@@ -894,10 +894,10 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "schedulerName", schedName);
 
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        List<string> list = new List<string>();
+        List<string> list = [];
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            list.Add((string) rs[0]);
+            list.Add(rs.GetString(0));
         }
 
         return list;
@@ -913,7 +913,7 @@ public partial class StdAdoDelegate
         List<string> list = [];
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            list.Add((string) rs[0]);
+            list.Add(rs.GetString(0));
         }
 
         return list;
@@ -939,7 +939,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "schedulerName", schedName);
         AddCommandParameter(cmd, "triggerGroup", parameter);
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
-        var keys = new List<TriggerKey>();
+        List<TriggerKey> keys = [];
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             keys.Add(new TriggerKey(rs.GetString(0), rs.GetString(1)));
@@ -1170,7 +1170,7 @@ public partial class StdAdoDelegate
     {
         DbCommand cmd;
 
-        List<FiredTriggerRecord> lst = new List<FiredTriggerRecord>();
+        List<FiredTriggerRecord> lst = [];
 
         if (triggerName != null)
         {
@@ -1218,7 +1218,7 @@ public partial class StdAdoDelegate
         string groupName,
         CancellationToken cancellationToken = default)
     {
-        List<FiredTriggerRecord> lst = new List<FiredTriggerRecord>();
+        List<FiredTriggerRecord> lst = [];
 
         DbCommand cmd;
         if (jobName != null)
@@ -1263,7 +1263,7 @@ public partial class StdAdoDelegate
     /// <inheritdoc />
     public virtual async ValueTask<List<FiredTriggerRecord>> SelectInstancesFiredTriggerRecords(ConnectionAndTransactionHolder conn, string instanceName, CancellationToken cancellationToken = default)
     {
-        List<FiredTriggerRecord> lst = new List<FiredTriggerRecord>();
+        List<FiredTriggerRecord> lst = [];
 
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectInstancesFiredTriggers));
         AddCommandParameter(cmd, "schedulerName", schedName);
@@ -1295,7 +1295,7 @@ public partial class StdAdoDelegate
     /// <inheritdoc />
     public virtual async ValueTask<List<string>> SelectFiredTriggerInstanceNames(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default)
     {
-        var instanceNames = new HashSet<string>();
+        List<string> instanceNames = [];
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectFiredTriggerInstanceNames));
         AddCommandParameter(cmd, "schedulerName", schedName);
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
@@ -1304,7 +1304,7 @@ public partial class StdAdoDelegate
             instanceNames.Add(rs.GetString(ColumnInstanceName)!);
         }
 
-        return [..instanceNames];
+        return instanceNames;
     }
 
     /// <inheritdoc />
@@ -1435,7 +1435,7 @@ public partial class StdAdoDelegate
             }
         }
 
-        var triggers = new List<IOperableTrigger>();
+        List<IOperableTrigger> triggers = [];
         foreach (var key in keys)
         {
             var trigger = await SelectTrigger(conn, key, cancellationToken).ConfigureAwait(false);
@@ -1450,7 +1450,7 @@ public partial class StdAdoDelegate
     /// <inheritdoc />
     public virtual async ValueTask<List<string>> SelectPausedTriggerGroups(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default)
     {
-        var retValue = new List<string>();
+        List<string> retValue = [];
         using var cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectPausedTriggerGroups));
         AddCommandParameter(cmd, "schedulerName", schedName);
         using var dr = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
