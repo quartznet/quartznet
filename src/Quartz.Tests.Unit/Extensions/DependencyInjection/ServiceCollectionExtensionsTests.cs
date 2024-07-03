@@ -1,12 +1,15 @@
 ﻿using System.Linq;
 using System.Threading.Tasks;
+
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
 
+using Quartz.Impl.AdoJobStore.Common;
+using Quartz.Util;
+
 namespace Quartz.Tests.Unit.Extensions.DependencyInjection
 {
-    [TestFixture()]
     public class ServiceCollectionExtensionsTests
     {
         [Test]
@@ -101,6 +104,34 @@ namespace Quartz.Tests.Unit.Extensions.DependencyInjection
             Assert.AreEqual(job.Key.Name, trigger.JobKey.Name);
             Assert.AreEqual(job.Key.Group, trigger.JobKey.Group);
         }
+
+#if NET8_0_OR_GREATER
+    [Test]
+    public void ConfiguredDbDataSource_ShouldBeUsed()
+    {
+        var services = new ServiceCollection();
+
+        services.AddNpgsqlDataSource("Host=myserver;Username=mylogin;Password=mypass;Database=mydatabase");
+        services.AddQuartz(quartz =>
+        {
+            quartz.AddDataSourceProvider();
+
+            quartz.UsePersistentStore(p =>
+            {
+                p.UsePostgres(c=> c.UseDataSourceConnectionProvider());
+            });
+        });
+
+        var provider = services.BuildServiceProvider();
+
+        Assert.That(provider.GetService<IDbProvider>(), Is.TypeOf<DataSourceDbProvider>());
+
+        var quartzOptions = provider.GetRequiredService<IOptions<QuartzOptions>>().Value;
+
+        Assert.That(quartzOptions.ContainsKey($"quartz.dataSource.{SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}.connectionProvider.type"));
+        Assert.That(quartzOptions[$"quartz.dataSource.{SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}.connectionProvider.type"], Is.EqualTo(typeof(DataSourceDbProvider).AssemblyQualifiedNameWithoutVersion()));
+    }
+#endif
 
         private sealed class DummyJob : IJob
         {
