@@ -524,7 +524,14 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
         {
             options.SetProperty($"quartz.dataSource.{DefaultDataSourceName}.connectionProvider.type", typeof(T).AssemblyQualifiedNameWithoutVersion());
         }
+#if NET8_0_OR_GREATER
+        public void UseDbDataSourceConnectionProvider()
+        {
+            UseConnectionProvider<DataSourceDbProvider>();
+        }
+#endif
     }
+
 }
 
 public static class AdoProviderExtensions

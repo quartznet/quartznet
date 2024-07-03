@@ -1,4 +1,5 @@
 using System.Collections.Specialized;
+using System.Data.Common;
 using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -7,6 +8,7 @@ using Microsoft.Extensions.Options;
 
 using Quartz.Configuration;
 using Quartz.Impl;
+using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
@@ -243,4 +245,12 @@ public static class ServiceCollectionExtensions
         configurator.Services.AddSingleton(new CalendarConfiguration(name, calendar, replace, updateTriggers));
         return configurator;
     }
+
+#if NET8_0_OR_GREATER
+    public static IServiceCollectionQuartzConfigurator AddDataSourceProvider(this IServiceCollectionQuartzConfigurator configurator)
+    {
+        configurator.Services.AddSingleton<IDbProvider, DataSourceDbProvider>();
+        return configurator;
+    }
+#endif
 }
