@@ -93,7 +93,7 @@ public class AdoJobStoreSmokeTest
     [TestCaseSource(nameof(GetSerializerTypes))]
     public async Task TestSQLiteMicrosoft(string serializerType)
     {
-        var dbFilename = $"test-{serializerType}.db";
+        var dbFilename = $"test-sqlite-ms-{serializerType}.db";
 
         if (File.Exists(dbFilename))
         {
@@ -150,7 +150,7 @@ public class AdoJobStoreSmokeTest
     [TestCaseSource(nameof(GetSerializerTypes))]
     public async Task TestSQLite(string serializerType)
     {
-        var dbFilename = $"test-{serializerType}.db";
+        var dbFilename = $"test-sqlite-{serializerType}.db";
 
         while (File.Exists(dbFilename))
         {
