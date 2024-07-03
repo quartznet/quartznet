@@ -2452,7 +2452,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 groups.Add(key.Group);
             }
 
-            return new List<string>(groups);
+            return [..groups];
 
             // TODO: find an efficient way to resume triggers (better than the
             // above)... logic below is broken because of
@@ -2640,8 +2640,8 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             ThrowHelper.ThrowArgumentOutOfRangeException(nameof(timeWindow));
         }
 
-        List<IOperableTrigger> acquiredTriggers = new List<IOperableTrigger>();
-        HashSet<JobKey> acquiredJobKeysForNoConcurrentExec = new HashSet<JobKey>();
+        List<IOperableTrigger> acquiredTriggers = [];
+        HashSet<JobKey> acquiredJobKeysForNoConcurrentExec = [];
         const int MaxDoLoopRetry = 3;
         int currentLoopCount = 0;
 
@@ -3160,7 +3160,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             // work to be done before we acquire the lock (since that is expensive,
             // and is almost never necessary).  This must be done in a separate
             // transaction to prevent a deadlock under recovery conditions.
-            IReadOnlyList<SchedulerStateRecord>? failedRecords = null;
+            List<SchedulerStateRecord>? failedRecords = null;
             if (!firstCheckIn)
             {
                 failedRecords = await ClusterCheckIn(conn, cancellationToken).ConfigureAwait(false);
@@ -3229,16 +3229,16 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// Get a list of all scheduler instances in the cluster that may have failed.
     /// This includes this scheduler if it is checking in for the first time.
     /// </summary>
-    protected virtual async ValueTask<IReadOnlyList<SchedulerStateRecord>> FindFailedInstances(
+    protected virtual async ValueTask<List<SchedulerStateRecord>> FindFailedInstances(
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            List<SchedulerStateRecord> failedInstances = new List<SchedulerStateRecord>();
+            List<SchedulerStateRecord> failedInstances = [];
             bool foundThisScheduler = false;
 
-            var states = await Delegate.SelectSchedulerStateRecords(conn, null, cancellationToken).ConfigureAwait(false);
+            var states = await Delegate.SelectSchedulerStateRecords(conn, instanceName: null, cancellationToken).ConfigureAwait(false);
 
             foreach (SchedulerStateRecord rec in states)
             {
@@ -3296,17 +3296,17 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <param name="conn"></param>
     /// <param name="schedulerStateRecords">List of all current <see cref="SchedulerStateRecord" />s</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    private async ValueTask<IReadOnlyList<SchedulerStateRecord>> FindOrphanedFailedInstances(
+    private async ValueTask<List<SchedulerStateRecord>> FindOrphanedFailedInstances(
         ConnectionAndTransactionHolder conn,
         List<SchedulerStateRecord> schedulerStateRecords,
         CancellationToken cancellationToken)
     {
-        List<SchedulerStateRecord> orphanedInstances = new List<SchedulerStateRecord>();
+        List<SchedulerStateRecord> orphanedInstances = [];
 
         var names = await Delegate.SelectFiredTriggerInstanceNames(conn, cancellationToken).ConfigureAwait(false);
-        var allFiredTriggerInstanceNames = new HashSet<string>(names);
-        if (allFiredTriggerInstanceNames.Count > 0)
+        if (names.Count > 0)
         {
+            var allFiredTriggerInstanceNames = new HashSet<string>(names);
             foreach (SchedulerStateRecord rec in schedulerStateRecords)
             {
                 allFiredTriggerInstanceNames.Remove(rec.SchedulerInstanceId);
@@ -3314,9 +3314,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
             foreach (string name in allFiredTriggerInstanceNames)
             {
-                SchedulerStateRecord orphanedInstance = new SchedulerStateRecord();
-                orphanedInstance.SchedulerInstanceId = name;
-
+                SchedulerStateRecord orphanedInstance = new(name, CheckinTimestamp: default, CheckinInterval: default);
                 orphanedInstances.Add(orphanedInstance);
 
                 Logger.LogWarning("Found orphaned fired triggers for instance: {SchedulerInstanceId}", orphanedInstance.SchedulerInstanceId);
@@ -3333,7 +3331,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         return rec.CheckinTimestamp.Add(ts).Add(ClusterCheckinMisfireThreshold);
     }
 
-    protected virtual async ValueTask<IReadOnlyList<SchedulerStateRecord>> ClusterCheckIn(
+    protected virtual async ValueTask<List<SchedulerStateRecord>> ClusterCheckIn(
         ConnectionAndTransactionHolder conn,
         CancellationToken cancellationToken = default)
     {
@@ -3359,7 +3357,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
     protected virtual async ValueTask ClusterRecover(
         ConnectionAndTransactionHolder conn,
-        IReadOnlyList<SchedulerStateRecord> failedInstances,
+        List<SchedulerStateRecord> failedInstances,
         CancellationToken cancellationToken = default)
     {
         if (failedInstances.Count > 0)

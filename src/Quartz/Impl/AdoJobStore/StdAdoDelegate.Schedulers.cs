@@ -72,10 +72,11 @@ public partial class StdAdoDelegate
         using var rs = await cmd.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            SchedulerStateRecord rec = new SchedulerStateRecord();
-            rec.SchedulerInstanceId = rs.GetString(ColumnInstanceName)!;
-            rec.CheckinTimestamp = GetDateTimeFromDbValue(rs[ColumnLastCheckinTime]) ?? DateTimeOffset.MinValue;
-            rec.CheckinInterval = GetTimeSpanFromDbValue(rs[ColumnCheckinInterval]) ?? TimeSpan.Zero;
+            SchedulerStateRecord rec = new(
+                rs.GetString(ColumnInstanceName)!,
+                GetDateTimeFromDbValue(rs[ColumnLastCheckinTime]) ?? DateTimeOffset.MinValue,
+                GetTimeSpanFromDbValue(rs[ColumnCheckinInterval]) ?? TimeSpan.Zero);
+
             list.Add(rec);
         }
 

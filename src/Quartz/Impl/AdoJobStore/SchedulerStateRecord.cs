@@ -24,24 +24,4 @@ namespace Quartz.Impl.AdoJobStore;
 /// </summary>
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-[Serializable]
-public sealed class SchedulerStateRecord
-{
-    /// <summary>
-    /// Gets or sets the checkin interval.
-    /// </summary>
-    /// <value>The checkin interval.</value>
-    public TimeSpan CheckinInterval { get; set; }
-
-    /// <summary>
-    /// Gets or sets the checkin timestamp.
-    /// </summary>
-    /// <value>The checkin timestamp.</value>
-    public DateTimeOffset CheckinTimestamp { get; set; }
-
-    /// <summary>
-    /// Gets or sets the scheduler instance id.
-    /// </summary>
-    /// <value>The scheduler instance id.</value>
-    public string SchedulerInstanceId { get; set; } = null!;
-}
+public sealed record SchedulerStateRecord(string SchedulerInstanceId, DateTimeOffset CheckinTimestamp, TimeSpan CheckinInterval);
