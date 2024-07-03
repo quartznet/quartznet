@@ -5,7 +5,7 @@ using Microsoft.Extensions.Options;
 
 namespace Quartz.Impl.AdoJobStore.Common;
 
-public class DataSourceDbProvider : DbProvider
+internal sealed class DataSourceDbProvider : DbProvider
 {
     private readonly DbDataSource source;
 
@@ -19,7 +19,10 @@ public class DataSourceDbProvider : DbProvider
         if(options.Value.TryGetValue($"quartz.dataSource.{SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}.provider", out var value))
         {
             if (value is null)
+            {
                 throw new SchedulerException($"Provider not specified for DataSource: {SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}");
+            }
+
             return value;
         }
 

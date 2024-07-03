@@ -1,6 +1,4 @@
-using System.Data.Common;
-
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
 
@@ -9,7 +7,6 @@ using Quartz.Util;
 
 namespace Quartz.Tests.Unit.Extensions.DependencyInjection;
 
-[TestFixture()]
 public class ServiceCollectionExtensionsTests
 {
     [Test]
@@ -104,6 +101,7 @@ public class ServiceCollectionExtensionsTests
         Assert.AreEqual(job.Key.Name, trigger.JobKey.Name);
         Assert.AreEqual(job.Key.Group, trigger.JobKey.Group);
     }
+
 #if NET8_0_OR_GREATER
     [Test]
     public void ConfiguredDbDataSource_ShouldBeUsed()
@@ -130,11 +128,7 @@ public class ServiceCollectionExtensionsTests
         Assert.That(quartzOptions.ContainsKey($"quartz.dataSource.{SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}.connectionProvider.type"));
         Assert.That(quartzOptions[$"quartz.dataSource.{SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}.connectionProvider.type"], Is.EqualTo(typeof(DataSourceDbProvider).AssemblyQualifiedNameWithoutVersion()));
     }
-
 #endif
-
-
-
 
     private sealed class DummyJob : IJob
     {
