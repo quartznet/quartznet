@@ -21,8 +21,6 @@
 
 using System.Net.Mail;
 
-using NUnit.Framework;
-
 using Quartz.Job;
 
 namespace Quartz.Tests.Unit.Job;

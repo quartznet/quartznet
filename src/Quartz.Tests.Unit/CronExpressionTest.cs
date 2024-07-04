@@ -25,8 +25,6 @@ using FluentAssertions;
 
 using Newtonsoft.Json;
 
-using NUnit.Framework;
-
 using Quartz.Simpl;
 using Quartz.Util;
 

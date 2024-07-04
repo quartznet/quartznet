@@ -23,8 +23,6 @@ using System.Collections.Specialized;
 
 using FluentAssertions;
 
-using NUnit.Framework;
-
 using Quartz.Impl;
 
 namespace Quartz.Tests.Unit.Impl;

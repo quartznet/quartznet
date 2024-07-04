@@ -1,5 +1,3 @@
-using NUnit.Framework;
-
 namespace Quartz.Tests.Integration;
 
 [SetUpFixture]

@@ -16,6 +16,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Using Include="NUnit.Framework" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="FakeItEasy" />
     <PackageReference Include="FirebirdSql.Data.FirebirdClient" />
     <PackageReference Include="FluentAssertions" />

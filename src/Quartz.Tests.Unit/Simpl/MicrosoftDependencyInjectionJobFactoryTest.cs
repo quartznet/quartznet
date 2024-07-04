@@ -3,8 +3,6 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
-using NUnit.Framework;
-
 using Quartz.Simpl;
 
 namespace Quartz.Tests.Unit.Simpl;

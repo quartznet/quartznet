@@ -2,8 +2,6 @@ using System.Collections.Specialized;
 
 using Microsoft.Extensions.Logging;
 
-using NUnit.Framework;
-
 using Quartz.Impl;
 using Quartz.Logging;
 

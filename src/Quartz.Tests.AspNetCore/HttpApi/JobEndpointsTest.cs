@@ -2,8 +2,6 @@ using FakeItEasy;
 
 using FluentAssertions;
 
-using NUnit.Framework;
-
 using Quartz.HttpClient;
 using Quartz.Impl.Matchers;
 using Quartz.Tests.AspNetCore.Support;

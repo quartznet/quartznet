@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
-using NUnit.Framework;
 
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Util;

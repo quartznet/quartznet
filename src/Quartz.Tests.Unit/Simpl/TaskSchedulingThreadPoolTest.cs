@@ -1,4 +1,3 @@
-using NUnit.Framework;
 using Quartz.Simpl;
 
 namespace Quartz.Tests.Unit.Simpl;

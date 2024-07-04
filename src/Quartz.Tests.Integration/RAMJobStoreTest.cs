@@ -1,7 +1,5 @@
 using System.Text.Json;
 
-using NUnit.Framework;
-
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;

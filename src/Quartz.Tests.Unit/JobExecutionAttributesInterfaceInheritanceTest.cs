@@ -1,5 +1,5 @@
 using System.Collections.Specialized;
-using NUnit.Framework;
+
 using Quartz.Impl;
 using Quartz.Listener;
 

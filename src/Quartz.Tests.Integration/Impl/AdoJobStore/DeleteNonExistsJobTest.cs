@@ -3,8 +3,6 @@ using System.Data.Common;
 
 using Microsoft.Extensions.Logging;
 
-using NUnit.Framework;
-
 using Quartz.Impl;
 using Quartz.Logging;
 using Quartz.Tests.Integration.Utils;

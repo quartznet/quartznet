@@ -21,8 +21,6 @@
 
 using System.Collections.Specialized;
 
-using NUnit.Framework;
-
 using Quartz.Spi;
 using Quartz.Util;
 

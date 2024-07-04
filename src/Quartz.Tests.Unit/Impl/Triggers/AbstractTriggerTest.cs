@@ -1,7 +1,5 @@
 using Newtonsoft.Json;
 
-using NUnit.Framework;
-
 using Quartz.Impl.Triggers;
 using Quartz.Tests.Unit.Utils;
 

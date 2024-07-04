@@ -19,8 +19,6 @@
 
 using System.Text;
 
-using NUnit.Framework;
-
 using Quartz.Impl;
 using Quartz.Simpl;
 using Quartz.Spi;

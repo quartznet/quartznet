@@ -8,8 +8,6 @@ using FluentAssertions;
 
 using Microsoft.Extensions.DependencyInjection;
 
-using NUnit.Framework;
-
 using Quartz;
 using Quartz.HttpClient;
 using Quartz.Impl;

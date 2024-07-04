@@ -6,8 +6,6 @@ using Microsoft.Data.SqlClient;
 
 using Npgsql;
 
-using NUnit.Framework;
-
 using Quartz.Tests.Integration.TestHelpers;
 
 namespace Quartz.Tests.Integration;

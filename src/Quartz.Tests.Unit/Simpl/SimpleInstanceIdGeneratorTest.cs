@@ -21,8 +21,6 @@
 
 using System.Net;
 
-using NUnit.Framework;
-
 using Quartz.Simpl;
 using Quartz.Spi;
 
