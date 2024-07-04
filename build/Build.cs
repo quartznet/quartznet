@@ -137,7 +137,7 @@ partial class Build : NukeBuild
             var framework = "";
             if (!IsRunningOnWindows)
             {
-                framework = "net6.0";
+                framework = "net8.0";
             }
 
             var testProjects = new[] { "Quartz.Tests.Unit" };
@@ -207,7 +207,7 @@ partial class Build : NukeBuild
                 .EnableNoRestore()
                 .EnableNoBuild()
                 .SetConfiguration(Configuration)
-                .SetFramework("net6.0")
+                .SetFramework("net8.0")
                 .SetLoggers("GitHubActions")
                 .SetProcessArgumentConfigurator(a => a.Add(" -- NUnit.Where=\"cat !~ firebird and cat !~ oracle and cat !~ mysql and cat !~ sqlserver\""))
                 .CombineWith(integrationTestProjects, (_, testProject) => _

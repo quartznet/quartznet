@@ -590,6 +590,7 @@ namespace Quartz.Tests.Integration
             return $"{name}_Scheduler_{provider}_{serializerType}";
         }
 
+        [Serializable]
         public class TestBlobCronTriggerImpl : CronTriggerImpl
         {
             public override bool HasAdditionalProperties => true;

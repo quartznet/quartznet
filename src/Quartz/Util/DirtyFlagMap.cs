@@ -250,11 +250,6 @@ namespace Quartz.Util
             map.Clear();
         }
 
-        IDictionaryEnumerator IDictionary.GetEnumerator()
-        {
-            return ((IDictionary) map).GetEnumerator();
-        }
-
         public void Remove(object key)
         {
             Remove((TKey) key);
@@ -309,16 +304,19 @@ namespace Quartz.Util
             return remove;
         }
 
-        /// <summary>
-        /// When implemented by a class, returns an
-        /// <see cref="T:System.Collections.IDictionaryEnumerator"/> for the <see cref="T:System.Collections.IDictionary"/>.
-        /// </summary>
-        /// <returns>
-        /// An <see cref="T:System.Collections.IDictionaryEnumerator"/> for the <see cref="T:System.Collections.IDictionary"/>.
-        /// </returns>
-        public IEnumerator<KeyValuePair<TKey, TValue>> GetEnumerator()
+        public Dictionary<TKey, TValue>.Enumerator GetEnumerator()
         {
             return map.GetEnumerator();
+        }
+
+        IDictionaryEnumerator IDictionary.GetEnumerator()
+        {
+            return ((IDictionary) map).GetEnumerator();
+        }
+
+        IEnumerator<KeyValuePair<TKey, TValue>> IEnumerable<KeyValuePair<TKey, TValue>>.GetEnumerator()
+        {
+            return ((IEnumerable<KeyValuePair<TKey, TValue>>) map).GetEnumerator();
         }
 
         /// <summary>
@@ -529,22 +527,19 @@ namespace Quartz.Util
         }
 
         /// <summary>
-        /// Puts all.
+        /// Puts all values from source dictionary into this map.
         /// </summary>
-        /// <param name="t">The t.</param>
+        /// <param name="t">The source dictionary.</param>
         public virtual void PutAll(IDictionary<TKey, TValue> t)
         {
-            if (t != null && t.Count > 0)
+            if (t == null)
             {
-                dirty = true;
+                return;
+            }
 
-                List<TKey> keys = new List<TKey>(t.Keys);
-                List<TValue> values = new List<TValue>(t.Values);
-
-                for (int i = 0; i < keys.Count; i++)
-                {
-                    this[keys[i]] = values[i];
-                }
+            foreach (KeyValuePair<TKey, TValue> pair in t)
+            {
+                this[pair.Key] = pair.Value!;
             }
         }
     }
