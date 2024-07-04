@@ -95,9 +95,9 @@ namespace Quartz
         /// </summary>
         public JobDataMap(IDictionary map) : this(map.Count)
         {
-            foreach (var key in map.Keys)
+            foreach (DictionaryEntry entry in map)
             {
-                Put((string) key, map[key]!);
+                this[(string) entry.Key] = entry.Value!;
             }
 
             // When constructing a new data map from another existing map, we should NOT mark dirty flag as true

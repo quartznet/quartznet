@@ -289,7 +289,6 @@ namespace Quartz.Tests.Integration.Xml
         }
 
         [Test]
-        [Category("db-sqlserver")]
         public async Task TestSimpleTriggerNoRepeat()
         {
             IScheduler scheduler = await CreateDbBackedScheduler();
@@ -319,7 +318,6 @@ namespace Quartz.Tests.Integration.Xml
         }
 
         [Test]
-        [Category("db-sqlserver")]
         public async Task TestRemoveJobTypeNotFound()
         {
             var scheduler = await CreateDbBackedScheduler();
@@ -378,7 +376,6 @@ namespace Quartz.Tests.Integration.Xml
         }
 
         [Test]
-        [Category("db-sqlserver")]
         public async Task TestOverwriteJobTypeNotFound()
         {
             IScheduler scheduler = await CreateDbBackedScheduler();

@@ -44,7 +44,7 @@ namespace Quartz.Tests.Integration.Impl
                     cal.SetDayExcluded(new DateTime(2018, 7, 4), true);
                     await scheduler.AddCalendar("annualCalendar", cal, false, true);
 
-                    IOperableTrigger calendarsTrigger = new SimpleTriggerImpl("calendarsTrigger", "test", 20, TimeSpan.FromMilliseconds(5));
+                    IOperableTrigger calendarsTrigger = new SimpleTriggerImpl("calendarsTrigger", "test", 20, TimeSpan.FromHours(2));
                     calendarsTrigger.CalendarName = "annualCalendar";
 
                     var jd = JobBuilder.Create<NoOpJob>()
