@@ -560,31 +560,6 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
         => $"Trigger '{key}':  triggerClass: '{GetType().FullName} calendar: '{CalendarName}' misfireInstruction: {MisfireInstruction} nextFireTime: {GetNextFireTimeUtc()}";
 
     /// <summary>
-    /// Compare the next fire time of this <see cref="ITrigger" /> to that of
-    /// another by comparing their keys, or in other words, sorts them
-    /// according to the natural (i.e. alphabetical) order of their keys.
-    /// </summary>
-    /// <param name="other"></param>
-    /// <returns></returns>
-    public virtual int CompareTo(ITrigger? other)
-    {
-        if ((other == null || other.Key == null) && Key == null)
-        {
-            return 0;
-        }
-        if (other == null || other.Key == null)
-        {
-            return -1;
-        }
-        if (Key == null)
-        {
-            return 1;
-        }
-
-        return Key.CompareTo(other.Key);
-    }
-
-    /// <summary>
     /// Determines whether the specified <see cref="T:System.Object"></see> is equal to the current <see cref="T:System.Object"></see>.
     /// </summary>
     /// <param name="obj">The <see cref="T:System.Object"></see> to compare with the current <see cref="T:System.Object"></see>.</param>

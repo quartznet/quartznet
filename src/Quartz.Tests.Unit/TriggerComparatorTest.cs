@@ -1,3 +1,4 @@
+using Quartz.Impl.Triggers;
 using Quartz.Spi;
 
 namespace Quartz.Tests.Unit;
@@ -26,7 +27,7 @@ public class TriggerComparatorTest
         ts.Add(t2);
 
         // sort the list
-        ts.Sort();
+        ts.Sort(TriggerComparer.Instance);
 
         // check the order of the list
         Assert.AreEqual(t1, ts[0]);
@@ -73,7 +74,7 @@ public class TriggerComparatorTest
         ts.Add(t2);
 
         // sort the list
-        ts.Sort();
+        ts.Sort(TriggerComparer.Instance);
 
         // check the order of the list
         Assert.AreEqual(t1, ts[0]);
