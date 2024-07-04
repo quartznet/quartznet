@@ -288,7 +288,6 @@ public class XMLSchedulingDataProcessorTest
     }
 
     [Test]
-    [Category("db-sqlserver")]
     public async Task TestSimpleTriggerNoRepeat()
     {
         IScheduler scheduler = await CreateDbBackedScheduler();
@@ -318,7 +317,6 @@ public class XMLSchedulingDataProcessorTest
     }
 
     [Test]
-    [Category("db-sqlserver")]
     public async Task TestRemoveJobTypeNotFound()
     {
         var scheduler = await CreateDbBackedScheduler();
@@ -377,7 +375,6 @@ public class XMLSchedulingDataProcessorTest
     }
 
     [Test]
-    [Category("db-sqlserver")]
     public async Task TestOverwriteJobTypeNotFound()
     {
         IScheduler scheduler = await CreateDbBackedScheduler();

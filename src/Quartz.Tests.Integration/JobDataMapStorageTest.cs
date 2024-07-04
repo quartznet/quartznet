@@ -1,4 +1,4 @@
-using NUnit.Framework;
+﻿using NUnit.Framework;
 
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
@@ -20,7 +20,6 @@ public class JobDataMapStorageTest : IntegrationTest
     }
 
     [Test]
-    [Category("db-sqlserver")]
     public async Task TestJobDataMapDirtyFlag()
     {
         IScheduler scheduler = await CreateScheduler("testBasicStorageFunctions");
