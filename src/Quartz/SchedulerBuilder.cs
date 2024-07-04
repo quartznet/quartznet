@@ -217,18 +217,6 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
         return this;
     }
 
-#if REMOTING
-    /// <summary>
-    /// Makes this scheduler a proxy that calls another scheduler instance via remote invocation
-    /// using the default mechanism (for full .NET Framework it's remoting, otherwise unsupported).
-    /// </summary>
-    /// <param name="address">Connection address</param>
-    public SchedulerBuilder ProxyToRemoteScheduler(string address)
-    {
-        return ProxyToRemoteScheduler<RemotingSchedulerProxyFactory>(address);
-    }
-#endif // REMOTING
-
     /// <summary>
     /// Makes this scheduler a proxy that calls another scheduler instance via remote invocation
     /// using the typeof T proxy generator.

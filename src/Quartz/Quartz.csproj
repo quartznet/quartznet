@@ -18,11 +18,6 @@
     <EmbeddedResource Include="quartz.config;Impl\AdoJobStore\Common\dbproviders.properties;Impl\AdoJobStore\Common\dbproviders.netstandard.properties;Xml\job_scheduling_data_2_0.xsd" />
   </ItemGroup>
 
-  <ItemGroup Condition=" '$(TargetFramework)' == 'net472' ">
-    <Reference Include="System.Configuration" />
-    <Reference Include="System.Runtime.Remoting" />
-  </ItemGroup>
-
   <ItemGroup Condition="!$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">
     <PackageReference Include="Microsoft.Bcl.TimeProvider" />
     <PackageReference Include="Microsoft.Extensions.Options" />

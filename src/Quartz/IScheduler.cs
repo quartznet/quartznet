@@ -168,10 +168,8 @@ public interface IScheduler
     /// cluster.
     /// </para>
     /// <para>
-    /// Note that the list returned is an 'instantaneous' snap-shot, and that as
+    /// Note that the list returned is an 'instantaneous' snapshot, and that as
     /// soon as it's returned, the true list of executing jobs may be different.
-    /// Also please read the doc associated with <see cref="IJobExecutionContext" />-
-    /// especially if you're using remoting.
     /// </para>
     /// </remarks>
     /// <seealso cref="IJobExecutionContext" />

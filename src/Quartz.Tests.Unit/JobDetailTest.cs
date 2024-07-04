@@ -26,10 +26,6 @@ using Quartz.Job;
 using Quartz.Simpl;
 using Quartz.Util;
 
-#if REMOTING
-using Quartz.Tests.Unit.Utils;
-#endif
-
 namespace Quartz.Tests.Unit;
 
 /// <author>Marko Lahma (.NET)</author>
@@ -56,20 +52,6 @@ public class JobDetailTest
 
         Assert.AreEqual(jobDetail, clonedJobDetail);
     }
-
-#if REMOTING
-        [Test]
-        public void JobDetailsShouldBeSerializable()
-        {
-            JobDetailImpl original = new JobDetailImpl("name", "group", typeof (NoOpJob));
-
-            JobDetailImpl cloned = original.DeepClone();
-
-            Assert.That(cloned.Name, Is.EqualTo(original.Name));
-            Assert.That(cloned.Group, Is.EqualTo(original.Group));
-            Assert.That(cloned.Key, Is.EqualTo(original.Key));
-        }
-#endif
 
     [Test]
     public void SettingKeyShouldAlsoSetNameAndGroup()

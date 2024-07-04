@@ -487,10 +487,6 @@ Please add configuration to your application config file to correctly initialize
             }
 
             var proxyType = loadHelper.LoadType(cfg.GetStringProperty(PropertySchedulerProxyType));
-#if REMOTING
-            proxyType ??= typeof(RemotingSchedulerProxyFactory);
-#endif
-
             IRemotableSchedulerProxyFactory factory;
             try
             {
@@ -935,15 +931,6 @@ Please add configuration to your application config file to correctly initialize
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         var exporterType = cfg.GetStringProperty(PropertySchedulerExporterType, defaultValue: null);
-
-#if !REMOTING
-            if (exporterType != null && exporterType.StartsWith("Quartz.Simpl.RemotingSchedulerExporter"))
-            {
-                logger.LogWarning("RemotingSchedulerExporter configuration was ignored as Remoting is not supported");
-                exporterType = null;
-            }
-#endif
-
         if (exporterType != null)
         {
             try
