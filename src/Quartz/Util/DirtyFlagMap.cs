@@ -260,11 +260,6 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
         map.Clear();
     }
 
-    IDictionaryEnumerator IDictionary.GetEnumerator()
-    {
-        return map.GetEnumerator();
-    }
-
     public void Remove(object key)
     {
         Remove((TKey) key);
@@ -319,16 +314,19 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
         return remove;
     }
 
-    /// <summary>
-    /// When implemented by a class, returns an
-    /// <see cref="T:System.Collections.IDictionaryEnumerator"/> for the <see cref="T:System.Collections.IDictionary"/>.
-    /// </summary>
-    /// <returns>
-    /// An <see cref="T:System.Collections.IDictionaryEnumerator"/> for the <see cref="T:System.Collections.IDictionary"/>.
-    /// </returns>
-    public IEnumerator<KeyValuePair<TKey, TValue?>> GetEnumerator()
+    public Dictionary<TKey, TValue?>.Enumerator GetEnumerator()
     {
         return map.GetEnumerator();
+    }
+
+    IDictionaryEnumerator IDictionary.GetEnumerator()
+    {
+        return ((IDictionary) map).GetEnumerator();
+    }
+
+    IEnumerator<KeyValuePair<TKey, TValue?>> IEnumerable<KeyValuePair<TKey, TValue?>>.GetEnumerator()
+    {
+        return ((IEnumerable<KeyValuePair<TKey, TValue?>>) map).GetEnumerator();
     }
 
     /// <summary>
@@ -545,13 +543,14 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
     /// <param name="source">The source dictionary.</param>
     public void PutAll(IDictionary<TKey, TValue?> source)
     {
-        if (source != null && source.Count > 0)
+        if (source == null)
         {
-            dirty = true;
-            foreach (KeyValuePair<TKey, TValue?> pair in source)
-            {
-                this[pair.Key] = pair.Value;
-            }
+            return;
+        }
+
+        foreach (KeyValuePair<TKey, TValue?> pair in source)
+        {
+            this[pair.Key] = pair.Value;
         }
     }
 }
