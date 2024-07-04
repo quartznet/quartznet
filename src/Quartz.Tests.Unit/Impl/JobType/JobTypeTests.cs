@@ -1,7 +1,5 @@
 using FluentAssertions;
 
-using NUnit.Framework;
-
 namespace Quartz.Tests.Unit.Impl.JobType;
 
 public class JobTypeTests

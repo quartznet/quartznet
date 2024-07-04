@@ -1,7 +1,5 @@
 using System.Runtime.Serialization.Formatters.Binary;
 
-using NUnit.Framework;
-
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Matchers;
 using Quartz.Tests.Unit.Utils;

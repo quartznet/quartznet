@@ -1,8 +1,6 @@
 using System.Reflection;
 using System.Runtime.CompilerServices;
 
-using NUnit.Framework;
-
 namespace Quartz.Tests.Unit;
 
 /// <summary>

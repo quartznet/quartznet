@@ -20,7 +20,6 @@
 using System.Collections;
 using System.Runtime.Serialization.Formatters;
 using System.Runtime.Serialization.Formatters.Binary;
-using NUnit.Framework;
 
 using Quartz.Util;
 

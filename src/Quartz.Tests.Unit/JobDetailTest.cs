@@ -21,8 +21,6 @@
 
 using FluentAssertions;
 
-using NUnit.Framework;
-
 using Quartz.Impl;
 using Quartz.Job;
 using Quartz.Simpl;

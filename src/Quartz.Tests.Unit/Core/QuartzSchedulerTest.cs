@@ -24,8 +24,6 @@ using System.Globalization;
 
 using FakeItEasy;
 
-using NUnit.Framework;
-
 using Quartz.Core;
 using Quartz.Impl;
 using Quartz.Impl.Triggers;

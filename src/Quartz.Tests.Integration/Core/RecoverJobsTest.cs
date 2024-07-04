@@ -1,7 +1,5 @@
 using Microsoft.Extensions.Logging;
 
-using NUnit.Framework;
-
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Listener;

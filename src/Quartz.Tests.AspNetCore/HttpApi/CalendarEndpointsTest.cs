@@ -2,8 +2,6 @@ using FakeItEasy;
 
 using FluentAssertions;
 
-using NUnit.Framework;
-
 using Quartz.Impl.Calendar;
 using Quartz.Tests.AspNetCore.Support;
 

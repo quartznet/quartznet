@@ -21,8 +21,6 @@
 
 using FakeItEasy;
 
-using NUnit.Framework;
-
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
 using Quartz.Simpl;

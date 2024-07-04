@@ -1,4 +1,3 @@
-using NUnit.Framework;
 using Quartz.Core;
 
 namespace Quartz.Tests.Unit.Core;

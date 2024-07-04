@@ -1,8 +1,6 @@
 using System.Collections.Specialized;
 using System.Diagnostics;
 
-using NUnit.Framework;
-
 using Quartz.Impl;
 using Quartz.Impl.Matchers;
 using Quartz.Job;

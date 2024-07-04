@@ -17,8 +17,6 @@
  */
 #endregion
 
-using NUnit.Framework;
-
 using Quartz.Impl.Calendar;
 using Quartz.Simpl;
 using Quartz.Util;

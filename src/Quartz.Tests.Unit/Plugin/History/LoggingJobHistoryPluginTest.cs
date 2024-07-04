@@ -19,8 +19,6 @@
 
 #endregion
 
-using NUnit.Framework;
-
 using Quartz.Impl;
 using Quartz.Impl.Triggers;
 using Quartz.Job;

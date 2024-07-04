@@ -21,8 +21,6 @@
 
 using System.Reflection;
 
-using NUnit.Framework;
-
 using Quartz.Spi;
 
 namespace Quartz.Tests.Unit;

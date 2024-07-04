@@ -1,4 +1,3 @@
-using NUnit.Framework;
 using Quartz.Impl.Triggers;
 
 namespace Quartz.Tests.Unit.Impl.Triggers;

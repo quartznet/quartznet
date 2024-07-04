@@ -2,7 +2,7 @@
 
 using System.Runtime.Serialization.Formatters;
 using System.Runtime.Serialization.Formatters.Binary;
-using NUnit.Framework;
+
 using Quartz.Impl.Matchers;
 
 namespace Quartz.Tests.Unit.Impl.Matchers;

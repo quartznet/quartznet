@@ -1,7 +1,5 @@
 using System.Collections.Specialized;
 
-using NUnit.Framework;
-
 using Quartz.Impl;
 using Quartz.Job;
 using Quartz.Plugin.Interrupt;

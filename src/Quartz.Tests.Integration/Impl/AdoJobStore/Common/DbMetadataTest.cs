@@ -19,8 +19,6 @@
 
 #endregion
 
-using NUnit.Framework;
-
 using Quartz.Impl.AdoJobStore.Common;
 
 namespace Quartz.Tests.Integration.Impl.AdoJobStore.Common;

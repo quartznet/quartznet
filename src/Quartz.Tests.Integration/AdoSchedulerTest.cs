@@ -1,5 +1,3 @@
-using NUnit.Framework;
-
 using Quartz.Impl;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Simpl;

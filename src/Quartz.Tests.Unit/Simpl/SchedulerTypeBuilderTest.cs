@@ -1,7 +1,5 @@
 using FluentAssertions;
 
-using NUnit.Framework;
-
 using Quartz;
 using Quartz.Impl;
 using Quartz.Simpl;

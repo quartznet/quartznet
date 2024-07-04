@@ -4,8 +4,6 @@ using FakeItEasy;
 
 using FluentAssertions;
 
-using NUnit.Framework;
-
 using Quartz.HttpApiContract;
 using Quartz.HttpClient;
 using Quartz.Impl;

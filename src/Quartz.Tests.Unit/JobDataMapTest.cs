@@ -21,7 +21,7 @@
 
 using System.Globalization;
 using FluentAssertions;
-using NUnit.Framework;
+
 using Quartz.Simpl;
 
 namespace Quartz.Tests.Unit;

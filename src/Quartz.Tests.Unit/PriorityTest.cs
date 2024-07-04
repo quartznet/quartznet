@@ -22,8 +22,6 @@
 using System.Collections.Specialized;
 using System.Text;
 
-using NUnit.Framework;
-
 using Quartz.Impl;
 using Quartz.Impl.Triggers;
 using Quartz.Spi;

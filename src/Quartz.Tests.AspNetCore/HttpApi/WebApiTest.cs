@@ -2,8 +2,6 @@ using FakeItEasy;
 
 using Microsoft.AspNetCore.Mvc.Testing;
 
-using NUnit.Framework;
-
 using Quartz.HttpClient;
 using Quartz.Impl;
 using Quartz.Tests.AspNetCore.Support;
