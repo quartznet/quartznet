@@ -10,19 +10,15 @@ namespace Quartz.Serialization.Json.Converters;
 
 internal sealed class TriggerConverter : JsonConverter<ITrigger>
 {
-    private static readonly Dictionary<string, ITriggerSerializer> converters = new()
-    {
-        { CalendarIntervalTriggerSerializer.TriggerTypeKey, CalendarIntervalTriggerSerializer.Instance },
-        { CronTriggerSerializer.TriggerTypeKey, CronTriggerSerializer.Instance },
-        { DailyTimeIntervalTriggerSerializer.TriggerTypeKey, DailyTimeIntervalTriggerSerializer.Instance },
-        { SimpleTriggerSerializer.TriggerTypeKey, SimpleTriggerSerializer.Instance },
+    private static readonly Dictionary<string, ITriggerSerializer> converters = new(StringComparer.OrdinalIgnoreCase);
 
-        // Support also type name
-        { typeof(CalendarIntervalTriggerImpl).AssemblyQualifiedNameWithoutVersion(), CalendarIntervalTriggerSerializer.Instance },
-        { typeof(CronTriggerImpl).AssemblyQualifiedNameWithoutVersion(), CronTriggerSerializer.Instance },
-        { typeof(DailyTimeIntervalTriggerImpl).AssemblyQualifiedNameWithoutVersion(), DailyTimeIntervalTriggerSerializer.Instance },
-        { typeof(SimpleTriggerImpl).AssemblyQualifiedNameWithoutVersion(), SimpleTriggerSerializer.Instance }
-    };
+    static TriggerConverter()
+    {
+        AddTriggerSerializer<CalendarIntervalTriggerImpl>(CalendarIntervalTriggerSerializer.Instance);
+        AddTriggerSerializer<CronTriggerImpl>(CronTriggerSerializer.Instance);
+        AddTriggerSerializer<DailyTimeIntervalTriggerImpl>(DailyTimeIntervalTriggerSerializer.Instance);
+        AddTriggerSerializer<SimpleTriggerImpl>(SimpleTriggerSerializer.Instance);
+    }
 
     public override bool CanConvert(Type typeToConvert) => typeof(ITrigger).IsAssignableFrom(typeToConvert);
 
@@ -64,7 +60,22 @@ internal sealed class TriggerConverter : JsonConverter<ITrigger>
                 .WithPriority(priority)
                 .Build();
 
-            ((IMutableTrigger) trigger).MisfireInstruction = misfireInstruction;
+            if (trigger is IMutableTrigger mutableTrigger)
+            {
+                mutableTrigger.MisfireInstruction = misfireInstruction;
+            }
+
+            if (trigger is IOperableTrigger operableTrigger)
+            {
+                // These properties might not exist in the JSON if trigger was serialized with older version
+                var nextFireTimeUtc = rootElement.GetPropertyOrNull(options.GetPropertyName("NextFireTimeUtc"))?.GetDateTimeOffsetOrNull();
+                var previousFireTimeUtc = rootElement.GetPropertyOrNull(options.GetPropertyName("PreviousFireTimeUtc"))?.GetDateTimeOffsetOrNull();
+
+                operableTrigger.SetNextFireTimeUtc(nextFireTimeUtc);
+                operableTrigger.SetPreviousFireTimeUtc(previousFireTimeUtc);
+            }
+
+            triggerSerializer.DeserializeFields(trigger, rootElement, options);
             return trigger;
         }
         catch (Exception e)
@@ -93,6 +104,8 @@ internal sealed class TriggerConverter : JsonConverter<ITrigger>
             writer.WriteString(options.GetPropertyName("StartTimeUtc"), value.StartTimeUtc);
             writer.WriteString(options.GetPropertyName("EndTimeUtc"), value.EndTimeUtc);
             writer.WriteNumber(options.GetPropertyName("Priority"), value.Priority);
+            writer.WriteString(options.GetPropertyName("NextFireTimeUtc"), value.GetNextFireTimeUtc());
+            writer.WriteString(options.GetPropertyName("PreviousFireTimeUtc"), value.GetPreviousFireTimeUtc());
 
             triggerSerializer.SerializeFields(writer, value, options);
             writer.WriteEndObject();
@@ -111,5 +124,13 @@ internal sealed class TriggerConverter : JsonConverter<ITrigger>
         }
 
         return converter;
+    }
+
+    public static void AddTriggerSerializer<TTrigger>(ITriggerSerializer serializer) where TTrigger : ITrigger
+    {
+        converters[serializer.TriggerTypeForJson] = serializer;
+
+        // Support also type name
+        converters[typeof(TTrigger).AssemblyQualifiedNameWithoutVersion()] = serializer;
     }
 }

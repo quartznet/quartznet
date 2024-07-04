@@ -1,0 +1,7 @@
+﻿{
+  "$type": "Quartz.Impl.Calendar.CronCalendar, Quartz",
+  "Description": "Test CronCalendar",
+  "TimeZoneId": "UTC",
+  "BaseCalendar": null,
+  "CronExpressionString": "0/5 * * * * ?"
+}

@@ -30,6 +30,6 @@ public class RemoteSchedulerSmokeTest
         IScheduler sched = await sf.GetScheduler();
 
         SmokeTestPerformer performer = new SmokeTestPerformer();
-        await performer.Test(sched, clearJobs: true, scheduleJobs: true, testCustomeCalendar: true);
+        await performer.Test(sched, clearJobs: true, scheduleJobs: true);
     }
 }

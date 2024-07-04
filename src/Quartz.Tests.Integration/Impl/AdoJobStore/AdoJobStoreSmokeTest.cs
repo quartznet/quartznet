@@ -217,8 +217,7 @@ public class AdoJobStoreSmokeTest
             {
                 store.UseSystemTextJsonSerializer(j =>
                 {
-                    // TODO blob STJ calendar support
-                    //j.AddCalendarSerializer<CustomCalendar>(new CustomNewtonsoftCalendarSerializer());
+                    j.AddCalendarSerializer<CustomCalendar>(new CustomSystemTextJosnCalendarSerializer());
                 });
             }
             else if (serializerType == "newtonsoft")
@@ -248,7 +247,7 @@ public class AdoJobStoreSmokeTest
         // First we must get a reference to a scheduler
         IScheduler sched = await config.BuildScheduler();
         SmokeTestPerformer performer = new SmokeTestPerformer();
-        await performer.Test(sched, clearJobs, scheduleJobs, testCustomeCalendar: serializerType != "stj");
+        await performer.Test(sched, clearJobs, scheduleJobs);
 
         //Assert.IsEmpty(testLoggerHelper.LogEntries.Where(le => le.LogLevel == LogLevel.Error), "Found error from logging output");
     }

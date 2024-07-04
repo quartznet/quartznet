@@ -1,0 +1,15 @@
+﻿{
+  "$type": "Quartz.Impl.Calendar.CronCalendar, Quartz",
+  "Description": null,
+  "TimeZoneId": "UTC",
+  "BaseCalendar": {
+    "$type": "Quartz.Impl.Calendar.AnnualCalendar, Quartz",
+    "Description": "description",
+    "TimeZoneId": "Tokyo Standard Time",
+    "BaseCalendar": null,
+    "ExcludedDays": [
+      "2000-07-01T00:00:00"
+    ]
+  },
+  "CronExpressionString": "0/5 * * * * ?"
+}
