@@ -21,7 +21,6 @@
 
 using System.Collections.Concurrent;
 using System.Collections.Specialized;
-using System.Data;
 using System.Data.Common;
 using System.Reflection;
 using System.Text;
@@ -38,7 +37,6 @@ namespace Quartz.Impl.AdoJobStore.Common;
 public class DbProvider : IDbProvider
 {
     protected const string PropertyDbProvider = StdSchedulerFactory.PropertyDbProvider;
-    protected const string DbProviderSectionName = StdSchedulerFactory.ConfigurationSectionName;
     protected const string DbProviderResourceName =
 #if NETSTANDARD || NET6_0_OR_GREATER
             "Quartz.Impl.AdoJobStore.Common.dbproviders.netstandard.properties";
@@ -47,10 +45,12 @@ public class DbProvider : IDbProvider
 #endif
 
     private readonly MethodInfo? commandBindByNamePropertySetter;
+    private readonly ConstructorInfo connectionConstructor;
+    private readonly ConstructorInfo commandConstructor;
 
     private static readonly List<DbMetadataFactory> dbMetadataFactories;
     // needs to allow concurrent threads to read and update, since field is static
-    private static readonly ConcurrentDictionary<string, DbMetadata> dbMetadataLookup = new ConcurrentDictionary<string, DbMetadata>();
+    private static readonly ConcurrentDictionary<string, DbMetadata> dbMetadataLookup = new();
 
     /// <summary>
     /// Parse metadata once.
@@ -86,6 +86,9 @@ public class DbProvider : IDbProvider
         {
             commandBindByNamePropertySetter = property.GetSetMethod()!;
         }
+
+        connectionConstructor = ObjectUtils.GetDefaultConstructor(Metadata.ConnectionType);
+        commandConstructor = ObjectUtils.GetDefaultConstructor((Metadata.CommandType));
     }
 
     public void Initialize()
@@ -107,7 +110,7 @@ public class DbProvider : IDbProvider
     {
         if (!dbMetadataLookup.TryGetValue(providerName, out var result))
         {
-            foreach (var dbMetadataFactory in dbMetadataFactories)
+            foreach (DbMetadataFactory? dbMetadataFactory in dbMetadataFactories)
             {
                 if (dbMetadataFactory.GetProviderNames().Contains(providerName))
                 {
@@ -116,7 +119,7 @@ public class DbProvider : IDbProvider
                     return result;
                 }
             }
-            ThrowHelper.ThrowArgumentOutOfRangeException(nameof(providerName), "There is no metadata information for provider '" + providerName + "'");
+            ThrowHelper.ThrowArgumentOutOfRangeException(nameof(providerName), $"There is no metadata information for provider '{providerName}'");
         }
 
         return result;
@@ -144,27 +147,17 @@ public class DbProvider : IDbProvider
     /// <inheritdoc />
     public virtual DbCommand CreateCommand()
     {
-        var command = ObjectUtils.InstantiateType<DbCommand>(Metadata.CommandType);
-        commandBindByNamePropertySetter?.Invoke(command, new object[] { Metadata.BindByName });
+        DbCommand command = (DbCommand) commandConstructor.Invoke([]);
+        commandBindByNamePropertySetter?.Invoke(command, [Metadata.BindByName]);
         return command;
     }
 
     /// <inheritdoc />
     public virtual DbConnection CreateConnection()
     {
-        var conn = ObjectUtils.InstantiateType<DbConnection>(Metadata.ConnectionType);
+        DbConnection conn = (DbConnection) connectionConstructor.Invoke([]);
         conn.ConnectionString = ConnectionString;
         return conn;
-    }
-
-    /// <summary>
-    /// Returns a new parameter object for binding values to parameter
-    /// placeholders in SQL statements or Stored Procedure variables.
-    /// </summary>
-    /// <returns>A new <see cref="IDbDataParameter"/></returns>
-    public virtual DbParameter CreateParameter()
-    {
-        return ObjectUtils.InstantiateType<DbParameter>(Metadata.ParameterType);
     }
 
     /// <inheritdoc />
