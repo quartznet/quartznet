@@ -50,17 +50,24 @@ There's now official solution for migration as there can be quirks in every setu
 **Example hybrid serializer**
 
 ```csharp
-public class MigratorSerializer : IObjectSerializer
+using System.Text.Json;
+
+using Quartz.Simpl;
+using Quartz.Spi;
+
+namespace Quartz;
+
+public sealed class MigratorSerializer : IObjectSerializer
 {
-    private BinaryObjectSerializer binarySerializer;
-    private SystemTextJsonObjectSerializer jsonSerializer;
+    private readonly BinaryObjectSerializer binarySerializer;
+    private readonly SystemTextJsonObjectSerializer jsonSerializer;
 
     public MigratorSerializer()
     {
-        this.binarySerializer = new BinaryObjectSerializer();
+        binarySerializer = new BinaryObjectSerializer();
         // you might need custom configuration, see sections about customizing
         // in documentation
-        this.jsonSerializer = new SystemTextJsonObjectSerializer();
+        jsonSerializer = new SystemTextJsonObjectSerializer();
     }
 
     public T DeSerialize<T>(byte[] data) where T : class
@@ -68,30 +75,37 @@ public class MigratorSerializer : IObjectSerializer
         try
         {
             // Attempt to deserialize data as JSON
-            var result = this.jsonSerializer.DeSerialize<T>(data);
-            return result;
+            return jsonSerializer.DeSerialize<T>(data)!;
         }
-        catch (JsonException
+        catch (JsonException)
         {
             // Presumably, the data was not JSON, we instead use the binary serializer
-            return this.binarySerializer.DeSerialize<T>(data);
+            var binaryData = binarySerializer.DeSerialize<T>(data);
+            if (binaryData is JobDataMap jobDataMap)
+            {
+                // make sure we mark the map as dirty so it will be serialized as JSON next time
+                const string DirtyKey = "____dirty____";
+                jobDataMap[DirtyKey] = "true";
+                jobDataMap.Remove(DirtyKey);
+            }
+            return binaryData!;
         }
     }
 
     public void Initialize()
     {
-        this.binarySerializer.Initialize();
-        this.jsonSerializer.Initialize();
+        binarySerializer.Initialize();
+        jsonSerializer.Initialize();
     }
 
     public byte[] Serialize<T>(T obj) where T : class
     {
-        return this.jsonSerializer.Serialize<T>(obj);
+        return jsonSerializer.Serialize(obj);
     }
 }
 ```
 
-## Customizing serialization
+## Customizing serialization options
  
  If you need to customize serialization, you need to inherit custom implementation and override `CreateSerializerOptions`.
  
@@ -112,4 +126,78 @@ class CustomJsonSerializer : SystemTextJsonObjectSerializer
 store.UseSerializer<CustomJsonSerializer>();
 // or 
 "quartz.serializer.type" = "MyProject.CustomJsonSerializer, MyProject"
+```
+
+## Customizing calendar serialization
+
+If you have implemented a custom calendar, you need to implement a `ICalendarSerializer` for it.
+There's a convenience base class `CalendarSerializer` that you can use the get strongly-typed experience.
+
+**Custom calendar and serializer**
+```csharp
+using System;
+using System.Runtime.Serialization;
+using System.Text.Json;
+
+using Quartz.Impl.Calendar;
+using Quartz.Serialization.SystemTextJson;
+
+[Serializable]
+public sealed class CustomCalendar : BaseCalendar
+{
+    public CustomCalendar()
+    {
+    }
+
+    // binary serialization support
+    private CustomCalendar(SerializationInfo info, StreamingContext context) : base(info, context)
+    {
+        SomeCustomProperty = info?.GetBoolean("SomeCustomProperty") ?? true;
+    }
+
+    public bool SomeCustomProperty { get; set; } = true;
+
+    // binary serialization support
+    public override void GetObjectData(SerializationInfo info, StreamingContext context)
+    {
+        base.GetObjectData(info, context);
+        info?.AddValue("SomeCustomProperty", SomeCustomProperty);
+    }
+}
+
+// JSON serialization support
+public sealed class CustomCalendarSerializer : CalendarSerializer<CustomCalendar>
+{
+    protected override CustomCalendar Create(JsonElement jsonElement, JsonSerializerOptions options)
+    {
+        return new CustomCalendar();
+    }
+
+    protected override void SerializeFields(Utf8JsonWriter writer, CustomCalendar calendar, JsonSerializerOptions options)
+    {
+        writer.WriteBoolean("SomeCustomProperty", calendar.SomeCustomProperty);
+    }
+
+    protected override void DeserializeFields(CustomCalendar calendar, JsonElement jsonElement, JsonSerializerOptions options)
+    {
+        calendar.SomeCustomProperty = jsonElement.GetProperty("CustomProperty").GetBoolean();
+    }
+
+    public override string CalendarTypeName => "CustomCalendar";
+}
+```
+
+**Configuring custom calendar serializer**
+```csharp
+var config = SchedulerBuilder.Create();
+config.UsePersistentStore(store =>
+{
+    store.UseSystemTextJsonSerializer(json =>
+    {
+        json.AddCalendarSerializer<CustomCalendar>(new CustomCalendarSerializer());
+    });
+});
+
+// or just globally which is what above code calls
+SystemTextJsonObjectSerializer.AddCalendarSerializer<CustomCalendar>(new CustomCalendarSerializer());
 ```
