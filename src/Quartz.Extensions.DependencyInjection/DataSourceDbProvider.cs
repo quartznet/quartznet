@@ -29,11 +29,6 @@ internal sealed class DataSourceDbProvider : DbProvider
         throw new SchedulerException($"Provider not specified for DataSource: {SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}");
     }
 
-    public override DbCommand CreateCommand()
-    {
-        return this.source.CreateCommand();
-    }
-
     public override DbConnection CreateConnection()
     {
         return this.source.CreateConnection();
