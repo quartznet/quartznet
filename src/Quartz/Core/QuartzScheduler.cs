@@ -344,17 +344,16 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
         await NotifySchedulerListenersStarted(cancellationToken).ConfigureAwait(false);
     }
 
-    public ValueTask StartDelayed(
-        TimeSpan delay,
-        CancellationToken cancellationToken = default)
+    /// <summary>
+    /// Calls <see cref="Start" /> after the specified delay.
+    /// <para>
+    /// All <see cref="ITrigger" />s that have misfired will
+    /// be passed to the appropriate TriggerListener(s).
+    /// </para>
+    /// </summary>
+    public ValueTask StartDelayed(TimeSpan delay, CancellationToken cancellationToken = default)
     {
-        if (shuttingDown || closed)
-        {
-            ThrowHelper.ThrowSchedulerException(
-                "The Scheduler cannot be restarted after Shutdown() has been called.");
-        }
-#pragma warning disable MA0134
-        Task.Run(async () =>
+        _ = Task.Run(async () =>
         {
             await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
 
@@ -366,9 +365,8 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
             {
                 logger.LogError(se, "Unable to start scheduler after startup delay.");
             }
-        }, cancellationToken);
-#pragma warning restore MA0134
-
+        }, cancellationToken).ConfigureAwait(false);
+        
         return default;
     }
 
@@ -460,7 +458,8 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
             }
         }
 
-        resources.ThreadPool.Shutdown(waitForJobsToComplete);
+        // TODO: Waiting synchronously here can cause deadlock. Make ShutDown Async
+        await Task.Run(() => resources.ThreadPool.Shutdown(waitForJobsToComplete), cancellationToken).ConfigureAwait(false);
 
         // Scheduler thread may have be waiting for the fire time of an acquired
         // trigger and need time to release the trigger once halted, so make sure
