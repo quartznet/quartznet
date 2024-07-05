@@ -353,12 +353,19 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         {
             if (TxIsolationLevelSerializable)
             {
+#if NET6_0_OR_GREATER
+                tx = await conn.BeginTransactionAsync(IsolationLevel.Serializable).ConfigureAwait(false);
+#else
                 tx = conn.BeginTransaction(IsolationLevel.Serializable);
+#endif
             }
             else
             {
-                // default
+#if NET6_0_OR_GREATER
+                tx = await conn.BeginTransactionAsync(IsolationLevel.ReadCommitted).ConfigureAwait(false);
+#else
                 tx = conn.BeginTransaction(IsolationLevel.ReadCommitted);
+#endif
             }
         }
         catch (Exception e)
@@ -3105,17 +3112,17 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 result = await RecoverMisfiredJobs(conn, false, cancellationToken).ConfigureAwait(false);
             }
 
-            CommitConnection(conn, false);
+            await CommitConnection(conn, false).ConfigureAwait(false);
             return result;
         }
         catch (JobPersistenceException jpe)
         {
-            RollbackConnection(conn, jpe);
+            await RollbackConnection(conn, jpe).ConfigureAwait(false);
             throw;
         }
         catch (Exception e)
         {
-            RollbackConnection(conn, e);
+            await RollbackConnection(conn, e).ConfigureAwait(false);
             ThrowHelper.ThrowJobPersistenceException("Database error recovering from misfires.", e);
             return default;
         }
@@ -3127,7 +3134,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
             finally
             {
-                CleanupConnection(conn);
+                await CleanupConnection(conn).ConfigureAwait(false);
             }
         }
     }
@@ -3164,7 +3171,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             if (!firstCheckIn)
             {
                 failedRecords = await ClusterCheckIn(conn, cancellationToken).ConfigureAwait(false);
-                CommitConnection(conn, true);
+                await CommitConnection(conn, true).ConfigureAwait(false);
             }
 
             if (firstCheckIn || failedRecords is not null && failedRecords.Count > 0)
@@ -3194,11 +3201,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 }
             }
 
-            CommitConnection(conn, false);
+            await CommitConnection(conn, false).ConfigureAwait(false);
         }
         catch (JobPersistenceException jpe)
         {
-            RollbackConnection(conn, jpe);
+            await RollbackConnection(conn, jpe).ConfigureAwait(false);
             throw;
         }
         finally
@@ -3215,7 +3222,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 }
                 finally
                 {
-                    CleanupConnection(conn);
+                    await CleanupConnection(conn).ConfigureAwait(false);
                 }
             }
         }
@@ -3513,11 +3520,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// from the datasource.
     /// </remarks>
     /// <seealso cref="CloseConnection(ConnectionAndTransactionHolder)" />
-    protected virtual void CleanupConnection(ConnectionAndTransactionHolder? conn)
+    protected virtual async ValueTask CleanupConnection(ConnectionAndTransactionHolder? conn)
     {
         if (conn is not null)
         {
-            CloseConnection(conn);
+            await CloseConnection(conn).ConfigureAwait(false);
         }
     }
 
@@ -3525,15 +3532,15 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// Closes the supplied connection.
     /// </summary>
     /// <param name="cth">(Optional)</param>
-    protected virtual void CloseConnection(ConnectionAndTransactionHolder cth)
+    protected virtual async ValueTask CloseConnection(ConnectionAndTransactionHolder cth)
     {
-        cth.Close();
+        await cth.Close().ConfigureAwait(false);
     }
 
     /// <summary>
     /// Rollback the supplied connection.
     /// </summary>
-    protected virtual void RollbackConnection(ConnectionAndTransactionHolder? cth, Exception cause)
+    protected virtual async ValueTask RollbackConnection(ConnectionAndTransactionHolder? cth, Exception cause)
     {
         if (cth is null)
         {
@@ -3542,7 +3549,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             return;
         }
 
-        cth.Rollback(IsTransient(cause));
+        await cth.Rollback(IsTransient(cause)).ConfigureAwait(false);
     }
 
 
@@ -3726,14 +3733,14 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <param name="cth">The CTH.</param>
     /// <param name="openNewTransaction">if set to <c>true</c> opens a new transaction.</param>
     /// <throws>JobPersistenceException thrown if a SQLException occurs when the </throws>
-    protected virtual void CommitConnection(ConnectionAndTransactionHolder cth, bool openNewTransaction)
+    protected virtual async ValueTask CommitConnection(ConnectionAndTransactionHolder cth, bool openNewTransaction)
     {
         if (cth is null)
         {
             Logger.LogDebug("ConnectionAndTransactionHolder passed to CommitConnection was null, ignoring");
             return;
         }
-        cth.Commit(openNewTransaction);
+        await cth.Commit(openNewTransaction).ConfigureAwait(false);
     }
 
     /// <summary>
@@ -3906,11 +3913,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             T result = await txCallback(conn).ConfigureAwait(false);
             try
             {
-                CommitConnection(conn, false);
+                await CommitConnection(conn, false).ConfigureAwait(false);
             }
             catch (JobPersistenceException jpe)
             {
-                RollbackConnection(conn, jpe);
+                await RollbackConnection(conn, jpe).ConfigureAwait(false);
                 if (txValidator is null)
                 {
                     throw;
@@ -3935,12 +3942,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         }
         catch (JobPersistenceException jpe)
         {
-            RollbackConnection(conn, jpe);
+            await RollbackConnection(conn, jpe).ConfigureAwait(false);
             throw;
         }
         catch (Exception e)
         {
-            RollbackConnection(conn, e);
+            await RollbackConnection(conn, e).ConfigureAwait(false);
             ThrowHelper.ThrowJobPersistenceException("Unexpected runtime exception: " + e.Message, e);
             return default;
         }
@@ -3952,7 +3959,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
             finally
             {
-                CleanupConnection(conn);
+                await CleanupConnection(conn).ConfigureAwait(false);
             }
         }
     }

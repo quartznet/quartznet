@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -59,8 +59,30 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
         cmd.Connection = connection;
         cmd.Transaction = transaction;
     }
-
-    public void Commit(bool openNewTransaction)
+#if NET6_0_OR_GREATER
+    public async ValueTask Commit(bool openNewTransaction)
+    {
+        if (transaction is not null)
+        {
+            try
+            {
+                CheckNotZombied();
+                IsolationLevel il = transaction.IsolationLevel;
+                await transaction.CommitAsync().ConfigureAwait(false);
+                if (openNewTransaction)
+                {
+                    // open new transaction to go with
+                    transaction = await connection.BeginTransactionAsync(il).ConfigureAwait(false);
+                }
+            }
+            catch (Exception e)
+            {
+                ThrowHelper.ThrowJobPersistenceException("Couldn't commit ADO.NET transaction. " + e.Message, e);
+            }
+        }
+    }
+#else
+    public ValueTask Commit(bool openNewTransaction)
     {
         if (transaction is not null)
         {
@@ -80,9 +102,29 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
                 ThrowHelper.ThrowJobPersistenceException("Couldn't commit ADO.NET transaction. " + e.Message, e);
             }
         }
-    }
 
-    public void Close()
+        return new ValueTask();
+    }
+#endif
+
+#if NET6_0_OR_GREATER
+    public async ValueTask Close()
+    {
+        try
+        {
+            await connection.CloseAsync().ConfigureAwait(false);
+        }
+        catch (Exception e)
+        {
+            var log = LogProvider.CreateLogger<ConnectionAndTransactionHolder>();
+
+            log.LogError(e,
+                "Unexpected exception closing Connection." +
+                "  This is often due to a Connection being returned after or during shutdown.");
+        }
+    }
+#else
+    public ValueTask Close()
     {
         try
         {
@@ -96,7 +138,11 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
                 "Unexpected exception closing Connection." +
                 "  This is often due to a Connection being returned after or during shutdown.");
         }
+
+        return new ValueTask();
     }
+
+#endif
 
     public void Dispose()
     {
@@ -137,8 +183,35 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
             }
         }
     }
+#if NET6_0_OR_GREATER
+    public async ValueTask Rollback(bool transientError)
+    {
+        if (transaction is not null)
+        {
+            try
+            {
+                CheckNotZombied();
+                await transaction.RollbackAsync().ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                var log = LogProvider.CreateLogger<ConnectionAndTransactionHolder>();
+                if (transientError)
+                {
+                    // original error was transient, ones we have in Azure, don't complain too much about it
+                    // we will try again anyway
+                    log.LogDebug("Rollback failed due to transient error");
+                }
+                else
+                {
+                    log.LogError(e, "Couldn't rollback ADO.NET connection. {ExceptionMessage}", e.Message);
+                }
+            }
+        }
+    }
 
-    public void Rollback(bool transientError)
+#else
+    public ValueTask Rollback(bool transientError)
     {
         if (transaction is not null)
         {
@@ -162,7 +235,10 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
                 }
             }
         }
+
+        return new ValueTask();
     }
+#endif
 
     private void CheckNotZombied()
     {
