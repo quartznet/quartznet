@@ -164,7 +164,7 @@ public class JobStoreCMT : JobStoreSupport
             }
             finally
             {
-                CleanupConnection(conn);
+                await CleanupConnection(conn).ConfigureAwait(false);
             }
         }
     }
