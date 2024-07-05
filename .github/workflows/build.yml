@@ -36,7 +36,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: 'Run: Compile, UnitTest, IntegrationTest, Pack, Publish'
         run: ./build.cmd Compile UnitTest IntegrationTest Pack Publish
         env:
@@ -53,7 +53,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: 'Run: Compile, UnitTest, IntegrationTest, Pack, Publish'
         run: ./build.cmd Compile UnitTest IntegrationTest Pack Publish
         env:
@@ -70,7 +70,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: 'Run: Compile, UnitTest, IntegrationTest, Pack, Publish'
         run: ./build.cmd Compile UnitTest IntegrationTest Pack Publish
         env:
