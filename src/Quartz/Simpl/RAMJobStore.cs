@@ -46,21 +46,22 @@ namespace Quartz.Simpl;
 /// <author>Marko Lahma (.NET)</author>
 public class RAMJobStore : IJobStore
 {
-    private readonly object lockObject = new object();
+    private readonly SemaphoreSlim lockObject = new(initialCount: 1, maxCount: 1);
 
-    private readonly Dictionary<JobKey, JobWrapper> jobsByKey = new Dictionary<JobKey, JobWrapper>();
-    private readonly ConcurrentDictionary<TriggerKey, TriggerWrapper> triggersByKey = new ConcurrentDictionary<TriggerKey, TriggerWrapper>();
-    private readonly Dictionary<string, Dictionary<JobKey, JobWrapper>> jobsByGroup = new Dictionary<string, Dictionary<JobKey, JobWrapper>>();
-    private readonly Dictionary<string, Dictionary<TriggerKey, TriggerWrapper>> triggersByGroup = new Dictionary<string, Dictionary<TriggerKey, TriggerWrapper>>();
-    private readonly SortedSet<TriggerWrapper> timeTriggers = new SortedSet<TriggerWrapper>(new TriggerWrapperComparator());
-    private readonly Dictionary<string, ICalendar> calendarsByName = new Dictionary<string, ICalendar>();
-    private readonly Dictionary<JobKey, List<TriggerWrapper>> triggersByJob = new Dictionary<JobKey, List<TriggerWrapper>>();
-    private readonly HashSet<string> pausedTriggerGroups = new HashSet<string>();
-    private readonly HashSet<string> pausedJobGroups = new HashSet<string>();
-    private readonly HashSet<JobKey> blockedJobs = new HashSet<JobKey>();
+    private readonly ConcurrentDictionary<JobKey, JobWrapper> jobsByKey = [];
+    private readonly ConcurrentDictionary<TriggerKey, TriggerWrapper> triggersByKey = new();
+    private readonly Dictionary<string, Dictionary<JobKey, JobWrapper>> jobsByGroup = [];
+    private readonly Dictionary<string, Dictionary<TriggerKey, TriggerWrapper>> triggersByGroup = [];
+    private readonly SortedSet<TriggerWrapper> timeTriggers = new(new TriggerWrapperComparator());
+    private readonly ConcurrentDictionary<string, ICalendar> calendarsByName = [];
+    private readonly Dictionary<JobKey, List<TriggerWrapper>> triggersByJob = [];
+    private readonly HashSet<string> pausedTriggerGroups = [];
+    private readonly HashSet<string> pausedJobGroups = [];
+    private readonly HashSet<JobKey> blockedJobs = [];
     private TimeSpan misfireThreshold = TimeSpan.FromSeconds(5);
     private ISchedulerSignaler signaler = null!;
     private TimeProvider timeProvider = TimeProvider.System;
+    private readonly ILogger<RAMJobStore> logger;
 
     /// <summary>
     /// Initializes a new instance of the <see cref="RAMJobStore"/> class.
@@ -107,12 +108,9 @@ public class RAMJobStore : IJobStore
 
     /// <summary>
     /// Called by the QuartzScheduler before the <see cref="IJobStore" /> is
-    /// used, in order to give the it a chance to Initialize.
+    /// used, in order to give it a chance to Initialize.
     /// </summary>
-    public virtual ValueTask Initialize(
-        ITypeLoadHelper loadHelper,
-        ISchedulerSignaler signaler,
-        CancellationToken cancellationToken = default)
+    public virtual ValueTask Initialize(ITypeLoadHelper loadHelper, ISchedulerSignaler signaler, CancellationToken cancellationToken = default)
     {
         this.signaler = signaler;
         logger.LogInformation("RAMJobStore initialized.");
@@ -126,7 +124,7 @@ public class RAMJobStore : IJobStore
     public virtual ValueTask SchedulerStarted(CancellationToken cancellationToken = default)
     {
         // nothing to do
-        return default(ValueTask);
+        return default;
     }
 
     /// <summary>
@@ -151,7 +149,7 @@ public class RAMJobStore : IJobStore
 
     /// <summary>
     /// Called by the QuartzScheduler to inform the <see cref="IJobStore" /> that
-    /// it should free up all of it's resources because the scheduler is
+    /// it should free up all of its resources because the scheduler is
     /// shutting down.
     /// </summary>
     public virtual ValueTask Shutdown(CancellationToken cancellationToken = default)
@@ -170,129 +168,141 @@ public class RAMJobStore : IJobStore
     /// Clears (deletes!) all scheduling data - all <see cref="IJob"/>s, <see cref="ITrigger" />s
     /// <see cref="ICalendar"/>s.
     /// </summary>
-    public ValueTask ClearAllSchedulingData(CancellationToken cancellationToken = default)
+    public async ValueTask ClearAllSchedulingData(CancellationToken cancellationToken = default)
     {
-        lock (lockObject)
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
             // unschedule jobs (delete triggers)
             foreach (string group in new List<string>(triggersByGroup.Keys))
             {
-                var keys = GetTriggerKeysInternal(GroupMatcher<TriggerKey>.GroupEquals(group));
+                var keys = GetTriggerKeysNoLock(GroupMatcher<TriggerKey>.GroupEquals(group));
                 foreach (TriggerKey key in keys)
                 {
-                    RemoveTriggerInternal(key);
+                    await RemoveTriggerNoLock(key, removeOrphanedJob: true, cancellationToken).ConfigureAwait(false);
                 }
             }
+
             // delete jobs
             foreach (string group in new List<string>(jobsByGroup.Keys))
             {
-                var keys = GetJobKeysInternal(GroupMatcher<JobKey>.GroupEquals(group));
+                var keys = GetJobKeysNoLock(GroupMatcher<JobKey>.GroupEquals(group));
                 foreach (JobKey key in keys)
                 {
-                    RemoveJobInternal(key);
+                    await RemoveJobNoLock(key, cancellationToken).ConfigureAwait(false);
                 }
             }
+
             // delete calendars
             foreach (string name in new List<string>(calendarsByName.Keys))
             {
-                RemoveCalendarInternal(name);
+                RemoveCalendarNoLock(name);
             }
         }
-
-        return default;
+        finally
+        {
+            lockObject.Release();
+        }
     }
-
-    private ILogger<RAMJobStore> logger { get; }
 
     /// <summary>
     /// Store the given <see cref="IJobDetail" /> and <see cref="ITrigger" />.
     /// </summary>
-    /// <param name="newJob">The <see cref="IJobDetail" /> to be stored.</param>
-    /// <param name="newTrigger">The <see cref="ITrigger" /> to be stored.</param>
+    /// <param name="job">The <see cref="IJobDetail" /> to be stored.</param>
+    /// <param name="trigger">The <see cref="ITrigger" /> to be stored.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public virtual ValueTask StoreJobAndTrigger(
-        IJobDetail newJob,
-        IOperableTrigger newTrigger,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask StoreJobAndTrigger(IJobDetail job, IOperableTrigger trigger, CancellationToken cancellationToken = default)
     {
-        StoreJobInternal(newJob, false);
-        StoreTriggerInternal(newTrigger, false);
-        return default;
+        await StoreJob(job, replaceExisting: false, cancellationToken).ConfigureAwait(false);
+        await StoreTrigger(trigger, replaceExisting: false, cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>
     /// Returns true if the given job group is paused.
     /// </summary>
-    /// <param name="groupName">Job group name</param>
+    /// <param name="group">Job group name</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns></returns>
-    public virtual ValueTask<bool> IsJobGroupPaused(
-        string groupName,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask<bool> IsJobGroupPaused(string group, CancellationToken cancellationToken = default)
     {
-        return new ValueTask<bool>(pausedJobGroups.Contains(groupName));
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return pausedJobGroups.Contains(group);
+        }
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
     /// <summary>
     /// Returns true if the given TriggerGroup is paused.
     /// </summary>
     /// <returns></returns>
-    public virtual ValueTask<bool> IsTriggerGroupPaused(
-        string groupName,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask<bool> IsTriggerGroupPaused(string group, CancellationToken cancellationToken = default)
     {
-        return new ValueTask<bool>(pausedTriggerGroups.Contains(groupName));
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return pausedTriggerGroups.Contains(group);
+        }
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
     /// <summary>
     /// Store the given <see cref="IJob" />.
     /// </summary>
-    /// <param name="newJob">The <see cref="IJob" /> to be stored.</param>
+    /// <param name="job">The <see cref="IJob" /> to be stored.</param>
     /// <param name="replaceExisting">If <see langword="true" />, any <see cref="IJob" /> existing in the
-    /// <see cref="IJobStore" /> with the same name and group should be
-    /// over-written.</param>
+    ///     <see cref="IJobStore" /> with the same name and group should be
+    ///     over-written.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public virtual ValueTask StoreJob(
-        IJobDetail newJob,
-        bool replaceExisting,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask StoreJob(IJobDetail job, bool replaceExisting, CancellationToken cancellationToken = default)
     {
-        StoreJobInternal(newJob, replaceExisting);
-        return default;
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            StoreJobNoLock(job, replaceExisting);
+        }
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
-    private void StoreJobInternal(IJobDetail newJob, bool replaceExisting)
+    private void StoreJobNoLock(IJobDetail job, bool replaceExisting)
     {
-        lock (lockObject)
+        var jobKey = job.Key;
+
+        if (jobsByKey.TryGetValue(jobKey, out var originalJob))
         {
-            var jobKey = newJob.Key;
-
-            if (jobsByKey.TryGetValue(jobKey, out var originalJob))
+            if (!replaceExisting)
             {
-                if (!replaceExisting)
-                {
-                    ThrowHelper.ThrowObjectAlreadyExistsException(newJob);
-                }
-
-                // update job detail
-                originalJob.JobDetail = newJob.Clone();
+                ThrowHelper.ThrowObjectAlreadyExistsException(job);
             }
-            else
+
+            // update job detail
+            originalJob.JobDetail = job.Clone();
+        }
+        else
+        {
+            // get job group
+            if (!jobsByGroup.TryGetValue(jobKey.Group, out var grpMap))
             {
-                // get job group
-                if (!jobsByGroup.TryGetValue(jobKey.Group, out var grpMap))
-                {
-                    grpMap = new Dictionary<JobKey, JobWrapper>();
-                    jobsByGroup[jobKey.Group] = grpMap;
-                }
-
-                JobWrapper jw = new JobWrapper(newJob.Clone());
-
-                // add to jobs by group
-                grpMap[jobKey] = jw;
-                // add to jobs by FQN map
-                jobsByKey[jobKey] = jw;
+                grpMap = new Dictionary<JobKey, JobWrapper>();
+                jobsByGroup[jobKey.Group] = grpMap;
             }
+
+            JobWrapper jw = new JobWrapper(job.Clone());
+
+            // add to jobs by group
+            grpMap[jobKey] = jw;
+            // add to jobs by FQN map
+            jobsByKey[jobKey] = jw;
         }
     }
 
@@ -305,77 +315,87 @@ public class RAMJobStore : IJobStore
     /// 	<see langword="true" /> if a <see cref="IJob" /> with the given name and
     /// group was found and removed from the store.
     /// </returns>
-    public virtual ValueTask<bool> RemoveJob(
-        JobKey jobKey,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask<bool> RemoveJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        return new ValueTask<bool>(RemoveJobInternal(jobKey));
-    }
-
-    private bool RemoveJobInternal(JobKey jobKey)
-    {
-        lock (lockObject)
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            bool found = false;
-            var triggersForJob = GetTriggersForJobInternal(jobKey);
-            foreach (IOperableTrigger trigger in triggersForJob)
-            {
-                RemoveTriggerInternal(trigger.Key);
-                found = true;
-            }
-
-            found = jobsByKey.Remove(jobKey) || found;
-
-            if (found)
-            {
-                if (jobsByGroup.TryGetValue(jobKey.Group, out var grpMap))
-                {
-                    if (grpMap.Remove(jobKey) && grpMap.Count == 0)
-                    {
-                        jobsByGroup.Remove(jobKey.Group);
-                    }
-                }
-            }
-            return found;
+            return await RemoveJobNoLock(jobKey, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            lockObject.Release();
         }
     }
 
-    public ValueTask<bool> RemoveJobs(
-        IReadOnlyCollection<JobKey> jobKeys,
-        CancellationToken cancellationToken = default)
+    private async ValueTask<bool> RemoveJobNoLock(JobKey jobKey, CancellationToken cancellationToken)
     {
-        lock (lockObject)
+        bool found = false;
+        var triggersForJob = GetTriggerKeysForJobNoLock(jobKey);
+        foreach (var key in triggersForJob)
+        {
+            await RemoveTriggerNoLock(key, removeOrphanedJob: true, cancellationToken).ConfigureAwait(false);
+            found = true;
+        }
+
+        found = jobsByKey.TryRemove(jobKey, out _) || found;
+
+        if (found)
+        {
+            if (jobsByGroup.TryGetValue(jobKey.Group, out var grpMap))
+            {
+                if (grpMap.Remove(jobKey) && grpMap.Count == 0)
+                {
+                    jobsByGroup.Remove(jobKey.Group);
+                }
+            }
+        }
+
+        return found;
+    }
+
+    public async ValueTask<bool> RemoveJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
+    {
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
             bool allFound = true;
             foreach (JobKey key in jobKeys)
             {
-                allFound = RemoveJobInternal(key) && allFound;
+                allFound = await RemoveJobNoLock(key, cancellationToken).ConfigureAwait(false) && allFound;
             }
-            return new ValueTask<bool>(allFound);
+
+            return allFound;
+        }
+        finally
+        {
+            lockObject.Release();
         }
     }
 
-    public ValueTask<bool> RemoveTriggers(
-        IReadOnlyCollection<TriggerKey> triggerKeys,
-        CancellationToken cancellationToken = default)
+    public async ValueTask<bool> RemoveTriggers(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
     {
-        lock (lockObject)
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
             bool allFound = true;
             foreach (TriggerKey key in triggerKeys)
             {
-                allFound = RemoveTriggerInternal(key) && allFound;
+                allFound = await RemoveTriggerNoLock(key, removeOrphanedJob: true, cancellationToken).ConfigureAwait(false) && allFound;
             }
-            return new ValueTask<bool>(allFound);
+
+            return allFound;
+        }
+        finally
+        {
+            lockObject.Release();
         }
     }
 
-    public ValueTask StoreJobsAndTriggers(
-        IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs,
-        bool replace,
-        CancellationToken cancellationToken = default)
+    public async ValueTask StoreJobsAndTriggers(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
     {
-        lock (lockObject)
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
             // make sure there are no collisions...
             if (!replace)
@@ -388,6 +408,7 @@ public class RAMJobStore : IJobStore
                     {
                         ThrowHelper.ThrowObjectAlreadyExistsException(job);
                     }
+
                     foreach (ITrigger trigger in triggersByJob.Value)
                     {
                         if (triggersByKey.ContainsKey(trigger.Key))
@@ -397,18 +418,21 @@ public class RAMJobStore : IJobStore
                     }
                 }
             }
+
             // do bulk add...
             foreach (var triggersByJob in triggersAndJobs)
             {
-                StoreJobInternal(triggersByJob.Key, true);
+                StoreJobNoLock(triggersByJob.Key, replaceExisting: true);
                 foreach (ITrigger trigger in triggersByJob.Value)
                 {
-                    StoreTriggerInternal((IOperableTrigger) trigger, true);
+                    await StoreTriggerNoLock((IOperableTrigger) trigger, replaceExisting: true, cancellationToken: cancellationToken).ConfigureAwait(false);
                 }
             }
         }
-
-        return default;
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
     /// <summary>
@@ -419,88 +443,86 @@ public class RAMJobStore : IJobStore
     /// 	<see langword="true" /> if a <see cref="ITrigger" /> with the given
     /// name and group was found and removed from the store.
     /// </returns>
-    public virtual ValueTask<bool> RemoveTrigger(
-        TriggerKey triggerKey,
-        CancellationToken cancellationToken = default)
+    public virtual ValueTask<bool> RemoveTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        return RemoveTrigger(triggerKey, true);
+        return RemoveTrigger(triggerKey, removeOrphanedJob: true, cancellationToken);
     }
 
     /// <summary>
     /// Store the given <see cref="ITrigger" />.
     /// </summary>
-    /// <param name="newTrigger">The <see cref="ITrigger" /> to be stored.</param>
+    /// <param name="trigger">The <see cref="ITrigger" /> to be stored.</param>
     /// <param name="replaceExisting">If <see langword="true" />, any <see cref="ITrigger" /> existing in
-    /// the <see cref="IJobStore" /> with the same name and group should
-    /// be over-written.</param>
+    ///     the <see cref="IJobStore" /> with the same name and group should
+    ///     be over-written.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public virtual ValueTask StoreTrigger(
-        IOperableTrigger newTrigger,
-        bool replaceExisting,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask StoreTrigger(IOperableTrigger trigger, bool replaceExisting, CancellationToken cancellationToken = default)
     {
-        StoreTriggerInternal(newTrigger, replaceExisting);
-        return default;
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await StoreTriggerNoLock(trigger, replaceExisting, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
-    private void StoreTriggerInternal(
-        IOperableTrigger newTrigger,
-        bool replaceExisting)
+    private async Task StoreTriggerNoLock(IOperableTrigger trigger, bool replaceExisting, CancellationToken cancellationToken)
     {
-        lock (lockObject)
+        TriggerWrapper tw = new((IOperableTrigger) trigger.Clone());
+        if (triggersByKey.ContainsKey(tw.TriggerKey))
         {
-            TriggerWrapper tw = new TriggerWrapper((IOperableTrigger) newTrigger.Clone());
-            if (triggersByKey.ContainsKey(tw.TriggerKey))
+            if (!replaceExisting)
             {
-                if (!replaceExisting)
-                {
-                    ThrowHelper.ThrowObjectAlreadyExistsException(newTrigger);
-                }
-
-                // don't delete orphaned job, this trigger has the job anyways
-                RemoveTriggerInternal(tw.TriggerKey, removeOrphanedJob: false);
+                ThrowHelper.ThrowObjectAlreadyExistsException(trigger);
             }
 
-            if (!CheckExistsInternal(tw.JobKey))
-            {
-                ThrowHelper.ThrowJobPersistenceException("The job (" + tw.JobKey +
-                                                         ") referenced by the trigger does not exist.");
-            }
+            // don't delete orphaned job, this trigger has the job anyways
+            await RemoveTriggerNoLock(tw.TriggerKey, removeOrphanedJob: false, cancellationToken).ConfigureAwait(false);
+        }
 
-            // add to triggers by job
-            if (!triggersByJob.TryGetValue(tw.JobKey, out var jobList))
-            {
-                jobList = new List<TriggerWrapper>(1);
-                triggersByJob.Add(tw.JobKey, jobList);
-            }
-            jobList.Add(tw);
+        if (!jobsByKey.ContainsKey(tw.JobKey))
+        {
+            ThrowHelper.ThrowJobPersistenceException($"The job ({tw.JobKey}) referenced by the trigger does not exist.");
+        }
 
-            // add to triggers by group
-            if (!triggersByGroup.TryGetValue(tw.TriggerKey.Group, out var grpMap))
-            {
-                grpMap = new Dictionary<TriggerKey, TriggerWrapper>();
-                triggersByGroup[tw.TriggerKey.Group] = grpMap;
-            }
-            grpMap[tw.TriggerKey] = tw;
-            // add to triggers by FQN map
-            triggersByKey[tw.TriggerKey] = tw;
+        // add to triggers by job
+        if (!triggersByJob.TryGetValue(tw.JobKey, out var jobList))
+        {
+            jobList = new List<TriggerWrapper>(1);
+            triggersByJob.Add(tw.JobKey, jobList);
+        }
 
-            if (pausedTriggerGroups.Contains(tw.TriggerKey.Group) || pausedJobGroups.Contains(tw.JobKey.Group))
+        jobList.Add(tw);
+
+        // add to triggers by group
+        if (!triggersByGroup.TryGetValue(tw.TriggerKey.Group, out var grpMap))
+        {
+            grpMap = new Dictionary<TriggerKey, TriggerWrapper>();
+            triggersByGroup[tw.TriggerKey.Group] = grpMap;
+        }
+
+        grpMap[tw.TriggerKey] = tw;
+        // add to triggers by FQN map
+        triggersByKey[tw.TriggerKey] = tw;
+
+        if (pausedTriggerGroups.Contains(tw.TriggerKey.Group) || pausedJobGroups.Contains(tw.JobKey.Group))
+        {
+            tw.state = InternalTriggerState.Paused;
+            if (blockedJobs.Contains(tw.JobKey))
             {
-                tw.state = InternalTriggerState.Paused;
-                if (blockedJobs.Contains(tw.JobKey))
-                {
-                    tw.state = InternalTriggerState.PausedAndBlocked;
-                }
+                tw.state = InternalTriggerState.PausedAndBlocked;
             }
-            else if (blockedJobs.Contains(tw.JobKey))
-            {
-                tw.state = InternalTriggerState.Blocked;
-            }
-            else
-            {
-                timeTriggers.Add(tw);
-            }
+        }
+        else if (blockedJobs.Contains(tw.JobKey))
+        {
+            tw.state = InternalTriggerState.Blocked;
+        }
+        else
+        {
+            timeTriggers.Add(tw);
         }
     }
 
@@ -515,71 +537,72 @@ public class RAMJobStore : IJobStore
     /// </returns>
     /// <param name="key">The <see cref="ITrigger" /> to be removed.</param>
     /// <param name="removeOrphanedJob">Whether to delete orphaned job details from scheduler if job becomes orphaned from removing the trigger.</param>
-    protected virtual ValueTask<bool> RemoveTrigger(
-        TriggerKey key,
-        bool removeOrphanedJob)
+    /// <param name="cancellationToken"></param>
+    protected virtual async ValueTask<bool> RemoveTrigger(TriggerKey key, bool removeOrphanedJob, CancellationToken cancellationToken)
     {
-        return new ValueTask<bool>(RemoveTriggerInternal(key, removeOrphanedJob));
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await RemoveTriggerNoLock(key, removeOrphanedJob, cancellationToken).ConfigureAwait(false);
+        }
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
-    private bool RemoveTriggerInternal(TriggerKey key, bool removeOrphanedJob = true)
+    private async Task<bool> RemoveTriggerNoLock(TriggerKey key, bool removeOrphanedJob, CancellationToken cancellationToken)
     {
-        lock (lockObject)
+        // remove from triggers by FQN map
+        var found = triggersByKey.TryRemove(key, out var tw);
+        if (tw is not null)
         {
-            // remove from triggers by FQN map
-            var found = triggersByKey.TryRemove(key, out var tw);
-            if (tw is not null)
+            // remove from triggers by group
+            if (triggersByGroup.TryGetValue(key.Group, out var grpMap))
             {
-                // remove from triggers by group
-                if (triggersByGroup.TryGetValue(key.Group, out var grpMap))
+                if (grpMap.Remove(key) && grpMap.Count == 0)
                 {
-                    if (grpMap.Remove(key) && grpMap.Count == 0)
-                    {
-                        triggersByGroup.Remove(key.Group);
-                    }
-                }
-                //remove from triggers by job
-                if (triggersByJob.TryGetValue(tw.JobKey, out var jobList))
-                {
-                    if (jobList.Remove(tw) && jobList.Count == 0)
-                    {
-                        triggersByJob.Remove(tw.JobKey);
-                    }
-                }
-
-                timeTriggers.Remove(tw);
-
-                if (removeOrphanedJob)
-                {
-                    JobWrapper jw = jobsByKey[tw.JobKey];
-                    var trigs = GetTriggersForJobInternal(tw.JobKey);
-                    if (trigs.Length == 0 && !jw.JobDetail.Durable)
-                    {
-                        if (RemoveJobInternal(jw.Key))
-                        {
-                            signaler.NotifySchedulerListenersJobDeleted(jw.Key).ConfigureAwait(false).GetAwaiter().GetResult();
-                        }
-                    }
+                    triggersByGroup.Remove(key.Group);
                 }
             }
-            return found;
+
+            //remove from triggers by job
+            if (triggersByJob.TryGetValue(tw.JobKey, out var jobList))
+            {
+                if (jobList.Remove(tw) && jobList.Count == 0)
+                {
+                    triggersByJob.Remove(tw.JobKey);
+                }
+            }
+
+            timeTriggers.Remove(tw);
+
+            if (removeOrphanedJob)
+            {
+                JobWrapper jw = jobsByKey[tw.JobKey];
+                var triggerKeys = GetTriggerKeysForJobNoLock(tw.JobKey);
+                if (triggerKeys.Length == 0 && !jw.JobDetail.Durable && await RemoveJobNoLock(jw.Key, cancellationToken).ConfigureAwait(false))
+                {
+                    await signaler.NotifySchedulerListenersJobDeleted(jw.Key, cancellationToken).ConfigureAwait(false);
+                }
+            }
         }
+
+        return found;
     }
 
     /// <summary>
     /// Replaces the trigger.
     /// </summary>
     /// <param name="triggerKey">The <see cref="TriggerKey"/> of the <see cref="ITrigger" /> to be replaced.</param>
-    /// <param name="newTrigger">The new trigger.</param>
+    /// <param name="trigger">The new trigger.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public virtual ValueTask<bool> ReplaceTrigger(
-        TriggerKey triggerKey,
-        IOperableTrigger newTrigger,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask<bool> ReplaceTrigger(TriggerKey triggerKey, IOperableTrigger trigger, CancellationToken cancellationToken = default)
     {
         bool found;
 
-        lock (lockObject)
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
             // remove from triggers by FQN map
             triggersByKey.TryRemove(triggerKey, out var tw);
@@ -587,7 +610,7 @@ public class RAMJobStore : IJobStore
 
             if (found)
             {
-                if (!tw!.JobKey.Equals(newTrigger.JobKey))
+                if (!tw!.JobKey.Equals(trigger.JobKey))
                 {
                     ThrowHelper.ThrowJobPersistenceException("New trigger is not related to the same job as the old trigger.");
                 }
@@ -614,16 +637,21 @@ public class RAMJobStore : IJobStore
 
                 try
                 {
-                    StoreTriggerInternal(newTrigger, replaceExisting: false);
+                    await StoreTriggerNoLock(trigger, replaceExisting: false, cancellationToken: cancellationToken).ConfigureAwait(false);
                 }
                 catch (JobPersistenceException)
                 {
-                    StoreTriggerInternal(tw.Trigger, replaceExisting: false); // put previous trigger back...
+                    // put previous trigger back...
+                    await StoreTriggerNoLock(tw.Trigger, replaceExisting: false, cancellationToken: cancellationToken).ConfigureAwait(false);
                     throw;
                 }
             }
         }
-        return new ValueTask<bool>(found);
+        finally
+        {
+            lockObject.Release();
+        }
+        return found;
     }
 
     /// <summary>
@@ -633,18 +661,18 @@ public class RAMJobStore : IJobStore
     /// <returns>
     /// The desired <see cref="IJob" />, or null if there is no match.
     /// </returns>
-    public virtual ValueTask<IJobDetail?> RetrieveJob(
-        JobKey jobKey,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask<IJobDetail?> RetrieveJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        return new ValueTask<IJobDetail?>(RetrieveJobInternal(jobKey));
-    }
-
-    private IJobDetail? RetrieveJobInternal(JobKey jobKey)
-    {
-        jobsByKey.TryGetValue(jobKey, out var jw);
-        var job = jw?.JobDetail.Clone();
-        return job;
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            jobsByKey.TryGetValue(jobKey, out JobWrapper? jw);
+            return jw?.JobDetail.Clone();
+        }
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
     /// <summary>
@@ -653,13 +681,18 @@ public class RAMJobStore : IJobStore
     /// <returns>
     /// The desired <see cref="ITrigger" />, or null if there is no match.
     /// </returns>
-    public virtual ValueTask<IOperableTrigger?> RetrieveTrigger(
-        TriggerKey triggerKey,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask<IOperableTrigger?> RetrieveTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        triggersByKey.TryGetValue(triggerKey, out var tw);
-        var trigger = (IOperableTrigger?) tw?.Trigger.Clone();
-        return new ValueTask<IOperableTrigger?>(trigger);
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            triggersByKey.TryGetValue(triggerKey, out var tw);
+            return (IOperableTrigger?) tw?.Trigger.Clone();
+        }
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
     /// <summary>
@@ -668,14 +701,20 @@ public class RAMJobStore : IJobStore
     /// </summary>
     /// <remarks>
     /// </remarks>
-    /// <param name="calName">the identifier to check for</param>
+    /// <param name="name">the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a calendar exists with the given identifier</returns>
-    public ValueTask<bool> CalendarExists(
-        string calName,
-        CancellationToken cancellationToken = default)
+    public async ValueTask<bool> CalendarExists(string name, CancellationToken cancellationToken = default)
     {
-        return new ValueTask<bool>(calendarsByName.ContainsKey(calName));
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return calendarsByName.ContainsKey(name);
+        }
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
     /// <summary>
@@ -685,24 +724,17 @@ public class RAMJobStore : IJobStore
     /// <param name="jobKey">the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a Job exists with the given identifier</returns>
-    public ValueTask<bool> CheckExists(
-        JobKey jobKey,
-        CancellationToken cancellationToken = default)
+    public async ValueTask<bool> CheckExists(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        return new ValueTask<bool>(jobsByKey.ContainsKey(jobKey));
-    }
-
-    /// <summary>
-    /// Determine whether a <see cref="IJob"/> with the given identifier already
-    /// exists within the scheduler.
-    /// </summary>
-    /// <param name="jobKey">the identifier to check for</param>
-    /// <returns>
-    /// <see langword="true"/> if a job exists with the given identifier; otherwise <see langword="false"/>.
-    /// </returns>
-    private bool CheckExistsInternal(JobKey jobKey)
-    {
-        return jobsByKey.ContainsKey(jobKey);
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return jobsByKey.ContainsKey(jobKey);
+        }
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
     /// <summary>
@@ -712,11 +744,17 @@ public class RAMJobStore : IJobStore
     /// <param name="triggerKey">triggerKey the identifier to check for</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>true if a Trigger exists with the given identifier</returns>
-    public ValueTask<bool> CheckExists(
-        TriggerKey triggerKey,
-        CancellationToken cancellationToken = default)
+    public async ValueTask<bool> CheckExists(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        return new ValueTask<bool>(triggersByKey.ContainsKey(triggerKey));
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return triggersByKey.ContainsKey(triggerKey);
+        }
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
     /// <summary>
@@ -728,53 +766,50 @@ public class RAMJobStore : IJobStore
     /// <seealso cref="TriggerState.Error" />
     /// <seealso cref="TriggerState.Blocked" />
     /// <seealso cref="TriggerState.None"/>
-    public virtual ValueTask<TriggerState> GetTriggerState(
-        TriggerKey triggerKey,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask<TriggerState> GetTriggerState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        triggersByKey.TryGetValue(triggerKey, out var tw);
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        TriggerWrapper? tw;
+        try
+        {
+            triggersByKey.TryGetValue(triggerKey, out tw);
+        }
+        finally
+        {
+            lockObject.Release();
+        }
 
         if (tw is null)
         {
-            return new ValueTask<TriggerState>(TriggerState.None);
+            return TriggerState.None;
         }
-        if (tw.state == InternalTriggerState.Complete)
+
+        return tw.state switch
         {
-            return new ValueTask<TriggerState>(TriggerState.Complete);
-        }
-        if (tw.state == InternalTriggerState.Paused)
-        {
-            return new ValueTask<TriggerState>(TriggerState.Paused);
-        }
-        if (tw.state == InternalTriggerState.PausedAndBlocked)
-        {
-            return new ValueTask<TriggerState>(TriggerState.Paused);
-        }
-        if (tw.state == InternalTriggerState.Blocked)
-        {
-            return new ValueTask<TriggerState>(TriggerState.Blocked);
-        }
-        if (tw.state == InternalTriggerState.Error)
-        {
-            return new ValueTask<TriggerState>(TriggerState.Error);
-        }
-        return new ValueTask<TriggerState>(TriggerState.Normal);
+            InternalTriggerState.Complete => TriggerState.Complete,
+            InternalTriggerState.Paused => TriggerState.Paused,
+            InternalTriggerState.PausedAndBlocked => TriggerState.Paused,
+            InternalTriggerState.Blocked => TriggerState.Blocked,
+            InternalTriggerState.Error => TriggerState.Error,
+            _ => TriggerState.Normal
+        };
     }
 
-    public ValueTask ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
+    public async ValueTask ResetTriggerFromErrorState(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        lock (lockObject)
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
             // does the trigger exist?
             if (!triggersByKey.TryGetValue(triggerKey, out var tw) || tw.Trigger is null)
             {
-                return default;
+                return;
             }
 
             // is the trigger in error state?
             if (tw.state != InternalTriggerState.Error)
             {
-                return default;
+                return;
             }
 
             if (pausedTriggerGroups.Contains(triggerKey.Group))
@@ -787,8 +822,10 @@ public class RAMJobStore : IJobStore
                 timeTriggers.Add(tw);
             }
         }
-
-        return default;
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
     /// <summary>
@@ -804,7 +841,7 @@ public class RAMJobStore : IJobStore
     /// Calendar with the same name with have their next fire time
     /// re-computed with the new <see cref="ICalendar" />.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
-    public virtual ValueTask StoreCalendar(
+    public virtual async ValueTask StoreCalendar(
         string name,
         ICalendar calendar,
         bool replaceExisting,
@@ -813,25 +850,26 @@ public class RAMJobStore : IJobStore
     {
         calendar = calendar.Clone();
 
-        lock (lockObject)
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
             calendarsByName.TryGetValue(name, out var obj);
 
-            if (obj is not null && replaceExisting == false)
+            if (obj is not null && !replaceExisting)
             {
                 ThrowHelper.ThrowObjectAlreadyExistsException($"Calendar with name '{name}' already exists.");
             }
+
             if (obj is not null)
             {
-                calendarsByName.Remove(name);
+                calendarsByName.TryRemove(name, out _);
             }
 
             calendarsByName[name] = calendar;
 
             if (obj is not null && updateTriggers)
             {
-                IEnumerable<TriggerWrapper> trigs = GetTriggerWrappersForCalendar(name);
-                foreach (TriggerWrapper tw in trigs)
+                foreach (TriggerWrapper tw in GetTriggerWrappersForCalendarNoLock(name))
                 {
                     bool removed = timeTriggers.Remove(tw);
 
@@ -844,8 +882,10 @@ public class RAMJobStore : IJobStore
                 }
             }
         }
-
-        return default;
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
     /// <summary>
@@ -856,76 +896,98 @@ public class RAMJobStore : IJobStore
     /// <see cref="ITrigger" />s pointing to non-existent calendars, then a
     /// <see cref="JobPersistenceException" /> will be thrown.</para>
     /// </summary>
-    /// <param name="calName">The name of the <see cref="ICalendar" /> to be removed.</param>
+    /// <param name="name">The name of the <see cref="ICalendar" /> to be removed.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>
     /// 	<see langword="true" /> if a <see cref="ICalendar" /> with the given name
     /// was found and removed from the store.
     /// </returns>
-    public virtual ValueTask<bool> RemoveCalendar(
-        string calName,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask<bool> RemoveCalendar(string name, CancellationToken cancellationToken = default)
     {
-        return new ValueTask<bool>(RemoveCalendarInternal(calName));
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return RemoveCalendarNoLock(name);
+        }
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
-    private bool RemoveCalendarInternal(string calName)
+    private bool RemoveCalendarNoLock(string name)
     {
-        lock (lockObject)
+        int numRefs = 0;
+        foreach (TriggerWrapper triggerWrapper in triggersByKey.Values)
         {
-            int numRefs = 0;
-            foreach (TriggerWrapper triggerWrapper in triggersByKey.Values)
+            IOperableTrigger trigg = triggerWrapper.Trigger;
+            if (trigg.CalendarName is not null && trigg.CalendarName == name)
             {
-                IOperableTrigger trigg = triggerWrapper.Trigger;
-                if (trigg.CalendarName is not null && trigg.CalendarName.Equals(calName))
-                {
-                    numRefs++;
-                }
+                numRefs++;
             }
-            if (numRefs > 0)
-            {
-                ThrowHelper.ThrowJobPersistenceException("Calender cannot be removed if it referenced by a Trigger!");
-            }
-
-            return calendarsByName.Remove(calName);
         }
+
+        if (numRefs > 0)
+        {
+            ThrowHelper.ThrowJobPersistenceException("Calender cannot be removed if it referenced by a Trigger!");
+        }
+
+        return calendarsByName.TryRemove(name, out _);
     }
 
     /// <summary>
     /// Retrieve the given <see cref="ITrigger" />.
     /// </summary>
-    /// <param name="calName">The name of the <see cref="ICalendar" /> to be retrieved.</param>
+    /// <param name="name">The name of the <see cref="ICalendar" /> to be retrieved.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>
     /// The desired <see cref="ICalendar" />, or null if there is no match.
     /// </returns>
-    public virtual ValueTask<ICalendar?> RetrieveCalendar(
-        string calName,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask<ICalendar?> RetrieveCalendar(string name, CancellationToken cancellationToken = default)
     {
-        calendarsByName.TryGetValue(calName, out var calendar);
-        calendar = calendar?.Clone();
-        return new ValueTask<ICalendar?>(calendar);
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            calendarsByName.TryGetValue(name, out var calendar);
+            return calendar?.Clone();
+        }
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
     /// <summary>
     /// Get the number of <see cref="IJobDetail" /> s that are
     /// stored in the <see cref="IJobStore" />.
     /// </summary>
-    public virtual ValueTask<int> GetNumberOfJobs(CancellationToken cancellationToken = default)
+    public virtual async ValueTask<int> GetNumberOfJobs(CancellationToken cancellationToken = default)
     {
-        return new ValueTask<int>(jobsByKey.Count);
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return jobsByKey.Count;
+        }
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
     /// <summary>
     /// Get the number of <see cref="ITrigger" /> s that are
     /// stored in the <see cref="IJobStore" />.
     /// </summary>
-    public virtual ValueTask<int> GetNumberOfTriggers(CancellationToken cancellationToken = default)
+    public virtual async ValueTask<int> GetNumberOfTriggers(CancellationToken cancellationToken = default)
     {
-        lock (lockObject)
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            return new ValueTask<int>(triggersByKey.Count);
+            return triggersByKey.Count;
+        }
+        finally
+        {
+            lockObject.Release();
         }
     }
 
@@ -933,55 +995,67 @@ public class RAMJobStore : IJobStore
     /// Get the number of <see cref="ICalendar" /> s that are
     /// stored in the <see cref="IJobStore" />.
     /// </summary>
-    public virtual ValueTask<int> GetNumberOfCalendars(CancellationToken cancellationToken = default)
+    public virtual async ValueTask<int> GetNumberOfCalendars(CancellationToken cancellationToken = default)
     {
-        return new ValueTask<int>(calendarsByName.Count);
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return calendarsByName.Count;
+        }
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
     /// <summary>
     /// Get the names of all of the <see cref="IJob" /> s that
     /// match the given group matcher.
     /// </summary>
-    public virtual ValueTask<List<JobKey>> GetJobKeys(
-        GroupMatcher<JobKey> matcher,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask<List<JobKey>> GetJobKeys(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
-        return new ValueTask<List<JobKey>>(GetJobKeysInternal(matcher).ToList());
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return GetJobKeysNoLock(matcher);
+        }
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
-    private HashSet<JobKey> GetJobKeysInternal(GroupMatcher<JobKey> matcher)
+    private List<JobKey> GetJobKeysNoLock(GroupMatcher<JobKey> matcher)
     {
-        lock (lockObject)
-        {
-            HashSet<JobKey> outList = new HashSet<JobKey>();
-            StringOperator op = matcher.CompareWithOperator;
-            string compareToValue = matcher.CompareToValue;
+        HashSet<JobKey> outList = [];
+        StringOperator op = matcher.CompareWithOperator;
+        string compareToValue = matcher.CompareToValue;
 
-            if (StringOperator.Equality.Equals(op))
+        if (StringOperator.Equality.Equals(op))
+        {
+            if (jobsByGroup.TryGetValue(compareToValue, out var grpMap))
             {
-                if (jobsByGroup.TryGetValue(compareToValue, out var grpMap))
+                foreach (JobWrapper jw in grpMap.Values)
                 {
-                    foreach (JobWrapper jw in grpMap.Values)
-                    {
-                        outList.Add(jw.JobDetail.Key);
-                    }
+                    outList.Add(jw.JobDetail.Key);
                 }
             }
-            else
-            {
-                foreach (KeyValuePair<string, Dictionary<JobKey, JobWrapper>> entry in jobsByGroup)
-                {
-                    if (op.Evaluate(entry.Key, compareToValue))
-                    {
-                        foreach (JobWrapper jobWrapper in entry.Value.Values)
-                        {
-                            outList.Add(jobWrapper.JobDetail.Key);
-                        }
-                    }
-                }
-            }
-            return outList;
         }
+        else
+        {
+            foreach (KeyValuePair<string, Dictionary<JobKey, JobWrapper>> entry in jobsByGroup)
+            {
+                if (op.Evaluate(entry.Key, compareToValue))
+                {
+                    foreach (JobWrapper jobWrapper in entry.Value.Values)
+                    {
+                        outList.Add(jobWrapper.JobDetail.Key);
+                    }
+                }
+            }
+        }
+
+        return [.. outList];
     }
 
     /// <summary>
@@ -992,106 +1066,150 @@ public class RAMJobStore : IJobStore
     /// a zero-length array (not <see langword="null" />).
     /// </para>
     /// </summary>
-    public virtual ValueTask<List<string>> GetCalendarNames(
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask<List<string>> GetCalendarNames(CancellationToken cancellationToken = default)
     {
-        return new ValueTask<List<string>>(new List<string>(calendarsByName.Keys));
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return [..calendarsByName.Keys];
+        }
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
     /// <summary>
     /// Get the names of all of the <see cref="ITrigger" /> s
     /// that have the given group name.
     /// </summary>
-    public virtual ValueTask<List<TriggerKey>> GetTriggerKeys(
-        GroupMatcher<TriggerKey> matcher,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask<List<TriggerKey>> GetTriggerKeys(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
-        return new ValueTask<List<TriggerKey>>(GetTriggerKeysInternal(matcher).ToList());
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return GetTriggerKeysNoLock(matcher);
+        }
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
-    private HashSet<TriggerKey> GetTriggerKeysInternal(GroupMatcher<TriggerKey> matcher)
+    private List<TriggerKey> GetTriggerKeysNoLock(GroupMatcher<TriggerKey> matcher)
     {
-        lock (lockObject)
-        {
-            HashSet<TriggerKey> outList = new HashSet<TriggerKey>();
-            StringOperator op = matcher.CompareWithOperator;
-            string compareToValue = matcher.CompareToValue;
+        List<TriggerKey> outList;
+        StringOperator op = matcher.CompareWithOperator;
+        string compareToValue = matcher.CompareToValue;
 
-            if (StringOperator.Equality.Equals(op))
+        if (StringOperator.Equality.Equals(op))
+        {
+            if (triggersByGroup.TryGetValue(compareToValue, out var grpMap))
             {
-                if (triggersByGroup.TryGetValue(compareToValue, out var grpMap))
+                outList = new List<TriggerKey>(grpMap.Count);
+                foreach (KeyValuePair<TriggerKey, TriggerWrapper> entry in grpMap)
                 {
-                    foreach (TriggerWrapper tw in grpMap.Values)
-                    {
-                        outList.Add(tw.TriggerKey);
-                    }
+                    outList.Add(entry.Value.TriggerKey);
                 }
             }
             else
             {
-                foreach (KeyValuePair<string, Dictionary<TriggerKey, TriggerWrapper>> entry in triggersByGroup)
+                outList = [];
+            }
+        }
+        else
+        {
+            outList = [];
+            foreach (KeyValuePair<string, Dictionary<TriggerKey, TriggerWrapper>> candidatePair in triggersByGroup)
+            {
+                if (op.Evaluate(candidatePair.Key, compareToValue))
                 {
-                    if (op.Evaluate(entry.Key, compareToValue))
+                    foreach (KeyValuePair<TriggerKey, TriggerWrapper> entry in candidatePair.Value)
                     {
-                        foreach (TriggerWrapper triggerWrapper in entry.Value.Values)
-                        {
-                            outList.Add(triggerWrapper.TriggerKey);
-                        }
+                        outList.Add(entry.Value.TriggerKey);
                     }
                 }
             }
-            return outList;
         }
+
+        return outList;
     }
 
     /// <summary>
     /// Get the names of all of the <see cref="IJob" />
     /// groups.
     /// </summary>
-    public virtual ValueTask<List<string>> GetJobGroupNames(
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask<List<string>> GetJobGroupNames(CancellationToken cancellationToken = default)
     {
-        return new ValueTask<List<string>>(new List<string>(jobsByGroup.Keys));
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return [..jobsByGroup.Keys];
+        }
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
     /// <summary>
     /// Get the names of all of the <see cref="ITrigger" /> groups.
     /// </summary>
-    public virtual ValueTask<List<string>> GetTriggerGroupNames(
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask<List<string>> GetTriggerGroupNames(CancellationToken cancellationToken = default)
     {
-        return new ValueTask<List<string>>(new List<string>(triggersByGroup.Keys));
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return [..triggersByGroup.Keys];
+        }
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
     /// <summary>
-    /// Get all of the Triggers that are associated to the given Job.
+    /// Get all the Triggers that are associated to the given Job.
     /// <para>
     /// If there are no matches, a zero-length array should be returned.
     /// </para>
     /// </summary>
-    public virtual ValueTask<List<IOperableTrigger>> GetTriggersForJob(
-        JobKey jobKey,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask<List<IOperableTrigger>> GetTriggersForJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        return new ValueTask<List<IOperableTrigger>>(GetTriggersForJobInternal(jobKey).ToList());
-    }
-
-    private IOperableTrigger[] GetTriggersForJobInternal(JobKey jobKey)
-    {
-        lock (lockObject)
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            if (triggersByJob.TryGetValue(jobKey, out var jobList))
+            if (triggersByJob.TryGetValue(jobKey, out List<TriggerWrapper>? jobList))
             {
-                var trigList = new IOperableTrigger[jobList.Count];
+                var trigList = new List<IOperableTrigger>(jobList.Count);
                 for (var i = 0; i < jobList.Count; i++)
                 {
-                    trigList[i] = (IOperableTrigger) jobList[i].Trigger.Clone();
+                    trigList.Add((IOperableTrigger) jobList[i].Trigger.Clone());
                 }
                 return trigList;
             }
+
+            return [];
+        }
+        finally
+        {
+            lockObject.Release();
+        }
+    }
+
+    private TriggerKey[] GetTriggerKeysForJobNoLock(JobKey jobKey)
+    {
+        if (triggersByJob.TryGetValue(jobKey, out List<TriggerWrapper>? jobList))
+        {
+            var trigList = new TriggerKey[jobList.Count];
+            for (var i = 0; i < jobList.Count; i++)
+            {
+                trigList[i] = jobList[i].Trigger.Key;
+            }
+            return trigList;
         }
 
-        return Array.Empty<IOperableTrigger>();
+        return [];
     }
 
     /// <summary>
@@ -1101,32 +1219,24 @@ public class RAMJobStore : IJobStore
     /// <remarks>
     /// This method should only be executed while holding the instance level lock.
     /// </remarks>
-    private List<TriggerWrapper> GetTriggerWrappersForJobInternal(JobKey jobKey)
+    private List<TriggerWrapper> GetTriggerWrappersForJobNoLock(JobKey jobKey)
     {
-        if (triggersByJob.TryGetValue(jobKey, out var jobList))
-        {
-            return jobList;
-        }
-
-        return new List<TriggerWrapper>();
+        return triggersByJob.TryGetValue(jobKey, out var jobList) ? jobList : [];
     }
 
     /// <summary>
     /// Gets the trigger wrappers for calendar.
     /// </summary>
-    /// <param name="calName">Name of the cal.</param>
+    /// <param name="name">Name of the cal.</param>
     /// <returns></returns>
-    private IEnumerable<TriggerWrapper> GetTriggerWrappersForCalendar(string calName)
+    private IEnumerable<TriggerWrapper> GetTriggerWrappersForCalendarNoLock(string name)
     {
-        lock (lockObject)
+        foreach (var tw in triggersByKey.Values)
         {
-            foreach (var tw in triggersByKey.Values)
+            var tcalName = tw.Trigger.CalendarName;
+            if (tcalName is not null && tcalName == name)
             {
-                var tcalName = tw.Trigger.CalendarName;
-                if (tcalName is not null && tcalName.Equals(calName))
-                {
-                    yield return tw;
-                }
+                yield return tw;
             }
         }
     }
@@ -1134,39 +1244,43 @@ public class RAMJobStore : IJobStore
     /// <summary>
     /// Pause the <see cref="ITrigger" /> with the given name.
     /// </summary>
-    public virtual ValueTask PauseTrigger(
-        TriggerKey triggerKey,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask PauseTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        PauseTriggerInternal(triggerKey);
-        return default;
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            PauseTriggerNoLock(triggerKey);
+        }
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
-    private void PauseTriggerInternal(TriggerKey triggerKey)
+    private void PauseTriggerNoLock(TriggerKey triggerKey)
     {
-        lock (lockObject)
+        // does the trigger exist?
+        if (!triggersByKey.TryGetValue(triggerKey, out var tw))
         {
-            // does the trigger exist?
-            if (!triggersByKey.TryGetValue(triggerKey, out var tw))
-            {
-                return;
-            }
-            // if the trigger is "complete" pausing it does not make sense...
-            if (tw.state == InternalTriggerState.Complete)
-            {
-                return;
-            }
-
-            if (tw.state == InternalTriggerState.Blocked)
-            {
-                tw.state = InternalTriggerState.PausedAndBlocked;
-            }
-            else
-            {
-                tw.state = InternalTriggerState.Paused;
-            }
-            timeTriggers.Remove(tw);
+            return;
         }
+
+        // if the trigger is "complete" pausing it does not make sense...
+        if (tw.state == InternalTriggerState.Complete)
+        {
+            return;
+        }
+
+        if (tw.state == InternalTriggerState.Blocked)
+        {
+            tw.state = InternalTriggerState.PausedAndBlocked;
+        }
+        else
+        {
+            tw.state = InternalTriggerState.Paused;
+        }
+
+        timeTriggers.Remove(tw);
     }
 
     /// <summary>
@@ -1177,70 +1291,77 @@ public class RAMJobStore : IJobStore
     /// paused.
     /// </para>
     /// </summary>
-    public virtual ValueTask<List<string>> PauseTriggers(
-        GroupMatcher<TriggerKey> matcher,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask<List<string>> PauseTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
-        return new ValueTask<List<string>>(PauseTriggersInternal(matcher));
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return PauseTriggersNoLock(matcher);
+        }
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
-    private List<string> PauseTriggersInternal(GroupMatcher<TriggerKey> matcher)
+    private List<string> PauseTriggersNoLock(GroupMatcher<TriggerKey> matcher)
     {
-        lock (lockObject)
-        {
-            var pausedGroups = new HashSet<string>();
+        var pausedGroups = new HashSet<string>();
 
-            StringOperator op = matcher.CompareWithOperator;
-            if (StringOperator.Equality.Equals(op))
+        StringOperator op = matcher.CompareWithOperator;
+        if (StringOperator.Equality.Equals(op))
+        {
+            if (pausedTriggerGroups.Add(matcher.CompareToValue))
             {
-                if (pausedTriggerGroups.Add(matcher.CompareToValue))
-                {
-                    pausedGroups.Add(matcher.CompareToValue);
-                }
+                pausedGroups.Add(matcher.CompareToValue);
             }
-            else
+        }
+        else
+        {
+            foreach (string group in triggersByGroup.Keys)
             {
-                foreach (string group in triggersByGroup.Keys)
+                if (op.Evaluate(group, matcher.CompareToValue))
                 {
-                    if (op.Evaluate(group, matcher.CompareToValue))
+                    if (pausedTriggerGroups.Add(matcher.CompareToValue))
                     {
-                        if (pausedTriggerGroups.Add(matcher.CompareToValue))
-                        {
-                            pausedGroups.Add(group);
-                        }
+                        pausedGroups.Add(group);
                     }
                 }
             }
-
-            foreach (string pausedGroup in pausedGroups)
-            {
-                var keys = GetTriggerKeysInternal(GroupMatcher<TriggerKey>.GroupEquals(pausedGroup));
-
-                foreach (TriggerKey key in keys)
-                {
-                    PauseTriggerInternal(key);
-                }
-            }
-
-            return pausedGroups.ToList();
         }
+
+        foreach (string pausedGroup in pausedGroups)
+        {
+            var keys = GetTriggerKeysNoLock(GroupMatcher<TriggerKey>.GroupEquals(pausedGroup));
+
+            foreach (TriggerKey key in keys)
+            {
+                PauseTriggerNoLock(key);
+            }
+        }
+
+        return [..pausedGroups];
     }
 
     /// <summary>
     /// Pause the <see cref="IJobDetail" /> with the given
     /// name - by pausing all of its current <see cref="ITrigger" />s.
     /// </summary>
-    public virtual ValueTask PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
+    public virtual async ValueTask PauseJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        lock (lockObject)
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            var triggersForJob = GetTriggersForJobInternal(jobKey);
-            foreach (IOperableTrigger trigger in triggersForJob)
+            var triggerKeysForJob = GetTriggerKeysForJobNoLock(jobKey);
+            foreach (TriggerKey key in triggerKeysForJob)
             {
-                PauseTriggerInternal(trigger.Key);
+                PauseTriggerNoLock(key);
             }
         }
-        return default;
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
     /// <summary>
@@ -1252,13 +1373,12 @@ public class RAMJobStore : IJobStore
     /// paused.
     /// </para>
     /// </summary>
-    public virtual ValueTask<List<string>> PauseJobs(
-        GroupMatcher<JobKey> matcher,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask<List<string>> PauseJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
-        lock (lockObject)
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            List<string> pausedGroups = new List<string>();
+            List<string> pausedGroups = [];
             StringOperator op = matcher.CompareWithOperator;
             if (StringOperator.Equality.Equals(op))
             {
@@ -1283,16 +1403,21 @@ public class RAMJobStore : IJobStore
 
             foreach (string groupName in pausedGroups)
             {
-                foreach (JobKey jobKey in GetJobKeysInternal(GroupMatcher<JobKey>.GroupEquals(groupName)))
+                foreach (JobKey jobKey in GetJobKeysNoLock(GroupMatcher<JobKey>.GroupEquals(groupName)))
                 {
-                    var triggers = GetTriggersForJobInternal(jobKey);
-                    foreach (IOperableTrigger trigger in triggers)
+                    var triggerKeys = GetTriggerKeysForJobNoLock(jobKey);
+                    foreach (TriggerKey key in triggerKeys)
                     {
-                        PauseTriggerInternal(trigger.Key);
+                        PauseTriggerNoLock(key);
                     }
                 }
             }
-            return new ValueTask<List<string>>(pausedGroups);
+
+            return pausedGroups;
+        }
+        finally
+        {
+            lockObject.Release();
         }
     }
 
@@ -1303,46 +1428,48 @@ public class RAMJobStore : IJobStore
     /// If the <see cref="ITrigger" /> missed one or more fire-times, then the
     /// <see cref="ITrigger" />'s misfire instruction will be applied.
     /// </remarks>
-    public virtual ValueTask ResumeTrigger(
-        TriggerKey triggerKey,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask ResumeTrigger(TriggerKey triggerKey, CancellationToken cancellationToken = default)
     {
-        ResumeTriggerInternal(triggerKey);
-        return default;
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            await ResumeTriggerNoLock(triggerKey).ConfigureAwait(false);
+        }
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
-    private void ResumeTriggerInternal(TriggerKey triggerKey)
+    private async ValueTask ResumeTriggerNoLock(TriggerKey triggerKey)
     {
-        lock (lockObject)
+        // does the trigger exist?
+        if (!triggersByKey.TryGetValue(triggerKey, out var tw))
         {
-            // does the trigger exist?
-            if (!triggersByKey.TryGetValue(triggerKey, out var tw))
-            {
-                return;
-            }
+            return;
+        }
 
-            // if the trigger is not paused resuming it does not make sense...
-            if (tw.state != InternalTriggerState.Paused &&
-                tw.state != InternalTriggerState.PausedAndBlocked)
-            {
-                return;
-            }
+        // if the trigger is not paused resuming it does not make sense...
+        if (tw.state != InternalTriggerState.Paused &&
+            tw.state != InternalTriggerState.PausedAndBlocked)
+        {
+            return;
+        }
 
-            if (blockedJobs.Contains(tw.JobKey))
-            {
-                tw.state = InternalTriggerState.Blocked;
-            }
-            else
-            {
-                tw.state = InternalTriggerState.Waiting;
-            }
+        if (blockedJobs.Contains(tw.JobKey))
+        {
+            tw.state = InternalTriggerState.Blocked;
+        }
+        else
+        {
+            tw.state = InternalTriggerState.Waiting;
+        }
 
-            ApplyMisfire(tw);
+        await ApplyMisfireNoLock(tw).ConfigureAwait(false);
 
-            if (tw.state == InternalTriggerState.Waiting)
-            {
-                timeTriggers.Add(tw);
-            }
+        if (tw.state == InternalTriggerState.Waiting)
+        {
+            timeTriggers.Add(tw);
         }
     }
 
@@ -1354,60 +1481,67 @@ public class RAMJobStore : IJobStore
     /// <see cref="ITrigger" />'s misfire instruction will be applied.
     /// </para>
     /// </summary>
-    public virtual ValueTask<List<string>> ResumeTriggers(
-        GroupMatcher<TriggerKey> matcher,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask<List<string>> ResumeTriggers(GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default)
     {
-        return new ValueTask<List<string>>(ResumeTriggersInternal(matcher).ToList());
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
+        {
+            return await ResumeTriggersNoLock(matcher).ConfigureAwait(false);
+        }
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
-    private HashSet<string> ResumeTriggersInternal(GroupMatcher<TriggerKey> matcher)
+    private async ValueTask<List<string>> ResumeTriggersNoLock(GroupMatcher<TriggerKey> matcher)
     {
-        lock (lockObject)
-        {
-            var groups = new HashSet<string>();
-            var keys = GetTriggerKeysInternal(matcher);
+        var groups = new HashSet<string>();
+        var keys = GetTriggerKeysNoLock(matcher);
 
-            foreach (TriggerKey triggerKey in keys)
+        foreach (TriggerKey triggerKey in keys)
+        {
+            groups.Add(triggerKey.Group);
+            if (triggersByKey.TryGetValue(triggerKey, out var tw))
             {
-                groups.Add(triggerKey.Group);
-                if (triggersByKey.TryGetValue(triggerKey, out var tw))
+                string jobGroup = tw.JobKey.Group;
+                if (pausedJobGroups.Contains(jobGroup))
                 {
-                    string jobGroup = tw.JobKey.Group;
-                    if (pausedJobGroups.Contains(jobGroup))
-                    {
-                        continue;
-                    }
-                }
-                ResumeTriggerInternal(triggerKey);
-            }
-            // Find all matching paused trigger groups, and then remove them.
-            StringOperator op = matcher.CompareWithOperator;
-            var pausedGroups = new List<string>();
-            var matcherGroup = matcher.CompareToValue;
-            if (StringOperator.Equality.Equals(op))
-            {
-                if (pausedTriggerGroups.Contains(matcherGroup))
-                {
-                    pausedGroups.Add(matcher.CompareToValue);
-                }
-                else
-                {
-                    foreach (string group in pausedTriggerGroups)
-                    {
-                        if (op.Evaluate(group, matcherGroup))
-                        {
-                            pausedGroups.Add(group);
-                        }
-                    }
-                }
-                foreach (string pausedGroup in pausedGroups)
-                {
-                    pausedTriggerGroups.Remove(pausedGroup);
+                    continue;
                 }
             }
-            return groups;
+
+            await ResumeTriggerNoLock(triggerKey).ConfigureAwait(false);
         }
+
+        // Find all matching paused trigger groups, and then remove them.
+        StringOperator op = matcher.CompareWithOperator;
+        var pausedGroups = new List<string>();
+        var matcherGroup = matcher.CompareToValue;
+        if (StringOperator.Equality.Equals(op))
+        {
+            if (pausedTriggerGroups.Contains(matcherGroup))
+            {
+                pausedGroups.Add(matcher.CompareToValue);
+            }
+            else
+            {
+                foreach (string group in pausedTriggerGroups)
+                {
+                    if (op.Evaluate(group, matcherGroup))
+                    {
+                        pausedGroups.Add(group);
+                    }
+                }
+            }
+
+            foreach (string pausedGroup in pausedGroups)
+            {
+                pausedTriggerGroups.Remove(pausedGroup);
+            }
+        }
+
+        return [..groups];
     }
 
     /// <summary>
@@ -1419,17 +1553,21 @@ public class RAMJobStore : IJobStore
     /// instruction will be applied.
     /// </para>
     /// </summary>
-    public virtual ValueTask ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
+    public virtual async ValueTask ResumeJob(JobKey jobKey, CancellationToken cancellationToken = default)
     {
-        lock (lockObject)
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            var triggersForJob = GetTriggersForJobInternal(jobKey);
-            foreach (IOperableTrigger trigger in triggersForJob)
+            var triggerKeysForJob = GetTriggerKeysForJobNoLock(jobKey);
+            foreach (TriggerKey key in triggerKeysForJob)
             {
-                ResumeTriggerInternal(trigger.Key);
+                await ResumeTriggerNoLock(key).ConfigureAwait(false);
             }
         }
-        return default;
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
     /// <summary>
@@ -1441,14 +1579,13 @@ public class RAMJobStore : IJobStore
     /// misfire instruction will be applied.
     /// </para>
     /// </summary>
-    public virtual ValueTask<List<string>> ResumeJobs(
-        GroupMatcher<JobKey> matcher,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask<List<string>> ResumeJobs(GroupMatcher<JobKey> matcher, CancellationToken cancellationToken = default)
     {
-        lock (lockObject)
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
             var resumedGroups = new List<string>();
-            var keys = GetJobKeysInternal(matcher);
+            var keys = GetJobKeysNoLock(matcher);
 
             foreach (string pausedJobGroup in pausedJobGroups)
             {
@@ -1465,13 +1602,17 @@ public class RAMJobStore : IJobStore
 
             foreach (JobKey key in keys)
             {
-                var triggers = GetTriggersForJobInternal(key);
-                foreach (IOperableTrigger trigger in triggers)
+                var triggerKeys = GetTriggerKeysForJobNoLock(key);
+                foreach (TriggerKey triggerKey in triggerKeys)
                 {
-                    ResumeTriggerInternal(trigger.Key);
+                    await ResumeTriggerNoLock(triggerKey).ConfigureAwait(false);
                 }
             }
-            return new ValueTask<List<string>>(resumedGroups);
+            return resumedGroups;
+        }
+        finally
+        {
+            lockObject.Release();
         }
     }
 
@@ -1484,16 +1625,20 @@ public class RAMJobStore : IJobStore
     /// </para>
     /// </summary>
     /// <seealso cref="ResumeAll(CancellationToken)" />
-    public virtual ValueTask PauseAll(CancellationToken cancellationToken = default)
+    public virtual async ValueTask PauseAll(CancellationToken cancellationToken = default)
     {
-        lock (lockObject)
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
             foreach (string groupName in triggersByGroup.Keys)
             {
-                PauseTriggersInternal(GroupMatcher<TriggerKey>.GroupEquals(groupName));
+                PauseTriggersNoLock(GroupMatcher<TriggerKey>.GroupEquals(groupName));
             }
         }
-        return default;
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
     /// <summary>
@@ -1505,22 +1650,26 @@ public class RAMJobStore : IJobStore
     /// </para>
     /// </summary>
     /// <seealso cref="PauseAll(CancellationToken)" />
-    public virtual ValueTask ResumeAll(CancellationToken cancellationToken = default)
+    public virtual async ValueTask ResumeAll(CancellationToken cancellationToken = default)
     {
-        lock (lockObject)
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
             // TODO need a match all here!
             pausedJobGroups.Clear();
 
             foreach (string groupName in triggersByGroup.Keys)
             {
-                ResumeTriggersInternal(GroupMatcher<TriggerKey>.GroupEquals(groupName));
+                await ResumeTriggersNoLock(GroupMatcher<TriggerKey>.GroupEquals(groupName)).ConfigureAwait(false);
             }
 
             // make sure we don't have anything left in groups
             pausedTriggerGroups.Clear();
         }
-        return default;
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
     /// <summary>
@@ -1532,7 +1681,7 @@ public class RAMJobStore : IJobStore
     /// one value to another, or from a given value to <see langword="null"/>; otherwise,
     /// <see langword="false"/>.
     /// </returns>
-    private bool ApplyMisfire(TriggerWrapper tw)
+    private async ValueTask<bool> ApplyMisfireNoLock(TriggerWrapper tw)
     {
         if (tw.Trigger.MisfireInstruction == MisfireInstruction.IgnoreMisfirePolicy)
         {
@@ -1557,21 +1706,18 @@ public class RAMJobStore : IJobStore
             calendarsByName.TryGetValue(tw.Trigger.CalendarName, out cal);
         }
 
-        signaler.NotifyTriggerListenersMisfired(tw.Trigger.Clone()).ConfigureAwait(false).GetAwaiter().GetResult();
+        await signaler.NotifyTriggerListenersMisfired(tw.Trigger.Clone()).ConfigureAwait(false);
         tw.Trigger.UpdateAfterMisfire(cal);
 
         var updatedTnft = tw.Trigger.GetNextFireTimeUtc();
         if (!updatedTnft.HasValue)
         {
             tw.state = InternalTriggerState.Complete;
-            signaler.NotifySchedulerListenersFinalized(tw.Trigger).ConfigureAwait(false).GetAwaiter().GetResult();
+            await signaler.NotifySchedulerListenersFinalized(tw.Trigger).ConfigureAwait(false);
 
             // We do not remove the trigger that we applied the misfire for (since its next fire time has been
             // updated). Instead we remove a trigger with the same trigger key, but with no next fire time set.
-            lock (lockObject)
-            {
-                timeTriggers.Remove(tw);
-            }
+            timeTriggers.Remove(tw);
         }
         else if (tnft.GetValueOrDefault() == updatedTnft.GetValueOrDefault())
         {
@@ -1586,18 +1732,15 @@ public class RAMJobStore : IJobStore
     /// by the calling scheduler.
     /// </summary>
     /// <seealso cref="ITrigger" />
-    public virtual ValueTask<List<IOperableTrigger>> AcquireNextTriggers(
-        DateTimeOffset noLaterThan,
-        int maxCount,
-        TimeSpan timeWindow,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask<List<IOperableTrigger>> AcquireNextTriggers(DateTimeOffset noLaterThan, int maxCount, TimeSpan timeWindow, CancellationToken cancellationToken = default)
     {
-        lock (lockObject)
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
             // return empty list if store has no triggers.
             if (timeTriggers.Count == 0)
             {
-                return new ValueTask<List<IOperableTrigger>>(new List<IOperableTrigger>());
+                return [];
             }
 
             var result = new List<IOperableTrigger>();
@@ -1628,7 +1771,7 @@ public class RAMJobStore : IJobStore
                     continue;
                 }
 
-                if (ApplyMisfire(tw))
+                if (await ApplyMisfireNoLock(tw).ConfigureAwait(false))
                 {
                     // If - after applying the misfire policy - the trigger is still scheduled to fire, we'll
                     // add it back to the set of triggers. We cannot use the "cached" next fire time here as
@@ -1637,6 +1780,7 @@ public class RAMJobStore : IJobStore
                     {
                         timeTriggers.Add(tw);
                     }
+
                     continue;
                 }
 
@@ -1697,7 +1841,11 @@ public class RAMJobStore : IJobStore
                 }
             }
 
-            return new ValueTask<List<IOperableTrigger>>(result);
+            return result;
+        }
+        finally
+        {
+            lockObject.Release();
         }
     }
 
@@ -1706,11 +1854,10 @@ public class RAMJobStore : IJobStore
     /// fire the given <see cref="ITrigger" />, that it had previously acquired
     /// (reserved).
     /// </summary>
-    public virtual ValueTask ReleaseAcquiredTrigger(
-        IOperableTrigger trigger,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask ReleaseAcquiredTrigger(IOperableTrigger trigger, CancellationToken cancellationToken = default)
     {
-        lock (lockObject)
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
             if (triggersByKey.TryGetValue(trigger.Key, out var tw) && tw.state == InternalTriggerState.Acquired)
             {
@@ -1718,7 +1865,10 @@ public class RAMJobStore : IJobStore
                 timeTriggers.Add(tw);
             }
         }
-        return default;
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
     /// <summary>
@@ -1726,13 +1876,12 @@ public class RAMJobStore : IJobStore
     /// given <see cref="ITrigger" /> (executing its associated <see cref="IJob" />),
     /// that it had previously acquired (reserved).
     /// </summary>
-    public virtual ValueTask<List<TriggerFiredResult>> TriggersFired(
-        IReadOnlyCollection<IOperableTrigger> triggers,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask<List<TriggerFiredResult>> TriggersFired(IReadOnlyCollection<IOperableTrigger> triggers, CancellationToken cancellationToken = default)
     {
-        lock (lockObject)
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
-            List<TriggerFiredResult> results = new List<TriggerFiredResult>();
+            List<TriggerFiredResult> results = [];
 
             foreach (IOperableTrigger trigger in triggers)
             {
@@ -1757,6 +1906,7 @@ public class RAMJobStore : IJobStore
                         continue;
                     }
                 }
+
                 DateTimeOffset? prevFireTime = trigger.GetPreviousFireTimeUtc();
                 // in case trigger was replaced between acquiring and firing
                 timeTriggers.Remove(tw);
@@ -1766,12 +1916,12 @@ public class RAMJobStore : IJobStore
                 //tw.state = TriggerWrapper.STATE_EXECUTING;
                 tw.state = InternalTriggerState.Waiting;
 
-                var jobDetail = RetrieveJobInternal(trigger.JobKey);
+                var jobDetail = jobsByKey[trigger.JobKey].JobDetail.Clone();
                 TriggerFiredBundle bndle = new TriggerFiredBundle(
-                    jobDetail!,
+                    jobDetail,
                     trigger,
                     cal,
-                    false,
+                    jobIsRecovering: false,
                     timeProvider.GetUtcNow(),
                     trigger.GetPreviousFireTimeUtc(),
                     prevFireTime,
@@ -1781,7 +1931,7 @@ public class RAMJobStore : IJobStore
 
                 if (job.ConcurrentExecutionDisallowed)
                 {
-                    var triggerWrappersForJob = GetTriggerWrappersForJobInternal(job.Key);
+                    var triggerWrappersForJob = GetTriggerWrappersForJobNoLock(job.Key);
 
                     for (var i = 0; i < triggerWrappersForJob.Count; i++)
                     {
@@ -1791,6 +1941,7 @@ public class RAMJobStore : IJobStore
                         {
                             ttw.state = InternalTriggerState.Blocked;
                         }
+
                         if (ttw.state == InternalTriggerState.Paused)
                         {
                             ttw.state = InternalTriggerState.PausedAndBlocked;
@@ -1798,6 +1949,7 @@ public class RAMJobStore : IJobStore
 
                         timeTriggers.Remove(ttw);
                     }
+
                     blockedJobs.Add(job.Key);
                 }
                 else if (tw.Trigger.GetNextFireTimeUtc() is not null)
@@ -1807,7 +1959,12 @@ public class RAMJobStore : IJobStore
 
                 results.Add(new TriggerFiredResult(bndle));
             }
-            return new ValueTask<List<TriggerFiredResult>>(results);
+
+            return results;
+        }
+        finally
+        {
+            lockObject.Release();
         }
     }
 
@@ -1818,13 +1975,10 @@ public class RAMJobStore : IJobStore
     /// in the given <see cref="IJobDetail" /> should be updated if the <see cref="IJob" />
     /// is stateful.
     /// </summary>
-    public virtual ValueTask TriggeredJobComplete(
-        IOperableTrigger trigger,
-        IJobDetail jobDetail,
-        SchedulerInstruction triggerInstCode,
-        CancellationToken cancellationToken = default)
+    public virtual async ValueTask TriggeredJobComplete(IOperableTrigger trigger, IJobDetail jobDetail, SchedulerInstruction triggerInstCode, CancellationToken cancellationToken = default)
     {
-        lock (lockObject)
+        await lockObject.WaitAsync(cancellationToken).ConfigureAwait(false);
+        try
         {
             // It's possible that the job is null if:
             //   1- it was deleted during execution
@@ -1843,11 +1997,12 @@ public class RAMJobStore : IJobStore
                     jd = jd.GetJobBuilder().SetJobData(newData).Build();
                     jw.JobDetail = jd;
                 }
+
                 if (jd.ConcurrentExecutionDisallowed)
                 {
                     blockedJobs.Remove(jd.Key);
 
-                    var triggerWrappersForJob = GetTriggerWrappersForJobInternal(jd.Key);
+                    var triggerWrappersForJob = GetTriggerWrappersForJobNoLock(jd.Key);
 
                     for (var i = 0; i < triggerWrappersForJob.Count; i++)
                     {
@@ -1858,13 +2013,14 @@ public class RAMJobStore : IJobStore
                             ttw.state = InternalTriggerState.Waiting;
                             timeTriggers.Add(ttw);
                         }
+
                         if (ttw.state == InternalTriggerState.PausedAndBlocked)
                         {
                             ttw.state = InternalTriggerState.Paused;
                         }
                     }
 
-                    signaler.SignalSchedulingChange(null, cancellationToken).GetAwaiter().GetResult();
+                    await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);
                 }
             }
             else
@@ -1887,7 +2043,7 @@ public class RAMJobStore : IJobStore
                         d = tw.Trigger.GetNextFireTimeUtc();
                         if (!d.HasValue)
                         {
-                            RemoveTriggerInternal(trigger.Key);
+                            await RemoveTriggerNoLock(trigger.Key, removeOrphanedJob: true, cancellationToken).ConfigureAwait(false);
                         }
                         else
                         {
@@ -1896,36 +2052,39 @@ public class RAMJobStore : IJobStore
                     }
                     else
                     {
-                        RemoveTriggerInternal(trigger.Key);
-                        signaler.SignalSchedulingChange(null, cancellationToken).GetAwaiter().GetResult();
+                        await RemoveTriggerNoLock(trigger.Key, removeOrphanedJob: true, cancellationToken).ConfigureAwait(false);
+                        await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);
                     }
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetTriggerComplete)
                 {
                     tw.state = InternalTriggerState.Complete;
                     timeTriggers.Remove(tw);
-                    signaler.SignalSchedulingChange(null, cancellationToken).GetAwaiter().GetResult();
+                    await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetTriggerError)
                 {
                     logger.LogInformation("Trigger {TriggerKey} set to ERROR state.", trigger.Key);
                     tw.state = InternalTriggerState.Error;
-                    signaler.SignalSchedulingChange(null, cancellationToken).GetAwaiter().GetResult();
+                    await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersError)
                 {
                     logger.LogInformation("All triggers of Job {JobKey} set to ERROR state.", trigger.JobKey);
                     SetAllTriggersOfJobToState(trigger.JobKey, InternalTriggerState.Error);
-                    signaler.SignalSchedulingChange(null, cancellationToken).GetAwaiter().GetResult();
+                    await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);
                 }
                 else if (triggerInstCode == SchedulerInstruction.SetAllJobTriggersComplete)
                 {
                     SetAllTriggersOfJobToState(trigger.JobKey, InternalTriggerState.Complete);
-                    signaler.SignalSchedulingChange(null, cancellationToken).GetAwaiter().GetResult();
+                    await signaler.SignalSchedulingChange(candidateNewNextFireTimeUtc: null, cancellationToken).ConfigureAwait(false);
                 }
             }
         }
-        return default;
+        finally
+        {
+            lockObject.Release();
+        }
     }
 
     /// <summary>
@@ -1970,7 +2129,7 @@ public class RAMJobStore : IJobStore
     /// </remarks>
     protected virtual void SetAllTriggersOfJobToState(JobKey jobKey, InternalTriggerState state)
     {
-        var triggerWrappersForJob = GetTriggerWrappersForJobInternal(jobKey);
+        var triggerWrappersForJob = GetTriggerWrappersForJobNoLock(jobKey);
 
         for (var i = 0; i < triggerWrappersForJob.Count; i++)
         {
@@ -1988,16 +2147,17 @@ public class RAMJobStore : IJobStore
     /// Peeks the triggers.
     /// </summary>
     /// <returns></returns>
-    protected internal virtual ValueTask<string> PeekTriggers()
+    internal async ValueTask<string> PeekTriggers()
     {
         StringBuilder str = new StringBuilder();
 
-        lock (lockObject)
+        await lockObject.WaitAsync().ConfigureAwait(false);
+        try
         {
             foreach (TriggerWrapper tw in triggersByKey.Values)
             {
                 str.Append(tw.Trigger.Key.Name);
-                str.Append("/");
+                str.Append('/');
             }
 
             str.Append(" | ");
@@ -2008,15 +2168,17 @@ public class RAMJobStore : IJobStore
                 str.Append("->");
             }
         }
+        finally
+        {
+            lockObject.Release();
+        }
 
-        return new ValueTask<string>(str.ToString());
+        return str.ToString();
     }
 
     /// <seealso cref="IJobStore.GetPausedTriggerGroups" />
-    public virtual ValueTask<List<string>> GetPausedTriggerGroups(
-        CancellationToken cancellationToken = default)
+    public virtual ValueTask<List<string>> GetPausedTriggerGroups(CancellationToken cancellationToken = default)
     {
-        var data = new List<string>(pausedTriggerGroups);
-        return new ValueTask<List<string>>(data);
+        return new ValueTask<List<string>>([..pausedTriggerGroups]);
     }
 }
