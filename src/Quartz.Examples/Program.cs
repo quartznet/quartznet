@@ -21,7 +21,6 @@
 
 using System.Reflection;
 
-using Quartz.Util;
 using Spectre.Console;
 
 namespace Quartz.Examples;
@@ -84,7 +83,7 @@ public class Program
             Console.Write("> ");
             int num = Convert.ToInt32(Console.ReadLine());
             Type eType = typeMap[num];
-            IExample example = ObjectUtils.InstantiateType<IExample>(eType);
+            IExample example = (IExample) eType.GetConstructor(Type.EmptyTypes)!.Invoke([]);
             await example.Run().ConfigureAwait(false);
             Console.WriteLine("Example run successfully.");
         }

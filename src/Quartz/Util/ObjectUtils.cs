@@ -32,7 +32,7 @@ namespace Quartz.Util;
 /// </summary>
 /// <author>Aleksandar Seovic</author>
 /// <author>Marko Lahma</author>
-public static class ObjectUtils
+internal static class ObjectUtils
 {
     /// <summary>
     /// Convert the value to the required <see cref="System.Type"/> (if necessary from a string).
@@ -58,15 +58,18 @@ public static class ObjectUtils
             {
                 return typeConverter.ConvertFrom(null, CultureInfo.InvariantCulture, newValue);
             }
+
             typeConverter = TypeDescriptor.GetConverter(newValue.GetType());
             if (typeConverter.CanConvertTo(requiredType))
             {
                 return typeConverter.ConvertTo(null, CultureInfo.InvariantCulture, newValue, requiredType);
             }
+
             if (requiredType == typeof(Type))
             {
-                return Type.GetType(newValue.ToString()!, true);
+                return Type.GetType(newValue.ToString()!, throwOnError: true);
             }
+
             if (newValue.GetType().IsEnum)
             {
                 // If we couldn't convert the type, but it's an enum type, try convert it as an int
@@ -97,11 +100,16 @@ public static class ObjectUtils
         return null;
     }
 
-
     /// <summary>
     /// Instantiates an instance of the type specified.
     /// </summary>
     public static T InstantiateType<T>(Type? type)
+    {
+        ConstructorInfo ci = GetDefaultConstructor(type);
+        return (T) ci.Invoke([]);
+    }
+
+    public static ConstructorInfo GetDefaultConstructor(Type? type)
     {
         if (type is null)
         {
@@ -113,7 +121,8 @@ public static class ObjectUtils
         {
             ThrowHelper.ThrowArgumentException("Cannot instantiate type which has no empty constructor", type.Name);
         }
-        return (T) ci.Invoke(Array.Empty<object>());
+
+        return ci;
     }
 
     /// <summary>
@@ -212,7 +221,7 @@ public static class ObjectUtils
             value = ConvertValueIfNecessary(mi.GetParameters()[0].ParameterType, value);
         }
 
-        mi.Invoke(target, new[] { value });
+        mi.Invoke(target, [value]);
     }
 
     public static TimeSpan GetTimeSpanValueForProperty(PropertyInfo pi, object? value)
@@ -244,19 +253,24 @@ public static class ObjectUtils
 
     public static bool IsAttributePresent(Type typeToExamine, Type attributeType)
     {
-        return typeToExamine.GetCustomAttributes(attributeType, true).Any();
+        return typeToExamine.GetCustomAttributes(attributeType, inherit: true).Length > 0;
     }
 
     public static bool IsAnyInterfaceAttributePresent(Type typeToExamine, Type attributeType)
     {
         if (IsAttributePresent(typeToExamine, attributeType))
+        {
             return true;
+        }
 
         foreach (var type in typeToExamine.GetInterfaces())
         {
             if (IsAnyInterfaceAttributePresent(type, attributeType))
+            {
                 return true;
+            }
         }
+
         return false;
     }
 }
