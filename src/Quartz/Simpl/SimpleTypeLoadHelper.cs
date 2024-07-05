@@ -40,18 +40,18 @@ internal sealed class SimpleTypeLoadHelper : ITypeLoadHelper
     /// <inheritdoc />
     public Type? LoadType(string? name)
     {
-        if (string.IsNullOrEmpty(name) || name == null)
+        if (string.IsNullOrEmpty(name) || name is null)
         {
             return null;
         }
         var type = Type.GetType(name, false);
-        if (type == null && name.EndsWith(QuartzAssemblyTypePostfix, StringComparison.Ordinal))
+        if (type is null && name.EndsWith(QuartzAssemblyTypePostfix, StringComparison.Ordinal))
         {
             // we've moved jobs to new assembly try that too
             var newName = name.Substring(0, name.Length - QuartzAssemblyTypePostfix.Length) + QuartzJobsAssemblyTypePostfix;
             type = Type.GetType(newName);
         }
-        if (type == null)
+        if (type is null)
         {
             ThrowHelper.ThrowTypeLoadException($"Could not load type '{name}'");
         }

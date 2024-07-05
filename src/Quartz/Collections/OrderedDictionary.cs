@@ -182,7 +182,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
     public OrderedDictionary(IEnumerable<KeyValuePair<TKey, TValue>> collection, IEqualityComparer<TKey>? comparer)
         : this((collection as ICollection<KeyValuePair<TKey, TValue>>)?.Count ?? 0, comparer)
     {
-        if (collection == null)
+        if (collection is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(collection));
         }
@@ -271,7 +271,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
     /// <exception cref="ArgumentNullException"><paramref name="key" /> is null.-or-<paramref name="valueFactory"/> is null.</exception>
     public TValue GetOrAdd(TKey key, Func<TValue> valueFactory)
     {
-        if (valueFactory == null)
+        if (valueFactory is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(valueFactory));
         }
@@ -628,7 +628,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
 
     void ICollection<KeyValuePair<TKey, TValue>>.CopyTo(KeyValuePair<TKey, TValue>[] array, int arrayIndex)
     {
-        if (array == null)
+        if (array is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(array));
         }
@@ -693,7 +693,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
 
     private int IndexOf(TKey key, out uint hashCode)
     {
-        if (key == null)
+        if (key is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(key));
         }
@@ -703,7 +703,7 @@ internal partial class OrderedDictionary<TKey, TValue> : IDictionary<TKey, TValu
         int index = _buckets[(int) (hashCode % (uint) _buckets.Length)] - 1;
         if (index >= 0)
         {
-            if (comparer == null)
+            if (comparer is null)
             {
                 comparer = EqualityComparer<TKey>.Default;
             }

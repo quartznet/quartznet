@@ -66,19 +66,19 @@ public class SqlServerDelegate : StdAdoDelegate
         int? size = null)
     {
         // deeded for SQL Server CE
-        if (paramValue is bool && dataType == null)
+        if (paramValue is bool && dataType is null)
         {
             paramValue = (bool) paramValue ? 1 : 0;
         }
 
         // varbinary support
-        if (size == null && dataType != null && dataType.Equals(DbProvider.Metadata.DbBinaryType))
+        if (size is null && dataType is not null && dataType.Equals(DbProvider.Metadata.DbBinaryType))
         {
             size = -1;
         }
 
         // avoid size inferred from value that cause multiple query plans
-        if (size == null && paramValue is string)
+        if (size is null && paramValue is string)
         {
             size = 4000;
         }

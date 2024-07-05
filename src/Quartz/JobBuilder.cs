@@ -135,7 +135,7 @@ public sealed class JobBuilder : IJobConfigurator
         // ConcurrentExecutionDisallowed and PersistJobDataAfterExecution if
         // no explicit values were specified
         var resolvedJobType = Type.GetType(_jobType.FullName);
-        if (resolvedJobType != null)
+        if (resolvedJobType is not null)
         {
             if (!_concurrentExecutionDisallowed.HasValue)
             {

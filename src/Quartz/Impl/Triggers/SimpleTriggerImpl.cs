@@ -409,7 +409,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
         {
             DateTimeOffset? newFireTime = GetFireTimeAfter(null);
 
-            if (cal != null && newFireTime.HasValue)
+            if (cal is not null && newFireTime.HasValue)
             {
                 while (!cal.IsTimeIncluded(newFireTime.GetValueOrDefault()))
                 {
@@ -434,7 +434,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
         {
             DateTimeOffset? newFireTime = GetFireTimeAfter(null);
 
-            if (cal != null && newFireTime.HasValue)
+            if (cal is not null && newFireTime.HasValue)
             {
                 while (!cal.IsTimeIncluded(newFireTime.GetValueOrDefault()))
                 {
@@ -523,7 +523,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
         previousFireTimeUtc = nextFireTimeUtc;
         nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 
-        if (cal != null && nextFireTimeUtc.HasValue)
+        if (cal is not null && nextFireTimeUtc.HasValue)
         {
             while (!cal.IsTimeIncluded(nextFireTimeUtc.GetValueOrDefault()))
             {
@@ -553,7 +553,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     {
         nextFireTimeUtc = GetFireTimeAfter(previousFireTimeUtc);
 
-        if (nextFireTimeUtc == null || calendar == null)
+        if (nextFireTimeUtc is null || calendar is null)
         {
             return;
         }
@@ -574,7 +574,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
                 nextFireTimeUtc = null;
             }
 
-            if (nextFireTimeUtc != null && nextFireTimeUtc.GetValueOrDefault() < now)
+            if (nextFireTimeUtc is not null && nextFireTimeUtc.GetValueOrDefault() < now)
             {
                 TimeSpan diff = now - nextFireTimeUtc.GetValueOrDefault();
                 if (diff >= misfireThreshold)
@@ -603,7 +603,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     {
         nextFireTimeUtc = StartTimeUtc;
 
-        if (cal != null)
+        if (cal is not null)
         {
             while (!cal.IsTimeIncluded(nextFireTimeUtc.GetValueOrDefault()))
             {

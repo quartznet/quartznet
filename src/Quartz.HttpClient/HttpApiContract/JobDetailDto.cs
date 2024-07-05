@@ -17,24 +17,24 @@ internal record JobDetailDto(
 {
     public IEnumerable<string> Validate()
     {
-        if (Name == null)
+        if (Name is null)
         {
             yield return "Job detail is missing name";
         }
 
-        if (Group == null)
+        if (Group is null)
         {
             yield return "Job detail is missing group";
         }
 
-        if (JobType == null)
+        if (JobType is null)
         {
             yield return "Job detail is missing job type";
         }
         else
         {
             var jobType = Type.GetType(JobType, throwOnError: false);
-            if (jobType == null)
+            if (jobType is null)
             {
                 yield return "Job detail has unknown job type " + JobType;
             }
@@ -44,7 +44,7 @@ internal record JobDetailDto(
     public (IJobDetail? JobDetail, string? ErrorReason) AsIJobDetail()
     {
         var jobType = Type.GetType(JobType, throwOnError: false);
-        if (jobType == null)
+        if (jobType is null)
         {
             return (null, "Unknown job type");
         }
@@ -64,7 +64,7 @@ internal record JobDetailDto(
 
     public static JobDetailDto Create(IJobDetail jobDetail)
     {
-        if (jobDetail == null)
+        if (jobDetail is null)
         {
             throw new ArgumentNullException(nameof(jobDetail));
         }

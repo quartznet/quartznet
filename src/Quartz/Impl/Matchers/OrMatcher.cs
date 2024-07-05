@@ -38,7 +38,7 @@ public sealed class OrMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
 
     private OrMatcher(IMatcher<TKey> leftOperand, IMatcher<TKey> rightOperand)
     {
-        if (leftOperand == null || rightOperand == null)
+        if (leftOperand is null || rightOperand is null)
         {
             ThrowHelper.ThrowArgumentException("Two non-null operands required!");
         }
@@ -83,7 +83,7 @@ public sealed class OrMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
         {
             return true;
         }
-        if (obj == null)
+        if (obj is null)
         {
             return false;
         }
@@ -92,9 +92,9 @@ public sealed class OrMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
             return false;
         }
         OrMatcher<TKey> other = (OrMatcher<TKey>) obj;
-        if (LeftOperand == null)
+        if (LeftOperand is null)
         {
-            if (other.LeftOperand != null)
+            if (other.LeftOperand is not null)
             {
                 return false;
             }
@@ -103,9 +103,9 @@ public sealed class OrMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
         {
             return false;
         }
-        if (RightOperand == null)
+        if (RightOperand is null)
         {
-            if (other.RightOperand != null)
+            if (other.RightOperand is not null)
             {
                 return false;
             }

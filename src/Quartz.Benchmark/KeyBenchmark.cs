@@ -302,8 +302,8 @@ public class KeyBenchmark
         {
             const int Prime = 31;
             int result = 1;
-            result = Prime * result + (@group == null ? 0 : group.GetHashCode());
-            result = Prime * result + (name == null ? 0 : name.GetHashCode());
+            result = Prime * result + (@group is null ? 0 : group.GetHashCode());
+            result = Prime * result + (name is null ? 0 : name.GetHashCode());
             return result;
         }
 
@@ -313,7 +313,7 @@ public class KeyBenchmark
             {
                 return true;
             }
-            if (obj == null)
+            if (obj is null)
             {
                 return false;
             }
@@ -322,9 +322,9 @@ public class KeyBenchmark
                 return false;
             }
             KeyLegacy<T> other = (KeyLegacy<T>) obj;
-            if (group == null)
+            if (group is null)
             {
-                if (other.group != null)
+                if (other.group is not null)
                 {
                     return false;
                 }
@@ -333,9 +333,9 @@ public class KeyBenchmark
             {
                 return false;
             }
-            if (name == null)
+            if (name is null)
             {
-                if (other.name != null)
+                if (other.name is not null)
                 {
                     return false;
                 }

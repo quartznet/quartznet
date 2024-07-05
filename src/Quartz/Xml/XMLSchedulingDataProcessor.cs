@@ -222,7 +222,7 @@ public class XMLSchedulingDataProcessor
         var xs = new XmlSerializer(typeof(QuartzXmlConfiguration20));
         var data = (QuartzXmlConfiguration20?) xs.Deserialize(new StringReader(xml));
 
-        if (data == null)
+        if (data is null)
         {
             ThrowHelper.ThrowSchedulerConfigException("Job definition data from XML was null after deserialization");
         }
@@ -230,42 +230,42 @@ public class XMLSchedulingDataProcessor
         //
         // Extract pre-processing commands
         //
-        if (data.preprocessingcommands != null)
+        if (data.preprocessingcommands is not null)
         {
             foreach (preprocessingcommandsType command in data.preprocessingcommands)
             {
-                if (command.deletejobsingroup != null)
+                if (command.deletejobsingroup is not null)
                 {
                     foreach (string s in command.deletejobsingroup)
                     {
                         var deleteJobGroup = s.NullSafeTrim();
-                        if (!string.IsNullOrEmpty(deleteJobGroup) && deleteJobGroup != null)
+                        if (!string.IsNullOrEmpty(deleteJobGroup) && deleteJobGroup is not null)
                         {
                             jobGroupsToDelete.Add(deleteJobGroup);
                         }
                     }
                 }
 
-                if (command.deletetriggersingroup != null)
+                if (command.deletetriggersingroup is not null)
                 {
                     foreach (string s in command.deletetriggersingroup)
                     {
                         var deleteTriggerGroup = s.NullSafeTrim();
-                        if (!string.IsNullOrEmpty(deleteTriggerGroup) && deleteTriggerGroup != null)
+                        if (!string.IsNullOrEmpty(deleteTriggerGroup) && deleteTriggerGroup is not null)
                         {
                             triggerGroupsToDelete.Add(deleteTriggerGroup);
                         }
                     }
                 }
 
-                if (command.deletejob != null)
+                if (command.deletejob is not null)
                 {
                     foreach (preprocessingcommandsTypeDeletejob s in command.deletejob)
                     {
                         var name = s.name.TrimEmptyToNull();
                         var group = s.group.TrimEmptyToNull();
 
-                        if (name == null)
+                        if (name is null)
                         {
                             ThrowHelper.ThrowSchedulerConfigException("Encountered a 'delete-job' command without a name specified.");
                         }
@@ -274,14 +274,14 @@ public class XMLSchedulingDataProcessor
                     }
                 }
 
-                if (command.deletetrigger != null)
+                if (command.deletetrigger is not null)
                 {
                     foreach (preprocessingcommandsTypeDeletetrigger s in command.deletetrigger)
                     {
                         var name = s.name.TrimEmptyToNull();
                         var group = s.group.TrimEmptyToNull() ?? Key<string>.DefaultGroup;
 
-                        if (name == null)
+                        if (name is null)
                         {
                             ThrowHelper.ThrowSchedulerConfigException("Encountered a 'delete-trigger' command without a name specified.");
                         }
@@ -303,7 +303,7 @@ public class XMLSchedulingDataProcessor
         //
         // Extract directives
         //
-        if (data.processingdirectives != null && data.processingdirectives.Length > 0)
+        if (data.processingdirectives is not null && data.processingdirectives.Length > 0)
         {
             bool overWrite = data.processingdirectives[0].overwriteexistingdata;
             logger.LogDebug("Directive 'overwrite-existing-data' specified as: {Overwrite}", overWrite);
@@ -314,7 +314,7 @@ public class XMLSchedulingDataProcessor
             logger.LogDebug("Directive 'overwrite-existing-data' not specified, defaulting to {Overwrite}", OverWriteExistingData);
         }
 
-        if (data.processingdirectives != null && data.processingdirectives.Length > 0)
+        if (data.processingdirectives is not null && data.processingdirectives.Length > 0)
         {
             bool ignoreduplicates = data.processingdirectives[0].ignoreduplicates;
             logger.LogDebug("Directive 'ignore-duplicates' specified as: {IgnoreDuplicates}", ignoreduplicates);
@@ -325,7 +325,7 @@ public class XMLSchedulingDataProcessor
             logger.LogDebug("Directive 'ignore-duplicates' not specified, defaulting to {IgnoreDuplicates}", IgnoreDuplicates);
         }
 
-        if (data.processingdirectives != null && data.processingdirectives.Length > 0)
+        if (data.processingdirectives is not null && data.processingdirectives.Length > 0)
         {
             bool scheduleRelative = data.processingdirectives[0].scheduletriggerrelativetoreplacedtrigger;
             logger.LogDebug("Directive 'schedule-trigger-relative-to-replaced-trigger' specified as: {ScheduleRelative}", scheduleRelative);
@@ -341,11 +341,11 @@ public class XMLSchedulingDataProcessor
         // Extract Job definitions...
         //
         List<jobdetailType> jobNodes = new List<jobdetailType>();
-        if (data.schedule != null)
+        if (data.schedule is not null)
         {
             foreach (var schedule in data.schedule)
             {
-                if (schedule?.job != null)
+                if (schedule?.job is not null)
                 {
                     jobNodes.AddRange(schedule.job);
                 }
@@ -372,7 +372,7 @@ public class XMLSchedulingDataProcessor
                 .RequestRecovery(jobRecoveryRequested)
                 .Build();
 
-            if (jobDetailType.jobdatamap != null && jobDetailType.jobdatamap.entry != null)
+            if (jobDetailType.jobdatamap is not null && jobDetailType.jobdatamap.entry is not null)
             {
                 foreach (entryType entry in jobDetailType.jobdatamap.entry)
                 {
@@ -395,11 +395,11 @@ public class XMLSchedulingDataProcessor
         //
 
         List<triggerType> triggerEntries = new List<triggerType>();
-        if (data.schedule != null)
+        if (data.schedule is not null)
         {
             foreach (var schedule in data.schedule)
             {
-                if (schedule != null && schedule.trigger != null)
+                if (schedule is not null && schedule.trigger is not null)
                 {
                     triggerEntries.AddRange(schedule.trigger);
                 }
@@ -424,7 +424,7 @@ public class XMLSchedulingDataProcessor
             }
 
             DateTimeOffset triggerStartTime = timeProvider.GetUtcNow();
-            if (triggerNode.Item.Item != null)
+            if (triggerNode.Item.Item is not null)
             {
                 if (triggerNode.Item.Item is DateTime time)
                 {
@@ -446,7 +446,7 @@ public class XMLSchedulingDataProcessor
                 var repeatIntervalString = simpleTrigger.repeatinterval.TrimEmptyToNull();
 
                 int repeatCount = ParseSimpleTriggerRepeatCount(repeatCountString!);
-                TimeSpan repeatInterval = repeatIntervalString == null ? TimeSpan.Zero : TimeSpan.FromMilliseconds(Convert.ToInt64(repeatIntervalString));
+                TimeSpan repeatInterval = repeatIntervalString is null ? TimeSpan.Zero : TimeSpan.FromMilliseconds(Convert.ToInt64(repeatIntervalString));
 
                 sched = SimpleScheduleBuilder.Create()
                     .WithInterval(repeatInterval)
@@ -462,7 +462,7 @@ public class XMLSchedulingDataProcessor
                 var cronExpression = cronTrigger.cronexpression.TrimEmptyToNull();
                 var timezoneString = cronTrigger.timezone.TrimEmptyToNull();
 
-                TimeZoneInfo? tz = timezoneString != null ? TimeZoneUtil.FindTimeZoneById(timezoneString) : null;
+                TimeZoneInfo? tz = timezoneString is not null ? TimeZoneUtil.FindTimeZoneById(timezoneString) : null;
                 sched = CronScheduleBuilder.CronSchedule(cronExpression!)
                     .InTimeZone(tz!);
 
@@ -477,7 +477,7 @@ public class XMLSchedulingDataProcessor
                 var repeatIntervalString = calendarIntervalTrigger.repeatinterval.TrimEmptyToNull();
 
                 IntervalUnit intervalUnit = ParseDateIntervalTriggerIntervalUnit(calendarIntervalTrigger.repeatintervalunit.TrimEmptyToNull());
-                int repeatInterval = repeatIntervalString == null ? 0 : Convert.ToInt32(repeatIntervalString);
+                int repeatInterval = repeatIntervalString is null ? 0 : Convert.ToInt32(repeatIntervalString);
 
                 sched = CalendarIntervalScheduleBuilder.Create()
                     .WithInterval(repeatInterval, intervalUnit);
@@ -504,7 +504,7 @@ public class XMLSchedulingDataProcessor
                 .WithSchedule(sched)
                 .Build();
 
-            if (triggerNode.Item.jobdatamap != null && triggerNode.Item.jobdatamap.entry != null)
+            if (triggerNode.Item.jobdatamap is not null && triggerNode.Item.jobdatamap.entry is not null)
             {
                 foreach (entryType entry in triggerNode.Item.jobdatamap.entry)
                 {
@@ -548,7 +548,7 @@ public class XMLSchedulingDataProcessor
 
     protected virtual IntervalUnit ParseDateIntervalTriggerIntervalUnit(string? intervalUnit)
     {
-        if (string.IsNullOrEmpty(intervalUnit) || intervalUnit == null)
+        if (string.IsNullOrEmpty(intervalUnit) || intervalUnit is null)
         {
             return IntervalUnit.Day;
         }
@@ -751,7 +751,7 @@ public class XMLSchedulingDataProcessor
                 }
             }
 
-            if (dupeJ != null)
+            if (dupeJ is not null)
             {
                 if (!OverWriteExistingData && IgnoreDuplicates)
                 {
@@ -765,7 +765,7 @@ public class XMLSchedulingDataProcessor
                 }
             }
 
-            if (dupeJ != null)
+            if (dupeJ is not null)
             {
                 logger.LogInformation("Replacing job: {JobKey}", detail.Key);
             }
@@ -776,9 +776,9 @@ public class XMLSchedulingDataProcessor
 
             triggersByFQJobName.TryGetValue(detail.Key, out var triggersOfJob);
 
-            if (!detail.Durable && (triggersOfJob == null || triggersOfJob.Count == 0))
+            if (!detail.Durable && (triggersOfJob is null || triggersOfJob.Count == 0))
             {
-                if (dupeJ == null)
+                if (dupeJ is null)
                 {
                     ThrowHelper.ThrowSchedulerException(
                         "A new job defined without any triggers must be durable: " +
@@ -793,9 +793,9 @@ public class XMLSchedulingDataProcessor
                 }
             }
 
-            if (dupeJ != null || detail.Durable)
+            if (dupeJ is not null || detail.Durable)
             {
-                if (triggersOfJob != null && triggersOfJob.Count > 0)
+                if (triggersOfJob is not null && triggersOfJob.Count > 0)
                 {
                     await sched.AddJob(detail, true, true, cancellationToken).ConfigureAwait(false); // add the job regardless is durable or not b/c we have trigger to add
                 }
@@ -816,7 +816,7 @@ public class XMLSchedulingDataProcessor
                     triggersOfJob.Remove(trigger);
 
                     ITrigger? dupeT = await sched.GetTrigger(trigger.Key, cancellationToken).ConfigureAwait(false);
-                    if (dupeT != null)
+                    if (dupeT is not null)
                     {
                         if (OverWriteExistingData)
                         {
@@ -883,7 +883,7 @@ public class XMLSchedulingDataProcessor
         foreach (IMutableTrigger trigger in triggers)
         {
             ITrigger? dupeT = await sched.GetTrigger(trigger.Key, cancellationToken).ConfigureAwait(false);
-            if (dupeT != null)
+            if (dupeT is not null)
             {
                 if (OverWriteExistingData)
                 {
@@ -952,7 +952,7 @@ public class XMLSchedulingDataProcessor
         CancellationToken cancellationToken = default)
     {
         // if this is a trigger with default start time we can consider relative scheduling
-        if (oldTrigger != null && trigger.StartTimeUtc - timeProvider.GetUtcNow() < TimeSpan.FromSeconds(5) && ScheduleTriggerRelativeToReplacedTrigger)
+        if (oldTrigger is not null && trigger.StartTimeUtc - timeProvider.GetUtcNow() < TimeSpan.FromSeconds(5) && ScheduleTriggerRelativeToReplacedTrigger)
         {
             logger.LogDebug("Using relative scheduling for trigger with key {TriggerKey}", trigger.Key);
 
@@ -1125,7 +1125,7 @@ public class XMLSchedulingDataProcessor
             foreach (Type type in types)
             {
                 FieldInfo? fi = type.GetField(field);
-                if (fi != null)
+                if (fi is not null)
                 {
                     return Convert.ToInt32(fi.GetValue(null), CultureInfo.InvariantCulture);
                 }

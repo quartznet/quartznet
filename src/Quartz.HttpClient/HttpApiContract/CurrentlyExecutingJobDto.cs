@@ -17,7 +17,7 @@ internal record CurrentlyExecutingJobDto(
 {
     public static CurrentlyExecutingJobDto Create(IJobExecutionContext context)
     {
-        if (context == null)
+        if (context is null)
         {
             throw new ArgumentNullException(nameof(context));
         }
@@ -37,7 +37,7 @@ internal record CurrentlyExecutingJobDto(
     public (IJobExecutionContext? Context, string? ErrorReason) AsIJobExecutionContext(IScheduler scheduler)
     {
         var (jobDetail, errorReason) = JobDetail.AsIJobDetail();
-        if (jobDetail == null)
+        if (jobDetail is null)
         {
             return (null, errorReason);
         }

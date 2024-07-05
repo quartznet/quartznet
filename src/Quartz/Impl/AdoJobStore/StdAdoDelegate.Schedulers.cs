@@ -57,7 +57,7 @@ public partial class StdAdoDelegate
         DbCommand cmd;
         List<SchedulerStateRecord> list = [];
 
-        if (instanceName != null)
+        if (instanceName is not null)
         {
             cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectSchedulerState));
             AddCommandParameter(cmd, "instanceName", instanceName);

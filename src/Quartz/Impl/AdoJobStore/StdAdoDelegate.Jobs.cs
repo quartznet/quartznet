@@ -139,7 +139,7 @@ public partial class StdAdoDelegate
 
             var map = await ReadMapFromReader(rs, 6).ConfigureAwait(false);
 
-            if (map != null)
+            if (map is not null)
             {
                 jobBuilder.SetJobData(new(map));
             }

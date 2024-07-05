@@ -75,14 +75,14 @@ public class DbProvider : IDbProvider
         ConnectionString = connectionString;
         Metadata = GetDbMetadata(dbProviderName);
 
-        if (Metadata == null)
+        if (Metadata is null)
         {
             ThrowHelper.ThrowArgumentException($"Invalid DB provider name: {dbProviderName}{Environment.NewLine}{GenerateValidProviderNamesInfo()}");
         }
 
         // check if command supports direct setting of BindByName property, needed for Oracle Managed ODP diver at least
         var property = Metadata.CommandType?.GetProperty("BindByName", BindingFlags.Instance | BindingFlags.Public);
-        if (property != null && property.PropertyType == typeof(bool) && property.CanWrite)
+        if (property is not null && property.PropertyType == typeof(bool) && property.CanWrite)
         {
             commandBindByNamePropertySetter = property.GetSetMethod()!;
         }

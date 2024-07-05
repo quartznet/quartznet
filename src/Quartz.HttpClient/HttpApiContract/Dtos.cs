@@ -6,7 +6,7 @@ internal record KeyDto(string Name, string Group) : IValidatable
 {
     public static KeyDto Create(JobKey jobKey)
     {
-        if (jobKey == null)
+        if (jobKey is null)
         {
             throw new ArgumentNullException(nameof(jobKey));
         }
@@ -16,7 +16,7 @@ internal record KeyDto(string Name, string Group) : IValidatable
 
     public static KeyDto Create(TriggerKey triggerKey)
     {
-        if (triggerKey == null)
+        if (triggerKey is null)
         {
             throw new ArgumentNullException(nameof(triggerKey));
         }
@@ -30,12 +30,12 @@ internal record KeyDto(string Name, string Group) : IValidatable
 
     public IEnumerable<string> Validate()
     {
-        if (Name == null)
+        if (Name is null)
         {
             yield return "Key is missing name";
         }
 
-        if (Group == null)
+        if (Group is null)
         {
             yield return "Key is missing group";
         }
@@ -50,7 +50,7 @@ internal record SchedulerContextDto(Dictionary<string, string?> Context)
 {
     public static SchedulerContextDto Create(SchedulerContext context)
     {
-        if (context == null)
+        if (context is null)
         {
             throw new ArgumentNullException(nameof(context));
         }

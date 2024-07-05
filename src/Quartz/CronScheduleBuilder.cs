@@ -169,7 +169,7 @@ public sealed class CronScheduleBuilder : ScheduleBuilder<ICronTrigger>
     /// <seealso cref="CronExpression" />
     public static CronScheduleBuilder AtHourAndMinuteOnGivenDaysOfWeek(int hour, int minute, params DayOfWeek[] daysOfWeek)
     {
-        if (daysOfWeek == null || daysOfWeek.Length == 0)
+        if (daysOfWeek is null || daysOfWeek.Length == 0)
         {
             ThrowHelper.ThrowArgumentException("You must specify at least one day of week.");
         }

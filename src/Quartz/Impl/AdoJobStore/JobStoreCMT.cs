@@ -56,7 +56,7 @@ public class JobStoreCMT : JobStoreSupport
         ISchedulerSignaler signaler,
         CancellationToken cancellationToken = default)
     {
-        if (LockHandler == null)
+        if (LockHandler is null)
         {
             // If the user hasn't specified an explicit lock handler,
             // then we ///must/// use DB locks with CMT...
@@ -137,7 +137,7 @@ public class JobStoreCMT : JobStoreSupport
         Guid requestorId = Guid.NewGuid();
         try
         {
-            if (lockName != null)
+            if (lockName is not null)
             {
                 // If we aren't using db locks, then delay getting DB connection
                 // until after acquiring the lock since it isn't needed.
@@ -149,7 +149,7 @@ public class JobStoreCMT : JobStoreSupport
                 transOwner = await LockHandler.ObtainLock(requestorId, conn!, lockName, cancellationToken).ConfigureAwait(false);
             }
 
-            if (conn == null)
+            if (conn is null)
             {
                 conn = await GetNonManagedTXConnection().ConfigureAwait(false);
             }

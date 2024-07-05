@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -62,7 +62,7 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
 
     public void Commit(bool openNewTransaction)
     {
-        if (transaction != null)
+        if (transaction is not null)
         {
             try
             {
@@ -124,13 +124,13 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
         set
         {
             DateTimeOffset? sigTime = sigChangeForTxCompletion;
-            if (sigChangeForTxCompletion == null && value.HasValue)
+            if (sigChangeForTxCompletion is null && value.HasValue)
             {
                 sigChangeForTxCompletion = value;
             }
             else
             {
-                if (sigChangeForTxCompletion == null || value < sigTime)
+                if (sigChangeForTxCompletion is null || value < sigTime)
                 {
                     sigChangeForTxCompletion = value;
                 }
@@ -140,7 +140,7 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
 
     public void Rollback(bool transientError)
     {
-        if (transaction != null)
+        if (transaction is not null)
         {
             try
             {
@@ -166,7 +166,7 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
 
     private void CheckNotZombied()
     {
-        if (transaction != null && transaction.Connection == null)
+        if (transaction is not null && transaction.Connection is null)
         {
             ThrowHelper.ThrowInvalidOperationException("Transaction not connected, or was disconnected");
         }

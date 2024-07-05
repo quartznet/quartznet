@@ -177,7 +177,7 @@ public sealed class TimeOfDay
     /// <param name="dateTime"></param>
     public DateTimeOffset? GetTimeOfDayForDate(DateTimeOffset? dateTime)
     {
-        if (dateTime == null)
+        if (dateTime is null)
         {
             return null;
         }

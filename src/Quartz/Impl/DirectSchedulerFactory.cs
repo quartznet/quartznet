@@ -294,7 +294,7 @@ public sealed class DirectSchedulerFactory : ISchedulerFactory
         qrs.SchedulerExporter = schedulerExporter;
 
         // add plugins
-        if (schedulerPluginMap != null)
+        if (schedulerPluginMap is not null)
         {
             foreach (ISchedulerPlugin plugin in schedulerPluginMap.Values)
             {
@@ -318,7 +318,7 @@ public sealed class DirectSchedulerFactory : ISchedulerFactory
         qs.Initialize();
 
         // Initialize plugins now that we have a Scheduler instance.
-        if (schedulerPluginMap != null)
+        if (schedulerPluginMap is not null)
         {
             foreach (var pluginEntry in schedulerPluginMap)
             {

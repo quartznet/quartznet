@@ -308,7 +308,7 @@ internal sealed class QuartzSchedulerThread
                         continue;
                     }
 
-                    if (triggers != null && triggers.Count > 0)
+                    if (triggers is not null && triggers.Count > 0)
                     {
                         now = qsRsrcs.TimeProvider.GetUtcNow();
                         DateTimeOffset triggerTime = triggers[0].GetNextFireTimeUtc()!.Value;
@@ -372,7 +372,7 @@ internal sealed class QuartzSchedulerThread
                             try
                             {
                                 var res = await qsRsrcs.JobStore.TriggersFired(triggers, CancellationToken.None).ConfigureAwait(false);
-                                if (res != null)
+                                if (res is not null)
                                 {
                                     bndles = res.ToList();
                                 }
@@ -399,7 +399,7 @@ internal sealed class QuartzSchedulerThread
 
                             IOperableTrigger trigger = triggers[i];
                             // TODO SQL exception?
-                            if (exception != null && (exception is DbException || exception.InnerException is DbException))
+                            if (exception is not null && (exception is DbException || exception.InnerException is DbException))
                             {
                                 logger.LogError(exception, "DbException while firing trigger {Trigger}", trigger);
                                 await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger, CancellationToken.None).ConfigureAwait(false);
@@ -409,7 +409,7 @@ internal sealed class QuartzSchedulerThread
                             // it's possible to get 'null' if the triggers was paused,
                             // blocked, or other similar occurrences that prevent it being
                             // fired at this time...  or if the scheduler was shutdown (halted)
-                            if (bndle == null)
+                            if (bndle is null)
                             {
                                 await qsRsrcs.JobStore.ReleaseAcquiredTrigger(trigger, CancellationToken.None).ConfigureAwait(false);
                                 continue;

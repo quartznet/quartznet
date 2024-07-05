@@ -26,7 +26,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
     public void AddJobListener(IJobListener jobListener, IReadOnlyCollection<IMatcher<JobKey>> matchers)
     {
-        if (jobListener == null)
+        if (jobListener is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(jobListener));
         }
@@ -42,7 +42,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
             globalJobListeners ??= new OrderedDictionary<string, IJobListener>();
             globalJobListeners[jobListener.Name] = jobListener;
 
-            if (matchers != null && matchers.Count > 0)
+            if (matchers is not null && matchers.Count > 0)
             {
                 // Add or replace the matchers for the job listener
                 globalJobListenersMatchers ??= new Dictionary<string, List<IMatcher<JobKey>>>();
@@ -58,22 +58,22 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
     public bool AddJobListenerMatcher(string listenerName, IMatcher<JobKey> matcher)
     {
-        if (listenerName == null)
+        if (listenerName is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(listenerName));
         }
 
-        if (matcher == null)
+        if (matcher is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(matcher));
         }
 
         lock (globalJobListenerLock)
         {
-            if (globalJobListenersMatchers == null || !globalJobListenersMatchers.TryGetValue(listenerName, out var matchers))
+            if (globalJobListenersMatchers is null || !globalJobListenersMatchers.TryGetValue(listenerName, out var matchers))
             {
                 // Return false if no job listener is registered with the specified name
-                if (globalJobListeners == null || !globalJobListeners.ContainsKey(listenerName))
+                if (globalJobListeners is null || !globalJobListeners.ContainsKey(listenerName))
                 {
                     return false;
                 }
@@ -94,24 +94,24 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
     public bool RemoveJobListenerMatcher(string listenerName, IMatcher<JobKey> matcher)
     {
-        if (listenerName == null)
+        if (listenerName is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(listenerName));
         }
 
-        if (matcher == null)
+        if (matcher is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(matcher));
         }
 
-        if (globalJobListenersMatchers == null)
+        if (globalJobListenersMatchers is null)
         {
             return false;
         }
 
         lock (globalJobListenerLock)
         {
-            if (globalJobListenersMatchers == null || !globalJobListenersMatchers.TryGetValue(listenerName, out var matchers))
+            if (globalJobListenersMatchers is null || !globalJobListenersMatchers.TryGetValue(listenerName, out var matchers))
             {
                 return false;
             }
@@ -129,19 +129,19 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
     public IReadOnlyCollection<IMatcher<JobKey>>? GetJobListenerMatchers(string listenerName)
     {
-        if (listenerName == null)
+        if (listenerName is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(listenerName));
         }
 
-        if (globalJobListenersMatchers == null)
+        if (globalJobListenersMatchers is null)
         {
             return null;
         }
 
         lock (globalJobListenerLock)
         {
-            if (globalJobListenersMatchers == null || !globalJobListenersMatchers.TryGetValue(listenerName, out var matchers))
+            if (globalJobListenersMatchers is null || !globalJobListenersMatchers.TryGetValue(listenerName, out var matchers))
             {
                 return null;
             }
@@ -152,19 +152,19 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
     public bool SetJobListenerMatchers(string listenerName, IReadOnlyCollection<IMatcher<JobKey>> matchers)
     {
-        if (listenerName == null)
+        if (listenerName is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(listenerName));
         }
 
-        if (matchers == null)
+        if (matchers is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(matchers));
         }
 
         lock (globalJobListenerLock)
         {
-            if (globalJobListeners == null || !globalJobListeners.ContainsKey(listenerName))
+            if (globalJobListeners is null || !globalJobListeners.ContainsKey(listenerName))
             {
                 return false;
             }
@@ -186,19 +186,19 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
     public bool RemoveJobListener(string name)
     {
-        if (name == null)
+        if (name is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(name));
         }
 
-        if (globalJobListeners == null)
+        if (globalJobListeners is null)
         {
             return false;
         }
 
         lock (globalJobListenerLock)
         {
-            if (globalJobListeners == null)
+            if (globalJobListeners is null)
             {
                 return false;
             }
@@ -222,21 +222,21 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
     public IJobListener[] GetJobListeners()
     {
-        if (globalJobListeners == null)
+        if (globalJobListeners is null)
         {
             return Array.Empty<IJobListener>();
         }
 
         lock (globalJobListenerLock)
         {
-            return globalJobListeners != null ? globalJobListeners.Values.ToArray()
+            return globalJobListeners is not null ? globalJobListeners.Values.ToArray()
                 : Array.Empty<IJobListener>();
         }
     }
 
     public IJobListener GetJobListener(string name)
     {
-        if (name == null)
+        if (name is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(name));
         }
@@ -244,7 +244,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
         lock (globalJobListenerLock)
         {
             // Avoid initializing globalJobListeners when no job listeners have been added
-            if (globalJobListeners == null || !globalJobListeners.TryGetValue(name, out var jobListener))
+            if (globalJobListeners is null || !globalJobListeners.TryGetValue(name, out var jobListener))
             {
                 ThrowHelper.ThrowKeyNotFoundException();
                 return default;
@@ -263,7 +263,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
     public void AddTriggerListener(ITriggerListener triggerListener, IReadOnlyCollection<IMatcher<TriggerKey>> matchers)
     {
-        if (triggerListener == null)
+        if (triggerListener is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(triggerListener));
         }
@@ -279,7 +279,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
             globalTriggerListeners ??= new OrderedDictionary<string, ITriggerListener>();
             globalTriggerListeners[triggerListener.Name] = triggerListener;
 
-            if (matchers != null && matchers.Count > 0)
+            if (matchers is not null && matchers.Count > 0)
             {
                 // Add or replace the matchers for the trigger listener
                 globalTriggerListenersMatchers ??= new Dictionary<string, List<IMatcher<TriggerKey>>>();
@@ -295,12 +295,12 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
     public void AddTriggerListener(ITriggerListener triggerListener, IMatcher<TriggerKey> matcher)
     {
-        if (triggerListener == null)
+        if (triggerListener is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(triggerListener));
         }
 
-        if (matcher == null)
+        if (matcher is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(matcher));
         }
@@ -324,22 +324,22 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
     public bool AddTriggerListenerMatcher(string listenerName, IMatcher<TriggerKey> matcher)
     {
-        if (listenerName == null)
+        if (listenerName is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(listenerName));
         }
 
-        if (matcher == null)
+        if (matcher is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(matcher));
         }
 
         lock (globalTriggerListenerLock)
         {
-            if (globalTriggerListenersMatchers == null || !globalTriggerListenersMatchers.TryGetValue(listenerName, out var matchers))
+            if (globalTriggerListenersMatchers is null || !globalTriggerListenersMatchers.TryGetValue(listenerName, out var matchers))
             {
                 // Return false if no trigger listener is registered with the specified name
-                if (globalTriggerListeners == null || !globalTriggerListeners.ContainsKey(listenerName))
+                if (globalTriggerListeners is null || !globalTriggerListeners.ContainsKey(listenerName))
                 {
                     return false;
                 }
@@ -360,24 +360,24 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
     public bool RemoveTriggerListenerMatcher(string listenerName, IMatcher<TriggerKey> matcher)
     {
-        if (listenerName == null)
+        if (listenerName is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(listenerName));
         }
 
-        if (matcher == null)
+        if (matcher is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(matcher));
         }
 
-        if (globalTriggerListenersMatchers == null)
+        if (globalTriggerListenersMatchers is null)
         {
             return false;
         }
 
         lock (globalTriggerListenerLock)
         {
-            if (globalTriggerListenersMatchers == null || !globalTriggerListenersMatchers.TryGetValue(listenerName, out var matchers))
+            if (globalTriggerListenersMatchers is null || !globalTriggerListenersMatchers.TryGetValue(listenerName, out var matchers))
             {
                 return false;
             }
@@ -395,19 +395,19 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
     public IReadOnlyCollection<IMatcher<TriggerKey>>? GetTriggerListenerMatchers(string listenerName)
     {
-        if (listenerName == null)
+        if (listenerName is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(listenerName));
         }
 
-        if (globalTriggerListenersMatchers == null)
+        if (globalTriggerListenersMatchers is null)
         {
             return null;
         }
 
         lock (globalTriggerListenerLock)
         {
-            if (globalTriggerListenersMatchers == null || !globalTriggerListenersMatchers.TryGetValue(listenerName, out var matchers))
+            if (globalTriggerListenersMatchers is null || !globalTriggerListenersMatchers.TryGetValue(listenerName, out var matchers))
             {
                 return null;
             }
@@ -418,19 +418,19 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
     public bool SetTriggerListenerMatchers(string listenerName, IReadOnlyCollection<IMatcher<TriggerKey>> matchers)
     {
-        if (listenerName == null)
+        if (listenerName is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(listenerName));
         }
 
-        if (matchers == null)
+        if (matchers is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(matchers));
         }
 
         lock (globalTriggerListenerLock)
         {
-            if (globalTriggerListeners == null || !globalTriggerListeners.ContainsKey(listenerName))
+            if (globalTriggerListeners is null || !globalTriggerListeners.ContainsKey(listenerName))
             {
                 return false;
             }
@@ -452,19 +452,19 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
     public bool RemoveTriggerListener(string name)
     {
-        if (name == null)
+        if (name is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(name));
         }
 
-        if (globalTriggerListeners == null)
+        if (globalTriggerListeners is null)
         {
             return false;
         }
 
         lock (globalTriggerListeners)
         {
-            if (globalTriggerListeners == null)
+            if (globalTriggerListeners is null)
             {
                 return false;
             }
@@ -489,21 +489,21 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
     public ITriggerListener[] GetTriggerListeners()
     {
-        if (globalTriggerListeners == null)
+        if (globalTriggerListeners is null)
         {
             return Array.Empty<ITriggerListener>();
         }
 
         lock (globalTriggerListenerLock)
         {
-            return globalTriggerListeners != null ? globalTriggerListeners.Values.ToArray()
+            return globalTriggerListeners is not null ? globalTriggerListeners.Values.ToArray()
                 : Array.Empty<ITriggerListener>();
         }
     }
 
     public ITriggerListener GetTriggerListener(string name)
     {
-        if (name == null)
+        if (name is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(name));
         }
@@ -511,7 +511,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
         lock (globalTriggerListenerLock)
         {
             // Avoid initializing globalTriggerListeners when no trigger listeners have been added
-            if (globalTriggerListeners == null || !globalTriggerListeners.TryGetValue(name, out var triggerListener))
+            if (globalTriggerListeners is null || !globalTriggerListeners.TryGetValue(name, out var triggerListener))
             {
                 ThrowHelper.ThrowKeyNotFoundException();
                 return default;
@@ -549,7 +549,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
     private void RemoveJobListenerMatchers(string listenerName)
     {
-        if (globalJobListenersMatchers == null)
+        if (globalJobListenersMatchers is null)
         {
             return;
         }
@@ -565,7 +565,7 @@ internal sealed class ListenerManagerImpl : IListenerManager
 
     private void RemoveTriggerListenerMatchers(string listenerName)
     {
-        if (globalTriggerListenersMatchers == null)
+        if (globalTriggerListenersMatchers is null)
         {
             return;
         }

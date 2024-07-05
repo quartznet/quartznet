@@ -66,7 +66,7 @@ internal sealed class PropertiesParser
     public string? GetStringProperty(string name, string? defaultValue)
     {
         string? val = props[name] ?? defaultValue;
-        if (val == null)
+        if (val is null)
         {
             return defaultValue;
         }
@@ -97,7 +97,7 @@ internal sealed class PropertiesParser
     public IList<string>? GetStringArrayProperty(string name, string[]? defaultValue)
     {
         var vals = GetStringProperty(name);
-        if (vals == null)
+        if (vals is null)
         {
             return defaultValue;
         }
@@ -124,7 +124,7 @@ internal sealed class PropertiesParser
     public bool GetBooleanProperty(string name)
     {
         var val = GetStringProperty(name);
-        if (val == null)
+        if (val is null)
         {
             return false;
         }
@@ -141,7 +141,7 @@ internal sealed class PropertiesParser
     public bool GetBooleanProperty(string name, bool defaultValue)
     {
         var val = GetStringProperty(name);
-        if (val == null)
+        if (val is null)
         {
             return defaultValue;
         }
@@ -157,7 +157,7 @@ internal sealed class PropertiesParser
     public byte GetByteProperty(string name)
     {
         var val = GetStringProperty(name);
-        if (val == null)
+        if (val is null)
         {
             ThrowHelper.ThrowFormatException(" null string");
         }
@@ -182,7 +182,7 @@ internal sealed class PropertiesParser
     public byte GetByteProperty(string name, byte defaultValue)
     {
         var val = GetStringProperty(name);
-        if (val == null)
+        if (val is null)
         {
             return defaultValue;
         }
@@ -206,7 +206,7 @@ internal sealed class PropertiesParser
     public char GetCharProperty(string name)
     {
         var param = GetStringProperty(name);
-        if (param == null)
+        if (param is null)
         {
             return '\x0000';
         }
@@ -228,7 +228,7 @@ internal sealed class PropertiesParser
     public char GetCharProperty(string name, char defaultValue)
     {
         var param = GetStringProperty(name);
-        if (param == null)
+        if (param is null)
         {
             return defaultValue;
         }
@@ -249,7 +249,7 @@ internal sealed class PropertiesParser
     public double GetDoubleProperty(string name)
     {
         var val = GetStringProperty(name);
-        if (val == null)
+        if (val is null)
         {
             ThrowHelper.ThrowFormatException(" null string");
         }
@@ -274,7 +274,7 @@ internal sealed class PropertiesParser
     public double GetDoubleProperty(string name, double defaultValue)
     {
         var val = GetStringProperty(name);
-        if (val == null)
+        if (val is null)
         {
             return defaultValue;
         }
@@ -298,7 +298,7 @@ internal sealed class PropertiesParser
     public float GetFloatProperty(string name)
     {
         var val = GetStringProperty(name);
-        if (val == null)
+        if (val is null)
         {
             ThrowHelper.ThrowFormatException(" null string");
         }
@@ -323,7 +323,7 @@ internal sealed class PropertiesParser
     public float GetFloatProperty(string name, float defaultValue)
     {
         var val = GetStringProperty(name);
-        if (val == null)
+        if (val is null)
         {
             return defaultValue;
         }
@@ -347,7 +347,7 @@ internal sealed class PropertiesParser
     public int GetIntProperty(string name)
     {
         var val = GetStringProperty(name);
-        if (val == null)
+        if (val is null)
         {
             ThrowHelper.ThrowFormatException(" null string");
         }
@@ -372,7 +372,7 @@ internal sealed class PropertiesParser
     public int GetIntProperty(string name, int defaultValue)
     {
         var val = GetStringProperty(name);
-        if (val == null)
+        if (val is null)
         {
             return defaultValue;
         }
@@ -407,7 +407,7 @@ internal sealed class PropertiesParser
     public IList<int>? GetIntArrayProperty(string name, IList<int>? defaultValue)
     {
         var vals = GetStringProperty(name);
-        if (vals == null)
+        if (vals is null)
         {
             return defaultValue;
         }
@@ -448,7 +448,7 @@ internal sealed class PropertiesParser
     public long GetLongProperty(string name)
     {
         var val = GetStringProperty(name);
-        if (val == null)
+        if (val is null)
         {
             ThrowHelper.ThrowFormatException(" null string");
         }
@@ -473,7 +473,7 @@ internal sealed class PropertiesParser
     public long GetLongProperty(string name, long def)
     {
         var val = GetStringProperty(name);
-        if (val == null)
+        if (val is null)
         {
             return def;
         }
@@ -498,7 +498,7 @@ internal sealed class PropertiesParser
     public TimeSpan GetTimeSpanProperty(string name, TimeSpan def)
     {
         var val = GetStringProperty(name);
-        if (val == null)
+        if (val is null)
         {
             return def;
         }
@@ -522,7 +522,7 @@ internal sealed class PropertiesParser
     public short GetShortProperty(string name)
     {
         var val = GetStringProperty(name);
-        if (val == null)
+        if (val is null)
         {
             ThrowHelper.ThrowFormatException(" null string");
         }
@@ -547,7 +547,7 @@ internal sealed class PropertiesParser
     public short GetShortProperty(string name, short defaultValue)
     {
         var val = GetStringProperty(name);
-        if (val == null)
+        if (val is null)
         {
             return defaultValue;
         }
@@ -579,7 +579,7 @@ internal sealed class PropertiesParser
 
         foreach (string? key in props.Keys)
         {
-            if (key != null && key.StartsWith(prefix))
+            if (key is not null && key.StartsWith(prefix))
             {
                 string groupName = key.Substring(prefix.Length, key.IndexOf('.', prefix.Length) - prefix.Length);
                 groups.Add(groupName);
@@ -629,10 +629,10 @@ internal sealed class PropertiesParser
 
         foreach (string? key in props.Keys)
         {
-            if (key != null && key.StartsWith(prefix))
+            if (key is not null && key.StartsWith(prefix))
             {
                 bool exclude = false;
-                if (excludedPrefixes != null)
+                if (excludedPrefixes is not null)
                 {
                     for (int i = 0; i < excludedPrefixes.Length && exclude == false; i++)
                     {
@@ -690,7 +690,7 @@ internal sealed class PropertiesParser
         using (StreamReader sr = new StreamReader(stream))
         {
             string? line;
-            while ((line = sr.ReadLine()) != null)
+            while ((line = sr.ReadLine()) is not null)
             {
                 line = line.TrimStart();
 

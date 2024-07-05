@@ -69,7 +69,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
     private string? timeZoneInfoId
     {
         get => timeZone?.Id;
-        set => timeZone = value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value);
+        set => timeZone = value is null ? null : TimeZoneInfo.FindSystemTimeZoneById(value);
     }
 
     public CalendarIntervalTriggerImpl() : base(TimeProvider.System)
@@ -220,7 +220,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
             }
 
             DateTimeOffset? eTime = EndTimeUtc;
-            if (eTime != null && eTime < value)
+            if (eTime is not null && eTime < value)
             {
                 ThrowHelper.ThrowArgumentException("End time cannot be before start time");
             }
@@ -245,7 +245,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
         set
         {
             DateTimeOffset sTime = StartTimeUtc;
-            if (value != null && sTime > value)
+            if (value is not null && sTime > value)
             {
                 ThrowHelper.ThrowArgumentException("End time cannot be before start time");
             }
@@ -282,7 +282,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
     {
         get
         {
-            if (timeZone == null)
+            if (timeZone is null)
             {
                 timeZone = TimeZoneInfo.Local;
             }
@@ -393,7 +393,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
         if (instr == Quartz.MisfireInstruction.CalendarIntervalTrigger.DoNothing)
         {
             DateTimeOffset? newFireTime = GetFireTimeAfter(TimeProvider.GetUtcNow());
-            while (newFireTime != null && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
+            while (newFireTime is not null && cal is not null && !cal.IsTimeIncluded(newFireTime.Value))
             {
                 newFireTime = GetFireTimeAfter(newFireTime);
             }
@@ -426,12 +426,12 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
         previousFireTimeUtc = nextFireTimeUtc;
         nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 
-        while (nextFireTimeUtc != null && calendar != null
+        while (nextFireTimeUtc is not null && calendar is not null
                                        && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
         {
             nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 
-            if (nextFireTimeUtc == null)
+            if (nextFireTimeUtc is null)
             {
                 break;
             }
@@ -459,17 +459,17 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
     {
         nextFireTimeUtc = GetFireTimeAfter(previousFireTimeUtc);
 
-        if (nextFireTimeUtc == null || calendar == null)
+        if (nextFireTimeUtc is null || calendar is null)
         {
             return;
         }
 
         DateTimeOffset now = TimeProvider.GetUtcNow();
-        while (nextFireTimeUtc != null && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
+        while (nextFireTimeUtc is not null && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
         {
             nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 
-            if (nextFireTimeUtc == null)
+            if (nextFireTimeUtc is null)
             {
                 break;
             }
@@ -480,7 +480,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
                 nextFireTimeUtc = null;
             }
 
-            if (nextFireTimeUtc != null && nextFireTimeUtc < now)
+            if (nextFireTimeUtc is not null && nextFireTimeUtc < now)
             {
                 TimeSpan diff = now - nextFireTimeUtc.Value;
                 if (diff >= misfireThreshold)
@@ -515,12 +515,12 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
     {
         nextFireTimeUtc = TimeZoneUtil.ConvertTime(StartTimeUtc, TimeZone);
 
-        while (nextFireTimeUtc != null && calendar != null
+        while (nextFireTimeUtc is not null && calendar is not null
                                        && !calendar.IsTimeIncluded(nextFireTimeUtc.Value))
         {
             nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 
-            if (nextFireTimeUtc == null)
+            if (nextFireTimeUtc is null)
             {
                 break;
             }
@@ -586,7 +586,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
     {
         // increment afterTime by a second, so that we are
         // comparing against a time after it!
-        if (afterTime == null)
+        if (afterTime is null)
         {
             afterTime = TimeProvider.GetUtcNow().AddSeconds(1);
         }
@@ -615,7 +615,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
         long repeatLong = RepeatInterval;
 
         DateTimeOffset sTime = StartTimeUtc;
-        if (timeZone != null)
+        if (timeZone is not null)
         {
             sTime = TimeZoneUtil.ConvertTime(sTime, timeZone);
         }
@@ -841,7 +841,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
     {
         get
         {
-            if (EndTimeUtc == null)
+            if (EndTimeUtc is null)
             {
                 return null;
             }
@@ -852,7 +852,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
             fTime = GetFireTimeAfter(fTime, true);
 
             // the trigger fires at the end time, that's it!
-            if (fTime == null || fTime == EndTimeUtc)
+            if (fTime is null || fTime == EndTimeUtc)
             {
                 return fTime;
             }
@@ -901,7 +901,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
     /// <returns></returns>
     public override bool GetMayFireAgain()
     {
-        return GetNextFireTimeUtc() != null;
+        return GetNextFireTimeUtc() is not null;
     }
 
     /// <summary>

@@ -36,7 +36,7 @@ public sealed class CalendarIntervalTriggerPersistenceDelegate : SimplePropertie
     public override bool CanHandleTriggerType(IOperableTrigger trigger)
     {
         var calendarIntervalTriggerImpl = trigger as CalendarIntervalTriggerImpl;
-        return calendarIntervalTriggerImpl != null && !calendarIntervalTriggerImpl.HasAdditionalProperties;
+        return calendarIntervalTriggerImpl is not null && !calendarIntervalTriggerImpl.HasAdditionalProperties;
     }
 
     public override string GetHandledTriggerTypeDiscriminator()
@@ -69,7 +69,7 @@ public sealed class CalendarIntervalTriggerPersistenceDelegate : SimplePropertie
             // we moved to use separate column in v 2.6
             tzId = props.String2;
         }
-        if (!string.IsNullOrEmpty(tzId) && tzId != null)
+        if (!string.IsNullOrEmpty(tzId) && tzId is not null)
         {
             tz = TimeZoneUtil.FindTimeZoneById(tzId);
         }

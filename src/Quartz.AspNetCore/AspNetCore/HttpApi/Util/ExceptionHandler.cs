@@ -72,7 +72,7 @@ internal sealed class ExceptionHandler
 
         static string GetMessageWithInnerExceptionMessage(Exception exception)
         {
-            return exception.InnerException != null ? $"{exception.Message} {exception.InnerException.Message}" : exception.Message;
+            return exception.InnerException is not null ? $"{exception.Message} {exception.InnerException.Message}" : exception.Message;
         }
     }
 

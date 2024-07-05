@@ -463,7 +463,7 @@ public sealed class DailyCalendar : BaseCalendar
     /// <returns></returns>
     public override bool IsTimeIncluded(DateTimeOffset timeUtc)
     {
-        if (CalendarBase != null
+        if (CalendarBase is not null
             && CalendarBase.IsTimeIncluded(timeUtc) == false)
         {
             return false;
@@ -525,7 +525,7 @@ public sealed class DailyCalendar : BaseCalendar
                     nextIncludedTime =
                         GetTimeRangeEndingTimeUtc(nextIncludedTime).AddMilliseconds(OneMillis);
                 }
-                else if (CalendarBase != null &&
+                else if (CalendarBase is not null &&
                          !CalendarBase.IsTimeIncluded(nextIncludedTime))
                 {
                     nextIncludedTime =
@@ -557,7 +557,7 @@ public sealed class DailyCalendar : BaseCalendar
                     nextIncludedTime = GetEndOfDay(nextIncludedTime);
                     nextIncludedTime = nextIncludedTime.AddMilliseconds(1);
                 }
-                else if (CalendarBase != null &&
+                else if (CalendarBase is not null &&
                          !CalendarBase.IsTimeIncluded(nextIncludedTime))
                 {
                     nextIncludedTime =
@@ -640,7 +640,7 @@ public sealed class DailyCalendar : BaseCalendar
     {
         StringBuilder buffer = new StringBuilder();
         buffer.Append("base calendar: [");
-        if (CalendarBase != null)
+        if (CalendarBase is not null)
         {
             buffer.Append(CalendarBase);
         }
@@ -873,7 +873,7 @@ public sealed class DailyCalendar : BaseCalendar
     public override int GetHashCode()
     {
         int baseHash = 0;
-        if (CalendarBase != null)
+        if (CalendarBase is not null)
             baseHash = CalendarBase.GetHashCode();
 
         return rangeStartingHourOfDay.GetHashCode() + rangeEndingHourOfDay.GetHashCode() +
@@ -885,11 +885,11 @@ public sealed class DailyCalendar : BaseCalendar
 
     public bool Equals(DailyCalendar obj)
     {
-        if (obj == null)
+        if (obj is null)
         {
             return false;
         }
-        bool baseEqual = CalendarBase == null || CalendarBase.Equals(obj.CalendarBase);
+        bool baseEqual = CalendarBase is null || CalendarBase.Equals(obj.CalendarBase);
 
         return baseEqual && InvertTimeRange == obj.InvertTimeRange &&
                rangeStartingHourOfDay == obj.rangeStartingHourOfDay &&

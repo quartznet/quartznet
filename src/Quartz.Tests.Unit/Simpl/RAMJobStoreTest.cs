@@ -359,7 +359,7 @@ public class RAMJobStoreTest
             // Manually trigger the first fire time computation that scheduler would do. Otherwise
             // the store.acquireNextTriggers() will not work properly.
             DateTimeOffset? fireTime = trigger.ComputeFirstFireTimeUtc(null);
-            Assert.AreEqual(true, fireTime != null);
+            Assert.AreEqual(true, fireTime is not null);
 
             await store.StoreJobAndTrigger(job, trigger);
         }
@@ -402,7 +402,7 @@ public class RAMJobStoreTest
             // Manually trigger the first fire time computation that scheduler would do. Otherwise
             // the store.acquireNextTriggers() will not work properly.
             DateTimeOffset? fireTime = trigger.ComputeFirstFireTimeUtc(null);
-            Assert.AreEqual(true, fireTime != null);
+            Assert.AreEqual(true, fireTime is not null);
 
             await store.StoreJobAndTrigger(job, trigger);
         }

@@ -44,7 +44,7 @@ public static class ObjectUtils
     /// <returns>The new value, possibly the result of type conversion.</returns>
     public static object? ConvertValueIfNecessary(Type requiredType, object? newValue)
     {
-        if (newValue != null)
+        if (newValue is not null)
         {
             // if it is assignable, return the value right away
             if (requiredType.IsInstanceOfType(newValue))
@@ -103,13 +103,13 @@ public static class ObjectUtils
     /// </summary>
     public static T InstantiateType<T>(Type? type)
     {
-        if (type == null)
+        if (type is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(type), "Cannot instantiate null");
         }
 
         var ci = type.GetConstructor(Type.EmptyTypes);
-        if (ci == null)
+        if (ci is null)
         {
             ThrowHelper.ThrowArgumentException("Cannot instantiate type which has no empty constructor", type.Name);
         }
@@ -172,13 +172,13 @@ public static class ObjectUtils
             Type t = tuple.ObjectType;
             var propertyInfo = t.GetProperty(name);
 
-            if (propertyInfo == null || !propertyInfo.CanWrite)
+            if (propertyInfo is null || !propertyInfo.CanWrite)
             {
                 // try to find from interfaces
                 foreach (var interfaceType in target.GetType().GetInterfaces())
                 {
                     propertyInfo = interfaceType.GetProperty(name);
-                    if (propertyInfo != null && propertyInfo.CanWrite)
+                    if (propertyInfo is not null && propertyInfo.CanWrite)
                     {
                         // found suitable
                         break;
@@ -189,7 +189,7 @@ public static class ObjectUtils
             return propertyInfo;
         });
 
-        if (pi == null)
+        if (pi is null)
         {
             // not match from anywhere
             ThrowHelper.ThrowMemberAccessException($"No writable property '{propertyName}' found");
@@ -197,7 +197,7 @@ public static class ObjectUtils
 
         var mi = pi.GetSetMethod();
 
-        if (mi == null)
+        if (mi is null)
         {
             ThrowHelper.ThrowMemberAccessException($"Property '{propertyName}' has no setter");
         }

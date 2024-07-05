@@ -175,12 +175,12 @@ public class SendMailJob : IJob
 
         using (var client = new SmtpClient(mailInfo.SmtpHost))
         {
-            if (mailInfo.SmtpUserName != null)
+            if (mailInfo.SmtpUserName is not null)
             {
                 client.Credentials = new NetworkCredential(mailInfo.SmtpUserName, mailInfo.SmtpPassword);
             }
 
-            if (mailInfo.SmtpPort != null)
+            if (mailInfo.SmtpPort is not null)
             {
                 client.Port = mailInfo.SmtpPort.Value;
             }

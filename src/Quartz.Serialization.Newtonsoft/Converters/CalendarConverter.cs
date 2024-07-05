@@ -53,7 +53,7 @@ internal sealed class CalendarConverter : JsonConverter
             writer.WriteValue(baseCalendar.TimeZone?.Id);
 
             writer.WritePropertyName("BaseCalendar");
-            if (baseCalendar.CalendarBase != null)
+            if (baseCalendar.CalendarBase is not null)
             {
                 serializer.Serialize(writer, baseCalendar.CalendarBase, baseCalendar.CalendarBase.GetType());
             }
@@ -80,7 +80,7 @@ internal sealed class CalendarConverter : JsonConverter
             target.Description = jObject["Description"]!.Value<string>();
             target.TimeZone = TimeZoneUtil.FindTimeZoneById(jObject["TimeZoneId"]!.Value<string>()!);
             var baseCalendar = jObject["BaseCalendar"]!.Value<JObject>();
-            if (baseCalendar != null)
+            if (baseCalendar is not null)
             {
                 var baseCalendarType = Type.GetType(baseCalendar["$type"]!.Value<string>()!, true);
                 var o = baseCalendar.ToObject(baseCalendarType!, serializer);

@@ -220,7 +220,7 @@ public class TriggerTimeComparatorBenchmark
     {
         public int Compare(ITrigger? trig1, ITrigger? trig2)
         {
-            if (trig1 == null && trig2 == null)
+            if (trig1 is null && trig2 is null)
             {
                 return 0;
             }
@@ -228,14 +228,14 @@ public class TriggerTimeComparatorBenchmark
             var t1 = trig1!.GetNextFireTimeUtc();
             var t2 = trig2!.GetNextFireTimeUtc();
 
-            if (t1 != null || t2 != null)
+            if (t1 is not null || t2 is not null)
             {
-                if (t1 == null)
+                if (t1 is null)
                 {
                     return 1;
                 }
 
-                if (t2 == null)
+                if (t2 is null)
                 {
                     return -1;
                 }

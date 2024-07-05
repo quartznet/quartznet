@@ -143,7 +143,7 @@ public sealed class CronCalendar : BaseCalendar
     /// <returns>a boolean indicating whether the specified time is 'included' by the CronCalendar</returns>
     public override bool IsTimeIncluded(DateTimeOffset timeUtc)
     {
-        if (CalendarBase != null &&
+        if (CalendarBase is not null &&
             CalendarBase.IsTimeIncluded(timeUtc) == false)
         {
             return false;
@@ -175,7 +175,7 @@ public sealed class CronCalendar : BaseCalendar
             {
                 nextIncludedTime = cronExpression.GetNextValidTimeAfter(nextIncludedTime)!.Value;
             }
-            else if (CalendarBase != null &&
+            else if (CalendarBase is not null &&
                      !CalendarBase.IsTimeIncluded(nextIncludedTime))
             {
                 nextIncludedTime =
@@ -212,7 +212,7 @@ public sealed class CronCalendar : BaseCalendar
     {
         StringBuilder buffer = new StringBuilder();
         buffer.Append("base calendar: [");
-        if (CalendarBase != null)
+        if (CalendarBase is not null)
         {
             buffer.Append(CalendarBase);
         }
@@ -256,7 +256,7 @@ public sealed class CronCalendar : BaseCalendar
     public override int GetHashCode()
     {
         int baseHash = 0;
-        if (CalendarBase != null)
+        if (CalendarBase is not null)
         {
             baseHash = CalendarBase.GetHashCode();
         }
@@ -266,11 +266,11 @@ public sealed class CronCalendar : BaseCalendar
 
     public bool Equals(CronCalendar obj)
     {
-        if (obj == null)
+        if (obj is null)
         {
             return false;
         }
-        bool baseEqual = CalendarBase == null || CalendarBase.Equals(obj.CalendarBase);
+        bool baseEqual = CalendarBase is null || CalendarBase.Equals(obj.CalendarBase);
 
         return baseEqual && CronExpression.Equals(obj.CronExpression);
     }

@@ -483,7 +483,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
             IEnumerator sourceEnum = Keys.GetEnumerator();
             while (sourceEnum.MoveNext())
             {
-                if (sourceEnum.Current != null && targetAux.Contains(sourceEnum.Current))
+                if (sourceEnum.Current is not null && targetAux.Contains(sourceEnum.Current))
                 {
                     targetAux.Remove(sourceEnum.Current);
                 }
@@ -543,7 +543,7 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
     /// <param name="source">The source dictionary.</param>
     public void PutAll(IDictionary<TKey, TValue?> source)
     {
-        if (source == null)
+        if (source is null)
         {
             return;
         }

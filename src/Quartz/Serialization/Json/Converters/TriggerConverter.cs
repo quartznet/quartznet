@@ -46,7 +46,7 @@ internal sealed class TriggerConverter : JsonConverter<ITrigger>
                 .WithSchedule(scheduleBuilder)
                 .WithIdentity(key);
 
-            if (jobKey != null)
+            if (jobKey is not null)
             {
                 builder = builder.ForJob(jobKey);
             }

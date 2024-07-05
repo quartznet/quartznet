@@ -207,7 +207,7 @@ public sealed class HolidayCalendar : BaseCalendar
     public override int GetHashCode()
     {
         int baseHash = 0;
-        if (CalendarBase != null)
+        if (CalendarBase is not null)
         {
             baseHash = CalendarBase.GetHashCode();
         }
@@ -217,12 +217,12 @@ public sealed class HolidayCalendar : BaseCalendar
 
     public bool Equals(HolidayCalendar obj)
     {
-        if (obj == null)
+        if (obj is null)
         {
             return false;
         }
 
-        bool baseEqual = CalendarBase == null || CalendarBase.Equals(obj.CalendarBase);
+        bool baseEqual = CalendarBase is null || CalendarBase.Equals(obj.CalendarBase);
 
         return baseEqual && ExcludedDates.SequenceEqual(obj.ExcludedDates);
     }

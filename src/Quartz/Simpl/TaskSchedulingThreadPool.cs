@@ -138,7 +138,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     {
         // Checking for null allows users to specify their own scheduler prior to initialization.
         // If this is undesirable, the scheduler should be set here unconditionally.
-        if (Scheduler == null)
+        if (Scheduler is null)
         {
             Scheduler = GetDefaultScheduler();
         }
@@ -205,7 +205,7 @@ public abstract class TaskSchedulingThreadPool : IThreadPool
     /// </returns>
     public bool RunInThread(Func<Task> runnable)
     {
-        if (runnable == null || !isInitialized || shutdownCancellation.IsCancellationRequested) return false;
+        if (runnable is null || !isInitialized || shutdownCancellation.IsCancellationRequested) return false;
 
         // Acquire the semaphore (return false if shutdown occurs while waiting)
         try

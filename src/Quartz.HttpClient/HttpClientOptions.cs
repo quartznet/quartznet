@@ -37,12 +37,12 @@ public class HttpClientOptions
             throw new InvalidOperationException("Scheduler name required");
         }
 
-        if (string.IsNullOrWhiteSpace(HttpClientName) && HttpClient == null)
+        if (string.IsNullOrWhiteSpace(HttpClientName) && HttpClient is null)
         {
             throw new InvalidOperationException($"Either {nameof(HttpClientName)} or {nameof(HttpClient)} instance is required");
         }
-        
-        if (!string.IsNullOrWhiteSpace(HttpClientName) && HttpClient != null)
+
+        if (!string.IsNullOrWhiteSpace(HttpClientName) && HttpClient is not null)
         {
             throw new InvalidOperationException($"Both {nameof(HttpClientName)} and {nameof(HttpClient)} instance have been set, only one can be set");
         }

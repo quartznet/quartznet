@@ -59,7 +59,7 @@ public abstract class HostNameBasedIdGenerator : IInstanceIdGenerator
         {
             var hostAddress = await GetHostAddress(cancellationToken).ConfigureAwait(false);
             string hostName = hostAddress.HostName;
-            if (hostName != null && hostName.Length > maxLength)
+            if (hostName is not null && hostName.Length > maxLength)
             {
                 string newName = hostName.Substring(0, maxLength);
                 logger.LogInformation("Host name '{HostName}' was too long, shortened to '{Newname}'", hostName, newName);

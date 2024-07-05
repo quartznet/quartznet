@@ -21,7 +21,7 @@ public abstract class WebApiTest
     public async Task OneTimeTearDown()
     {
         await ClearSchedulerRepository();
-        if (WebApplicationFactory != null)
+        if (WebApplicationFactory is not null)
         {
             await WebApplicationFactory.DisposeAsync();
             WebApplicationFactory = null!;

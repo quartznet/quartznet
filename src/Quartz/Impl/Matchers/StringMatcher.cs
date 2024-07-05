@@ -63,7 +63,7 @@ public abstract class StringMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey
         {
             return true;
         }
-        if (obj == null)
+        if (obj is null)
         {
             return false;
         }
@@ -72,9 +72,9 @@ public abstract class StringMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey
             return false;
         }
         StringMatcher<TKey> other = (StringMatcher<TKey>) obj;
-        if (CompareToValue == null)
+        if (CompareToValue is null)
         {
-            if (other.CompareToValue != null)
+            if (other.CompareToValue is not null)
             {
                 return false;
             }

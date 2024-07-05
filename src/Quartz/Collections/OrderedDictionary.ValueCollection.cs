@@ -82,7 +82,7 @@ internal partial class OrderedDictionary<TKey, TValue>
 
         void ICollection<TValue>.CopyTo(TValue[] array, int arrayIndex)
         {
-            if (array == null)
+            if (array is null)
             {
                 ThrowHelper.ThrowArgumentNullException(nameof(array));
             }

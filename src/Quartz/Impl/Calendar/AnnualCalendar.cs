@@ -130,7 +130,7 @@ public sealed class AnnualCalendar : BaseCalendar
     public IReadOnlyCollection<DateTime> DaysExcluded
     {
         get => new HashSet<DateTime>(excludeDays);
-        set => excludeDays = value == null ? new SortedSet<DateTime>() : new SortedSet<DateTime>(value);
+        set => excludeDays = value is null ? new SortedSet<DateTime>() : new SortedSet<DateTime>(value);
     }
 
     /// <summary>
@@ -263,7 +263,7 @@ public sealed class AnnualCalendar : BaseCalendar
     public override int GetHashCode()
     {
         int baseHash = 13;
-        if (CalendarBase != null)
+        if (CalendarBase is not null)
         {
             baseHash = CalendarBase.GetHashCode();
         }
@@ -273,12 +273,12 @@ public sealed class AnnualCalendar : BaseCalendar
 
     public bool Equals(AnnualCalendar obj)
     {
-        if (obj == null)
+        if (obj is null)
         {
             return false;
         }
 
-        bool toReturn = CalendarBase == null || CalendarBase.Equals(obj.CalendarBase);
+        bool toReturn = CalendarBase is null || CalendarBase.Equals(obj.CalendarBase);
 
         toReturn = toReturn && DaysExcluded.Count == obj.DaysExcluded.Count;
         if (toReturn)

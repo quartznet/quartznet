@@ -9,7 +9,7 @@ public static class QuartzServiceCollectionExtensions
         this IServiceCollection services,
         Action<QuartzHostedServiceOptions>? configure = null)
     {
-        if (configure != null)
+        if (configure is not null)
         {
             services.Configure(configure);
         }

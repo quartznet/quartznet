@@ -181,7 +181,7 @@ internal sealed class JobDetailImpl : IJobDetail
         this.disallowConcurrentExecution = disallowConcurrentExecution;
         this.persistJobDataAfterExecution = persistJobDataAfterExecution;
 
-        if (jobDataMap != null)
+        if (jobDataMap is not null)
         {
             this.jobDataMap = jobDataMap;
         }
@@ -220,12 +220,12 @@ internal sealed class JobDetailImpl : IJobDetail
         get => group;
         private set
         {
-            if (value != null && value.Trim().Length == 0)
+            if (value is not null && value.Trim().Length == 0)
             {
                 ThrowHelper.ThrowArgumentException("Group name cannot be empty.");
             }
 
-            if (value == null)
+            if (value is null)
             {
                 value = SchedulerConstants.DefaultGroup;
             }
@@ -248,9 +248,9 @@ internal sealed class JobDetailImpl : IJobDetail
     {
         get
         {
-            if (key == null)
+            if (key is null)
             {
-                if (Name == null)
+                if (Name is null)
                 {
                     return null!;
                 }
@@ -295,7 +295,7 @@ internal sealed class JobDetailImpl : IJobDetail
     {
         get
         {
-            if (jobDataMap == null)
+            if (jobDataMap is null)
             {
                 jobDataMap = new JobDataMap();
             }
@@ -377,17 +377,17 @@ internal sealed class JobDetailImpl : IJobDetail
     /// </summary>
     public void Validate()
     {
-        if (name == null)
+        if (name is null)
         {
             ThrowHelper.ThrowSchedulerException("Job's name cannot be null");
         }
 
-        if (group == null)
+        if (group is null)
         {
             ThrowHelper.ThrowSchedulerException("Job's group cannot be null");
         }
 
-        if (jobType == null)
+        if (jobType is null)
         {
             ThrowHelper.ThrowSchedulerException("Job's class cannot be null");
         }
@@ -408,7 +408,7 @@ internal sealed class JobDetailImpl : IJobDetail
     public IJobDetail Clone()
     {
         var copy = (JobDetailImpl) MemberwiseClone();
-        if (jobDataMap != null)
+        if (jobDataMap is not null)
         {
             copy.jobDataMap = (JobDataMap) jobDataMap.Clone();
         }
@@ -426,7 +426,7 @@ internal sealed class JobDetailImpl : IJobDetail
     {
         //doesn't consider job's saved data,
         //durability etc
-        return detail != null && detail.Name == Name && detail.Group == Group && detail.JobType.Equals(JobType);
+        return detail is not null && detail.Name == Name && detail.Group == Group && detail.JobType.Equals(JobType);
     }
 
     /// <summary>

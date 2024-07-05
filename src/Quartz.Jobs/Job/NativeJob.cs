@@ -261,7 +261,7 @@ public class NativeJob : IJob
             {
                 using StreamReader br = new StreamReader(inputStream);
                 string? line;
-                while ((line = br.ReadLine()) != null)
+                while ((line = br.ReadLine()) is not null)
                 {
                     if (type == StreamTypeError)
                     {

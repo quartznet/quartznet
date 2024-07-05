@@ -50,7 +50,7 @@ public class SQLiteDelegate : StdAdoDelegate
             }
 
             // workaround for GetBytes not being implemented
-            if (getFieldValueMethod == null)
+            if (getFieldValueMethod is null)
             {
                 var method = dr.GetType().GetMethod("GetFieldValue");
                 getFieldValueMethod = method!.MakeGenericMethod(typeof(byte[]));

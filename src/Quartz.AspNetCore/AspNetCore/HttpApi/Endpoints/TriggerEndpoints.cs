@@ -249,7 +249,7 @@ internal static class TriggerEndpoints
         endpointHelper.AssertIsValid(request);
         return endpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
         {
-            if (request.Job == null)
+            if (request.Job is null)
             {
                 var firstFireTime = await scheduler.ScheduleJob(request.Trigger, cancellationToken).ConfigureAwait(false);
                 return new ScheduleJobResponse(firstFireTime);

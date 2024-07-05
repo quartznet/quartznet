@@ -16,7 +16,7 @@ internal sealed class DefaultDirectoryProvider : IDirectoryProvider
         var dirName = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryName);
         var dirNames = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryNames);
 
-        if (dirName == null && dirNames == null)
+        if (dirName is null && dirNames is null)
         {
             throw new JobExecutionException($"The parameter '{DirectoryScanJob.DirectoryName}' or '{DirectoryScanJob.DirectoryNames}' " +
                                             "is required and was not found in merged JobDataMap");
@@ -26,11 +26,11 @@ internal sealed class DefaultDirectoryProvider : IDirectoryProvider
             If the user supplied both DirectoryScanJob.DirectoryName and DirectoryScanJob.DirectoryNames,
             then just use both. The directory names will be 'distincted' by the caller.
         */
-        if (dirName != null)
+        if (dirName is not null)
         {
             directoriesToScan.Add(dirName);
         }
-        if (dirNames != null)
+        if (dirNames is not null)
         {
             directoriesToScan.AddRange(
                 dirNames.Split(new[] { ";" }, StringSplitOptions.RemoveEmptyEntries));

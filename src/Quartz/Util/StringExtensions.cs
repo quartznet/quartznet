@@ -24,7 +24,7 @@ internal static class StringExtensions
     /// <returns></returns>
     internal static string? TrimEmptyToNull(this string s)
     {
-        if (s == null)
+        if (s is null)
         {
             return null;
         }

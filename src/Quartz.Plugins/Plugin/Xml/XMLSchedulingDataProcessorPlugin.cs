@@ -273,7 +273,7 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
 
     private async ValueTask ProcessFile(JobFile? jobFile, CancellationToken cancellationToken = default)
     {
-        if (jobFile == null || jobFile.FileFound == false)
+        if (jobFile is null || jobFile.FileFound == false)
         {
             return;
         }
@@ -365,7 +365,7 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
                     }
                 }
 
-                if (f == null)
+                if (f is null)
                 {
                     if (plugin.FailOnFileNotFound)
                     {
@@ -388,7 +388,7 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
             {
                 try
                 {
-                    if (f != null)
+                    if (f is not null)
                     {
 #if NET5_0_OR_GREATER
                         await f.DisposeAsync().ConfigureAwait(false);

@@ -163,7 +163,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
         st.RepeatCount = repeatCount;
         st.timeZone = timeZone;
 
-        if (daysOfWeek != null)
+        if (daysOfWeek is not null)
         {
             st.DaysOfWeek = new HashSet<DayOfWeek>(daysOfWeek);
         }
@@ -172,7 +172,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
             st.DaysOfWeek = new HashSet<DayOfWeek>(AllDaysOfTheWeek);
         }
 
-        if (startTimeOfDayUtc != null)
+        if (startTimeOfDayUtc is not null)
         {
             st.StartTimeOfDay = startTimeOfDayUtc;
         }
@@ -181,7 +181,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
             st.StartTimeOfDay = TimeOfDay.HourAndMinuteOfDay(0, 0);
         }
 
-        if (endTimeOfDayUtc != null)
+        if (endTimeOfDayUtc is not null)
         {
             st.EndTimeOfDay = endTimeOfDayUtc;
         }
@@ -267,7 +267,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
     /// <returns>the updated DailyTimeIntervalScheduleBuilder</returns>
     public DailyTimeIntervalScheduleBuilder OnDaysOfTheWeek(IReadOnlyCollection<DayOfWeek> onDaysOfWeek)
     {
-        if (onDaysOfWeek == null || onDaysOfWeek.Count == 0)
+        if (onDaysOfWeek is null || onDaysOfWeek.Count == 0)
         {
             ThrowHelper.ThrowArgumentException("Days of week must be an non-empty set.");
         }
@@ -363,7 +363,7 @@ public sealed class DailyTimeIntervalScheduleBuilder : ScheduleBuilder<IDailyTim
             ThrowHelper.ThrowArgumentException("Ending daily after count must be a positive number!");
         }
 
-        if (startTimeOfDayUtc == null)
+        if (startTimeOfDayUtc is null)
         {
             ThrowHelper.ThrowArgumentException("You must set the StartDailyAt() before calling this EndingDailyAfterCount()!");
         }

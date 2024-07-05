@@ -387,7 +387,7 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
 
         object?[] args;
 
-        if (jobException != null)
+        if (jobException is not null)
         {
             if (!IsWarnEnabled)
             {

@@ -33,7 +33,7 @@ public static class QuartzServiceCollectionExtensions
             .AddOptions<QuartzHttpApiOptions>()
             .Validate(options => !string.IsNullOrWhiteSpace(options.ApiPath) && options.ApiPath.StartsWith("/"), "ApiPath is required and must start with '/'");
 
-        if (configure != null)
+        if (configure is not null)
         {
             optionsBuilder.Configure(configure);
         }
@@ -48,7 +48,7 @@ public static class QuartzServiceCollectionExtensions
 
         static void AddJsonConverters(JsonSerializerOptions? options)
         {
-            if (options == null)
+            if (options is null)
             {
                 return;
             }
@@ -60,7 +60,7 @@ public static class QuartzServiceCollectionExtensions
     public static IEndpointConventionBuilder MapQuartzApi(this IEndpointRouteBuilder builder)
     {
         var handler = builder.ServiceProvider.GetService<ExceptionHandler>();
-        if (handler == null)
+        if (handler is null)
         {
             throw new Exception("HTTP API not configured. Call AddHttpApi() in AddQuartz(...)");
         }

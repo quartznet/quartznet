@@ -75,11 +75,11 @@ public sealed class JobChainingJobListener : JobListenerSupport
     /// <param name="secondJob">a JobKey with the name and group of the follow-up job</param>
     public void AddJobChainLink(JobKey firstJob, JobKey secondJob)
     {
-        if (firstJob == null || secondJob == null)
+        if (firstJob is null || secondJob is null)
         {
             ThrowHelper.ThrowArgumentException("Key cannot be null!");
         }
-        if (firstJob.Name == null || secondJob.Name == null)
+        if (firstJob.Name is null || secondJob.Name is null)
         {
             ThrowHelper.ThrowArgumentException("Key cannot have a null name!");
         }
@@ -93,7 +93,7 @@ public sealed class JobChainingJobListener : JobListenerSupport
     {
         chainLinks.TryGetValue(context.JobDetail.Key, out var sj);
 
-        if (sj == null)
+        if (sj is null)
         {
             return;
         }

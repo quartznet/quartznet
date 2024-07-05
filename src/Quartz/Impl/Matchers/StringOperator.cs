@@ -49,7 +49,7 @@ public abstract class StringOperator : IEquatable<StringOperator>
     {
         public override bool Evaluate(string value, string compareTo)
         {
-            return value != null && value.StartsWith(compareTo);
+            return value is not null && value.StartsWith(compareTo);
         }
     }
 
@@ -58,7 +58,7 @@ public abstract class StringOperator : IEquatable<StringOperator>
     {
         public override bool Evaluate(string value, string compareTo)
         {
-            return value != null && value.EndsWith(compareTo);
+            return value is not null && value.EndsWith(compareTo);
         }
     }
 
@@ -67,7 +67,7 @@ public abstract class StringOperator : IEquatable<StringOperator>
     {
         public override bool Evaluate(string value, string compareTo)
         {
-            return value != null && value.Contains(compareTo);
+            return value is not null && value.Contains(compareTo);
         }
     }
 
@@ -116,7 +116,7 @@ public abstract class StringOperator : IEquatable<StringOperator>
         }
 #endif
 
-        return other != null && GetType() == other.GetType();
+        return other is not null && GetType() == other.GetType();
     }
 
     /// <summary>
