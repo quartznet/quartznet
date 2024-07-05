@@ -70,7 +70,7 @@ public sealed class QuartzSchedulerResources
 
             name = value;
 
-            if (threadName == null)
+            if (threadName is null)
             {
                 // thread name not already set, use default thread name
                 ThreadName = $"{value}_QuartzSchedulerThread";

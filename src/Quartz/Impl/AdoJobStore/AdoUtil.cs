@@ -69,12 +69,12 @@ internal sealed class AdoUtil : IAdoUtil
         int? size)
     {
         IDbDataParameter param = cmd.CreateParameter();
-        if (dataType != null)
+        if (dataType is not null)
         {
             SetDataTypeToCommandParameter(param, dataType);
         }
 
-        if (size != null)
+        if (size is not null)
         {
             param.Size = size.Value;
         }

@@ -666,7 +666,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         for (int i = 0; i < 100; ++i)
         {
             fireTime = trigger.GetFireTimeAfter(fireTime);
-            if (fireTime == null)
+            if (fireTime is null)
             {
                 break;
             }

@@ -116,7 +116,7 @@ internal sealed class CronTriggerPersistenceDelegate : ITriggerPersistenceDelega
 
         CronScheduleBuilder cb = CronScheduleBuilder.CronSchedule(cronExpr);
 
-        if (timeZoneId != null)
+        if (timeZoneId is not null)
         {
             cb.InTimeZone(TimeZoneUtil.FindTimeZoneById(timeZoneId));
         }

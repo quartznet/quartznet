@@ -175,11 +175,11 @@ public sealed class JobExecutionContextImpl : ICancellableJobExecutionContext, I
     {
         get
         {
-            if (jobDataMap == null)
+            if (jobDataMap is null)
             {
                 lock (lazyInitLock)
                 {
-                    if (jobDataMap == null)
+                    if (jobDataMap is null)
                     {
                         jobDataMap = new JobDataMap(jobDetail.JobDataMap.Count + trigger.JobDataMap.Count);
                         jobDataMap.PutAll(jobDetail.JobDataMap);
@@ -272,7 +272,7 @@ public sealed class JobExecutionContextImpl : ICancellableJobExecutionContext, I
     {
         get
         {
-            if (jobRunTime == null)
+            if (jobRunTime is null)
             {
                 // we are still in progress, calculate dynamically
                 return DateTimeOffset.UtcNow - FireTimeUtc;
@@ -354,11 +354,11 @@ public sealed class JobExecutionContextImpl : ICancellableJobExecutionContext, I
     {
         get
         {
-            if (cancellationTokenSource == null)
+            if (cancellationTokenSource is null)
             {
                 lock (lazyInitLock)
                 {
-                    if (cancellationTokenSource == null)
+                    if (cancellationTokenSource is null)
                     {
                         cancellationTokenSource = new CancellationTokenSource();
                     }
@@ -376,11 +376,11 @@ public sealed class JobExecutionContextImpl : ICancellableJobExecutionContext, I
     {
         get
         {
-            if (data == null)
+            if (data is null)
             {
                 lock (lazyInitLock)
                 {
-                    if (data == null)
+                    if (data is null)
                     {
                         data = new Dictionary<object, object>();
                     }

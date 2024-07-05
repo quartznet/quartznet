@@ -118,12 +118,12 @@ public static class TimeZoneUtil
                 }
             }
 
-            if (info == null)
+            if (info is null)
             {
                 info = CustomResolver(id);
             }
 
-            if (info == null)
+            if (info is null)
             {
                 // we tried our best
                 throw new TimeZoneNotFoundException(

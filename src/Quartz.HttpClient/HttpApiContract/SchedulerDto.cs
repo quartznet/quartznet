@@ -13,12 +13,12 @@ internal record SchedulerDto(
 {
     public static SchedulerDto Create(IScheduler scheduler, SchedulerMetaData metaData)
     {
-        if (scheduler == null)
+        if (scheduler is null)
         {
             throw new ArgumentNullException(nameof(scheduler));
         }
 
-        if (metaData == null)
+        if (metaData is null)
         {
             throw new ArgumentNullException(nameof(metaData));
         }

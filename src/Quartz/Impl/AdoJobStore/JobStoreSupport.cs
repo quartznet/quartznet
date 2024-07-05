@@ -104,7 +104,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         get => tablePrefix;
         set
         {
-            if (value == null)
+            if (value is null)
             {
                 value = "";
             }
@@ -120,7 +120,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     {
         set
         {
-            if (value == null)
+            if (value is null)
             {
                 value = "false";
             }
@@ -400,7 +400,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         {
             lock (this)
             {
-                if (driverDelegate == null)
+                if (driverDelegate is null)
                 {
                     try
                     {
@@ -421,7 +421,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                         args.InitString = DriverDelegateInitString;
 
                         var ctor = delegateType.GetConstructor(Type.EmptyTypes);
-                        if (ctor == null)
+                        if (ctor is null)
                         {
                             ThrowHelper.ThrowInvalidConfigurationException("Configured delegate does not have public constructor that takes no arguments");
                         }
@@ -466,7 +466,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         typeLoadHelper = loadHelper;
         schedSignaler = signaler;
 
-        if (Delegate is SQLiteDelegate && (LockHandler == null || LockHandler.GetType() != typeof(UpdateLockRowSemaphore)))
+        if (Delegate is SQLiteDelegate && (LockHandler is null || LockHandler.GetType() != typeof(UpdateLockRowSemaphore)))
         {
             Logger.LogInformation("Detected SQLite usage, changing to use UpdateLockRowSemaphore");
             var lockHandler = new UpdateLockRowSemaphore(DbProvider)
@@ -498,7 +498,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
         // If the user hasn't specified an explicit lock handler, then
         // choose one based on CMT/Clustered/UseDBLocks.
-        if (LockHandler == null)
+        if (LockHandler is null)
         {
             // If the user hasn't specified an explicit lock handler,
             // then we *must* use DB locks with clustering
@@ -511,7 +511,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             {
                 if (Delegate is SqlServerDelegate)
                 {
-                    if (SelectWithLockSQL == null)
+                    if (SelectWithLockSQL is null)
                     {
                         const string DefaultLockSql = "SELECT * FROM {0}LOCKS WITH (UPDLOCK,ROWLOCK) WHERE " + ColumnSchedulerName + " = @schedulerName AND LOCK_NAME = @lockName";
                         Logger.LogInformation("Detected usage of SqlServerDelegate - defaulting 'selectWithLockSQL' to '{DefaultLockSql}'.", DefaultLockSql);
@@ -536,7 +536,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 Logger.LogWarning("Detected usage of SqlServerDelegate and UpdateLockRowSemaphore, removing 'quartz.jobStore.lockHandler.type' would allow more efficient SQL Server specific (UPDLOCK,ROWLOCK) row access");
             }
             // be ready to give a friendly warning if SQL Server provider and wrong delegate
-            if (DbProvider.Metadata.ConnectionType?.Namespace != null
+            if (DbProvider.Metadata.ConnectionType?.Namespace is not null
                 && DbProvider.Metadata.ConnectionType.Namespace.Contains("SqlClient")
                 && DbProvider.Metadata.ConnectionType.Name == "SqlConnection"
                 && !(Delegate is SqlServerDelegate))
@@ -619,12 +619,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     {
         shutdown = true;
 
-        if (misfireHandler != null)
+        if (misfireHandler is not null)
         {
             await misfireHandler.Shutdown().ConfigureAwait(false);
         }
 
-        if (clusterManager != null)
+        if (clusterManager is not null)
         {
             await clusterManager.Shutdown().ConfigureAwait(false);
         }
@@ -785,7 +785,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 continue;
             }
 
-            if (trig == null)
+            if (trig is null)
             {
                 continue;
             }
@@ -847,7 +847,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         bool forceState, string newStateIfNotComplete, bool recovering)
     {
         ICalendar? cal = null;
-        if (trig.CalendarName != null)
+        if (trig.CalendarName is not null)
         {
             cal = await RetrieveCalendar(conn, trig.CalendarName).ConfigureAwait(false);
         }
@@ -1051,11 +1051,11 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 }
             }
 
-            if (job == null)
+            if (job is null)
             {
                 job = await RetrieveJob(conn, newTrigger.JobKey, cancellationToken).ConfigureAwait(false);
             }
-            if (job == null)
+            if (job is null)
             {
                 ThrowHelper.ThrowJobPersistenceException($"The job ({newTrigger.JobKey}) referenced by the trigger does not exist.");
             }
@@ -1322,7 +1322,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         {
             // this must be called before we delete the trigger, obviously
             // we use fault tolerant type loading as we only want to delete things
-            if (job == null)
+            if (job is null)
             {
                 job = await Delegate.SelectJobForTrigger(conn, triggerKey, new NullJobTypeLoader(), false, cancellationToken).ConfigureAwait(false);
             }
@@ -1386,7 +1386,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             // this must be called before we delete the trigger, obviously
             var job = await Delegate.SelectJobForTrigger(conn, triggerKey, TypeLoadHelper, cancellationToken).ConfigureAwait(false);
 
-            if (job == null)
+            if (job is null)
             {
                 return false;
             }
@@ -1472,7 +1472,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         {
             string ts = await Delegate.SelectTriggerState(conn, triggerKey, cancellationToken).ConfigureAwait(false);
 
-            if (ts == null)
+            if (ts is null)
             {
                 return TriggerState.None;
             }
@@ -1723,7 +1723,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         {
             calendarCache.TryGetValue(calName, out cal);
         }
-        if (cal != null)
+        if (cal is not null)
         {
             return cal;
         }
@@ -2252,7 +2252,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         {
             TriggerStatus? status = await Delegate.SelectTriggerStatus(conn, triggerKey, cancellationToken).ConfigureAwait(false);
 
-            if (status?.NextFireTimeUtc == null || status.NextFireTimeUtc == DateTimeOffset.MinValue)
+            if (status?.NextFireTimeUtc is null || status.NextFireTimeUtc == DateTimeOffset.MinValue)
             {
                 return;
             }
@@ -2666,7 +2666,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
                     // If our trigger is no longer available, try a new one.
                     var nextTrigger = await RetrieveTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-                    if (nextTrigger == null)
+                    if (nextTrigger is null)
                     {
                         continue; // next trigger
                     }
@@ -2707,7 +2707,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                     // data?), we then should log a warning and continue to next trigger.
                     // User would need to manually fix these triggers from DB as they will not
                     // able to be clean up by Quartz since we are not returning it to be processed.
-                    if (nextFireTimeUtc == null)
+                    if (nextFireTimeUtc is null)
                     {
                         Logger.LogWarning("Trigger {TriggerKey} returned null on nextFireTime and yet still exists in DB!", nextTrigger.Key);
                         continue;
@@ -2841,7 +2841,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
                     foreach (TriggerFiredResult tr in result)
                     {
-                        if (tr.TriggerFiredBundle != null &&
+                        if (tr.TriggerFiredBundle is not null &&
                             executingTriggers.Contains(tr.TriggerFiredBundle.Trigger.FireInstanceId))
                         {
                             return true;
@@ -2885,7 +2885,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         try
         {
             job = await RetrieveJob(conn, trigger.JobKey, cancellationToken).ConfigureAwait(false);
-            if (job == null)
+            if (job is null)
             {
                 return null;
             }
@@ -2904,10 +2904,10 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             throw;
         }
 
-        if (trigger.CalendarName != null)
+        if (trigger.CalendarName is not null)
         {
             cal = await RetrieveCalendar(conn, trigger.CalendarName, cancellationToken).ConfigureAwait(false);
-            if (cal == null)
+            if (cal is null)
             {
                 return null;
             }
@@ -2998,7 +2998,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                     // double check for possible reschedule within job
                     // execution, which would cancel the need to delete...
                     var stat = await Delegate.SelectTriggerStatus(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
-                    if (stat != null && !stat.NextFireTimeUtc.HasValue)
+                    if (stat is not null && !stat.NextFireTimeUtc.HasValue)
                     {
                         await RemoveTrigger(conn, trigger.Key, jobDetail, cancellationToken).ConfigureAwait(false);
                     }
@@ -3167,7 +3167,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 CommitConnection(conn, true);
             }
 
-            if (firstCheckIn || failedRecords != null && failedRecords.Count > 0)
+            if (firstCheckIn || failedRecords is not null && failedRecords.Count > 0)
             {
                 await LockHandler.ObtainLock(requestorId, conn, LockStateAccess, cancellationToken).ConfigureAwait(false);
                 transStateOwner = true;
@@ -3515,7 +3515,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <seealso cref="CloseConnection(ConnectionAndTransactionHolder)" />
     protected virtual void CleanupConnection(ConnectionAndTransactionHolder? conn)
     {
-        if (conn != null)
+        if (conn is not null)
         {
             CloseConnection(conn);
         }
@@ -3535,7 +3535,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// </summary>
     protected virtual void RollbackConnection(ConnectionAndTransactionHolder? cth, Exception cause)
     {
-        if (cth == null)
+        if (cth is null)
         {
             // db might be down or similar
             Logger.LogInformation("ConnectionAndTransactionHolder passed to RollbackConnection was null, ignoring");
@@ -3558,7 +3558,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     protected virtual bool IsTransient(Exception ex)
     {
         var isTransientProperty = ex.GetType().GetProperty("IsTransient");
-        if (isTransientProperty != null)
+        if (isTransientProperty is not null)
         {
             try
             {
@@ -3588,7 +3588,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
     private static bool InspectSqlException(Exception ex)
     {
-        var sqlException = ex.GetType().GetProperty("Errors") != null
+        var sqlException = ex.GetType().GetProperty("Errors") is not null
             ? ex
             : ex?.InnerException;
 
@@ -3728,7 +3728,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <throws>JobPersistenceException thrown if a SQLException occurs when the </throws>
     protected virtual void CommitConnection(ConnectionAndTransactionHolder cth, bool openNewTransaction)
     {
-        if (cth == null)
+        if (cth is null)
         {
             Logger.LogDebug("ConnectionAndTransactionHolder passed to CommitConnection was null, ignoring");
             return;
@@ -3886,7 +3886,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         ConnectionAndTransactionHolder? conn = null;
         try
         {
-            if (lockName != null)
+            if (lockName is not null)
             {
                 // If we aren't using db locks, then delay getting DB connection
                 // until after acquiring the lock since it isn't needed.
@@ -3898,7 +3898,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 transOwner = await LockHandler.ObtainLock(requestorId.Value, conn, lockName, cancellationToken).ConfigureAwait(false);
             }
 
-            if (conn == null)
+            if (conn is null)
             {
                 conn = await GetNonManagedTXConnection().ConfigureAwait(false);
             }
@@ -3911,7 +3911,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             catch (JobPersistenceException jpe)
             {
                 RollbackConnection(conn, jpe);
-                if (txValidator == null)
+                if (txValidator is null)
                 {
                     throw;
                 }
@@ -3926,7 +3926,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
 
             DateTimeOffset? sigTime = conn.SignalSchedulingChangeOnTxCompletion;
-            if (sigTime != null)
+            if (sigTime is not null)
             {
                 await SignalSchedulingChangeImmediately(sigTime).ConfigureAwait(false);
             }

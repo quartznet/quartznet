@@ -28,7 +28,7 @@ internal sealed class TriggerWrapper : IEquatable<TriggerWrapper>
 
     public bool Equals(TriggerWrapper? other)
     {
-        return other != null && other.TriggerKey.Equals(TriggerKey);
+        return other is not null && other.TriggerKey.Equals(TriggerKey);
     }
 
     /// <summary>

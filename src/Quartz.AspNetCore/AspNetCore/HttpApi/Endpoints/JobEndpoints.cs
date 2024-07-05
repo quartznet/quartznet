@@ -212,7 +212,7 @@ internal static class JobEndpoints
         TriggerJobRequest? request = null,
         CancellationToken cancellationToken = default)
     {
-        if (request?.JobData != null)
+        if (request?.JobData is not null)
         {
             return endpointHelper.ExecuteWithOkResponse(schedulerName, scheduler => scheduler.TriggerJob(new JobKey(jobName, jobGroup), request.JobData, cancellationToken).AsTask());
         }

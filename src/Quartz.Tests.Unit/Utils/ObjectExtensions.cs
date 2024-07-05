@@ -13,7 +13,7 @@ public static class ObjectExtensions
     /// <param name="obj"></param>
     public static T DeepClone<T>(this T obj) where T : class
     {
-        if (obj == null)
+        if (obj is null)
         {
             return null;
         }

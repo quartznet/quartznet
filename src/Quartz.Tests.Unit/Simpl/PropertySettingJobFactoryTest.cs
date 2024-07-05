@@ -64,7 +64,7 @@ public class PropertySettingJobFactoryTest
         map.Add("A", "B");
         jobDataMap.Put("mapValue", map);
 
-        if (serializerType != null)
+        if (serializerType is not null)
         {
             var serializer = (IObjectSerializer) Activator.CreateInstance(serializerType);
             serializer.Initialize();

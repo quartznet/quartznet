@@ -160,7 +160,7 @@ internal sealed class SimpleSemaphore : ISemaphore
         public bool IsLockOwner(Guid requestorId)
         {
             var temp = owner;
-            return temp != null && temp.Value == requestorId;
+            return temp is not null && temp.Value == requestorId;
 
         }
 

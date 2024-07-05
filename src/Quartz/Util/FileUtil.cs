@@ -46,13 +46,13 @@ internal sealed class FileUtil
     /// <returns>Expanded file name or actual no resolving was done.</returns>
     public static string? ResolveFile(string? fName)
     {
-        if (fName != null && fName.StartsWith("~"))
+        if (fName is not null && fName.StartsWith("~"))
         {
             // relative to run directory
 
 #if HTTPCONTEXT
                 // if HttpContext available, use it
-                if (HttpContext.Current != null)
+                if (HttpContext.Current is not null)
                 {
                     return HttpContext.Current.Server.MapPath(fName);
                 }

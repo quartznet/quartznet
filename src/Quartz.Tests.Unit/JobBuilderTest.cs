@@ -50,7 +50,7 @@ public class JobBuilderTest
         Assert.AreEqual("j1", job.Key.Name, "Unexpected job name: " + job.Key.Name);
         Assert.IsTrue(job.Key.Group.Equals(JobKey.DefaultGroup), "Unexpected job group: " + job.Key.Group);
         Assert.IsTrue(job.Key.Equals(new JobKey("j1")), "Unexpected job key: " + job.Key);
-        Assert.IsTrue(job.Description == null, "Unexpected job description: " + job.Description);
+        Assert.IsTrue(job.Description is null, "Unexpected job description: " + job.Description);
         Assert.IsTrue(job.Durable, "Expected isDurable == true ");
         Assert.IsFalse(job.RequestsRecovery, "Expected requestsRecovery == false ");
         Assert.IsFalse(job.ConcurrentExecutionDisallowed, "Expected isConcurrentExecutionDisallowed == false ");

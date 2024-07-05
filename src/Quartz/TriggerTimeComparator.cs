@@ -17,12 +17,12 @@ internal sealed class TriggerTimeComparator : IComparer<ITrigger>
             return 0;
         }
 
-        if (trig1 == null)
+        if (trig1 is null)
         {
             return 1;
         }
 
-        if (trig2 == null)
+        if (trig2 is null)
         {
             return -1;
         }
@@ -30,14 +30,14 @@ internal sealed class TriggerTimeComparator : IComparer<ITrigger>
         var t1 = trig1.GetNextFireTimeUtc();
         var t2 = trig2.GetNextFireTimeUtc();
 
-        if (t1 != null || t2 != null)
+        if (t1 is not null || t2 is not null)
         {
-            if (t1 == null)
+            if (t1 is null)
             {
                 return 1;
             }
 
-            if (t2 == null)
+            if (t2 is null)
             {
                 return -1;
             }

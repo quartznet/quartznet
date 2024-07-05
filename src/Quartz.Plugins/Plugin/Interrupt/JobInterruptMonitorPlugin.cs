@@ -81,7 +81,7 @@ public class JobInterruptMonitorPlugin : TriggerListenerSupport, ISchedulerPlugi
                 // Get the MaxRuntime from MergedJobDataMap if NOT available use MaxRunTime from Plugin Configuration
                 var jobDataDelay = DefaultMaxRunTime;
 
-                if (context.MergedJobDataMap.GetString(JobDataMapKeyMaxRunTime) != null)
+                if (context.MergedJobDataMap.GetString(JobDataMapKeyMaxRunTime) is not null)
                 {
                     jobDataDelay = TimeSpan.FromMilliseconds(context.MergedJobDataMap.GetLong(JobDataMapKeyMaxRunTime));
                 }

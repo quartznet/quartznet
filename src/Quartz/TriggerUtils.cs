@@ -48,7 +48,7 @@ public static class TriggerUtils
 
         IOperableTrigger t = (IOperableTrigger) trigger.Clone();
 
-        if (t.GetNextFireTimeUtc() == null || !t.GetNextFireTimeUtc().HasValue)
+        if (t.GetNextFireTimeUtc() is null || !t.GetNextFireTimeUtc().HasValue)
         {
             t.ComputeFirstFireTimeUtc(calendar);
         }
@@ -87,7 +87,7 @@ public static class TriggerUtils
     {
         IOperableTrigger t = (IOperableTrigger) trigger.Clone();
 
-        if (t.GetNextFireTimeUtc() == null)
+        if (t.GetNextFireTimeUtc() is null)
         {
             t.ComputeFirstFireTimeUtc(calendar);
         }
@@ -98,7 +98,7 @@ public static class TriggerUtils
         for (int i = 0; i < numberOfTimes; i++)
         {
             DateTimeOffset? d = t.GetNextFireTimeUtc();
-            if (d != null)
+            if (d is not null)
             {
                 c++;
                 t.Triggered(calendar);
@@ -113,7 +113,7 @@ public static class TriggerUtils
             }
         }
 
-        if (endTime == null)
+        if (endTime is null)
         {
             return null;
         }
@@ -145,7 +145,7 @@ public static class TriggerUtils
 
         IOperableTrigger t = (IOperableTrigger) trigger.Clone();
 
-        if (t.GetNextFireTimeUtc() == null || !t.GetNextFireTimeUtc().HasValue)
+        if (t.GetNextFireTimeUtc() is null || !t.GetNextFireTimeUtc().HasValue)
         {
             t.StartTimeUtc = from;
             t.EndTimeUtc = to;

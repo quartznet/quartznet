@@ -100,7 +100,7 @@ internal sealed class ServiceCollectionQuartzConfigurator : IServiceCollectionQu
     {
         schedulerBuilder.UseJobFactory<T>();
         services.Replace(ServiceDescriptor.Singleton(typeof(IJobFactory), typeof(T)));
-        if (configure != null)
+        if (configure is not null)
         {
             services.Configure<QuartzOptions>(options =>
             {

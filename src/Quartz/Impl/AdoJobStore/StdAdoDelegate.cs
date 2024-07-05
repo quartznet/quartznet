@@ -82,7 +82,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
 
         AddDefaultTriggerPersistenceDelegates();
 
-        if (!string.IsNullOrEmpty(args.InitString) && args.InitString != null)
+        if (!string.IsNullOrEmpty(args.InitString) && args.InitString is not null)
         {
             string[] settings = args.InitString.Split('\\', '|');
 
@@ -217,7 +217,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
     /// <returns></returns>
     public virtual bool GetBooleanFromDbValue(object columnValue)
     {
-        if (columnValue != null && columnValue != DBNull.Value)
+        if (columnValue is not null && columnValue != DBNull.Value)
         {
             return Convert.ToBoolean(columnValue);
         }
@@ -243,7 +243,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
     /// <returns></returns>
     public virtual DateTimeOffset? GetDateTimeFromDbValue(object columnValue)
     {
-        if (columnValue != null && columnValue != DBNull.Value)
+        if (columnValue is not null && columnValue != DBNull.Value)
         {
             var ticks = Convert.ToInt64(columnValue, CultureInfo.CurrentCulture);
             if (ticks > 0)
@@ -261,7 +261,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
     /// <returns></returns>
     public virtual object? GetDbTimeSpanValue(TimeSpan? timeSpanValue)
     {
-        return timeSpanValue != null ? (long?) timeSpanValue.Value.TotalMilliseconds : null;
+        return timeSpanValue is not null ? (long?) timeSpanValue.Value.TotalMilliseconds : null;
     }
 
     /// <summary>
@@ -271,7 +271,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
     /// <returns></returns>
     public virtual TimeSpan? GetTimeSpanFromDbValue(object columnValue)
     {
-        if (columnValue != null && columnValue != DBNull.Value)
+        if (columnValue is not null && columnValue != DBNull.Value)
         {
             var millis = Convert.ToInt64(columnValue, CultureInfo.CurrentCulture);
             if (millis > 0)
@@ -350,7 +350,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
     private async ValueTask<IDictionary?> GetMapFromProperties(DbDataReader rs, int idx)
     {
         NameValueCollection? properties = await GetJobDataFromBlob<NameValueCollection>(rs, idx).ConfigureAwait(false);
-        if (properties == null)
+        if (properties is null)
         {
             return null;
         }
@@ -472,7 +472,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
     protected virtual byte[]? SerializeObject(object? obj)
     {
         byte[]? retValue = null;
-        if (obj != null)
+        if (obj is not null)
         {
             retValue = objectSerializer.Serialize(obj);
         }
@@ -562,7 +562,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
         T? obj = null;
 
         byte[]? data = await ReadBytesFromBlob(rs, colIndex, cancellationToken).ConfigureAwait(false);
-        if (data != null && data.Length > 0)
+        if (data is not null && data.Length > 0)
         {
             obj = objectSerializer.DeSerialize<T>(data);
         }

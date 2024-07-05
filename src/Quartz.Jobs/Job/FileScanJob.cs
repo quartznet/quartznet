@@ -108,18 +108,18 @@ public class FileScanJob : IJob
         var fileName = mergedJobDataMap.GetString(FileName);
         var listenerName = mergedJobDataMap.GetString(FileScanListenerName);
 
-        if (fileName == null)
+        if (fileName is null)
         {
             throw new JobExecutionException($"Required parameter '{FileName}' not found in JobDataMap");
         }
-        if (listenerName == null)
+        if (listenerName is null)
         {
             throw new JobExecutionException($"Required parameter '{FileScanListenerName}' not found in JobDataMap");
         }
 
         IFileScanListener? listener = (IFileScanListener?) schedCtxt[listenerName];
 
-        if (listener == null)
+        if (listener is null)
         {
             throw new JobExecutionException($"FileScanListener named '{listenerName}' not found in SchedulerContext");
         }

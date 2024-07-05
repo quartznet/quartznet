@@ -20,7 +20,6 @@
 #endregion
 
 using System.Globalization;
-using System.Security;
 using System.Text;
 
 using Microsoft.Extensions.Logging;
@@ -156,7 +155,7 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
 
     public bool IsShuttingDown => shuttingDown;
 
-    public bool IsStarted => !shuttingDown && !closed && !InStandbyMode && initialStart != null;
+    public bool IsStarted => !shuttingDown && !closed && !InStandbyMode && initialStart is not null;
 
     /// <summary>
     /// Return a list of <see cref="ICancellableJobExecutionContext" /> objects that
@@ -224,7 +223,7 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
         get => jobFactory;
         set
         {
-            if (value == null)
+            if (value is null)
             {
                 ThrowHelper.ThrowArgumentException("JobFactory cannot be set to null!");
             }
@@ -275,7 +274,7 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
     /// </summary>
     private void Bind()
     {
-        if (resources.SchedulerExporter != null)
+        if (resources.SchedulerExporter is not null)
         {
             resources.SchedulerExporter.Bind(this);
             boundRemotely = true;
@@ -522,29 +521,29 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
     {
         ValidateState();
 
-        if (jobDetail == null)
+        if (jobDetail is null)
         {
             ThrowHelper.ThrowSchedulerException("JobDetail cannot be null");
         }
 
-        if (trigger == null)
+        if (trigger is null)
         {
             ThrowHelper.ThrowSchedulerException("Trigger cannot be null");
         }
 
-        if (jobDetail.Key == null)
+        if (jobDetail.Key is null)
         {
             ThrowHelper.ThrowSchedulerException("Job's key cannot be null");
         }
 
-        if (jobDetail.JobType == null)
+        if (jobDetail.JobType is null)
         {
             ThrowHelper.ThrowSchedulerException("Job's class cannot be null");
         }
 
         IOperableTrigger trig = (IOperableTrigger) trigger;
 
-        if (trigger.JobKey == null)
+        if (trigger.JobKey is null)
         {
             trig.JobKey = jobDetail.Key;
         }
@@ -556,10 +555,10 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
         trig.Validate();
 
         ICalendar? cal = null;
-        if (trigger.CalendarName != null)
+        if (trigger.CalendarName is not null)
         {
             cal = await resources.JobStore.RetrieveCalendar(trigger.CalendarName, cancellationToken).ConfigureAwait(false);
-            if (cal == null)
+            if (cal is null)
             {
                 ThrowHelper.ThrowSchedulerException($"Calendar not found: {trigger.CalendarName}");
             }
@@ -591,7 +590,7 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
     {
         ValidateState();
 
-        if (trigger == null)
+        if (trigger is null)
         {
             ThrowHelper.ThrowSchedulerException("Trigger cannot be null");
         }
@@ -600,10 +599,10 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
         trig.Validate();
 
         ICalendar? cal = null;
-        if (trigger.CalendarName != null)
+        if (trigger.CalendarName is not null)
         {
             cal = await resources.JobStore.RetrieveCalendar(trigger.CalendarName, cancellationToken).ConfigureAwait(false);
-            if (cal == null)
+            if (cal is null)
             {
                 ThrowHelper.ThrowSchedulerException($"Calendar not found: {trigger.CalendarName}");
             }
@@ -722,11 +721,11 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
         {
             var job = pair.Key;
             var triggers = pair.Value;
-            if (job == null) // there can be one of these (for adding a bulk set of triggers for pre-existing jobs)
+            if (job is null) // there can be one of these (for adding a bulk set of triggers for pre-existing jobs)
             {
                 continue;
             }
-            if (triggers == null) // this is possible because the job may be durable, and not yet be having triggers
+            if (triggers is null) // this is possible because the job may be durable, and not yet be having triggers
             {
                 continue;
             }
@@ -738,10 +737,10 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
                 trigger.Validate();
 
                 ICalendar? cal = null;
-                if (trigger.CalendarName != null)
+                if (trigger.CalendarName is not null)
                 {
                     cal = await resources.JobStore.RetrieveCalendar(trigger.CalendarName, cancellationToken).ConfigureAwait(false);
-                    if (cal == null)
+                    if (cal is null)
                     {
                         var message = $"Calendar '{trigger.CalendarName}' not found for trigger: {trigger.Key}";
                         ThrowHelper.ThrowSchedulerException(message);
@@ -750,7 +749,7 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
 
                 DateTimeOffset? ft = trigger.ComputeFirstFireTimeUtc(cal);
 
-                if (ft == null)
+                if (ft is null)
                 {
                     var message = $"Based on configured schedule, the given trigger '{trigger.Key}' will never fire.";
                     ThrowHelper.ThrowSchedulerException(message);
@@ -839,18 +838,18 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
     {
         ValidateState();
 
-        if (triggerKey == null)
+        if (triggerKey is null)
         {
             ThrowHelper.ThrowArgumentException("triggerKey cannot be null");
         }
-        if (newTrigger == null)
+        if (newTrigger is null)
         {
             ThrowHelper.ThrowArgumentException("newTrigger cannot be null");
         }
 
         var trigger = (IOperableTrigger) newTrigger;
         ITrigger? oldTrigger = await GetTrigger(triggerKey, cancellationToken).ConfigureAwait(false);
-        if (oldTrigger == null)
+        if (oldTrigger is null)
         {
             return null;
         }
@@ -859,13 +858,13 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
         trigger.Validate();
 
         ICalendar? cal = null;
-        if (newTrigger.CalendarName != null)
+        if (newTrigger.CalendarName is not null)
         {
             cal = await resources.JobStore.RetrieveCalendar(newTrigger.CalendarName, cancellationToken).ConfigureAwait(false);
         }
 
         DateTimeOffset? ft;
-        if (trigger.GetNextFireTimeUtc() != null)
+        if (trigger.GetNextFireTimeUtc() is not null)
         {
             // use a cloned trigger so that we don't lose possible forcefully set next fire time
             var clonedTrigger = (IOperableTrigger) trigger.Clone();
@@ -945,7 +944,7 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
             TimeSpan.Zero);
 
         trig.ComputeFirstFireTimeUtc(null);
-        if (data != null)
+        if (data is not null)
         {
             trig.JobDataMap = data;
         }
@@ -1020,7 +1019,7 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
     {
         ValidateState();
 
-        if (matcher == null)
+        if (matcher is null)
         {
             matcher = GroupMatcher<TriggerKey>.GroupEquals(SchedulerConstants.DefaultGroup);
         }
@@ -1055,7 +1054,7 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
     {
         ValidateState();
 
-        if (groupMatcher == null)
+        if (groupMatcher is null)
         {
             groupMatcher = GroupMatcher<JobKey>.GroupEquals(SchedulerConstants.DefaultGroup);
         }
@@ -1098,7 +1097,7 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
     {
         ValidateState();
 
-        if (matcher == null)
+        if (matcher is null)
         {
             matcher = GroupMatcher<TriggerKey>.GroupEquals(SchedulerConstants.DefaultGroup);
         }
@@ -1150,7 +1149,7 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
     {
         ValidateState();
 
-        if (matcher == null)
+        if (matcher is null)
         {
             matcher = GroupMatcher<JobKey>.GroupEquals(SchedulerConstants.DefaultGroup);
         }
@@ -1215,7 +1214,7 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
     {
         ValidateState();
 
-        if (matcher == null)
+        if (matcher is null)
         {
             matcher = GroupMatcher<JobKey>.GroupEquals(SchedulerConstants.DefaultGroup);
         }
@@ -1260,7 +1259,7 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
     {
         ValidateState();
 
-        if (matcher == null)
+        if (matcher is null)
         {
             matcher = GroupMatcher<TriggerKey>.GroupEquals(SchedulerConstants.DefaultGroup);
         }
@@ -1448,7 +1447,7 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
     private static bool MatchJobListener(IListenerManager listenerManager, IJobListener listener, JobKey key)
     {
         var matchers = listenerManager.GetJobListenerMatchers(listener.Name);
-        if (matchers == null)
+        if (matchers is null)
         {
             return true;
         }
@@ -1465,7 +1464,7 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
     private static bool MatchTriggerListener(IListenerManager listenerManager, ITriggerListener listener, TriggerKey key)
     {
         var matchers = listenerManager.GetTriggerListenerMatchers(listener.Name);
-        if (matchers == null)
+        if (matchers is null)
         {
             return true;
         }
@@ -1776,7 +1775,7 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
         {
             try
             {
-                if (triggerKey == null)
+                if (triggerKey is null)
                 {
                     await sl.SchedulingDataCleared(cancellationToken).ConfigureAwait(false);
                 }

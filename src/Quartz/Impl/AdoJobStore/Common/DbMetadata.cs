@@ -43,17 +43,17 @@ public sealed class DbMetadata
     public void Init()
     {
         // parse value to db binary column type
-        if (dbBinaryTypeName != null)
+        if (dbBinaryTypeName is not null)
         {
             // not inited yet
-            if (ParameterDbType == null || ParameterType == null)
+            if (ParameterDbType is null || ParameterType is null)
             {
                 ThrowHelper.ThrowArgumentException($"Couldn't parse parameter db type for database type '{ProductName}'");
             }
 
             dbBinaryType = (Enum) Enum.Parse(ParameterDbType, dbBinaryTypeName);
             ParameterDbTypeProperty = ParameterType.GetProperty(parameterDbTypePropertyName)!;
-            if (ParameterDbTypeProperty == null)
+            if (ParameterDbTypeProperty is null)
             {
                 ThrowHelper.ThrowArgumentException($"Couldn't parse parameter db type for database type '{ProductName}'");
             }

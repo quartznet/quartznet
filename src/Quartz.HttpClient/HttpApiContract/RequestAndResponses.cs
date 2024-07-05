@@ -13,7 +13,7 @@ internal record AddCalendarRequest(string CalendarName, ICalendar Calendar, bool
             yield return "Missing calendar name";
         }
 
-        if (Calendar == null)
+        if (Calendar is null)
         {
             yield return "Missing calendar details missing";
         }
@@ -22,7 +22,7 @@ internal record AddCalendarRequest(string CalendarName, ICalendar Calendar, bool
 
 internal record AddJobRequest(JobDetailDto Job, bool Replace, bool? StoreNonDurableWhileAwaitingScheduling) : IValidatable
 {
-    public IEnumerable<string> Validate() => Job == null ? new[] { "Missing job details" } : Job.Validate();
+    public IEnumerable<string> Validate() => Job is null ? new[] { "Missing job details" } : Job.Validate();
 }
 
 internal record ExistsResponse(bool Exists);
@@ -35,7 +35,7 @@ internal record DeleteJobResponse(bool JobFound);
 
 internal record DeleteJobsRequest(KeyDto[] Jobs) : IValidatable
 {
-    public IEnumerable<string> Validate() => Jobs == null ? new[] { "Missing job keys" } : Jobs.SelectMany(x => x.Validate());
+    public IEnumerable<string> Validate() => Jobs is null ? new[] { "Missing job keys" } : Jobs.SelectMany(x => x.Validate());
 }
 
 internal record DeleteJobsResponse(bool AllJobsFound);
@@ -47,12 +47,12 @@ internal record ScheduleJobRequest(ITrigger Trigger, JobDetailDto? Job) : IValid
 {
     public IEnumerable<string> Validate()
     {
-        if (Trigger == null)
+        if (Trigger is null)
         {
             yield return "Missing trigger details";
         }
 
-        if (Job != null)
+        if (Job is not null)
         {
             foreach (var errorMessage in Job.Validate())
             {
@@ -67,14 +67,14 @@ internal record ScheduleJobResponse(DateTimeOffset FirstFireTimeUtc);
 // When updating these, make same changes also into Quartz.AspNetCore.HttpApi.OpenApi.ScheduleJobsRequest/ScheduleJobsRequestItem
 internal record ScheduleJobsRequest(ScheduleJobsRequestItem[] JobsAndTriggers, bool Replace) : IValidatable
 {
-    public IEnumerable<string> Validate() => JobsAndTriggers == null ? new[] { "Missing jobs and triggers" } : JobsAndTriggers.SelectMany(x => x.Validate());
+    public IEnumerable<string> Validate() => JobsAndTriggers is null ? new[] { "Missing jobs and triggers" } : JobsAndTriggers.SelectMany(x => x.Validate());
 }
 
 internal record ScheduleJobsRequestItem(JobDetailDto Job, ITrigger[] Triggers) : IValidatable
 {
     public IEnumerable<string> Validate()
     {
-        if (Job == null)
+        if (Job is null)
         {
             yield return "Missing job details";
         }
@@ -86,7 +86,7 @@ internal record ScheduleJobsRequestItem(JobDetailDto Job, ITrigger[] Triggers) :
             }
         }
 
-        if (Triggers == null)
+        if (Triggers is null)
         {
             yield return "Missing triggers";
         }
@@ -100,7 +100,7 @@ internal record RescheduleJobRequest(ITrigger NewTrigger) : IValidatable
 {
     public IEnumerable<string> Validate()
     {
-        if (NewTrigger == null)
+        if (NewTrigger is null)
         {
             yield return "Missing new trigger details";
         }
@@ -113,7 +113,7 @@ internal record UnscheduleJobResponse(bool TriggerFound);
 
 internal record UnscheduleJobsRequest(KeyDto[] Triggers) : IValidatable
 {
-    public IEnumerable<string> Validate() => Triggers == null ? new[] { "Missing trigger keys" } : Triggers.SelectMany(x => x.Validate());
+    public IEnumerable<string> Validate() => Triggers is null ? new[] { "Missing trigger keys" } : Triggers.SelectMany(x => x.Validate());
 }
 
 internal record UnscheduleJobsResponse(bool AllTriggersFound);

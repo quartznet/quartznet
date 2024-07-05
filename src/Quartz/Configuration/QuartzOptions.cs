@@ -41,7 +41,7 @@ public class QuartzOptions : Dictionary<string, string?>
 
             return TimeSpan.FromMilliseconds(int.Parse(value));
         }
-        set => this["quartz.jobStore.misfireThreshold"] = value != null ? ((int) value.Value.TotalMilliseconds).ToString() : "";
+        set => this["quartz.jobStore.misfireThreshold"] = value is not null ? ((int) value.Value.TotalMilliseconds).ToString() : "";
     }
 
     public SchedulingOptions Scheduling { get; set; } = new();

@@ -280,7 +280,7 @@ public partial class StdAdoDelegate
 
         var tDel = FindTriggerPersistenceDelegate(trigger);
         string type = TriggerTypeBlob;
-        if (tDel != null)
+        if (tDel is not null)
         {
             type = tDel.GetHandledTriggerTypeDiscriminator();
         }
@@ -296,7 +296,7 @@ public partial class StdAdoDelegate
 
         int insertResult = await cmd.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
 
-        if (tDel == null)
+        if (tDel is null)
         {
             await InsertBlobTrigger(conn, trigger, cancellationToken).ConfigureAwait(false);
         }
@@ -336,7 +336,7 @@ public partial class StdAdoDelegate
         var existingType = await SelectTriggerType(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
 
         // No need to continue if the trigger type is not found - there's nothing to update.
-        if (existingType == null) return 0;
+        if (existingType is null) return 0;
 
         // save some clock cycles by unnecessarily writing job data blob ...
         var updateJobData = trigger.JobDataMap.Dirty;
@@ -357,7 +357,7 @@ public partial class StdAdoDelegate
         var tDel = FindTriggerPersistenceDelegate(trigger);
 
         string type = TriggerTypeBlob;
-        if (tDel != null)
+        if (tDel is not null)
         {
             type = tDel.GetHandledTriggerTypeDiscriminator();
         }
@@ -387,7 +387,7 @@ public partial class StdAdoDelegate
 
         if (type == existingType)
         {
-            if (tDel == null)
+            if (tDel is null)
             {
                 await UpdateBlobTrigger(conn, trigger, cancellationToken).ConfigureAwait(false);
             }
@@ -400,7 +400,7 @@ public partial class StdAdoDelegate
         {
             var existingDel = FindTriggerPersistenceDelegate(existingType);
 
-            if (existingDel == null)
+            if (existingDel is null)
             {
                 await DeleteBlobTrigger(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
             }
@@ -409,7 +409,7 @@ public partial class StdAdoDelegate
                 await existingDel.DeleteExtendedTriggerProperties(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
             }
 
-            if (tDel == null)
+            if (tDel is null)
             {
                 await InsertBlobTrigger(conn, trigger, cancellationToken).ConfigureAwait(false);
             }
@@ -715,7 +715,7 @@ public partial class StdAdoDelegate
                 // fast path didn't succeed
                 tDel ??= FindTriggerPersistenceDelegate(triggerType);
 
-                if (tDel == null)
+                if (tDel is null)
                 {
                     ThrowHelper.ThrowJobPersistenceException("No TriggerPersistenceDelegate for trigger discriminator type: " + triggerType);
                 }
@@ -746,7 +746,7 @@ public partial class StdAdoDelegate
                 .WithSchedule(triggerProps.ScheduleBuilder)
                 .ForJob(new JobKey(jobName, jobGroup));
 
-            if (map != null)
+            if (map is not null)
             {
                 tb.UsingJobData(new JobDataMap(map));
                 tb.ClearDirty();
@@ -780,7 +780,7 @@ public partial class StdAdoDelegate
 
     private static void SetTriggerStateProperties(IOperableTrigger trigger, TriggerPropertyBundle props)
     {
-        if (props.StatePropertyNames == null)
+        if (props.StatePropertyNames is null)
         {
             return;
         }
@@ -803,7 +803,7 @@ public partial class StdAdoDelegate
         if (await rs.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
             var map = await ReadMapFromReader(rs, 0).ConfigureAwait(false);
-            if (map != null)
+            if (map is not null)
             {
                 return map as JobDataMap ?? new JobDataMap(map);
             }
@@ -1011,7 +1011,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "schedulerName", schedName);
         AddCommandParameter(cmd, "triggerGroup", groupName);
 
-        return await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) != null;
+        return await cmd.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is not null;
     }
 
     /// <inheritdoc />
@@ -1119,7 +1119,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "triggerFireTime", GetDbDateTimeValue(timeProvider.GetUtcNow()));
         AddCommandParameter(cmd, "triggerScheduledTime", GetDbDateTimeValue(trigger.GetNextFireTimeUtc()));
         AddCommandParameter(cmd, "triggerState", state);
-        if (job != null)
+        if (job is not null)
         {
             AddCommandParameter(cmd, "triggerJobName", trigger.JobKey.Name);
             AddCommandParameter(cmd, "triggerJobGroup", trigger.JobKey.Group);
@@ -1172,7 +1172,7 @@ public partial class StdAdoDelegate
 
         List<FiredTriggerRecord> lst = [];
 
-        if (triggerName != null)
+        if (triggerName is not null)
         {
             cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectFiredTrigger));
             AddCommandParameter(cmd, "schedulerName", schedName);
@@ -1221,7 +1221,7 @@ public partial class StdAdoDelegate
         List<FiredTriggerRecord> lst = [];
 
         DbCommand cmd;
-        if (jobName != null)
+        if (jobName is not null)
         {
             cmd = PrepareCommand(conn, ReplaceTablePrefix(SqlSelectFiredTriggersOfJob));
             AddCommandParameter(cmd, "schedulerName", schedName);
@@ -1409,7 +1409,7 @@ public partial class StdAdoDelegate
         foreach (TriggerKey triggerKey in keys)
         {
             var t = await SelectTrigger(conn, triggerKey, cancellationToken).ConfigureAwait(false);
-            if (t != null)
+            if (t is not null)
             {
                 trigList.Add(t);
             }
@@ -1439,7 +1439,7 @@ public partial class StdAdoDelegate
         foreach (var key in keys)
         {
             var trigger = await SelectTrigger(conn, key, cancellationToken).ConfigureAwait(false);
-            if (trigger != null)
+            if (trigger is not null)
             {
                 triggers.Add(trigger);
             }

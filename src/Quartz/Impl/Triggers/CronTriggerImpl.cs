@@ -198,7 +198,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     private string? timeZoneInfoId
     {
         get => timeZone?.Id;
-        set => timeZone = value == null ? null : TimeZoneInfo.FindSystemTimeZoneById(value);
+        set => timeZone = value is null ? null : TimeZoneInfo.FindSystemTimeZoneById(value);
     }
 
     /// <summary>
@@ -418,7 +418,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
         {
             EndTimeUtc = endTime;
         }
-        if (timeZone == null)
+        if (timeZone is null)
         {
             TimeZone = TimeZoneInfo.Local;
         }
@@ -435,7 +435,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     public override ITrigger Clone()
     {
         CronTriggerImpl copy = (CronTriggerImpl) MemberwiseClone();
-        if (cronEx != null)
+        if (cronEx is not null)
         {
             copy.CronExpression = (CronExpression) cronEx.Clone();
         }
@@ -581,12 +581,12 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     {
         get
         {
-            if (cronEx != null)
+            if (cronEx is not null)
             {
                 return cronEx.TimeZone;
             }
 
-            if (timeZone == null)
+            if (timeZone is null)
             {
                 timeZone = TimeZoneInfo.Local;
             }
@@ -594,7 +594,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
         }
         set
         {
-            if (cronEx != null)
+            if (cronEx is not null)
             {
                 cronEx.TimeZone = value;
             }
@@ -758,7 +758,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
         {
             DateTimeOffset? newFireTime = GetFireTimeAfter(TimeProvider.GetUtcNow());
 
-            while (newFireTime.HasValue && cal != null
+            while (newFireTime.HasValue && cal is not null
                                         && !cal.IsTimeIncluded(newFireTime.Value))
             {
                 newFireTime = GetFireTimeAfter(newFireTime);
@@ -810,7 +810,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
 
         DateTimeOffset? fta = GetFireTimeAfter(test.AddMilliseconds(-1 * 1000));
 
-        if (fta == null)
+        if (fta is null)
         {
             return false;
         }
@@ -824,7 +824,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
                    && p.Day == test.Day;
         }
 
-        while (fta != null && fta.Value < test)
+        while (fta is not null && fta.Value < test)
         {
             fta = GetFireTimeAfter(fta);
         }
@@ -850,7 +850,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
         previousFireTimeUtc = nextFireTimeUtc;
         nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 
-        while (nextFireTimeUtc.HasValue && cal != null
+        while (nextFireTimeUtc.HasValue && cal is not null
                                         && !cal.IsTimeIncluded(nextFireTimeUtc.Value))
         {
             nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
@@ -866,7 +866,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     {
         nextFireTimeUtc = GetFireTimeAfter(previousFireTimeUtc);
 
-        if (!nextFireTimeUtc.HasValue || calendar == null)
+        if (!nextFireTimeUtc.HasValue || calendar is null)
         {
             return;
         }
@@ -918,7 +918,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     {
         nextFireTimeUtc = GetFireTimeAfter(startTimeUtc.AddSeconds(-1));
 
-        while (nextFireTimeUtc.HasValue && cal != null && !cal.IsTimeIncluded(nextFireTimeUtc.Value))
+        while (nextFireTimeUtc.HasValue && cal is not null && !cal.IsTimeIncluded(nextFireTimeUtc.Value))
         {
             nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
         }

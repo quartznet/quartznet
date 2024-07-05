@@ -112,7 +112,7 @@ internal sealed class QueuedTaskScheduler : TaskScheduler, IDisposable
                 Priority = threadPriority,
                 IsBackground = !useForegroundThreads,
             };
-            if (threadName != null)
+            if (threadName is not null)
             {
                 _threads[i].Name = $"{threadName} ({i})";
             }

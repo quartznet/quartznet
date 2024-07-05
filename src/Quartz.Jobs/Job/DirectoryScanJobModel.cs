@@ -100,7 +100,7 @@ internal sealed class DirectoryScanJobModel
         IDirectoryProvider directoryProvider = new DefaultDirectoryProvider();
         var explicitDirProviderName = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryProviderName);
 
-        if (explicitDirProviderName != null)
+        if (explicitDirProviderName is not null)
         {
             if (!schedCtxt.TryGetValue(explicitDirProviderName, out var temp))
             {
@@ -117,7 +117,7 @@ internal sealed class DirectoryScanJobModel
     {
         var listenerName = mergedJobDataMap.GetString(DirectoryScanJob.DirectoryScanListenerName);
 
-        if (listenerName == null)
+        if (listenerName is null)
         {
             throw new JobExecutionException("Required parameter '" +
                                             DirectoryScanJob.DirectoryScanListenerName + "' not found in merged JobDataMap");

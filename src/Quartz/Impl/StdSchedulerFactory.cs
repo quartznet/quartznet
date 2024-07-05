@@ -235,11 +235,11 @@ public class StdSchedulerFactory : ISchedulerFactory
     public virtual void Initialize()
     {
         // short-circuit if already initialized
-        if (cfg != null)
+        if (cfg is not null)
         {
             return;
         }
-        if (initException != null)
+        if (initException is not null)
         {
             throw initException;
         }
@@ -253,12 +253,12 @@ public class StdSchedulerFactory : ISchedulerFactory
     {
         var props = Util.Configuration.GetSection(ConfigurationSectionName);
         var requestedFile = QuartzEnvironment.GetEnvironmentVariable(PropertiesFile);
-        string propFileName = (requestedFile != null && !string.IsNullOrWhiteSpace(requestedFile)) ? requestedFile : "~/quartz.config";
+        string propFileName = (requestedFile is not null && !string.IsNullOrWhiteSpace(requestedFile)) ? requestedFile : "~/quartz.config";
 
         // check for specials
         propFileName = FileUtil.ResolveFile(propFileName) ?? "quartz.config";
 
-        if (props == null && File.Exists(propFileName))
+        if (props is null && File.Exists(propFileName))
         {
             // file system
             try
@@ -273,7 +273,7 @@ public class StdSchedulerFactory : ISchedulerFactory
             }
         }
 
-        if (props == null)
+        if (props is null)
         {
             // read from assembly
             try
@@ -288,7 +288,7 @@ public class StdSchedulerFactory : ISchedulerFactory
             }
         }
 
-        if (props == null && throwOnProblem)
+        if (props is null && throwOnProblem)
         {
             ThrowHelper.ThrowSchedulerConfigException(
                 @"Could not find <quartz> configuration section from your application config or load default configuration from assembly.
@@ -377,12 +377,12 @@ Please add configuration to your application config file to correctly initialize
     /// <summary>  </summary>
     private async ValueTask<IScheduler> Instantiate()
     {
-        if (cfg == null)
+        if (cfg is null)
         {
             Initialize();
         }
 
-        if (initException != null)
+        if (initException is not null)
         {
             throw initException;
         }
@@ -508,7 +508,7 @@ Please add configuration to your application config file to correctly initialize
 
         Type? jobFactoryType = loadHelper.LoadType(cfg.GetStringProperty(PropertySchedulerJobFactoryType));
         IJobFactory? jobFactory = null;
-        if (jobFactoryType != null)
+        if (jobFactoryType is not null)
         {
             try
             {
@@ -532,7 +532,7 @@ Please add configuration to your application config file to correctly initialize
         }
 
         IInstanceIdGenerator? instanceIdGenerator = null;
-        if (instanceIdGeneratorType != null)
+        if (instanceIdGeneratorType is not null)
         {
             try
             {
@@ -558,7 +558,7 @@ Please add configuration to your application config file to correctly initialize
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         var threadPoolTypeString = cfg.GetStringProperty(PropertyThreadPoolType).NullSafeTrim();
-        if (threadPoolTypeString != null
+        if (threadPoolTypeString is not null
             && threadPoolTypeString.StartsWith("Quartz.Simpl.SimpleThreadPool", StringComparison.OrdinalIgnoreCase))
         {
             // default to use as synonym for now
@@ -600,7 +600,7 @@ Please add configuration to your application config file to correctly initialize
             Type? cpType = loadHelper.LoadType(pp.GetStringProperty(PropertyDbProviderType, defaultValue: null));
 
             // custom connectionProvider...
-            if (cpType != null)
+            if (cpType is not null)
             {
                 IDbProvider cp;
                 try
@@ -639,7 +639,7 @@ Please add configuration to your application config file to correctly initialize
                 var dsConnectionString = pp.GetStringProperty(PropertyDataSourceConnectionString, defaultValue: null);
                 var dsConnectionStringName = pp.GetStringProperty(PropertyDataSourceConnectionStringName, defaultValue: null);
 
-                if (dsConnectionString == null && !string.IsNullOrEmpty(dsConnectionStringName) && dsConnectionStringName != null)
+                if (dsConnectionString is null && !string.IsNullOrEmpty(dsConnectionStringName) && dsConnectionStringName is not null)
                 {
                     var connectionString = GetNamedConnectionString(dsConnectionStringName);
                     if (string.IsNullOrWhiteSpace(connectionString))
@@ -650,12 +650,12 @@ Please add configuration to your application config file to correctly initialize
                     dsConnectionString = connectionString;
                 }
 
-                if (dsProvider == null)
+                if (dsProvider is null)
                 {
                     initException = new SchedulerException($"Provider not specified for DataSource: {dataSourceName}");
                     throw initException;
                 }
-                if (dsConnectionString == null)
+                if (dsConnectionString is null)
                 {
                     initException = new SchedulerException($"Connection string not specified for DataSource: {dataSourceName}");
                     throw initException;
@@ -696,7 +696,7 @@ Please add configuration to your application config file to correctly initialize
         IObjectSerializer? objectSerializer = null;
         string serializerTypeKey = "quartz.serializer.type";
         string? objectSerializerType = cfg.GetStringProperty(serializerTypeKey);
-        if (objectSerializerType != null)
+        if (objectSerializerType is not null)
         {
             // some aliases
             if (objectSerializerType.Equals("newtonsoft", StringComparison.OrdinalIgnoreCase))
@@ -755,14 +755,14 @@ Please add configuration to your application config file to correctly initialize
         {
             // Install custom lock handler (Semaphore)
             var lockHandlerType = loadHelper.LoadType(cfg.GetStringProperty(PropertyJobStoreLockHandlerType));
-            if (lockHandlerType != null)
+            if (lockHandlerType is not null)
             {
                 try
                 {
                     ISemaphore lockHandler;
                     var cWithDbProvider = lockHandlerType.GetConstructor([typeof(DbProvider)]);
 
-                    if (cWithDbProvider != null)
+                    if (cWithDbProvider is not null)
                     {
                         // takes db provider
                         IDbProvider dbProvider = DBConnectionManager.Instance.GetDbProvider(jobStoreSupport.DataSource);
@@ -813,7 +813,7 @@ Please add configuration to your application config file to correctly initialize
             var pp = cfg.GetPropertyGroup($"{PropertyPluginPrefix}.{pluginNames[index: i]}", stripPrefix: true);
             var plugInType = pp[PropertyPluginType];
 
-            if (plugInType == null)
+            if (plugInType is null)
             {
                 initException = new SchedulerException($"SchedulerPlugin type not specified for plugin '{pluginNames[index: i]}'");
                 throw initException;
@@ -853,7 +853,7 @@ Please add configuration to your application config file to correctly initialize
             var lp = cfg.GetPropertyGroup(prefix: $"{PropertyJobListenerPrefix}.{jobListenerNames[index: i]}", stripPrefix: true);
             var listenerType = lp[PropertyListenerType];
 
-            if (listenerType == null)
+            if (listenerType is null)
             {
                 initException = new SchedulerException($"JobListener type not specified for listener '{jobListenerNames[index: i]}'");
                 throw initException;
@@ -871,7 +871,7 @@ Please add configuration to your application config file to correctly initialize
             try
             {
                 var nameProperty = listener.GetType().GetProperty("Name", BindingFlags.Public | BindingFlags.Instance);
-                if (nameProperty != null && nameProperty.CanWrite)
+                if (nameProperty is not null && nameProperty.CanWrite)
                 {
                     nameProperty.GetSetMethod()!.Invoke(listener, [jobListenerNames[index: i]]);
                 }
@@ -895,7 +895,7 @@ Please add configuration to your application config file to correctly initialize
             var lp = cfg.GetPropertyGroup(prefix: $"{PropertyTriggerListenerPrefix}.{triggerListenerNames[index: i]}", stripPrefix: true);
             var listenerType = lp[PropertyListenerType];
 
-            if (listenerType == null)
+            if (listenerType is null)
             {
                 initException = new SchedulerException($"TriggerListener type not specified for listener '{triggerListenerNames[index: i]}'");
                 throw initException;
@@ -913,7 +913,7 @@ Please add configuration to your application config file to correctly initialize
             try
             {
                 var nameProperty = listener.GetType().GetProperty("Name", BindingFlags.Public | BindingFlags.Instance);
-                if (nameProperty != null && nameProperty.CanWrite)
+                if (nameProperty is not null && nameProperty.CanWrite)
                 {
                     nameProperty.GetSetMethod()!.Invoke(listener, [triggerListenerNames[index: i]]);
                 }
@@ -931,7 +931,7 @@ Please add configuration to your application config file to correctly initialize
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
         var exporterType = cfg.GetStringProperty(PropertySchedulerExporterType, defaultValue: null);
-        if (exporterType != null)
+        if (exporterType is not null)
         {
             try
             {
@@ -1027,7 +1027,7 @@ Please add configuration to your application config file to correctly initialize
             IScheduler sched = Instantiate(rsrcs, qs);
 
             // set job factory if specified
-            if (jobFactory != null)
+            if (jobFactory is not null)
             {
                 qs.JobFactory = jobFactory;
             }
@@ -1073,7 +1073,7 @@ Please add configuration to your application config file to correctly initialize
             // prevents the repository from being garbage collected
             qs.AddNoGCObject(schedRep);
             // prevents the db manager from being garbage collected
-            if (dbMgr != null)
+            if (dbMgr is not null)
             {
                 qs.AddNoGCObject(dbMgr);
             }
@@ -1159,7 +1159,7 @@ Please add configuration to your application config file to correctly initialize
     /// </remarks>
     public virtual async ValueTask<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
     {
-        if (cfg == null)
+        if (cfg is null)
         {
             Initialize();
         }
@@ -1168,7 +1168,7 @@ Please add configuration to your application config file to correctly initialize
 
         IScheduler? sched = await schedRep.Lookup(SchedulerName, cancellationToken).ConfigureAwait(false);
 
-        if (sched != null)
+        if (sched is not null)
         {
             if (sched.IsShutdown)
             {

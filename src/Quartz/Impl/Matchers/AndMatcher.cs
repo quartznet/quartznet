@@ -38,7 +38,7 @@ public sealed class AndMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
 
     private AndMatcher(IMatcher<TKey> leftOperand, IMatcher<TKey> rightOperand)
     {
-        if (leftOperand == null || rightOperand == null)
+        if (leftOperand is null || rightOperand is null)
         {
             ThrowHelper.ThrowArgumentException("Two non-null operands required!");
         }
@@ -71,8 +71,8 @@ public sealed class AndMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
         const int Prime = 31;
         int result = 1;
-        result = Prime * result + (LeftOperand == null ? 0 : LeftOperand.GetHashCode());
-        result = Prime * result + (RightOperand == null ? 0 : RightOperand.GetHashCode());
+        result = Prime * result + (LeftOperand is null ? 0 : LeftOperand.GetHashCode());
+        result = Prime * result + (RightOperand is null ? 0 : RightOperand.GetHashCode());
         return result;
     }
 
@@ -82,7 +82,7 @@ public sealed class AndMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
         {
             return true;
         }
-        if (obj == null)
+        if (obj is null)
         {
             return false;
         }
@@ -91,9 +91,9 @@ public sealed class AndMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
             return false;
         }
         AndMatcher<TKey> other = (AndMatcher<TKey>) obj;
-        if (LeftOperand == null)
+        if (LeftOperand is null)
         {
-            if (other.LeftOperand != null)
+            if (other.LeftOperand is not null)
             {
                 return false;
             }
@@ -102,9 +102,9 @@ public sealed class AndMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
         {
             return false;
         }
-        if (RightOperand == null)
+        if (RightOperand is null)
         {
-            if (other.RightOperand != null)
+            if (other.RightOperand is not null)
             {
                 return false;
             }

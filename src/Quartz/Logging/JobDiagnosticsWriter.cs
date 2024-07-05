@@ -34,7 +34,7 @@ internal sealed class JobDiagnosticsWriter
 
     internal void WriteStopped(Activity? activity, DateTimeOffset endTimeUtc, IJobExecutionContext context)
     {
-        if (activity != null && diagnosticListener.IsEnabled(name))
+        if (activity is not null && diagnosticListener.IsEnabled(name))
         {
             activity.SetEndTime(endTimeUtc.UtcDateTime);
             diagnosticListener.StopActivity(activity, new JobDiagnosticData(context));
@@ -43,7 +43,7 @@ internal sealed class JobDiagnosticsWriter
 
     public void WriteException(Activity? activity, JobExecutionException exception)
     {
-        if (activity != null && diagnosticListener.IsEnabled(name))
+        if (activity is not null && diagnosticListener.IsEnabled(name))
         {
             diagnosticListener.Write(name + ".Exception", exception);
         }

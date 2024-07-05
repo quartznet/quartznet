@@ -169,7 +169,7 @@ public class PropertySettingJobFactory : SimpleJobFactory
         Type? paramType = null;
         try
         {
-            if (prop == null)
+            if (prop is null)
             {
                 HandleError($"No property on Job class {job.GetType()} for property '{name}'");
                 return;
@@ -177,7 +177,7 @@ public class PropertySettingJobFactory : SimpleJobFactory
 
             paramType = prop.PropertyType;
 
-            if (o == null && (paramType.IsPrimitive || paramType.IsEnum))
+            if (o is null && (paramType.IsPrimitive || paramType.IsEnum))
             {
                 // cannot set null to these
                 HandleError($"Cannot set null to property on Job class {job.GetType()} for property '{name}'");
@@ -235,7 +235,7 @@ public class PropertySettingJobFactory : SimpleJobFactory
 
         if (WarnIfPropertyNotFound)
         {
-            if (e == null)
+            if (e is null)
             {
                 logger.LogWarning(message);
             }

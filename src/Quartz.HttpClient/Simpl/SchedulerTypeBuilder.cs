@@ -81,7 +81,7 @@ internal static class SchedulerTypeBuilder
 
     private static Type CreateTypeForInterface(Type interfaceType)
     {
-        var typeName = interfaceType.Namespace != null ?
+        var typeName = interfaceType.Namespace is not null ?
             $"{AssemblyName}.{interfaceType.Namespace}.{interfaceType.Name}Instance" :
             $"{AssemblyName}.{interfaceType.Name}Instance";
 

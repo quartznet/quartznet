@@ -1,4 +1,4 @@
-using System.Reflection;
+﻿using System.Reflection;
 using System.Runtime.CompilerServices;
 
 namespace Quartz.Tests.Unit;
@@ -33,7 +33,7 @@ public static class ReflectionUtils
 {
     private static IEnumerable<Type> GetLoadableTypes(this Assembly assembly)
     {
-        if (assembly == null)
+        if (assembly is null)
         {
             throw new ArgumentNullException(nameof(assembly));
         }
@@ -43,7 +43,7 @@ public static class ReflectionUtils
         }
         catch (ReflectionTypeLoadException e)
         {
-            return e.Types.Where(t => t != null);
+            return e.Types.Where(t => t is not null);
         }
     }
 

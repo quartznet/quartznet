@@ -15,7 +15,7 @@ internal static class QuartzEnvironment
     /// <summary>
     /// Return whether we are currently running under Mono runtime.
     /// </summary>
-    public static bool IsRunningOnMono { get; } = Type.GetType("Mono.Runtime") != null;
+    public static bool IsRunningOnMono { get; } = Type.GetType("Mono.Runtime") is not null;
 
     /// <summary>
     /// Retrieves the value of an environment variable from the current process.

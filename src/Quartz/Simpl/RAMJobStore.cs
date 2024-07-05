@@ -528,7 +528,7 @@ public class RAMJobStore : IJobStore
         {
             // remove from triggers by FQN map
             var found = triggersByKey.TryRemove(key, out var tw);
-            if (tw != null)
+            if (tw is not null)
             {
                 // remove from triggers by group
                 if (triggersByGroup.TryGetValue(key.Group, out var grpMap))
@@ -583,7 +583,7 @@ public class RAMJobStore : IJobStore
         {
             // remove from triggers by FQN map
             triggersByKey.TryRemove(triggerKey, out var tw);
-            found = tw != null;
+            found = tw is not null;
 
             if (found)
             {
@@ -734,7 +734,7 @@ public class RAMJobStore : IJobStore
     {
         triggersByKey.TryGetValue(triggerKey, out var tw);
 
-        if (tw == null)
+        if (tw is null)
         {
             return new ValueTask<TriggerState>(TriggerState.None);
         }
@@ -766,7 +766,7 @@ public class RAMJobStore : IJobStore
         lock (lockObject)
         {
             // does the trigger exist?
-            if (!triggersByKey.TryGetValue(triggerKey, out var tw) || tw.Trigger == null)
+            if (!triggersByKey.TryGetValue(triggerKey, out var tw) || tw.Trigger is null)
             {
                 return default;
             }
@@ -817,18 +817,18 @@ public class RAMJobStore : IJobStore
         {
             calendarsByName.TryGetValue(name, out var obj);
 
-            if (obj != null && replaceExisting == false)
+            if (obj is not null && replaceExisting == false)
             {
                 ThrowHelper.ThrowObjectAlreadyExistsException($"Calendar with name '{name}' already exists.");
             }
-            if (obj != null)
+            if (obj is not null)
             {
                 calendarsByName.Remove(name);
             }
 
             calendarsByName[name] = calendar;
 
-            if (obj != null && updateTriggers)
+            if (obj is not null && updateTriggers)
             {
                 IEnumerable<TriggerWrapper> trigs = GetTriggerWrappersForCalendar(name);
                 foreach (TriggerWrapper tw in trigs)
@@ -877,7 +877,7 @@ public class RAMJobStore : IJobStore
             foreach (TriggerWrapper triggerWrapper in triggersByKey.Values)
             {
                 IOperableTrigger trigg = triggerWrapper.Trigger;
-                if (trigg.CalendarName != null && trigg.CalendarName.Equals(calName))
+                if (trigg.CalendarName is not null && trigg.CalendarName.Equals(calName))
                 {
                     numRefs++;
                 }
@@ -1123,7 +1123,7 @@ public class RAMJobStore : IJobStore
             foreach (var tw in triggersByKey.Values)
             {
                 var tcalName = tw.Trigger.CalendarName;
-                if (tcalName != null && tcalName.Equals(calName))
+                if (tcalName is not null && tcalName.Equals(calName))
                 {
                     yield return tw;
                 }
@@ -1552,7 +1552,7 @@ public class RAMJobStore : IJobStore
         }
 
         ICalendar? cal = null;
-        if (tw.Trigger.CalendarName != null)
+        if (tw.Trigger.CalendarName is not null)
         {
             calendarsByName.TryGetValue(tw.Trigger.CalendarName, out cal);
         }
@@ -1608,7 +1608,7 @@ public class RAMJobStore : IJobStore
             while (true)
             {
                 var tw = timeTriggers.Min;
-                if (tw == null)
+                if (tw is null)
                 {
                     break;
                 }
@@ -1633,7 +1633,7 @@ public class RAMJobStore : IJobStore
                     // If - after applying the misfire policy - the trigger is still scheduled to fire, we'll
                     // add it back to the set of triggers. We cannot use the "cached" next fire time here as
                     // it has been updated in ApplyMisfire(TriggerWrapper tw).
-                    if (tw.Trigger.GetNextFireTimeUtc() != null)
+                    if (tw.Trigger.GetNextFireTimeUtc() is not null)
                     {
                         timeTriggers.Add(tw);
                     }
@@ -1749,10 +1749,10 @@ public class RAMJobStore : IJobStore
                 }
 
                 ICalendar? cal = null;
-                if (tw.Trigger.CalendarName != null)
+                if (tw.Trigger.CalendarName is not null)
                 {
                     calendarsByName.TryGetValue(tw.Trigger.CalendarName, out cal);
-                    if (cal == null)
+                    if (cal is null)
                     {
                         continue;
                     }
@@ -1800,7 +1800,7 @@ public class RAMJobStore : IJobStore
                     }
                     blockedJobs.Add(job.Key);
                 }
-                else if (tw.Trigger.GetNextFireTimeUtc() != null)
+                else if (tw.Trigger.GetNextFireTimeUtc() is not null)
                 {
                     timeTriggers.Add(tw);
                 }

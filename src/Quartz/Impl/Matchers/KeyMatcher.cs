@@ -63,7 +63,7 @@ public sealed class KeyMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
         const int Prime = 31;
         int result = 1;
-        result = Prime * result + (CompareToValue == null ? 0 : CompareToValue.GetHashCode());
+        result = Prime * result + (CompareToValue is null ? 0 : CompareToValue.GetHashCode());
         return result;
     }
 
@@ -73,7 +73,7 @@ public sealed class KeyMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
         {
             return true;
         }
-        if (obj == null)
+        if (obj is null)
         {
             return false;
         }
@@ -82,9 +82,9 @@ public sealed class KeyMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
             return false;
         }
         KeyMatcher<TKey> other = (KeyMatcher<TKey>) obj;
-        if (CompareToValue == null)
+        if (CompareToValue is null)
         {
-            if (other.CompareToValue != null)
+            if (other.CompareToValue is not null)
             {
                 return false;
             }

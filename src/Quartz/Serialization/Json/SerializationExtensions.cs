@@ -137,7 +137,7 @@ internal static class Utf8JsonWriterExtensions
 
     public static void WriteKey<T>(this Utf8JsonWriter writer, string propertyName, Key<T>? key, JsonSerializerOptions options)
     {
-        if (key == null)
+        if (key is null)
         {
             writer.WriteNull(propertyName);
             return;

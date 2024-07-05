@@ -128,7 +128,7 @@ internal static class HttpClientExtensions
             // Ignored because we can have responses which are not json
         }
 
-        if (problemDetails?.Detail == null || string.IsNullOrWhiteSpace(problemDetails.Detail))
+        if (problemDetails?.Detail is null || string.IsNullOrWhiteSpace(problemDetails.Detail))
         {
             // When Web API returns error response it is always problem details, so let HTTP client throw if we do not have problem details
             response.EnsureSuccessStatusCode();

@@ -90,7 +90,7 @@ public sealed class BroadcastJobListener : IJobListener
     public bool RemoveListener(string listenerName)
     {
         var listener = listeners.Find(x => x.Name == listenerName);
-        if (listener != null)
+        if (listener is not null)
         {
             listeners.Remove(listener);
             return true;

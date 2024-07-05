@@ -113,7 +113,7 @@ public class UpdateLockRowSemaphore : DBSemaphore
                 }
             }
         }
-        if (lastFailure != null)
+        if (lastFailure is not null)
         {
             ThrowHelper.ThrowLockException("Failure obtaining db row lock: " + lastFailure.Message, lastFailure);
         }
@@ -144,7 +144,7 @@ public class UpdateLockRowSemaphore : DBSemaphore
         string sql,
         CancellationToken cancellationToken)
     {
-        if (sql == null)
+        if (sql is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(sql));
         }

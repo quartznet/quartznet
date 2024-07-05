@@ -10,17 +10,17 @@ internal sealed class TriggerComparer : IComparer<ITrigger>
 
     public int Compare(ITrigger? x, ITrigger? y)
     {
-        if (y?.Key == null && x?.Key == null)
+        if (y?.Key is null && x?.Key is null)
         {
             return 0;
         }
 
-        if (y?.Key == null)
+        if (y?.Key is null)
         {
             return -1;
         }
 
-        if (x?.Key == null)
+        if (x?.Key is null)
         {
             return 1;
         }

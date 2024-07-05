@@ -103,7 +103,7 @@ public sealed class TriggerBuilder
     /// <returns>a Trigger that meets the specifications of the builder.</returns>
     public ITrigger Build()
     {
-        if (scheduleBuilder == null)
+        if (scheduleBuilder is null)
         {
             scheduleBuilder = SimpleScheduleBuilder.Create();
         }
@@ -113,12 +113,12 @@ public sealed class TriggerBuilder
         trig.Description = description;
         trig.StartTimeUtc = startTime;
         trig.EndTimeUtc = endTime;
-        if (key == null)
+        if (key is null)
         {
             key = new TriggerKey(Guid.NewGuid().ToString());
         }
         trig.Key = key;
-        if (jobKey != null)
+        if (jobKey is not null)
         {
             trig.JobKey = jobKey;
         }
@@ -362,7 +362,7 @@ public sealed class TriggerBuilder
     public TriggerBuilder ForJob(IJobDetail jobDetail)
     {
         JobKey k = jobDetail.Key;
-        if (k.Name == null)
+        if (k.Name is null)
         {
             ThrowHelper.ThrowArgumentException("The given job has not yet had a name assigned to it.");
         }

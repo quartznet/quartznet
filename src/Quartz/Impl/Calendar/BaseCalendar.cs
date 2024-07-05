@@ -152,7 +152,7 @@ public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
     {
         get
         {
-            if (timeZone == null)
+            if (timeZone is null)
             {
                 timeZone = TimeZoneInfo.Local;
             }
@@ -186,7 +186,7 @@ public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
             ThrowHelper.ThrowArgumentException("timeStampUtc must be greater 0");
         }
 
-        if (CalendarBase != null)
+        if (CalendarBase is not null)
         {
             if (!CalendarBase.IsTimeIncluded(timeStampUtc))
             {
@@ -210,7 +210,7 @@ public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
             ThrowHelper.ThrowArgumentException("timeStamp must be greater DateTimeOffset.MinValue");
         }
 
-        if (CalendarBase != null)
+        if (CalendarBase is not null)
         {
             return CalendarBase.GetNextIncludedTimeUtc(timeUtc);
         }
@@ -238,14 +238,14 @@ public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
 
     public bool Equals(BaseCalendar? other)
     {
-        if (ReferenceEquals(null, other)) return false;
+        if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
         return Equals(CalendarBase, other.CalendarBase) && string.Equals(Description, other.Description) && Equals(TimeZone, other.TimeZone);
     }
 
     public override bool Equals(object? obj)
     {
-        if (ReferenceEquals(null, obj)) return false;
+        if (obj is null) return false;
         if (ReferenceEquals(this, obj)) return true;
         if (obj.GetType() != GetType()) return false;
         return Equals((BaseCalendar) obj);

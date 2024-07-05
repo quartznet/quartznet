@@ -68,7 +68,7 @@ public sealed class DateBuilder
     /// </summary>
     private DateBuilder(TimeProvider timeProvider, TimeZoneInfo? tz = null)
     {
-        if (tz != null)
+        if (tz is not null)
         {
             this.tz = tz;
         }

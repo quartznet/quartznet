@@ -89,7 +89,7 @@ internal sealed class CalendarConverter : JsonConverter<ICalendar>
             }
 
             writer.WritePropertyName(options.GetPropertyName("BaseCalendar"));
-            if (value.CalendarBase != null)
+            if (value.CalendarBase is not null)
             {
                 Write(writer, value.CalendarBase, options);
             }
@@ -109,7 +109,7 @@ internal sealed class CalendarConverter : JsonConverter<ICalendar>
 
     private ICalendarSerializer GetCalendarSerializer(string? typeName)
     {
-        if (typeName == null || !converters.TryGetValue(typeName, out ICalendarSerializer? converter))
+        if (typeName is null || !converters.TryGetValue(typeName, out ICalendarSerializer? converter))
         {
             throw new ArgumentException($"Don't know how to handle {typeName}", nameof(typeName));
         }

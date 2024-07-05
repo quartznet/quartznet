@@ -231,7 +231,7 @@ public class AdoJobStoreSmokeTest
             }
         });
 
-        if (extraProperties != null)
+        if (extraProperties is not null)
         {
             foreach (string key in extraProperties.Keys)
             {

@@ -38,7 +38,7 @@ public static class ServiceCollectionExtensions
         services.AddOptions();
 
         var schedulerBuilder = SchedulerBuilder.Create(properties);
-        if (configure != null)
+        if (configure is not null)
         {
             var target = new ServiceCollectionQuartzConfigurator(services, schedulerBuilder);
             configure(target);
@@ -118,7 +118,7 @@ public static class ServiceCollectionExtensions
             ThrowHelper.ThrowArgumentException("jobType must implement the IJob interface", nameof(jobType));
         }
         var c = JobBuilder.Create();
-        if (jobKey != null)
+        if (jobKey is not null)
         {
             c.WithIdentity(jobKey);
         }

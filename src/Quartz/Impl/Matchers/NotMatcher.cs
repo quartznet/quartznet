@@ -67,7 +67,7 @@ public sealed class NotMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
     {
         const int Prime = 31;
         int result = 1;
-        result = Prime * result + (Operand == null ? 0 : Operand.GetHashCode());
+        result = Prime * result + (Operand is null ? 0 : Operand.GetHashCode());
         return result;
     }
 
@@ -77,7 +77,7 @@ public sealed class NotMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
         {
             return true;
         }
-        if (obj == null)
+        if (obj is null)
         {
             return false;
         }
@@ -86,9 +86,9 @@ public sealed class NotMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey>
             return false;
         }
         NotMatcher<TKey> other = (NotMatcher<TKey>) obj;
-        if (Operand == null)
+        if (Operand is null)
         {
-            if (other.Operand != null)
+            if (other.Operand is not null)
             {
                 return false;
             }

@@ -123,7 +123,7 @@ public sealed class MonthlyCalendar : BaseCalendar
 
         set
         {
-            if (value == null)
+            if (value is null)
             {
                 return;
             }
@@ -262,7 +262,7 @@ public sealed class MonthlyCalendar : BaseCalendar
     public override int GetHashCode()
     {
         int baseHash = 0;
-        if (CalendarBase != null)
+        if (CalendarBase is not null)
         {
             baseHash = CalendarBase.GetHashCode();
         }
@@ -279,11 +279,11 @@ public sealed class MonthlyCalendar : BaseCalendar
         //but that's not going to be a problem since
         //there's no need to redefine default value of false
         //for such days
-        if (obj == null)
+        if (obj is null)
         {
             return false;
         }
-        bool baseEqual = CalendarBase == null || CalendarBase.Equals(obj.CalendarBase);
+        bool baseEqual = CalendarBase is null || CalendarBase.Equals(obj.CalendarBase);
 
         return baseEqual && DaysExcluded.SequenceEqual(obj.DaysExcluded);
     }

@@ -58,7 +58,7 @@ internal sealed class EndpointHelper
     public async Task<IResult> ExecuteWithScheduler(string schedulerName, Func<IScheduler, Task<IResult>> action)
     {
         var scheduler = await SchedulerRepository.Instance.Lookup(schedulerName).ConfigureAwait(false);
-        if (scheduler == null)
+        if (scheduler is null)
         {
             throw NotFoundException.ForScheduler(schedulerName);
         }

@@ -275,7 +275,7 @@ public sealed class CronExpression : ISerializable
     /// <see cref="CronExpressionString" />
     public CronExpression(string cronExpression)
     {
-        if (cronExpression == null)
+        if (cronExpression is null)
         {
             ThrowHelper.ThrowArgumentException("cronExpression cannot be null", nameof(cronExpression));
         }
@@ -383,7 +383,7 @@ public sealed class CronExpression : ISerializable
         {
             var newDate = GetTimeAfter(lastDate);
 
-            if (newDate == null)
+            if (newDate is null)
             {
                 break;
             }
@@ -1922,7 +1922,7 @@ public sealed class CronExpression : ISerializable
             }
 
             // test for expressions that never generate a valid fire date,
-            if (nextFireTimeCursor.Date == null || nextFireTimeCursor.Date.Value.Year > TriggerConstants.YearToGiveUpSchedulingAt)
+            if (nextFireTimeCursor.Date is null || nextFireTimeCursor.Date.Value.Year > TriggerConstants.YearToGiveUpSchedulingAt)
             {
                 return null; // ran out of years
             }
@@ -2040,7 +2040,7 @@ public sealed class CronExpression : ISerializable
     /// <param name="other">The <see cref="CronExpression"/> to compare with the current <see cref="CronExpression"/>. </param>
     public bool Equals(CronExpression other)
     {
-        if (ReferenceEquals(null, other)) return false;
+        if (other is null) return false;
         if (ReferenceEquals(this, other)) return true;
         return Equals(other.CronExpressionString, CronExpressionString) && Equals(other.TimeZone, TimeZone);
     }
@@ -2054,7 +2054,7 @@ public sealed class CronExpression : ISerializable
     /// <param name="obj">The <see cref="T:System.Object"/> to compare with the current <see cref="T:System.Object"/>. </param>
     public override bool Equals(object? obj)
     {
-        if (ReferenceEquals(null, obj)) return false;
+        if (obj is null) return false;
         if (ReferenceEquals(this, obj)) return true;
         if (obj.GetType() != typeof(CronExpression)) return false;
         return Equals((CronExpression) obj);
@@ -2071,7 +2071,7 @@ public sealed class CronExpression : ISerializable
     {
         unchecked
         {
-            return ((CronExpressionString != null ? CronExpressionString.GetHashCode() : 0) * 397) ^ (timeZone != null ? timeZone.GetHashCode() : 0);
+            return ((CronExpressionString is not null ? CronExpressionString.GetHashCode() : 0) * 397) ^ (timeZone is not null ? timeZone.GetHashCode() : 0);
         }
     }
 }
@@ -2149,7 +2149,7 @@ internal sealed class CronField : IEnumerable<int>
             return true;
         }
 
-        if (singleValue != null)
+        if (singleValue is not null)
         {
             if (singleValue >= start)
             {
@@ -2163,7 +2163,7 @@ internal sealed class CronField : IEnumerable<int>
 
         var set = values;
 
-        if (set == null)
+        if (set is null)
         {
             return false;
         }
@@ -2232,7 +2232,7 @@ internal sealed class CronField : IEnumerable<int>
             return true;
         }
 
-        return values != null && values.Contains(value);
+        return values is not null && values.Contains(value);
     }
 
     public IEnumerator<int> GetEnumerator()

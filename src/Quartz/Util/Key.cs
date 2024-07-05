@@ -19,8 +19,6 @@
 
 #endregion
 
-using System.Globalization;
-
 namespace Quartz.Util;
 
 /// <summary>
@@ -60,9 +58,9 @@ public class Key<T> : IComparable<Key<T>>
     /// <exception cref="ArgumentNullException"><paramref name="name"/> or <paramref name="group"/> are <see langword="null"/>.</exception>
     public Key(string name, string group)
     {
-        if (name == null)
+        if (name is null)
             ThrowHelper.ThrowArgumentNullException(nameof(name));
-        if (group == null)
+        if (group is null)
             ThrowHelper.ThrowArgumentNullException(nameof(group));
 
         this.name = name;
@@ -80,7 +78,7 @@ public class Key<T> : IComparable<Key<T>>
         get { return name; }
         set
         {
-            if (value == null)
+            if (value is null)
                 ThrowHelper.ThrowArgumentNullException(nameof(value));
 
             name = value;
@@ -99,7 +97,7 @@ public class Key<T> : IComparable<Key<T>>
         get { return group; }
         set
         {
-            if (value == null)
+            if (value is null)
                 ThrowHelper.ThrowArgumentNullException(nameof(value));
 
             group = value;
@@ -115,7 +113,7 @@ public class Key<T> : IComparable<Key<T>>
     /// </returns>
     public override string ToString()
     {
-        return Group + '.' + Name;
+        return $"{Group}.{Name}";
     }
 
 
@@ -123,18 +121,18 @@ public class Key<T> : IComparable<Key<T>>
     {
         const int Prime = 31;
         int result = 1;
-        result = Prime * result + (@group == null ? 0 : group.GetHashCode());
-        result = Prime * result + (name == null ? 0 : name.GetHashCode());
+        result = Prime * result + (@group is null ? 0 : group.GetHashCode());
+        result = Prime * result + (name is null ? 0 : name.GetHashCode());
         return result;
     }
 
     public override bool Equals(object? obj)
     {
-        if (this == obj)
+        if (ReferenceEquals(this, obj))
         {
             return true;
         }
-        if (obj == null)
+        if (obj is null)
         {
             return false;
         }
@@ -142,30 +140,9 @@ public class Key<T> : IComparable<Key<T>>
         {
             return false;
         }
+
         Key<T> other = (Key<T>) obj;
-        if (group == null)
-        {
-            if (other.group != null)
-            {
-                return false;
-            }
-        }
-        else if (!group.Equals(other.group))
-        {
-            return false;
-        }
-        if (name == null)
-        {
-            if (other.name != null)
-            {
-                return false;
-            }
-        }
-        else if (!name.Equals(other.name))
-        {
-            return false;
-        }
-        return true;
+        return group == other.group && name == other.name;
     }
 
     public int CompareTo(Key<T>? o)
@@ -175,29 +152,61 @@ public class Key<T> : IComparable<Key<T>>
             return 1;
         }
 
-        if (!ReferenceEquals(group, o.group))
+        if (ReferenceEquals(group, o.group))
         {
-            if (DefaultGroup.Equals(group) && !DefaultGroup.Equals(o.group))
-            {
-                return -1;
-            }
-            if (!DefaultGroup.Equals(group) && DefaultGroup.Equals(o.group))
-            {
-                return 1;
-            }
-
-            int r = CultureInfo.CurrentCulture.CompareInfo.Compare(group, o.group, CompareOptions.None);
-            if (r != 0)
-            {
-                return r;
-            }
+            return ReferenceEquals(name, o.name) ? 0 : StringComparer.Ordinal.Compare(name, o.name);
         }
 
-        if (ReferenceEquals(name, o.name))
+        if (group == DefaultGroup && o.group != DefaultGroup)
         {
-            return 0;
+            return -1;
+        }
+        if (group != DefaultGroup && o.group == DefaultGroup)
+        {
+            return 1;
         }
 
-        return CultureInfo.CurrentCulture.CompareInfo.Compare(name, o.name, CompareOptions.None);
+        int r = StringComparer.Ordinal.Compare(group, o.group);
+        if (r != 0)
+        {
+            return r;
+        }
+
+        return ReferenceEquals(name, o.name) ? 0 : StringComparer.Ordinal.Compare(name, o.name);
+    }
+
+    public static bool operator ==(Key<T>? left, Key<T>? right)
+    {
+        if (left is null)
+        {
+            return right is null;
+        }
+
+        return left.Equals(right);
+    }
+
+    public static bool operator !=(Key<T>? left, Key<T>? right)
+    {
+        return !(left == right);
+    }
+
+    public static bool operator <(Key<T> left, Key<T> right)
+    {
+        return left is null ? right is not null : left.CompareTo(right) < 0;
+    }
+
+    public static bool operator <=(Key<T> left, Key<T> right)
+    {
+        return left is null || left.CompareTo(right) <= 0;
+    }
+
+    public static bool operator >(Key<T> left, Key<T> right)
+    {
+        return left is not null && left.CompareTo(right) > 0;
+    }
+
+    public static bool operator >=(Key<T> left, Key<T> right)
+    {
+        return left is null ? right is null : left.CompareTo(right) >= 0;
     }
 }

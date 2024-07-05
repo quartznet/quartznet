@@ -116,7 +116,7 @@ public class HttpScheduler : IScheduler
         foreach (var dto in dtos)
         {
             var (context, errorReason) = dto.AsIJobExecutionContext(this);
-            if (context == null)
+            if (context is null)
             {
                 throw new HttpClientException("Could not create IJobExecutionContext from CurrentlyExecutingJobDto: " + errorReason);
             }
@@ -173,7 +173,7 @@ public class HttpScheduler : IScheduler
 
     public ValueTask<DateTimeOffset> ScheduleJob(IJobDetail jobDetail, ITrigger trigger, CancellationToken cancellationToken = default)
     {
-        if (jobDetail == null)
+        if (jobDetail is null)
         {
             throw new ArgumentNullException(nameof(jobDetail));
         }
@@ -188,12 +188,12 @@ public class HttpScheduler : IScheduler
 
     private async ValueTask<DateTimeOffset> DoScheduleJob(IJobDetail? jobDetail, ITrigger trigger, CancellationToken cancellationToken)
     {
-        if (trigger == null)
+        if (trigger is null)
         {
             throw new ArgumentNullException(nameof(trigger));
         }
 
-        var jobDetailsDto = jobDetail != null ? JobDetailDto.Create(jobDetail) : null;
+        var jobDetailsDto = jobDetail is not null ? JobDetailDto.Create(jobDetail) : null;
         var result = await httpClient.PostWithResponse<ScheduleJobRequest, ScheduleJobResponse>(
             $"{TriggerEndpointUrl()}/schedule",
             new ScheduleJobRequest(trigger, jobDetailsDto),
@@ -206,7 +206,7 @@ public class HttpScheduler : IScheduler
 
     public ValueTask ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace, CancellationToken cancellationToken = default)
     {
-        if (triggersAndJobs == null)
+        if (triggersAndJobs is null)
         {
             throw new ArgumentNullException(nameof(triggersAndJobs));
         }
@@ -246,7 +246,7 @@ public class HttpScheduler : IScheduler
 
     public async ValueTask<bool> UnscheduleJobs(IReadOnlyCollection<TriggerKey> triggerKeys, CancellationToken cancellationToken = default)
     {
-        if (triggerKeys == null)
+        if (triggerKeys is null)
         {
             throw new ArgumentNullException(nameof(triggerKeys));
         }
@@ -263,7 +263,7 @@ public class HttpScheduler : IScheduler
 
     public async ValueTask<DateTimeOffset?> RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger, CancellationToken cancellationToken = default)
     {
-        if (newTrigger == null)
+        if (newTrigger is null)
         {
             throw new ArgumentNullException(nameof(newTrigger));
         }
@@ -308,7 +308,7 @@ public class HttpScheduler : IScheduler
 
     public async ValueTask<bool> DeleteJobs(IReadOnlyCollection<JobKey> jobKeys, CancellationToken cancellationToken = default)
     {
-        if (jobKeys == null)
+        if (jobKeys is null)
         {
             throw new ArgumentNullException(nameof(jobKeys));
         }
@@ -330,7 +330,7 @@ public class HttpScheduler : IScheduler
 
     public ValueTask TriggerJob(JobKey jobKey, JobDataMap data, CancellationToken cancellationToken = default)
     {
-        if (data == null)
+        if (data is null)
         {
             throw new ArgumentNullException(nameof(data));
         }
@@ -416,13 +416,13 @@ public class HttpScheduler : IScheduler
     public async ValueTask<IJobDetail?> GetJobDetail(JobKey jobKey, CancellationToken cancellationToken = default)
     {
         var result = await httpClient.GetWithNullForNotFound<JobDetailDto>($"{JobEndpointUrl(jobKey)}", jsonSerializerOptions, cancellationToken).ConfigureAwait(false);
-        if (result == null)
+        if (result is null)
         {
             return null;
         }
 
         var (jobDetail, errorReason) = result.AsIJobDetail();
-        if (jobDetail == null)
+        if (jobDetail is null)
         {
             throw new HttpClientException("Could not create IJobDetail from JobDetailDto: " + errorReason);
         }
@@ -454,7 +454,7 @@ public class HttpScheduler : IScheduler
             throw new ArgumentException("Calendar name required", nameof(calName));
         }
 
-        if (calendar == null)
+        if (calendar is null)
         {
             throw new ArgumentNullException(nameof(calendar));
         }
@@ -537,7 +537,7 @@ public class HttpScheduler : IScheduler
 
     private string JobEndpointUrl(JobKey job)
     {
-        if (job == null)
+        if (job is null)
         {
             throw new ArgumentNullException(nameof(job), "JobKey required");
         }
@@ -549,7 +549,7 @@ public class HttpScheduler : IScheduler
 
     private string TriggerEndpointUrl(TriggerKey trigger)
     {
-        if (trigger == null)
+        if (trigger is null)
         {
             throw new ArgumentNullException(nameof(trigger), "TriggerKey required");
         }

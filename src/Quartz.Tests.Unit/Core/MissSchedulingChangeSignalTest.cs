@@ -75,7 +75,7 @@ public class CollectDurationBetweenFireTimesJob : IJob
     {
         DateTime now = DateTime.UtcNow;
         logger.LogInformation("Fire time: {FireTime}", now);
-        if (lastFireTime != null)
+        if (lastFireTime is not null)
         {
             Durations.Add(now - lastFireTime.Value);
         }

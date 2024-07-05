@@ -91,7 +91,7 @@ public sealed class BroadcastTriggerListener : ITriggerListener
     public bool RemoveListener(string listenerName)
     {
         ITriggerListener? listener = listeners.Find(x => x.Name == listenerName);
-        if (listener != null)
+        if (listener is not null)
         {
             listeners.Remove(listener);
             return true;

@@ -917,7 +917,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
         {
             next = quartz.GetNextValidTimeAfter(next.Value);
 
-            if (next == null)
+            if (next is null)
                 break;
         }
 

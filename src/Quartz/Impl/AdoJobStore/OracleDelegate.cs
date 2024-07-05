@@ -57,7 +57,7 @@ public class OracleDelegate : StdAdoDelegate
     public override bool GetBooleanFromDbValue(object columnValue)
     {
         // we store things as string in oracle with 1/0 as value
-        if (columnValue != null && columnValue != DBNull.Value)
+        if (columnValue is not null && columnValue != DBNull.Value)
         {
             return Convert.ToInt32(columnValue) == 1;
         }

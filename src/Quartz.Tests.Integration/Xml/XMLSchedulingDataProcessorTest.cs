@@ -204,7 +204,7 @@ public class XMLSchedulingDataProcessorTest
             }
 
             // shutdown scheduler
-            if (scheduler != null)
+            if (scheduler is not null)
             {
                 await scheduler.Shutdown();
             }
@@ -266,7 +266,7 @@ public class XMLSchedulingDataProcessorTest
         }
         finally
         {
-            if (scheduler != null)
+            if (scheduler is not null)
             {
                 await scheduler.Shutdown();
             }
@@ -299,7 +299,7 @@ public class XMLSchedulingDataProcessorTest
         }
         finally
         {
-            if (scheduler != null)
+            if (scheduler is not null)
             {
                 await scheduler.Shutdown();
             }
@@ -457,7 +457,7 @@ public class XMLSchedulingDataProcessorTest
         }
         finally
         {
-            if (scheduler != null)
+            if (scheduler is not null)
             {
                 await scheduler.Shutdown();
             }

@@ -140,7 +140,7 @@ public class DirectSchedulerFactoryTest
         Assert.AreEqual(1, stdScheduler.sched.resources.MaxBatchSize);
         Assert.AreEqual(TimeSpan.Zero, stdScheduler.sched.resources.BatchTimeWindow);
 
-        if (schedulerPluginMap == null)
+        if (schedulerPluginMap is null)
         {
             Assert.AreEqual(0, stdScheduler.sched.resources.SchedulerPlugins.Count);
         }
@@ -197,7 +197,7 @@ public class DirectSchedulerFactoryTest
         Assert.AreEqual(maxBatchSize, stdScheduler.sched.resources.MaxBatchSize);
         Assert.AreEqual(batchTimeWindow, stdScheduler.sched.resources.BatchTimeWindow);
 
-        if (schedulerPluginMap == null)
+        if (schedulerPluginMap is null)
         {
             Assert.AreEqual(0, stdScheduler.sched.resources.SchedulerPlugins.Count);
         }
@@ -258,7 +258,7 @@ public class DirectSchedulerFactoryTest
         Assert.AreEqual(batchTimeWindow, stdScheduler.sched.resources.BatchTimeWindow);
         Assert.AreSame(schedulerExporter, stdScheduler.sched.resources.SchedulerExporter);
 
-        if (schedulerPluginMap == null)
+        if (schedulerPluginMap is null)
         {
             Assert.AreEqual(0, stdScheduler.sched.resources.SchedulerPlugins.Count);
         }

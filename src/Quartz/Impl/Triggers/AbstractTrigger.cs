@@ -88,7 +88,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
         set
         {
             // Update fields to ensure we remain backward compatible for serialization
-            if (value == null)
+            if (value is null)
             {
                 name = null!;
                 group = null!;
@@ -113,7 +113,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
         set
         {
             // Update fields to ensure we remain backward compatibile for serialization
-            if (value == null)
+            if (value is null)
             {
                 jobName = null!;
                 jobGroup = null!;
@@ -168,7 +168,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     {
         get
         {
-            if (jobDataMap == null)
+            if (jobDataMap is null)
             {
                 jobDataMap = new JobDataMap();
             }
@@ -433,17 +433,17 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// <seealso cref="Triggered" />
     public virtual SchedulerInstruction ExecutionComplete(IJobExecutionContext context, JobExecutionException? result)
     {
-        if (result != null && result.RefireImmediately)
+        if (result is not null && result.RefireImmediately)
         {
             return SchedulerInstruction.ReExecuteJob;
         }
 
-        if (result != null && result.UnscheduleFiringTrigger)
+        if (result is not null && result.UnscheduleFiringTrigger)
         {
             return SchedulerInstruction.SetTriggerComplete;
         }
 
-        if (result != null && result.UnscheduleAllTriggers)
+        if (result is not null && result.UnscheduleAllTriggers)
         {
             return SchedulerInstruction.SetAllJobTriggersComplete;
         }
@@ -527,12 +527,12 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// </summary>
     public virtual void Validate()
     {
-        if (key == null)
+        if (key is null)
         {
             ThrowHelper.ThrowSchedulerException("Trigger's key cannot be null");
         }
 
-        if (jobKey == null)
+        if (jobKey is null)
         {
             ThrowHelper.ThrowSchedulerException("Trigger's job key cannot be null");
         }
@@ -578,7 +578,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// <returns>true if the key of this Trigger equals that of the given Trigger</returns>
     public virtual bool Equals(AbstractTrigger? trigger)
     {
-        if (trigger?.Key == null || Key == null)
+        if (trigger?.Key is null || Key is null)
         {
             return false;
         }
@@ -594,7 +594,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     /// </returns>
     public override int GetHashCode()
     {
-        if (Key == null)
+        if (Key is null)
         {
             return base.GetHashCode();
         }
@@ -615,7 +615,7 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
         // Shallow copy the jobDataMap.  Note that this means that if a user
         // modifies a value object in this map from the cloned Trigger
         // they will also be modifying this Trigger.
-        if (jobDataMap != null)
+        if (jobDataMap is not null)
         {
             copy.jobDataMap = (JobDataMap) jobDataMap.Clone();
         }
@@ -633,12 +633,12 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
     [OnDeserialized]
     private void OnDeserialized(StreamingContext context)
     {
-        if (name != null && group != null)
+        if (name is not null && group is not null)
         {
             key = new TriggerKey(name, group);
         }
 
-        if (jobName != null && jobGroup != null)
+        if (jobName is not null && jobGroup is not null)
         {
             jobKey = new JobKey(jobName, jobGroup);
         }

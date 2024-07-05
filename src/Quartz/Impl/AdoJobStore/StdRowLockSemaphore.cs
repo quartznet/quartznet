@@ -146,7 +146,7 @@ public class StdRowLockSemaphore : DBSemaphore
             }
             catch (Exception sqle)
             {
-                if (initCause == null)
+                if (initCause is null)
                 {
                     initCause = sqle;
                 }

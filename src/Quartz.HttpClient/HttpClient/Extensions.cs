@@ -7,7 +7,7 @@ internal static class Extensions
 {
     public static string ToUrlParameters<T>(this GroupMatcher<T> matcher) where T : Key<T>
     {
-        if (matcher == null)
+        if (matcher is null)
         {
             throw new ArgumentNullException(nameof(matcher));
         }

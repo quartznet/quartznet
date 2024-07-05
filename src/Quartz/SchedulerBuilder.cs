@@ -57,12 +57,12 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
     public static SchedulerBuilder Create(string? id, string? name)
     {
         var builder = Create();
-        if (!string.IsNullOrWhiteSpace(id) && id != null)
+        if (!string.IsNullOrWhiteSpace(id) && id is not null)
         {
             builder.SchedulerId = id;
         }
 
-        if (!string.IsNullOrWhiteSpace(name) && name != null)
+        if (!string.IsNullOrWhiteSpace(name) && name is not null)
         {
             builder.SchedulerName = name;
         }
@@ -129,7 +129,7 @@ public sealed class SchedulerBuilder : PropertiesHolder, IPropertyConfigurationR
 
     public SchedulerBuilder UsePersistentStore<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicConstructors | DynamicallyAccessedMemberTypes.PublicMethods)] T>(Action<PersistentStoreOptions> options) where T : IJobStore
     {
-        if (options == null)
+        if (options is null)
         {
             ThrowHelper.ThrowArgumentNullException(nameof(options));
         }

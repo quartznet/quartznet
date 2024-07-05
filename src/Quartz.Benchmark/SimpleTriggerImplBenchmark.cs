@@ -669,7 +669,7 @@ public class SimpleTriggerImplBenchmark
             {
                 DateTimeOffset? newFireTime = GetFireTimeAfter(TimeProvider.System.GetUtcNow());
 
-                while (newFireTime.HasValue && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
+                while (newFireTime.HasValue && cal is not null && !cal.IsTimeIncluded(newFireTime.Value))
                 {
                     newFireTime = GetFireTimeAfter(newFireTime);
 
@@ -690,7 +690,7 @@ public class SimpleTriggerImplBenchmark
             {
                 DateTimeOffset? newFireTime = GetFireTimeAfter(TimeProvider.System.GetUtcNow());
 
-                while (newFireTime.HasValue && cal != null && !cal.IsTimeIncluded(newFireTime.Value))
+                while (newFireTime.HasValue && cal is not null && !cal.IsTimeIncluded(newFireTime.Value))
                 {
                     newFireTime = GetFireTimeAfter(newFireTime);
 
@@ -776,7 +776,7 @@ public class SimpleTriggerImplBenchmark
             previousFireTimeUtc = nextFireTimeUtc;
             nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 
-            while (nextFireTimeUtc.HasValue && cal != null && !cal.IsTimeIncluded(nextFireTimeUtc.Value))
+            while (nextFireTimeUtc.HasValue && cal is not null && !cal.IsTimeIncluded(nextFireTimeUtc.Value))
             {
                 nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 
@@ -803,7 +803,7 @@ public class SimpleTriggerImplBenchmark
         {
             nextFireTimeUtc = GetFireTimeAfter(previousFireTimeUtc);
 
-            if (nextFireTimeUtc == null || calendar == null)
+            if (nextFireTimeUtc is null || calendar is null)
             {
                 return;
             }
@@ -824,7 +824,7 @@ public class SimpleTriggerImplBenchmark
                     nextFireTimeUtc = null;
                 }
 
-                if (nextFireTimeUtc != null && nextFireTimeUtc.Value < now)
+                if (nextFireTimeUtc is not null && nextFireTimeUtc.Value < now)
                 {
                     TimeSpan diff = now - nextFireTimeUtc.Value;
                     if (diff >= misfireThreshold)
@@ -853,7 +853,7 @@ public class SimpleTriggerImplBenchmark
         {
             nextFireTimeUtc = StartTimeUtc;
 
-            while (cal != null && !cal.IsTimeIncluded(nextFireTimeUtc.Value))
+            while (cal is not null && !cal.IsTimeIncluded(nextFireTimeUtc.Value))
             {
                 nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
 
@@ -967,7 +967,7 @@ public class SimpleTriggerImplBenchmark
         /// </summary>
         public virtual DateTimeOffset? GetFireTimeBefore(DateTimeOffset? endUtc)
         {
-            if (endUtc != null && endUtc.Value < StartTimeUtc)
+            if (endUtc is not null && endUtc.Value < StartTimeUtc)
             {
                 return null;
             }
