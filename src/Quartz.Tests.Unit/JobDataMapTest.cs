@@ -20,6 +20,8 @@
 #endregion
 
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Globalization;
 using FluentAssertions;
 using NUnit.Framework;
@@ -249,6 +251,20 @@ namespace Quartz.Tests.Unit
             map.PutAsString(key, value);
 
             map.GetString(key).Should().BeNull();
+        }
+
+        [Test]
+        public void CanKeepDirtyFlagWhenSerializing()
+        {
+            IDictionary dictionary = new Dictionary<string, object>();
+            dictionary.Add("key", "value");
+
+            new JobDataMap(dictionary).Dirty.Should().BeFalse();
+
+            dictionary.Add(SchedulerConstants.ForceJobDataMapDirty, "true");
+            var map = new JobDataMap(dictionary);
+            map.Dirty.Should().BeTrue();
+            map.ContainsKey(SchedulerConstants.ForceJobDataMapDirty).Should().BeFalse();
         }
     }
 }

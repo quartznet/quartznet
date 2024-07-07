@@ -761,8 +761,12 @@ namespace Quartz.Impl.AdoJobStore
 
                 if (map != null)
                 {
+                    bool clearDirtyFlag = !map.Contains(SchedulerConstants.ForceJobDataMapDirty);
                     tb.UsingJobData(new JobDataMap(map));
-                    tb.ClearDirty();
+                    if (clearDirtyFlag)
+                    {
+                        tb.ClearDirty();
+                    }
                 }
 
                 trigger = (IOperableTrigger) tb.Build();
