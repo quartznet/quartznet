@@ -2,6 +2,23 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+## Release 3.11.0, Jul 7 2024
+
+* NEW FEATURES
+    * Add support for `DbDataSource` (#2439)
+    * Allow MSSQL Init Database script to be configured to not delete existing tables (#2449)
+
+* CHANGES
+    * Update build actions to use `checkout/@v4` for Docs and Qodana (#2451)
+    * Change `NativeJob` to use `RuntimeInformation.IsOSPlatform` instead of env var (#2411)
+
+* FIXES
+    * Fix issues with STJ serializer (#2434)
+    * Fix `DirtyFlagMap` enumerator behaviors (#2445)
+    * Improve binary to JSON migration support and documentation (#2458)
+    * Don't create intermediate `MemoryStream` in `SystemTextJsonObjectSerializer` (#2418)
+
+
 ## Release 3.10.0, Jun 26 2024
 
 * NEW FEATURES
