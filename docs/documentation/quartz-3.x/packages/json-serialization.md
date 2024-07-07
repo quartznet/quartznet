@@ -91,10 +91,7 @@ public sealed class MigratorSerializer : IObjectSerializer
             if (binaryData is JobDataMap jobDataMap)
             {
                 // make sure we mark the map as dirty so it will be serialized as JSON next time
-                // adding and removing a key will make the internal dirty flag to be set
-                const string DirtyKey = "____dirty____";
-                jobDataMap[DirtyKey] = "true";
-                jobDataMap.Remove(DirtyKey);
+                jobDataMap[SchedulerConstants.ForceJobDataMapDirty] = "true";
             }
             return binaryData!;
         }
