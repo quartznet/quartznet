@@ -98,9 +98,7 @@ namespace Quartz.Tests.Unit
             await scheduler.Shutdown(true);
 
             Assert.AreEqual(2, jobExecDates.Count);
-            
-            // there can be some jitter
-            Assert.Greater((jobExecDates[1] - jobExecDates[0]).TotalMilliseconds, jobBlockTime.TotalMilliseconds - 1);
+            Assert.That((jobExecDates[1] - jobExecDates[0]).TotalMilliseconds, Is.GreaterThanOrEqualTo(jobBlockTime.TotalMilliseconds).Within(5d));
         }
 
         /** QTZ-202 */

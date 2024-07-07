@@ -91,11 +91,10 @@ namespace Quartz.Tests.Unit
             await scheduler.ScheduleJob(job, trigger);
 
             trigger = await scheduler.GetTrigger(trigger.Key);
+            var nextFireTime = trigger.GetNextFireTimeUtc();
 
-            // Console.WriteLine("testScheduleInMiddleOfDailyInterval: currTime = " + currTime);
-            // Console.WriteLine("testScheduleInMiddleOfDailyInterval: computed first fire time = " + trigger.GetNextFireTimeUtc());
-
-            Assert.That(trigger.GetNextFireTimeUtc() > currTime, "First fire time is not after now!");
+            Assert.That(nextFireTime, Is.Not.Null);
+            Assert.That(nextFireTime, Is.GreaterThan(currTime));
 
             DateTimeOffset startTime = DateBuilder.TodayAt(2, 15, 0);
 
@@ -110,11 +109,10 @@ namespace Quartz.Tests.Unit
             await scheduler.ScheduleJob(job, trigger);
 
             trigger = await scheduler.GetTrigger(trigger.Key);
+            nextFireTime = trigger.GetNextFireTimeUtc();
 
-            // Console.WriteLine("testScheduleInMiddleOfDailyInterval: startTime = " + startTime);
-            // Console.WriteLine("testScheduleInMiddleOfDailyInterval: computed first fire time = " + trigger.GetNextFireTimeUtc());
-
-            Assert.That(trigger.GetNextFireTimeUtc() == startTime);
+            Assert.That(nextFireTime, Is.Not.Null);
+            Assert.That(nextFireTime, Is.EqualTo(startTime));
 
             await scheduler.Shutdown();
         }
