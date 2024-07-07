@@ -93,14 +93,25 @@ public sealed class JobDataMap : StringKeyDirtyFlagMap
     /// </summary>
     public JobDataMap(IDictionary map) : this(map.Count)
     {
+        bool clearDirtyFlag = true;
         foreach (DictionaryEntry entry in map)
         {
-            this[(string) entry.Key] = entry.Value;
+            if (SchedulerConstants.ForceJobDataMapDirty.Equals(entry.Key))
+            {
+                clearDirtyFlag = false;
+            }
+            else
+            {
+                this[(string) entry.Key] = entry.Value!;
+            }
         }
 
-        // When constructing a new data map from another existing map, we should NOT mark dirty flag as true
-        // Use case: loading JobDataMap from DB
-        ClearDirtyFlag();
+        if (clearDirtyFlag)
+        {
+            // When constructing a new data map from another existing map, we should NOT mark dirty flag as true
+            // Use case: loading JobDataMap from DB
+            ClearDirtyFlag();
+        }
     }
 
     /// <summary>

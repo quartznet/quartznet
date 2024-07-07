@@ -97,4 +97,9 @@ public struct SchedulerConstants
     /// We only want to signal the change.
     /// </summary>
     internal static DateTimeOffset? SchedulingSignalDateTime = new DateTimeOffset(1982, 6, 28, 0, 0, 0, TimeSpan.FromSeconds(0));
+
+    /// <summary>
+    /// Signals Quartz not to consider job data map as clean when deserialized - used in scenarios where data format needs to be converted.
+    /// </summary>
+    public const string ForceJobDataMapDirty = "QRTZ_FORCE_JOB_DATAMAP_DIRTY";
 }
