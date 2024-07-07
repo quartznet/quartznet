@@ -107,15 +107,6 @@ public abstract class StringOperator : IEquatable<StringOperator>
     /// </returns>
     public virtual bool Equals(StringOperator? other)
     {
-#if !NET5_0_OR_GREATER
-        // This optimization should not be applied on .NET 5.0 (and higher) as GetType() and/or Type
-        // comparison has sped up significantly
-        if (ReferenceEquals(this, other))
-        {
-            return true;
-        }
-#endif
-
         return other is not null && GetType() == other.GetType();
     }
 

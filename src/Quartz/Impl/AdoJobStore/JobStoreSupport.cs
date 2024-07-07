@@ -353,24 +353,16 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         {
             if (TxIsolationLevelSerializable)
             {
-#if NET6_0_OR_GREATER
                 tx = await conn.BeginTransactionAsync(IsolationLevel.Serializable).ConfigureAwait(false);
-#else
-                tx = conn.BeginTransaction(IsolationLevel.Serializable);
-#endif
             }
             else
             {
-#if NET6_0_OR_GREATER
                 tx = await conn.BeginTransactionAsync(IsolationLevel.ReadCommitted).ConfigureAwait(false);
-#else
-                tx = conn.BeginTransaction(IsolationLevel.ReadCommitted);
-#endif
             }
         }
         catch (Exception e)
         {
-            conn.Close();
+            await conn.CloseAsync().ConfigureAwait(false);
             ThrowHelper.ThrowJobPersistenceException("Failure setting up connection.", e);
             return default;
         }

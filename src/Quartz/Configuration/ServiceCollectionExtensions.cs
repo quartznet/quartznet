@@ -246,7 +246,6 @@ public static class ServiceCollectionExtensions
         return configurator;
     }
 
-#if NET8_0_OR_GREATER
     /// <summary>
     /// Registers an <see cref="IDbProvider"/> that fetches connections from a <see cref="DbDataSource"/> within the container.
     /// Should be used with `UseDataSourceConnectionProvider` within a ADO.NET persistence store. />
@@ -258,5 +257,4 @@ public static class ServiceCollectionExtensions
         configurator.Services.AddSingleton<IDbProvider, DataSourceDbProvider>();
         return configurator;
     }
-#endif
 }

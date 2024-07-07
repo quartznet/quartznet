@@ -1,4 +1,4 @@
-#region License
+﻿#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -59,7 +59,7 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
         cmd.Connection = connection;
         cmd.Transaction = transaction;
     }
-#if NET6_0_OR_GREATER
+
     public async ValueTask Commit(bool openNewTransaction)
     {
         if (transaction is not null)
@@ -81,33 +81,7 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
             }
         }
     }
-#else
-    public ValueTask Commit(bool openNewTransaction)
-    {
-        if (transaction is not null)
-        {
-            try
-            {
-                CheckNotZombied();
-                IsolationLevel il = transaction.IsolationLevel;
-                transaction.Commit();
-                if (openNewTransaction)
-                {
-                    // open new transaction to go with
-                    transaction = connection.BeginTransaction(il);
-                }
-            }
-            catch (Exception e)
-            {
-                ThrowHelper.ThrowJobPersistenceException("Couldn't commit ADO.NET transaction. " + e.Message, e);
-            }
-        }
 
-        return new ValueTask();
-    }
-#endif
-
-#if NET6_0_OR_GREATER
     public async ValueTask Close()
     {
         try
@@ -123,26 +97,6 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
                 "  This is often due to a Connection being returned after or during shutdown.");
         }
     }
-#else
-    public ValueTask Close()
-    {
-        try
-        {
-            connection.Close();
-        }
-        catch (Exception e)
-        {
-            var log = LogProvider.CreateLogger<ConnectionAndTransactionHolder>();
-
-            log.LogError(e,
-                "Unexpected exception closing Connection." +
-                "  This is often due to a Connection being returned after or during shutdown.");
-        }
-
-        return new ValueTask();
-    }
-
-#endif
 
     public void Dispose()
     {
@@ -183,7 +137,7 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
             }
         }
     }
-#if NET6_0_OR_GREATER
+
     public async ValueTask Rollback(bool transientError)
     {
         if (transaction is not null)
@@ -209,36 +163,6 @@ public sealed class ConnectionAndTransactionHolder : IDisposable
             }
         }
     }
-
-#else
-    public ValueTask Rollback(bool transientError)
-    {
-        if (transaction is not null)
-        {
-            try
-            {
-                CheckNotZombied();
-                transaction.Rollback();
-            }
-            catch (Exception e)
-            {
-                var log = LogProvider.CreateLogger<ConnectionAndTransactionHolder>();
-                if (transientError)
-                {
-                    // original error was transient, ones we have in Azure, don't complain too much about it
-                    // we will try again anyway
-                    log.LogDebug("Rollback failed due to transient error");
-                }
-                else
-                {
-                    log.LogError(e, "Couldn't rollback ADO.NET connection. {ExceptionMessage}", e.Message);
-                }
-            }
-        }
-
-        return new ValueTask();
-    }
-#endif
 
     private void CheckNotZombied()
     {

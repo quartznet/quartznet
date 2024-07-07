@@ -1,5 +1,4 @@
-﻿#if NET8_0_OR_GREATER
-using System.Data.Common;
+﻿using System.Data.Common;
 
 using Microsoft.Extensions.Options;
 
@@ -34,4 +33,3 @@ internal sealed class DataSourceDbProvider : DbProvider
         return this.source.CreateConnection();
     }
 }
-#endif

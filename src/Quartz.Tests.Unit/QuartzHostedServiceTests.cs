@@ -360,11 +360,7 @@ public class QuartzHostedServiceTests
 
         Assert.NotNull(schedulerFactory.LastCreatedScheduler);
 
-#if NET5_0_OR_GREATER
         await startupCts.CancelAsync().ConfigureAwait(false);
-#else
-        startupCts.Cancel();
-#endif
     }
 
     [Test]
@@ -401,11 +397,7 @@ public class QuartzHostedServiceTests
 
         Assert.AreEqual(!withStartDelay, schedulerFactory.LastCreatedScheduler.IsStarted);
 
-#if NET5_0_OR_GREATER
         await startupCts.CancelAsync().ConfigureAwait(false);
-#else
-        startupCts.Cancel();
-#endif
 
         await quartzHostedService.StopAsync(CancellationToken.None);
 
@@ -436,11 +428,7 @@ public class QuartzHostedServiceTests
 
         var startupTask = quartzHostedService.StartAsync(startupCts.Token);
 
-#if NET5_0_OR_GREATER
         await startupCts.CancelAsync().ConfigureAwait(false);
-#else
-        startupCts.Cancel();
-#endif
 
         await startupTask;
 
@@ -482,10 +470,6 @@ public class QuartzHostedServiceTests
         if (shouldSchedulerBeStarted) Assert.True(schedulerFactory.LastCreatedScheduler.IsShutdown);
         Assert.False(schedulerFactory.LastCreatedScheduler.IsStarted);
 
-#if NET5_0_OR_GREATER
         await startupCts.CancelAsync().ConfigureAwait(false);
-#else
-        startupCts.Cancel();
-#endif
     }
 }

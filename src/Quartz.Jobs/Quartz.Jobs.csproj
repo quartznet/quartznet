@@ -2,8 +2,7 @@
 
   <PropertyGroup>
     <Description>Quartz.NET Jobs; $(Description)</Description>
-    <TargetFrameworks>net472;netstandard2.0;net8.0</TargetFrameworks>
-    <TargetFramework>net6.0</TargetFramework>
+    <TargetFramework>net8.0</TargetFramework>
     <RootNamespace>Quartz</RootNamespace>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <PackageReadmeFile>quartz-jobs.md</PackageReadmeFile>

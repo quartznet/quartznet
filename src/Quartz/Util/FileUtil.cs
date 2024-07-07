@@ -23,10 +23,6 @@ using Microsoft.Extensions.Logging;
 
 using Quartz.Logging;
 
-#if HTTPCONTEXT
-using System.Web;
-#endif
-
 namespace Quartz.Util;
 
 /// <summary>
@@ -49,17 +45,6 @@ internal sealed class FileUtil
         if (fName is not null && fName.StartsWith("~"))
         {
             // relative to run directory
-
-#if HTTPCONTEXT
-                // if HttpContext available, use it
-                if (HttpContext.Current is not null)
-                {
-                    return HttpContext.Current.Server.MapPath(fName);
-                }
-#else // HTTPCONTEXT
-            // TODO (NetCore Port): Use Microsoft.AspNet.Http.Abstractions.HttpContext as a substitute?
-#endif // HTTPCONTEXT
-
             fName = fName.Substring(1);
             if (fName.StartsWith("/") || fName.StartsWith("\\"))
             {
@@ -67,21 +52,7 @@ internal sealed class FileUtil
             }
             try
             {
-#if NETSTANDARD
-                    if (string.IsNullOrWhiteSpace(AppContext.BaseDirectory))
-                    {
-                        // can happen under Xamarin android, see https://github.com/quartznet/quartznet/issues/1008
-                        // and https://github.com/xamarin/xamarin-android/issues/3489
-
-                        var logger = LogProvider.CreateLogger<FileUtil>();
-                        logger.LogWarning("Unable to resolve file path '{FilePath}' as AppContext.BaseDirectory returned null/empty", fName);
-                        return null;
-                    }
-
-                    fName = Path.Combine(AppContext.BaseDirectory, fName);
-#else
                 fName = Path.Combine(AppDomain.CurrentDomain.SetupInformation.ApplicationBase ?? "", fName);
-#endif
             }
             catch (SecurityException)
             {
