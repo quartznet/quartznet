@@ -51,7 +51,7 @@
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.8.1" />
     <PackageVersion Include="OpenTelemetry.Instrumentation.Quartz" Version="1.0.0-alpha.3" />
     <PackageVersion Include="OpenTracing" Version="0.12.1" />
-    <PackageVersion Include="Oracle.ManagedDataAccess" Version="21.12.0" />
+    <PackageVersion Include="Oracle.ManagedDataAccess" Version="23.4.0" />
     <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="3.21.120" />
     <PackageVersion Include="Serilog" Version="4.0.0" />
     <PackageVersion Include="Serilog.Extensions.Hosting" Version="8.0.0" />
