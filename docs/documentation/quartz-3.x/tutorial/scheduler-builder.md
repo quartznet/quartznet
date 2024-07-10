@@ -27,7 +27,7 @@ var host = Host.CreateDefaultBuilder()
             opt.MaxBatchSize = "";
             opt.InterruptJobsOnShutdown = true;
             opt.InterruptJobsOnShutdownWithWait = true;
-            q.BatchTriggerAcquisitionFireAheadTimeWindow = TimeSpan.Zero;
+            opt.BatchTriggerAcquisitionFireAheadTimeWindow = TimeSpan.Zero;
         });
     })
     .Build();
