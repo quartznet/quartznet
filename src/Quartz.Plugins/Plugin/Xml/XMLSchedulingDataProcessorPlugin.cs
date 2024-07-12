@@ -390,12 +390,7 @@ public class XMLSchedulingDataProcessorPlugin : ISchedulerPlugin, IFileScanListe
                 {
                     if (f is not null)
                     {
-#if NET5_0_OR_GREATER
                         await f.DisposeAsync().ConfigureAwait(false);
-#else
-                        await Task.Yield();
-                        f.Dispose();
-#endif
                     }
                 }
                 catch (IOException ioe)

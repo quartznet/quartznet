@@ -53,14 +53,6 @@
     <SignAssembly>true</SignAssembly>
   </PropertyGroup>
 
-  <PropertyGroup Condition=" '$(TargetFramework)' == 'net472' ">
-    <DefineConstants>$(DefineConstants);REMOTING</DefineConstants>
-  </PropertyGroup>
-
-  <PropertyGroup>
-    <DefineConstants>$(DefineConstants);DIAGNOSTICS_SOURCE</DefineConstants>
-  </PropertyGroup>
-
   <ItemGroup>
     <None Include="..\quartz-logo-small.png" Pack="true" Visible="false" PackagePath=""/>
   </ItemGroup>

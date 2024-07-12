@@ -647,14 +647,12 @@ public sealed class CronExpression : ISerializable
 
     private void StoreExpressionNumeric(int type, ReadOnlySpan<char> s, int i)
     {
-#if NET6_0_OR_GREATER
         // test fast case
         if (int.TryParse(s, out var temp))
         {
             AddToSet(temp, -1, -1, type);
             return;
         }
-#endif
 
         var c = s[i];
         var val = ToInt32(c);
@@ -905,11 +903,7 @@ public sealed class CronExpression : ISerializable
                             ThrowHelper.ThrowFormatException("nthdayOfWeek is < 1 or > 5");
                         }
                         // check first char is numeric and is a valid Day of week (1-7)
-#if NET6_0_OR_GREATER
-                    if (int.TryParse(s.Slice(0, pos), out val))
-#else
-                        if (int.TryParse(s.Slice(0, pos).ToString(), out val))
-#endif
+                        if (int.TryParse(s.Slice(0, pos), out val))
                         {
                             if (val is < 1 or > 7)
                             {
@@ -2011,11 +2005,7 @@ public sealed class CronExpression : ISerializable
 
     private static int ToInt32(ReadOnlySpan<char> span)
     {
-#if NET6_0_OR_GREATER
         return int.Parse(span);
-#else
-        return int.Parse(span.ToString());
-#endif
     }
 
     /// <summary>

@@ -101,7 +101,6 @@ public class ServiceCollectionExtensionsTests
         Assert.AreEqual(job.Key.Group, trigger.JobKey.Group);
     }
 
-#if NET8_0_OR_GREATER
     [Test]
     public void ConfiguredDbDataSource_ShouldBeUsed()
     {
@@ -127,7 +126,6 @@ public class ServiceCollectionExtensionsTests
         Assert.That(quartzOptions.ContainsKey($"quartz.dataSource.{SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}.connectionProvider.type"));
         Assert.That(quartzOptions[$"quartz.dataSource.{SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}.connectionProvider.type"], Is.EqualTo(typeof(DataSourceDbProvider).AssemblyQualifiedNameWithoutVersion()));
     }
-#endif
 
     private sealed class DummyJob : IJob
     {

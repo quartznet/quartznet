@@ -15,8 +15,6 @@
 *
 */
 
-using System.Data;
-
 namespace Quartz.Impl.AdoJobStore;
 
 /// <summary>
@@ -25,10 +23,6 @@ namespace Quartz.Impl.AdoJobStore;
 /// <author>Marko Lahma</author>
 public class SQLiteDelegate : StdAdoDelegate
 {
-#if NETSTANDARD2_0
-    private System.Reflection.MethodInfo? getFieldValueMethod;
-#endif
-
     /// <summary>
     /// Gets the select next trigger to acquire SQL clause.
     /// SQLite version with LIMIT support.
@@ -37,31 +31,6 @@ public class SQLiteDelegate : StdAdoDelegate
     protected override string GetSelectNextTriggerToAcquireSql(int maxCount)
     {
         return SqlSelectNextTriggerToAcquire + " LIMIT " + maxCount;
-    }
-
-    protected override ValueTask<byte[]?> ReadBytesFromBlob(IDataReader dr, int colIndex, CancellationToken cancellationToken)
-    {
-#if NETSTANDARD2_0
-        if (dr.GetType().Namespace == "Microsoft.Data.Sqlite")
-        {
-            if (dr.IsDBNull(colIndex))
-            {
-                return new ValueTask<byte[]?>((byte[]?)null);
-            }
-
-            // workaround for GetBytes not being implemented
-            if (getFieldValueMethod is null)
-            {
-                var method = dr.GetType().GetMethod("GetFieldValue");
-                getFieldValueMethod = method!.MakeGenericMethod(typeof(byte[]));
-            }
-
-            var value = getFieldValueMethod.Invoke(dr, new object[] {colIndex});
-            var byteArray = (byte[]?) value;
-            return new ValueTask<byte[]?>(byteArray);
-        }
-#endif
-        return base.ReadBytesFromBlob(dr, colIndex, cancellationToken);
     }
 
     protected override string GetSelectNextMisfiredTriggersInStateToAcquireSql(int count)

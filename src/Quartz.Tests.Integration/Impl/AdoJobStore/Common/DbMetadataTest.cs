@@ -48,25 +48,6 @@ public class DbMetadataTest
         TestDbMetadata("MySqlConnector");
     }
 
-#if NETFRAMEWORK
-
-    [Test]
-    [Category("db-oracle")]
-    public void TestDbMetadataOracleODP()
-    {
-        TestDbMetadata("OracleODP");
-    }
-
-    [Test]
-    [Category("db-oracle")]
-    public void TestDbMetadataOracleODPManaged()
-    {
-        var provider = TestDbMetadata("OracleODPManaged");
-        var command = (Oracle.ManagedDataAccess.Client.OracleCommand) provider.CreateCommand();
-        Assert.That(command.BindByName, Is.True, "bind by name should default to true");
-    }
-#endif
-
     private static DbProvider TestDbMetadata(string dbname, bool hashCustomBinaryType = true)
     {
         DbProvider dbp = new DbProvider(dbname, "foo");

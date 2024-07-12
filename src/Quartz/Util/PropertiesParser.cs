@@ -572,7 +572,7 @@ internal sealed class PropertiesParser
     {
         var groups = new HashSet<string>();
 
-        if (!prefix.EndsWith("."))
+        if (!prefix.EndsWith('.'))
         {
             prefix += ".";
         }
@@ -622,7 +622,7 @@ internal sealed class PropertiesParser
     {
         NameValueCollection group = new NameValueCollection();
 
-        if (!prefix.EndsWith("."))
+        if (!prefix.EndsWith('.'))
         {
             prefix += ".";
         }
@@ -694,7 +694,7 @@ internal sealed class PropertiesParser
             {
                 line = line.TrimStart();
 
-                if (line.StartsWith("#"))
+                if (line.StartsWith('#'))
                 {
                     // comment line
                     continue;
@@ -704,7 +704,7 @@ internal sealed class PropertiesParser
                     // special end condition
                     break;
                 }
-                string[] lineItems = line.Split(new[] { '=' }, 2);
+                string[] lineItems = line.Split('=', 2);
                 if (lineItems.Length == 2)
                 {
                     props[lineItems[0].Trim()] = lineItems[1].Trim();

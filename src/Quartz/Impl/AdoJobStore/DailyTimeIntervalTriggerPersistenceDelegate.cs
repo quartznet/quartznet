@@ -114,7 +114,7 @@ internal sealed class DailyTimeIntervalTriggerPersistenceDelegate : SimpleProper
         if (daysOfWeekStr is not null)
         {
             var daysOfWeek = new HashSet<DayOfWeek>();
-            string[] nums = daysOfWeekStr.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            string[] nums = daysOfWeekStr.Split(',', StringSplitOptions.RemoveEmptyEntries);
             if (nums.Length > 0)
             {
                 foreach (string num in nums)
@@ -131,7 +131,7 @@ internal sealed class DailyTimeIntervalTriggerPersistenceDelegate : SimpleProper
 
         if (timeOfDayStr is not null)
         {
-            string[] nums = timeOfDayStr.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+            string[] nums = timeOfDayStr.Split(',', StringSplitOptions.RemoveEmptyEntries);
             TimeOfDay startTimeOfDay;
             if (nums.Length >= 3)
             {

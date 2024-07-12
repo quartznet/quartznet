@@ -1,4 +1,4 @@
-namespace Quartz.Tests.Unit;
+﻿namespace Quartz.Tests.Unit;
 
 [SetUpFixture]
 public class TestAssemblySetup
@@ -10,7 +10,7 @@ public class TestAssemblySetup
         // (https://youtrack.jetbrains.com/issue/RSRP-451142)
         string codeBase = GetType().Assembly.Location;
         string pathToUse = codeBase;
-        if (!codeBase.StartsWith("/"))
+        if (!codeBase.StartsWith('/'))
         {
             UriBuilder uri = new UriBuilder(codeBase);
             string path = Uri.UnescapeDataString(uri.Path);

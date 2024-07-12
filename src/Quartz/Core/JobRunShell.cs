@@ -52,9 +52,7 @@ namespace Quartz.Core;
 public class JobRunShell : SchedulerListenerSupport
 {
     private readonly ILogger<JobRunShell> logger;
-#if DIAGNOSTICS_SOURCE
     private readonly JobDiagnosticsWriter jobExecutionJobDiagnostics = new JobDiagnosticsWriter();
-#endif
 
     private JobExecutionContextImpl? jec;
     private QuartzScheduler? qs;
@@ -184,9 +182,7 @@ public class JobRunShell : SchedulerListenerSupport
                 DateTimeOffset startTime = qs.resources.TimeProvider.GetUtcNow();
                 DateTimeOffset endTime;
 
-#if DIAGNOSTICS_SOURCE
                 System.Diagnostics.Activity? activity = null;
-#endif
 
                 // Execute the job
                 try
@@ -196,9 +192,7 @@ public class JobRunShell : SchedulerListenerSupport
                         logger.LogDebug("Calling Execute on job {JobKey}", jobDetail.Key);
                     }
 
-#if DIAGNOSTICS_SOURCE
                     activity = jobExecutionJobDiagnostics.WriteStarted(jec, startTime);
-#endif
 
                     await job.Execute(jec).ConfigureAwait(false);
 
@@ -214,9 +208,7 @@ public class JobRunShell : SchedulerListenerSupport
                 {
                     endTime = qs.resources.TimeProvider.GetUtcNow();
                     jobExEx = jee;
-#if DIAGNOSTICS_SOURCE
                     jobExecutionJobDiagnostics.WriteException(activity, jobExEx);
-#endif
                     logger.LogError(jobExEx, "Job {JobDetailKey} threw a JobExecutionException: ", jobDetail.Key);
                 }
                 catch (Exception e)
@@ -231,9 +223,7 @@ public class JobRunShell : SchedulerListenerSupport
 
                 jec.JobRunTime = endTime - startTime;
 
-#if DIAGNOSTICS_SOURCE
                 jobExecutionJobDiagnostics.WriteStopped(activity, endTime, jec);
-#endif
 
                 // notify all job listeners
                 if (!await NotifyJobListenersComplete(qs, jec, jobExEx, cancellationToken).ConfigureAwait(false))
@@ -352,12 +342,10 @@ public class JobRunShell : SchedulerListenerSupport
         {
             try
             {
-#if DIAGNOSTICS_SOURCE
                 if (LogProvider.Cached.Default.Value.IsEnabled(OperationName.Job.Veto))
                 {
                     LogProvider.Cached.Default.Value.Write(OperationName.Job.Veto, ctx);
                 }
-#endif
 
                 await qs.NotifyJobListenersWasVetoed(ctx, cancellationToken).ConfigureAwait(false);
             }
