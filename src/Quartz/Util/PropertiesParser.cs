@@ -572,7 +572,7 @@ internal sealed class PropertiesParser
     {
         var groups = new HashSet<string>();
 
-        if (!prefix.EndsWith("."))
+        if (!prefix.EndsWith('.'))
         {
             prefix += ".";
         }
@@ -622,7 +622,7 @@ internal sealed class PropertiesParser
     {
         NameValueCollection group = new NameValueCollection();
 
-        if (!prefix.EndsWith("."))
+        if (!prefix.EndsWith('.'))
         {
             prefix += ".";
         }
