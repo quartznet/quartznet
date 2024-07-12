@@ -63,7 +63,7 @@
     <PackageVersion Include="System.Diagnostics.DiagnosticSource" Version="8.0.1" />
     <PackageVersion Include="System.Net.Http.Json" Version="5.0.0" />
     <PackageVersion Include="System.Reflection.Emit" Version="4.7.0" />
-    <PackageVersion Include="System.Text.Json" Version="8.0.3" />
+    <PackageVersion Include="System.Text.Json" Version="8.0.4" />
     <PackageVersion Include="TimeZoneConverter" Version="6.1.0" />
     <PackageVersion Include="Topshelf" Version="4.3.0" />
     <PackageVersion Include="log4net" Version="2.0.17" />
