@@ -31,7 +31,7 @@ public static class QuartzServiceCollectionExtensions
     {
         var optionsBuilder = configurator.Services
             .AddOptions<QuartzHttpApiOptions>()
-            .Validate(options => !string.IsNullOrWhiteSpace(options.ApiPath) && options.ApiPath.StartsWith("/"), "ApiPath is required and must start with '/'");
+            .Validate(options => !string.IsNullOrWhiteSpace(options.ApiPath) && options.ApiPath.StartsWith('/'), "ApiPath is required and must start with '/'");
 
         if (configure is not null)
         {

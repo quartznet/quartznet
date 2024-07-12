@@ -1,4 +1,4 @@
-namespace Quartz.Tests.Integration;
+﻿namespace Quartz.Tests.Integration;
 
 [SetUpFixture]
 public class TestAssemblySetup
@@ -7,10 +7,10 @@ public class TestAssemblySetup
     public void SetUp()
     {
         // set default directory to make sure file loading works
-        // (https://youtrack.jetbrains.com/issue/RSRP-451142) 
+        // (https://youtrack.jetbrains.com/issue/RSRP-451142)
         string codeBase = GetType().Assembly.Location;
         string pathToUse = codeBase;
-        if (!codeBase.StartsWith("/"))
+        if (!codeBase.StartsWith('/'))
         {
             UriBuilder uri = new UriBuilder(codeBase);
             string path = Uri.UnescapeDataString(uri.Path);

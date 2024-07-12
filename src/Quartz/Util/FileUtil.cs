@@ -42,11 +42,11 @@ internal sealed class FileUtil
     /// <returns>Expanded file name or actual no resolving was done.</returns>
     public static string? ResolveFile(string? fName)
     {
-        if (fName is not null && fName.StartsWith("~"))
+        if (fName is not null && fName.StartsWith('~'))
         {
             // relative to run directory
             fName = fName.Substring(1);
-            if (fName.StartsWith("/") || fName.StartsWith("\\"))
+            if (fName.StartsWith('/') || fName.StartsWith('\\'))
             {
                 fName = fName.Substring(1);
             }
