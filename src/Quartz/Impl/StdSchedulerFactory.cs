@@ -251,14 +251,15 @@ public class StdSchedulerFactory : ISchedulerFactory
 
     internal static NameValueCollection? InitializeProperties(ILogger<StdSchedulerFactory> logger, bool throwOnProblem)
     {
-        var props = Util.Configuration.GetSection(ConfigurationSectionName);
-        var requestedFile = QuartzEnvironment.GetEnvironmentVariable(PropertiesFile);
+        NameValueCollection? props = null;
+
+        string? requestedFile = QuartzEnvironment.GetEnvironmentVariable(PropertiesFile);
         string propFileName = (requestedFile is not null && !string.IsNullOrWhiteSpace(requestedFile)) ? requestedFile : "~/quartz.config";
 
         // check for specials
         propFileName = FileUtil.ResolveFile(propFileName) ?? "quartz.config";
 
-        if (props is null && File.Exists(propFileName))
+        if (File.Exists(propFileName))
         {
             // file system
             try
