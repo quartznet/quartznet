@@ -87,7 +87,6 @@ public class AdoJobStoreSmokeTest
     }
 
     [Test]
-    [Retry(5)]
     [Category("db-sqlite")]
     [TestCaseSource(nameof(GetSerializerTypes))]
     public async Task TestSQLiteMicrosoft(string serializerType)
@@ -145,7 +144,6 @@ public class AdoJobStoreSmokeTest
     }
 
     [Test]
-    [Retry(5)]
     [Category("db-sqlite")]
     [TestCaseSource(nameof(GetSerializerTypes))]
     public async Task TestSQLite(string serializerType)
