@@ -181,7 +181,9 @@ public interface IJobExecutionContext
     /// </summary>
     /// <param name="key">
     /// </param>
+#pragma warning disable CA1716
     object? Get(object key);
+#pragma warning restore CA1716
 
     /// <summary>
     /// Returns the cancellation token which will be cancelled when the job cancellation has been requested via

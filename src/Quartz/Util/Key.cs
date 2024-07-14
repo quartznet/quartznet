@@ -145,34 +145,34 @@ public class Key<T> : IComparable<Key<T>>
         return group == other.group && name == other.name;
     }
 
-    public int CompareTo(Key<T>? o)
+    public int CompareTo(Key<T>? other)
     {
-        if (o is null)
+        if (other is null)
         {
             return 1;
         }
 
-        if (ReferenceEquals(group, o.group))
+        if (ReferenceEquals(group, other.group))
         {
-            return ReferenceEquals(name, o.name) ? 0 : StringComparer.Ordinal.Compare(name, o.name);
+            return ReferenceEquals(name, other.name) ? 0 : StringComparer.Ordinal.Compare(name, other.name);
         }
 
-        if (group == DefaultGroup && o.group != DefaultGroup)
+        if (group == DefaultGroup && other.group != DefaultGroup)
         {
             return -1;
         }
-        if (group != DefaultGroup && o.group == DefaultGroup)
+        if (group != DefaultGroup && other.group == DefaultGroup)
         {
             return 1;
         }
 
-        int r = StringComparer.Ordinal.Compare(group, o.group);
+        int r = StringComparer.Ordinal.Compare(group, other.group);
         if (r != 0)
         {
             return r;
         }
 
-        return ReferenceEquals(name, o.name) ? 0 : StringComparer.Ordinal.Compare(name, o.name);
+        return ReferenceEquals(name, other.name) ? 0 : StringComparer.Ordinal.Compare(name, other.name);
     }
 
     public static bool operator ==(Key<T>? left, Key<T>? right)

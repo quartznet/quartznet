@@ -62,7 +62,7 @@ public static class QuartzServiceCollectionExtensions
         var handler = builder.ServiceProvider.GetService<ExceptionHandler>();
         if (handler is null)
         {
-            throw new Exception("HTTP API not configured. Call AddHttpApi() in AddQuartz(...)");
+            throw new InvalidOperationException("HTTP API not configured. Call AddHttpApi() in AddQuartz(...)");
         }
 
         var options = builder.ServiceProvider.GetRequiredService<IOptions<QuartzHttpApiOptions>>().Value;

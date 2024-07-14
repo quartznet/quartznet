@@ -195,7 +195,7 @@ public class Startup
             // also add XML configuration and poll it for changes
             q.UseXmlSchedulingConfiguration(x =>
             {
-                x.Files = new[] { "~/quartz_jobs.config" };
+                x.Files = ["~/quartz_jobs.config"];
                 x.ScanInterval = TimeSpan.FromMinutes(1);
                 x.FailOnFileNotFound = true;
                 x.FailOnSchedulingError = true;

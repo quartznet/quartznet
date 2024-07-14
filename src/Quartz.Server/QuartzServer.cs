@@ -87,7 +87,9 @@ public class QuartzServer : ServiceControl, IQuartzServer
     /// <summary>
     /// Stops this instance, delegates to scheduler.
     /// </summary>
+#pragma warning disable CA1716
     public virtual async ValueTask Stop()
+#pragma warning restore CA1716
     {
         try
         {

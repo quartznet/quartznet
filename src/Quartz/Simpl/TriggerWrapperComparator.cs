@@ -33,7 +33,7 @@ internal sealed class TriggerWrapperComparator : IComparer<TriggerWrapper>, IEqu
     /// Serves as a hash function for a particular type.
     /// </summary>
     /// <returns>
-    /// A hash code for the current <see cref="T:System.Object"/>.
+    /// A hash code for the current <see cref="System.Object"/>.
     /// </returns>
     /// <filterpriority>2</filterpriority>
     public override int GetHashCode()

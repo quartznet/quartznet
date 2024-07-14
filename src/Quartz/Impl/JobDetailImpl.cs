@@ -430,12 +430,12 @@ internal sealed class JobDetailImpl : IJobDetail
     }
 
     /// <summary>
-    /// Determines whether the specified <see cref="T:System.Object"/> is equal to the current <see cref="T:System.Object"/>.
+    /// Determines whether the specified <see cref="System.Object"/> is equal to the current <see cref="System.Object"/>.
     /// </summary>
-    /// <param name="obj">The <see cref="T:System.Object"/> to compare with the current <see cref="T:System.Object"/>.</param>
+    /// <param name="obj">The <see cref="System.Object"/> to compare with the current <see cref="System.Object"/>.</param>
     /// <returns>
-    /// 	<see langword="true"/> if the specified <see cref="T:System.Object"/> is equal to the
-    /// current <see cref="T:System.Object"/>; otherwise, <see langword="false"/>.
+    /// 	<see langword="true"/> if the specified <see cref="System.Object"/> is equal to the
+    /// current <see cref="System.Object"/>; otherwise, <see langword="false"/>.
     /// </returns>
     public override bool Equals(object? obj)
     {
@@ -462,7 +462,7 @@ internal sealed class JobDetailImpl : IJobDetail
     /// for use in hashing algorithms and data structures like a hash table.
     /// </summary>
     /// <returns>
-    /// A hash code for the current <see cref="T:System.Object"/>.
+    /// A hash code for the current <see cref="System.Object"/>.
     /// </returns>
     public override int GetHashCode()
     {

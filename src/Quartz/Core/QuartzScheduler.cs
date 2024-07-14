@@ -1829,7 +1829,7 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Error while notifying SchedulerListener of paused group: {group}", group);
+                logger.LogError(e, "Error while notifying SchedulerListener of paused group: {Group}", group);
             }
         }
     }

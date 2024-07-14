@@ -50,8 +50,8 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
     private string tablePrefix = DefaultTablePrefix;
     private bool useProperties;
-    protected Type delegateType;
-    protected readonly Dictionary<string, ICalendar?> calendarCache = [];
+    private Type delegateType;
+    private readonly Dictionary<string, ICalendar?> calendarCache = [];
     private IDriverDelegate driverDelegate = null!;
     private TimeSpan misfireThreshold = TimeSpan.FromMinutes(1); // one minute
     private TimeSpan? misfirehandlerFrequence;
@@ -393,7 +393,9 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <summary>
     /// Get the driver delegate for DB operations.
     /// </summary>
+#pragma warning disable CA1716
     protected virtual IDriverDelegate Delegate
+#pragma warning restore CA1716
     {
         get
         {
@@ -3138,7 +3140,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     // Cluster management methods
     //---------------------------------------------------------------------------
 
-    protected bool firstCheckIn = true;
+    private bool firstCheckIn = true;
 
     protected internal DateTimeOffset LastCheckin { get; set; }
 
