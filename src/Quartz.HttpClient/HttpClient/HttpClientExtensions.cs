@@ -139,7 +139,7 @@ internal static class HttpClientExtensions
         {
             // If scheduler is not found, then no requests will succeed, so lets throw even if throwOnNotFound is true.
             // Could probably add separate flag for this in problem details...
-            if (problemDetails.Detail.IndexOf("Unknown scheduler", StringComparison.OrdinalIgnoreCase) >= 0)
+            if (problemDetails.Detail.Contains("Unknown scheduler", StringComparison.OrdinalIgnoreCase))
             {
                 throw new HttpClientException($"Scheduler not found. {nameof(HttpScheduler)} might have been configured with wrong scheduler name.");
             }

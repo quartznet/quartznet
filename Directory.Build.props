@@ -57,4 +57,31 @@
     <None Include="..\quartz-logo-small.png" Pack="true" Visible="false" PackagePath=""/>
   </ItemGroup>
 
+  <PropertyGroup Label="Analysis rules">
+
+    <AnalysisLevel>latest-Recommended</AnalysisLevel>
+
+    <!-- The behavior could vary based on the current user's locale setting -->
+    <NoWarn>$(NoWarn);CA1304;CA1305;CA1310</NoWarn>
+
+    <!-- Do not declare static members on generic types -->
+    <NoWarn>$(NoWarn);CA1000</NoWarn>
+
+    <!-- For improved performance, use the LoggerMessage delegates -->
+    <NoWarn>$(NoWarn);CA1848</NoWarn>
+
+    <!-- Rename type name X so that it does not end in 'Delegate', 'EventHandler', 'Permission' etc -->
+    <NoWarn>$(NoWarn);CA1711</NoWarn>
+
+    <!-- Parameter name differs from original overriden implemented name -->
+    <NoWarn>$(NoWarn);CA1725</NoWarn>
+
+    <!-- Type owns disposable field(s) -->
+    <NoWarn>$(NoWarn);CA1001</NoWarn>
+
+    <!-- CA1507: Use nameof in place of string literal -->
+    <NoWarn>$(NoWarn);CA1507</NoWarn>
+
+  </PropertyGroup>
+
 </Project>

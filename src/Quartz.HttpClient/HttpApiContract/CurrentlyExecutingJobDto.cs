@@ -17,10 +17,7 @@ internal record CurrentlyExecutingJobDto(
 {
     public static CurrentlyExecutingJobDto Create(IJobExecutionContext context)
     {
-        if (context is null)
-        {
-            throw new ArgumentNullException(nameof(context));
-        }
+        ArgumentNullException.ThrowIfNull(context);
 
         return new CurrentlyExecutingJobDto(
             JobDetail: JobDetailDto.Create(context.JobDetail),

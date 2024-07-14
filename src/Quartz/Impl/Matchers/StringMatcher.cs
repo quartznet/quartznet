@@ -79,7 +79,7 @@ public abstract class StringMatcher<TKey> : IMatcher<TKey> where TKey : Key<TKey
                 return false;
             }
         }
-        else if (!CompareToValue.Equals(other.CompareToValue))
+        else if (CompareToValue != other.CompareToValue)
         {
             return false;
         }

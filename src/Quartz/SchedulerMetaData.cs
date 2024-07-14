@@ -151,7 +151,7 @@ public sealed class SchedulerMetaData
     /// </remarks>
     public string GetSummary()
     {
-        StringBuilder str = new StringBuilder("Quartz Scheduler (v");
+        StringBuilder str = new("Quartz Scheduler (v");
         str.Append(Version);
         str.Append(") '");
 
@@ -162,7 +162,7 @@ public sealed class SchedulerMetaData
 
         str.Append("  Scheduler class: '");
         str.Append(SchedulerType.FullName);
-        str.Append("'");
+        str.Append('\'');
         if (SchedulerRemote)
         {
             str.Append(" - access via remote invocation.");
@@ -171,7 +171,7 @@ public sealed class SchedulerMetaData
         {
             str.Append(" - running locally.");
         }
-        str.Append("\n");
+        str.Append('\n');
 
         if (!Shutdown)
         {
@@ -184,7 +184,7 @@ public sealed class SchedulerMetaData
             {
                 str.Append("  NOT STARTED.");
             }
-            str.Append("\n");
+            str.Append('\n');
 
 
             if (InStandbyMode)
@@ -200,18 +200,18 @@ public sealed class SchedulerMetaData
         {
             str.Append("  Scheduler has been SHUTDOWN.");
         }
-        str.Append("\n");
+        str.Append('\n');
 
         str.Append("  Number of jobs executed: ");
         str.Append(NumberOfJobsExecuted);
-        str.Append("\n");
+        str.Append('\n');
 
         str.Append("  Using thread pool '");
         str.Append(ThreadPoolType.FullName);
         str.Append("' - with ");
         str.Append(ThreadPoolSize);
         str.Append(" threads.");
-        str.Append("\n");
+        str.Append('\n');
 
         str.Append("  Using job-store '");
         str.Append(JobStoreType.FullName);
@@ -232,7 +232,7 @@ public sealed class SchedulerMetaData
         {
             str.Append(" and is not clustered.");
         }
-        str.Append("\n");
+        str.Append('\n');
 
         return str.ToString();
     }

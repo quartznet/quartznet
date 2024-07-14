@@ -76,9 +76,9 @@ internal static class TriggerEndpoints
         string? groupEquals = null,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
         {
-            var matcher = endpointHelper.GetGroupMatcher<TriggerKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
+            var matcher = EndpointHelper.GetGroupMatcher<TriggerKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
             var triggerKeys = await scheduler.GetTriggerKeys(matcher, cancellationToken).ConfigureAwait(false);
 
             var result = triggerKeys.Select(KeyDto.Create).ToArray();
@@ -94,7 +94,7 @@ internal static class TriggerEndpoints
         string triggerName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
         {
             var trigger = await scheduler.GetTriggerOrThrow(triggerName, triggerGroup, cancellationToken).ConfigureAwait(false);
             return trigger;
@@ -109,7 +109,7 @@ internal static class TriggerEndpoints
         string triggerName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
         {
             var exists = await scheduler.CheckExists(new TriggerKey(triggerName, triggerGroup), cancellationToken).ConfigureAwait(false);
             return new ExistsResponse(exists);
@@ -124,7 +124,7 @@ internal static class TriggerEndpoints
         string triggerName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
         {
             var state = await scheduler.GetTriggerState(new TriggerKey(triggerName, triggerGroup), cancellationToken).ConfigureAwait(false);
             return new TriggerStateDto(state);
@@ -139,7 +139,7 @@ internal static class TriggerEndpoints
         string triggerName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithOkResponse(schedulerName, scheduler => scheduler.ResetTriggerFromErrorState(new TriggerKey(triggerName, triggerGroup), cancellationToken).AsTask());
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, scheduler => scheduler.ResetTriggerFromErrorState(new TriggerKey(triggerName, triggerGroup), cancellationToken).AsTask());
     }
 
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -150,7 +150,7 @@ internal static class TriggerEndpoints
         string triggerName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithOkResponse(schedulerName, scheduler => scheduler.PauseTrigger(new TriggerKey(triggerName, triggerGroup), cancellationToken).AsTask());
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, scheduler => scheduler.PauseTrigger(new TriggerKey(triggerName, triggerGroup), cancellationToken).AsTask());
     }
 
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -163,9 +163,9 @@ internal static class TriggerEndpoints
         string? groupEquals = null,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithOkResponse(schedulerName, async scheduler =>
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, async scheduler =>
         {
-            var matcher = endpointHelper.GetGroupMatcher<TriggerKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
+            var matcher = EndpointHelper.GetGroupMatcher<TriggerKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
             await scheduler.PauseTriggers(matcher, cancellationToken).ConfigureAwait(false);
         });
     }
@@ -178,7 +178,7 @@ internal static class TriggerEndpoints
         string triggerName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithOkResponse(schedulerName, scheduler => scheduler.ResumeTrigger(new TriggerKey(triggerName, triggerGroup), cancellationToken).AsTask());
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, scheduler => scheduler.ResumeTrigger(new TriggerKey(triggerName, triggerGroup), cancellationToken).AsTask());
     }
 
     [ProducesResponseType(StatusCodes.Status200OK)]
@@ -191,9 +191,9 @@ internal static class TriggerEndpoints
         string? groupEquals = null,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithOkResponse(schedulerName, async scheduler =>
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, async scheduler =>
         {
-            var matcher = endpointHelper.GetGroupMatcher<TriggerKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
+            var matcher = EndpointHelper.GetGroupMatcher<TriggerKey>(groupContains, groupEndsWith, groupStartsWith, groupEquals);
             await scheduler.ResumeTriggers(matcher, cancellationToken).ConfigureAwait(false);
         });
     }
@@ -204,7 +204,7 @@ internal static class TriggerEndpoints
         string schedulerName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
         {
             var groupNames = await scheduler.GetTriggerGroupNames(cancellationToken).ConfigureAwait(false);
             return new NamesDto(groupNames);
@@ -217,7 +217,7 @@ internal static class TriggerEndpoints
         string schedulerName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
         {
             var result = await scheduler.GetPausedTriggerGroups(cancellationToken).ConfigureAwait(false);
             return new NamesDto(result);
@@ -231,7 +231,7 @@ internal static class TriggerEndpoints
         string triggerGroup,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
         {
             var paused = await scheduler.IsTriggerGroupPaused(triggerGroup, cancellationToken).ConfigureAwait(false);
             return new GroupPausedResponse(paused);
@@ -246,8 +246,8 @@ internal static class TriggerEndpoints
         ScheduleJobRequest request,
         CancellationToken cancellationToken = default)
     {
-        endpointHelper.AssertIsValid(request);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
+        EndpointHelper.AssertIsValid(request);
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
         {
             if (request.Job is null)
             {
@@ -269,8 +269,8 @@ internal static class TriggerEndpoints
         ScheduleJobsRequest request,
         CancellationToken cancellationToken = default)
     {
-        endpointHelper.AssertIsValid(request);
-        return endpointHelper.ExecuteWithOkResponse(schedulerName, async scheduler =>
+        EndpointHelper.AssertIsValid(request);
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, async scheduler =>
         {
             var jobsAndTriggers = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>();
             foreach (var (jobDetailDto, triggers) in request.JobsAndTriggers)
@@ -291,7 +291,7 @@ internal static class TriggerEndpoints
         string triggerName,
         CancellationToken cancellationToken = default)
     {
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
         {
             var triggerFound = await scheduler.UnscheduleJob(new TriggerKey(triggerName, triggerGroup), cancellationToken).ConfigureAwait(false);
             return new UnscheduleJobResponse(triggerFound);
@@ -305,8 +305,8 @@ internal static class TriggerEndpoints
         UnscheduleJobsRequest request,
         CancellationToken cancellationToken = default)
     {
-        endpointHelper.AssertIsValid(request);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
+        EndpointHelper.AssertIsValid(request);
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
         {
             var triggerKeys = request.Triggers.Select(x => x.AsTriggerKey()).ToArray();
             var allTriggersFound = await scheduler.UnscheduleJobs(triggerKeys, cancellationToken).ConfigureAwait(false);
@@ -324,8 +324,8 @@ internal static class TriggerEndpoints
         RescheduleJobRequest request,
         CancellationToken cancellationToken = default)
     {
-        endpointHelper.AssertIsValid(request);
-        return endpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
+        EndpointHelper.AssertIsValid(request);
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
         {
             var firstFireTimeUtc = await scheduler.RescheduleJob(new TriggerKey(triggerName, triggerGroup), request.NewTrigger, cancellationToken).ConfigureAwait(false);
             return new RescheduleJobResponse(firstFireTimeUtc);

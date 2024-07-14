@@ -272,7 +272,7 @@ public sealed class DirectSchedulerFactory : ISchedulerFactory
         }
 
         // Currently only one run-shell factory is available...
-        IJobRunShellFactory jrsf = new StdJobRunShellFactory();
+        var jrsf = new StdJobRunShellFactory();
 
         // Fire everything up
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -304,7 +304,7 @@ public sealed class DirectSchedulerFactory : ISchedulerFactory
 
         QuartzScheduler qs = new QuartzScheduler(qrs);
 
-        ITypeLoadHelper cch = new SimpleTypeLoadHelper();
+        SimpleTypeLoadHelper cch = new SimpleTypeLoadHelper();
         cch.Initialize();
 
         jobStore.InstanceName = schedulerName;

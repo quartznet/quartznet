@@ -41,7 +41,7 @@ public class ConfigureJobSchedulingByUsingXmlConfigurationsExample : IExample
             // job initialization plugin handles our xml reading, without it defaults are used
             .UseXmlSchedulingConfiguration(x =>
             {
-                x.Files = new[] { "~/quartz_jobs.xml" };
+                x.Files = ["~/quartz_jobs.xml"];
                 // this is the default
                 x.FailOnFileNotFound = true;
                 // this is not the default

@@ -20,7 +20,9 @@ public static class JsonConfigurationExtensions
 
 public class NewtonsoftJsonSerializerOptions
 {
+#pragma warning disable CA1822
     public void AddCalendarSerializer<TCalendar>(ICalendarSerializer serializer)
+#pragma warning restore CA1822
     {
         NewtonsoftJsonObjectSerializer.AddCalendarSerializer<TCalendar>(serializer);
     }

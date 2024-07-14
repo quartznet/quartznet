@@ -62,8 +62,6 @@ public sealed class ZeroSizeThreadPool : IThreadPool
     /// <value>The size of the pool.</value>
     public int PoolSize => 0;
 
-    public int AvailableThreadCount => 0;
-
     /// <summary>
     /// Inform the <see cref="IThreadPool" /> of the Scheduler instance's Id,
     /// prior to initialize being invoked.

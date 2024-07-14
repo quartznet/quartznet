@@ -203,10 +203,10 @@ public sealed class CronCalendar : BaseCalendar
     }
 
     /// <summary>
-    /// Returns a <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
+    /// Returns a <see cref="System.String"/> that represents the current <see cref="System.Object"/>.
     /// </summary>
     /// <returns>
-    /// A <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
+    /// A <see cref="System.String"/> that represents the current <see cref="System.Object"/>.
     /// </returns>
     public override string ToString()
     {
@@ -222,7 +222,7 @@ public sealed class CronCalendar : BaseCalendar
         }
         buffer.Append("], excluded cron expression: '");
         buffer.Append(cronExpression);
-        buffer.Append("'");
+        buffer.Append('\'');
         return buffer.ToString();
     }
 

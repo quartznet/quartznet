@@ -5,7 +5,7 @@ namespace Quartz.Logging;
 
 public static class LogProvider
 {
-    private static ILoggerFactory? _loggerFactory = null;
+    private static ILoggerFactory? _loggerFactory;
 
     /// <summary>
     /// Sets the current log provider based on logger factory.

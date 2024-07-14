@@ -174,7 +174,7 @@ public class XMLSchedulingDataProcessor
         using (var stream = File.Open(fileName, FileMode.Open, FileAccess.Read, FileShare.Read))
         using (StreamReader sr = new StreamReader(stream))
         {
-            ProcessInternal(await sr.ReadToEndAsync().ConfigureAwait(false));
+            ProcessInternal(await sr.ReadToEndAsync(cancellationToken).ConfigureAwait(false));
         }
     }
 
@@ -192,7 +192,7 @@ public class XMLSchedulingDataProcessor
     {
         logger.LogInformation("Parsing XML from stream with systemId: {SystemId}", systemId);
         using StreamReader sr = new StreamReader(stream);
-        ProcessInternal(await sr.ReadToEndAsync().ConfigureAwait(false));
+        ProcessInternal(await sr.ReadToEndAsync(cancellationToken).ConfigureAwait(false));
     }
 
     protected virtual void PrepForProcessing()
@@ -220,7 +220,7 @@ public class XMLSchedulingDataProcessor
 
         // deserialize as object model
         var xs = new XmlSerializer(typeof(QuartzXmlConfiguration20));
-        var data = (QuartzXmlConfiguration20?) xs.Deserialize(new StringReader(xml));
+        var data = (QuartzXmlConfiguration20?) xs.Deserialize(XmlReader.Create(new StringReader(xml)));
 
         if (data is null)
         {
@@ -596,7 +596,7 @@ public class XMLSchedulingDataProcessor
                 ThrowHelper.ThrowArgumentException("Could not read XSD from embedded resource");
             }
 
-            var schema = XmlSchema.Read(stream, XmlValidationCallBack);
+            var schema = XmlSchema.Read(XmlReader.Create(stream), XmlValidationCallBack);
             settings.Schemas.Add(schema!);
             settings.ValidationEventHandler += XmlValidationCallBack;
 
@@ -620,7 +620,9 @@ public class XMLSchedulingDataProcessor
         }
         else
         {
+#pragma warning disable CA2254
             logger.LogWarning(e.Message);
+#pragma warning restore CA2254
         }
     }
 
@@ -700,7 +702,7 @@ public class XMLSchedulingDataProcessor
     {
         using (var sr = new StreamReader(stream))
         {
-            ProcessInternal(await sr.ReadToEndAsync().ConfigureAwait(false));
+            ProcessInternal(await sr.ReadToEndAsync(cancellationToken).ConfigureAwait(false));
         }
 
         await ExecutePreProcessCommands(sched, cancellationToken).ConfigureAwait(false);
@@ -925,10 +927,9 @@ public class XMLSchedulingDataProcessor
                     if (logger.IsEnabled(LogLevel.Debug))
                     {
                         logger.LogDebug(
-                            "Adding trigger: " + trigger.Key + " for job: " + trigger.JobKey +
-                            " failed because the trigger already existed.  " +
-                            "This is likely due to a race condition between multiple instances " +
-                            "in the cluster.  Will try to reschedule instead.");
+                            "Adding trigger: {TriggerKey} for job: {JobKey} failed because the trigger already existed. This is likely due to a race condition between multiple instances in the cluster. Will try to reschedule instead.",
+                            trigger.Key,
+                            trigger.JobKey);
                     }
 
                     // Let's rescheduleJob one more time.
@@ -991,7 +992,7 @@ public class XMLSchedulingDataProcessor
     {
         foreach (string group in jobGroupsToDelete)
         {
-            if (group.Equals("*"))
+            if (group == "*")
             {
                 logger.LogInformation("Deleting all jobs in ALL groups.");
                 foreach (string groupName in await scheduler.GetJobGroupNames(cancellationToken).ConfigureAwait(false))
@@ -1020,7 +1021,7 @@ public class XMLSchedulingDataProcessor
 
         foreach (string group in triggerGroupsToDelete)
         {
-            if (group.Equals("*"))
+            if (group == "*")
             {
                 logger.LogInformation("Deleting all triggers in ALL groups.");
                 foreach (string groupName in await scheduler.GetTriggerGroupNames(cancellationToken).ConfigureAwait(false))

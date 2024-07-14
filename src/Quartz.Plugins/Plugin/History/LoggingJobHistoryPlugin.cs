@@ -466,13 +466,17 @@ public class LoggingJobHistoryPlugin : ISchedulerPlugin, IJobListener
 
     protected virtual void WriteInfo(string message)
     {
+#pragma warning disable CA2254
         logger.LogInformation(message);
+#pragma warning restore CA2254
     }
 
     protected virtual bool IsWarnEnabled => logger.IsEnabled(LogLevel.Warning);
 
     protected virtual void WriteWarning(string message, Exception ex)
     {
+#pragma warning disable CA2254
         logger.LogWarning(ex, message);
+#pragma warning restore CA2254
     }
 }

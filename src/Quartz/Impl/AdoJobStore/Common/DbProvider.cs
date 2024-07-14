@@ -134,7 +134,7 @@ public class DbProvider : IDbProvider
         StringBuilder sb = new StringBuilder("Valid DB Provider names are:").Append(Environment.NewLine);
         foreach (string providerName in providerNames)
         {
-            sb.Append("\t").Append(providerName).Append(Environment.NewLine);
+            sb.Append('\t').Append(providerName).Append(Environment.NewLine);
         }
         return sb.ToString();
     }

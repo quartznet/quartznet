@@ -19,6 +19,9 @@
 
 #endregion
 
+#pragma warning disable CA2012
+
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
 
@@ -679,7 +682,7 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
                 StringBuilder sb = new StringBuilder()
                     .Append("Unable to unschedule trigger [")
                     .Append(trigger.Key).Append("] while deleting job [")
-                    .Append(jobKey).Append("]");
+                    .Append(jobKey).Append(']');
                 ThrowHelper.ThrowSchedulerException(sb.ToString());
             }
             result = true;
@@ -933,7 +936,7 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
         ValidateState();
 
         // TODO: use builder
-        IOperableTrigger trig = new SimpleTriggerImpl(
+        SimpleTriggerImpl trig = new SimpleTriggerImpl(
             NewTriggerId(),
             SchedulerConstants.DefaultGroup,
             jobKey.Name,
@@ -1826,7 +1829,7 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
             }
             catch (Exception e)
             {
-                logger.LogError(e, "Error while notifying SchedulerListener of paused group: {group}", group);
+                logger.LogError(e, "Error while notifying SchedulerListener of paused group: {Group}", group);
             }
         }
     }
@@ -2108,7 +2111,7 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (cancellableJobExecutionContext.FireInstanceId.Equals(fireInstanceId))
+            if (cancellableJobExecutionContext.FireInstanceId == fireInstanceId)
             {
                 cancellableJobExecutionContext.Cancel();
                 interrupted = true;

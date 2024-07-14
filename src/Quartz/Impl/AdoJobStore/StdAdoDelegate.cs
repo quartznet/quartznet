@@ -103,10 +103,10 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
                 }
 
                 // we support old *Classes and new *Types, latter has better support for assembly qualified names
-                if (name.Equals("triggerPersistenceDelegateClasses") || name.Equals("triggerPersistenceDelegateTypes"))
+                if (name is "triggerPersistenceDelegateClasses" or "triggerPersistenceDelegateTypes")
                 {
                     var separator = ',';
-                    if (value.IndexOf(';') != -1 || name.Equals("triggerPersistenceDelegateTypes"))
+                    if (value.Contains(';') || name == "triggerPersistenceDelegateTypes")
                     {
                         // use separator that allows assembly qualified names
                         separator = ';';
@@ -375,7 +375,7 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
         if (IsMatcherEquals(matcher))
         {
             sql = ReplaceTablePrefix(SqlSelectJobsInGroup);
-            parameter = ToSqlEqualsClause(matcher);
+            parameter = StdAdoDelegate.ToSqlEqualsClause(matcher);
         }
         else
         {
@@ -396,12 +396,12 @@ public partial class StdAdoDelegate : StdAdoConstants, IDriverDelegate, IDbAcces
         return list;
     }
 
-    protected bool IsMatcherEquals<T>(GroupMatcher<T> matcher) where T : Key<T>
+    protected static bool IsMatcherEquals<T>(GroupMatcher<T> matcher) where T : Key<T>
     {
         return matcher.CompareWithOperator.Equals(StringOperator.Equality);
     }
 
-    protected string ToSqlEqualsClause<T>(GroupMatcher<T> matcher) where T : Key<T>
+    protected static string ToSqlEqualsClause<T>(GroupMatcher<T> matcher) where T : Key<T>
     {
         return matcher.CompareToValue;
     }

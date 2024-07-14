@@ -65,7 +65,9 @@ namespace Quartz.Impl;
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
 [Serializable]
+#pragma warning disable CA1708
 public sealed class JobExecutionContextImpl : ICancellableJobExecutionContext, IDisposable
+#pragma warning restore CA1708
 {
     private readonly ITrigger trigger;
     private readonly IJobDetail jobDetail;
@@ -292,10 +294,10 @@ public sealed class JobExecutionContextImpl : ICancellableJobExecutionContext, I
     }
 
     /// <summary>
-    /// Returns a <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
+    /// Returns a <see cref="System.String"/> that represents the current <see cref="System.Object"/>.
     /// </summary>
     /// <returns>
-    /// A <see cref="T:System.String"/> that represents the current <see cref="T:System.Object"/>.
+    /// A <see cref="System.String"/> that represents the current <see cref="System.Object"/>.
     /// </returns>
     public override string ToString()
     {

@@ -129,7 +129,7 @@ internal sealed class PropertiesParser
             return false;
         }
 
-        return CultureInfo.InvariantCulture.TextInfo.ToUpper(val).Equals("TRUE");
+        return val.Equals("true", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -146,7 +146,7 @@ internal sealed class PropertiesParser
             return defaultValue;
         }
 
-        return CultureInfo.InvariantCulture.TextInfo.ToUpper(val).Equals("TRUE");
+        return val.Equals("true", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -412,7 +412,7 @@ internal sealed class PropertiesParser
             return defaultValue;
         }
 
-        if (!vals.Trim().Equals(""))
+        if (!string.IsNullOrEmpty(vals))
         {
             string[] stok = vals.Split(',');
             List<int> ints = new List<int>();

@@ -37,7 +37,7 @@ public class ExcludeTimePeriodsUsingCalendarsExample : IExample
         Console.WriteLine("------- Initializing ----------------------");
 
         // First we must get a reference to a scheduler
-        ISchedulerFactory sf = new StdSchedulerFactory();
+        StdSchedulerFactory sf = new StdSchedulerFactory();
         IScheduler sched = await sf.GetScheduler();
 
         Console.WriteLine("------- Initialization Complete -----------");

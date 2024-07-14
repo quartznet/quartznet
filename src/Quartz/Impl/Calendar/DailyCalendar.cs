@@ -631,10 +631,10 @@ public sealed class DailyCalendar : BaseCalendar
     }
 
     /// <summary>
-    /// Returns a <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>.
+    /// Returns a <see cref="System.String"></see> that represents the current <see cref="System.Object"></see>.
     /// </summary>
     /// <returns>
-    /// A <see cref="T:System.String"></see> that represents the current <see cref="T:System.Object"></see>.
+    /// A <see cref="System.String"></see> that represents the current <see cref="System.Object"></see>.
     /// </returns>
     public override string ToString()
     {

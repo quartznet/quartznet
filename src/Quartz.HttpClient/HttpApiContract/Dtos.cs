@@ -6,20 +6,14 @@ internal record KeyDto(string Name, string Group) : IValidatable
 {
     public static KeyDto Create(JobKey jobKey)
     {
-        if (jobKey is null)
-        {
-            throw new ArgumentNullException(nameof(jobKey));
-        }
+        ArgumentNullException.ThrowIfNull(jobKey);
 
         return new KeyDto(jobKey.Name, jobKey.Group);
     }
 
     public static KeyDto Create(TriggerKey triggerKey)
     {
-        if (triggerKey is null)
-        {
-            throw new ArgumentNullException(nameof(triggerKey));
-        }
+        ArgumentNullException.ThrowIfNull(triggerKey);
 
         return new KeyDto(triggerKey.Name, triggerKey.Group);
     }
@@ -50,10 +44,7 @@ internal record SchedulerContextDto(Dictionary<string, string?> Context)
 {
     public static SchedulerContextDto Create(SchedulerContext context)
     {
-        if (context is null)
-        {
-            throw new ArgumentNullException(nameof(context));
-        }
+        ArgumentNullException.ThrowIfNull(context);
 
         if (context.Values.Any(x => x is not string))
         {

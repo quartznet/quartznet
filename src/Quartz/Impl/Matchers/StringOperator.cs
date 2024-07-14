@@ -40,7 +40,7 @@ public abstract class StringOperator : IEquatable<StringOperator>
     {
         public override bool Evaluate(string value, string compareTo)
         {
-            return string.Equals(value, compareTo);
+            return value == compareTo;
         }
     }
 

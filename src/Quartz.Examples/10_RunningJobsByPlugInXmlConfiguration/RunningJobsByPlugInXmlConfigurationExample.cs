@@ -48,7 +48,7 @@ public class RunningJobsByPlugInXmlConfigurationExample : IExample
         };
 
         // First we must get a reference to a scheduler
-        ISchedulerFactory sf = new StdSchedulerFactory(properties);
+        StdSchedulerFactory sf = new StdSchedulerFactory(properties);
         IScheduler sched = await sf.GetScheduler();
 
         Console.WriteLine("------- Initialization Complete -----------");

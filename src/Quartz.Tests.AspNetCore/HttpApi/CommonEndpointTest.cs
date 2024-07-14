@@ -35,7 +35,7 @@ public class CommonEndpointTest : WebApiTest
     [Test]
     public void ShouldNotPropagateNonSchedulerExceptions()
     {
-        A.CallTo(() => FakeScheduler.PauseAll(A<CancellationToken>._)).Throws(_ => new Exception("Non scheduler exception"));
+        A.CallTo(() => FakeScheduler.PauseAll(A<CancellationToken>._)).Throws(_ => new InvalidOperationException("Non scheduler exception"));
         Assert.ThrowsAsync<HttpClientException>(() => HttpScheduler.PauseAll().AsTask())!.Message.Should().ContainEquivalentOf("Non scheduler exception");
     }
 

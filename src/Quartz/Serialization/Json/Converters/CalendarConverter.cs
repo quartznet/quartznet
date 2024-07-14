@@ -107,7 +107,7 @@ internal sealed class CalendarConverter : JsonConverter<ICalendar>
         }
     }
 
-    private ICalendarSerializer GetCalendarSerializer(string? typeName)
+    private static ICalendarSerializer GetCalendarSerializer(string? typeName)
     {
         if (typeName is null || !converters.TryGetValue(typeName, out ICalendarSerializer? converter))
         {

@@ -238,16 +238,36 @@ public class BaseCalendar : ICalendar, ISerializable, IEquatable<BaseCalendar>
 
     public bool Equals(BaseCalendar? other)
     {
-        if (other is null) return false;
-        if (ReferenceEquals(this, other)) return true;
-        return Equals(CalendarBase, other.CalendarBase) && string.Equals(Description, other.Description) && Equals(TimeZone, other.TimeZone);
+        if (other is null)
+        {
+            return false;
+        }
+
+        if (ReferenceEquals(this, other))
+        {
+            return true;
+        }
+
+        return Equals(CalendarBase, other.CalendarBase) && string.Equals(Description, other.Description, StringComparison.Ordinal) && Equals(TimeZone, other.TimeZone);
     }
 
     public override bool Equals(object? obj)
     {
-        if (obj is null) return false;
-        if (ReferenceEquals(this, obj)) return true;
-        if (obj.GetType() != GetType()) return false;
+        if (obj is null)
+        {
+            return false;
+        }
+
+        if (ReferenceEquals(this, obj))
+        {
+            return true;
+        }
+
+        if (obj.GetType() != GetType())
+        {
+            return false;
+        }
+
         return Equals((BaseCalendar) obj);
     }
 

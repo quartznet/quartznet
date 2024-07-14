@@ -19,7 +19,9 @@ public interface IQuartzServer
     /// <summary>
     /// Stops this instance.
     /// </summary>
+#pragma warning disable CA1716
     ValueTask Stop();
+#pragma warning restore CA1716
 
     /// <summary>
     /// Pauses all activity in scheduler.
@@ -29,5 +31,7 @@ public interface IQuartzServer
     /// <summary>
     /// Resumes all activity in server.
     /// </summary>
+#pragma warning disable CA1716
     ValueTask Resume();
+#pragma warning restore CA1716
 }
