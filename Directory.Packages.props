@@ -39,7 +39,7 @@
     <PackageVersion Include="OpenTelemetry.Exporter.Jaeger" Version="1.5.1" />
     <PackageVersion Include="OpenTelemetry.Exporter.Zipkin" Version="1.9.0" />
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.9.0" />
-    <PackageVersion Include="OpenTelemetry.Instrumentation.Quartz" Version="1.0.0-alpha.3" />
+    <PackageVersion Include="OpenTelemetry.Instrumentation.Quartz" Version="1.0.0-beta.3" />
     <PackageVersion Include="OpenTracing" Version="0.12.1" />
     <PackageVersion Include="Oracle.ManagedDataAccess" Version="21.12.0" />
     <PackageVersion Include="Oracle.ManagedDataAccess.Core" Version="23.5.0" />
