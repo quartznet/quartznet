@@ -47,26 +47,26 @@ internal static class QuartzActivitySource
 
 internal readonly struct StartedActivity
 {
-    private readonly Activity? activity;
+    private readonly Activity? _activity;
 
     public StartedActivity(Activity? activity)
     {
-        this.activity = activity;
+        this._activity = activity;
     }
 
     public void Stop(DateTimeOffset endTime, JobExecutionException? jobExEx)
     {
-        if (activity == null)
+        if (_activity == null)
         {
             return;
         }
 
-        activity.SetEndTime(endTime.UtcDateTime);
+        _activity.SetEndTime(endTime.UtcDateTime);
 
         if (jobExEx != null)
         {
-            activity.SetStatus(ActivityStatusCode.Error, jobExEx.Message);
+            _activity.SetStatus(ActivityStatusCode.Error, jobExEx.Message);
         }
-        activity.Stop();
+        _activity.Stop();
     }
 }

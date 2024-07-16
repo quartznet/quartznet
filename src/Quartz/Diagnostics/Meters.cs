@@ -55,27 +55,27 @@ internal static class Meters
 
 internal readonly struct Instrumentation
 {
-    private readonly TagList? tagList;
+    private readonly TagList? _tagList;
 
     public Instrumentation(TagList? tagList)
     {
-        this.tagList = tagList;
+        this._tagList = tagList;
     }
 
     public void EndJobExecute(TimeSpan duration, Exception? exception)
     {
-        if (tagList == null)
+        if (_tagList == null)
         {
             return;
         }
 
         if (exception != null)
         {
-            tagList.Value.Add("scheduling.quartz.exception_type", exception.GetType().Name);
-            Meters._jobExecuteErrorTotal.Add(1, tagList.Value);
+            _tagList.Value.Add("scheduling.quartz.exception_type", exception.GetType().Name);
+            Meters._jobExecuteErrorTotal.Add(1, _tagList.Value);
         }
 
-        Meters._jobExecuteInProgress.Add(-1, tagList.Value);
-        Meters._jobExecuteDuration.Record(duration.TotalMilliseconds, tagList.Value);
+        Meters._jobExecuteInProgress.Add(-1, _tagList.Value);
+        Meters._jobExecuteDuration.Record(duration.TotalMilliseconds, _tagList.Value);
     }
 }
