@@ -56,7 +56,7 @@
   </ItemGroup>
   <ItemGroup>
     <GlobalPackageReference Include="GitHubActionsTestLogger" Version="2.4.1" />
-    <GlobalPackageReference Include="Meziantou.Analyzer" Version="2.0.155" />
+    <GlobalPackageReference Include="Meziantou.Analyzer" Version="2.0.160" />
     <GlobalPackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" />
     <GlobalPackageReference Include="PolySharp" Version="1.14.1" />
   </ItemGroup>
