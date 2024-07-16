@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using NLog.Extensions.Logging;
-using Quartz.Logging;
+using Quartz.Diagnostics;
 using Serilog;
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 

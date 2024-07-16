@@ -23,7 +23,7 @@ using System.Data.Common;
 
 using Microsoft.Extensions.Logging;
 
-using Quartz.Logging;
+using Quartz.Diagnostics;
 using Quartz.Spi;
 
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
@@ -435,7 +435,7 @@ internal sealed class QuartzSchedulerThread
                             }
 
                             var threadPoolRunResult = qsRsrcs.ThreadPool.RunInThread(() => shell.Run(CancellationToken.None));
-                            if (threadPoolRunResult == false)
+                            if (!threadPoolRunResult)
                             {
                                 // this case should never happen, as it is indicative of the
                                 // scheduler being shutdown or a bug in the thread pool or

@@ -28,7 +28,7 @@ using Quartz.Core;
 using Quartz.Impl.AdoJobStore;
 using Quartz.Impl.AdoJobStore.Common;
 using Quartz.Impl.Matchers;
-using Quartz.Logging;
+using Quartz.Diagnostics;
 using Quartz.Simpl;
 using Quartz.Spi;
 using Quartz.Util;
@@ -333,6 +333,7 @@ Please add configuration to your application config file to correctly initialize
     public virtual void Initialize(NameValueCollection props)
     {
         cfg = new PropertiesParser(props);
+        Meters.Configure();
         ValidateConfiguration();
     }
 

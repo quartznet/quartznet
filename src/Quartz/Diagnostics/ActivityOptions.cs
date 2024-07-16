@@ -1,8 +1,9 @@
-namespace Quartz.Logging;
+namespace Quartz.Diagnostics;
 
-public static class DiagnosticHeaders
+public static class ActivityOptions
 {
-    public const string DefaultListenerName = "Quartz";
+    internal const string DefaultListenerName = "Quartz";
+    internal static readonly string? Version = typeof(ActivityOptions).Assembly.GetName().Version?.ToString();
 
     public const string SchedulerName = "scheduler.name";
     public const string SchedulerId = "scheduler.id";

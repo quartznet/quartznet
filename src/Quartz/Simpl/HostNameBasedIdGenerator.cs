@@ -23,7 +23,7 @@ using System.Net;
 
 using Microsoft.Extensions.Logging;
 
-using Quartz.Logging;
+using Quartz.Diagnostics;
 using Quartz.Spi;
 
 namespace Quartz.Simpl;

@@ -24,7 +24,7 @@ using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 
 using Quartz.Impl.AdoJobStore.Common;
-using Quartz.Logging;
+using Quartz.Diagnostics;
 
 using LogLevel = Microsoft.Extensions.Logging.LogLevel;
 

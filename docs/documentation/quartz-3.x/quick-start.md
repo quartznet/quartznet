@@ -261,7 +261,7 @@ using System.Threading.Tasks;
 
 using Quartz;
 using Quartz.Impl;
-using Quartz.Logging;
+using Quartz.Diagnostics;
 
 namespace QuartzSampleApp
 {

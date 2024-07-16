@@ -20,7 +20,7 @@
 using Microsoft.Extensions.Logging;
 
 using Quartz.Core;
-using Quartz.Logging;
+using Quartz.Diagnostics;
 using Quartz.Simpl;
 using Quartz.Spi;
 

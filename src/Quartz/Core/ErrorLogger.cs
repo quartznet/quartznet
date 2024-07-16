@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 
 using Quartz.Listener;
-using Quartz.Logging;
+using Quartz.Diagnostics;
 
 namespace Quartz.Core;
 

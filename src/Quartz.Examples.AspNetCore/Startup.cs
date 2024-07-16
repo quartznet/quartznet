@@ -13,6 +13,8 @@ using NSwag.Generation.AspNetCore;
 using NSwag.Generation.Processors;
 using NSwag.Generation.Processors.Security;
 
+using OpenTelemetry;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using Quartz.AspNetCore;
@@ -48,20 +50,32 @@ public class Startup
         {
             loggingBuilder.ClearProviders();
             loggingBuilder.AddSerilog(dispose: true);
+            loggingBuilder.AddOpenTelemetry(options =>
+            {
+                options.IncludeFormattedMessage = true;
+                options.IncludeScopes = true;
+            });
         });
+
         services.AddOpenTelemetry()
             .ConfigureResource(builder => builder.AddService("Quartz ASP.NET Example"))
+            .WithMetrics(metrics =>
+            {
+                metrics.AddRuntimeInstrumentation()
+                    .AddMeter("Quartz", "Microsoft.AspNetCore.Hosting", "Microsoft.AspNetCore.Server.Kestrel", "System.Net.Http");
+            })
             .WithTracing(x => x
-                .AddQuartzInstrumentation()
+                .AddSource("Quartz")
+                .AddAspNetCoreInstrumentation()
+                .AddHttpClientInstrumentation()
                 .AddConsoleExporter()
-                .AddZipkinExporter(o => { o.Endpoint = new Uri("http://localhost:9411/api/v2/spans"); })
-                .AddJaegerExporter(o =>
-                {
-                    // these are the defaults
-                    o.AgentHost = "localhost";
-                    o.AgentPort = 6831;
-                })
             );
+
+        var useOtlpExporter = !string.IsNullOrWhiteSpace(Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]);
+        if (useOtlpExporter)
+        {
+            services.AddOpenTelemetry().UseOtlpExporter();
+        }
 
         services.AddRazorPages();
 

@@ -25,7 +25,7 @@ using System.Data.Common;
 using System.Reflection;
 using System.Text;
 
-using Quartz.Logging;
+using Quartz.Diagnostics;
 using Quartz.Util;
 
 namespace Quartz.Impl.AdoJobStore.Common;

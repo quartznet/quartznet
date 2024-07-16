@@ -1,4 +1,4 @@
-namespace Quartz.Logging;
+namespace Quartz.Diagnostics;
 
 public static class OperationName
 {

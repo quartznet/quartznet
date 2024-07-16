@@ -26,7 +26,7 @@ using System.Text;
 using Microsoft.Extensions.Logging;
 
 using Quartz.Impl.Matchers;
-using Quartz.Logging;
+using Quartz.Diagnostics;
 using Quartz.Spi;
 
 namespace Quartz.Simpl;

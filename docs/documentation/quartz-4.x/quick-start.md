@@ -58,16 +58,16 @@ var properties = new NameValueCollection();
 IScheduler scheduler = await SchedulerBuilder.Create(properties)
     // default max concurrency is 10
     .UseDefaultThreadPool(x => x.MaxConcurrency = 5)
-    // this is the default 
+    // this is the default
     // .WithMisfireThreshold(TimeSpan.FromSeconds(60))
     .UsePersistentStore(x =>
     {
         // force job data map values to be considered as strings
-        // prevents nasty surprises if object is accidentally serialized and then 
+        // prevents nasty surprises if object is accidentally serialized and then
         // serialization format breaks, defaults to false
         x.UseProperties = true;
         x.UseClustering();
-        // there are other SQL providers supported too 
+        // there are other SQL providers supported too
         x.UseSqlServer("my connection string");
         // this requires Quartz.Serialization.Newtonsoft NuGet package
         x.UseNewtonsoftJsonSerializer();
@@ -247,7 +247,7 @@ using System.Threading.Tasks;
 
 using Quartz;
 using Quartz.Impl;
-using Quartz.Logging;
+using Quartz.Diagnostics;
 
 namespace QuartzSampleApp
 {
