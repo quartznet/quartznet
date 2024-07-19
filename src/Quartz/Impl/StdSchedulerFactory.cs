@@ -390,7 +390,6 @@ Please add configuration to your application config file to correctly initialize
         }
 
         TimeProvider timeProvider = TimeProvider.System;
-        ISchedulerExporter? exporter = null;
         IJobStore js;
         IThreadPool tp;
         QuartzScheduler? qs = null;
@@ -929,35 +928,6 @@ Please add configuration to your application config file to correctly initialize
             triggerListeners[i] = listener;
         }
 
-        // Get exporter
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        var exporterType = cfg.GetStringProperty(PropertySchedulerExporterType, defaultValue: null);
-        if (exporterType is not null)
-        {
-            try
-            {
-                exporter = InstantiateType<ISchedulerExporter>(loadHelper.LoadType(exporterType));
-            }
-            catch (Exception e)
-            {
-                initException = new SchedulerException($"Scheduler exporter of type '{exporterType}' could not be instantiated.", e);
-                throw initException;
-            }
-
-            tProps = cfg.GetPropertyGroup(PropertySchedulerExporterPrefix, stripPrefix: true);
-
-            try
-            {
-                ObjectUtils.SetObjectProperties(exporter, tProps);
-            }
-            catch (Exception e)
-            {
-                initException = new SchedulerException($"Scheduler exporter type '{exporterType}' props could not be configured.", e);
-                throw initException;
-            }
-        }
-
         bool tpInited = false;
         bool qsInited = false;
 
@@ -1003,7 +973,6 @@ Please add configuration to your application config file to correctly initialize
             rsrcs.MaxBatchSize = maxBatchSize;
             rsrcs.InterruptJobsOnShutdown = interruptJobsOnShutdown;
             rsrcs.InterruptJobsOnShutdownWithWait = interruptJobsOnShutdownWithWait;
-            rsrcs.SchedulerExporter = exporter;
             rsrcs.TimeProvider = timeProvider;
 
             tp.InstanceName = schedName;
@@ -1098,12 +1067,7 @@ Please add configuration to your application config file to correctly initialize
 
     protected virtual string? GetNamedConnectionString(string dsConnectionStringName)
     {
-#if NETFRAMEWORK
-        var connectionStringSettings = System.Configuration.ConfigurationManager.ConnectionStrings[dsConnectionStringName];
-        return connectionStringSettings.ConnectionString;
-#else
-            return null;
-#endif
+        return null;
     }
 
     protected virtual T InstantiateType<T>(Type? implementationType)

@@ -205,44 +205,6 @@ public sealed class DirectSchedulerFactory : ISchedulerFactory
     /// <param name="idleWaitTime">The idle wait time.</param>
     /// <param name="maxBatchSize">The maximum batch size of triggers, when acquiring them</param>
     /// <param name="batchTimeWindow">The time window for which it is allowed to "pre-acquire" triggers to fire</param>
-    /// <exception cref="SchedulerException">Initialization failed.</exception>
-    /// <exception cref="ArgumentOutOfRangeException"><paramref name="idleWaitTime"/> is less than <see cref="TimeSpan.Zero"/>.</exception>
-    /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxBatchSize"/> is less than <c>1</c>.</exception>
-    /// <exception cref="ArgumentOutOfRangeException"><paramref name="batchTimeWindow"/> is less than <see cref="TimeSpan.Zero"/>.</exception>
-    public ValueTask CreateScheduler(string schedulerName,
-        string schedulerInstanceId,
-        IThreadPool threadPool,
-        IJobStore jobStore,
-        IDictionary<string, ISchedulerPlugin>? schedulerPluginMap,
-        TimeSpan idleWaitTime,
-        int maxBatchSize,
-        TimeSpan batchTimeWindow)
-    {
-        return CreateScheduler(
-            schedulerName,
-            schedulerInstanceId,
-            threadPool,
-            jobStore,
-            schedulerPluginMap,
-            idleWaitTime,
-            maxBatchSize,
-            batchTimeWindow,
-            null);
-    }
-
-    /// <summary>
-    /// Creates a scheduler using the specified thread pool and job store and
-    /// binds it for remote access.
-    /// </summary>
-    /// <param name="schedulerName">The name for the scheduler.</param>
-    /// <param name="schedulerInstanceId">The instance ID for the scheduler.</param>
-    /// <param name="threadPool">The thread pool for executing jobs</param>
-    /// <param name="jobStore">The type of job store</param>
-    /// <param name="schedulerPluginMap"></param>
-    /// <param name="idleWaitTime">The idle wait time.</param>
-    /// <param name="maxBatchSize">The maximum batch size of triggers, when acquiring them</param>
-    /// <param name="batchTimeWindow">The time window for which it is allowed to "pre-acquire" triggers to fire</param>
-    /// <param name="schedulerExporter">The scheduler exporter to use</param>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="idleWaitTime"/> is less than <see cref="TimeSpan.Zero"/>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxBatchSize"/> is less than <c>1</c>.</exception>
     /// <exception cref="ArgumentOutOfRangeException"><paramref name="batchTimeWindow"/> is less than <see cref="TimeSpan.Zero"/>.</exception>
@@ -253,8 +215,7 @@ public sealed class DirectSchedulerFactory : ISchedulerFactory
         IDictionary<string, ISchedulerPlugin>? schedulerPluginMap,
         TimeSpan idleWaitTime,
         int maxBatchSize,
-        TimeSpan batchTimeWindow,
-        ISchedulerExporter? schedulerExporter)
+        TimeSpan batchTimeWindow)
     {
         if (idleWaitTime < TimeSpan.Zero)
         {
@@ -281,17 +242,17 @@ public sealed class DirectSchedulerFactory : ISchedulerFactory
 
         threadPool.Initialize();
 
-        QuartzSchedulerResources qrs = new QuartzSchedulerResources();
-
-        qrs.Name = schedulerName;
-        qrs.InstanceId = schedulerInstanceId;
-        qrs.JobRunShellFactory = jrsf;
-        qrs.ThreadPool = threadPool;
-        qrs.JobStore = jobStore;
-        qrs.IdleWaitTime = idleWaitTime;
-        qrs.MaxBatchSize = maxBatchSize;
-        qrs.BatchTimeWindow = batchTimeWindow;
-        qrs.SchedulerExporter = schedulerExporter;
+        QuartzSchedulerResources qrs = new()
+        {
+            Name = schedulerName,
+            InstanceId = schedulerInstanceId,
+            JobRunShellFactory = jrsf,
+            ThreadPool = threadPool,
+            JobStore = jobStore,
+            IdleWaitTime = idleWaitTime,
+            MaxBatchSize = maxBatchSize,
+            BatchTimeWindow = batchTimeWindow,
+        };
 
         // add plugins
         if (schedulerPluginMap is not null)

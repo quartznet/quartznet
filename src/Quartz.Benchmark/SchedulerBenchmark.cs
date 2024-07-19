@@ -551,8 +551,7 @@ public class SchedulerBenchmark
             null,
             idleWaitTime,
             maxBatchSize,
-            TimeSpan.Zero,
-            null).GetAwaiter().GetResult();
+            TimeSpan.Zero).GetAwaiter().GetResult();
 
 
         var scheduler = DirectSchedulerFactory.Instance.GetScheduler(name).ConfigureAwait(false).GetAwaiter().GetResult();
