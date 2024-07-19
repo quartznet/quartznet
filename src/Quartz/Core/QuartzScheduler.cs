@@ -21,7 +21,6 @@
 
 #pragma warning disable CA2012
 
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Text;
 
@@ -47,7 +46,7 @@ namespace Quartz.Core;
 /// <seealso cref="IThreadPool" />
 /// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-public sealed class QuartzScheduler : IRemotableQuartzScheduler
+public sealed class QuartzScheduler
 {
     private readonly ILogger<QuartzScheduler> logger;
     private static readonly Version version;
@@ -64,7 +63,6 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
     private volatile bool closed;
     private volatile bool shuttingDown;
     private DateTimeOffset? initialStart;
-    private bool boundRemotely;
 
     /// <summary>
     /// Initializes the <see cref="QuartzScheduler"/> class.
@@ -79,7 +77,9 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
     /// Gets the version of the Quartz Scheduler.
     /// </summary>
     /// <value>The version.</value>
+#pragma warning disable CA1822 // Mark members as static
     public string Version => version.ToString();
+#pragma warning restore CA1822
 
     /// <summary>
     /// Gets the version major.
@@ -260,36 +260,10 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
         logger.LogInformation("Quartz Scheduler created");
     }
 
+#pragma warning disable CA1822 // Mark members as static
     public void Initialize()
+#pragma warning restore CA1822
     {
-        try
-        {
-            Bind();
-        }
-        catch (Exception re)
-        {
-            ThrowHelper.ThrowSchedulerException("Unable to bind scheduler to remote use.", re);
-        }
-    }
-
-    /// <summary>
-    /// Bind the scheduler to remoting infrastructure.
-    /// </summary>
-    private void Bind()
-    {
-        if (resources.SchedulerExporter is not null)
-        {
-            resources.SchedulerExporter.Bind(this);
-            boundRemotely = true;
-        }
-    }
-
-    /// <summary>
-    /// Un-bind the scheduler from RPC infrastructure.
-    /// </summary>
-    private void UnBind()
-    {
-        resources.SchedulerExporter?.UnBind(this);
     }
 
     /// <summary>
@@ -470,17 +444,6 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
         await schedThread.Shutdown().ConfigureAwait(false);
 
         closed = true;
-
-        if (boundRemotely)
-        {
-            try
-            {
-                UnBind();
-            }
-            catch (Exception) // TODO (NetCore Port): Determine the correct exception type
-            {
-            }
-        }
 
         await ShutdownPlugins(cancellationToken).ConfigureAwait(false);
 
@@ -2095,7 +2058,6 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
     /// instances of the identified InterruptableJob currently executing in this
     /// Scheduler instance, not across the entire cluster.
     /// </remarks>
-    /// <seealso cref="IRemotableQuartzScheduler.Interrupt(JobKey)" />
     /// <param name="fireInstanceId"></param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns></returns>
@@ -2152,250 +2114,5 @@ public sealed class QuartzScheduler : IRemotableQuartzScheduler
         CancellationToken cancellationToken = default)
     {
         return resources.JobStore.IsTriggerGroupPaused(groupName, cancellationToken);
-    }
-
-    void IRemotableQuartzScheduler.Clear()
-    {
-        Clear().ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    void IRemotableQuartzScheduler.Start()
-    {
-        Start().ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    void IRemotableQuartzScheduler.StartDelayed(TimeSpan delay)
-    {
-        StartDelayed(delay).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    void IRemotableQuartzScheduler.Standby()
-    {
-        Standby().ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    void IRemotableQuartzScheduler.Shutdown()
-    {
-        Shutdown().ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    void IRemotableQuartzScheduler.Shutdown(bool waitForJobsToComplete)
-    {
-        Shutdown(waitForJobsToComplete).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    DateTimeOffset IRemotableQuartzScheduler.ScheduleJob(IJobDetail jobDetail, ITrigger trigger)
-    {
-        return ScheduleJob(jobDetail, trigger).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    DateTimeOffset IRemotableQuartzScheduler.ScheduleJob(ITrigger trigger)
-    {
-        return ScheduleJob(trigger).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    void IRemotableQuartzScheduler.AddJob(IJobDetail jobDetail, bool replace)
-    {
-        AddJob(jobDetail, replace).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    void IRemotableQuartzScheduler.AddJob(IJobDetail jobDetail, bool replace, bool storeNonDurableWhileAwaitingScheduling)
-    {
-        AddJob(jobDetail, replace, storeNonDurableWhileAwaitingScheduling).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    bool IRemotableQuartzScheduler.IsJobGroupPaused(string groupName)
-    {
-        return IsJobGroupPaused(groupName).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    bool IRemotableQuartzScheduler.IsTriggerGroupPaused(string groupName)
-    {
-        return IsTriggerGroupPaused(groupName).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    bool IRemotableQuartzScheduler.DeleteJob(JobKey jobKey)
-    {
-        return DeleteJob(jobKey).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    bool IRemotableQuartzScheduler.UnscheduleJob(TriggerKey triggerKey)
-    {
-        return UnscheduleJob(triggerKey).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    DateTimeOffset? IRemotableQuartzScheduler.RescheduleJob(TriggerKey triggerKey, ITrigger newTrigger)
-    {
-        return RescheduleJob(triggerKey, newTrigger).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    void IRemotableQuartzScheduler.TriggerJob(JobKey jobKey, JobDataMap? data)
-    {
-        TriggerJob(jobKey, data).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    void IRemotableQuartzScheduler.TriggerJob(IOperableTrigger trig)
-    {
-        TriggerJob(trig).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    void IRemotableQuartzScheduler.PauseTrigger(TriggerKey triggerKey)
-    {
-        PauseTrigger(triggerKey).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    void IRemotableQuartzScheduler.PauseTriggers(GroupMatcher<TriggerKey> matcher)
-    {
-        PauseTriggers(matcher).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    void IRemotableQuartzScheduler.PauseJob(JobKey jobKey)
-    {
-        PauseJob(jobKey).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    void IRemotableQuartzScheduler.PauseJobs(GroupMatcher<JobKey> matcher)
-    {
-        PauseJobs(matcher).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    void IRemotableQuartzScheduler.ResumeTrigger(TriggerKey triggerKey)
-    {
-        ResumeTrigger(triggerKey).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    void IRemotableQuartzScheduler.ResumeTriggers(GroupMatcher<TriggerKey> matcher)
-    {
-        ResumeTriggers(matcher).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    List<string> IRemotableQuartzScheduler.GetPausedTriggerGroups()
-    {
-        return GetPausedTriggerGroups().ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    void IRemotableQuartzScheduler.ResumeJob(JobKey jobKey)
-    {
-        ResumeJob(jobKey).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    void IRemotableQuartzScheduler.ResumeJobs(GroupMatcher<JobKey> matcher)
-    {
-        ResumeJobs(matcher).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    void IRemotableQuartzScheduler.PauseAll()
-    {
-        PauseAll().ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    void IRemotableQuartzScheduler.ResumeAll()
-    {
-        ResumeAll().ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    List<string> IRemotableQuartzScheduler.GetJobGroupNames()
-    {
-        return GetJobGroupNames().ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    List<JobKey> IRemotableQuartzScheduler.GetJobKeys(GroupMatcher<JobKey> matcher)
-    {
-        return GetJobKeys(matcher).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    List<ITrigger> IRemotableQuartzScheduler.GetTriggersOfJob(JobKey jobKey)
-    {
-        return GetTriggersOfJob(jobKey).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    List<string> IRemotableQuartzScheduler.GetTriggerGroupNames()
-    {
-        return GetTriggerGroupNames().ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    List<TriggerKey> IRemotableQuartzScheduler.GetTriggerKeys(GroupMatcher<TriggerKey> matcher)
-    {
-        return GetTriggerKeys(matcher).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    IJobDetail? IRemotableQuartzScheduler.GetJobDetail(JobKey jobKey)
-    {
-        return GetJobDetail(jobKey).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    ITrigger? IRemotableQuartzScheduler.GetTrigger(TriggerKey triggerKey)
-    {
-        return GetTrigger(triggerKey).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    TriggerState IRemotableQuartzScheduler.GetTriggerState(TriggerKey triggerKey)
-    {
-        return GetTriggerState(triggerKey).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    void IRemotableQuartzScheduler.ResetTriggerFromErrorState(TriggerKey triggerKey)
-    {
-        ResetTriggerFromErrorState(triggerKey).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    void IRemotableQuartzScheduler.AddCalendar(string name, ICalendar calendar, bool replace, bool updateTriggers)
-    {
-        AddCalendar(name, calendar, replace, updateTriggers).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    bool IRemotableQuartzScheduler.DeleteCalendar(string name)
-    {
-        return DeleteCalendar(name).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    ICalendar? IRemotableQuartzScheduler.GetCalendar(string name)
-    {
-        return GetCalendar(name).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    List<string> IRemotableQuartzScheduler.GetCalendarNames()
-    {
-        return GetCalendarNames().ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    bool IRemotableQuartzScheduler.Interrupt(JobKey jobKey)
-    {
-        return Interrupt(jobKey).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    bool IRemotableQuartzScheduler.Interrupt(string fireInstanceId)
-    {
-        return Interrupt(fireInstanceId).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    bool IRemotableQuartzScheduler.CheckExists(JobKey jobKey)
-    {
-        return CheckExists(jobKey).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    bool IRemotableQuartzScheduler.CheckExists(TriggerKey triggerKey)
-    {
-        return CheckExists(triggerKey).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    bool IRemotableQuartzScheduler.DeleteJobs(IReadOnlyCollection<JobKey> jobKeys)
-    {
-        return DeleteJobs(jobKeys).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    void IRemotableQuartzScheduler.ScheduleJobs(IReadOnlyDictionary<IJobDetail, IReadOnlyCollection<ITrigger>> triggersAndJobs, bool replace)
-    {
-        ScheduleJobs(triggersAndJobs, replace).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    void IRemotableQuartzScheduler.ScheduleJob(IJobDetail jobDetail, IReadOnlyCollection<ITrigger> triggersForJob, bool replace)
-    {
-        ScheduleJob(jobDetail, triggersForJob, replace).ConfigureAwait(false).GetAwaiter().GetResult();
-    }
-
-    bool IRemotableQuartzScheduler.UnscheduleJobs(IReadOnlyCollection<TriggerKey> triggerKeys)
-    {
-        return UnscheduleJobs(triggerKeys).ConfigureAwait(false).GetAwaiter().GetResult();
     }
 }

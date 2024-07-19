@@ -22,7 +22,7 @@ using Quartz.Spi;
 namespace Quartz.Core;
 
 /// <summary>
-/// Contains all of the resources (<see cref="IJobStore" />,<see cref="IThreadPool" />,
+/// Contains all the resources (<see cref="IJobStore" />,<see cref="IThreadPool" />,
 /// etc.) necessary to create a <see cref="QuartzScheduler" /> instance.
 /// </summary>
 /// <seealso cref="QuartzScheduler" />
@@ -225,12 +225,6 @@ public sealed class QuartzSchedulerResources
     /// 	<c>true</c> if scheduler should be thread daemon; otherwise, <c>false</c>.
     /// </value>
     public bool MakeSchedulerThreadDaemon { get; set; }
-
-    /// <summary>
-    /// Gets or sets the scheduler exporter.
-    /// </summary>
-    /// <value>The scheduler exporter.</value>
-    public ISchedulerExporter? SchedulerExporter { get; set; }
 
     /// <summary>
     /// Gets or sets a value that determines how long the scheduler should wait before checking again

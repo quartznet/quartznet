@@ -235,13 +235,12 @@ public class DirectSchedulerFactoryTest
     public async Task CreateScheduler_SchedulerNameAndSchedulerInstanceIdAndThreadPoolAndJobStoreAndSchedulerPluginMapAndIdleWaitTimeAndMaxBatchSizeAndBatchTimeWindowAndSchedulerExporter([ValueSource(nameof(ValidSchedulerPluginMaps))] IDictionary<string, ISchedulerPlugin> schedulerPluginMap,
         [ValueSource(nameof(ValidIdleWaitTimes))] TimeSpan idleWaitTime,
         [ValueSource(nameof(ValidMaxBatchSizes))] int maxBatchSize,
-        [ValueSource(nameof(ValidBatchTimeWindows))] TimeSpan batchTimeWindow,
-        [ValueSource(nameof(SchedulerExporters))] ISchedulerExporter schedulerExporter)
+        [ValueSource(nameof(ValidBatchTimeWindows))] TimeSpan batchTimeWindow)
     {
         var schedulerName = _random.Next().ToString();
         var schedulerInstanceId = _random.Next().ToString();
 
-        await _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow, schedulerExporter);
+        await _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow);
 
         var scheduler = await _schedulerRepository.Lookup(schedulerName);
         Assert.IsNotNull(scheduler);
@@ -256,7 +255,6 @@ public class DirectSchedulerFactoryTest
         Assert.AreEqual(idleWaitTime, stdScheduler.sched.resources.IdleWaitTime);
         Assert.AreEqual(maxBatchSize, stdScheduler.sched.resources.MaxBatchSize);
         Assert.AreEqual(batchTimeWindow, stdScheduler.sched.resources.BatchTimeWindow);
-        Assert.AreSame(schedulerExporter, stdScheduler.sched.resources.SchedulerExporter);
 
         if (schedulerPluginMap is null)
         {
@@ -280,11 +278,10 @@ public class DirectSchedulerFactoryTest
         var schedulerPluginMap = new Dictionary<string, ISchedulerPlugin>();
         var maxBatchSize = ValidMaxBatchSizes().First();
         var batchTimeWindow = ValidBatchTimeWindows().First();
-        var schedulerExporter = new NoOpSchedulerExporter();
 
         try
         {
-            await _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow, schedulerExporter).ConfigureAwait(false);
+            await _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow).ConfigureAwait(false);
             Assert.Fail();
         }
         catch (ArgumentOutOfRangeException ex)
@@ -301,11 +298,10 @@ public class DirectSchedulerFactoryTest
         var schedulerPluginMap = new Dictionary<string, ISchedulerPlugin>();
         var idleWaitTime = ValidIdleWaitTimes().First();
         var batchTimeWindow = ValidBatchTimeWindows().First();
-        var schedulerExporter = new NoOpSchedulerExporter();
 
         try
         {
-            await _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow, schedulerExporter);
+            await _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow);
             Assert.Fail();
         }
         catch (ArgumentOutOfRangeException ex)
@@ -322,11 +318,10 @@ public class DirectSchedulerFactoryTest
         var schedulerPluginMap = new Dictionary<string, ISchedulerPlugin>();
         var idleWaitTime = ValidIdleWaitTimes().First();
         var maxBatchSize = ValidMaxBatchSizes().First();
-        var schedulerExporter = new NoOpSchedulerExporter();
 
         try
         {
-            await _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow, schedulerExporter);
+            await _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow);
             Assert.Fail();
         }
         catch (ArgumentOutOfRangeException ex)
@@ -402,15 +397,9 @@ public class DirectSchedulerFactoryTest
         return QuartzSchedulerResourcesTest.InvalidBatchTimeWindows();
     }
 
-    private static IEnumerable<ISchedulerExporter> SchedulerExporters()
+    private class TestPlugin : ISchedulerPlugin
     {
-        yield return null;
-        yield return new NoOpSchedulerExporter();
-    }
-
-    class TestPlugin : ISchedulerPlugin
-    {
-        readonly StringBuilder result;
+        private readonly StringBuilder result;
 
         public TestPlugin(StringBuilder result)
         {
@@ -433,17 +422,6 @@ public class DirectSchedulerFactoryTest
         {
             result.Append("|Shutdown");
             return default;
-        }
-    }
-
-    class NoOpSchedulerExporter : ISchedulerExporter
-    {
-        public void Bind(IRemotableQuartzScheduler scheduler)
-        {
-        }
-
-        public void UnBind(IRemotableQuartzScheduler scheduler)
-        {
         }
     }
 }

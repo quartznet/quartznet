@@ -26,7 +26,6 @@ public class QuartzSchedulerResourcesTest
         Assert.IsFalse(resources.MakeSchedulerThreadDaemon);
         Assert.AreEqual(1, resources.MaxBatchSize);
         Assert.IsNull(resources.Name);
-        Assert.IsNull(resources.SchedulerExporter);
         Assert.IsNotNull(resources.SchedulerPlugins);
         Assert.IsEmpty(resources.SchedulerPlugins);
         Assert.IsNull(resources.ThreadName);
