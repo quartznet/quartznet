@@ -349,6 +349,6 @@ First you need to create a database and credentials for Quartz. After you have a
 that Quartz needs for successful operation.
 
 You can find latest DDL scripts in [Quartz's GitHub repository](https://github.com/quartznet/quartznet/tree/main/database/tables) and they are also contained in the ZIP archive distribution.
-There are also thirty party additions to Quartz that enable other types of storage, like NoSQL databases. You can search for them on NuGet.
+There are also third party additions to Quartz that enable other types of storage, like NoSQL databases. You can search for them on NuGet.
 
 Now go have some fun exploring Quartz.NET! You can continue by reading [the tutorial](tutorial/index.html).
