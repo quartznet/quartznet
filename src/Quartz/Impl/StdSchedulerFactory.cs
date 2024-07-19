@@ -1067,12 +1067,7 @@ Please add configuration to your application config file to correctly initialize
 
     protected virtual string? GetNamedConnectionString(string dsConnectionStringName)
     {
-#if NETFRAMEWORK
-        var connectionStringSettings = System.Configuration.ConfigurationManager.ConnectionStrings[dsConnectionStringName];
-        return connectionStringSettings.ConnectionString;
-#else
-            return null;
-#endif
+        return null;
     }
 
     protected virtual T InstantiateType<T>(Type? implementationType)

@@ -31,11 +31,7 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
         ConfigureScope(scope, bundle, scheduler);
         var (job, fromContainer) = CreateJob(bundle, scope.ServiceProvider);
 
-#if NET6_0_OR_GREATER
         return new AsyncScopedJob(scope, job, canDispose: !fromContainer);
-#else
-        return new ScopedJob(scope, job, canDispose: !fromContainer);
-#endif
     }
 
     protected virtual void ConfigureScope(IServiceScope scope, TriggerFiredBundle bundle, IScheduler scheduler)
@@ -57,36 +53,6 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
         return (activatorCache.CreateInstance(serviceProvider, bundle.JobDetail.JobType), false);
     }
 
-    private sealed class ScopedJob : IJob, IJobWrapper, IDisposable
-    {
-        private readonly IServiceScope scope;
-        private readonly bool canDispose;
-
-        public ScopedJob(IServiceScope scope, IJob innerJob, bool canDispose)
-        {
-            this.scope = scope;
-            this.canDispose = canDispose;
-            Target = innerJob;
-        }
-
-        public IJob Target { get; }
-
-        public void Dispose()
-        {
-            if (canDispose)
-            {
-                (Target as IDisposable)?.Dispose();
-            }
-            scope.Dispose();
-        }
-
-        public ValueTask Execute(IJobExecutionContext context)
-        {
-            return Target.Execute(context);
-        }
-    }
-
-#if NET6_0_OR_GREATER
     private sealed class AsyncScopedJob : IJob, IJobWrapper, IAsyncDisposable
     {
         private readonly IServiceScope scope;
@@ -130,5 +96,4 @@ public class MicrosoftDependencyInjectionJobFactory : PropertySettingJobFactory
             return Target.Execute(context);
         }
     }
-#endif
 }
