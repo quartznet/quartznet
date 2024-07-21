@@ -9,8 +9,8 @@ namespace Quartz.Simpl
     /// <summary>
     /// InstanceIdGenerator that will use a <see cref="SystemProperty" /> to configure the scheduler.
     /// If no value set for the property, a <see cref="SchedulerException" /> is thrown.
-    /// <author>Alex Snaps</author>
     /// </summary>
+    /// <author>Alex Snaps</author>
     public class SystemPropertyInstanceIdGenerator : IInstanceIdGenerator
     {
         /// <summary>
