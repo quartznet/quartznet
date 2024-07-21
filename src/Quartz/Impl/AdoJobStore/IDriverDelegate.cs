@@ -599,6 +599,13 @@ public interface IDriverDelegate
     /// <returns>An array of <see cref="String" /> group names.</returns>
     ValueTask<List<string>> SelectTriggerGroups(ConnectionAndTransactionHolder conn, CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Select all trigger group names that match the criteria.
+    /// </summary>
+    /// <param name="conn">The DB Connection.</param>
+    /// <param name="matcher">The matcher to apply for searching.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns>An array of <see cref="String" /> group names.</returns>
     ValueTask<List<string>> SelectTriggerGroups(ConnectionAndTransactionHolder conn, GroupMatcher<TriggerKey> matcher, CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -634,7 +641,7 @@ public interface IDriverDelegate
     /// <summary>
     /// Deletes the paused trigger group.
     /// </summary>
-    /// <param name="conn">The conn.</param>
+    /// <param name="conn">The database connection.</param>
     /// <param name="groupName">Name of the group.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns></returns>
@@ -643,6 +650,13 @@ public interface IDriverDelegate
         string groupName,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Deletes the paused trigger group.
+    /// </summary>
+    /// <param name="conn">The database connection.</param>
+    /// <param name="matcher">Criteria for matching groups.</param>
+    /// <param name="cancellationToken">The cancellation instruction.</param>
+    /// <returns></returns>
     ValueTask<int> DeletePausedTriggerGroup(
         ConnectionAndTransactionHolder conn,
         GroupMatcher<TriggerKey> matcher,
@@ -1016,6 +1030,15 @@ public interface IDriverDelegate
         ICollection<TriggerKey> resultList,
         CancellationToken cancellationToken = default);
 
+    /// <summary>
+    /// Updates status of a trigger.
+    /// </summary>
+    /// <param name="conn">The database connection.</param>
+    /// <param name="trigger">Trigger to update.</param>
+    /// <param name="state">The new state.</param>
+    /// <param name="job">Job associated with the trigger.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The amount of triggers that matched the update.</returns>
     ValueTask<int> UpdateFiredTrigger(
         ConnectionAndTransactionHolder conn,
         IOperableTrigger trigger,

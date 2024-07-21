@@ -30,8 +30,8 @@ namespace Quartz;
 /// to exclude.
 /// </summary>
 /// <remarks>
-/// As such, it is often useful to think of Calendars as being used to <I>exclude</I> a block
-/// of time - as opposed to <I>include</I> a block of time. (i.e. the
+/// As such, it is often useful to think of Calendars as being used to <i>exclude</i> a block
+/// of time - as opposed to <i>include</i> a block of time. (i.e. the
 /// schedule &quot;fire every five minutes except on Sundays&quot; could be
 /// implemented with a <see cref="ISimpleTrigger" /> and a
 /// <see cref="WeeklyCalendar" /> which excludes Sundays)

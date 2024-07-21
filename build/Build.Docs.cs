@@ -43,7 +43,7 @@ public partial class Build
             var headerContent = File.ReadAllText("doc/header.template");
             var footerContent = File.ReadAllText("doc/footer.template");
 
-            var docsDirectory = RootDirectory / "build" / "apidoc";
+            var docsDirectory = ArtifactsDirectory / "apidoc";
 
             foreach (var file in docsDirectory.GlobFiles("**/*.htm", "**/*.html"))
             {
@@ -52,5 +52,7 @@ public partial class Build
                 contents = contents.Replace("@FOOTER@", footerContent);
                 File.WriteAllText(file, contents);
             }
+
+            docsDirectory.ZipTo(ArtifactsDirectory / "apidoc-4.0.zip", fileMode: FileMode.Create);
         });
 }

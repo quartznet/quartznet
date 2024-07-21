@@ -53,6 +53,9 @@ public interface IDbProvider
     /// </summary>
     string ConnectionString { set; get; }
 
+    /// <summary>
+    /// The database metadata for the provider.
+    /// </summary>
     DbMetadata Metadata { get; }
 
     /// <summary>
