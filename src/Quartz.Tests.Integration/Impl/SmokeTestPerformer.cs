@@ -22,7 +22,7 @@ namespace Quartz.Tests.Integration.Impl
 {
     public class SmokeTestPerformer
     {
-        public async Task Test(IScheduler scheduler, bool clearJobs, bool scheduleJobs, bool testCustomCalendar)
+        public async Task Test(IScheduler scheduler, bool clearJobs, bool scheduleJobs)
         {
             try
             {
@@ -69,14 +69,10 @@ namespace Quartz.Tests.Integration.Impl
                     await scheduler.AddCalendar("cronCalendar", cronCalendar, true, true);
                     await scheduler.AddCalendar("holidayCalendar", holidayCalendar, true, true);
 
-                    // TODO blob STJ serializer
-                    if (testCustomCalendar)
-                    {
-                        await scheduler.AddCalendar("customCalendar", new CustomCalendar(), true, true);
-                        var customCalendar = (CustomCalendar) await scheduler.GetCalendar("customCalendar");
-                        Assert.That(customCalendar, Is.Not.Null);
-                        Assert.That(customCalendar.SomeCustomProperty, Is.True);
-                    }
+                    await scheduler.AddCalendar("customCalendar", new CustomCalendar(), true, true);
+                    var customCalendar = (CustomCalendar) await scheduler.GetCalendar("customCalendar");
+                    Assert.That(customCalendar, Is.Not.Null);
+                    Assert.That(customCalendar.SomeCustomProperty, Is.True);
 
                     Assert.IsNotNull(await scheduler.GetCalendar("annualCalendar"));
 
@@ -264,6 +260,23 @@ namespace Quartz.Tests.Integration.Impl
                     await scheduler.ScheduleJob(customTimeZoneTrigger);
                     var loadedCustomTimeZoneTrigger = (ICronTrigger) await scheduler.GetTrigger(customTimeZoneTrigger.Key);
                     Assert.That(loadedCustomTimeZoneTrigger.TimeZone.BaseUtcOffset, Is.EqualTo(TimeSpan.FromMinutes(22)));
+
+                    // custom trigger blob serialization
+                    var customTrigger = new CustomTrigger
+                    {
+                        Key = new TriggerKey("customTrigger"),
+                        CronExpressionString = "0/5 * * * * ?",
+                        StartTimeUtc = DateTimeOffset.UtcNow,
+                        JobKey = job.Key
+                    };
+
+                    var nextFireTimeUtc = DateTimeOffset.UtcNow;
+                    customTrigger.SetNextFireTimeUtc(nextFireTimeUtc);
+
+                    await scheduler.ScheduleJob(customTrigger);
+                    var loadedCustomTrigger = (ICronTrigger) await scheduler.GetTrigger(customTrigger.Key);
+                    Assert.That(loadedCustomTrigger.GetNextFireTimeUtc(), Is.EqualTo(nextFireTimeUtc));
+                    Assert.That(loadedCustomTrigger.CronExpressionString, Is.EqualTo(customTrigger.CronExpressionString));
 
                     // bulk operations
                     var info = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>();
@@ -520,5 +533,11 @@ namespace Quartz.Tests.Integration.Impl
         {
             calendar.SomeCustomProperty = source["SomeCustomProperty"]!.Value<bool>();
         }
+    }
+
+    [Serializable]
+    internal sealed class CustomTrigger : CronTriggerImpl
+    {
+        public override bool HasAdditionalProperties => true;
     }
 }

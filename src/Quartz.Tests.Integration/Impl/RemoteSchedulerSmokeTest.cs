@@ -7,7 +7,6 @@ using Quartz.Impl;
 
 namespace Quartz.Tests.Integration.Impl
 {
-    [TestFixture]
     public class RemoteSchedulerSmokeTest
     {
         [Test]
@@ -31,7 +30,7 @@ namespace Quartz.Tests.Integration.Impl
             IScheduler sched = await sf.GetScheduler();
 
             SmokeTestPerformer performer = new SmokeTestPerformer();
-            await performer.Test(sched, clearJobs: true, scheduleJobs: true, testCustomCalendar: true);
+            await performer.Test(sched, clearJobs: true, scheduleJobs: true);
         }
     }
 }

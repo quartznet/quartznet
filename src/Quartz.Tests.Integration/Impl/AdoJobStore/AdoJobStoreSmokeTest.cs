@@ -252,7 +252,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             // First we must get a reference to a scheduler
             IScheduler sched = await config.BuildScheduler();
             SmokeTestPerformer performer = new SmokeTestPerformer();
-            await performer.Test(sched, clearJobs, scheduleJobs, testCustomCalendar: true);
+            await performer.Test(sched, clearJobs, scheduleJobs);
 
             Assert.IsEmpty(FailFastLoggerFactoryAdapter.Errors, "Found error from logging output");
         }

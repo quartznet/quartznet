@@ -7,6 +7,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
 
 using Quartz.Converters;
+using Quartz.Serialization.Json.Triggers;
 using Quartz.Spi;
 
 namespace Quartz.Simpl
@@ -34,7 +35,8 @@ namespace Quartz.Simpl
                     new NameValueCollectionConverter(),
                     new StringKeyDirtyFlagMapConverter(),
                     new CronExpressionConverter(),
-                    new CalendarConverter()
+                    new CalendarConverter(),
+                    new TriggerConverter()
                 },
                 ConstructorHandling = ConstructorHandling.AllowNonPublicDefaultConstructor,
                 TypeNameHandling = TypeNameHandling.Auto,
@@ -95,6 +97,11 @@ namespace Quartz.Simpl
         public static void AddCalendarSerializer<TCalendar>(ICalendarSerializer serializer)
         {
             CalendarConverter.AddCalendarConverter<TCalendar>(serializer);
+        }
+
+        public static void AddTriggerSerializer<TTrigger>(ITriggerSerializer serializer) where TTrigger : ITrigger
+        {
+            TriggerConverter.AddTriggerSerializer<TTrigger>(serializer);
         }
     }
 }
