@@ -30,7 +30,7 @@ export const sidebarEn: SidebarConfig = [
       "/documentation/best-practices",
       {
         text: "API Documentation",
-        link: "https://quartznet.sourceforge.io/apidoc/3.0/html",
+        link: "https://quartznet.sourceforge.io/apidoc/3.0",
       },
       "/documentation/quartz-3.x/db/index",
       "/documentation/quartz-3.x/migration-guide",
@@ -104,7 +104,7 @@ export const sidebarEn: SidebarConfig = [
           "/documentation/quartz-4.x/configuration/reference",
           "/documentation/quartz-4.x/migration-guide",
           {
-            link: "https://quartznet.sourceforge.io/apidoc/4.0/html",
+            link: "https://quartznet.sourceforge.io/apidoc/4.0",
             text: "API Documentation",
           },
           {
