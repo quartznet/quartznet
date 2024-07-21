@@ -40,8 +40,11 @@ public partial class Build
     Target ApiDoc => _ => _
         .Executes(() =>
         {
-            var headerContent = File.ReadAllText("doc/header.template");
-            var footerContent = File.ReadAllText("doc/footer.template");
+            const string Version = "4.0";
+
+            AbsolutePath docDirectory = RootDirectory / "doc";
+            var headerContent = File.ReadAllText(docDirectory / "header.template");
+            var footerContent = File.ReadAllText(docDirectory / "footer.template");
 
             var docsDirectory = ArtifactsDirectory / "apidoc";
 
@@ -53,6 +56,8 @@ public partial class Build
                 File.WriteAllText(file, contents);
             }
 
-            docsDirectory.ZipTo(ArtifactsDirectory / "apidoc-4.0.zip", fileMode: FileMode.Create);
+            FileSystemTasks.CopyFile(docDirectory / "html-redirect.php", docsDirectory / Version / "html" / "index.php", FileExistsPolicy.Overwrite);
+
+            docsDirectory.ZipTo(ArtifactsDirectory / $"apidoc-{Version}.zip", fileMode: FileMode.Create);
         });
 }
