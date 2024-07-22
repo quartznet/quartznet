@@ -11,6 +11,7 @@ using Quartz.Job;
 using Quartz.Serialization.Newtonsoft;
 using Quartz.Spi;
 using Quartz.Tests.Integration.Impl.AdoJobStore;
+using Quartz.Triggers;
 using Quartz.Util;
 
 namespace Quartz.Tests.Integration.Impl;
@@ -255,6 +256,24 @@ public class SmokeTestPerformer
                 await scheduler.ScheduleJob(customTimeZoneTrigger);
                 var loadedCustomTimeZoneTrigger = (ICronTrigger) await scheduler.GetTrigger(customTimeZoneTrigger.Key);
                 Assert.That(loadedCustomTimeZoneTrigger.TimeZone.BaseUtcOffset, Is.EqualTo(TimeSpan.FromMinutes(22)));
+
+                // custom trigger blob serialization
+                var customTrigger = new CustomTrigger
+                {
+                    Key = new TriggerKey("customTrigger"),
+                    CronExpressionString = "30 45 18 * * ?",
+                    StartTimeUtc = DateTimeOffset.UtcNow,
+                    JobKey = job.Key
+                };
+
+                customTrigger.ComputeFirstFireTimeUtc(null);
+                var nextFireTimeUtc = customTrigger.GetNextFireTimeUtc();
+
+                await scheduler.ScheduleJob(customTrigger);
+                var loadedCustomTrigger = (CustomTrigger) await scheduler.GetTrigger(customTrigger.Key);
+                Assert.That(loadedCustomTrigger.GetNextFireTimeUtc(), Is.EqualTo(nextFireTimeUtc));
+                Assert.That(loadedCustomTrigger.CronExpressionString, Is.EqualTo(customTrigger.CronExpressionString));
+                Assert.That(loadedCustomTrigger.SomeCustomProperty, Is.True);
 
                 // bulk operations
                 var info = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>();
@@ -513,7 +532,7 @@ internal sealed class CustomNewtonsoftCalendarSerializer : CalendarSerializer<Cu
     }
 }
 
-internal sealed class CustomSystemTextJosnCalendarSerializer : Serialization.Json.Calendars.CalendarSerializer<CustomCalendar>
+internal sealed class CustomSystemTextJsonCalendarSerializer : Serialization.Json.Calendars.CalendarSerializer<CustomCalendar>
 {
     public override string CalendarTypeName => "Custom";
 
@@ -530,5 +549,78 @@ internal sealed class CustomSystemTextJosnCalendarSerializer : Serialization.Jso
     protected override void DeserializeFields(CustomCalendar calendar, JsonElement jsonElement, JsonSerializerOptions options)
     {
         calendar.SomeCustomProperty = jsonElement.GetProperty("SomeCustomProperty").GetBoolean();
+    }
+}
+
+[Serializable]
+internal sealed class CustomTrigger : CronTriggerImpl
+{
+    public override bool HasAdditionalProperties => true;
+
+    public bool SomeCustomProperty { get; set; } = true;
+}
+
+internal class CustomNewtonsoftTriggerSerializer : CronTriggerSerializer
+{
+    public override string TriggerTypeForJson => "CustomTrigger";
+
+    public override IScheduleBuilder CreateScheduleBuilder(JObject source)
+    {
+        return new CustomTriggerScheduleBuilder();
+    }
+
+    protected override void SerializeFields(JsonWriter writer, ICronTrigger trigger)
+    {
+        base.SerializeFields(writer, trigger);
+        writer.WritePropertyName("SomeCustomProperty");
+        writer.WriteValue(((CustomTrigger) trigger).SomeCustomProperty);
+    }
+
+    protected override void DeserializeFields(ICronTrigger trigger, JObject source)
+    {
+        base.DeserializeFields(trigger, source);
+        ((CustomTrigger) trigger).CronExpressionString = source.Value<string>("CronExpressionString");
+        ((CustomTrigger) trigger).TimeZone = TimeZoneUtil.FindTimeZoneById(source.Value<string>("TimeZone")!);
+        ((CustomTrigger) trigger).SomeCustomProperty = source.Value<bool>("SomeCustomProperty");
+    }
+
+    private class CustomTriggerScheduleBuilder : ScheduleBuilder<CustomTrigger>
+    {
+        public override IMutableTrigger Build()
+        {
+            return new CustomTrigger();
+        }
+    }
+}
+
+internal class CustomSystemTextJsonTriggerSerializer : Serialization.Json.Triggers.CronTriggerSerializer
+{
+    public override string TriggerTypeForJson => "CustomTrigger";
+
+    public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, JsonSerializerOptions options)
+    {
+        return new CustomTriggerScheduleBuilder();
+    }
+
+    protected override void SerializeFields(Utf8JsonWriter writer, ICronTrigger trigger, JsonSerializerOptions options)
+    {
+        base.SerializeFields(writer, trigger, options);
+        writer.WriteBoolean("SomeCustomProperty", ((CustomTrigger) trigger).SomeCustomProperty);
+    }
+
+    protected override void DeserializeFields(ICronTrigger trigger, JsonElement jsonElement, JsonSerializerOptions options)
+    {
+        base.DeserializeFields(trigger, jsonElement, options);
+        ((CustomTrigger) trigger).CronExpressionString = jsonElement.GetProperty("CronExpressionString").GetString();
+        ((CustomTrigger) trigger).TimeZone = TimeZoneUtil.FindTimeZoneById(jsonElement.GetProperty("TimeZone").GetString());
+        ((CustomTrigger) trigger).SomeCustomProperty = jsonElement.GetProperty("SomeCustomProperty").GetBoolean();
+    }
+
+    private class CustomTriggerScheduleBuilder : ScheduleBuilder<CustomTrigger>
+    {
+        public override IMutableTrigger Build()
+        {
+            return new CustomTrigger();
+        }
     }
 }

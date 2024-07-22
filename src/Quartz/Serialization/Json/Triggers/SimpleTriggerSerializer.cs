@@ -2,14 +2,8 @@ using System.Text.Json;
 
 namespace Quartz.Serialization.Json.Triggers;
 
-internal sealed class SimpleTriggerSerializer : TriggerSerializer<ISimpleTrigger>
+public class SimpleTriggerSerializer : TriggerSerializer<ISimpleTrigger>
 {
-    public static SimpleTriggerSerializer Instance { get; } = new();
-
-    private SimpleTriggerSerializer()
-    {
-    }
-
     public override string TriggerTypeForJson => "SimpleTrigger";
 
     public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, JsonSerializerOptions options)

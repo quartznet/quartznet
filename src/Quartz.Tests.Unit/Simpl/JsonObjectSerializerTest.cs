@@ -15,8 +15,6 @@ using Newtonsoft.Json.Linq;
 
 using Quartz.Impl.Calendar;
 using Quartz.Impl.Triggers;
-using Quartz.Serialization.Json.Triggers;
-using Quartz.Serialization.Newtonsoft;
 using Quartz.Simpl;
 using Quartz.Spi;
 
@@ -33,8 +31,10 @@ public class JsonObjectSerializerTest
     public void SetUp()
     {
         newtonsoftSerializer = new IndentingJsonObjectSerializer();
+        newtonsoftSerializer.RegisterTriggerConverters = true;
         newtonsoftSerializer.Initialize();
         NewtonsoftJsonObjectSerializer.AddCalendarSerializer<JsonSerializationTestCalendar>(new JsonSerializationTestCalendar.NewtonsoftSerializer());
+        NewtonsoftJsonObjectSerializer.AddTriggerSerializer<JsonSerializationTestTrigger>(new JsonSerializationTestTrigger.NewtonsoftSerializer());
 
         systemTextJsonSerializer = new IndentingSystemTextJsonObjectSerializer();
         systemTextJsonSerializer.Initialize();
@@ -307,11 +307,10 @@ public class JsonObjectSerializerTest
             {
                 original.GetNextFireTimeUtc().Should().Be(deserialized.GetNextFireTimeUtc());
                 original.GetPreviousFireTimeUtc().Should().Be(deserialized.GetPreviousFireTimeUtc());
-            },
-            systemTextJsonOnly: true
+            }
         );
 
-        await VerifyCreatedJson(trigger, systemTextJsonOnly: true);
+        await VerifyCreatedJson(trigger);
     }
 
     [Test]
@@ -345,11 +344,10 @@ public class JsonObjectSerializerTest
             {
                 original.GetNextFireTimeUtc().Should().Be(deserialized.GetNextFireTimeUtc());
                 original.GetPreviousFireTimeUtc().Should().Be(deserialized.GetPreviousFireTimeUtc());
-            },
-            systemTextJsonOnly: true
+            }
         );
 
-        await VerifyCreatedJson(trigger, systemTextJsonOnly: true);
+        await VerifyCreatedJson(trigger);
     }
 
     [Test]
@@ -386,11 +384,10 @@ public class JsonObjectSerializerTest
             {
                 original.GetNextFireTimeUtc().Should().Be(deserialized.GetNextFireTimeUtc());
                 original.GetPreviousFireTimeUtc().Should().Be(deserialized.GetPreviousFireTimeUtc());
-            },
-            systemTextJsonOnly: true
+            }
         );
 
-        await VerifyCreatedJson(trigger, systemTextJsonOnly: true);
+        await VerifyCreatedJson(trigger);
     }
 
     [Test]
@@ -426,11 +423,10 @@ public class JsonObjectSerializerTest
             {
                 original.GetNextFireTimeUtc().Should().Be(deserialized.GetNextFireTimeUtc());
                 original.GetPreviousFireTimeUtc().Should().Be(deserialized.GetPreviousFireTimeUtc());
-            },
-            systemTextJsonOnly: true
+            }
         );
 
-        await VerifyCreatedJson(trigger, systemTextJsonOnly: true);
+        await VerifyCreatedJson(trigger);
     }
 
     [Test]
@@ -467,31 +463,24 @@ public class JsonObjectSerializerTest
             {
                 original.GetNextFireTimeUtc().Should().Be(deserialized.GetNextFireTimeUtc());
                 original.GetPreviousFireTimeUtc().Should().Be(deserialized.GetPreviousFireTimeUtc());
-            },
-            systemTextJsonOnly: true
+            }
         );
 
-        await VerifyCreatedJson(trigger, systemTextJsonOnly: true);
+        await VerifyCreatedJson(trigger);
     }
 
     private void CompareSerialization<T>(
         T original,
         Action<T, T> asserter = null,
-        bool systemTextJsonOnly = false,
         bool skipDefaultEqualityCheck = false) where T : class
     {
-        (IObjectSerializer, IObjectSerializer)[] comparisons = systemTextJsonOnly
-            ?
-            [
-                (systemTextJsonSerializer, systemTextJsonSerializer)
-            ]
-            :
-            [
-                (newtonsoftSerializer, newtonsoftSerializer),
-                (newtonsoftSerializer, systemTextJsonSerializer),
-                (systemTextJsonSerializer, newtonsoftSerializer),
-                (systemTextJsonSerializer, systemTextJsonSerializer),
-            ];
+        (IObjectSerializer, IObjectSerializer)[] comparisons =
+        [
+            (newtonsoftSerializer, newtonsoftSerializer),
+            (newtonsoftSerializer, systemTextJsonSerializer),
+            (systemTextJsonSerializer, newtonsoftSerializer),
+            (systemTextJsonSerializer, systemTextJsonSerializer),
+        ];
 
         foreach (var (serializer, deserializer) in comparisons)
         {
@@ -507,13 +496,9 @@ public class JsonObjectSerializerTest
         }
     }
 
-    private async Task VerifyCreatedJson(object toSerialize, bool systemTextJsonOnly = false, [CallerMemberName] string testMethod = "")
+    private async Task VerifyCreatedJson(object toSerialize, [CallerMemberName] string testMethod = "")
     {
-        IObjectSerializer[] serializers = systemTextJsonOnly
-            ? [systemTextJsonSerializer]
-            : [systemTextJsonSerializer, newtonsoftSerializer];
-
-        foreach (var serializer in serializers)
+        foreach (var serializer in (IObjectSerializer[]) [systemTextJsonSerializer, newtonsoftSerializer])
         {
             var data = serializer.Serialize(toSerialize);
             using var reader = new StringReader(Encoding.UTF8.GetString(data));
@@ -572,7 +557,7 @@ public class JsonSerializationTestCalendar : BaseCalendar
 {
     public int CustomProperty { get; set; }
 
-    public sealed class NewtonsoftSerializer : CalendarSerializer<JsonSerializationTestCalendar>
+    public sealed class NewtonsoftSerializer : Quartz.Serialization.Newtonsoft.CalendarSerializer<JsonSerializationTestCalendar>
     {
         protected override void SerializeFields(JsonWriter writer, JsonSerializationTestCalendar calendar)
         {
@@ -610,7 +595,7 @@ public class JsonSerializationTestTrigger : SimpleTriggerImpl
 {
     public int CustomProperty { get; set; }
 
-    public sealed class SystemTextJsonSerializer : TriggerSerializer<JsonSerializationTestTrigger>
+    public sealed class SystemTextJsonSerializer : Serialization.Json.Triggers.TriggerSerializer<JsonSerializationTestTrigger>
     {
         public override string TriggerTypeForJson => "TestTrigger";
 
@@ -641,6 +626,52 @@ public class JsonSerializationTestTrigger : SimpleTriggerImpl
         {
             trigger.TimesTriggered = jsonElement.GetProperty("TimesTriggered").GetInt32();
             trigger.CustomProperty = jsonElement.GetProperty("CustomProperty").GetInt32();
+        }
+
+        private sealed class StaticScheduleBuilder(IMutableTrigger trigger) : IScheduleBuilder
+        {
+            public IMutableTrigger Build() => trigger;
+        }
+    }
+
+    public sealed class NewtonsoftSerializer : Quartz.Triggers.TriggerSerializer<JsonSerializationTestTrigger>
+    {
+        public override string TriggerTypeForJson => "TestTrigger";
+
+        public override IScheduleBuilder CreateScheduleBuilder(JObject jsonElement)
+        {
+            var repeatIntervalString = jsonElement.Value<string>("RepeatIntervalTimeSpan") ?? "";
+            var repeatInterval = TimeSpan.ParseExact(repeatIntervalString, "c", CultureInfo.InvariantCulture);
+            var repeatCount = jsonElement.Value<int>("RepeatCount");
+
+            var trigger = new JsonSerializationTestTrigger
+            {
+                RepeatInterval = repeatInterval,
+                RepeatCount = repeatCount
+            };
+
+            return new StaticScheduleBuilder(trigger);
+        }
+
+        protected override void SerializeFields(JsonWriter writer, JsonSerializationTestTrigger trigger)
+        {
+            writer.WritePropertyName("RepeatCount");
+            writer.WriteValue(trigger.RepeatCount);
+
+            writer.WritePropertyName("RepeatIntervalTimeSpan");
+            writer.WriteValue(trigger.RepeatInterval.ToString("c"));
+
+            writer.WritePropertyName("TimesTriggered");
+            writer.WriteValue(trigger.TimesTriggered);
+
+            writer.WritePropertyName("CustomProperty");
+            writer.WriteValue(trigger.CustomProperty);
+        }
+
+        protected override void DeserializeFields(JsonSerializationTestTrigger trigger, JObject jsonElement)
+        {
+            trigger.TimesTriggered = jsonElement.Value<int>("TimesTriggered");
+            trigger.CustomProperty = jsonElement.Value<int>("CustomProperty");
         }
 
         private sealed class StaticScheduleBuilder(IMutableTrigger trigger) : IScheduleBuilder

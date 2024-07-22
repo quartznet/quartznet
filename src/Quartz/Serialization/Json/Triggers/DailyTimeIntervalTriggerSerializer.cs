@@ -2,14 +2,8 @@ using System.Text.Json;
 
 namespace Quartz.Serialization.Json.Triggers;
 
-internal sealed class DailyTimeIntervalTriggerSerializer : TriggerSerializer<IDailyTimeIntervalTrigger>
+public class DailyTimeIntervalTriggerSerializer : TriggerSerializer<IDailyTimeIntervalTrigger>
 {
-    public static DailyTimeIntervalTriggerSerializer Instance { get; } = new();
-
-    private DailyTimeIntervalTriggerSerializer()
-    {
-    }
-
     public override string TriggerTypeForJson => "DailyTimeIntervalTrigger";
 
     public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, JsonSerializerOptions options)

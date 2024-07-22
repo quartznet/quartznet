@@ -16,10 +16,9 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore;
 
 public class AdoJobStoreSmokeTest
 {
-    private static readonly Dictionary<string, string> dbConnectionStrings = new Dictionary<string, string>();
+    private static readonly Dictionary<string, string> dbConnectionStrings = new();
     private readonly bool clearJobs = true;
     private readonly bool scheduleJobs = true;
-    private TestLoggerHelper testLoggerHelper;
 
     private const string KeyResetEvent = "ResetEvent";
 
@@ -33,12 +32,6 @@ public class AdoJobStoreSmokeTest
         dbConnectionStrings["SQLite"] = "Data Source=test.db;Version=3;";
         dbConnectionStrings["SQLite-Microsoft"] = "Data Source=test.db;";
         dbConnectionStrings["Firebird"] = "User=SYSDBA;Password=masterkey;Database=/firebird/data/quartz.fdb;DataSource=localhost;Port=3050;Dialect=3;Charset=NONE;Role=;Connection lifetime=15;Pooling=true;MinPoolSize=0;MaxPoolSize=50;Packet Size=8192;ServerType=0;";
-    }
-
-    [OneTimeSetUp]
-    public void FixtureSetUp()
-    {
-        testLoggerHelper = new TestLoggerHelper();
     }
 
     [Test]
@@ -215,7 +208,8 @@ public class AdoJobStoreSmokeTest
             {
                 store.UseSystemTextJsonSerializer(j =>
                 {
-                    j.AddCalendarSerializer<CustomCalendar>(new CustomSystemTextJosnCalendarSerializer());
+                    j.AddCalendarSerializer<CustomCalendar>(new CustomSystemTextJsonCalendarSerializer());
+                    j.AddTriggerSerializer<CustomTrigger>(new CustomSystemTextJsonTriggerSerializer());
                 });
             }
             else if (serializerType == "newtonsoft")
@@ -223,6 +217,9 @@ public class AdoJobStoreSmokeTest
                 store.UseNewtonsoftJsonSerializer(j =>
                 {
                     j.AddCalendarSerializer<CustomCalendar>(new CustomNewtonsoftCalendarSerializer());
+
+                    j.RegisterTriggerConverters = true;
+                    j.AddTriggerSerializer<CustomTrigger>(new CustomNewtonsoftTriggerSerializer());
                 });
             }
             else
