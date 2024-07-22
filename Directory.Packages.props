@@ -53,7 +53,7 @@
   </ItemGroup>
   <ItemGroup>
     <GlobalPackageReference Include="GitHubActionsTestLogger" Version="2.4.1" />
-    <GlobalPackageReference Include="Meziantou.Analyzer" Version="2.0.160" />
+    <GlobalPackageReference Include="Meziantou.Analyzer" Version="2.0.161" />
     <GlobalPackageReference Include="PolySharp" Version="1.14.1" />
   </ItemGroup>
 </Project>
