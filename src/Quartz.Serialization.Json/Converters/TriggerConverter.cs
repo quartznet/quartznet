@@ -137,7 +137,7 @@ internal sealed class TriggerConverter : JsonConverter
         }
     }
 
-    public override bool CanConvert(Type typeToConvert) => typeof(ITrigger).IsAssignableFrom(typeToConvert);
+    public override bool CanConvert(Type objectType) => typeof(ITrigger).IsAssignableFrom(objectType);
 
     private static ITriggerSerializer GetTriggerSerializer(string? typeName)
     {
