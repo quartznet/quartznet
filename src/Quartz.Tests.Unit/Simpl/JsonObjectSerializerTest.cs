@@ -39,6 +39,7 @@ public class JsonObjectSerializerTest
     public void SetUp()
     {
         newtonsoftSerializer = new IndentingJsonObjectSerializer();
+        newtonsoftSerializer.RegisterTriggerConverters = true;
         newtonsoftSerializer.Initialize();
         JsonObjectSerializer.AddCalendarSerializer<JsonSerializationTestCalendar>(new JsonSerializationTestCalendar.NewtonsoftSerializer());
         JsonObjectSerializer.AddTriggerSerializer<JsonSerializationTestTrigger>(new JsonSerializationTestTrigger.NewtonsoftSerializer());
