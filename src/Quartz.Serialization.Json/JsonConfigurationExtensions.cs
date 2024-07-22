@@ -30,6 +30,7 @@ public static class JsonConfigurationExtensions
         var options = new NewtonsoftJsonSerializerOptions();
         configure?.Invoke(options);
         persistentStoreOptions.UseSerializer<JsonObjectSerializer>();
+        persistentStoreOptions.SetProperty("quartz.serializer.RegisterTriggerConverters", options.RegisterTriggerConverters.ToString());
     }
 }
 
@@ -44,6 +45,13 @@ public class JsonSerializerOptions
 
 public class NewtonsoftJsonSerializerOptions
 {
+    /// <summary>
+    /// Whether to register optimized default trigger converters for persistence storage. These are compatible with STJ
+    /// serializer, but might not work if you have existing data in database which has been serialized with old behavior.
+    /// Defaults to false.
+    /// </summary>
+    public bool RegisterTriggerConverters { get; set; }
+
     /// <summary>
     /// Add serializer for custom trigger
     /// </summary>

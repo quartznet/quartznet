@@ -26,17 +26,18 @@ namespace Quartz.Simpl
             serializer = JsonSerializer.Create(CreateSerializerSettings());
         }
 
+        public bool RegisterTriggerConverters { get; set; }
+
         protected virtual JsonSerializerSettings CreateSerializerSettings()
         {
-            return new JsonSerializerSettings
+            var settings = new JsonSerializerSettings
             {
                 Converters = new List<JsonConverter>
                 {
                     new NameValueCollectionConverter(),
                     new StringKeyDirtyFlagMapConverter(),
                     new CronExpressionConverter(),
-                    new CalendarConverter(),
-                    new TriggerConverter()
+                    new CalendarConverter()
                 },
                 ConstructorHandling = ConstructorHandling.AllowNonPublicDefaultConstructor,
                 TypeNameHandling = TypeNameHandling.Auto,
@@ -47,6 +48,13 @@ namespace Quartz.Simpl
                 NullValueHandling = NullValueHandling.Ignore,
                 DateParseHandling = DateParseHandling.DateTimeOffset
             };
+
+            if (RegisterTriggerConverters)
+            {
+                settings.Converters.Add(new TriggerConverter());
+            }
+
+            return settings;
         }
 
         /// <summary>
