@@ -24,7 +24,7 @@
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.10.0" />
     <PackageVersion Include="MySqlConnector" Version="2.3.7" />
     <PackageVersion Include="NLog.Extensions.Logging" Version="5.3.11" />
-    <PackageVersion Include="NSwag.AspNetCore" Version="14.0.8" />
+    <PackageVersion Include="NSwag.AspNetCore" Version="14.1.0" />
     <PackageVersion Include="NUnit" Version="4.1.0" />
     <PackageVersion Include="NUnit3TestAdapter" Version="4.5.0" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
