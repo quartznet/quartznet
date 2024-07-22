@@ -2,14 +2,8 @@ using System.Text.Json;
 
 namespace Quartz.Serialization.Json.Triggers;
 
-internal sealed class CalendarIntervalTriggerSerializer : TriggerSerializer<ICalendarIntervalTrigger>
+public class CalendarIntervalTriggerSerializer : TriggerSerializer<ICalendarIntervalTrigger>
 {
-    public static CalendarIntervalTriggerSerializer Instance { get; } = new();
-
-    private CalendarIntervalTriggerSerializer()
-    {
-    }
-
     public override string TriggerTypeForJson => "CalendarIntervalTrigger";
 
     public override IScheduleBuilder CreateScheduleBuilder(JsonElement jsonElement, JsonSerializerOptions options)
