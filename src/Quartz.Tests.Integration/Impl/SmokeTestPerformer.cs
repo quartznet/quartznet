@@ -18,11 +18,13 @@ using Quartz.Tests.Integration.Impl.AdoJobStore;
 using Quartz.Tests.Integration.Utils;
 using Quartz.Util;
 
+using CronTriggerSerializer = Quartz.Serialization.Json.Triggers.CronTriggerSerializer;
+
 namespace Quartz.Tests.Integration.Impl
 {
     public class SmokeTestPerformer
     {
-        public async Task Test(IScheduler scheduler, bool clearJobs, bool scheduleJobs, bool testCustomCalendar)
+        public async Task Test(IScheduler scheduler, bool clearJobs, bool scheduleJobs)
         {
             try
             {
@@ -69,14 +71,10 @@ namespace Quartz.Tests.Integration.Impl
                     await scheduler.AddCalendar("cronCalendar", cronCalendar, true, true);
                     await scheduler.AddCalendar("holidayCalendar", holidayCalendar, true, true);
 
-                    // TODO blob STJ serializer
-                    if (testCustomCalendar)
-                    {
-                        await scheduler.AddCalendar("customCalendar", new CustomCalendar(), true, true);
-                        var customCalendar = (CustomCalendar) await scheduler.GetCalendar("customCalendar");
-                        Assert.That(customCalendar, Is.Not.Null);
-                        Assert.That(customCalendar.SomeCustomProperty, Is.True);
-                    }
+                    await scheduler.AddCalendar("customCalendar", new CustomCalendar(), true, true);
+                    var customCalendar = (CustomCalendar) await scheduler.GetCalendar("customCalendar");
+                    Assert.That(customCalendar, Is.Not.Null);
+                    Assert.That(customCalendar.SomeCustomProperty, Is.True);
 
                     Assert.IsNotNull(await scheduler.GetCalendar("annualCalendar"));
 
@@ -264,6 +262,24 @@ namespace Quartz.Tests.Integration.Impl
                     await scheduler.ScheduleJob(customTimeZoneTrigger);
                     var loadedCustomTimeZoneTrigger = (ICronTrigger) await scheduler.GetTrigger(customTimeZoneTrigger.Key);
                     Assert.That(loadedCustomTimeZoneTrigger.TimeZone.BaseUtcOffset, Is.EqualTo(TimeSpan.FromMinutes(22)));
+
+                    // custom trigger blob serialization
+                    var customTrigger = new CustomTrigger
+                    {
+                        Key = new TriggerKey("customTrigger"),
+                        CronExpressionString = "30 45 18 * * ?",
+                        StartTimeUtc = DateTimeOffset.UtcNow,
+                        JobKey = job.Key
+                    };
+
+                    customTrigger.ComputeFirstFireTimeUtc(null);
+                    var nextFireTimeUtc = customTrigger.GetNextFireTimeUtc();
+
+                    await scheduler.ScheduleJob(customTrigger);
+                    var loadedCustomTrigger = (CustomTrigger) await scheduler.GetTrigger(customTrigger.Key);
+                    Assert.That(loadedCustomTrigger.GetNextFireTimeUtc(), Is.EqualTo(nextFireTimeUtc));
+                    Assert.That(loadedCustomTrigger.CronExpressionString, Is.EqualTo(customTrigger.CronExpressionString));
+                    Assert.That(loadedCustomTrigger.SomeCustomProperty, Is.True);
 
                     // bulk operations
                     var info = new Dictionary<IJobDetail, IReadOnlyCollection<ITrigger>>();
@@ -519,6 +535,47 @@ namespace Quartz.Tests.Integration.Impl
         protected override void DeserializeFields(CustomCalendar calendar, JObject source)
         {
             calendar.SomeCustomProperty = source["SomeCustomProperty"]!.Value<bool>();
+        }
+    }
+
+    [Serializable]
+    internal sealed class CustomTrigger : CronTriggerImpl
+    {
+        public override bool HasAdditionalProperties => true;
+
+        public bool SomeCustomProperty { get; set; } = true;
+    }
+
+    internal class CustomTriggerSerializer : CronTriggerSerializer
+    {
+        public override string TriggerTypeForJson => "CustomTrigger";
+
+        public override IScheduleBuilder CreateScheduleBuilder(JObject source)
+        {
+            return new CustomTriggerScheduleBuilder();
+        }
+
+        protected override void SerializeFields(JsonWriter writer, ICronTrigger trigger)
+        {
+            base.SerializeFields(writer, trigger);
+            writer.WritePropertyName("SomeCustomProperty");
+            writer.WriteValue(((CustomTrigger) trigger).SomeCustomProperty);
+        }
+
+        protected override void DeserializeFields(ICronTrigger trigger, JObject source)
+        {
+            base.DeserializeFields(trigger, source);
+            ((CustomTrigger) trigger).CronExpressionString = source.Value<string>("CronExpressionString");
+            ((CustomTrigger) trigger).TimeZone = TimeZoneUtil.FindTimeZoneById(source.Value<string>("TimeZone")!);
+            ((CustomTrigger) trigger).SomeCustomProperty = source.Value<bool>("SomeCustomProperty");
+        }
+
+        private class CustomTriggerScheduleBuilder : ScheduleBuilder<CustomTrigger>
+        {
+            public override IMutableTrigger Build()
+            {
+                return new CustomTrigger();
+            }
         }
     }
 }

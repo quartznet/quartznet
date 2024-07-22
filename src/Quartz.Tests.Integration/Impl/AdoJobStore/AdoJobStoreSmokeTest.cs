@@ -229,7 +229,9 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                 {
                     store.UseNewtonsoftJsonSerializer(j =>
                     {
+                        j.RegisterTriggerConverters = true;
                         j.AddCalendarSerializer<CustomCalendar>(new CustomCalendarSerializer());
+                        j.AddTriggerSerializer<CustomTrigger>(new CustomTriggerSerializer());
                     });
                 }
                 else
@@ -252,7 +254,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
             // First we must get a reference to a scheduler
             IScheduler sched = await config.BuildScheduler();
             SmokeTestPerformer performer = new SmokeTestPerformer();
-            await performer.Test(sched, clearJobs, scheduleJobs, testCustomCalendar: true);
+            await performer.Test(sched, clearJobs, scheduleJobs);
 
             Assert.IsEmpty(FailFastLoggerFactoryAdapter.Errors, "Found error from logging output");
         }

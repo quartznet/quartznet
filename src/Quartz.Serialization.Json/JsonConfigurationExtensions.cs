@@ -1,5 +1,6 @@
 using System;
 
+using Quartz.Serialization.Json.Triggers;
 using Quartz.Simpl;
 
 namespace Quartz;
@@ -29,6 +30,7 @@ public static class JsonConfigurationExtensions
         var options = new NewtonsoftJsonSerializerOptions();
         configure?.Invoke(options);
         persistentStoreOptions.UseSerializer<JsonObjectSerializer>();
+        persistentStoreOptions.SetProperty("quartz.serializer.RegisterTriggerConverters", options.RegisterTriggerConverters.ToString());
     }
 }
 
@@ -43,8 +45,28 @@ public class JsonSerializerOptions
 
 public class NewtonsoftJsonSerializerOptions
 {
-    public void AddCalendarSerializer<TCalendar>(ICalendarSerializer serializer)
+    /// <summary>
+    /// Whether to register optimized default trigger converters for persistence storage. These are compatible with STJ
+    /// serializer, but might not work if you have existing data in database which has been serialized with old behavior.
+    /// Defaults to false.
+    /// </summary>
+    public bool RegisterTriggerConverters { get; set; }
+
+    /// <summary>
+    /// Add serializer for custom trigger
+    /// </summary>
+    public NewtonsoftJsonSerializerOptions AddTriggerSerializer<TTrigger>(ITriggerSerializer serializer) where TTrigger : ITrigger
+    {
+        JsonObjectSerializer.AddTriggerSerializer<TTrigger>(serializer);
+        return this;
+    }
+
+    /// <summary>
+    /// Add serializer for custom calendar
+    /// </summary>
+    public NewtonsoftJsonSerializerOptions AddCalendarSerializer<TCalendar>(ICalendarSerializer serializer)
     {
         JsonObjectSerializer.AddCalendarSerializer<TCalendar>(serializer);
+        return this;
     }
 }
