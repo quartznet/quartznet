@@ -1,5 +1,6 @@
 using System;
 
+using Quartz.Serialization.Json.Triggers;
 using Quartz.Simpl;
 
 namespace Quartz;
@@ -43,8 +44,21 @@ public class JsonSerializerOptions
 
 public class NewtonsoftJsonSerializerOptions
 {
-    public void AddCalendarSerializer<TCalendar>(ICalendarSerializer serializer)
+    /// <summary>
+    /// Add serializer for custom trigger
+    /// </summary>
+    public NewtonsoftJsonSerializerOptions AddTriggerSerializer<TTrigger>(ITriggerSerializer serializer) where TTrigger : ITrigger
+    {
+        JsonObjectSerializer.AddTriggerSerializer<TTrigger>(serializer);
+        return this;
+    }
+
+    /// <summary>
+    /// Add serializer for custom calendar
+    /// </summary>
+    public NewtonsoftJsonSerializerOptions AddCalendarSerializer<TCalendar>(ICalendarSerializer serializer)
     {
         JsonObjectSerializer.AddCalendarSerializer<TCalendar>(serializer);
+        return this;
     }
 }

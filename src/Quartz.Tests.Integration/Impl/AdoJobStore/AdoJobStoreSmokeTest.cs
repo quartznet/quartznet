@@ -230,6 +230,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
                     store.UseNewtonsoftJsonSerializer(j =>
                     {
                         j.AddCalendarSerializer<CustomCalendar>(new CustomCalendarSerializer());
+                        j.AddTriggerSerializer<CustomTrigger>(new CustomTriggerSerializer());
                     });
                 }
                 else
