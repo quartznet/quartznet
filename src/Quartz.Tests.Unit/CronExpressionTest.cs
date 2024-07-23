@@ -977,4 +977,21 @@ calendardayOfMonth: False
 years: *
 ");
     }
+
+    [TestCase("OCT", 10)]
+    [TestCase("NOV", 11)]
+    [TestCase("DEC", 12)]
+    public void GivenMonthAbbreviation_ShouldGetTimeAfter(
+    string monthAbbr, int monthNumber)
+    {
+        string expression = $"0 0 0 1 {monthAbbr} ? *";
+
+        CronExpression ce = new(expression) { TimeZone = TimeZoneInfo.Utc };
+        var startTime = new DateTimeOffset(2024, 7, 22, 12, 0, 0, TimeSpan.Zero);
+        var expectedTimeAfter = new DateTimeOffset(2024, monthNumber, 1, 0, 0, 0, TimeSpan.Zero);
+
+        var actualTimeAfter = ce.GetTimeAfter(startTime);
+
+        actualTimeAfter.Should().Be(expectedTimeAfter);
+    }
 }
