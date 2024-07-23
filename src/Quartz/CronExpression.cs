@@ -1353,8 +1353,8 @@ public sealed class CronExpression : ISerializable
             "AUG" => 7,
             "SEP" => 8,
             "OCT" => 9,
-            "NOV" => 1,
-            "DEC" => 1,
+            "NOV" => 10,
+            "DEC" => 11,
             _ => -1
         };
     }
