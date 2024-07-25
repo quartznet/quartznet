@@ -1502,9 +1502,10 @@ public sealed class CronExpression : ISerializable
         }
         else if (nearestWeekday) //AND not lastDay
         {
-            var day = daysOfMonth.Min;
-            var tcal = new DateTimeOffset(dt.Year, dt.Month, day, 0, 0, 0, dt.Offset);
             var lastDayOfMonth = GetLastDayOfMonth(dt.Month, dt.Year);
+            var day = (daysOfMonth.Min > lastDayOfMonth) ? lastDayOfMonth : daysOfMonth.Min;
+
+            var tcal = new DateTimeOffset(dt.Year, dt.Month, day, 0, 0, 0, dt.Offset);
             var dayOfWeek = tcal.DayOfWeek;
 
             // evict original date since it has a weekDayModifier
