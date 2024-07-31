@@ -17,8 +17,8 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
     private readonly IServiceProvider serviceProvider;
     private readonly IOptions<QuartzOptions> options;
     private readonly ContainerConfigurationProcessor processor;
-    private bool initialized;
-    private readonly SemaphoreSlim initializationLock = new SemaphoreSlim(1, 1);
+    private readonly SemaphoreSlim semaphore = new(1, 1);
+    private IScheduler? initializedScheduler;
 
     public ServiceCollectionSchedulerFactory(
         ILogger<ServiceCollectionSchedulerFactory> logger,
@@ -34,27 +34,31 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
 
     public override async ValueTask<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
     {
-        base.Initialize(options.Value.ToNameValueCollection());
-        var scheduler = await base.GetScheduler(cancellationToken).ConfigureAwait(false);
-        if (initialized)
-        {
-            return scheduler;
-        }
-
-        await initializationLock.WaitAsync(cancellationToken).ConfigureAwait(false);
+        await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            if (!initialized)
+            if (initializedScheduler is null)
             {
-                await InitializeScheduler(scheduler, cancellationToken).ConfigureAwait(false);
-                initialized = true;
+                Initialize(options.Value.ToNameValueCollection());
             }
+
+            var scheduler = await base.GetScheduler(cancellationToken).ConfigureAwait(false);
+
+            // The base method may produce a new scheduler in the event that the original scheduler was stopped
+            if (ReferenceEquals(scheduler, initializedScheduler))
+            {
+                return scheduler;
+            }
+
+            await InitializeScheduler(scheduler, cancellationToken).ConfigureAwait(false);
+            initializedScheduler = scheduler;
+
+            return scheduler;
         }
         finally
         {
-            initializationLock.Release();
+            semaphore.Release();
         }
-        return scheduler;
     }
 
     private async Task InitializeScheduler(IScheduler scheduler, CancellationToken cancellationToken)
@@ -108,6 +112,7 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
         {
             service = ObjectUtils.InstantiateType<T>(implementationType);
         }
+
         return service;
     }
 }

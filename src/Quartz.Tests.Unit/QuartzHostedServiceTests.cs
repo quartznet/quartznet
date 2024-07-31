@@ -7,7 +7,6 @@ using Lifetime = Microsoft.Extensions.Hosting.IHostApplicationLifetime;
 
 namespace Quartz.Tests.Unit;
 
-[TestFixture]
 public class QuartzHostedServiceTests
 {
     private sealed class MockApplicationLifetime : Lifetime
@@ -307,7 +306,9 @@ public class QuartzHostedServiceTests
                     .ContinueWith(_ => { }, CancellationToken.None, TaskContinuationOptions.OnlyOnCanceled, TaskScheduler.Default);
 
                 if (!cancellationToken.IsCancellationRequested)
+                {
                     await this.Start(cancellationToken);
+                }
             }, CancellationToken.None);
             return default;
         }
@@ -341,10 +342,10 @@ public class QuartzHostedServiceTests
     [Parallelizable(ParallelScope.All)]
     public async Task StartAsync_WithStartedApplication_ShouldGetScheduler(bool awaitApplicationStarted, bool withStartDelay, bool shouldSchedulerBeStarted)
     {
-        var appliationLifetime = new MockApplicationLifetime();
+        var applicationLifetime = new MockApplicationLifetime();
         var schedulerFactory = new MockSchedulerFactory();
         var quartzHostedService = new QuartzHostedService(
-            appliationLifetime,
+            applicationLifetime,
             schedulerFactory,
             Options.Create(new QuartzHostedServiceOptions
             {
@@ -392,8 +393,10 @@ public class QuartzHostedServiceTests
         appliationLifetime.SetStarted();
 
         if (quartzHostedService.startupTask is not null)
+        {
             await quartzHostedService.startupTask
                 .ContinueWith(_ => { }, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default); // Wait for the hosted service to respond to the ApplicationStarted token
+        }
 
         Assert.AreEqual(!withStartDelay, schedulerFactory.LastCreatedScheduler.IsStarted);
 
@@ -463,11 +466,17 @@ public class QuartzHostedServiceTests
         await quartzHostedService.StopAsync(CancellationToken.None);
 
         if (quartzHostedService.startupTask is not null)
+        {
             await quartzHostedService.startupTask
                 .ContinueWith(_ => { }, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default); // Wait for the hosted service to respond to the ApplicationStarted token
+        }
 
         // Confirm that not only have we stopped, but that we have not started AFTER being stopped
-        if (shouldSchedulerBeStarted) Assert.True(schedulerFactory.LastCreatedScheduler.IsShutdown);
+        if (shouldSchedulerBeStarted)
+        {
+            Assert.True(schedulerFactory.LastCreatedScheduler.IsShutdown);
+        }
+
         Assert.False(schedulerFactory.LastCreatedScheduler.IsStarted);
 
         await startupCts.CancelAsync().ConfigureAwait(false);

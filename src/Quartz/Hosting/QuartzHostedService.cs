@@ -12,7 +12,6 @@ public sealed class QuartzHostedService : IHostedService
     private readonly IOptions<QuartzHostedServiceOptions> options;
     private IScheduler? scheduler;
     internal Task? startupTask;
-    private bool schedulerWasStarted;
 
     public QuartzHostedService(
         Lifetime applicationLifetime,
@@ -73,8 +72,6 @@ public sealed class QuartzHostedService : IHostedService
             throw new InvalidOperationException("The scheduler should have been initialized first.");
         }
 
-        schedulerWasStarted = true;
-
         // Avoid potential race conditions between ourselves and StopAsync, in case it has already made its attempt to stop the scheduler
         if (applicationLifetime.ApplicationStopping.IsCancellationRequested)
         {
@@ -106,10 +103,8 @@ public sealed class QuartzHostedService : IHostedService
         }
         finally
         {
-            if (schedulerWasStarted && !cancellationToken.IsCancellationRequested)
-            {
-                await scheduler.Shutdown(options.Value.WaitForJobsToComplete, cancellationToken).ConfigureAwait(false);
-            }
+            // we always need to call shutdown to ensure that we unbind the scheduler from global repository
+            await scheduler.Shutdown(options.Value.WaitForJobsToComplete, cancellationToken).ConfigureAwait(false);
         }
     }
 }
