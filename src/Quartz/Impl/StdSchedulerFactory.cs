@@ -1140,9 +1140,13 @@ Please add configuration to your application config file to correctly initialize
         {
             // We always need to guarantee exclusivity because of the possible sequence of interactions with
             // the SchedulerRepository.
-            if(!semaphore.Wait(0, cancellationToken))
+            if (!await semaphore.WaitAsync(0, cancellationToken).ConfigureAwait(false))
+            {
                 await semaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-            try {
+            }
+
+            try
+            {
                 if (cfg == null)
                 {
                     Initialize();
@@ -1166,7 +1170,9 @@ Please add configuration to your application config file to correctly initialize
                 SchedulerRepository.Instance.Bind(sched);
 
                 return sched;
-            } finally {
+            }
+            finally
+            {
                 semaphore.Release();
             }
         }

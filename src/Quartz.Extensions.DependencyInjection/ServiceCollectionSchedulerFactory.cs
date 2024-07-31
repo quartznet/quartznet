@@ -32,7 +32,6 @@ namespace Quartz
             this.serviceProvider = serviceProvider;
             this.options = options;
             this.processor = processor;
-            this.initializedScheduler = null;
         }
 
         public override async Task<IScheduler> GetScheduler(CancellationToken cancellationToken = default)
@@ -40,11 +39,12 @@ namespace Quartz
             await semaphore.WaitAsync(cancellationToken);
             try
             {
-                if(initializedScheduler == null) {
+                if (initializedScheduler == null)
+                {
                     // check if logging provider configured and let if configure
                     serviceProvider.GetService<MicrosoftLoggingProvider>();
 
-                    base.Initialize(options.Value.ToNameValueCollection());
+                    Initialize(options.Value.ToNameValueCollection());
                 }
 
                 var scheduler = await base.GetScheduler(cancellationToken);

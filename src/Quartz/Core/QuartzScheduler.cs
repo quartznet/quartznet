@@ -473,57 +473,61 @@ namespace Quartz.Core
 
             shuttingDown = true;
 
-            log.InfoFormat("Scheduler {0} shutting down.", resources.GetUniqueIdentifier());
-
-            await Standby(cancellationToken).ConfigureAwait(false);
-
-            await schedThread.Halt(waitForJobsToComplete).ConfigureAwait(false);
-
-            await NotifySchedulerListenersShuttingdown(cancellationToken).ConfigureAwait(false);
-
-            if (resources.InterruptJobsOnShutdown && !waitForJobsToComplete
-                || resources.InterruptJobsOnShutdownWithWait && waitForJobsToComplete)
+            try
             {
-                var jobs = CurrentlyExecutingJobs.OfType<ICancellableJobExecutionContext>();
-                foreach (var job in jobs)
+                log.InfoFormat("Scheduler {0} shutting down.", resources.GetUniqueIdentifier());
+
+                await Standby(cancellationToken).ConfigureAwait(false);
+
+                await schedThread.Halt(waitForJobsToComplete).ConfigureAwait(false);
+
+                await NotifySchedulerListenersShuttingdown(cancellationToken).ConfigureAwait(false);
+
+                if (resources.InterruptJobsOnShutdown && !waitForJobsToComplete
+                    || resources.InterruptJobsOnShutdownWithWait && waitForJobsToComplete)
                 {
-                    job.Cancel();
+                    var jobs = CurrentlyExecutingJobs.OfType<ICancellableJobExecutionContext>();
+                    foreach (var job in jobs)
+                    {
+                        job.Cancel();
+                    }
                 }
-            }
 
-            resources.ThreadPool.Shutdown(waitForJobsToComplete);
+                resources.ThreadPool.Shutdown(waitForJobsToComplete);
 
-            // Scheduler thread may have be waiting for the fire time of an acquired
-            // trigger and need time to release the trigger once halted, so make sure
-            // the thread is dead before continuing to shutdown the job store.
-            await schedThread.Shutdown().ConfigureAwait(false);
+                // Scheduler thread may have be waiting for the fire time of an acquired
+                // trigger and need time to release the trigger once halted, so make sure
+                // the thread is dead before continuing to shutdown the job store.
+                await schedThread.Shutdown().ConfigureAwait(false);
 
-            closed = true;
+                closed = true;
 
-            if (boundRemotely)
-            {
-                try
+                if (boundRemotely)
                 {
-                    UnBind();
-                }
+                    try
+                    {
+                        UnBind();
+                    }
 #if REMOTING
                 catch (RemotingException)
 #else // REMOTING
-                catch (Exception) // TODO (NetCore Port): Determine the correct exception type
+                    catch (Exception) // TODO (NetCore Port): Determine the correct exception type
 #endif // REMOTING
-                {
+                    {
+                    }
                 }
+
+                await ShutdownPlugins(cancellationToken).ConfigureAwait(false);
+
+                await resources.JobStore.Shutdown(cancellationToken).ConfigureAwait(false);
+
+                await NotifySchedulerListenersShutdown(cancellationToken).ConfigureAwait(false);
             }
-
-            await ShutdownPlugins(cancellationToken).ConfigureAwait(false);
-
-            await resources.JobStore.Shutdown(cancellationToken).ConfigureAwait(false);
-
-            await NotifySchedulerListenersShutdown(cancellationToken).ConfigureAwait(false);
-
-            SchedulerRepository.Instance.Remove(resources.Name);
-
-            holdToPreventGc.Clear();
+            finally
+            {
+                SchedulerRepository.Instance.Remove(resources.Name);
+                holdToPreventGc.Clear();
+            }
 
             log.Info($"Scheduler {resources.GetUniqueIdentifier()} Shutdown complete.");
         }
