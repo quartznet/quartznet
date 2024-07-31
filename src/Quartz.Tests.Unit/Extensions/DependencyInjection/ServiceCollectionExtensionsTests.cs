@@ -113,7 +113,7 @@ public class ServiceCollectionExtensionsTests
 
             quartz.UsePersistentStore(p =>
             {
-                p.UsePostgres(c=> c.UseDataSourceConnectionProvider());
+                p.UsePostgres("default", c => c.UseDataSourceConnectionProvider());
             });
         });
 
@@ -123,8 +123,8 @@ public class ServiceCollectionExtensionsTests
 
         var quartzOptions = provider.GetRequiredService<IOptions<QuartzOptions>>().Value;
 
-        Assert.That(quartzOptions.ContainsKey($"quartz.dataSource.{SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}.connectionProvider.type"));
-        Assert.That(quartzOptions[$"quartz.dataSource.{SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}.connectionProvider.type"], Is.EqualTo(typeof(DataSourceDbProvider).AssemblyQualifiedNameWithoutVersion()));
+        Assert.That(quartzOptions.ContainsKey("quartz.dataSource.default.connectionProvider.type"));
+        Assert.That(quartzOptions["quartz.dataSource.default.connectionProvider.type"], Is.EqualTo(typeof(DataSourceDbProvider).AssemblyQualifiedNameWithoutVersion()));
     }
 
     private sealed class DummyJob : IJob

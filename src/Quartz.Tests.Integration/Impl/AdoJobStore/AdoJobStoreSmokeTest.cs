@@ -200,7 +200,7 @@ public class AdoJobStoreSmokeTest
                 });
             }
 
-            store.UseGenericDatabase(dbProvider, db =>
+            store.UseGenericDatabase(dbProvider, "server-01", db =>
                 db.ConnectionString = dbConnectionStrings[connectionStringId]
             );
 

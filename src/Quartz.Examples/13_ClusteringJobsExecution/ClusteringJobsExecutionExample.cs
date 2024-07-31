@@ -75,7 +75,7 @@ public class ClusteringJobsExecutionExample : IExample
             {
                 x.UseProperties = true;
                 x.UseClustering();
-                x.UseSqlServer(TestConstants.SqlServerConnectionString);
+                x.UseSqlServer("sql-server-01", TestConstants.SqlServerConnectionString);
                 x.UseNewtonsoftJsonSerializer();
             })
             .BuildScheduler();
