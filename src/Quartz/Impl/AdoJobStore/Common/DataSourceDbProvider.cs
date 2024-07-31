@@ -1,4 +1,5 @@
 ﻿using System.Data.Common;
+using System.Diagnostics.CodeAnalysis;
 
 using Microsoft.Extensions.Options;
 
@@ -15,17 +16,25 @@ internal sealed class DataSourceDbProvider : DbProvider
 
     private static string GetDbProviderName(IOptions<QuartzOptions> options)
     {
-        if(options.Value.TryGetValue($"quartz.dataSource.{SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}.provider", out var value))
+        string dataSourceName = "default";
+        if(options.Value.TryGetValue($"quartz.dataSource.{dataSourceName}.provider", out var value))
         {
             if (value is null)
             {
-                throw new SchedulerException($"Provider not specified for DataSource: {SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}");
+                ThrowInvalidDataSourceNameException();
             }
 
             return value;
         }
 
-        throw new SchedulerException($"Provider not specified for DataSource: {SchedulerBuilder.AdoProviderOptions.DefaultDataSourceName}");
+        ThrowInvalidDataSourceNameException();
+        return default;
+
+        [DoesNotReturn]
+        void ThrowInvalidDataSourceNameException()
+        {
+            throw new SchedulerException($"Provider not specified for DataSource: {dataSourceName}, DataSourceProvider expects name 'default'");
+        }
     }
 
     public override DbConnection CreateConnection()

@@ -68,7 +68,7 @@ IScheduler scheduler = await SchedulerBuilder.Create(properties)
         x.UseProperties = true;
         x.UseClustering();
         // there are other SQL providers supported too
-        x.UseSqlServer("my connection string");
+        x.UseSqlServer("my-data-source-name", "my connection string");
         // this requires Quartz.Serialization.Newtonsoft NuGet package
         x.UseNewtonsoftJsonSerializer();
     })
