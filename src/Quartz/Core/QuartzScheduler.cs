@@ -418,42 +418,47 @@ public sealed class QuartzScheduler
 
         shuttingDown = true;
 
-        logger.LogInformation("Scheduler {SchedulerIdentifier} shutting down.", resources.GetUniqueIdentifier());
-
-        await Standby(cancellationToken).ConfigureAwait(false);
-
-        await schedThread.Halt(waitForJobsToComplete).ConfigureAwait(false);
-
-        await NotifySchedulerListenersShuttingdown(cancellationToken).ConfigureAwait(false);
-
-        if (resources.InterruptJobsOnShutdown && !waitForJobsToComplete
-            || resources.InterruptJobsOnShutdownWithWait && waitForJobsToComplete)
+        try
         {
-            var jobs = GetCurrentlyExecutingJobs().OfType<ICancellableJobExecutionContext>();
-            foreach (var job in jobs)
+            logger.LogInformation("Scheduler {SchedulerIdentifier} shutting down.", resources.GetUniqueIdentifier());
+
+            await Standby(cancellationToken).ConfigureAwait(false);
+
+            await schedThread.Halt(waitForJobsToComplete).ConfigureAwait(false);
+
+            await NotifySchedulerListenersShuttingdown(cancellationToken).ConfigureAwait(false);
+
+            if (resources.InterruptJobsOnShutdown && !waitForJobsToComplete
+                || resources.InterruptJobsOnShutdownWithWait && waitForJobsToComplete)
             {
-                job.Cancel();
+                var jobs = GetCurrentlyExecutingJobs().OfType<ICancellableJobExecutionContext>();
+                foreach (var job in jobs)
+                {
+                    job.Cancel();
+                }
             }
+
+            resources.ThreadPool.Shutdown(waitForJobsToComplete);
+
+            // Scheduler thread may have be waiting for the fire time of an acquired
+            // trigger and need time to release the trigger once halted, so make sure
+            // the thread is dead before continuing to shutdown the job store.
+            await schedThread.Shutdown().ConfigureAwait(false);
+
+            closed = true;
+
+            await ShutdownPlugins(cancellationToken).ConfigureAwait(false);
+
+            await resources.JobStore.Shutdown(cancellationToken).ConfigureAwait(false);
+
+            await NotifySchedulerListenersShutdown(cancellationToken).ConfigureAwait(false);
+
         }
-
-        resources.ThreadPool.Shutdown(waitForJobsToComplete);
-
-        // Scheduler thread may have be waiting for the fire time of an acquired
-        // trigger and need time to release the trigger once halted, so make sure
-        // the thread is dead before continuing to shutdown the job store.
-        await schedThread.Shutdown().ConfigureAwait(false);
-
-        closed = true;
-
-        await ShutdownPlugins(cancellationToken).ConfigureAwait(false);
-
-        await resources.JobStore.Shutdown(cancellationToken).ConfigureAwait(false);
-
-        await NotifySchedulerListenersShutdown(cancellationToken).ConfigureAwait(false);
-
-        SchedulerRepository.Instance.Remove(resources.Name);
-
-        holdToPreventGc.Clear();
+        finally
+        {
+            SchedulerRepository.Instance.Remove(resources.Name);
+            holdToPreventGc.Clear();
+        }
 
         logger.LogInformation("Scheduler {SchedulerIdentifier} Shutdown complete.", resources.GetUniqueIdentifier());
     }
