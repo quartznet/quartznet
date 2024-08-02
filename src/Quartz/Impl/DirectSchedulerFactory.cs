@@ -98,7 +98,7 @@ namespace Quartz.Impl
 		/// </summary>
 		public virtual Task<IReadOnlyList<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default)
 		{
-			return SchedulerRepository.Instance.LookupAll(cancellationToken);
+			return Task.FromResult<IReadOnlyList<IScheduler>>(SchedulerRepository.Instance.LookupAll());
 		}
 
 		/// <summary>
@@ -379,9 +379,8 @@ namespace Quartz.Impl
 				throw new SchedulerException(
 					"you must call createRemoteScheduler or createScheduler methods before calling getScheduler()");
 			}
-			SchedulerRepository schedRep = SchedulerRepository.Instance;
 
-			return schedRep.Lookup(DefaultSchedulerName, cancellationToken)!;
+            return Task.FromResult(SchedulerRepository.Instance.Lookup(DefaultSchedulerName)!);
 		}
 
 		/// <summary>
@@ -389,8 +388,7 @@ namespace Quartz.Impl
 		/// </summary>
 		public virtual Task<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default)
 		{
-			SchedulerRepository schedRep = SchedulerRepository.Instance;
-			return schedRep.Lookup(schedName, cancellationToken);
+            return Task.FromResult(SchedulerRepository.Instance.Lookup(schedName));
 		}
 	}
 }

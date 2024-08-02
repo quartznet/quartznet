@@ -98,6 +98,11 @@ namespace Quartz
             await processor.ScheduleJobs(scheduler, cancellationToken);
         }
 
+        internal override ISchedulerRepository GetSchedulerRepository()
+        {
+            return serviceProvider.GetRequiredService<ISchedulerRepository>();
+        }
+
         private protected override string GetNamedConnectionString(string connectionStringName)
         {
             var configuration = serviceProvider.GetRequiredService<IConfiguration>();

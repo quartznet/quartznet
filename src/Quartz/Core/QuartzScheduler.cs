@@ -264,7 +264,7 @@ namespace Quartz.Core
         /// properties.
         /// </summary>
         /// <seealso cref="QuartzSchedulerResources" />
-        public QuartzScheduler(QuartzSchedulerResources resources, TimeSpan idleWaitTime) : this()
+        internal QuartzScheduler(QuartzSchedulerResources resources, TimeSpan idleWaitTime) : this()
         {
             this.resources = resources;
 
