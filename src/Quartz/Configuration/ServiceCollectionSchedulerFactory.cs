@@ -93,6 +93,11 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
         await processor.ScheduleJobs(scheduler, cancellationToken).ConfigureAwait(false);
     }
 
+    internal override ISchedulerRepository GetSchedulerRepository()
+    {
+        return serviceProvider.GetRequiredService<ISchedulerRepository>();
+    }
+
     protected override string? GetNamedConnectionString(string connectionStringName)
     {
         var configuration = serviceProvider.GetService<IConfiguration>();

@@ -26,12 +26,12 @@ namespace Quartz.Tests.Unit.Extensions.DependencyInjection
         }
 
         [TearDown]
-        public async Task TearDown()
+        public void TearDown()
         {
             testClient?.Dispose();
             testClient = null;
 
-            await ClearSchedulerRepository();
+            ClearSchedulerRepository();
         }
 
         [Test]
@@ -116,10 +116,9 @@ namespace Quartz.Tests.Unit.Extensions.DependencyInjection
             scheduler.Should().BeNull();
         }
 
-        private static async Task ClearSchedulerRepository()
+        private static void ClearSchedulerRepository()
         {
-            var allSchedulers = await SchedulerRepository.Instance.LookupAll();
-            foreach (var scheduler in allSchedulers)
+            foreach (var scheduler in SchedulerRepository.Instance.LookupAll())
             {
                 SchedulerRepository.Instance.Remove(scheduler.SchedulerName);
             }

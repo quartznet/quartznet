@@ -76,7 +76,6 @@ public class StdSchedulerFactory : ISchedulerFactory
 {
     private const string ConfigurationKeyPrefix = "quartz.";
     private const string ConfigurationKeyPrefixServer = "quartz.server";
-    public const string ConfigurationSectionName = "quartz";
     public const string PropertiesFile = "quartz.config";
     public const string PropertySchedulerInstanceName = "quartz.scheduler.instanceName";
     public const string PropertySchedulerInstanceId = "quartz.scheduler.instanceId";
@@ -203,7 +202,12 @@ public class StdSchedulerFactory : ISchedulerFactory
     public virtual ValueTask<IReadOnlyList<IScheduler>> GetAllSchedulers(
         CancellationToken cancellationToken = default)
     {
-        return SchedulerRepository.Instance.LookupAll(cancellationToken);
+        return new ValueTask<IReadOnlyList<IScheduler>>(GetSchedulerRepository().LookupAll());
+    }
+
+    internal virtual ISchedulerRepository GetSchedulerRepository()
+    {
+        return SchedulerRepository.Instance;
     }
 
     /// <summary>
@@ -971,6 +975,7 @@ Please add configuration to your application config file to correctly initialize
             rsrcs.InterruptJobsOnShutdown = interruptJobsOnShutdown;
             rsrcs.InterruptJobsOnShutdownWithWait = interruptJobsOnShutdownWithWait;
             rsrcs.TimeProvider = timeProvider;
+            rsrcs.SchedulerRepository = GetSchedulerRepository();
 
             tp.InstanceName = schedName;
             tp.InstanceId = schedInstId;
@@ -1127,13 +1132,14 @@ Please add configuration to your application config file to correctly initialize
                 Initialize();
             }
 
-            IScheduler? sched = await SchedulerRepository.Instance.Lookup(SchedulerName, cancellationToken).ConfigureAwait(false);
+            ISchedulerRepository schedulerRepository = GetSchedulerRepository();
+            IScheduler? sched = schedulerRepository.Lookup(SchedulerName);
 
             if (sched is not null)
             {
                 if (sched.IsShutdown)
                 {
-                    SchedulerRepository.Instance.Remove(SchedulerName);
+                    schedulerRepository.Remove(SchedulerName);
                 }
                 else
                 {
@@ -1142,7 +1148,7 @@ Please add configuration to your application config file to correctly initialize
             }
 
             sched = await Instantiate().ConfigureAwait(false);
-            SchedulerRepository.Instance.Bind(sched);
+            schedulerRepository.Bind(sched);
             return sched;
         }
         finally
@@ -1156,9 +1162,8 @@ Please add configuration to your application config file to correctly initialize
     /// it has already been instantiated).
     /// </para>
     /// </summary>
-    public virtual ValueTask<IScheduler?> GetScheduler(string schedName,
-        CancellationToken cancellationToken = default)
+    public virtual ValueTask<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default)
     {
-        return SchedulerRepository.Instance.Lookup(schedName, cancellationToken);
+        return new ValueTask<IScheduler?>(GetSchedulerRepository().Lookup(schedName));
     }
 }

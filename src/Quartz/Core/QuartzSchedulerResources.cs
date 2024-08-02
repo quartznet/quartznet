@@ -17,6 +17,7 @@
  */
 #endregion
 
+using Quartz.Impl;
 using Quartz.Spi;
 
 namespace Quartz.Core;
@@ -50,6 +51,7 @@ public sealed class QuartzSchedulerResources
         _idleWaitTime = DefaultIdleWaitTime;
         _batchTimeWindow = DefaultBatchTimeWindow;
         TimeProvider = TimeProvider.System;
+        SchedulerRepository = Impl.SchedulerRepository.Instance;
     }
 
     /// <summary>
@@ -298,4 +300,6 @@ public sealed class QuartzSchedulerResources
     public bool InterruptJobsOnShutdownWithWait { get; set; }
 
     public TimeProvider TimeProvider { get; set; }
+
+    internal ISchedulerRepository SchedulerRepository { get; set; }
 }

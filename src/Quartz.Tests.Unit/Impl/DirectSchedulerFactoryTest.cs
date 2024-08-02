@@ -47,12 +47,12 @@ public class DirectSchedulerFactoryTest
     }
 
     [TearDown]
-    public void TearDown()
+    public async Task TearDown()
     {
-        var schedulers = _schedulerRepository.LookupAll().GetAwaiter().GetResult();
+        var schedulers = _schedulerRepository.LookupAll();
         foreach (var scheduler in schedulers)
         {
-            scheduler.Shutdown().GetAwaiter().GetResult();
+            await scheduler.Shutdown();
         }
     }
 
@@ -61,7 +61,7 @@ public class DirectSchedulerFactoryTest
     {
         await _directSchedulerFactory.CreateScheduler(_threadPool, _jobStore);
 
-        var scheduler = await _schedulerRepository.Lookup(DirectSchedulerFactory.DefaultSchedulerName);
+        var scheduler = _schedulerRepository.Lookup(DirectSchedulerFactory.DefaultSchedulerName);
         Assert.IsNotNull(scheduler);
         Assert.AreEqual(typeof(StdScheduler), scheduler.GetType());
 
@@ -84,7 +84,7 @@ public class DirectSchedulerFactoryTest
 
         await _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore);
 
-        var scheduler = await _schedulerRepository.Lookup(schedulerName);
+        var scheduler = _schedulerRepository.Lookup(schedulerName);
         Assert.IsNotNull(scheduler);
         Assert.AreEqual(typeof(StdScheduler), scheduler.GetType());
 
@@ -126,7 +126,7 @@ public class DirectSchedulerFactoryTest
 
         await _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime);
 
-        var scheduler = await _schedulerRepository.Lookup(schedulerName);
+        var scheduler = _schedulerRepository.Lookup(schedulerName);
         Assert.IsNotNull(scheduler);
         Assert.AreEqual(typeof(StdScheduler), scheduler.GetType());
 
@@ -183,7 +183,7 @@ public class DirectSchedulerFactoryTest
 
         await _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow);
 
-        var scheduler = await _schedulerRepository.Lookup(schedulerName);
+        var scheduler = _schedulerRepository.Lookup(schedulerName);
         Assert.IsNotNull(scheduler);
         Assert.AreEqual(typeof(StdScheduler), scheduler.GetType());
 
@@ -242,7 +242,7 @@ public class DirectSchedulerFactoryTest
 
         await _directSchedulerFactory.CreateScheduler(schedulerName, schedulerInstanceId, _threadPool, _jobStore, schedulerPluginMap, idleWaitTime, maxBatchSize, batchTimeWindow);
 
-        var scheduler = await _schedulerRepository.Lookup(schedulerName);
+        var scheduler = _schedulerRepository.Lookup(schedulerName);
         Assert.IsNotNull(scheduler);
         Assert.AreEqual(typeof(StdScheduler), scheduler.GetType());
 

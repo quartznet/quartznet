@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Routing;
 
 using Quartz.AspNetCore.HttpApi.Util;
 using Quartz.HttpApiContract;
+using Quartz.Impl;
 
 namespace Quartz.AspNetCore.HttpApi.Endpoints;
 
@@ -30,10 +31,11 @@ internal static class CalendarEndpoints
     [ProducesResponseType(typeof(NamesDto), StatusCodes.Status200OK)]
     private static Task<IResult> GetCalendarNames(
         EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
         string schedulerName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var calendarNames = await scheduler.GetCalendarNames(cancellationToken).ConfigureAwait(false);
             return new NamesDto(calendarNames);
@@ -43,11 +45,12 @@ internal static class CalendarEndpoints
     [ProducesResponseType(typeof(OpenApi.Calendar), StatusCodes.Status200OK)]
     private static Task<IResult> GetCalendar(
         EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
         string schedulerName,
         string calendarName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var calendar = await scheduler.GetCalendarOrThrow(calendarName, cancellationToken).ConfigureAwait(false);
             return calendar;
@@ -58,6 +61,7 @@ internal static class CalendarEndpoints
     [Consumes(typeof(OpenApi.AddCalendarRequest), "application/json")]
     private static Task<IResult> AddCalendar(
         EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
         string schedulerName,
         AddCalendarRequest request,
         CancellationToken cancellationToken = default)
@@ -65,6 +69,7 @@ internal static class CalendarEndpoints
         EndpointHelper.AssertIsValid(request);
         return EndpointHelper.ExecuteWithOkResponse(
             schedulerName,
+            schedulerRepository,
             scheduler => scheduler.AddCalendar(request.CalendarName, request.Calendar, request.Replace, request.UpdateTriggers, cancellationToken).AsTask()
         );
     }
@@ -72,11 +77,12 @@ internal static class CalendarEndpoints
     [ProducesResponseType(typeof(DeleteCalendarResponse), StatusCodes.Status200OK)]
     private static Task<IResult> DeleteCalendar(
         EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
         string schedulerName,
         string calendarName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var calendarFound = await scheduler.DeleteCalendar(calendarName, cancellationToken).ConfigureAwait(false);
             return new DeleteCalendarResponse(calendarFound);

@@ -4,6 +4,8 @@ using FakeItEasy;
 
 using FluentAssertions;
 
+using Microsoft.Extensions.DependencyInjection;
+
 using Quartz.HttpApiContract;
 using Quartz.HttpClient;
 using Quartz.Impl;
@@ -18,7 +20,7 @@ public class SchedulerEndpointsTest : WebApiTest
     {
         var secondFake = A.Fake<IScheduler>();
         A.CallTo(() => secondFake.SchedulerInstanceId).Returns("TEST_2_NON_CLUSTERED");
-        SchedulerRepository.Instance.Bind(secondFake);
+        WebApplicationFactory.Services.GetRequiredService<ISchedulerRepository>().Bind(secondFake);
 
         // This endpoint is not used by HttpScheduler
         using var httpClient = WebApplicationFactory.CreateClient();

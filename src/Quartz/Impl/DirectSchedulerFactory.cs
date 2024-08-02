@@ -93,7 +93,7 @@ public sealed class DirectSchedulerFactory : ISchedulerFactory
     /// </summary>
     public ValueTask<IReadOnlyList<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default)
     {
-        return SchedulerRepository.Instance.LookupAll(cancellationToken);
+        return new ValueTask<IReadOnlyList<IScheduler>>(SchedulerRepository.Instance.LookupAll());
     }
 
     /// <summary>
@@ -314,12 +314,10 @@ public sealed class DirectSchedulerFactory : ISchedulerFactory
     {
         if (!initialized)
         {
-            ThrowHelper.ThrowSchedulerException(
-                "you must call createRemoteScheduler or createScheduler methods before calling getScheduler()");
+            ThrowHelper.ThrowSchedulerException("you must call createRemoteScheduler or createScheduler methods before calling getScheduler()");
         }
-        SchedulerRepository schedRep = SchedulerRepository.Instance;
 
-        return schedRep.Lookup(DefaultSchedulerName, cancellationToken)!;
+        return new ValueTask<IScheduler>(SchedulerRepository.Instance.Lookup(DefaultSchedulerName)!);
     }
 
     /// <summary>
@@ -327,7 +325,6 @@ public sealed class DirectSchedulerFactory : ISchedulerFactory
     /// </summary>
     public ValueTask<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default)
     {
-        SchedulerRepository schedRep = SchedulerRepository.Instance;
-        return schedRep.Lookup(schedName, cancellationToken);
+        return new ValueTask<IScheduler?>(SchedulerRepository.Instance.Lookup(schedName));
     }
 }

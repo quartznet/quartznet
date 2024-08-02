@@ -1,6 +1,7 @@
 using FakeItEasy;
 
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
 
 using Quartz.HttpClient;
 using Quartz.Impl;
@@ -20,7 +21,7 @@ public abstract class WebApiTest
     [OneTimeTearDown]
     public async Task OneTimeTearDown()
     {
-        await ClearSchedulerRepository();
+        ClearSchedulerRepository();
         if (WebApplicationFactory is not null)
         {
             await WebApplicationFactory.DisposeAsync();
@@ -29,11 +30,11 @@ public abstract class WebApiTest
     }
 
     [SetUp]
-    public async Task Setup()
+    public void Setup()
     {
-        await ClearSchedulerRepository();
+        ClearSchedulerRepository();
         FakeScheduler = CreateFakeScheduler();
-        SchedulerRepository.Instance.Bind(FakeScheduler);
+        WebApplicationFactory.Services.GetRequiredService<ISchedulerRepository>().Bind(FakeScheduler);
     }
 
     protected WebApplicationFactory<Program> WebApplicationFactory { get; private set; } = null!;
@@ -49,12 +50,12 @@ public abstract class WebApiTest
         return fake;
     }
 
-    private static async Task ClearSchedulerRepository()
+    private void ClearSchedulerRepository()
     {
-        var allSchedulers = await SchedulerRepository.Instance.LookupAll();
-        foreach (var scheduler in allSchedulers)
+        ISchedulerRepository schedulerRepository = WebApplicationFactory.Services.GetRequiredService<ISchedulerRepository>();
+        foreach (var scheduler in schedulerRepository.LookupAll())
         {
-            SchedulerRepository.Instance.Remove(scheduler.SchedulerName);
+            schedulerRepository.Remove(scheduler.SchedulerName);
         }
     }
 }

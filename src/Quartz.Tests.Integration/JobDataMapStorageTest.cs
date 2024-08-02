@@ -61,6 +61,6 @@ public class JobDataMapStorageTest : IntegrationTest
         };
 
         await DirectSchedulerFactory.Instance.CreateScheduler(name + "Scheduler", "AUTO", new DefaultThreadPool(), jobStore);
-        return await SchedulerRepository.Instance.Lookup(name + "Scheduler");
+        return SchedulerRepository.Instance.Lookup(name + "Scheduler");
     }
 }

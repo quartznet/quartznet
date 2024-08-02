@@ -586,8 +586,7 @@ public class AdoJobStoreSmokeTest
     [TearDown]
     public async Task ShutdownSchedulers()
     {
-        var schedulers = await SchedulerRepository.Instance.LookupAll(CancellationToken.None);
-        foreach (var scheduler in schedulers)
+        foreach (var scheduler in SchedulerRepository.Instance.LookupAll())
         {
             await scheduler.Shutdown(CancellationToken.None);
         }

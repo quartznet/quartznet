@@ -40,6 +40,6 @@ public class AdoSchedulerTest : AbstractSchedulerTest
 
         var schedulerName = CreateSchedulerName(name);
         await DirectSchedulerFactory.Instance.CreateScheduler(schedulerName, "AUTO", new DefaultThreadPool(), jobStore);
-        return await SchedulerRepository.Instance.Lookup(schedulerName);
+        return SchedulerRepository.Instance.Lookup(schedulerName);
     }
 }
