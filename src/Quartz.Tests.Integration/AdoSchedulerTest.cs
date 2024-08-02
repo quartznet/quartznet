@@ -40,7 +40,7 @@ namespace Quartz.Tests.Integration
 
             var schedulerName = CreateSchedulerName(name);
             DirectSchedulerFactory.Instance.CreateScheduler(schedulerName, "AUTO", new DefaultThreadPool(), jobStore);
-            return SchedulerRepository.Instance.Lookup(schedulerName);
+            return Task.FromResult(SchedulerRepository.Instance.Lookup(schedulerName));
         }
     }
 }

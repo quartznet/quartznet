@@ -204,10 +204,14 @@ namespace Quartz.Impl
         /// StdSchedulerFactory instance.).
         /// </para>
         /// </summary>
-        public virtual Task<IReadOnlyList<IScheduler>> GetAllSchedulers(
-            CancellationToken cancellationToken = default)
+        public virtual Task<IReadOnlyList<IScheduler>> GetAllSchedulers(CancellationToken cancellationToken = default)
         {
-            return SchedulerRepository.Instance.LookupAll(cancellationToken);
+            return Task.FromResult<IReadOnlyList<IScheduler>>(GetSchedulerRepository().LookupAll());
+        }
+
+        internal virtual ISchedulerRepository GetSchedulerRepository()
+        {
+            return SchedulerRepository.Instance;
         }
 
         /// <summary>
@@ -1152,13 +1156,14 @@ Please add configuration to your application config file to correctly initialize
                     Initialize();
                 }
 
-                IScheduler? sched = await SchedulerRepository.Instance.Lookup(SchedulerName, cancellationToken).ConfigureAwait(false);
+                var schedulerRepository = GetSchedulerRepository();
+                IScheduler? sched = schedulerRepository.Lookup(SchedulerName);
 
                 if (sched != null)
                 {
                     if (sched.IsShutdown)
                     {
-                        SchedulerRepository.Instance.Remove(SchedulerName);
+                        schedulerRepository.Remove(SchedulerName);
                     }
                     else
                     {
@@ -1167,7 +1172,7 @@ Please add configuration to your application config file to correctly initialize
                 }
 
                 sched = await Instantiate().ConfigureAwait(false);
-                SchedulerRepository.Instance.Bind(sched);
+                schedulerRepository.Bind(sched);
 
                 return sched;
             }
@@ -1182,10 +1187,9 @@ Please add configuration to your application config file to correctly initialize
         /// it has already been instantiated).
         /// </para>
         /// </summary>
-        public virtual Task<IScheduler?> GetScheduler(string schedName,
-            CancellationToken cancellationToken = default)
+        public virtual Task<IScheduler?> GetScheduler(string schedName, CancellationToken cancellationToken = default)
         {
-            return SchedulerRepository.Instance.Lookup(schedName, cancellationToken);
+            return Task.FromResult(GetSchedulerRepository().Lookup(schedName));
         }
     }
 }

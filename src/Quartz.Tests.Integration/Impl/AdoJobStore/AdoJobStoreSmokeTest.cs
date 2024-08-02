@@ -594,7 +594,7 @@ namespace Quartz.Tests.Integration.Impl.AdoJobStore
         [TearDown]
         public async Task ShutdownSchedulers()
         {
-            var schedulers = await SchedulerRepository.Instance.LookupAll(CancellationToken.None);
+            var schedulers = SchedulerRepository.Instance.LookupAll();
             foreach (var scheduler in schedulers)
             {
                 await scheduler.Shutdown(CancellationToken.None);
