@@ -31,7 +31,6 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Quartz.Collections;
-using Quartz.Impl;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Logging;
