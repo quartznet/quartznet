@@ -26,7 +26,6 @@ using System.Text;
 
 using Microsoft.Extensions.Logging;
 
-using Quartz.Impl;
 using Quartz.Impl.Matchers;
 using Quartz.Impl.Triggers;
 using Quartz.Diagnostics;
@@ -456,7 +455,7 @@ public sealed class QuartzScheduler
         }
         finally
         {
-            SchedulerRepository.Instance.Remove(resources.Name);
+            resources.SchedulerRepository.Remove(resources.Name);
             holdToPreventGc.Clear();
         }
 

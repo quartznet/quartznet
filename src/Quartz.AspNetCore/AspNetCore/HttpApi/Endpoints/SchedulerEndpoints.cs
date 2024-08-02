@@ -44,22 +44,24 @@ internal static class SchedulerEndpoints
     }
 
     [ProducesResponseType(typeof(SchedulerHeaderDto[]), StatusCodes.Status200OK)]
-    private static async Task<IResult> GetAllSchedulers(
+    private static Task<IResult> GetAllSchedulers(
         EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
         CancellationToken cancellationToken = default)
     {
-        var schedulers = await SchedulerRepository.Instance.LookupAll(cancellationToken).ConfigureAwait(false);
+        var schedulers = schedulerRepository.LookupAll();
         var result = schedulers.Select(SchedulerHeaderDto.Create).ToArray();
-        return EndpointHelper.JsonResponse(result);
+        return Task.FromResult(EndpointHelper.JsonResponse(result));
     }
 
     [ProducesResponseType(typeof(SchedulerDto), StatusCodes.Status200OK)]
     private static Task<IResult> GetSchedulerDetails(
         EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
         string schedulerName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, async scheduler =>
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, async scheduler =>
         {
             var metaData = await scheduler.GetMetaData(cancellationToken).ConfigureAwait(false);
             var result = SchedulerDto.Create(scheduler, metaData);
@@ -70,10 +72,11 @@ internal static class SchedulerEndpoints
     [ProducesResponseType(typeof(SchedulerContextDto), StatusCodes.Status200OK)]
     private static Task<IResult> GetSchedulerContext(
         EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
         string schedulerName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, scheduler =>
+        return EndpointHelper.ExecuteWithJsonResponse(schedulerName, schedulerRepository, scheduler =>
         {
             var context = scheduler.Context;
             var result = SchedulerContextDto.Create(context);
@@ -84,11 +87,12 @@ internal static class SchedulerEndpoints
     [ProducesResponseType(StatusCodes.Status200OK)]
     private static Task<IResult> Start(
         EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
         string schedulerName,
         long? delayMilliseconds,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, scheduler =>
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler =>
         {
             if (delayMilliseconds.HasValue)
             {
@@ -102,46 +106,51 @@ internal static class SchedulerEndpoints
     [ProducesResponseType(StatusCodes.Status200OK)]
     private static Task<IResult> Standby(
         EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
         string schedulerName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, scheduler => scheduler.Standby(cancellationToken).AsTask());
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler => scheduler.Standby(cancellationToken).AsTask());
     }
 
     [ProducesResponseType(StatusCodes.Status200OK)]
     private static Task<IResult> Shutdown(
         EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
         string schedulerName,
         bool waitForJobsToComplete = false,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, scheduler => scheduler.Shutdown(waitForJobsToComplete, cancellationToken).AsTask());
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler => scheduler.Shutdown(waitForJobsToComplete, cancellationToken).AsTask());
     }
 
     [ProducesResponseType(StatusCodes.Status200OK)]
     private static Task<IResult> Clear(
         EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
         string schedulerName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, scheduler => scheduler.Clear(cancellationToken).AsTask());
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler => scheduler.Clear(cancellationToken).AsTask());
     }
 
     [ProducesResponseType(StatusCodes.Status200OK)]
     private static Task<IResult> PauseAll(
         EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
         string schedulerName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, scheduler => scheduler.PauseAll(cancellationToken).AsTask());
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler => scheduler.PauseAll(cancellationToken).AsTask());
     }
 
     [ProducesResponseType(StatusCodes.Status200OK)]
     private static Task<IResult> ResumeAll(
         EndpointHelper endpointHelper,
+        ISchedulerRepository schedulerRepository,
         string schedulerName,
         CancellationToken cancellationToken = default)
     {
-        return EndpointHelper.ExecuteWithOkResponse(schedulerName, scheduler => scheduler.ResumeAll(cancellationToken).AsTask());
+        return EndpointHelper.ExecuteWithOkResponse(schedulerName, schedulerRepository, scheduler => scheduler.ResumeAll(cancellationToken).AsTask());
     }
 }

@@ -55,9 +55,12 @@ internal sealed class EndpointHelper
         throw new BadHttpRequestException(message);
     }
 
-    public static async Task<IResult> ExecuteWithScheduler(string schedulerName, Func<IScheduler, Task<IResult>> action)
+    public static async Task<IResult> ExecuteWithScheduler(
+        string schedulerName,
+        ISchedulerRepository schedulerRepository,
+        Func<IScheduler, Task<IResult>> action)
     {
-        var scheduler = await SchedulerRepository.Instance.Lookup(schedulerName).ConfigureAwait(false);
+        var scheduler = schedulerRepository.Lookup(schedulerName);
         if (scheduler is null)
         {
             throw NotFoundException.ForScheduler(schedulerName);
@@ -66,18 +69,24 @@ internal sealed class EndpointHelper
         return await action(scheduler).ConfigureAwait(false);
     }
 
-    public static Task<IResult> ExecuteWithJsonResponse<T>(string schedulerName, Func<IScheduler, Task<T>> action) where T : notnull
+    public static Task<IResult> ExecuteWithJsonResponse<T>(
+        string schedulerName,
+        ISchedulerRepository schedulerRepository,
+        Func<IScheduler, Task<T>> action) where T : notnull
     {
-        return ExecuteWithScheduler(schedulerName, async scheduler =>
+        return ExecuteWithScheduler(schedulerName, schedulerRepository, async scheduler =>
         {
             var response = await action(scheduler).ConfigureAwait(false);
             return JsonResponse(response);
         });
     }
 
-    public static Task<IResult> ExecuteWithOkResponse(string schedulerName, Func<IScheduler, Task> action)
+    public static Task<IResult> ExecuteWithOkResponse(
+        string schedulerName,
+        ISchedulerRepository schedulerRepository,
+        Func<IScheduler, Task> action)
     {
-        return ExecuteWithScheduler(schedulerName, async scheduler =>
+        return ExecuteWithScheduler(schedulerName, schedulerRepository, async scheduler =>
         {
             await action(scheduler).ConfigureAwait(false);
             return Results.Ok();
