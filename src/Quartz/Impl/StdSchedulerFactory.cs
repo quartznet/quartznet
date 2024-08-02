@@ -1001,6 +1001,7 @@ Please add configuration to your application config file to correctly initialize
                 rsrcs.InterruptJobsOnShutdown = interruptJobsOnShutdown;
                 rsrcs.InterruptJobsOnShutdownWithWait = interruptJobsOnShutdownWithWait;
                 rsrcs.SchedulerExporter = exporter;
+                rsrcs.SchedulerRepository = GetSchedulerRepository();
 
                 SchedulerDetailsSetter.SetDetails(tp, schedName, schedInstId!);
 

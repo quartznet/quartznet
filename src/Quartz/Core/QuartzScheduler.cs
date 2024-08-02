@@ -525,7 +525,7 @@ namespace Quartz.Core
             }
             finally
             {
-                SchedulerRepository.Instance.Remove(resources.Name);
+                resources.SchedulerRepository.Remove(resources.Name);
                 holdToPreventGc.Clear();
             }
 

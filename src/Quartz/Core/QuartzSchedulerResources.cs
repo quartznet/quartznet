@@ -20,6 +20,7 @@
 using System;
 using System.Collections.Generic;
 
+using Quartz.Impl;
 using Quartz.Spi;
 
 namespace Quartz.Core;
@@ -44,6 +45,7 @@ public sealed class QuartzSchedulerResources
     {
         MaxBatchSize = 1;
         BatchTimeWindow = TimeSpan.Zero;
+        SchedulerRepository = Impl.SchedulerRepository.Instance;
     }
 
     /// <summary>
@@ -215,4 +217,6 @@ public sealed class QuartzSchedulerResources
     public bool InterruptJobsOnShutdown { get; set; }
 
     public bool InterruptJobsOnShutdownWithWait { get; set; }
+
+    internal ISchedulerRepository SchedulerRepository { get; set; }
 }
