@@ -23,8 +23,6 @@
     <PackageReference Include="Topshelf" Version="4.3.0" />
     <ProjectReference Include="..\Quartz\Quartz.csproj" />
     <ProjectReference Include="..\Quartz.Serialization.Json\Quartz.Serialization.Json.csproj" />
-    <ProjectReference Include="..\Quartz.Plugins\Quartz.Plugins.csproj" />
     <PackageReference Include="log4net" Version="2.0.15" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.1" />
   </ItemGroup>
 </Project>
