@@ -21,7 +21,12 @@ public class CustomTypeLoader : ITypeLoadHelper
 
     public Type? LoadType(string? name)
     {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            return null;
+        }
+
         logger.LogInformation("Requested to load type {TypeName}", name);
-        return Type.GetType(name!);
+        return Type.GetType(name);
     }
 }

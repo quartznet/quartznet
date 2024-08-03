@@ -79,6 +79,7 @@ namespace Quartz.Impl.AdoJobStore
             DbRetryInterval = TimeSpan.FromSeconds(15);
             Log = LogProvider.GetLogger(GetType());
             delegateType = typeof (StdAdoDelegate);
+            ConnectionManager = DBConnectionManager.Instance;
         }
 
         /// <summary>
@@ -89,7 +90,7 @@ namespace Quartz.Impl.AdoJobStore
         /// <summary>
         /// Get or set the database connection manager.
         /// </summary>
-        public IDbConnectionManager ConnectionManager { get; set; } = DBConnectionManager.Instance;
+        public IDbConnectionManager ConnectionManager { get; set; }
 
         /// <summary>
         /// Gets the log.

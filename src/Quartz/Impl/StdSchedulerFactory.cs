@@ -214,6 +214,11 @@ namespace Quartz.Impl
             return SchedulerRepository.Instance;
         }
 
+        protected virtual IDbConnectionManager GetDBConnectionManager()
+        {
+            return DBConnectionManager.Instance;
+        }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="StdSchedulerFactory"/> class.
         /// </summary>
@@ -616,7 +621,7 @@ Please add configuration to your application config file to correctly initialize
                         throw initException;
                     }
 
-                    dbMgr = DBConnectionManager.Instance;
+                    dbMgr = GetDBConnectionManager();
                     dbMgr.AddConnectionProvider(dataSourceName, cp);
                 }
                 else
@@ -651,7 +656,7 @@ Please add configuration to your application config file to correctly initialize
                         DbProvider dbp = new DbProvider(dsProvider, dsConnectionString);
                         dbp.Initialize();
 
-                        dbMgr = DBConnectionManager.Instance;
+                        dbMgr = GetDBConnectionManager();
                         dbMgr.AddConnectionProvider(dataSourceName, dbp);
                     }
                     catch (Exception exception)
@@ -744,6 +749,9 @@ Please add configuration to your application config file to correctly initialize
 
             if (js is JobStoreSupport jobStoreSupport)
             {
+                // DI scoped connection manager is possible
+                jobStoreSupport.ConnectionManager = GetDBConnectionManager();
+
                 // Install custom lock handler (Semaphore)
                 var lockHandlerType = loadHelper.LoadType(cfg.GetStringProperty(PropertyJobStoreLockHandlerType));
                 if (lockHandlerType != null)
@@ -756,7 +764,7 @@ Please add configuration to your application config file to correctly initialize
                         if (cWithDbProvider != null)
                         {
                             // takes db provider
-                            IDbProvider dbProvider = DBConnectionManager.Instance.GetDbProvider(jobStoreSupport.DataSource);
+                            IDbProvider dbProvider = GetDBConnectionManager().GetDbProvider(jobStoreSupport.DataSource);
                             lockHandler = (ISemaphore) cWithDbProvider.Invoke(new object[] {dbProvider});
                         }
                         else

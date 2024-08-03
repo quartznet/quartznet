@@ -104,6 +104,11 @@ namespace Quartz
             return serviceProvider.GetRequiredService<ISchedulerRepository>();
         }
 
+        protected override IDbConnectionManager GetDBConnectionManager()
+        {
+            return serviceProvider.GetRequiredService<IDbConnectionManager>();
+        }
+
         private protected override string GetNamedConnectionString(string connectionStringName)
         {
             var configuration = serviceProvider.GetRequiredService<IConfiguration>();
