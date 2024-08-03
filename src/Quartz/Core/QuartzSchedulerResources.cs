@@ -17,7 +17,6 @@
  */
 #endregion
 
-using Quartz.Impl;
 using Quartz.Spi;
 
 namespace Quartz.Core;

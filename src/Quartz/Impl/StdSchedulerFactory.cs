@@ -205,7 +205,7 @@ public class StdSchedulerFactory : ISchedulerFactory
         return new ValueTask<IReadOnlyList<IScheduler>>(GetSchedulerRepository().LookupAll());
     }
 
-    internal virtual ISchedulerRepository GetSchedulerRepository()
+    protected virtual ISchedulerRepository GetSchedulerRepository()
     {
         return SchedulerRepository.Instance;
     }

@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Routing;
 
 using Quartz.AspNetCore.HttpApi.Util;
 using Quartz.HttpApiContract;
-using Quartz.Impl;
+using Quartz.Spi;
 
 namespace Quartz.AspNetCore.HttpApi.Endpoints;
 
@@ -24,7 +24,7 @@ internal static class TriggerEndpoints
         yield return builder.MapGet(patternPrefix + "/{triggerGroup}/{triggerName}/exists", CheckTriggerExists)
             .WithQuartzDefaults(nameof(CheckTriggerExists), "Check trigger exists");
 
-        yield return builder.MapGet(patternPrefix + "/{triggerGroup}/{triggerName}/state", GetTriggerState)
+        yield return builder.MapGet(patternPrefix + "/{triggerGroup}/{triggerName}/state/{schedulerRepository}", GetTriggerState)
             .WithQuartzDefaults(nameof(GetTriggerState), "Get the current state of the trigger");
 
         yield return builder.MapPost(patternPrefix + "/{triggerGroup}/{triggerName}/reset-from-error-state", ResetTriggerFromErrorState)

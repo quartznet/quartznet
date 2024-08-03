@@ -5,6 +5,7 @@ using Microsoft.Extensions.Options;
 
 using Quartz.Configuration;
 using Quartz.Impl;
+using Quartz.Spi;
 using Quartz.Util;
 
 namespace Quartz;
@@ -93,7 +94,7 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
         await processor.ScheduleJobs(scheduler, cancellationToken).ConfigureAwait(false);
     }
 
-    internal override ISchedulerRepository GetSchedulerRepository()
+    protected override ISchedulerRepository GetSchedulerRepository()
     {
         return serviceProvider.GetRequiredService<ISchedulerRepository>();
     }

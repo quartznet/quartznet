@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Routing;
 
 using Quartz.AspNetCore.HttpApi.Util;
 using Quartz.HttpApiContract;
-using Quartz.Impl;
+using Quartz.Spi;
 
 namespace Quartz.AspNetCore.HttpApi.Endpoints;
 

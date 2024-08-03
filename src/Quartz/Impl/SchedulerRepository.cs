@@ -1,4 +1,5 @@
 #region License
+
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
@@ -15,31 +16,22 @@
  * under the License.
  *
  */
+
 #endregion
+
+using System.Collections.Concurrent;
+
+using Quartz.Spi;
 
 namespace Quartz.Impl;
 
-internal interface ISchedulerRepository
-{
-    void Bind(IScheduler scheduler);
-
-    bool Remove(string schedulerName);
-
-    IScheduler? Lookup(string schedulerName);
-
-    List<IScheduler> LookupAll();
-}
-
 /// <summary>
-/// Holds references to Scheduler instances - ensuring uniqueness, and
-/// preventing garbage collection, and allowing 'global' lookups.
+/// Holds references to Scheduler instances - ensuring uniqueness, and preventing garbage collection, and allowing 'global' lookups.
 /// </summary>
-/// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-internal sealed class SchedulerRepository : ISchedulerRepository
+public sealed class SchedulerRepository : ISchedulerRepository
 {
-    private readonly Dictionary<string, IScheduler> schedulers = new(StringComparer.OrdinalIgnoreCase);
-    private readonly object syncRoot = new();
+    private readonly ConcurrentDictionary<string, IScheduler> schedulers = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>
     /// Gets the singleton instance.
@@ -53,14 +45,9 @@ internal sealed class SchedulerRepository : ISchedulerRepository
     /// <param name="scheduler">The sched.</param>
     public void Bind(IScheduler scheduler)
     {
-        lock (syncRoot)
+        if (!schedulers.TryAdd(scheduler.SchedulerName, scheduler))
         {
-            if (schedulers.ContainsKey(scheduler.SchedulerName))
-            {
-                ThrowHelper.ThrowSchedulerException($"Scheduler with name '{scheduler.SchedulerName}' already exists.");
-            }
-
-            schedulers[scheduler.SchedulerName] = scheduler;
+            ThrowHelper.ThrowSchedulerException($"Scheduler with name '{scheduler.SchedulerName}' already exists.");
         }
     }
 
@@ -69,21 +56,14 @@ internal sealed class SchedulerRepository : ISchedulerRepository
     /// </summary>
     /// <param name="schedulerName">Name of the sched.</param>
     /// <returns></returns>
-    public bool Remove(string schedulerName)
+    public void Remove(string schedulerName)
     {
-        lock (syncRoot)
-        {
-            return schedulers.Remove(schedulerName);
-        }
+        schedulers.Remove(schedulerName, out _);
     }
 
     public IScheduler? Lookup(string schedulerName)
     {
-        lock (syncRoot)
-        {
-            schedulers.TryGetValue(schedulerName, out var retValue);
-            return retValue;
-        }
+        return schedulers.GetValueOrDefault(schedulerName);
     }
 
     /// <summary>
@@ -92,9 +72,6 @@ internal sealed class SchedulerRepository : ISchedulerRepository
     /// <returns></returns>
     public List<IScheduler> LookupAll()
     {
-        lock (syncRoot)
-        {
-            return [..schedulers.Values];
-        }
+        return [..schedulers.Values];
     }
 }

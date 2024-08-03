@@ -1,8 +1,8 @@
 using Microsoft.AspNetCore.Http;
 
 using Quartz.HttpApiContract;
-using Quartz.Impl;
 using Quartz.Impl.Matchers;
+using Quartz.Spi;
 using Quartz.Util;
 
 namespace Quartz.AspNetCore.HttpApi.Util;

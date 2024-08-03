@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Quartz.HttpClient;
 using Quartz.Impl;
 using Quartz.Simpl;
+using Quartz.Spi;
 
 namespace Quartz;
 
