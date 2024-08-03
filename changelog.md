@@ -2,6 +2,25 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+## Release 3.12.0, Aug 3 2024
+
+This release aims to alleviate some problems that have been present then Quartz's own global singletons clash
+with DI containers singleton concept when DI container is being torn down during testing. Now both scheduler repository
+and DB connection manager are scoped inside DI container and share container's lifetime.
+
+If you want to have multiple service collections sharing same global state, you should manually register `IDbConnectionManager`
+and `ISchedulerRepository` to DI as singletons pointing to global object instances.
+
+* NEW FEATURES
+    * Add custom trigger serializer support for Newtonsoft integration (#2480)
+
+* CHANGES
+    * Change scheduler repository to be singleton scoped to DI under MS DI integration (#2502)
+    * Change DB connection manager to be singleton scoped under MS DI integration (#2504)
+
+* FIXES
+    * Make scheduler registration cleanup more robust during shutdown (#2498)
+
 ## Release 3.11.0, Jul 7 2024
 
 * NEW FEATURES
