@@ -99,6 +99,11 @@ internal sealed class ServiceCollectionSchedulerFactory : StdSchedulerFactory
         return serviceProvider.GetRequiredService<ISchedulerRepository>();
     }
 
+    protected override IDbConnectionManager GetDbConnectionManager()
+    {
+        return serviceProvider.GetRequiredService<IDbConnectionManager>();
+    }
+
     protected override string? GetNamedConnectionString(string connectionStringName)
     {
         var configuration = serviceProvider.GetService<IConfiguration>();

@@ -243,7 +243,7 @@ public class Startup
                 s.PerformSchemaValidation = true; // default
                 s.UseProperties = true; // preferred, but not default
                 s.RetryInterval = TimeSpan.FromSeconds(15);
-                s.UseSqlServer(sqlServer =>
+                s.UseSqlServer("sql-server-01", sqlServer =>
                 {
                     // if needed, could create a custom strategy for handling connections
                     //sqlServer.UseConnectionProvider<CustomSqlServerConnectionProvider>();
