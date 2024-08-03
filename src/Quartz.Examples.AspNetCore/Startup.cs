@@ -233,7 +233,7 @@ public class Startup
 
             q.UsePersistentStore<CustomJobStore>(options =>
             {
-                options.UseNewtonsoftJsonSerializer();
+                options.UseSystemTextJsonSerializer();
             });
 
             // example of persistent job store using JSON serializer as an example
