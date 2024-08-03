@@ -9,6 +9,7 @@ using Microsoft.Extensions.Options;
 
 using Quartz.Impl;
 using Quartz.Simpl;
+using Quartz.Spi;
 using Quartz.Util;
 
 namespace Quartz
@@ -98,7 +99,7 @@ namespace Quartz
             await processor.ScheduleJobs(scheduler, cancellationToken);
         }
 
-        internal override ISchedulerRepository GetSchedulerRepository()
+        protected override ISchedulerRepository GetSchedulerRepository()
         {
             return serviceProvider.GetRequiredService<ISchedulerRepository>();
         }

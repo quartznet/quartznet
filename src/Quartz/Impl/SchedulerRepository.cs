@@ -22,23 +22,16 @@
 using System;
 using System.Collections.Generic;
 
+using Quartz.Spi;
+
 namespace Quartz.Impl;
 
-internal interface ISchedulerRepository
-{
-    void Bind(IScheduler schedulerName);
-    void Remove(string schedulerName);
-
-    IScheduler? Lookup(string schedulerName);
-    List<IScheduler> LookupAll();
-}
 
 /// <summary>
 /// Holds references to Scheduler instances - ensuring uniqueness, and preventing garbage collection, and allowing 'global' lookups.
 /// </summary>
-/// <author>James House</author>
 /// <author>Marko Lahma (.NET)</author>
-internal sealed class SchedulerRepository : ISchedulerRepository
+public sealed class SchedulerRepository : ISchedulerRepository
 {
     private readonly Dictionary<string, IScheduler> schedulers = new(StringComparer.OrdinalIgnoreCase);
     private readonly object syncRoot = new();

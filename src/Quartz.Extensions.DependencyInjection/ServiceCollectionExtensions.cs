@@ -58,7 +58,7 @@ namespace Quartz
                 configure(target);
             }
 
-            services.AddSingleton<ISchedulerRepository>(new SchedulerRepository());
+            services.TryAddSingleton<ISchedulerRepository>(new SchedulerRepository());
 
             // try to add services if not present with defaults, without overriding other configuration
             if (string.IsNullOrWhiteSpace(properties[StdSchedulerFactory.PropertySchedulerTypeLoadHelperType]))

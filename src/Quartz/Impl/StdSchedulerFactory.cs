@@ -209,7 +209,7 @@ namespace Quartz.Impl
             return Task.FromResult<IReadOnlyList<IScheduler>>(GetSchedulerRepository().LookupAll());
         }
 
-        internal virtual ISchedulerRepository GetSchedulerRepository()
+        protected virtual ISchedulerRepository GetSchedulerRepository()
         {
             return SchedulerRepository.Instance;
         }
