@@ -44,7 +44,8 @@ public static class ServiceCollectionExtensions
             configure(target);
         }
 
-        services.TryAddSingleton<ISchedulerRepository>(new SchedulerRepository());
+        services.TryAddSingleton<IDbConnectionManager, DBConnectionManager>();
+        services.TryAddSingleton<ISchedulerRepository, SchedulerRepository>();
 
         // try to add services if not present with defaults, without overriding other configuration
         if (string.IsNullOrWhiteSpace(properties[StdSchedulerFactory.PropertySchedulerTypeLoadHelperType]))

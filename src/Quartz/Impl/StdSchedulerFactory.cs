@@ -210,6 +210,11 @@ public class StdSchedulerFactory : ISchedulerFactory
         return SchedulerRepository.Instance;
     }
 
+    protected virtual IDbConnectionManager GetDbConnectionManager()
+    {
+        return DBConnectionManager.Instance;
+    }
+
     /// <summary>
     /// Initializes a new instance of the <see cref="StdSchedulerFactory"/> class.
     /// </summary>
@@ -632,7 +637,7 @@ Please add configuration to your application config file to correctly initialize
                     throw initException;
                 }
 
-                dbMgr = DBConnectionManager.Instance;
+                dbMgr = GetDbConnectionManager();
                 dbMgr.AddConnectionProvider(dataSourceName, cp);
             }
             else
@@ -667,7 +672,7 @@ Please add configuration to your application config file to correctly initialize
                     DbProvider dbp = new DbProvider(dsProvider, dsConnectionString);
                     dbp.Initialize();
 
-                    dbMgr = DBConnectionManager.Instance;
+                    dbMgr = GetDbConnectionManager();
                     dbMgr.AddConnectionProvider(dataSourceName, dbp);
                 }
                 catch (Exception exception)
@@ -755,6 +760,9 @@ Please add configuration to your application config file to correctly initialize
 
         if (js is JobStoreSupport jobStoreSupport)
         {
+            // check if we have custom DI setup
+            jobStoreSupport.ConnectionManager = GetDbConnectionManager();
+
             // Install custom lock handler (Semaphore)
             var lockHandlerType = loadHelper.LoadType(cfg.GetStringProperty(PropertyJobStoreLockHandlerType));
             if (lockHandlerType is not null)
@@ -767,7 +775,7 @@ Please add configuration to your application config file to correctly initialize
                     if (cWithDbProvider is not null)
                     {
                         // takes db provider
-                        IDbProvider dbProvider = DBConnectionManager.Instance.GetDbProvider(jobStoreSupport.DataSource);
+                        IDbProvider dbProvider = GetDbConnectionManager().GetDbProvider(jobStoreSupport.DataSource);
                         lockHandler = (ISemaphore) cWithDbProvider.Invoke([dbProvider]);
                     }
                     else

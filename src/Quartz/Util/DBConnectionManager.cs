@@ -36,12 +36,12 @@ namespace Quartz.Util;
 /// <author>Sharada Jambula</author>
 /// <author>Mohammad Rezaei</author>
 /// <author>Marko Lahma (.NET)</author>
-internal sealed class DBConnectionManager : IDbConnectionManager
+public sealed class DBConnectionManager : IDbConnectionManager
 {
-    private static readonly DBConnectionManager instance = new DBConnectionManager();
+    private static readonly DBConnectionManager instance = new();
     private readonly ILogger<DBConnectionManager> logger;
 
-    private readonly ConcurrentDictionary<string, IDbProvider> providers = new ConcurrentDictionary<string, IDbProvider>();
+    private readonly ConcurrentDictionary<string, IDbProvider> providers = new();
 
     /// <summary>
     /// Get the class instance.
@@ -50,12 +50,14 @@ internal sealed class DBConnectionManager : IDbConnectionManager
     /// </returns>
     public static IDbConnectionManager Instance => instance;
 
-    /// <summary>
-    /// Private constructor
-    /// </summary>
     private DBConnectionManager()
     {
         logger = LogProvider.CreateLogger<DBConnectionManager>();
+    }
+
+    public DBConnectionManager(ILogger<DBConnectionManager> loggger)
+    {
+        this.logger = loggger;
     }
 
     /// <summary>
@@ -84,32 +86,32 @@ internal sealed class DBConnectionManager : IDbConnectionManager
     /// Shuts down database connections from the DataSource with the given name,
     /// if applicable for the underlying provider.
     /// </summary>
-    public void Shutdown(string dsName)
+    public void Shutdown(string dataSourceName)
     {
-        IDbProvider provider = GetDbProvider(dsName);
+        IDbProvider provider = GetDbProvider(dataSourceName);
         provider.Shutdown();
     }
 
-    public DbMetadata GetDbMetadata(string dsName)
+    public DbMetadata GetDbMetadata(string dataSourceName)
     {
-        return GetDbProvider(dsName).Metadata;
+        return GetDbProvider(dataSourceName).Metadata;
     }
 
     /// <summary>
     /// Gets the db provider.
     /// </summary>
-    /// <param name="dsName">Name of the ds.</param>
+    /// <param name="dataSourceName">Name of the ds.</param>
     /// <returns></returns>
-    public IDbProvider GetDbProvider(string dsName)
+    public IDbProvider GetDbProvider(string dataSourceName)
     {
-        if (string.IsNullOrEmpty(dsName))
+        if (string.IsNullOrEmpty(dataSourceName))
         {
-            ThrowHelper.ThrowArgumentException("DataSource name cannot be null or empty", nameof(dsName));
+            ThrowHelper.ThrowArgumentException("DataSource name cannot be null or empty", nameof(dataSourceName));
         }
 
-        if (!providers.TryGetValue(dsName, out IDbProvider? provider))
+        if (!providers.TryGetValue(dataSourceName, out IDbProvider? provider))
         {
-            ThrowHelper.ThrowArgumentException($"There is no DataSource named '{dsName}'", nameof(dsName));
+            ThrowHelper.ThrowArgumentException($"There is no DataSource named '{dataSourceName}'", nameof(dataSourceName));
         }
 
         return provider;

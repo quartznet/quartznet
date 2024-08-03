@@ -78,6 +78,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         DbRetryInterval = TimeSpan.FromSeconds(15);
         Logger = LogProvider.CreateLogger<JobStoreSupport>();
         delegateType = typeof(StdAdoDelegate);
+        ConnectionManager = DBConnectionManager.Instance;
     }
 
     /// <summary>
@@ -88,7 +89,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     /// <summary>
     /// Get or set the database connection manager.
     /// </summary>
-    public IDbConnectionManager ConnectionManager { get; set; } = DBConnectionManager.Instance;
+    public IDbConnectionManager ConnectionManager { get; set; }
 
     /// <summary>
     /// Gets the log.

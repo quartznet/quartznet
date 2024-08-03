@@ -10,7 +10,7 @@ namespace Quartz.Util;
 /// </summary>
 public interface IDbConnectionManager
 {
-    /// <summary> 
+    /// <summary>
     /// Shuts down database connections from the data source with the given name,
     /// if applicable for the underlying provider.
     /// </summary>
