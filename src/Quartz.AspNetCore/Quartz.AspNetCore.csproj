@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <Description>Quartz.NET ASP.NET Core integration; $(Description)</Description>
-    <TargetFrameworks>netcoreapp3.1;net6.0;net8.0;netstandard2.0</TargetFrameworks>
+    <TargetFrameworks>net6.0;net8.0;netstandard2.0</TargetFrameworks>
     <RootNamespace>Quartz</RootNamespace>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <Authors>Lewis Zou, Marko Lahma, Quartz.NET</Authors>
@@ -21,11 +21,6 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="2.1.1" />
   </ItemGroup>
 
-  <ItemGroup Condition=" '$(TargetFramework)' == 'netcoreapp3.1' ">
-    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="3.1.0" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="3.1.0" />
-  </ItemGroup>
-
   <ItemGroup Condition=" '$(TargetFramework)' == 'net6.0' ">
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="6.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="6.0.0" />
@@ -36,7 +31,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.0" />
   </ItemGroup>
 
-  <PropertyGroup Condition=" '$(TargetFramework)' == 'netcoreapp3.1' or '$(TargetFramework)' == 'net6.0' or '$(TargetFramework)' == 'net8.0' ">
+  <PropertyGroup Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net6.0'))">
     <DefineConstants>$(DefineConstants);SUPPORTS_HEALTH_CHECKS</DefineConstants>
   </PropertyGroup>
 
