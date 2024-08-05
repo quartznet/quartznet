@@ -232,7 +232,7 @@ public sealed class CronExpression : ISerializable
     [NonSerialized] private int everyNthWeek;
 
     /// <summary>
-    /// Nth day of week.
+    /// Nth day of the week.
     /// </summary>
     [NonSerialized] private int nthdayOfWeek;
 
@@ -251,12 +251,12 @@ public sealed class CronExpression : ISerializable
     [NonSerialized] private int lastWeekdayOffset;
 
     /// <summary>
-    /// Calendar day of week.
+    /// Calendar day of the week.
     /// </summary>
     [NonSerialized] private bool calendarDayOfWeek;
 
     /// <summary>
-    /// Calendar day of month.
+    /// Calendar day of the month.
     /// </summary>
     [NonSerialized] private bool calendarDayOfMonth;
 
@@ -814,25 +814,23 @@ public sealed class CronExpression : ISerializable
     // ReSharper disable once UnusedParameter.Local
     private static void CheckIncrementRange(int incr, int type)
     {
-        if (incr > 59 && (type == CronExpressionConstants.Second || type == CronExpressionConstants.Minute))
+        switch (type)
         {
-            ThrowHelper.ThrowFormatException($"Increment > 60 : {incr}");
-        }
-        if (incr > 23 && type == CronExpressionConstants.Hour)
-        {
-            ThrowHelper.ThrowFormatException($"Increment > 24 : {incr}");
-        }
-        if (incr > 31 && type == CronExpressionConstants.DayOfMonth)
-        {
-            ThrowHelper.ThrowFormatException($"Increment > 31 : {incr}");
-        }
-        if (incr > 7 && type == CronExpressionConstants.DayOfWeek)
-        {
-            ThrowHelper.ThrowFormatException($"Increment > 7 : {incr}");
-        }
-        if (incr > 12 && type == CronExpressionConstants.Month)
-        {
-            ThrowHelper.ThrowFormatException($"Increment > 12 : {incr}");
+            case CronExpressionConstants.Second or CronExpressionConstants.Minute when incr > 59:
+                ThrowHelper.ThrowFormatException($"Increment > 60 : {incr}");
+                break;
+            case CronExpressionConstants.Hour when incr > 23:
+                ThrowHelper.ThrowFormatException($"Increment > 24 : {incr}");
+                break;
+            case CronExpressionConstants.DayOfMonth when incr > 31:
+                ThrowHelper.ThrowFormatException($"Increment > 31 : {incr}");
+                break;
+            case CronExpressionConstants.DayOfWeek when incr > 7:
+                ThrowHelper.ThrowFormatException($"Increment > 7 : {incr}");
+                break;
+            case CronExpressionConstants.Month when incr > 12:
+                ThrowHelper.ThrowFormatException($"Increment > 12 : {incr}");
+                break;
         }
     }
 
@@ -1090,167 +1088,118 @@ public sealed class CronExpression : ISerializable
 
         return position;
     }
+    
+  
+
+    private static (int min, int max, string errorMessage) GetValidationParameters(int type)
+    {
+        return type switch
+        {
+            CronExpressionConstants.Second or CronExpressionConstants.Minute 
+                => (0, 59, "Minute and Second values must be between 0 and 59"),
+            CronExpressionConstants.Hour 
+                => (0, 23, "Hour values must be between 0 and 23"),
+            CronExpressionConstants.DayOfMonth 
+                => (1, 31, "Day of month values must be between 1 and 31"),
+            CronExpressionConstants.Month 
+                => (1, 12, "Month values must be between 1 and 12"),
+            CronExpressionConstants.DayOfWeek 
+                => (1, 7, "Day-of-Week values must be between 1 and 7"),
+            CronExpressionConstants.Year
+                => (1970, TriggerConstants.YearToGiveUpSchedulingAt, "Year values must be between 1970 and " + TriggerConstants.YearToGiveUpSchedulingAt),
+            _ => throw new ArgumentOutOfRangeException(nameof(type), "Invalid cron expression type")
+        };
+    }
+    
+    private static bool IsSpecialValue(int val, int type)
+    {
+        return val == CronExpressionConstants.AllSpec || 
+               (type is CronExpressionConstants.DayOfMonth or CronExpressionConstants.DayOfWeek && 
+                val == CronExpressionConstants.NoSpec);
+    }
+    
+    private static void ValidateSetValues(int val, int end, int type)
+    {
+        var (min, max, errorMessage) = GetValidationParameters(type);
+
+        if ((val < min || val > max || end > max) && 
+            !IsSpecialValue(val, type))
+        {
+            ThrowHelper.ThrowFormatException(errorMessage);
+        }
+    }
+    
+    private static (int startAt, int stopAt) GetRangeForType(int type, int val, int end)
+    {
+        return type switch
+        {
+            CronExpressionConstants.Second or CronExpressionConstants.Minute => (GetStartAt(val, 0), GetStopAt(end, 59)),
+            CronExpressionConstants.Hour => (GetStartAt(val, 0), GetStopAt(end, 23)),
+            CronExpressionConstants.DayOfMonth => (GetStartAt(val, 1), GetStopAt(end, 31)),
+            CronExpressionConstants.Month => (GetStartAt(val, 1), GetStopAt(end, 12)),
+            CronExpressionConstants.DayOfWeek => (GetStartAt(val, 1), GetStopAt(end, 7)),
+            CronExpressionConstants.Year => (GetStartAt(val, 1970), GetStopAt(end, TriggerConstants.YearToGiveUpSchedulingAt)),
+            _ => ThrowHelper.ThrowArgumentException<(int,int)>("Unexpected type encountered")
+        };
+    }
+    
+    /// <summary>
+    /// Gets the max value for the cron expression type. 
+    /// </summary>
+    /// <param name="type"> The type of the cron expression</param>
+    /// <param name="startAt"> The start value</param>
+    /// <param name="stopAt"> The stop value</param>
+    /// <returns>Returns -1 if stopAt is less than startAt otherwise returns the max value for the type</returns>
+    private static int GetMaxValueForType(int type, int startAt, int stopAt)
+    {
+        if (stopAt >= startAt) return -1;
+
+        return type switch
+        {
+            CronExpressionConstants.Second or CronExpressionConstants.Minute => 60,
+            CronExpressionConstants.Hour => 24,
+            CronExpressionConstants.Month => 12,
+            CronExpressionConstants.DayOfWeek => 7,
+            CronExpressionConstants.DayOfMonth => 31,
+            CronExpressionConstants.Year => ThrowHelper.ThrowArgumentException<int>("Start year must be less than stop year"),
+            _ => ThrowHelper.ThrowArgumentException<int>("Unexpected type encountered")
+        };
+    }
+
+    private static int GetStartAt(int val, int defaultValue) =>
+        val is -1 or CronExpressionConstants.AllSpec ? defaultValue : val;
+
+    private static int GetStopAt(int end, int defaultValue) =>
+        end == -1 ? defaultValue : end;
+
 
     private void AddToSet(int val, int end, int incr, int type)
     {
+        ValidateSetValues(val, end, type);
+
         var data = GetSet(type);
 
-        if (type == CronExpressionConstants.Second || type == CronExpressionConstants.Minute)
-        {
-            if ((val < 0 || val > 59 || end > 59) && val != CronExpressionConstants.AllSpec)
-            {
-                ThrowHelper.ThrowFormatException("Minute and CronExpressionConstants.Second values must be between 0 and 59");
-            }
-        }
-        else if (type == CronExpressionConstants.Hour)
-        {
-            if ((val < 0 || val > 23 || end > 23) && val != CronExpressionConstants.AllSpec)
-            {
-                ThrowHelper.ThrowFormatException("Hour values must be between 0 and 23");
-            }
-        }
-        else if (type == CronExpressionConstants.DayOfMonth)
-        {
-            if ((val < 1 || val > 31 || end > 31) && val != CronExpressionConstants.AllSpec
-                                                  && val != CronExpressionConstants.NoSpec)
-            {
-                ThrowHelper.ThrowFormatException("Day of month values must be between 1 and 31");
-            }
-        }
-        else if (type == CronExpressionConstants.Month)
-        {
-            if ((val < 1 || val > 12 || end > 12) && val != CronExpressionConstants.AllSpec)
-            {
-                ThrowHelper.ThrowFormatException("Month values must be between 1 and 12");
-            }
-        }
-        else if (type == CronExpressionConstants.DayOfWeek)
-        {
-            if ((val == 0 || val > 7 || end > 7) && val != CronExpressionConstants.AllSpec
-                                                 && val != CronExpressionConstants.NoSpec)
-            {
-                ThrowHelper.ThrowFormatException("Day-of-Week values must be between 1 and 7");
-            }
-        }
-
-        if ((incr == 0 || incr == -1) && val != CronExpressionConstants.AllSpec)
+        if (incr is 0 or -1 && val != CronExpressionConstants.AllSpec)
         {
             data.Add(val != -1 ? val : CronExpressionConstants.NoSpec);
             return;
         }
-
-        var startAt = val;
-        var stopAt = end;
-
+        
         if (val == CronExpressionConstants.AllSpec && incr <= 0)
         {
             data.Add(CronExpressionConstants.AllSpec);
             // skip adding other data, we check this wildcard in TryGetMinValueStartingFrom
             return;
         }
-
-        if (type == CronExpressionConstants.Second || type == CronExpressionConstants.Minute)
-        {
-            if (stopAt == -1)
-            {
-                stopAt = 59;
-            }
-            if (startAt == -1 || startAt == CronExpressionConstants.AllSpec)
-            {
-                startAt = 0;
-            }
-        }
-        else if (type == CronExpressionConstants.Hour)
-        {
-            if (stopAt == -1)
-            {
-                stopAt = 23;
-            }
-            if (startAt == -1 || startAt == CronExpressionConstants.AllSpec)
-            {
-                startAt = 0;
-            }
-        }
-        else if (type == CronExpressionConstants.DayOfMonth)
-        {
-            if (stopAt == -1)
-            {
-                stopAt = 31;
-            }
-            if (startAt == -1 || startAt == CronExpressionConstants.AllSpec)
-            {
-                startAt = 1;
-            }
-        }
-        else if (type == CronExpressionConstants.Month)
-        {
-            if (stopAt == -1)
-            {
-                stopAt = 12;
-            }
-            if (startAt == -1 || startAt == CronExpressionConstants.AllSpec)
-            {
-                startAt = 1;
-            }
-        }
-        else if (type == CronExpressionConstants.DayOfWeek)
-        {
-            if (stopAt == -1)
-            {
-                stopAt = 7;
-            }
-            if (startAt == -1 || startAt == CronExpressionConstants.AllSpec)
-            {
-                startAt = 1;
-            }
-        }
-        else if (type == CronExpressionConstants.Year)
-        {
-            if (stopAt == -1)
-            {
-                stopAt = TriggerConstants.YearToGiveUpSchedulingAt;
-            }
-            if (startAt is -1 or CronExpressionConstants.AllSpec)
-            {
-                startAt = 1970;
-            }
-        }
+        
+        var (startAt, stopAt) = GetRangeForType(type, val, end);
 
         // if the end of the range is before the start, then we need to overflow into
         // the next day, month etc. This is done by adding the maximum amount for that
         // type, and using modulus max to determine the value being added.
-        var max = -1;
-        if (stopAt < startAt)
-        {
-            switch (type)
-            {
-                case CronExpressionConstants.Second:
-                    max = 60;
-                    break;
-                case CronExpressionConstants.Minute:
-                    max = 60;
-                    break;
-                case CronExpressionConstants.Hour:
-                    max = 24;
-                    break;
-                case CronExpressionConstants.Month:
-                    max = 12;
-                    break;
-                case CronExpressionConstants.DayOfWeek:
-                    max = 7;
-                    break;
-                case CronExpressionConstants.DayOfMonth:
-                    max = 31;
-                    break;
-                case CronExpressionConstants.Year:
-                    ThrowHelper.ThrowArgumentException("Start year must be less than stop year");
-                    break;
-                default:
-                    ThrowHelper.ThrowArgumentException("Unexpected type encountered");
-                    break;
-            }
+        var max = GetMaxValueForType(type, startAt, stopAt);
+        if (max != -1)
             stopAt += max;
-        }
 
         for (var i = startAt; i <= stopAt; i += incr)
         {
@@ -1507,7 +1456,7 @@ public sealed class CronExpression : ISerializable
             var lastDayOfMonth = GetLastDayOfMonth(dt.Month, dt.Year);
             var dayOfWeek = tcal.DayOfWeek;
 
-            // evict original date since it has a weekDayModifier
+            // evict the original date since it has a weekDayModifier
             results.Remove(day);
 
             switch (dayOfWeek)
