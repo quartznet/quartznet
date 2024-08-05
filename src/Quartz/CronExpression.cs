@@ -262,8 +262,6 @@ public sealed class CronExpression : ISerializable
 
     private static readonly Regex regex = new("^L(-\\d{1,2})?(W(-\\d{1,2})?)?$", RegexOptions.Compiled | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(5)); //e.g. LW L-0W L-4 L-12W LW-4 LW-12
     private static readonly Regex offsetRegex = new("LW-(?<offset>[0-9]+)", RegexOptions.Compiled | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(5));
-    
-    private static readonly char[] WhitespaceChars = [' ', '\t'];
 
     static CronExpression()
     {
@@ -534,7 +532,7 @@ public sealed class CronExpression : ISerializable
     private void StoreExpressionQuestionMark(int type, ReadOnlySpan<char> s, int i)
     {
         i++;
-        if (i + 1 <= s.Length && s[i] != ' ' && s[i] != '\t')
+        if (i + 1 <= s.Length && !char.IsWhiteSpace(s[i]))
         {
             ThrowHelper.ThrowFormatException("Illegal character after '?': " + s[i]);
         }
@@ -564,7 +562,7 @@ public sealed class CronExpression : ISerializable
             AddToSet(CronExpressionConstants.AllSpec, -1, incr, type);
             return;
         }
-        if (c == '/' && (i + 1 >= s.Length || s[i + 1] == ' ' || s[i + 1] == '\t'))
+        if (c == '/' && (i + 1 >= s.Length || char.IsWhiteSpace(s[i + 1])))
         {
             ThrowHelper.ThrowFormatException("'/' must be followed by an integer.");
         }
@@ -878,7 +876,7 @@ public sealed class CronExpression : ISerializable
 
     private void HandleSlashOption(ReadOnlySpan<char> s, int val, int type, int i, int end)
     {
-        if (i + 1 >= s.Length || s[i + 1] == ' ' || s[i + 1] == '\t')
+        if (i + 1 >= s.Length || char.IsWhiteSpace(s[i + 1]))
         {
             ThrowHelper.ThrowFormatException("\'/\' must be followed by an integer.");
         }
@@ -1064,7 +1062,7 @@ public sealed class CronExpression : ISerializable
 
     private static int SkipWhiteSpace(int position, ReadOnlySpan<char> str)
     {
-        for (; position < str.Length && WhitespaceChars.Contains(str[position]); position++)
+        for (; position < str.Length && char.IsWhiteSpace(str[position]); position++)
         {
         }
         
@@ -1073,7 +1071,7 @@ public sealed class CronExpression : ISerializable
 
     private static int FindNextWhiteSpace(int position, ReadOnlySpan<char> str)
     {
-        for (; position < str.Length && !WhitespaceChars.Contains(str[position]); position++)
+        for (; position < str.Length && !char.IsWhiteSpace(str[position]); position++)
         {
         }
 
