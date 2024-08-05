@@ -836,181 +836,199 @@ public sealed class CronExpression : ISerializable
 
     private void CheckNext(int pos, ReadOnlySpan<char> s, int val, int type)
     {
-        var end = -1;
-        var i = pos;
-
-        if (i >= s.Length)
+        if (pos >= s.Length)
         {
-            AddToSet(val, end, -1, type);
+            AddToSet(val, -1, -1, type);
             return;
         }
 
         switch (s[pos])
         {
             case 'L':
-                {
-                    if (type == CronExpressionConstants.DayOfWeek)
-                    {
-                        if (val is < 1 or > 7)
-                        {
-                            ThrowHelper.ThrowFormatException("Day-of-Week values must be between 1 and 7");
-                        }
-                        lastDayOfWeek = true;
-                    }
-                    else
-                    {
-                        ThrowHelper.ThrowFormatException($"'L' option is not valid here. (pos={i})");
-                    }
-                    var data = GetSet(type);
-                    data.Add(val);
-                    return;
-                }
+                HandleLOption(val, type, pos);
+                return;
 
             case 'W':
-                {
-                    if (type == CronExpressionConstants.DayOfMonth)
-                    {
-                        nearestWeekday = true;
-                    }
-                    else
-                    {
-                        ThrowHelper.ThrowFormatException($"'W' option is not valid here. (pos={i})");
-                    }
-                    if (val > 31)
-                    {
-                        ThrowHelper.ThrowFormatException("The 'W' option does not make sense with values larger than 31 (max number of days in a month)");
-                    }
-
-                    var data = GetSet(type);
-                    data.Add(val);
-                    return;
-                }
+                HandleWOption(val, type, pos);
+                return;
 
             case '#':
-                {
-                    if (type != CronExpressionConstants.DayOfWeek)
-                    {
-                        ThrowHelper.ThrowFormatException($"'#' option is not valid here. (pos={i})");
-                    }
-                    i++;
-                    try
-                    {
-                        nthdayOfWeek = ToInt32(s.Slice(i));
-                        if (nthdayOfWeek is < 1 or > 5)
-                        {
-                            ThrowHelper.ThrowFormatException("nthdayOfWeek is < 1 or > 5");
-                        }
-                        // check first char is numeric and is a valid Day of week (1-7)
-                        if (int.TryParse(s.Slice(0, pos), out val))
-                        {
-                            if (val is < 1 or > 7)
-                            {
-                                ThrowHelper.ThrowFormatException("Day-of-Week values must be between 1 and 7");
-                            }
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        ThrowHelper.ThrowFormatException("A numeric value between 1 and 5 must follow the '#' option");
-                    }
-
-                    var data = GetSet(type);
-                    data.Add(val);
-                    return;
-                }
+                HandleHashOption(s, val, type, pos);
+                return;
 
             case 'C':
-                {
-                    switch (type)
-                    {
-                        case CronExpressionConstants.DayOfWeek:
-                            calendarDayOfWeek = true;
-                            break;
-                        case CronExpressionConstants.DayOfMonth:
-                            calendarDayOfMonth = true;
-                            break;
-                        default:
-                            ThrowHelper.ThrowFormatException($"'C' option is not valid here. (pos={i})");
-                            break;
-                    }
-                    var data = GetSet(type);
-                    data.Add(val);
-                    return;
-                }
+                HandleCOption(val, type, pos);
+                return;
 
             case '-':
-                {
-                    i++;
-                    var c = s[i];
-                    var v = ToInt32(c);
-                    end = v;
-                    i++;
-                    if (i >= s.Length)
-                    {
-                        AddToSet(val, end, 1, type);
-                        return;
-                    }
-                    c = s[i];
-                    if (char.IsDigit(c))
-                    {
-                        (end, i) = GetValue(v, s, i);
-                    }
-                    if (i < s.Length && s[i] == '/')
-                    {
-                        i++;
-                        c = s[i];
-                        var v2 = ToInt32(c);
-                        i++;
-                        if (i >= s.Length)
-                        {
-                            AddToSet(val, end, v2, type);
-                            return;
-                        }
-                        c = s[i];
-                        if (char.IsDigit(c))
-                        {
-                            var (v3, _) = GetValue(v2, s, i);
-                            AddToSet(val, end, v3, type);
-                            return;
-                        }
-                        AddToSet(val, end, v2, type);
-                        return;
-                    }
-                    AddToSet(val, end, 1, type);
-                    return;
-                }
+                HandleDashOption(s, val, type, pos);
+                return;
 
             case '/':
-                {
-                    if (i + 1 >= s.Length || s[i + 1] == ' ' || s[i + 1] == '\t')
-                    {
-                        ThrowHelper.ThrowFormatException("\'/\' must be followed by an integer.");
-                    }
+                HandleSlashOption(s, val, type, pos, -1);
+                return;
+            
+            default:
+                AddToSet(val, -1, 0, type); 
+                return;
+        }
+    }
 
-                    i++;
-                    var c = s[i];
-                    var v2 = ToInt32(c);
-                    i++;
-                    if (i >= s.Length)
-                    {
-                        CheckIncrementRange(v2, type);
-                        AddToSet(val, end, v2, type);
-                        return;
-                    }
-                    c = s[i];
-                    if (char.IsDigit(c))
-                    {
-                        var (v3, _) = GetValue(v2, s, i);
-                        CheckIncrementRange(v3, type);
-                        AddToSet(val, end, v3, type);
-                        return;
-                    }
-                    ThrowHelper.ThrowFormatException($"Unexpected character '{c}' after '/'");
-                    break;
-                }
+    private void HandleSlashOption(ReadOnlySpan<char> s, int val, int type, int i, int end)
+    {
+        if (i + 1 >= s.Length || s[i + 1] == ' ' || s[i + 1] == '\t')
+        {
+            ThrowHelper.ThrowFormatException("\'/\' must be followed by an integer.");
         }
 
-        AddToSet(val, end, 0, type);
+        i++;
+        var c = s[i];
+        var v2 = ToInt32(c);
+        i++;
+        if (i >= s.Length)
+        {
+            CheckIncrementRange(v2, type);
+            AddToSet(val, end, v2, type);
+            return;
+        }
+        c = s[i];
+        if (char.IsDigit(c))
+        {
+            var (v3, _) = GetValue(v2, s, i);
+            CheckIncrementRange(v3, type);
+            AddToSet(val, end, v3, type);
+            return;
+        }
+        ThrowHelper.ThrowFormatException($"Unexpected character '{c}' after '/'");
+    }
+
+    private void HandleDashOption(ReadOnlySpan<char> s, int val, int type, int i)
+    {
+        i++;
+        var c = s[i];
+        var v = ToInt32(c);
+        var end = v;
+        i++;
+        if (i >= s.Length)
+        {
+            AddToSet(val, end, 1, type);
+            return;
+        }
+        c = s[i];
+        if (char.IsDigit(c))
+        {
+            (end, i) = GetValue(v, s, i);
+        }
+        if (i < s.Length && s[i] == '/')
+        {
+            i++;
+            c = s[i];
+            var v2 = ToInt32(c);
+            i++;
+            if (i >= s.Length)
+            {
+                AddToSet(val, end, v2, type);
+                return;
+            }
+            c = s[i];
+            if (char.IsDigit(c))
+            {
+                var (v3, _) = GetValue(v2, s, i);
+                AddToSet(val, end, v3, type);
+                return;
+            }
+            AddToSet(val, end, v2, type);
+            return;
+        }
+        AddToSet(val, end, 1, type);
+    }
+
+    private void HandleCOption(int val, int type, int i)
+    {
+        switch (type)
+        {
+            case CronExpressionConstants.DayOfWeek:
+                calendarDayOfWeek = true;
+                break;
+            case CronExpressionConstants.DayOfMonth:
+                calendarDayOfMonth = true;
+                break;
+            default:
+                ThrowHelper.ThrowFormatException($"'C' option is not valid here. (pos={i})");
+                break;
+        }
+        var data = GetSet(type);
+        data.Add(val);
+    }
+
+    private void HandleHashOption(ReadOnlySpan<char> s, int val, int type, int i)
+    {
+        var pos = i;
+        if (type != CronExpressionConstants.DayOfWeek)
+        {
+            ThrowHelper.ThrowFormatException($"'#' option is not valid here. (pos={i})");
+        }
+        i++;
+        try
+        {
+            nthdayOfWeek = ToInt32(s.Slice(i));
+            if (nthdayOfWeek is < 1 or > 5)
+            {
+                ThrowHelper.ThrowFormatException("nthdayOfWeek is < 1 or > 5");
+            }
+            // check first char is numeric and is a valid Day of week (1-7)
+            if (int.TryParse(s.Slice(0, pos), out val))
+            {
+                if (val is < 1 or > 7)
+                {
+                    ThrowHelper.ThrowFormatException("Day-of-Week values must be between 1 and 7");
+                }
+            }
+        }
+        catch (Exception)
+        {
+            ThrowHelper.ThrowFormatException("A numeric value between 1 and 5 must follow the '#' option");
+        }
+
+        var data = GetSet(type);
+        data.Add(val);
+    }
+
+    private void HandleWOption(int val, int type, int i)
+    {
+        if (type == CronExpressionConstants.DayOfMonth)
+        {
+            nearestWeekday = true;
+        }
+        else
+        {
+            ThrowHelper.ThrowFormatException($"'W' option is not valid here. (pos={i})");
+        }
+        if (val > 31)
+        {
+            ThrowHelper.ThrowFormatException("The 'W' option does not make sense with values larger than 31 (max number of days in a month)");
+        }
+
+        var data = GetSet(type);
+        data.Add(val);
+    }
+
+    private void HandleLOption(int val, int type, int pos)
+    {
+        if (type == CronExpressionConstants.DayOfWeek)
+        {
+            if (val is < 1 or > 7)
+            {
+                ThrowHelper.ThrowFormatException("Day-of-Week values must be between 1 and 7");
+            }
+            lastDayOfWeek = true;
+        }
+        else
+        {
+            ThrowHelper.ThrowFormatException($"'L' option is not valid here. (pos={pos})");
+        }
+        var data = GetSet(type);
+        data.Add(val);
     }
 
     /// <summary>
@@ -1018,7 +1036,6 @@ public sealed class CronExpression : ISerializable
     /// </summary>
     /// <value>The cron expression string.</value>
     public string CronExpressionString { get; }
-
 
     /// <summary>
     /// Gets the expression summary.
