@@ -1473,7 +1473,7 @@ private int CalculateNearestWeekdayForLastDay(DateTimeOffset currentDate, int la
 /// <param name="currentDate">The current date.</param>
 /// <param name="daysOfMonthSet">The set of days of the month.</param>
 /// <returns>A tuple containing the updated set of days of the month and a flag indicating if any day has a negative offset.</returns>
-private (SortedSet<int> daysOfMonthSet, bool dayHasNegativeOffset) CalculateNearestWeekdayForDaysOfMonth(DateTimeOffset currentDate, SortedSet<int> daysOfMonthSet)
+private static (SortedSet<int> daysOfMonthSet, bool dayHasNegativeOffset) CalculateNearestWeekdayForDaysOfMonth(DateTimeOffset currentDate, SortedSet<int> daysOfMonthSet)
 {
     int minDay = daysOfMonthSet.Min;
     int endDayOfMonth = GetLastDayOfMonth(currentDate.Month, currentDate.Year);
@@ -1500,7 +1500,7 @@ private (SortedSet<int> daysOfMonthSet, bool dayHasNegativeOffset) CalculateNear
 /// <param name="dayOfWeek">The day of the week.</param>
 /// <param name="endDayOfMonth">The end day of the month.</param>
 /// <returns>The adjusted day and a flag to indicate adjust day has a negative offset</returns>
-private (int day, bool dayHasNegativeOffset) AdjustDayToNearestWeekday(int day, DayOfWeek dayOfWeek, int endDayOfMonth)
+private static (int day, bool dayHasNegativeOffset) AdjustDayToNearestWeekday(int day, DayOfWeek dayOfWeek, int endDayOfMonth)
 {
     var dayHasNegativeOffset = false;
 
