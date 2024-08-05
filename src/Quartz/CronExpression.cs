@@ -262,6 +262,8 @@ public sealed class CronExpression : ISerializable
 
     private static readonly Regex regex = new("^L(-\\d{1,2})?(W(-\\d{1,2})?)?$", RegexOptions.Compiled | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(5)); //e.g. LW L-0W L-4 L-12W LW-4 LW-12
     private static readonly Regex offsetRegex = new("LW-(?<offset>[0-9]+)", RegexOptions.Compiled | RegexOptions.ExplicitCapture, TimeSpan.FromSeconds(5));
+    
+    private static readonly char[] WhitespaceChars = [' ', '\t'];
 
     static CronExpression()
     {
@@ -301,7 +303,7 @@ public sealed class CronExpression : ISerializable
     /// </summary>
     private CronExpression(SerializationInfo info, StreamingContext context)
     {
-        var version = CronExpression.GetVersion(info);
+        var version = GetVersion(info);
         switch (version)
         {
             case 0:
@@ -691,7 +693,7 @@ public sealed class CronExpression : ISerializable
                 {
                     i += 4;
                     sub = s.Slice(i, 3);
-                    eval = CronExpression.GetMonthNumber(sub) + 1;
+                    eval = GetMonthNumber(sub) + 1;
                     if (eval <= 0)
                     {
                         ThrowHelper.ThrowFormatException($"Invalid Month value: '{sub.ToString()}'");
@@ -701,7 +703,7 @@ public sealed class CronExpression : ISerializable
         }
         else if (type == CronExpressionConstants.DayOfWeek)
         {
-            sval = CronExpression.GetDayOfWeekNumber(sub);
+            sval = GetDayOfWeekNumber(sub);
             if (sval < 0)
             {
                 ThrowHelper.ThrowFormatException($"Invalid Day-of-Week value: '{sub.ToString()}'");
@@ -714,7 +716,7 @@ public sealed class CronExpression : ISerializable
                     case '-':
                         i += 4;
                         sub = s.Slice(i, 3);
-                        eval = CronExpression.GetDayOfWeekNumber(sub);
+                        eval = GetDayOfWeekNumber(sub);
                         if (eval < 0)
                         {
                             ThrowHelper.ThrowFormatException($"Invalid Day-of-Week value: '{sub.ToString()}'");
@@ -1060,46 +1062,18 @@ public sealed class CronExpression : ISerializable
         ).ToString();
     }
 
-    private static string GetExpressionSetSummary(ICollection<int> data)
-    {
-        if (data.Contains(CronExpressionConstants.NoSpec))
-        {
-            return "?";
-        }
-        if (data.Contains(CronExpressionConstants.AllSpec))
-        {
-            return "*";
-        }
-
-        var buf = new StringBuilder();
-
-        var first = true;
-        foreach (var iVal in data)
-        {
-            var val = iVal.ToString(CultureInfo.InvariantCulture);
-            if (!first)
-            {
-                buf.Append(',');
-            }
-            buf.Append(val);
-            first = false;
-        }
-
-        return buf.ToString();
-    }
-
     private static int SkipWhiteSpace(int position, ReadOnlySpan<char> str)
     {
-        for (; position < str.Length && (str[position] == ' ' || str[position] == '\t'); position++)
+        for (; position < str.Length && WhitespaceChars.Contains(str[position]); position++)
         {
         }
-
+        
         return position;
     }
 
     private static int FindNextWhiteSpace(int position, ReadOnlySpan<char> str)
     {
-        for (; position < str.Length && (str[position] != ' ' || str[position] != '\t'); position++)
+        for (; position < str.Length && !WhitespaceChars.Contains(str[position]); position++)
         {
         }
 
@@ -1528,7 +1502,7 @@ public sealed class CronExpression : ISerializable
             }
             else
             {
-                day = daysOfMonth.Min; //if not then initial set of days uncalculated (to avoid issue with stale weekday in wrong month value)
+                day = daysOfMonth.Min; //if not, then initial set of days uncalculated (to avoid issue with stale weekday in wrong month value)
             }
 
             mon++;
@@ -1544,7 +1518,7 @@ public sealed class CronExpression : ISerializable
             {
                 // This is to avoid a bug when moving from a month
                 // with 30 or 31 days to a month with less. Causes an invalid datetime to be instantiated.
-                // ex. 0 29 0 30 1 ? 2009 with clock set to 1/30/2009
+                // ex. 0 29 0 30 1 ? 2009 with the clock set to 1/30/2009
                 var lDay = DateTime.DaysInMonth(d.Year, mon);
                 if (day <= lDay)
                 {
@@ -1986,9 +1960,10 @@ public sealed class CronExpression : ISerializable
     /// </returns>
     public object Clone()
     {
-        var copy = new CronExpression(CronExpressionString);
-        copy.TimeZone = TimeZone;
-        return copy;
+        return new CronExpression(CronExpressionString)
+        {
+            TimeZone = TimeZone
+        };
     }
 
     /// <summary>
