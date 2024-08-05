@@ -20,7 +20,9 @@
 #endregion
 
 using System.Collections;
+
 using FluentAssertions;
+
 using Quartz.Impl.Calendar;
 using Quartz.Simpl;
 
@@ -36,8 +38,7 @@ public class CronCalendarTest : SerializationTestSupport<CronCalendar, ICalendar
     }
 
     [TestCaseSource(typeof(CronWeekdayModifierTestData), nameof(CronWeekdayModifierTestData.TestCases))]
-    public void CronWeekdayModifierReturnsNextExpectedFireTimeSet(CronExpression cronExpression, DateTimeOffset timeAfterDate, DateTimeOffset expectedNextFireTime)
-    {
+    public void CronWeekdayModifierReturnsNextExpectedFireTimeSet(CronExpression cronExpression, DateTimeOffset timeAfterDate, DateTimeOffset expectedNextFireTime)    {
         var nextFireTime = cronExpression.GetTimeAfter(timeAfterDate);
         nextFireTime.Value.Date.Should().Be(expectedNextFireTime.Date, "NextFireTime was not correct");
     }
@@ -60,7 +61,7 @@ public class CronCalendarTest : SerializationTestSupport<CronCalendar, ICalendar
     public void TestClone()
     {
         CronCalendar calendar = new CronCalendar("0/15 * * * * ?");
-        CronCalendar clone = (CronCalendar) calendar.Clone();
+        CronCalendar clone = (CronCalendar)calendar.Clone();
         Assert.AreEqual(calendar.CronExpression, clone.CronExpression);
     }
 
@@ -72,7 +73,7 @@ public class CronCalendarTest : SerializationTestSupport<CronCalendar, ICalendar
             TimeZone = TimeZoneInfo.Utc
         };
         var dateTime = new DateTimeOffset(2017, 7, 27, 2, 0, 1, 123, TimeSpan.Zero);
-        Assert.That(calendar.IsTimeIncluded(dateTime), Is.False);
+        Assert.IsFalse(calendar.IsTimeIncluded(dateTime));
     }
 
     protected override CronCalendar GetTargetObject()
@@ -94,19 +95,41 @@ public class CronCalendarTest : SerializationTestSupport<CronCalendar, ICalendar
 
 public class CronWeekdayModifierTestData
 {
-    public static IEnumerable TestCases
+    private class Model
     {
-        get
-        {
-            // params are CronExpression cronExpression, DateTimeOffset timeAfterDate, DateTimeOffset expectedNextFireTime
-            // Sat 15th, schedule should be 14th
-            yield return new TestCaseData(new CronExpression("0 0 12 15W * ?"), new DateTimeOffset(2024, 5, 15, 12, 0, 0, TimeSpan.Zero), new DateTimeOffset(2024, 6, 14, 12, 0, 0, TimeSpan.Zero)); 
-            yield return new TestCaseData(new CronExpression("0 0 12 15W * ?"), new DateTimeOffset(2024, 5, 10, 12, 0, 0, TimeSpan.Zero), new DateTimeOffset(2024, 5, 15, 12, 0, 0, TimeSpan.Zero));
-            yield return new TestCaseData(new CronExpression("0 0 12 15W * ?"), new DateTimeOffset(2024, 5, 22, 12, 0, 0, TimeSpan.Zero), new DateTimeOffset(2024, 6, 14, 12, 0, 0, TimeSpan.Zero));
-            // Sunday 15th schedule will be 16th
-            yield return new TestCaseData(new CronExpression("0 0 12 15W * ?"), new DateTimeOffset(2024, 8, 15, 12, 0, 0, TimeSpan.Zero), new DateTimeOffset(2024, 9, 16, 12, 0, 0, TimeSpan.Zero));
-            // 15th is Sunday, schedule will be 16th
-            yield return new TestCaseData(new CronExpression("0 0 12 15W * ?"), new DateTimeOffset(2023, 12, 15, 12, 0, 0, TimeSpan.Zero), new DateTimeOffset(2024, 1, 15, 12, 0, 0, TimeSpan.Zero));
-        }
+        public CronExpression CronExpression { get; init; }
+
+        public DateTimeOffset TimeAfterDate { get; init; }
+
+        public DateTimeOffset ExpectedNextFireTime { get; init; }
+
+        public string TestCase { get; init; }
     }
+
+    private static IEnumerable<Model> TestCaseModels => new[]
+    {
+        new Model
+        {
+            CronExpression = new CronExpression("0 0 12 15W * ?"),
+            TimeAfterDate = new DateTimeOffset(2024, 5, 15, 12, 0, 0, TimeSpan.Zero),
+            ExpectedNextFireTime = new DateTimeOffset(2024, 6, 14, 12, 0, 0, TimeSpan.Zero),
+            TestCase = "Run on Weekday 15th Every Month - 2024-06-15 is a Sat, schedule should be Fri 14th"
+        },
+        new Model
+        {
+            CronExpression = new CronExpression("0 0 12 15W * ?"),
+            TimeAfterDate = new DateTimeOffset(2024, 8, 15, 12, 0, 0, TimeSpan.Zero),
+            ExpectedNextFireTime = new DateTimeOffset(2024, 9, 16, 12, 0, 0, TimeSpan.Zero),
+            TestCase = "Run on Weekday 15th Every Month - 2024-09-15 is a Sunday, expect schedule to be Mon 16th"
+        },
+        new Model
+        {
+            CronExpression = new CronExpression("0 0 12 15W * ?"),
+            TimeAfterDate = new DateTimeOffset(2023, 12, 15, 12, 0, 0, TimeSpan.Zero),
+            ExpectedNextFireTime = new DateTimeOffset(2024, 1, 15, 12, 0, 0, TimeSpan.Zero),
+            TestCase = "Run on Weekday 15th Every Month - 2024-01-15 is Monday, should run on Monday"
+        },
+    };
+
+    public static IEnumerable TestCases => TestCaseModels.Select(model => new TestCaseData(model.CronExpression, model.TimeAfterDate, model.ExpectedNextFireTime));
 }
