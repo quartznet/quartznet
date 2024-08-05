@@ -458,13 +458,7 @@ public sealed class CronExpression : ISerializable
     {
         try
         {
-            seconds.Clear();
-            minutes.Clear();
-            hours.Clear();
-            daysOfMonth.Clear();
-            months.Clear();
-            daysOfWeek.Clear();
-            years.Clear();
+            ClearExpressionFields();
 
             var exprOn = CronExpressionConstants.Second;
 
@@ -527,6 +521,17 @@ public sealed class CronExpression : ISerializable
         {
             ThrowHelper.ThrowFormatException($"Illegal cron expression format ({e.Message})", e);
         }
+    }
+
+    private void ClearExpressionFields()
+    {
+        seconds.Clear();
+        minutes.Clear();
+        hours.Clear();
+        daysOfMonth.Clear();
+        months.Clear();
+        daysOfWeek.Clear();
+        years.Clear();
     }
 
     private void StoreExpressionQuestionMark(int type, ReadOnlySpan<char> s, int i)
