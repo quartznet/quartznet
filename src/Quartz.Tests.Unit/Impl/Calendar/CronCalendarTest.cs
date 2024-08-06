@@ -19,6 +19,10 @@
 
 #endregion
 
+using System.Collections;
+
+using FluentAssertions;
+
 using Quartz.Impl.Calendar;
 using Quartz.Simpl;
 
@@ -31,6 +35,12 @@ public class CronCalendarTest : SerializationTestSupport<CronCalendar, ICalendar
 {
     public CronCalendarTest(Type serializerType) : base(serializerType)
     {
+    }
+
+    [TestCaseSource(typeof(CronWeekdayModifierTestData), nameof(CronWeekdayModifierTestData.TestCases))]
+    public void CronWeekdayModifierReturnsNextExpectedFireTimeSet(CronExpression cronExpression, DateTimeOffset timeAfterDate, DateTimeOffset expectedNextFireTime)    {
+        var nextFireTime = cronExpression.GetTimeAfter(timeAfterDate);
+        nextFireTime.Value.Date.Should().Be(expectedNextFireTime.Date, "NextFireTime was not correct");
     }
 
     [Test]
@@ -51,7 +61,7 @@ public class CronCalendarTest : SerializationTestSupport<CronCalendar, ICalendar
     public void TestClone()
     {
         CronCalendar calendar = new CronCalendar("0/15 * * * * ?");
-        CronCalendar clone = (CronCalendar) calendar.Clone();
+        CronCalendar clone = (CronCalendar)calendar.Clone();
         Assert.AreEqual(calendar.CronExpression, clone.CronExpression);
     }
 
@@ -63,7 +73,7 @@ public class CronCalendarTest : SerializationTestSupport<CronCalendar, ICalendar
             TimeZone = TimeZoneInfo.Utc
         };
         var dateTime = new DateTimeOffset(2017, 7, 27, 2, 0, 1, 123, TimeSpan.Zero);
-        Assert.That(calendar.IsTimeIncluded(dateTime), Is.False);
+        Assert.IsFalse(calendar.IsTimeIncluded(dateTime));
     }
 
     protected override CronCalendar GetTargetObject()
@@ -81,4 +91,94 @@ public class CronCalendarTest : SerializationTestSupport<CronCalendar, ICalendar
         Assert.AreEqual(original.CronExpression, deserialized.CronExpression);
         Assert.AreEqual(original.TimeZone, deserialized.TimeZone);
     }
+}
+
+public class CronWeekdayModifierTestData
+{
+    private class Model
+    {
+        public CronExpression CronExpression { get; init; }
+
+        public DateTimeOffset TimeAfterDate { get; init; }
+
+        public DateTimeOffset ExpectedNextFireTime { get; init; }
+
+        public string TestCase { get; init; }
+    }
+
+    private static IEnumerable<Model> TestCaseModels => new[]
+    {
+        new Model
+        {
+            CronExpression = new CronExpression("0 0 12 15W * ?"),
+            TimeAfterDate = new DateTimeOffset(2024, 5, 15, 12, 0, 0, TimeSpan.Zero),
+            ExpectedNextFireTime = new DateTimeOffset(2024, 6, 14, 12, 0, 0, TimeSpan.Zero),
+            TestCase = "Run on Weekday 15th Every Month - 2024-06-15 is a Sat, schedule should be Fri 14th"
+        },
+        new Model
+        {
+            CronExpression = new CronExpression("0 0 12 15W * ?"),
+            TimeAfterDate = new DateTimeOffset(2024, 8, 15, 12, 0, 0, TimeSpan.Zero),
+            ExpectedNextFireTime = new DateTimeOffset(2024, 9, 16, 12, 0, 0, TimeSpan.Zero),
+            TestCase = "Run on Weekday 15th Every Month - 2024-09-15 is a Sunday, expect schedule to be Mon 16th"
+        },
+        new Model
+        {
+            CronExpression = new CronExpression("0 0 12 15W * ?"),
+            TimeAfterDate = new DateTimeOffset(2023, 12, 15, 12, 0, 0, TimeSpan.Zero),
+            ExpectedNextFireTime = new DateTimeOffset(2024, 1, 15, 12, 0, 0, TimeSpan.Zero),
+            TestCase = "Run on Weekday 15th Every Month - 2024-01-15 is Monday, should run on Monday"
+        },
+        new Model
+        {
+            CronExpression = new CronExpression("0 0 12 31W * ?"),
+            TimeAfterDate = new DateTimeOffset(2025, 1, 31, 12, 0, 0, TimeSpan.Zero),
+            ExpectedNextFireTime = new DateTimeOffset(2025, 2, 28, 12, 0, 0, TimeSpan.Zero),
+            TestCase = "Issue #2330 where exception moving to next month with less days in month"
+        },
+        new Model
+        {
+            CronExpression = new CronExpression("0 0 12 LW * ?"),
+            TimeAfterDate = new DateTimeOffset(2023, 2, 28, 12, 0, 0, TimeSpan.Zero),
+            ExpectedNextFireTime = new DateTimeOffset(2023, 3, 31, 12, 0, 0, TimeSpan.Zero),
+            TestCase = "Run on last weekday of the month - 2023-03-31 is a Friday"
+        },
+        new Model
+        {
+            CronExpression = new CronExpression("0 0 12 L-2 * ?"),
+            TimeAfterDate = new DateTimeOffset(2023, 4, 28, 12, 0, 0, TimeSpan.Zero),
+            ExpectedNextFireTime = new DateTimeOffset(2023, 5, 29, 12, 0, 0, TimeSpan.Zero),
+            TestCase = "Run on the second-to-last day of the month"
+        },
+        new Model
+        {
+            CronExpression = new CronExpression("0 0 12 ? * 6L"),
+            TimeAfterDate = new DateTimeOffset(2023, 6, 24, 12, 0, 0, TimeSpan.Zero),
+            ExpectedNextFireTime = new DateTimeOffset(2023, 6, 30, 12, 0, 0, TimeSpan.Zero),
+            TestCase = "Run on the last Friday of the month - 2023-06-30 is the last Friday"
+        },
+        new Model
+        {
+            CronExpression = new CronExpression("0 0 12 ? * 6#3"),
+            TimeAfterDate = new DateTimeOffset(2023, 7, 21, 12, 0, 0, TimeSpan.Zero),
+            ExpectedNextFireTime = new DateTimeOffset(2023, 8, 18, 12, 0, 0, TimeSpan.Zero),
+            TestCase = "Run on the third Friday of the month"
+        },
+        new Model
+        {
+            CronExpression = new CronExpression("0 0 12 ? * 2/2"),
+            TimeAfterDate = new DateTimeOffset(2023, 9, 5, 12, 0, 0, TimeSpan.Zero),
+            ExpectedNextFireTime = new DateTimeOffset(2023, 9, 6, 12, 0, 0, TimeSpan.Zero),
+            TestCase = "Run every second day (/2) starting monday (2)"
+        },
+        new Model
+        {
+            CronExpression = new CronExpression("0 0 12 1W * ?"),
+            TimeAfterDate = new DateTimeOffset(2023, 10, 1, 12, 0, 0, TimeSpan.Zero),
+            ExpectedNextFireTime = new DateTimeOffset(2023, 10, 2, 12, 0, 0, TimeSpan.Zero),
+            TestCase = "Run on the first weekday of the month - 2023-10-01 is a Sunday, expect schedule to be Mon 2nd"
+        }
+    };
+
+    public static IEnumerable TestCases => TestCaseModels.Select(model => new TestCaseData(model.CronExpression, model.TimeAfterDate, model.ExpectedNextFireTime));
 }
