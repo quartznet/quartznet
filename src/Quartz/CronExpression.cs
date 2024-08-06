@@ -1475,9 +1475,9 @@ private int CalculateNearestWeekdayForLastDay(DateTimeOffset currentDate, int la
 /// <returns>A tuple containing the updated set of days of the month and a flag indicating if any day has a negative offset.</returns>
 private static (SortedSet<int> daysOfMonthSet, bool dayHasNegativeOffset) CalculateNearestWeekdayForDaysOfMonth(DateTimeOffset currentDate, SortedSet<int> daysOfMonthSet)
 {
-    int minDay = daysOfMonthSet.Min;
     int endDayOfMonth = GetLastDayOfMonth(currentDate.Month, currentDate.Year);
-
+    int minDay = (daysOfMonthSet.Min > endDayOfMonth) ? endDayOfMonth : daysOfMonthSet.Min;
+    
     DateTimeOffset firstDayOfMonth = new DateTimeOffset(currentDate.Year, currentDate.Month, minDay, 0, 0, 0, currentDate.Offset);
     DayOfWeek dayOfWeek = firstDayOfMonth.DayOfWeek;
 
