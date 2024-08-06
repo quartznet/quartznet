@@ -1606,7 +1606,7 @@ public sealed class CronExpression : ISerializable
             // the month?
             var dow = daysOfWeek.Min; // desired
             // d-o-w
-            var cDow = (int) d.DayOfWeek + 1; // current d-o-w
+            var cDow = CronWeekDayOf(d); // current d-o-w
             var daysToAdd = 0;
             if (cDow < dow)
             {
@@ -1657,7 +1657,7 @@ public sealed class CronExpression : ISerializable
             // are we looking for the Nth XXX day in the month?
             var dow = daysOfWeek.Min; // desired
             // d-o-w
-            var cDow = (int) d.DayOfWeek + 1; // current d-o-w
+            var cDow = CronWeekDayOf(d); // current d-o-w
             var daysToAdd = 0;
             if (cDow < dow)
             {
@@ -1702,7 +1702,7 @@ public sealed class CronExpression : ISerializable
         }
         else if (everyNthWeek != 0)
         {
-            var cDow = (int) d.DayOfWeek + 1; // current d-o-w
+            var cDow = CronWeekDayOf(d); // current d-o-w
             var dow = daysOfWeek.Min; // desired d-o-w
             if (daysOfWeek.TryGetMinValueStartingFrom(cDow, out var min))
             {
@@ -1730,7 +1730,7 @@ public sealed class CronExpression : ISerializable
         }
         else
         {
-            var cDow = (int) d.DayOfWeek + 1; // current d-o-w
+            var cDow = CronWeekDayOf(d); // current d-o-w
             var dow = daysOfWeek.Min; // desired d-o-w
             if (daysOfWeek.TryGetMinValueStartingFrom(cDow, out var min))
             {
@@ -1884,12 +1884,12 @@ public sealed class CronExpression : ISerializable
 
         var nextFireTimeProgressors = new[]
         {
-            ProgressNextFireTimeSecond,
-            ProgressNextFireTimeMinute,
-            ProgressNextFireTimeHour,
-            ProgressNextFireTimeDay,
+            ProgressNextFireTimeYear,
             ProgressNextFireTimeMonth,
-            ProgressNextFireTimeYear
+            ProgressNextFireTimeDay,
+            ProgressNextFireTimeHour,
+            ProgressNextFireTimeMinute,
+            ProgressNextFireTimeSecond
         };
 
         var nextFireTimeCursor = new NextFireTimeCursor(false, d);
@@ -1928,11 +1928,20 @@ public sealed class CronExpression : ISerializable
 
             // apply the proper offset for this date
             d = new DateTimeOffset(nextFireTimeCursor.Date.Value.DateTime, TimeZoneUtil.GetUtcOffset(nextFireTimeCursor.Date.Value.DateTime, TimeZone));
+
             foundNextFireTime = true;
         }
 
         return d.ToUniversalTime();
     }
+
+    /// <summary>
+    /// Returns the Cron equivalent of the day of week from specified date.
+    /// 1:Monday-7:Sunday for 0:Sunday-6:Saturday
+    /// </summary>
+    /// <param name="date">The date</param>
+    /// <returns></returns>
+    public static int CronWeekDayOf(DateTimeOffset date) => date.DayOfWeek == DayOfWeek.Sunday ? 7 : (int) date.DayOfWeek;
 
     /// <summary>
     /// Creates the date time without milliseconds.
