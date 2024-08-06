@@ -994,4 +994,19 @@ years: *
 
         actualTimeAfter.Should().Be(expectedTimeAfter);
     }
+    [Test]
+    public void TestExceptionNearestDayOfTheMonth()
+    {
+        try
+        {
+            CronExpression cronExpression = new CronExpression("0 0 12 31W * ?") { TimeZone = TimeZoneInfo.Utc };
+            DateTime cal = new DateTime(2025, 1, 31, 12, 0, 0, DateTimeKind.Utc);
+            DateTimeOffset dtofcal = (DateTimeOffset) cal;
+            var nextFireTime = cronExpression.GetTimeAfter(dtofcal);
+        }
+        catch (Exception ex)
+        {
+            Assert.Fail("Expected no exception, but got: " + ex.Message);
+        }
+    }
 }
