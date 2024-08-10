@@ -2,7 +2,7 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
-## Release 3.13.0, XXX x 2024
+## Release 3.13.0, Aug 10 2024
 
 This release removes aims to modernise targeted platforms and used dependencies.
 

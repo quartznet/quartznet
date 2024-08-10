@@ -45,9 +45,9 @@ namespace Quartz.Impl
     /// </summary>
     /// <remarks>
     /// <para>
-    /// By default a properties are loaded from App.config's quartz section.
+    /// By default, properties are loaded from App.config's quartz section (on full framework like .NET 4.7.2).
     /// If that fails, then the file is loaded "quartz.config". If file does not exist,
-    /// default configuration located (as a embedded resource) in Quartz.dll is loaded. If you
+    /// default configuration located (as an embedded resource) in Quartz.dll is loaded. If you
     /// wish to use a file other than these defaults, you must define the system
     /// property 'quartz.properties' to point to the file you want.
     /// </para>
