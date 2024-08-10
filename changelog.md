@@ -2,6 +2,22 @@
 
 [http://www.quartz-scheduler.net](http://www.quartz-scheduler.net)
 
+## Release 3.13.0, XXX x 2024
+
+This release removes aims to modernise targeted platforms and used dependencies.
+
+The `System.Configuration.ConfigurationManager` reference from non-framework builds. This means
+using App.config's `<quartz>` section as Quartz configuration source is only supported on .NET Framework builds. This
+change was made to reduce legacy dependencies and to make Quartz more compatible with modern .NET.
+
+The `netcoreapp3.1` target has been removed from DI and hosting integration package which makes NET 6 the lowest supported 
+modern runtime version for those packages.
+
+* CHANGES
+   * Remove System.Configuration.ConfigurationManager package reference (#2513)
+   * Remove netcoreapp3.1 support and trim dependencies (#2507)
+
+
 ## Release 3.12.0, Aug 3 2024
 
 This release aims to alleviate some problems that have been present then Quartz's own global singletons clash

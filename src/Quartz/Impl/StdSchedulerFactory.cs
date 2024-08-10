@@ -22,7 +22,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Specialized;
-using System.Configuration;
 using System.IO;
 using System.Reflection;
 using System.Threading;
@@ -265,7 +264,7 @@ namespace Quartz.Impl
 
         internal static NameValueCollection? InitializeProperties(ILog logger, bool throwOnProblem)
         {
-            var props = Util.Configuration.GetSection(ConfigurationSectionName);
+            var props = ReadConfigurationSection();
             var requestedFile = QuartzEnvironment.GetEnvironmentVariable(PropertiesFile);
             var propFileName = !string.IsNullOrWhiteSpace(requestedFile) ? requestedFile : "~/quartz.config";
 
@@ -311,6 +310,23 @@ Please add configuration to your application config file to correctly initialize
 
 
             return props;
+        }
+
+        private static NameValueCollection? ReadConfigurationSection()
+        {
+#if NETFRAMEWORK
+            try
+            {
+                return (NameValueCollection) System.Configuration.ConfigurationManager.GetSection(ConfigurationSectionName);
+            }
+            catch (Exception e)
+            {
+                var log = LogProvider.GetLogger(typeof(StdSchedulerFactory));
+                log.Warn($"Could not read configuration using ConfigurationManager.GetSection: {e.Message}");
+            }
+#endif
+            return null;
+
         }
 
         /// <summary>
@@ -820,7 +836,7 @@ Please add configuration to your application config file to correctly initialize
                 ISchedulerPlugin plugin;
                 try
                 {
-                    var pluginTypeType = loadHelper.LoadType(plugInType) ?? throw new ConfigurationException($"Could not load plugin type {plugInType}");
+                    var pluginTypeType = loadHelper.LoadType(plugInType) ?? throw new SchedulerException($"Could not load plugin type {plugInType}");
                     // we need to use concrete types to resolve correct one
                     var method = GetType().GetMethod(nameof(InstantiateType), BindingFlags.Instance | BindingFlags.NonPublic)!.MakeGenericMethod(pluginTypeType);
                     plugin = (ISchedulerPlugin) method.Invoke(this, new [] { pluginTypeType })!;
@@ -1090,10 +1106,14 @@ Please add configuration to your application config file to correctly initialize
             }
         }
 
-        private protected virtual string GetNamedConnectionString(string dsConnectionStringName)
+        protected virtual string? GetNamedConnectionString(string connectionStringName)
         {
-            var connectionStringSettings = ConfigurationManager.ConnectionStrings[dsConnectionStringName];
+#if NETFRAMEWORK
+            var connectionStringSettings = System.Configuration.ConfigurationManager.ConnectionStrings[connectionStringName];
             return connectionStringSettings.ConnectionString;
+#else
+            return null;
+#endif
         }
 
         protected virtual T InstantiateType<T>(Type? implementationType)
