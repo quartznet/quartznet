@@ -109,7 +109,7 @@ namespace Quartz
             return serviceProvider.GetRequiredService<IDbConnectionManager>();
         }
 
-        private protected override string GetNamedConnectionString(string connectionStringName)
+        protected override string? GetNamedConnectionString(string connectionStringName)
         {
             var configuration = serviceProvider.GetRequiredService<IConfiguration>();
             var connectionString = configuration.GetConnectionString(connectionStringName);
