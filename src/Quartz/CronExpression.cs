@@ -232,7 +232,7 @@ public sealed class CronExpression : ISerializable
     [NonSerialized] private int everyNthWeek;
 
     /// <summary>
-    /// Nth day of week.
+    /// Nth day of the week.
     /// </summary>
     [NonSerialized] private int nthdayOfWeek;
 
@@ -251,12 +251,12 @@ public sealed class CronExpression : ISerializable
     [NonSerialized] private int lastWeekdayOffset;
 
     /// <summary>
-    /// Calendar day of week.
+    /// Calendar day of the week.
     /// </summary>
     [NonSerialized] private bool calendarDayOfWeek;
 
     /// <summary>
-    /// Calendar day of month.
+    /// Calendar day of the month.
     /// </summary>
     [NonSerialized] private bool calendarDayOfMonth;
 
@@ -301,7 +301,7 @@ public sealed class CronExpression : ISerializable
     /// </summary>
     private CronExpression(SerializationInfo info, StreamingContext context)
     {
-        var version = CronExpression.GetVersion(info);
+        var version = GetVersion(info);
         switch (version)
         {
             case 0:
@@ -458,13 +458,7 @@ public sealed class CronExpression : ISerializable
     {
         try
         {
-            seconds.Clear();
-            minutes.Clear();
-            hours.Clear();
-            daysOfMonth.Clear();
-            months.Clear();
-            daysOfWeek.Clear();
-            years.Clear();
+            ClearExpressionFields();
 
             var exprOn = CronExpressionConstants.Second;
 
@@ -529,10 +523,21 @@ public sealed class CronExpression : ISerializable
         }
     }
 
+    private void ClearExpressionFields()
+    {
+        seconds.Clear();
+        minutes.Clear();
+        hours.Clear();
+        daysOfMonth.Clear();
+        months.Clear();
+        daysOfWeek.Clear();
+        years.Clear();
+    }
+
     private void StoreExpressionQuestionMark(int type, ReadOnlySpan<char> s, int i)
     {
         i++;
-        if (i + 1 <= s.Length && s[i] != ' ' && s[i] != '\t')
+        if (i + 1 <= s.Length && !char.IsWhiteSpace(s[i]))
         {
             ThrowHelper.ThrowFormatException("Illegal character after '?': " + s[i]);
         }
@@ -562,7 +567,7 @@ public sealed class CronExpression : ISerializable
             AddToSet(CronExpressionConstants.AllSpec, -1, incr, type);
             return;
         }
-        if (c == '/' && (i + 1 >= s.Length || s[i + 1] == ' ' || s[i + 1] == '\t'))
+        if (c == '/' && (i + 1 >= s.Length || char.IsWhiteSpace(s[i + 1])))
         {
             ThrowHelper.ThrowFormatException("'/' must be followed by an integer.");
         }
@@ -691,7 +696,7 @@ public sealed class CronExpression : ISerializable
                 {
                     i += 4;
                     sub = s.Slice(i, 3);
-                    eval = CronExpression.GetMonthNumber(sub) + 1;
+                    eval = GetMonthNumber(sub) + 1;
                     if (eval <= 0)
                     {
                         ThrowHelper.ThrowFormatException($"Invalid Month value: '{sub.ToString()}'");
@@ -701,7 +706,7 @@ public sealed class CronExpression : ISerializable
         }
         else if (type == CronExpressionConstants.DayOfWeek)
         {
-            sval = CronExpression.GetDayOfWeekNumber(sub);
+            sval = GetDayOfWeekNumber(sub);
             if (sval < 0)
             {
                 ThrowHelper.ThrowFormatException($"Invalid Day-of-Week value: '{sub.ToString()}'");
@@ -714,7 +719,7 @@ public sealed class CronExpression : ISerializable
                     case '-':
                         i += 4;
                         sub = s.Slice(i, 3);
-                        eval = CronExpression.GetDayOfWeekNumber(sub);
+                        eval = GetDayOfWeekNumber(sub);
                         if (eval < 0)
                         {
                             ThrowHelper.ThrowFormatException($"Invalid Day-of-Week value: '{sub.ToString()}'");
@@ -814,205 +819,221 @@ public sealed class CronExpression : ISerializable
     // ReSharper disable once UnusedParameter.Local
     private static void CheckIncrementRange(int incr, int type)
     {
-        if (incr > 59 && (type == CronExpressionConstants.Second || type == CronExpressionConstants.Minute))
+        switch (type)
         {
-            ThrowHelper.ThrowFormatException($"Increment > 60 : {incr}");
-        }
-        if (incr > 23 && type == CronExpressionConstants.Hour)
-        {
-            ThrowHelper.ThrowFormatException($"Increment > 24 : {incr}");
-        }
-        if (incr > 31 && type == CronExpressionConstants.DayOfMonth)
-        {
-            ThrowHelper.ThrowFormatException($"Increment > 31 : {incr}");
-        }
-        if (incr > 7 && type == CronExpressionConstants.DayOfWeek)
-        {
-            ThrowHelper.ThrowFormatException($"Increment > 7 : {incr}");
-        }
-        if (incr > 12 && type == CronExpressionConstants.Month)
-        {
-            ThrowHelper.ThrowFormatException($"Increment > 12 : {incr}");
+            case CronExpressionConstants.Second or CronExpressionConstants.Minute when incr > 59:
+                ThrowHelper.ThrowFormatException($"Increment > 60 : {incr}");
+                break;
+            case CronExpressionConstants.Hour when incr > 23:
+                ThrowHelper.ThrowFormatException($"Increment > 24 : {incr}");
+                break;
+            case CronExpressionConstants.DayOfMonth when incr > 31:
+                ThrowHelper.ThrowFormatException($"Increment > 31 : {incr}");
+                break;
+            case CronExpressionConstants.DayOfWeek when incr > 7:
+                ThrowHelper.ThrowFormatException($"Increment > 7 : {incr}");
+                break;
+            case CronExpressionConstants.Month when incr > 12:
+                ThrowHelper.ThrowFormatException($"Increment > 12 : {incr}");
+                break;
         }
     }
 
     private void CheckNext(int pos, ReadOnlySpan<char> s, int val, int type)
     {
-        var end = -1;
-        var i = pos;
-
-        if (i >= s.Length)
+        if (pos >= s.Length)
         {
-            AddToSet(val, end, -1, type);
+            AddToSet(val, -1, -1, type);
             return;
         }
 
         switch (s[pos])
         {
             case 'L':
-                {
-                    if (type == CronExpressionConstants.DayOfWeek)
-                    {
-                        if (val is < 1 or > 7)
-                        {
-                            ThrowHelper.ThrowFormatException("Day-of-Week values must be between 1 and 7");
-                        }
-                        lastDayOfWeek = true;
-                    }
-                    else
-                    {
-                        ThrowHelper.ThrowFormatException($"'L' option is not valid here. (pos={i})");
-                    }
-                    var data = GetSet(type);
-                    data.Add(val);
-                    return;
-                }
+                HandleLOption(val, type, pos);
+                return;
 
             case 'W':
-                {
-                    if (type == CronExpressionConstants.DayOfMonth)
-                    {
-                        nearestWeekday = true;
-                    }
-                    else
-                    {
-                        ThrowHelper.ThrowFormatException($"'W' option is not valid here. (pos={i})");
-                    }
-                    if (val > 31)
-                    {
-                        ThrowHelper.ThrowFormatException("The 'W' option does not make sense with values larger than 31 (max number of days in a month)");
-                    }
-
-                    var data = GetSet(type);
-                    data.Add(val);
-                    return;
-                }
+                HandleWOption(val, type, pos);
+                return;
 
             case '#':
-                {
-                    if (type != CronExpressionConstants.DayOfWeek)
-                    {
-                        ThrowHelper.ThrowFormatException($"'#' option is not valid here. (pos={i})");
-                    }
-                    i++;
-                    try
-                    {
-                        nthdayOfWeek = ToInt32(s.Slice(i));
-                        if (nthdayOfWeek is < 1 or > 5)
-                        {
-                            ThrowHelper.ThrowFormatException("nthdayOfWeek is < 1 or > 5");
-                        }
-                        // check first char is numeric and is a valid Day of week (1-7)
-                        if (int.TryParse(s.Slice(0, pos), out val))
-                        {
-                            if (val is < 1 or > 7)
-                            {
-                                ThrowHelper.ThrowFormatException("Day-of-Week values must be between 1 and 7");
-                            }
-                        }
-                    }
-                    catch (Exception)
-                    {
-                        ThrowHelper.ThrowFormatException("A numeric value between 1 and 5 must follow the '#' option");
-                    }
-
-                    var data = GetSet(type);
-                    data.Add(val);
-                    return;
-                }
+                HandleHashOption(s, val, type, pos);
+                return;
 
             case 'C':
-                {
-                    switch (type)
-                    {
-                        case CronExpressionConstants.DayOfWeek:
-                            calendarDayOfWeek = true;
-                            break;
-                        case CronExpressionConstants.DayOfMonth:
-                            calendarDayOfMonth = true;
-                            break;
-                        default:
-                            ThrowHelper.ThrowFormatException($"'C' option is not valid here. (pos={i})");
-                            break;
-                    }
-                    var data = GetSet(type);
-                    data.Add(val);
-                    return;
-                }
+                HandleCOption(val, type, pos);
+                return;
 
             case '-':
-                {
-                    i++;
-                    var c = s[i];
-                    var v = ToInt32(c);
-                    end = v;
-                    i++;
-                    if (i >= s.Length)
-                    {
-                        AddToSet(val, end, 1, type);
-                        return;
-                    }
-                    c = s[i];
-                    if (char.IsDigit(c))
-                    {
-                        (end, i) = GetValue(v, s, i);
-                    }
-                    if (i < s.Length && s[i] == '/')
-                    {
-                        i++;
-                        c = s[i];
-                        var v2 = ToInt32(c);
-                        i++;
-                        if (i >= s.Length)
-                        {
-                            AddToSet(val, end, v2, type);
-                            return;
-                        }
-                        c = s[i];
-                        if (char.IsDigit(c))
-                        {
-                            var (v3, _) = GetValue(v2, s, i);
-                            AddToSet(val, end, v3, type);
-                            return;
-                        }
-                        AddToSet(val, end, v2, type);
-                        return;
-                    }
-                    AddToSet(val, end, 1, type);
-                    return;
-                }
+                HandleDashOption(s, val, type, pos);
+                return;
 
             case '/':
-                {
-                    if (i + 1 >= s.Length || s[i + 1] == ' ' || s[i + 1] == '\t')
-                    {
-                        ThrowHelper.ThrowFormatException("\'/\' must be followed by an integer.");
-                    }
+                HandleSlashOption(s, val, type, pos, -1);
+                return;
+            
+            default:
+                AddToSet(val, -1, 0, type); 
+                return;
+        }
+    }
 
-                    i++;
-                    var c = s[i];
-                    var v2 = ToInt32(c);
-                    i++;
-                    if (i >= s.Length)
-                    {
-                        CheckIncrementRange(v2, type);
-                        AddToSet(val, end, v2, type);
-                        return;
-                    }
-                    c = s[i];
-                    if (char.IsDigit(c))
-                    {
-                        var (v3, _) = GetValue(v2, s, i);
-                        CheckIncrementRange(v3, type);
-                        AddToSet(val, end, v3, type);
-                        return;
-                    }
-                    ThrowHelper.ThrowFormatException($"Unexpected character '{c}' after '/'");
-                    break;
-                }
+    private void HandleSlashOption(ReadOnlySpan<char> s, int val, int type, int i, int end)
+    {
+        if (i + 1 >= s.Length || char.IsWhiteSpace(s[i + 1]))
+        {
+            ThrowHelper.ThrowFormatException("\'/\' must be followed by an integer.");
         }
 
-        AddToSet(val, end, 0, type);
+        i++;
+        var c = s[i];
+        var v2 = ToInt32(c);
+        i++;
+        if (i >= s.Length)
+        {
+            CheckIncrementRange(v2, type);
+            AddToSet(val, end, v2, type);
+            return;
+        }
+        c = s[i];
+        if (char.IsDigit(c))
+        {
+            var (v3, _) = GetValue(v2, s, i);
+            CheckIncrementRange(v3, type);
+            AddToSet(val, end, v3, type);
+            return;
+        }
+        ThrowHelper.ThrowFormatException($"Unexpected character '{c}' after '/'");
+    }
+
+    private void HandleDashOption(ReadOnlySpan<char> s, int val, int type, int i)
+    {
+        i++;
+        var c = s[i];
+        var v = ToInt32(c);
+        var end = v;
+        i++;
+        if (i >= s.Length)
+        {
+            AddToSet(val, end, 1, type);
+            return;
+        }
+        c = s[i];
+        if (char.IsDigit(c))
+        {
+            (end, i) = GetValue(v, s, i);
+        }
+        if (i < s.Length && s[i] == '/')
+        {
+            i++;
+            c = s[i];
+            var v2 = ToInt32(c);
+            i++;
+            if (i >= s.Length)
+            {
+                AddToSet(val, end, v2, type);
+                return;
+            }
+            c = s[i];
+            if (char.IsDigit(c))
+            {
+                var (v3, _) = GetValue(v2, s, i);
+                AddToSet(val, end, v3, type);
+                return;
+            }
+            AddToSet(val, end, v2, type);
+            return;
+        }
+        AddToSet(val, end, 1, type);
+    }
+
+    private void HandleCOption(int val, int type, int i)
+    {
+        switch (type)
+        {
+            case CronExpressionConstants.DayOfWeek:
+                calendarDayOfWeek = true;
+                break;
+            case CronExpressionConstants.DayOfMonth:
+                calendarDayOfMonth = true;
+                break;
+            default:
+                ThrowHelper.ThrowFormatException($"'C' option is not valid here. (pos={i})");
+                break;
+        }
+        var data = GetSet(type);
+        data.Add(val);
+    }
+
+    private void HandleHashOption(ReadOnlySpan<char> s, int val, int type, int i)
+    {
+        var pos = i;
+        if (type != CronExpressionConstants.DayOfWeek)
+        {
+            ThrowHelper.ThrowFormatException($"'#' option is not valid here. (pos={i})");
+        }
+        i++;
+        try
+        {
+            nthdayOfWeek = ToInt32(s.Slice(i));
+            if (nthdayOfWeek is < 1 or > 5)
+            {
+                ThrowHelper.ThrowFormatException("nthdayOfWeek is < 1 or > 5");
+            }
+            // check first char is numeric and is a valid Day of week (1-7)
+            if (int.TryParse(s.Slice(0, pos), out val))
+            {
+                if (val is < 1 or > 7)
+                {
+                    ThrowHelper.ThrowFormatException("Day-of-Week values must be between 1 and 7");
+                }
+            }
+        }
+        catch (Exception)
+        {
+            ThrowHelper.ThrowFormatException("A numeric value between 1 and 5 must follow the '#' option");
+        }
+
+        var data = GetSet(type);
+        data.Add(val);
+    }
+
+    private void HandleWOption(int val, int type, int i)
+    {
+        if (type == CronExpressionConstants.DayOfMonth)
+        {
+            nearestWeekday = true;
+        }
+        else
+        {
+            ThrowHelper.ThrowFormatException($"'W' option is not valid here. (pos={i})");
+        }
+        if (val > 31)
+        {
+            ThrowHelper.ThrowFormatException("The 'W' option does not make sense with values larger than 31 (max number of days in a month)");
+        }
+
+        var data = GetSet(type);
+        data.Add(val);
+    }
+
+    private void HandleLOption(int val, int type, int pos)
+    {
+        if (type == CronExpressionConstants.DayOfWeek)
+        {
+            if (val is < 1 or > 7)
+            {
+                ThrowHelper.ThrowFormatException("Day-of-Week values must be between 1 and 7");
+            }
+            lastDayOfWeek = true;
+        }
+        else
+        {
+            ThrowHelper.ThrowFormatException($"'L' option is not valid here. (pos={pos})");
+        }
+        var data = GetSet(type);
+        data.Add(val);
     }
 
     /// <summary>
@@ -1020,7 +1041,6 @@ public sealed class CronExpression : ISerializable
     /// </summary>
     /// <value>The cron expression string.</value>
     public string CronExpressionString { get; }
-
 
     /// <summary>
     /// Gets the expression summary.
@@ -1045,212 +1065,135 @@ public sealed class CronExpression : ISerializable
         ).ToString();
     }
 
-    private static string GetExpressionSetSummary(ICollection<int> data)
-    {
-        if (data.Contains(CronExpressionConstants.NoSpec))
-        {
-            return "?";
-        }
-        if (data.Contains(CronExpressionConstants.AllSpec))
-        {
-            return "*";
-        }
-
-        var buf = new StringBuilder();
-
-        var first = true;
-        foreach (var iVal in data)
-        {
-            var val = iVal.ToString(CultureInfo.InvariantCulture);
-            if (!first)
-            {
-                buf.Append(',');
-            }
-            buf.Append(val);
-            first = false;
-        }
-
-        return buf.ToString();
-    }
-
     private static int SkipWhiteSpace(int position, ReadOnlySpan<char> str)
     {
-        for (; position < str.Length && (str[position] == ' ' || str[position] == '\t'); position++)
+        for (; position < str.Length && char.IsWhiteSpace(str[position]); position++)
         {
         }
-
+        
         return position;
     }
 
     private static int FindNextWhiteSpace(int position, ReadOnlySpan<char> str)
     {
-        for (; position < str.Length && (str[position] != ' ' || str[position] != '\t'); position++)
+        for (; position < str.Length && !char.IsWhiteSpace(str[position]); position++)
         {
         }
 
         return position;
     }
+    
+  
+
+    private static (int min, int max, string errorMessage) GetValidationParameters(int type)
+    {
+        return type switch
+        {
+            CronExpressionConstants.Second or CronExpressionConstants.Minute 
+                => (0, 59, "Minute and Second values must be between 0 and 59"),
+            CronExpressionConstants.Hour 
+                => (0, 23, "Hour values must be between 0 and 23"),
+            CronExpressionConstants.DayOfMonth 
+                => (1, 31, "Day of month values must be between 1 and 31"),
+            CronExpressionConstants.Month 
+                => (1, 12, "Month values must be between 1 and 12"),
+            CronExpressionConstants.DayOfWeek 
+                => (1, 7, "Day-of-Week values must be between 1 and 7"),
+            CronExpressionConstants.Year
+                => (1970, TriggerConstants.YearToGiveUpSchedulingAt, "Year values must be between 1970 and " + TriggerConstants.YearToGiveUpSchedulingAt),
+            _ => throw new ArgumentOutOfRangeException(nameof(type), "Invalid cron expression type")
+        };
+    }
+    
+    private static bool IsSpecialValue(int val, int type)
+    {
+        return val == CronExpressionConstants.AllSpec || 
+               (type is CronExpressionConstants.DayOfMonth or CronExpressionConstants.DayOfWeek && 
+                val == CronExpressionConstants.NoSpec);
+    }
+    
+    private static void ValidateSetValues(int val, int end, int type)
+    {
+        var (min, max, errorMessage) = GetValidationParameters(type);
+
+        if ((val < min || val > max || end > max) && 
+            !IsSpecialValue(val, type))
+        {
+            ThrowHelper.ThrowFormatException(errorMessage);
+        }
+    }
+    
+    private static (int startAt, int stopAt) GetRangeForType(int type, int val, int end)
+    {
+        return type switch
+        {
+            CronExpressionConstants.Second or CronExpressionConstants.Minute => (GetStartAt(val, 0), GetStopAt(end, 59)),
+            CronExpressionConstants.Hour => (GetStartAt(val, 0), GetStopAt(end, 23)),
+            CronExpressionConstants.DayOfMonth => (GetStartAt(val, 1), GetStopAt(end, 31)),
+            CronExpressionConstants.Month => (GetStartAt(val, 1), GetStopAt(end, 12)),
+            CronExpressionConstants.DayOfWeek => (GetStartAt(val, 1), GetStopAt(end, 7)),
+            CronExpressionConstants.Year => (GetStartAt(val, 1970), GetStopAt(end, TriggerConstants.YearToGiveUpSchedulingAt)),
+            _ => ThrowHelper.ThrowArgumentException<(int,int)>("Unexpected type encountered")
+        };
+    }
+    
+    /// <summary>
+    /// Gets the max value for the cron expression type. 
+    /// </summary>
+    /// <param name="type"> The type of the cron expression</param>
+    /// <param name="startAt"> The start value</param>
+    /// <param name="stopAt"> The stop value</param>
+    /// <returns>Returns -1 if stopAt is less than startAt otherwise returns the max value for the type</returns>
+    private static int GetMaxValueForType(int type, int startAt, int stopAt)
+    {
+        if (stopAt >= startAt) return -1;
+
+        return type switch
+        {
+            CronExpressionConstants.Second or CronExpressionConstants.Minute => 60,
+            CronExpressionConstants.Hour => 24,
+            CronExpressionConstants.Month => 12,
+            CronExpressionConstants.DayOfWeek => 7,
+            CronExpressionConstants.DayOfMonth => 31,
+            CronExpressionConstants.Year => ThrowHelper.ThrowArgumentException<int>("Start year must be less than stop year"),
+            _ => ThrowHelper.ThrowArgumentException<int>("Unexpected type encountered")
+        };
+    }
+
+    private static int GetStartAt(int val, int defaultValue) =>
+        val is -1 or CronExpressionConstants.AllSpec ? defaultValue : val;
+
+    private static int GetStopAt(int end, int defaultValue) =>
+        end == -1 ? defaultValue : end;
+
 
     private void AddToSet(int val, int end, int incr, int type)
     {
+        ValidateSetValues(val, end, type);
+
         var data = GetSet(type);
 
-        if (type == CronExpressionConstants.Second || type == CronExpressionConstants.Minute)
-        {
-            if ((val < 0 || val > 59 || end > 59) && val != CronExpressionConstants.AllSpec)
-            {
-                ThrowHelper.ThrowFormatException("Minute and CronExpressionConstants.Second values must be between 0 and 59");
-            }
-        }
-        else if (type == CronExpressionConstants.Hour)
-        {
-            if ((val < 0 || val > 23 || end > 23) && val != CronExpressionConstants.AllSpec)
-            {
-                ThrowHelper.ThrowFormatException("Hour values must be between 0 and 23");
-            }
-        }
-        else if (type == CronExpressionConstants.DayOfMonth)
-        {
-            if ((val < 1 || val > 31 || end > 31) && val != CronExpressionConstants.AllSpec
-                                                  && val != CronExpressionConstants.NoSpec)
-            {
-                ThrowHelper.ThrowFormatException("Day of month values must be between 1 and 31");
-            }
-        }
-        else if (type == CronExpressionConstants.Month)
-        {
-            if ((val < 1 || val > 12 || end > 12) && val != CronExpressionConstants.AllSpec)
-            {
-                ThrowHelper.ThrowFormatException("Month values must be between 1 and 12");
-            }
-        }
-        else if (type == CronExpressionConstants.DayOfWeek)
-        {
-            if ((val == 0 || val > 7 || end > 7) && val != CronExpressionConstants.AllSpec
-                                                 && val != CronExpressionConstants.NoSpec)
-            {
-                ThrowHelper.ThrowFormatException("Day-of-Week values must be between 1 and 7");
-            }
-        }
-
-        if ((incr == 0 || incr == -1) && val != CronExpressionConstants.AllSpec)
+        if (incr is 0 or -1 && val != CronExpressionConstants.AllSpec)
         {
             data.Add(val != -1 ? val : CronExpressionConstants.NoSpec);
             return;
         }
-
-        var startAt = val;
-        var stopAt = end;
-
+        
         if (val == CronExpressionConstants.AllSpec && incr <= 0)
         {
             data.Add(CronExpressionConstants.AllSpec);
             // skip adding other data, we check this wildcard in TryGetMinValueStartingFrom
             return;
         }
-
-        if (type == CronExpressionConstants.Second || type == CronExpressionConstants.Minute)
-        {
-            if (stopAt == -1)
-            {
-                stopAt = 59;
-            }
-            if (startAt == -1 || startAt == CronExpressionConstants.AllSpec)
-            {
-                startAt = 0;
-            }
-        }
-        else if (type == CronExpressionConstants.Hour)
-        {
-            if (stopAt == -1)
-            {
-                stopAt = 23;
-            }
-            if (startAt == -1 || startAt == CronExpressionConstants.AllSpec)
-            {
-                startAt = 0;
-            }
-        }
-        else if (type == CronExpressionConstants.DayOfMonth)
-        {
-            if (stopAt == -1)
-            {
-                stopAt = 31;
-            }
-            if (startAt == -1 || startAt == CronExpressionConstants.AllSpec)
-            {
-                startAt = 1;
-            }
-        }
-        else if (type == CronExpressionConstants.Month)
-        {
-            if (stopAt == -1)
-            {
-                stopAt = 12;
-            }
-            if (startAt == -1 || startAt == CronExpressionConstants.AllSpec)
-            {
-                startAt = 1;
-            }
-        }
-        else if (type == CronExpressionConstants.DayOfWeek)
-        {
-            if (stopAt == -1)
-            {
-                stopAt = 7;
-            }
-            if (startAt == -1 || startAt == CronExpressionConstants.AllSpec)
-            {
-                startAt = 1;
-            }
-        }
-        else if (type == CronExpressionConstants.Year)
-        {
-            if (stopAt == -1)
-            {
-                stopAt = TriggerConstants.YearToGiveUpSchedulingAt;
-            }
-            if (startAt is -1 or CronExpressionConstants.AllSpec)
-            {
-                startAt = 1970;
-            }
-        }
+        
+        var (startAt, stopAt) = GetRangeForType(type, val, end);
 
         // if the end of the range is before the start, then we need to overflow into
         // the next day, month etc. This is done by adding the maximum amount for that
         // type, and using modulus max to determine the value being added.
-        var max = -1;
-        if (stopAt < startAt)
-        {
-            switch (type)
-            {
-                case CronExpressionConstants.Second:
-                    max = 60;
-                    break;
-                case CronExpressionConstants.Minute:
-                    max = 60;
-                    break;
-                case CronExpressionConstants.Hour:
-                    max = 24;
-                    break;
-                case CronExpressionConstants.Month:
-                    max = 12;
-                    break;
-                case CronExpressionConstants.DayOfWeek:
-                    max = 7;
-                    break;
-                case CronExpressionConstants.DayOfMonth:
-                    max = 31;
-                    break;
-                case CronExpressionConstants.Year:
-                    ThrowHelper.ThrowArgumentException("Start year must be less than stop year");
-                    break;
-                default:
-                    ThrowHelper.ThrowArgumentException("Unexpected type encountered");
-                    break;
-            }
+        var max = GetMaxValueForType(type, startAt, stopAt);
+        if (max != -1)
             stopAt += max;
-        }
 
         for (var i = startAt; i <= stopAt; i += incr)
         {
@@ -1507,7 +1450,7 @@ public sealed class CronExpression : ISerializable
             var lastDayOfMonth = GetLastDayOfMonth(dt.Month, dt.Year);
             var dayOfWeek = tcal.DayOfWeek;
 
-            // evict original date since it has a weekDayModifier
+            // evict the original date since it has a weekDayModifier
             results.Remove(day);
 
             switch (dayOfWeek)
@@ -1562,7 +1505,7 @@ public sealed class CronExpression : ISerializable
             }
             else
             {
-                day = daysOfMonth.Min; //if not then initial set of days uncalculated (to avoid issue with stale weekday in wrong month value)
+                day = daysOfMonth.Min; //if not, then initial set of days uncalculated (to avoid issue with stale weekday in wrong month value)
             }
 
             mon++;
@@ -1578,7 +1521,7 @@ public sealed class CronExpression : ISerializable
             {
                 // This is to avoid a bug when moving from a month
                 // with 30 or 31 days to a month with less. Causes an invalid datetime to be instantiated.
-                // ex. 0 29 0 30 1 ? 2009 with clock set to 1/30/2009
+                // ex. 0 29 0 30 1 ? 2009 with the clock set to 1/30/2009
                 var lDay = DateTime.DaysInMonth(d.Year, mon);
                 if (day <= lDay)
                 {
@@ -2020,9 +1963,10 @@ public sealed class CronExpression : ISerializable
     /// </returns>
     public object Clone()
     {
-        var copy = new CronExpression(CronExpressionString);
-        copy.TimeZone = TimeZone;
-        return copy;
+        return new CronExpression(CronExpressionString)
+        {
+            TimeZone = TimeZone
+        };
     }
 
     /// <summary>
