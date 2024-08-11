@@ -315,11 +315,13 @@ public sealed class CronExpression : ISerializable
                 {
                     timeZone = TimeZoneUtil.FindTimeZoneById(timeZoneId);
                 }
+
                 break;
             default:
                 ThrowHelper.ThrowNotSupportedException($"Unknown serialization version {version}");
                 break;
         }
+
         BuildExpression(CronExpressionString);
     }
 
@@ -477,11 +479,13 @@ public sealed class CronExpression : ISerializable
                         ThrowHelper.ThrowFormatException("Support for specifying 'L' with other days of the month is limited to one instance of L");
                     }
                 }
+
                 // throw an exception if L is used with other days of the week
                 if (exprOn == CronExpressionConstants.DayOfWeek && expr.IndexOf('L') != -1 && expr.Length > 1 && expr.IndexOf(',') >= 0)
                 {
                     ThrowHelper.ThrowFormatException("Support for specifying 'L' with other days of the week is not implemented");
                 }
+
                 if (exprOn == CronExpressionConstants.DayOfWeek && expr.IndexOf('#') != -1 && expr.Slice(expr.IndexOf('#') + 1 + 1).IndexOf('#') != -1)
                 {
                     ThrowHelper.ThrowFormatException("Support for specifying multiple \"nth\" days is not implemented.");
@@ -541,10 +545,12 @@ public sealed class CronExpression : ISerializable
         {
             ThrowHelper.ThrowFormatException("Illegal character after '?': " + s[i]);
         }
+
         if (type != CronExpressionConstants.DayOfWeek && type != CronExpressionConstants.DayOfMonth)
         {
             ThrowHelper.ThrowFormatException("'?' can only be specified for Day-of-Month or Day-of-Week.");
         }
+
         if (type == CronExpressionConstants.DayOfWeek && !lastDayOfMonth)
         {
             var val = daysOfMonth.LastOrDefault();
@@ -567,14 +573,17 @@ public sealed class CronExpression : ISerializable
             AddToSet(CronExpressionConstants.AllSpec, -1, incr, type);
             return;
         }
+
         if (c == '/' && (i + 1 >= s.Length || char.IsWhiteSpace(s[i + 1])))
         {
             ThrowHelper.ThrowFormatException("'/' must be followed by an integer.");
         }
+
         if (startsWithAsterisk)
         {
             i++;
         }
+
         c = s[i];
         if (c == '/')
         {
@@ -594,6 +603,7 @@ public sealed class CronExpression : ISerializable
             {
                 ThrowHelper.ThrowFormatException("Illegal characters after asterisk: " + s.ToString());
             }
+
             incr = 1;
         }
 
@@ -606,40 +616,42 @@ public sealed class CronExpression : ISerializable
         switch (type)
         {
             case CronExpressionConstants.DayOfMonth:
+            {
+                lastDayOfMonth = true;
+                if (s.Length > i)
                 {
-                    lastDayOfMonth = true;
+                    var c = s[i];
+                    if (c == '-')
+                    {
+                        (lastDayOffset, i) = GetValue(0, s, i + 1);
+                        if (lastDayOffset > 30)
+                        {
+                            ThrowHelper.ThrowFormatException("Offset from last day must be <= 30");
+                        }
+                    }
+
                     if (s.Length > i)
                     {
-                        var c = s[i];
-                        if (c == '-')
+                        c = s[i];
+                        if (c == 'W')
                         {
-                            (lastDayOffset, i) = GetValue(0, s, i + 1);
-                            if (lastDayOffset > 30)
-                            {
-                                ThrowHelper.ThrowFormatException("Offset from last day must be <= 30");
-                            }
+                            nearestWeekday = true;
                         }
-                        if (s.Length > i)
-                        {
-                            c = s[i];
-                            if (c == 'W')
-                            {
-                                nearestWeekday = true;
-                            }
 
-                            var match = offsetRegex.Match(s.ToString());
-                            if (match.Success)
+                        var match = offsetRegex.Match(s.ToString());
+                        if (match.Success)
+                        {
+                            var offSetGroup = match.Groups["offset"];
+                            if (offSetGroup.Success)
                             {
-                                var offSetGroup = match.Groups["offset"];
-                                if (offSetGroup.Success)
-                                {
-                                    lastWeekdayOffset = int.Parse(offSetGroup.Value);
-                                }
+                                lastWeekdayOffset = int.Parse(offSetGroup.Value);
                             }
                         }
                     }
-                    break;
                 }
+
+                break;
+            }
 
             case CronExpressionConstants.DayOfWeek:
                 AddToSet(7, 7, 0, type);
@@ -673,6 +685,7 @@ public sealed class CronExpression : ISerializable
             {
                 (val, i) = GetValue(val, s, i);
             }
+
             CheckNext(i, s, val, type);
         }
     }
@@ -690,6 +703,7 @@ public sealed class CronExpression : ISerializable
             {
                 ThrowHelper.ThrowFormatException($"Invalid Month value: '{sub.ToString()}'");
             }
+
             if (s.Length > i + 3)
             {
                 if (s[i + 3] == '-')
@@ -711,6 +725,7 @@ public sealed class CronExpression : ISerializable
             {
                 ThrowHelper.ThrowFormatException($"Invalid Day-of-Week value: '{sub.ToString()}'");
             }
+
             if (s.Length > i + 3)
             {
                 var c = s[i + 3];
@@ -724,6 +739,7 @@ public sealed class CronExpression : ISerializable
                         {
                             ThrowHelper.ThrowFormatException($"Invalid Day-of-Week value: '{sub.ToString()}'");
                         }
+
                         break;
                     case '#':
                         try
@@ -739,6 +755,7 @@ public sealed class CronExpression : ISerializable
                         {
                             ThrowHelper.ThrowFormatException("A numeric value between 1 and 5 must follow the '#' option");
                         }
+
                         break;
                     case '/':
                         try
@@ -754,6 +771,7 @@ public sealed class CronExpression : ISerializable
                         {
                             ThrowHelper.ThrowFormatException("A numeric value between 1 and 5 must follow the '/' option");
                         }
+
                         break;
                     case 'L':
                         lastDayOfWeek = true;
@@ -769,10 +787,12 @@ public sealed class CronExpression : ISerializable
             ThrowHelper.ThrowFormatException($"Illegal characters for this position: '{sub.ToString()}'");
             return;
         }
+
         if (eval != -1)
         {
             incr = 1;
         }
+
         AddToSet(sval, eval, incr, type);
     }
 
@@ -783,6 +803,7 @@ public sealed class CronExpression : ISerializable
         {
             i = SkipWhiteSpace(pos, s);
         }
+
         if (i >= s.Length)
         {
             return;
@@ -872,9 +893,9 @@ public sealed class CronExpression : ISerializable
             case '/':
                 HandleSlashOption(s, val, type, pos, -1);
                 return;
-            
+
             default:
-                AddToSet(val, -1, 0, type); 
+                AddToSet(val, -1, 0, type);
                 return;
         }
     }
@@ -896,6 +917,7 @@ public sealed class CronExpression : ISerializable
             AddToSet(val, end, v2, type);
             return;
         }
+
         c = s[i];
         if (char.IsDigit(c))
         {
@@ -904,6 +926,7 @@ public sealed class CronExpression : ISerializable
             AddToSet(val, end, v3, type);
             return;
         }
+
         ThrowHelper.ThrowFormatException($"Unexpected character '{c}' after '/'");
     }
 
@@ -919,11 +942,13 @@ public sealed class CronExpression : ISerializable
             AddToSet(val, end, 1, type);
             return;
         }
+
         c = s[i];
         if (char.IsDigit(c))
         {
             (end, i) = GetValue(v, s, i);
         }
+
         if (i < s.Length && s[i] == '/')
         {
             i++;
@@ -935,6 +960,7 @@ public sealed class CronExpression : ISerializable
                 AddToSet(val, end, v2, type);
                 return;
             }
+
             c = s[i];
             if (char.IsDigit(c))
             {
@@ -942,9 +968,11 @@ public sealed class CronExpression : ISerializable
                 AddToSet(val, end, v3, type);
                 return;
             }
+
             AddToSet(val, end, v2, type);
             return;
         }
+
         AddToSet(val, end, 1, type);
     }
 
@@ -962,6 +990,7 @@ public sealed class CronExpression : ISerializable
                 ThrowHelper.ThrowFormatException($"'C' option is not valid here. (pos={i})");
                 break;
         }
+
         var data = GetSet(type);
         data.Add(val);
     }
@@ -973,6 +1002,7 @@ public sealed class CronExpression : ISerializable
         {
             ThrowHelper.ThrowFormatException($"'#' option is not valid here. (pos={i})");
         }
+
         i++;
         try
         {
@@ -981,6 +1011,7 @@ public sealed class CronExpression : ISerializable
             {
                 ThrowHelper.ThrowFormatException("nthdayOfWeek is < 1 or > 5");
             }
+
             // check first char is numeric and is a valid Day of week (1-7)
             if (int.TryParse(s.Slice(0, pos), out val))
             {
@@ -1009,6 +1040,7 @@ public sealed class CronExpression : ISerializable
         {
             ThrowHelper.ThrowFormatException($"'W' option is not valid here. (pos={i})");
         }
+
         if (val > 31)
         {
             ThrowHelper.ThrowFormatException("The 'W' option does not make sense with values larger than 31 (max number of days in a month)");
@@ -1026,12 +1058,14 @@ public sealed class CronExpression : ISerializable
             {
                 ThrowHelper.ThrowFormatException("Day-of-Week values must be between 1 and 7");
             }
+
             lastDayOfWeek = true;
         }
         else
         {
             ThrowHelper.ThrowFormatException($"'L' option is not valid here. (pos={pos})");
         }
+
         var data = GetSet(type);
         data.Add(val);
     }
@@ -1070,7 +1104,7 @@ public sealed class CronExpression : ISerializable
         for (; position < str.Length && char.IsWhiteSpace(str[position]); position++)
         {
         }
-        
+
         return position;
     }
 
@@ -1082,47 +1116,45 @@ public sealed class CronExpression : ISerializable
 
         return position;
     }
-    
-  
 
     private static (int min, int max, string errorMessage) GetValidationParameters(int type)
     {
         return type switch
         {
-            CronExpressionConstants.Second or CronExpressionConstants.Minute 
+            CronExpressionConstants.Second or CronExpressionConstants.Minute
                 => (0, 59, "Minute and Second values must be between 0 and 59"),
-            CronExpressionConstants.Hour 
+            CronExpressionConstants.Hour
                 => (0, 23, "Hour values must be between 0 and 23"),
-            CronExpressionConstants.DayOfMonth 
+            CronExpressionConstants.DayOfMonth
                 => (1, 31, "Day of month values must be between 1 and 31"),
-            CronExpressionConstants.Month 
+            CronExpressionConstants.Month
                 => (1, 12, "Month values must be between 1 and 12"),
-            CronExpressionConstants.DayOfWeek 
+            CronExpressionConstants.DayOfWeek
                 => (1, 7, "Day-of-Week values must be between 1 and 7"),
             CronExpressionConstants.Year
                 => (TriggerConstants.EarliestYear, TriggerConstants.YearToGiveUpSchedulingAt, $"Year values must be between {TriggerConstants.EarliestYear} and {TriggerConstants.YearToGiveUpSchedulingAt}"),
             _ => throw new ArgumentOutOfRangeException(nameof(type), "Invalid cron expression type")
         };
     }
-    
+
     private static bool IsSpecialValue(int val, int type)
     {
-        return val == CronExpressionConstants.AllSpec || 
-               (type is CronExpressionConstants.DayOfMonth or CronExpressionConstants.DayOfWeek && 
+        return val == CronExpressionConstants.AllSpec ||
+               (type is CronExpressionConstants.DayOfMonth or CronExpressionConstants.DayOfWeek &&
                 val == CronExpressionConstants.NoSpec);
     }
-    
+
     private static void ValidateSetValues(int val, int end, int type)
     {
         var (min, max, errorMessage) = GetValidationParameters(type);
 
-        if ((val < min || val > max || end > max) && 
+        if ((val < min || val > max || end > max) &&
             !IsSpecialValue(val, type))
         {
             ThrowHelper.ThrowFormatException(errorMessage);
         }
     }
-    
+
     private static (int startAt, int stopAt) GetRangeForType(int type, int val, int end)
     {
         return type switch
@@ -1133,12 +1165,12 @@ public sealed class CronExpression : ISerializable
             CronExpressionConstants.Month => (GetStartAt(val, 1), GetStopAt(end, 12)),
             CronExpressionConstants.DayOfWeek => (GetStartAt(val, 1), GetStopAt(end, 7)),
             CronExpressionConstants.Year => (GetStartAt(val, TriggerConstants.EarliestYear), GetStopAt(end, TriggerConstants.YearToGiveUpSchedulingAt)),
-            _ => ThrowHelper.ThrowArgumentException<(int,int)>("Unexpected type encountered")
+            _ => ThrowHelper.ThrowArgumentException<(int, int)>("Unexpected type encountered")
         };
     }
-    
+
     /// <summary>
-    /// Gets the max value for the cron expression type. 
+    /// Gets the max value for the cron expression type.
     /// </summary>
     /// <param name="type"> The type of the cron expression</param>
     /// <param name="startAt"> The start value</param>
@@ -1166,7 +1198,6 @@ public sealed class CronExpression : ISerializable
     private static int GetStopAt(int end, int defaultValue) =>
         end == -1 ? defaultValue : end;
 
-
     private void AddToSet(int val, int end, int incr, int type)
     {
         ValidateSetValues(val, end, type);
@@ -1178,14 +1209,14 @@ public sealed class CronExpression : ISerializable
             data.Add(val != -1 ? val : CronExpressionConstants.NoSpec);
             return;
         }
-        
+
         if (val == CronExpressionConstants.AllSpec && incr <= 0)
         {
             data.Add(CronExpressionConstants.AllSpec);
             // skip adding other data, we check this wildcard in TryGetMinValueStartingFrom
             return;
         }
-        
+
         var (startAt, stopAt) = GetRangeForType(type, val, end);
 
         // if the end of the range is before the start, then we need to overflow into
@@ -1260,6 +1291,7 @@ public sealed class CronExpression : ISerializable
             {
                 break;
             }
+
             c = s[i];
         }
 
@@ -1406,126 +1438,126 @@ public sealed class CronExpression : ISerializable
 
         return new NextFireTimeCursor(false, new DateTimeOffset(d.Year, d.Month, d.Day, hour, d.Minute, d.Second, d.Millisecond, d.Offset));
     }
-    
+
     private (SortedSet<int> daysOfMonthSet, bool dayHasNegativeOffset) CalculateDaysOfMonth(DateTimeOffset currentDate)
-{
-    var daysOfMonthSet = new SortedSet<int>(daysOfMonth);
-    var dayHasNegativeOffset = false;
-
-    if (lastDayOfMonth)
     {
-        int lastDayOfMonthValue = GetLastDayOfMonth(currentDate.Month, currentDate.Year);
-        int lastDayOfMonthWithOffset = lastDayOfMonthValue - lastDayOffset;
+        var daysOfMonthSet = new SortedSet<int>(daysOfMonth);
+        var dayHasNegativeOffset = false;
 
-        if (nearestWeekday)
+        if (lastDayOfMonth)
         {
-            int calculatedLastDay = CalculateNearestWeekdayForLastDay(currentDate, lastDayOfMonthWithOffset);
-            daysOfMonthSet.Add(calculatedLastDay);
+            int lastDayOfMonthValue = GetLastDayOfMonth(currentDate.Month, currentDate.Year);
+            int lastDayOfMonthWithOffset = lastDayOfMonthValue - lastDayOffset;
+
+            if (nearestWeekday)
+            {
+                int calculatedLastDay = CalculateNearestWeekdayForLastDay(currentDate, lastDayOfMonthWithOffset);
+                daysOfMonthSet.Add(calculatedLastDay);
+            }
+            else
+            {
+                daysOfMonthSet.Add(lastDayOfMonthWithOffset);
+            }
         }
-        else
+        else if (nearestWeekday)
         {
-            daysOfMonthSet.Add(lastDayOfMonthWithOffset);
+            (daysOfMonthSet, dayHasNegativeOffset) = CalculateNearestWeekdayForDaysOfMonth(currentDate, daysOfMonthSet);
         }
+
+        return (daysOfMonthSet, dayHasNegativeOffset);
     }
-    else if (nearestWeekday)
+
+    /// <summary>
+    /// Calculates the nearest weekday for the last day of the month.
+    /// </summary>
+    /// <param name="currentDate">The current date.</param>
+    /// <param name="lastDayOfMonthWithOffset">The last day of the month with the offset applied.</param>
+    /// <returns>The calculated last day of the month, adjusted to the nearest weekday.</returns>
+    private int CalculateNearestWeekdayForLastDay(DateTimeOffset currentDate, int lastDayOfMonthWithOffset)
     {
-        (daysOfMonthSet, dayHasNegativeOffset) = CalculateNearestWeekdayForDaysOfMonth(currentDate, daysOfMonthSet);
+        var checkDay = new DateTimeOffset(currentDate.Year, currentDate.Month, lastDayOfMonthWithOffset, currentDate.Hour, currentDate.Minute, currentDate.Second, currentDate.Millisecond, currentDate.Offset);
+        var calculatedDay = lastDayOfMonthWithOffset;
+
+        switch (checkDay.DayOfWeek)
+        {
+            case DayOfWeek.Saturday:
+                calculatedDay -= 1;
+                break;
+            case DayOfWeek.Sunday:
+                calculatedDay -= 2;
+                break;
+        }
+
+        var calculatedLastDayWithOffset = calculatedDay - lastWeekdayOffset;
+
+        // If the day has crossed to the prior month, reset to 1st.
+        if (calculatedLastDayWithOffset <= 0)
+        {
+            calculatedLastDayWithOffset = 1;
+        }
+
+        return calculatedLastDayWithOffset;
     }
 
-    return (daysOfMonthSet, dayHasNegativeOffset);
-}
-
-/// <summary>
-/// Calculates the nearest weekday for the last day of the month.
-/// </summary>
-/// <param name="currentDate">The current date.</param>
-/// <param name="lastDayOfMonthWithOffset">The last day of the month with the offset applied.</param>
-/// <returns>The calculated last day of the month, adjusted to the nearest weekday.</returns>
-private int CalculateNearestWeekdayForLastDay(DateTimeOffset currentDate, int lastDayOfMonthWithOffset)
-{
-    var checkDay = new DateTimeOffset(currentDate.Year, currentDate.Month, lastDayOfMonthWithOffset, currentDate.Hour, currentDate.Minute, currentDate.Second, currentDate.Millisecond, currentDate.Offset);
-    var calculatedDay = lastDayOfMonthWithOffset;
-
-    switch (checkDay.DayOfWeek)
+    /// <summary>
+    /// Calculates the nearest weekday for the specified days of the month.
+    /// </summary>
+    /// <param name="currentDate">The current date.</param>
+    /// <param name="daysOfMonthSet">The set of days of the month.</param>
+    /// <returns>A tuple containing the updated set of days of the month and a flag indicating if any day has a negative offset.</returns>
+    private static (SortedSet<int> daysOfMonthSet, bool dayHasNegativeOffset) CalculateNearestWeekdayForDaysOfMonth(DateTimeOffset currentDate, SortedSet<int> daysOfMonthSet)
     {
-        case DayOfWeek.Saturday:
-            calculatedDay -= 1;
-            break;
-        case DayOfWeek.Sunday:
-            calculatedDay -= 2;
-            break;
+        int endDayOfMonth = GetLastDayOfMonth(currentDate.Month, currentDate.Year);
+        int minDay = (daysOfMonthSet.Min > endDayOfMonth) ? endDayOfMonth : daysOfMonthSet.Min;
+
+        DateTimeOffset firstDayOfMonth = new DateTimeOffset(currentDate.Year, currentDate.Month, minDay, 0, 0, 0, currentDate.Offset);
+        DayOfWeek dayOfWeek = firstDayOfMonth.DayOfWeek;
+
+        // Evict the original date if it is not a weekday
+        if (dayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+        {
+            daysOfMonthSet.Remove(minDay);
+        }
+
+        var (adjustedDay, dayHasNegativeOffset) = AdjustDayToNearestWeekday(minDay, dayOfWeek, endDayOfMonth);
+        daysOfMonthSet.Add(adjustedDay);
+
+        return (daysOfMonthSet, dayHasNegativeOffset);
     }
 
-    var calculatedLastDayWithOffset = calculatedDay - lastWeekdayOffset;
-
-    // If the day has crossed to the prior month, reset to 1st.
-    if (calculatedLastDayWithOffset <= 0)
+    /// <summary>
+    /// Adjusts the day to the nearest weekday based on the specified day of the week and the last day of the month.
+    /// </summary>
+    /// <param name="day">The day to adjust.</param>
+    /// <param name="dayOfWeek">The day of the week.</param>
+    /// <param name="endDayOfMonth">The end day of the month.</param>
+    /// <returns>The adjusted day and a flag to indicate adjust day has a negative offset</returns>
+    private static (int day, bool dayHasNegativeOffset) AdjustDayToNearestWeekday(int day, DayOfWeek dayOfWeek, int endDayOfMonth)
     {
-        calculatedLastDayWithOffset = 1;
+        var dayHasNegativeOffset = false;
+
+        // evict original date since it has a weekDayModifier
+        switch (dayOfWeek)
+        {
+            case DayOfWeek.Saturday when day == 1:
+                day += 2;
+                break;
+            case DayOfWeek.Saturday:
+                day -= 1;
+                dayHasNegativeOffset = true;
+                break;
+            case DayOfWeek.Sunday when day == endDayOfMonth:
+                day -= 2;
+                dayHasNegativeOffset = true;
+                break;
+            case DayOfWeek.Sunday:
+                day += 1;
+                break;
+        }
+
+        return (day, dayHasNegativeOffset);
     }
 
-    return calculatedLastDayWithOffset;
-}
-
-/// <summary>
-/// Calculates the nearest weekday for the specified days of the month.
-/// </summary>
-/// <param name="currentDate">The current date.</param>
-/// <param name="daysOfMonthSet">The set of days of the month.</param>
-/// <returns>A tuple containing the updated set of days of the month and a flag indicating if any day has a negative offset.</returns>
-private static (SortedSet<int> daysOfMonthSet, bool dayHasNegativeOffset) CalculateNearestWeekdayForDaysOfMonth(DateTimeOffset currentDate, SortedSet<int> daysOfMonthSet)
-{
-    int endDayOfMonth = GetLastDayOfMonth(currentDate.Month, currentDate.Year);
-    int minDay = (daysOfMonthSet.Min > endDayOfMonth) ? endDayOfMonth : daysOfMonthSet.Min;
-    
-    DateTimeOffset firstDayOfMonth = new DateTimeOffset(currentDate.Year, currentDate.Month, minDay, 0, 0, 0, currentDate.Offset);
-    DayOfWeek dayOfWeek = firstDayOfMonth.DayOfWeek;
-
-    // Evict the original date if it is not a weekday
-    if (dayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
-    {
-        daysOfMonthSet.Remove(minDay);
-    }
-
-    var (adjustedDay,dayHasNegativeOffset) = AdjustDayToNearestWeekday(minDay, dayOfWeek, endDayOfMonth);
-    daysOfMonthSet.Add(adjustedDay);
-
-    return (daysOfMonthSet, dayHasNegativeOffset);
-}
-
-/// <summary>
-/// Adjusts the day to the nearest weekday based on the specified day of the week and the last day of the month.
-/// </summary>
-/// <param name="day">The day to adjust.</param>
-/// <param name="dayOfWeek">The day of the week.</param>
-/// <param name="endDayOfMonth">The end day of the month.</param>
-/// <returns>The adjusted day and a flag to indicate adjust day has a negative offset</returns>
-private static (int day, bool dayHasNegativeOffset) AdjustDayToNearestWeekday(int day, DayOfWeek dayOfWeek, int endDayOfMonth)
-{
-    var dayHasNegativeOffset = false;
-
-            // evict original date since it has a weekDayModifier
-    switch (dayOfWeek)
-    {
-        case DayOfWeek.Saturday when day == 1:
-            day += 2;
-            break;
-        case DayOfWeek.Saturday:
-            day -= 1;
-            dayHasNegativeOffset = true;
-            break;
-        case DayOfWeek.Sunday when day == endDayOfMonth:
-            day -= 2;
-            dayHasNegativeOffset = true;
-            break;
-        case DayOfWeek.Sunday:
-            day += 1;
-            break;
-    }
-
-    return (day, dayHasNegativeOffset);
-}
-    
     private NextFireTimeCursor ProgressNextFireTimeDayOfMonth(DateTimeOffset d)
     {
         var day = d.Day;
@@ -1583,8 +1615,10 @@ private static (int day, bool dayHasNegativeOffset) AdjustDayToNearestWeekday(in
                     d = new DateTimeOffset(d.Year, month, daysInMonth, 0, 0, 0, d.Offset).AddDays(day - daysInMonth);
                 }
             }
+
             return new NextFireTimeCursor(true, d);
         }
+
         return new NextFireTimeCursor(false, d);
     }
 
@@ -1784,6 +1818,7 @@ private static (int day, bool dayHasNegativeOffset) AdjustDayToNearestWeekday(in
         {
             return ProgressNextFireTimeDayOfMonth(d);
         }
+
         if (dayOfWSpec && !dayOfMSpec)
         {
             return ProgressNextFireTimeDayOfWeek(d);
@@ -1876,15 +1911,7 @@ private static (int day, bool dayHasNegativeOffset) AdjustDayToNearestWeekday(in
         // change to specified time zone
         d = TimeZoneUtil.ConvertTime(d, TimeZone);
 
-        var nextFireTimeProgressors = new[]
-        {
-            ProgressNextFireTimeSecond,
-            ProgressNextFireTimeMinute,
-            ProgressNextFireTimeHour,
-            ProgressNextFireTimeDay,
-            ProgressNextFireTimeMonth,
-            ProgressNextFireTimeYear
-        };
+        var nextFireTimeProgressors = new[] { ProgressNextFireTimeSecond, ProgressNextFireTimeMinute, ProgressNextFireTimeHour, ProgressNextFireTimeDay, ProgressNextFireTimeMonth, ProgressNextFireTimeYear };
 
         var nextFireTimeCursor = new NextFireTimeCursor(false, d);
         var foundNextFireTime = false;
@@ -2014,10 +2041,7 @@ private static (int day, bool dayHasNegativeOffset) AdjustDayToNearestWeekday(in
     /// </returns>
     public object Clone()
     {
-        return new CronExpression(CronExpressionString)
-        {
-            TimeZone = TimeZone
-        };
+        return new CronExpression(CronExpressionString) { TimeZone = TimeZone };
     }
 
     /// <summary>
@@ -2204,11 +2228,7 @@ internal sealed class CronField : IEnumerable<int>
         }
         else if (singleValue != value)
         {
-            values = new SortedSet<int>
-            {
-                singleValue.Value,
-                value
-            };
+            values = new SortedSet<int> { singleValue.Value, value };
             singleValue = null;
         }
     }
