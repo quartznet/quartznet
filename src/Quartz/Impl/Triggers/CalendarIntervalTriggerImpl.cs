@@ -62,6 +62,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
     private DateTimeOffset? previousFireTimeUtc;
     private int repeatInterval;
     internal TimeZoneInfo? timeZone;
+    private const int TimeZoneAdjustmentIntervalMinutes = 15;  //timezones can be multiples of 15 minutes (30min, 45min, 1hr)
 
     // Serializing TimeZones is tricky in .NET Core. This helper will ensure that we get the same timezone on a given platform,
     // but there's not yet a good method of serializing/deserializing timezones cross-platform since Windows timezone IDs don't
@@ -787,28 +788,29 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
         //need to apply timezone again to properly check if initialHourOfDay has changed.
         DateTimeOffset toCheck = TimeZoneUtil.ConvertTime(newTime, TimeZone);
 
-        if (PreserveHourOfDayAcrossDaylightSavings && toCheck.Hour != initialHourOfDay)
+        if (!PreserveHourOfDayAcrossDaylightSavings || toCheck.Hour == initialHourOfDay) 
+            return false;
+        
+        // first apply the date, and then find the proper timezone offset
+        newTime = new DateTimeOffset(newTime.Year, newTime.Month, newTime.Day, initialHourOfDay, newTime.Minute, newTime.Second, newTime.Millisecond, TimeSpan.Zero);
+        newTime = new DateTimeOffset(newTime.DateTime, TimeZoneUtil.GetUtcOffset(newTime.DateTime, TimeZone));
+
+        // TimeZone.IsInvalidTime is true, if this hour does not exist in the specified timezone
+        bool isInvalid = TimeZone.IsInvalidTime(newTime.DateTime);
+
+        if (isInvalid && SkipDayIfHourDoesNotExist)
         {
-            //first apply the date, and then find the proper timezone offset
-            newTime = new DateTimeOffset(newTime.Year, newTime.Month, newTime.Day, initialHourOfDay, newTime.Minute, newTime.Second, newTime.Millisecond, TimeSpan.Zero);
-            newTime = new DateTimeOffset(newTime.DateTime, TimeZoneUtil.GetUtcOffset(newTime.DateTime, TimeZone));
-
-            //TimeZone.IsInvalidTime is true, if this hour does not exist in the specified timezone
-            bool isInvalid = TimeZone.IsInvalidTime(newTime.DateTime);
-
-            if (isInvalid && SkipDayIfHourDoesNotExist)
-            {
-                return SkipDayIfHourDoesNotExist;
-            }
-            //don't skip this day, instead find closest valid time by adding minutes.
-            while (TimeZone.IsInvalidTime(newTime.DateTime))
-            {
-                newTime = newTime.AddMinutes(1);
-            }
-
-            //apply proper offset for the adjusted time
-            newTime = new DateTimeOffset(newTime.DateTime, TimeZoneUtil.GetUtcOffset(newTime.DateTime, TimeZone));
+            return SkipDayIfHourDoesNotExist;
         }
+        // Don't skip this day, instead find the closest future valid time by adding minutes in intervals
+        // to reach a valid time for the day.
+        while (TimeZone.IsInvalidTime(newTime.DateTime))
+        {
+            newTime = newTime.AddMinutes(TimeZoneAdjustmentIntervalMinutes);
+        }
+
+        // apply proper offset for the adjusted time
+        newTime = new DateTimeOffset(newTime.DateTime, TimeZoneUtil.GetUtcOffset(newTime.DateTime, TimeZone));
         return false;
     }
 

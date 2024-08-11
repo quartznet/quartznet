@@ -17,6 +17,10 @@
  */
 #endregion
 
+using FluentAssertions;
+
+using Quartz.Spi;
+
 using TimeZoneConverter;
 
 namespace Quartz.Tests.Unit;
@@ -33,6 +37,30 @@ public class DaylightSavingTimeTest
         }
 
         public override DateTimeOffset GetUtcNow() => utcNow;
+    }
+
+    [Test]
+    public void CanComputeNextFireTimeForCalendarAcrossDstAndMinuteOffset_Issue2349()
+    {
+        var startTime = new DateTimeOffset(2024, 2, 11, 2, 1, 0, TimeSpan.FromHours(-6)); 
+        var trigger = TriggerBuilder.Create()
+            .ForJob("JobName", "ScheduleName")
+            .StartAt(startTime)
+            .WithCalendarIntervalSchedule(x => x
+                .WithInterval(2, IntervalUnit.Week)
+                .InTimeZone(TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time"))
+                .PreserveHourOfDayAcrossDaylightSavings(true)
+                .SkipDayIfHourDoesNotExist(false))
+            .Build();
+
+        var nextFireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger)trigger, null, 10);
+        Assert.Multiple(() =>
+        {
+            nextFireTimes[0].Should().Be(new DateTimeOffset(2024, 2, 11, 2, 1, 0, TimeSpan.FromHours(-6)));
+            nextFireTimes[1].Should().Be(new DateTimeOffset(2024, 2, 25, 2, 1, 0, TimeSpan.FromHours(-6)));
+            nextFireTimes[2].Should().Be(new DateTimeOffset(2024, 3, 10, 3, 1, 0, TimeSpan.FromHours(-5)));
+            nextFireTimes[3].Should().Be(new DateTimeOffset(2024, 3, 24, 2, 1, 0, TimeSpan.FromHours(-5)));
+        });
     }
 
     [Test]
