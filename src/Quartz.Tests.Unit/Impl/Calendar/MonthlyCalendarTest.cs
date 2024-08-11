@@ -46,9 +46,9 @@ public class MonthlyCalendarTest : SerializationTestSupport<MonthlyCalendar, ICa
     public void TestAddAndRemoveExclusion()
     {
         cal.SetDayExcluded(15, true);
-        Assert.IsTrue(cal.IsDayExcluded(15));
+        Assert.That(cal.IsDayExcluded(15), Is.True);
         cal.SetDayExcluded(15, false);
-        Assert.IsFalse(cal.IsDayExcluded(15));
+        Assert.That(cal.IsDayExcluded(15), Is.False);
     }
 
     [Test]
@@ -56,7 +56,7 @@ public class MonthlyCalendarTest : SerializationTestSupport<MonthlyCalendar, ICa
     {
         DateTime excluded = new DateTime(2007, 8, 3);
         cal.SetDayExcluded(3, true);
-        Assert.AreEqual(excluded.AddDays(1), cal.GetNextIncludedTimeUtc(excluded).DateTime);
+        Assert.That(cal.GetNextIncludedTimeUtc(excluded).DateTime, Is.EqualTo(excluded.AddDays(1)));
     }
 
     [Test]
@@ -86,7 +86,7 @@ public class MonthlyCalendarTest : SerializationTestSupport<MonthlyCalendar, ICa
         // 11/5/2012 12:00:00 AM -04:00  translate into 11/4/2012 11:00:00 PM -05:00 (EST)
         DateTimeOffset date = new DateTimeOffset(2012, 11, 5, 0, 0, 0, TimeSpan.FromHours(-4));
 
-        Assert.IsFalse(monthlyCalendar.IsTimeIncluded(date));
+        Assert.That(monthlyCalendar.IsTimeIncluded(date), Is.False);
     }
 
     /// <summary>
@@ -104,9 +104,9 @@ public class MonthlyCalendarTest : SerializationTestSupport<MonthlyCalendar, ICa
 
     protected override void VerifyMatch(MonthlyCalendar original, MonthlyCalendar deserialized)
     {
-        Assert.IsNotNull(deserialized);
-        Assert.AreEqual(original.Description, deserialized.Description);
-        Assert.AreEqual(original.DaysExcluded, deserialized.DaysExcluded);
-        Assert.AreEqual(original.TimeZone, deserialized.TimeZone);
+        Assert.That(deserialized, Is.Not.Null);
+        Assert.That(deserialized.Description, Is.EqualTo(original.Description));
+        Assert.That(deserialized.DaysExcluded, Is.EqualTo(original.DaysExcluded));
+        Assert.That(deserialized.TimeZone, Is.EqualTo(original.TimeZone));
     }
 }

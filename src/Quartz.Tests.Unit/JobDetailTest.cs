@@ -38,10 +38,14 @@ public class JobDetailTest
         JobDetailImpl jd1 = new JobDetailImpl("name", "group", typeof(NoOpJob));
         JobDetailImpl jd2 = new JobDetailImpl("name", "group", typeof(NoOpJob));
         JobDetailImpl jd3 = new JobDetailImpl("namediff", "groupdiff", typeof(NoOpJob));
-        Assert.AreEqual(jd1, jd2);
-        Assert.AreNotEqual(jd1, jd3);
-        Assert.AreNotEqual(jd2, jd3);
-        Assert.AreNotEqual(jd1, null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(jd2, Is.EqualTo(jd1));
+            Assert.That(jd3, Is.Not.EqualTo(jd1));
+            Assert.That(jd3, Is.Not.EqualTo(jd2));
+            Assert.That(jd1, Is.Not.Null);
+        });
+        
     }
 
     [Test]
@@ -50,7 +54,7 @@ public class JobDetailTest
         JobDetailImpl jobDetail = new JobDetailImpl("test", typeof(NoOpJob));
         JobDetailImpl clonedJobDetail = (JobDetailImpl) jobDetail.Clone();
 
-        Assert.AreEqual(jobDetail, clonedJobDetail);
+        Assert.That(clonedJobDetail, Is.EqualTo(jobDetail));
     }
 
     [Test]
@@ -59,8 +63,11 @@ public class JobDetailTest
         JobDetailImpl detail = new JobDetailImpl(nameof(SettingKeyShouldAlsoSetNameAndGroup), typeof(NoOpJob));
         detail.Key = new JobKey("name", "group");
 
-        Assert.That(detail.Name, Is.EqualTo("name"));
-        Assert.That(detail.Group, Is.EqualTo("group"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(detail.Name, Is.EqualTo("name"));
+            Assert.That(detail.Group, Is.EqualTo("group"));
+        });
     }
 
     [Test]
@@ -70,10 +77,13 @@ public class JobDetailTest
         var typeString = type.AssemblyQualifiedNameWithoutVersion();
         var loadedType = new SimpleTypeLoadHelper().LoadType(typeString);
 
-        Assert.That(typeString, Is.Not.Contains(", Version="));
-
-        Assert.That(loadedType, Is.Not.Null);
-        Assert.That(loadedType, Is.EqualTo(type));
+        Assert.Multiple(() =>
+        {
+            Assert.That(typeString, Is.Not.Contains(", Version="));
+            Assert.That(loadedType, Is.Not.Null);
+            Assert.That(loadedType, Is.EqualTo(type));
+        });
+        
     }
 
     [Test]

@@ -120,7 +120,7 @@ public class SchedulerListenerTest
             return default;
         }
 
-        public ValueTask JobInterrupted(JobKey jobKey, CancellationToken cancellationToken = new CancellationToken())
+        public ValueTask JobInterrupted(JobKey jobKey, CancellationToken cancellationToken = new())
         {
             return default;
         }
@@ -201,8 +201,11 @@ public class SchedulerListenerTest
 
         await scheduler.Shutdown(true);
 
-        Assert.AreEqual(2, jobExecutionCount);
-        Assert.AreEqual(3, triggerListener.FireCount);
-        Assert.AreEqual(1, schedulerListener.TriggerFinalizedCount);
+        Assert.Multiple(() =>
+        {
+            Assert.That(jobExecutionCount, Is.EqualTo(2));
+            Assert.That(triggerListener.FireCount, Is.EqualTo(3));
+            Assert.That(schedulerListener.TriggerFinalizedCount, Is.EqualTo(1));
+        });
     }
 }

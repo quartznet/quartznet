@@ -634,7 +634,7 @@ public class JsonSerializationTestTrigger : SimpleTriggerImpl
         }
     }
 
-    public sealed class NewtonsoftSerializer : Quartz.Triggers.TriggerSerializer<JsonSerializationTestTrigger>
+    public sealed class NewtonsoftSerializer : Triggers.TriggerSerializer<JsonSerializationTestTrigger>
     {
         public override string TriggerTypeForJson => "TestTrigger";
 

@@ -52,15 +52,14 @@ public class DbMetadataTest
     {
         DbProvider dbp = new DbProvider(dbname, "foo");
         DbMetadata md = dbp.Metadata;
-        Assert.IsNotNull(md.AssemblyName);
-        Assert.IsNotNull(md.BindByName);
-        Assert.IsNotNull(md.CommandType);
-        Assert.IsNotNull(md.ConnectionType);
-        Assert.IsNotNull(md.ParameterType);
+        Assert.That(md.AssemblyName, Is.Not.Null);
+        Assert.That(md.CommandType, Is.Not.Null);
+        Assert.That(md.ConnectionType, Is.Not.Null);
+        Assert.That(md.ParameterType, Is.Not.Null);
         if (hashCustomBinaryType)
         {
-            Assert.IsNotNull(md.DbBinaryType);
-            Assert.IsNotNull(md.ParameterDbTypeProperty);
+            Assert.That(md.DbBinaryType, Is.Not.Null);
+            Assert.That(md.ParameterDbTypeProperty, Is.Not.Null);
         }
         return dbp;
     }

@@ -14,9 +14,15 @@ namespace Quartz.Tests.Unit;
 public class DisallowConcurrentExecutionJobTest
 {
     private static readonly TimeSpan jobBlockTime = TimeSpan.FromMilliseconds(300);
-    private static readonly List<DateTime> jobExecDates = new List<DateTime>();
-    private static readonly AutoResetEvent barrier = new AutoResetEvent(false);
+    private static readonly List<DateTime> jobExecDates = [];
+    private static readonly AutoResetEvent barrier = new(false);
 
+    [OneTimeTearDown]
+    public void TearDown()
+    {
+        barrier.Dispose();
+    }
+    
     [DisallowConcurrentExecution]
     public class TestJob : IJob
     {
@@ -76,10 +82,12 @@ public class DisallowConcurrentExecutionJobTest
 
         ITrigger trigger2 = TriggerBuilder.Create().WithSimpleSchedule().StartAt(startTime).ForJob(job1).Build();
 
-        NameValueCollection props = new NameValueCollection();
-        props["quartz.scheduler.idleWaitTime"] = "1500";
-        props["quartz.threadPool.threadCount"] = "2";
-        props["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
+        NameValueCollection props = new NameValueCollection
+        {
+            ["quartz.scheduler.idleWaitTime"] = "1500",
+            ["quartz.threadPool.threadCount"] = "2",
+            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
+        };
         IScheduler scheduler = await new StdSchedulerFactory(props).GetScheduler();
         scheduler.ListenerManager.AddJobListener(new TestJobListener(2));
         await scheduler.ScheduleJob(job1, trigger1);
@@ -90,8 +98,11 @@ public class DisallowConcurrentExecutionJobTest
         barrier.WaitOne();
         await scheduler.Shutdown(true);
 
-        Assert.AreEqual(2, jobExecDates.Count);
-        Assert.That((jobExecDates[1] - jobExecDates[0]).TotalMilliseconds, Is.GreaterThanOrEqualTo(jobBlockTime.TotalMilliseconds).Within(5d));
+        Assert.Multiple(() =>
+        {
+            Assert.That(jobExecDates.Count, Is.EqualTo(2));
+            Assert.That((jobExecDates[1] - jobExecDates[0]).TotalMilliseconds, Is.GreaterThanOrEqualTo(jobBlockTime.TotalMilliseconds).Within(5d));
+        });
     }
 
     /** QTZ-202 */
@@ -123,7 +134,7 @@ public class DisallowConcurrentExecutionJobTest
         barrier.WaitOne();
         await scheduler.Shutdown(true);
 
-        Assert.AreEqual(2, jobExecDates.Count);
+        Assert.That(jobExecDates.Count, Is.EqualTo(2));
         Assert.That((jobExecDates[1] - jobExecDates[0]).TotalMilliseconds, Is.GreaterThanOrEqualTo(jobBlockTime.TotalMilliseconds).Within(5));
     }
 }

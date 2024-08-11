@@ -51,7 +51,7 @@ public class ExceptionHandlingTest
 
         await Task.Delay(7 * 1000);
         await sched.DeleteJob(trigger.JobKey);
-        Assert.AreEqual(1, ExceptionJob.LaunchCount,
+        Assert.That(ExceptionJob.LaunchCount, Is.EqualTo(1),
             "The job shouldn't have been refired (UnscheduleFiringTrigger)");
 
         ExceptionJob.LaunchCount = 0;
@@ -67,7 +67,7 @@ public class ExceptionHandlingTest
         await sched.ScheduleJob(trigger);
         await Task.Delay(7 * 1000);
         await sched.DeleteJob(trigger.JobKey);
-        Assert.AreEqual(2, ExceptionJob.LaunchCount,
+        Assert.That(ExceptionJob.LaunchCount, Is.EqualTo(2),
             "The job shouldn't have been refired(UnscheduleFiringTrigger)");
     }
 
@@ -107,7 +107,7 @@ public class ExceptionHandlingTest
         await Task.Delay(1000);
         await sched.DeleteJob(jobKey);
         await Task.Delay(1000);
-        Assert.Greater(ExceptionJob.LaunchCount, 1, "The job should have been refired after exception");
+        Assert.That(ExceptionJob.LaunchCount, Is.GreaterThan(1), "The job should have been refired after exception");
     }
 
     [Test]
@@ -140,6 +140,6 @@ public class ExceptionHandlingTest
             }
         }
         await sched.DeleteJob(jobKey);
-        Assert.AreEqual(1, ExceptionJob.LaunchCount, "The job should NOT have been refired after exception");
+        Assert.That(ExceptionJob.LaunchCount, Is.EqualTo(1), "The job should NOT have been refired after exception");
     }
 }

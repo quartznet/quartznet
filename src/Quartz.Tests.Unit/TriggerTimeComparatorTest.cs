@@ -40,63 +40,63 @@ public class TriggerTimeComparatorTest
     public void Compare_ReferenceEquality()
     {
         var actual = _comparer.Compare(_triggerAPrio1NextFireTimeMaxValue, _triggerAPrio1NextFireTimeMaxValue);
-        Assert.AreEqual(0, actual);
+        Assert.That(actual, Is.EqualTo(0));
     }
 
     [Test]
     public void Compare_NextFireTimeOfTrigger2IsNull()
     {
         var actual = _comparer.Compare(_triggerAPrio1NextFireTimeMinValueInstance1, _triggerAPrio1NextFireTimeNullInstance1);
-        Assert.AreEqual(-1, actual);
+        Assert.That(actual, Is.EqualTo(-1));
     }
 
     [Test]
     public void Compare_NextFireTimeOfTrigger2IsLess()
     {
         var actual = _comparer.Compare(_triggerAPrio1NextFireTimeMaxValue, _triggerAPrio1NextFireTimeMinValueInstance1);
-        Assert.AreEqual(1, actual);
+        Assert.That(actual, Is.EqualTo(1));
     }
 
     [Test]
     public void Compare_NextFireTimeOfTrigger2IsGreater()
     {
         var actual = _comparer.Compare(_triggerAPrio1NextFireTimeMinValueInstance1, _triggerAPrio1NextFireTimeMaxValue);
-        Assert.AreEqual(-1, actual);
+        Assert.That(actual, Is.EqualTo(-1));
     }
 
     [Test]
     public void Compare_NextFireTimeIsEqual_PriorityOfTrigger2IsLess()
     {
         var actual = _comparer.Compare(_triggerBPrio2NextFireTimeMinValue, _triggerBPrio1NextFireTimeMinValue);
-        Assert.AreEqual(-1, actual);
+        Assert.That(actual, Is.EqualTo(-1));
     }
 
     [Test]
     public void Compare_NextFireTimeIsEqual_PriorityOfTrigger2IsGreater()
     {
         var actual = _comparer.Compare(_triggerBPrio1NextFireTimeMinValue, _triggerBPrio2NextFireTimeMinValue);
-        Assert.AreEqual(1, actual);
+        Assert.That(actual, Is.EqualTo(1));
     }
 
     [Test]
     public void Compare_NextFireTimeIsEqual_PriorityIsEqual_KeyIsEqual()
     {
         var actual = _comparer.Compare(_triggerAPrio1NextFireTimeMinValueInstance1, _triggerAPrio1NextFireTimeMinValueInstance2);
-        Assert.AreEqual(0, actual);
+        Assert.That(actual, Is.EqualTo(0));
     }
 
     [Test]
     public void Compare_NextFireTimeIsEqual_PriorityIsEqual_KeyOfTrigger2IsGreater()
     {
         var actual = _comparer.Compare(_triggerAPrio1NextFireTimeMinValueInstance1, _triggerBPrio1NextFireTimeMinValue);
-        Assert.AreEqual(-1, actual);
+        Assert.That(actual, Is.EqualTo(-1));
     }
 
     [Test]
     public void Compare_NextFireTimeIsEqual_PriorityIsEqual_KeyOfTrigger2IsLess()
     {
         var actual = _comparer.Compare(_triggerBPrio1NextFireTimeMinValue, _triggerAPrio1NextFireTimeMinValueInstance1);
-        Assert.AreEqual(1, actual);
+        Assert.That(actual, Is.EqualTo(1));
     }
 
 
@@ -104,33 +104,33 @@ public class TriggerTimeComparatorTest
     public void Compare_NextFireTimeIsNull_PriorityOfTrigger2IsLess()
     {
         var actual = _comparer.Compare(_triggerBPrio2NextFireTimeNull, _triggerBPrio1NextFireTimeNull);
-        Assert.AreEqual(-1, actual);
+        Assert.That(actual, Is.EqualTo(-1));
     }
 
     [Test]
     public void Compare_NextFireTimeIsNull_PriorityOfTrigger2IsGreater()
     {
         var actual = _comparer.Compare(_triggerBPrio1NextFireTimeNull, _triggerBPrio2NextFireTimeNull);
-        Assert.AreEqual(1, actual);
+        Assert.That(actual, Is.EqualTo(1));
     }
 
     [Test]
     public void Compare_NextFireTimeIsNull_PriorityIsEqual_KeyIsEqual()
     {
         var actual = _comparer.Compare(_triggerAPrio1NextFireTimeNullInstance1, _triggerAPrio1NextFireTimeNullInstance2);
-        Assert.AreEqual(0, actual);
+        Assert.That(actual, Is.EqualTo(0));
     }
 
     public void Compare_NextFireTimeIsNull_PriorityIsEqual_KeyOfTrigger2IsLess()
     {
         var actual = _comparer.Compare(_triggerBPrio1NextFireTimeNull, _triggerAPrio1NextFireTimeNullInstance1);
-        Assert.AreEqual(0, actual);
+        Assert.That(actual, Is.EqualTo(0));
     }
 
     public void Compare_NextFireTimeIsNull_PriorityIsEqual_KeyOfTrigger2IsGreater()
     {
         var actual = _comparer.Compare(_triggerAPrio1NextFireTimeNullInstance1, _triggerBPrio1NextFireTimeNull);
-        Assert.AreEqual(0, actual);
+        Assert.That(actual, Is.EqualTo(0));
     }
 
     private class MutableTrigger : IMutableTrigger

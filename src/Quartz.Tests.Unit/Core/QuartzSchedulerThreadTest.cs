@@ -15,9 +15,9 @@ public class QuartzSchedulerThreadTest
         QuartzScheduler scheduler = new QuartzScheduler(resources);
 
         var thread = new QuartzSchedulerThread(scheduler, resources);
-        Assert.IsTrue(thread.Paused);
-        Assert.IsFalse(thread.Halted);
-        Assert.AreEqual((int) (idleWaitTime.TotalMilliseconds * 0.2), thread.IdleWaitVariableness);
+        Assert.That(thread.Paused, Is.True);
+        Assert.That(thread.Halted, Is.False);
+        Assert.That(thread.IdleWaitVariableness, Is.EqualTo((int) (idleWaitTime.TotalMilliseconds * 0.2)));
     }
 
     private static IEnumerable<TimeSpan> ValidIdleWaitTimes()

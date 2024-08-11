@@ -42,8 +42,11 @@ public class JobExecutionContextTest
         ctx.MergedJobDataMap[SchedulerConstants.FailedJobOriginalTriggerName] = "originalTriggerName";
         ctx.MergedJobDataMap[SchedulerConstants.FailedJobOriginalTriggerGroup] = "originalTriggerGroup";
         var recoveringTriggerKey = ctx.RecoveringTriggerKey;
-        Assert.NotNull(recoveringTriggerKey);
-        Assert.That(recoveringTriggerKey.Name, Is.EqualTo("originalTriggerName"));
-        Assert.That(recoveringTriggerKey.Group, Is.EqualTo("originalTriggerGroup"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(recoveringTriggerKey, Is.Not.Null);
+            Assert.That(recoveringTriggerKey.Name, Is.EqualTo("originalTriggerName"));
+            Assert.That(recoveringTriggerKey.Group, Is.EqualTo("originalTriggerGroup"));
+        });
     }
 }

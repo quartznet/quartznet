@@ -14,7 +14,7 @@ public class TimeZoneUtilTest
         var infoWithUtc = TimeZoneUtil.FindTimeZoneById("UTC");
         var infoWithUniversalCoordinatedTime = TimeZoneUtil.FindTimeZoneById("Coordinated Universal Time");
 
-        Assert.AreEqual(infoWithUtc, infoWithUniversalCoordinatedTime);
+        Assert.That(infoWithUniversalCoordinatedTime, Is.EqualTo(infoWithUtc));
     }
 
     [Test]

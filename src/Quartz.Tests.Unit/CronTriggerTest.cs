@@ -50,7 +50,7 @@ public class CronTriggerTest
         trigger.Key = new TriggerKey("Quartz-579", SchedulerConstants.DefaultGroup);
         trigger.TimeZone = tz;
         trigger.CronExpressionString = "0 0 12 * * ?";
-        Assert.AreEqual(tz, trigger.TimeZone, "TimeZone was changed");
+        Assert.That(trigger.TimeZone, Is.EqualTo(tz), "TimeZone was changed");
     }
 
     [Test]
@@ -69,12 +69,12 @@ public class CronTriggerTest
         trigger.CronExpressionString = "0 50 5,11,17,23 ? * *";
         trigger.StartTimeUtc = startDate;
 
-        Assert.AreEqual(expectedFire, trigger.GetFireTimeAfter(startDate), $"Expected to fire at {expectedFire}");
-        Assert.IsTrue(trigger.WillFireOn(expectedFire), $"Expected to fire at {expectedFire}");
-        Assert.IsTrue(trigger.WillFireOn(expectedFire.AddHours(6)), $"Expected to fire at {expectedFire}");
-        Assert.IsTrue(trigger.WillFireOn(expectedFire.AddHours(12)), $"Expected to fire at {expectedFire}");
-        Assert.IsTrue(trigger.WillFireOn(expectedFire.AddHours(18)), $"Expected to fire at {expectedFire}");
-        Assert.IsTrue(trigger.WillFireOn(expectedFire.AddHours(24)), $"Expected to fire at {expectedFire}");
+        Assert.That(trigger.GetFireTimeAfter(startDate), Is.EqualTo(expectedFire), $"Expected to fire at {expectedFire}");
+        Assert.That(trigger.WillFireOn(expectedFire), Is.True, $"Expected to fire at {expectedFire}");
+        Assert.That(trigger.WillFireOn(expectedFire.AddHours(6)), Is.True, $"Expected to fire at {expectedFire}");
+        Assert.That(trigger.WillFireOn(expectedFire.AddHours(12)), Is.True, $"Expected to fire at {expectedFire}");
+        Assert.That(trigger.WillFireOn(expectedFire.AddHours(18)), Is.True, $"Expected to fire at {expectedFire}");
+        Assert.That(trigger.WillFireOn(expectedFire.AddHours(24)), Is.True, $"Expected to fire at {expectedFire}");
     }
 
     [Test]
@@ -86,7 +86,7 @@ public class CronTriggerTest
         trigger.StartTimeUtc = new DateTimeOffset(2099, 1, 1, 12, 0, 1, TimeSpan.Zero);
         trigger.EndTimeUtc = new DateTimeOffset(2099, 1, 1, 12, 0, 1, TimeSpan.Zero);
 
-        Assert.IsNull(trigger.ComputeFirstFireTimeUtc(null));
+        Assert.That(trigger.ComputeFirstFireTimeUtc(null), Is.Null);
     }
 
     [Test]
@@ -94,8 +94,8 @@ public class CronTriggerTest
     {
         IOperableTrigger trigger = new CronTriggerImpl();
         trigger.StartTimeUtc = new DateTime(1982, 6, 28, 13, 5, 5, 233);
-        Assert.IsFalse(trigger.HasMillisecondPrecision);
-        Assert.AreEqual(0, trigger.StartTimeUtc.Millisecond);
+        Assert.That(trigger.HasMillisecondPrecision, Is.False);
+        Assert.That(trigger.StartTimeUtc.Millisecond, Is.EqualTo(0));
     }
 
     [Test]
@@ -106,10 +106,10 @@ public class CronTriggerTest
         trigger.CronExpressionString = "0 0 12 * * ?";
         ICronTrigger trigger2 = (ICronTrigger) trigger.Clone();
 
-        Assert.AreEqual(trigger, trigger2, "Cloning failed");
+        Assert.That(trigger2, Is.EqualTo(trigger), "Cloning failed");
 
         // equals() doesn't test the cron expression
-        Assert.AreEqual("0 0 12 * * ?", trigger2.CronExpressionString, "Cloning failed for the cron expression");
+        Assert.That(trigger2.CronExpressionString, Is.EqualTo("0 0 12 * * ?"), "Cloning failed for the cron expression");
     }
 
     // http://jira.opensymphony.com/browse/QUARTZ-558
@@ -120,7 +120,7 @@ public class CronTriggerTest
         trigger.Key = new TriggerKey("test", "testGroup");
         ICronTrigger trigger2 = (ICronTrigger) trigger.Clone();
 
-        Assert.AreEqual(trigger, trigger2, "Cloning failed");
+        Assert.That(trigger2, Is.EqualTo(trigger), "Cloning failed");
     }
 
     [Test]
@@ -169,9 +169,12 @@ public class CronTriggerTest
         var triggerBuilder = trigger.GetTriggerBuilder();
         var trigger2 = triggerBuilder.Build();
 
-        Assert.That(trigger.StartTimeUtc, Is.EqualTo(trigger2.StartTimeUtc));
-        Assert.That(trigger.EndTimeUtc, Is.EqualTo(trigger2.EndTimeUtc));
-        Assert.That(trigger.Priority, Is.EqualTo(trigger2.Priority));
+        Assert.Multiple(() =>
+        {
+            Assert.That(trigger.StartTimeUtc, Is.EqualTo(trigger2.StartTimeUtc));
+            Assert.That(trigger.EndTimeUtc, Is.EqualTo(trigger2.EndTimeUtc));
+            Assert.That(trigger.Priority, Is.EqualTo(trigger2.Priority));
+        });
     }
 
     [Test]
@@ -184,8 +187,11 @@ public class CronTriggerTest
         var scheduleBuilder = trigger.GetScheduleBuilder();
 
         var cloned = (CronTriggerImpl) scheduleBuilder.Build();
-        Assert.That(cloned.MisfireInstruction, Is.EqualTo(trigger.MisfireInstruction));
-        Assert.That(cloned.TimeZone, Is.EqualTo(trigger.TimeZone));
-        Assert.That(cloned.CronExpressionString, Is.EqualTo(trigger.CronExpressionString));
+        Assert.Multiple(() =>
+        {
+            Assert.That(cloned.MisfireInstruction, Is.EqualTo(trigger.MisfireInstruction));
+            Assert.That(cloned.TimeZone, Is.EqualTo(trigger.TimeZone));
+            Assert.That(cloned.CronExpressionString, Is.EqualTo(trigger.CronExpressionString));
+        });
     }
 }

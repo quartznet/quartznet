@@ -29,16 +29,16 @@ public class ServiceCollectionExtensionsTests
         var job = quartzOptions.JobDetails.Single();
 
         // The trigger key should have its own manual configuration
-        Assert.AreEqual("TriggerName", trigger.Key.Name);
-        Assert.AreEqual("TriggerGroup", trigger.Key.Group);
+        Assert.That(trigger.Key.Name, Is.EqualTo("TriggerName"));
+        Assert.That(trigger.Key.Group, Is.EqualTo("TriggerGroup"));
 
         // The job key should have its own manual configuration
-        Assert.AreEqual("JobName", job.Key.Name);
-        Assert.AreEqual("JobGroup", job.Key.Group);
+        Assert.That(job.Key.Name, Is.EqualTo("JobName"));
+        Assert.That(job.Key.Group, Is.EqualTo("JobGroup"));
 
         // Also validate that the trigger knows the correct job key
-        Assert.AreEqual(job.Key.Name, trigger.JobKey.Name);
-        Assert.AreEqual(job.Key.Group, trigger.JobKey.Group);
+        Assert.That(trigger.JobKey.Name, Is.EqualTo(job.Key.Name));
+        Assert.That(trigger.JobKey.Group, Is.EqualTo(job.Key.Group));
     }
 
     [Test]
@@ -61,12 +61,12 @@ public class ServiceCollectionExtensionsTests
         var job = quartzOptions.JobDetails.Single();
 
         // The job's key should match the trigger's (auto-generated) key
-        Assert.AreEqual(trigger.Key.Name, job.Key.Name);
-        Assert.AreEqual(trigger.Key.Group, job.Key.Group);
+        Assert.That(job.Key.Name, Is.EqualTo(trigger.Key.Name));
+        Assert.That(job.Key.Group, Is.EqualTo(trigger.Key.Group));
 
         // Also validate that the trigger knows the correct job key
-        Assert.AreEqual(job.Key.Name, trigger.JobKey.Name);
-        Assert.AreEqual(job.Key.Group, trigger.JobKey.Group);
+        Assert.That(trigger.JobKey.Name, Is.EqualTo(job.Key.Name));
+        Assert.That(trigger.JobKey.Group, Is.EqualTo(job.Key.Group));
     }
 
     [Test]
@@ -89,16 +89,16 @@ public class ServiceCollectionExtensionsTests
         var job = quartzOptions.JobDetails.Single();
 
         // The trigger key should have its own manual configuration
-        Assert.AreEqual("TriggerName", trigger.Key.Name);
-        Assert.AreEqual("TriggerGroup", trigger.Key.Group);
+        Assert.That(trigger.Key.Name, Is.EqualTo("TriggerName"));
+        Assert.That(trigger.Key.Group, Is.EqualTo("TriggerGroup"));
 
         // The job's key should match the trigger's (auto-generated) key
-        Assert.AreEqual(trigger.Key.Name, job.Key.Name);
-        Assert.AreEqual(trigger.Key.Group, job.Key.Group);
+        Assert.That(job.Key.Name, Is.EqualTo(trigger.Key.Name));
+        Assert.That(job.Key.Group, Is.EqualTo(trigger.Key.Group));
 
         // Also validate that the trigger knows the correct job key
-        Assert.AreEqual(job.Key.Name, trigger.JobKey.Name);
-        Assert.AreEqual(job.Key.Group, trigger.JobKey.Group);
+        Assert.That(trigger.JobKey.Name, Is.EqualTo(job.Key.Name));
+        Assert.That(trigger.JobKey.Group, Is.EqualTo(job.Key.Group));
     }
 
     [Test]

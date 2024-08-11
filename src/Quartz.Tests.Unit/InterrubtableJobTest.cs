@@ -29,9 +29,16 @@ namespace Quartz.Tests.Unit;
 [TestFixture]
 public class InterruptableJobTest
 {
-    private static readonly ManualResetEvent started = new ManualResetEvent(false);
-    private static readonly ManualResetEvent ended = new ManualResetEvent(false);
+    private static readonly ManualResetEvent started = new(false);
+    private static readonly ManualResetEvent ended = new(false);
 
+    [OneTimeTearDown]
+    public void TearDown()
+    {
+        started.Dispose();
+        ended.Dispose();
+    }
+    
     public class TestInterruptableJob : IJob
     {
         public static bool interrupted;
@@ -73,12 +80,14 @@ public class InterruptableJobTest
     {
         // create a simple scheduler
 
-        NameValueCollection config = new NameValueCollection();
-        config["quartz.scheduler.instanceName"] = "InterruptableJobTest_Scheduler";
-        config["quartz.scheduler.instanceId"] = "AUTO";
-        config["quartz.threadPool.threadCount"] = "2";
-        config["quartz.threadPool.type"] = "Quartz.Simpl.DefaultThreadPool";
-        config["quartz.serializer.type"] = TestConstants.DefaultSerializerType;
+        NameValueCollection config = new NameValueCollection
+        {
+            ["quartz.scheduler.instanceName"] = "InterruptableJobTest_Scheduler",
+            ["quartz.scheduler.instanceId"] = "AUTO",
+            ["quartz.threadPool.threadCount"] = "2",
+            ["quartz.threadPool.type"] = "Quartz.Simpl.DefaultThreadPool",
+            ["quartz.serializer.type"] = TestConstants.DefaultSerializerType
+        };
         IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();
         await sched.Start();
 
@@ -100,7 +109,7 @@ public class InterruptableJobTest
 
         var executingJobs = await sched.GetCurrentlyExecutingJobs();
 
-        Assert.AreEqual(1, executingJobs.Count, "Number of executing jobs should be 1 ");
+        Assert.That(executingJobs, Has.Count.EqualTo(1), "Number of executing jobs should be 1 ");
 
         IJobExecutionContext jec = executingJobs.First();
 
@@ -108,8 +117,11 @@ public class InterruptableJobTest
 
         ended.WaitOne(); // wait for the job to terminate
 
-        Assert.IsTrue(interruptResult, "Expected successful result from interruption of job ");
-        Assert.IsTrue(TestInterruptableJob.interrupted, "Expected interrupted flag to be set on job class ");
+        Assert.Multiple(() =>
+        {
+            Assert.That(interruptResult, Is.True, "Expected successful result from interruption of job ");
+            Assert.That(TestInterruptableJob.interrupted, Is.True, "Expected interrupted flag to be set on job class ");
+        });
 
         await sched.Clear();
         await sched.Shutdown();

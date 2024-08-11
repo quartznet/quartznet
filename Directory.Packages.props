@@ -10,6 +10,7 @@
     <PackageVersion Include="FakeItEasy" Version="8.3.0" />
     <PackageVersion Include="FirebirdSql.Data.FirebirdClient" Version="10.3.1" />
     <PackageVersion Include="FluentAssertions" Version="6.12.0" />
+    <PackageVersion Include="FluentAssertions.Analyzers" Version="0.33.0" />
     <PackageVersion Include="log4net" Version="2.0.17" />
     <PackageVersion Include="MELT" Version="0.9.0" />
     <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.7" />
@@ -26,6 +27,7 @@
     <PackageVersion Include="NLog.Extensions.Logging" Version="5.3.11" />
     <PackageVersion Include="NSwag.AspNetCore" Version="14.1.0" />
     <PackageVersion Include="NUnit" Version="4.1.0" />
+    <PackageVersion Include="NUnit.Analyzers" Version="4.3.0" />
     <PackageVersion Include="NUnit3TestAdapter" Version="4.6.0" />
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageVersion Include="Npgsql" Version="8.0.3" />

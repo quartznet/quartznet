@@ -74,13 +74,13 @@ public class RecoverJobsTest
                 var triggerState = command.ExecuteScalar().ToString();
 
                 // check that trigger is blocked after fail over situation
-                Assert.AreEqual("BLOCKED", triggerState);
+                Assert.That(triggerState, Is.EqualTo("BLOCKED"));
 
                 command.CommandText = $"SELECT count(*) from QRTZ_FIRED_TRIGGERS WHERE SCHED_NAME = '{scheduler.SchedulerName}' AND TRIGGER_NAME='test'";
                 int count = Convert.ToInt32(command.ExecuteScalar());
 
                 // check that fired trigger remains after fail over situation
-                Assert.AreEqual(1, count);
+                Assert.That(count, Is.EqualTo(1));
             }
         }
 
@@ -102,7 +102,7 @@ public class RecoverJobsTest
         // wait job
         await recovery.Shutdown(true);
 
-        Assert.True(isJobRecovered.Wait(TimeSpan.FromSeconds(10)));
+        Assert.That(isJobRecovered.Wait(TimeSpan.FromSeconds(10)), Is.True);
     }
 
     private class TestListener : JobListenerSupport

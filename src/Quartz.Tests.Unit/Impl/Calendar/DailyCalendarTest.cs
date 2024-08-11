@@ -63,8 +63,8 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
         DateTime expectedStartTime = new DateTime(d.Year, d.Month, d.Day, 1, 20, 0);
         DateTime expectedEndTime = new DateTime(d.Year, d.Month, d.Day, 14, 50, 0);
 
-        Assert.AreEqual(expectedStartTime, dailyCalendar.GetTimeRangeStartingTimeUtc(d).DateTime);
-        Assert.AreEqual(expectedEndTime, dailyCalendar.GetTimeRangeEndingTimeUtc(d).DateTime);
+        Assert.That(dailyCalendar.GetTimeRangeStartingTimeUtc(d).DateTime, Is.EqualTo(expectedStartTime));
+        Assert.That(dailyCalendar.GetTimeRangeEndingTimeUtc(d).DateTime, Is.EqualTo(expectedEndTime));
     }
 
     [Test]
@@ -72,10 +72,10 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
     {
         DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50");
         dailyCalendar.InvertTimeRange = true;
-        Assert.IsTrue(dailyCalendar.ToString().IndexOf("inverted: True") > 0);
+        Assert.That(dailyCalendar.ToString().IndexOf("inverted: True") > 0, Is.True);
 
         dailyCalendar.InvertTimeRange = false;
-        Assert.IsTrue(dailyCalendar.ToString().IndexOf("inverted: False") > 0);
+        Assert.That(dailyCalendar.ToString().IndexOf("inverted: False") > 0, Is.True);
     }
 
     [Test]
@@ -89,7 +89,7 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
 
         // 11/2/2012 17:00 (utc) is 11/2/2012 13:00 (est)
         DateTimeOffset timeToCheck = new DateTimeOffset(2012, 11, 2, 17, 0, 0, TimeSpan.FromHours(0));
-        Assert.IsTrue(dailyCalendar.IsTimeIncluded(timeToCheck));
+        Assert.That(dailyCalendar.IsTimeIncluded(timeToCheck), Is.True);
     }
 
     /// <summary>
@@ -158,10 +158,10 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
 
     protected override void VerifyMatch(DailyCalendar original, DailyCalendar deserialized)
     {
-        Assert.IsNotNull(deserialized);
-        Assert.AreEqual(original.Description, deserialized.Description);
-        Assert.AreEqual(original.InvertTimeRange, deserialized.InvertTimeRange);
-        Assert.AreEqual(original.TimeZone, deserialized.TimeZone);
-        Assert.AreEqual(original.ToString(), deserialized.ToString());
+        Assert.That(deserialized, Is.Not.Null);
+        Assert.That(deserialized.Description, Is.EqualTo(original.Description));
+        Assert.That(deserialized.InvertTimeRange, Is.EqualTo(original.InvertTimeRange));
+        Assert.That(deserialized.TimeZone, Is.EqualTo(original.TimeZone));
+        Assert.That(deserialized.ToString(), Is.EqualTo(original.ToString()));
     }
 }

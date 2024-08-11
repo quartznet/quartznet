@@ -30,18 +30,9 @@ namespace Quartz.Tests.Unit;
 /// <author>Marko Lahma (.NET)</author>
 public static class TestUtil
 {
-    public static void AssertCollectionEquality<T>(IList<T> col1, IList<T> col2)
-    {
-        Assert.AreEqual(col1.Count, col2.Count, "Collection sizes differ");
-        for (int i = 0; i < col1.Count; ++i)
-        {
-            Assert.AreEqual(col1[i], col2[i], $"Collection items differ at index {i}: {col1[i]} vs {col2[i]}");
-        }
-    }
-
     /// <summary>
     /// Creates the minimal fired bundle with job detail that has
-    /// given job type.
+    /// given the job type.
     /// </summary>
     /// <param name="jobType">Type of the job.</param>
     /// <param name="trigger">The trigger.</param>

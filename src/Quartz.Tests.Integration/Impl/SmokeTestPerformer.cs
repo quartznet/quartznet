@@ -34,7 +34,7 @@ public class SmokeTestPerformer
 
                 // QRTZNET-86
                 ITrigger t = await scheduler.GetTrigger(new TriggerKey("NonExistingTrigger", "NonExistingGroup"));
-                Assert.IsNull(t);
+                Assert.That(t, Is.Null);
 
                 AnnualCalendar cal = new AnnualCalendar();
                 cal.SetDayExcluded(new DateTime(2018, 7, 4), true);
@@ -70,7 +70,7 @@ public class SmokeTestPerformer
                 Assert.That(customCalendar, Is.Not.Null);
                 Assert.That(customCalendar.SomeCustomProperty, Is.True);
 
-                Assert.IsNotNull(await scheduler.GetCalendar("annualCalendar"));
+                Assert.That(await scheduler.GetCalendar("annualCalendar"), Is.Not.Null);
 
                 var lonelyJob = JobBuilder.Create()
                     .OfType<SimpleRecoveryJob>()
@@ -102,8 +102,8 @@ public class SmokeTestPerformer
 
                 // check that trigger was stored
                 ITrigger persisted = await scheduler.GetTrigger(new TriggerKey("trig_" + count, schedId));
-                Assert.IsNotNull(persisted);
-                Assert.IsTrue(persisted is SimpleTriggerImpl);
+                Assert.That(persisted, Is.Not.Null);
+                Assert.That(persisted is SimpleTriggerImpl, Is.True);
 
                 count++;
                 job = JobBuilder.Create()
@@ -287,8 +287,8 @@ public class SmokeTestPerformer
 
                 await scheduler.ScheduleJobs(info, true);
 
-                Assert.IsTrue(await scheduler.CheckExists(detail.Key));
-                Assert.IsTrue(await scheduler.CheckExists(simple.Key));
+                Assert.That(await scheduler.CheckExists(detail.Key), Is.True);
+                Assert.That(await scheduler.CheckExists(simple.Key), Is.True);
 
                 // QRTZNET-243
                 await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupContains("a"));
@@ -325,15 +325,15 @@ public class SmokeTestPerformer
                 await scheduler.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals(schedId));
 
                 var pausedTriggerGroups = await scheduler.GetPausedTriggerGroups();
-                Assert.AreEqual(1, pausedTriggerGroups.Count);
+                Assert.That(pausedTriggerGroups.Count, Is.EqualTo(1));
 
                 await Task.Delay(TimeSpan.FromSeconds(3));
                 await scheduler.ResumeTriggers(GroupMatcher<TriggerKey>.GroupEquals(schedId));
 
-                Assert.IsNotNull(scheduler.GetTrigger(new TriggerKey("trig_2", schedId)));
-                Assert.IsNotNull(scheduler.GetJobDetail(new JobKey("job_1", schedId)));
-                Assert.IsNotNull(scheduler.GetMetaData());
-                Assert.IsNotNull(scheduler.GetCalendar("weeklyCalendar"));
+                Assert.That(await scheduler.GetTrigger(new TriggerKey("trig_2", schedId)), Is.Not.Null);
+                Assert.That(await scheduler.GetJobDetail(new JobKey("job_1", schedId)), Is.Not.Null);
+                Assert.That(await scheduler.GetMetaData(), Is.Not.Null);
+                Assert.That(await scheduler.GetCalendar("weeklyCalendar"), Is.Not.Null);
 
                 var genericjobKey = new JobKey("genericJob", "genericGroup");
                 GenericJobType.Reset();
@@ -353,11 +353,13 @@ public class SmokeTestPerformer
                 Assert.That(GenericJobType.TriggeredCount, Is.EqualTo(1));
                 await scheduler.Standby();
 
-                CollectionAssert.IsNotEmpty(await scheduler.GetCalendarNames());
-                CollectionAssert.IsNotEmpty(await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(schedId)));
+                Assert.That(await scheduler.GetCalendarNames(), Is.Not.Empty);
+                Assert.That(await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(schedId)), Is.Not.Empty);
 
-                CollectionAssert.IsNotEmpty(await scheduler.GetTriggersOfJob(new JobKey("job_2", schedId)));
-                Assert.IsNotNull(scheduler.GetJobDetail(new JobKey("job_2", schedId)));
+                Assert.That(await scheduler.GetTriggersOfJob(new JobKey("job_2", schedId)), Is.Not.Empty);
+#pragma warning disable NUnit2023
+                Assert.That(scheduler.GetJobDetail(new JobKey("job_2", schedId)), Is.Not.Null);
+#pragma warning restore NUnit2023
 
                 await scheduler.DeleteCalendar("cronCalendar");
                 await scheduler.DeleteCalendar("holidayCalendar");

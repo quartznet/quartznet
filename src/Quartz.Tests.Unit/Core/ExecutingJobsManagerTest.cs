@@ -16,7 +16,7 @@ public class ExecutingJobsManagerTest
     public void Name()
     {
         var actual = _executingJobsManager.Name;
-        Assert.AreEqual("Quartz.Core.ExecutingJobsManager", actual);
-        Assert.AreSame(actual, _executingJobsManager.Name);
+        Assert.That(actual, Is.EqualTo("Quartz.Core.ExecutingJobsManager"));
+        Assert.That(_executingJobsManager.Name, Is.SameAs(actual));
     }
 }

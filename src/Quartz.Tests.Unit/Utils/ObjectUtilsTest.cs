@@ -34,7 +34,7 @@ public class ObjectUtilsTest
     public void NullObjectForValueTypeShouldReturnDefaultforValueType()
     {
         object value = ObjectUtils.ConvertValueIfNecessary(typeof(int), null);
-        Assert.AreEqual(0, value);
+        Assert.That(value, Is.EqualTo(0));
     }
 
     [Test]
@@ -47,56 +47,56 @@ public class ObjectUtilsTest
     public void TimeSpanConversionShouldWork()
     {
         TimeSpan ts = (TimeSpan) ObjectUtils.ConvertValueIfNecessary(typeof(TimeSpan), "1");
-        Assert.AreEqual(1, ts.TotalDays);
+        Assert.That(ts.TotalDays, Is.EqualTo(1));
     }
 
     [Test]
     public void TestConvertAssignable()
     {
         IComparable val = (IComparable) ObjectUtils.ConvertValueIfNecessary(typeof(IComparable), "test");
-        Assert.AreEqual("test", val);
+        Assert.That(val, Is.EqualTo("test"));
     }
 
     [Test]
     public void TestConvertStringToEnum()
     {
         DayOfWeek val = (DayOfWeek) ObjectUtils.ConvertValueIfNecessary(typeof(DayOfWeek), "Wednesday");
-        Assert.AreEqual(DayOfWeek.Wednesday, val);
+        Assert.That(val, Is.EqualTo(DayOfWeek.Wednesday));
     }
 
     [Test]
     public void TestConvertEnumToString()
     {
         string val = (string) ObjectUtils.ConvertValueIfNecessary(typeof(string), DayOfWeek.Wednesday);
-        Assert.AreEqual("Wednesday", val);
+        Assert.That(val, Is.EqualTo("Wednesday"));
     }
 
     [Test]
     public void TestConvertIntToDouble()
     {
         double val = (double) ObjectUtils.ConvertValueIfNecessary(typeof(double), 1234);
-        Assert.AreEqual(1234.0, val);
+        Assert.That(val, Is.EqualTo(1234.0));
     }
 
     [Test]
     public void TestConvertDoubleToInt()
     {
         int val = (int) ObjectUtils.ConvertValueIfNecessary(typeof(int), 1234.5);
-        Assert.AreEqual(1234, val);
+        Assert.That(val, Is.EqualTo(1234));
     }
 
     [Test]
     public void TestConvertStringToType()
     {
         Type val = (Type) ObjectUtils.ConvertValueIfNecessary(typeof(Type), "System.String");
-        Assert.AreEqual(typeof(string), val);
+        Assert.That(val, Is.EqualTo(typeof(string)));
     }
 
     [Test]
     public void TestConvertTypeToString()
     {
         string val = (string) ObjectUtils.ConvertValueIfNecessary(typeof(string), typeof(string));
-        Assert.AreEqual("System.String", val);
+        Assert.That(val, Is.EqualTo("System.String"));
     }
 
     [Test]
@@ -111,22 +111,28 @@ public class ObjectUtilsTest
         props["TimeDefault"] = "1";
         ObjectUtils.SetObjectProperties(o, props);
 
-        Assert.AreEqual(1, o.TimeHours.TotalHours);
-        Assert.AreEqual(1, o.TimeMilliseconds.TotalMilliseconds);
-        Assert.AreEqual(1, o.TimeMinutes.TotalMinutes);
-        Assert.AreEqual(1, o.TimeSeconds.TotalSeconds);
-        Assert.AreEqual(1, o.TimeDefault.TotalDays);
+        Assert.Multiple(() =>
+        {
+            Assert.That(o.TimeHours.TotalHours, Is.EqualTo(1));
+            Assert.That(o.TimeMilliseconds.TotalMilliseconds, Is.EqualTo(1));
+            Assert.That(o.TimeMinutes.TotalMinutes, Is.EqualTo(1));
+            Assert.That(o.TimeSeconds.TotalSeconds, Is.EqualTo(1));
+            Assert.That(o.TimeDefault.TotalDays, Is.EqualTo(1));
+        });
     }
 
     [Test]
     public void TestIsAnnotationPresentOnSuperClass()
     {
-        Assert.IsTrue(ObjectUtils.IsAttributePresent(typeof(BaseJob), typeof(DisallowConcurrentExecutionAttribute)));
-        Assert.IsFalse(ObjectUtils.IsAttributePresent(typeof(BaseJob), typeof(PersistJobDataAfterExecutionAttribute)));
-        Assert.IsTrue(ObjectUtils.IsAttributePresent(typeof(ExtendedJob), typeof(DisallowConcurrentExecutionAttribute)));
-        Assert.IsFalse(ObjectUtils.IsAttributePresent(typeof(ExtendedJob), typeof(PersistJobDataAfterExecutionAttribute)));
-        Assert.IsTrue(ObjectUtils.IsAttributePresent(typeof(ReallyExtendedJob), typeof(DisallowConcurrentExecutionAttribute)));
-        Assert.IsTrue(ObjectUtils.IsAttributePresent(typeof(ReallyExtendedJob), typeof(PersistJobDataAfterExecutionAttribute)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(ObjectUtils.IsAttributePresent(typeof(BaseJob), typeof(DisallowConcurrentExecutionAttribute)), Is.True);
+            Assert.That(ObjectUtils.IsAttributePresent(typeof(BaseJob), typeof(PersistJobDataAfterExecutionAttribute)), Is.False);
+            Assert.That(ObjectUtils.IsAttributePresent(typeof(ExtendedJob), typeof(DisallowConcurrentExecutionAttribute)), Is.True);
+            Assert.That(ObjectUtils.IsAttributePresent(typeof(ExtendedJob), typeof(PersistJobDataAfterExecutionAttribute)), Is.False);
+            Assert.That(ObjectUtils.IsAttributePresent(typeof(ReallyExtendedJob), typeof(DisallowConcurrentExecutionAttribute)), Is.True);
+            Assert.That(ObjectUtils.IsAttributePresent(typeof(ReallyExtendedJob), typeof(PersistJobDataAfterExecutionAttribute)), Is.True);
+        });
     }
 
     [Test]

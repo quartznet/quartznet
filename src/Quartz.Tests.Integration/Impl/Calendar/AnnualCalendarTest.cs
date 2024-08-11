@@ -71,12 +71,12 @@ public class AnnualCalendarTest : IntegrationTest
 
         await sched.RescheduleJob(new TriggerKey("trigName", "trigGroup"), triggerreplace);
         await Task.Delay(TimeSpan.FromSeconds(20));
-        Assert.IsFalse(TestJob.JobHasFired, "task must not be neglected - it is forbidden by the calendar");
+        Assert.That(TestJob.JobHasFired, Is.False, "task must not be neglected - it is forbidden by the calendar");
 
         calendar.SetDayExcluded(DateTime.Now, false);
         await sched.AddCalendar("calendar", calendar, true, true);
         await Task.Delay(TimeSpan.FromSeconds(20));
-        Assert.IsTrue(TestJob.JobHasFired, "task must be neglected - it is permitted by the calendar");
+        Assert.That(TestJob.JobHasFired, Is.True, "task must be neglected - it is permitted by the calendar");
 
         await sched.DeleteJob(new JobKey("name", "group"));
         await sched.DeleteCalendar("calendar");

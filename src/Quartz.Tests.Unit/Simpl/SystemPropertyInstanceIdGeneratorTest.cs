@@ -47,7 +47,7 @@ public class SystemPropertyInstanceIdGeneratorTest
 
         string instId = await gen.GenerateInstanceId();
 
-        Assert.AreEqual("foo", instId);
+        Assert.That(instId, Is.EqualTo("foo"));
     }
 
     [Test]
@@ -58,7 +58,7 @@ public class SystemPropertyInstanceIdGeneratorTest
 
         string instId = await gen.GenerateInstanceId();
 
-        Assert.AreEqual("1foo", instId);
+        Assert.That(instId, Is.EqualTo("1foo"));
     }
 
     [Test]
@@ -69,7 +69,7 @@ public class SystemPropertyInstanceIdGeneratorTest
 
         string instId = await gen.GenerateInstanceId();
 
-        Assert.AreEqual("foo2", instId);
+        Assert.That(instId, Is.EqualTo("foo2"));
     }
 
     [Test]
@@ -81,7 +81,7 @@ public class SystemPropertyInstanceIdGeneratorTest
 
         string instId = await gen.GenerateInstanceId();
 
-        Assert.AreEqual("1foo2", instId);
+        Assert.That(instId, Is.EqualTo("1foo2"));
     }
 
     [Test]
@@ -92,7 +92,7 @@ public class SystemPropertyInstanceIdGeneratorTest
 
         string instId = await gen.GenerateInstanceId();
 
-        Assert.AreEqual("goo", instId);
+        Assert.That(instId, Is.EqualTo("goo"));
     }
 
     [Test]
@@ -117,6 +117,6 @@ public class SystemPropertyInstanceIdGeneratorTest
 
         IScheduler sched = await new StdSchedulerFactory(config).GetScheduler();
 
-        Assert.AreEqual("1goo2", sched.SchedulerInstanceId);
+        Assert.That(sched.SchedulerInstanceId, Is.EqualTo("1goo2"));
     }
 }

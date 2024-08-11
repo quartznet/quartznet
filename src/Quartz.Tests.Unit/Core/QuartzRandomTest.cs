@@ -11,8 +11,8 @@ public class QuartzRandomTest
         var rand = new QuartzRandom();
         var result = rand.Next(2, 6);
 
-        Assert.GreaterOrEqual(result, 2);
-        Assert.LessOrEqual(result, 6);
+        Assert.That(result, Is.GreaterThanOrEqualTo(2));
+        Assert.That(result, Is.LessThanOrEqualTo(6));
     }
 
     [Test]
@@ -21,8 +21,8 @@ public class QuartzRandomTest
         var rand = new QuartzRandom();
         var result = rand.Next(-6, -2);
 
-        Assert.GreaterOrEqual(result, -6);
-        Assert.LessOrEqual(result, -2);
+        Assert.That(result, Is.GreaterThanOrEqualTo(-6));
+        Assert.That(result, Is.LessThanOrEqualTo(-2));
     }
 
     [Test]
@@ -31,8 +31,8 @@ public class QuartzRandomTest
         var rand = new QuartzRandom();
         var result = rand.Next(-6, 6);
 
-        Assert.GreaterOrEqual(result, -6);
-        Assert.LessOrEqual(result, 6);
+        Assert.That(result, Is.GreaterThanOrEqualTo(-6));
+        Assert.That(result, Is.LessThanOrEqualTo(6));
     }
 
     [Test]
@@ -41,8 +41,8 @@ public class QuartzRandomTest
         var rand = new QuartzRandom();
         var result = rand.Next(-1, int.MaxValue);
 
-        Assert.GreaterOrEqual(result, -1);
-        Assert.LessOrEqual(result, int.MaxValue);
+        Assert.That(result, Is.GreaterThanOrEqualTo(-1));
+        Assert.That(result, Is.LessThanOrEqualTo(int.MaxValue));
     }
 
     [Test]

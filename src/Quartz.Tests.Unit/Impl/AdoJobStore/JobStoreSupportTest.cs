@@ -57,7 +57,7 @@ public class JobStoreSupportTest
             set
             {
                 FieldInfo fieldInfo = typeof(JobStoreSupport).GetField("driverDelegate", BindingFlags.Instance | BindingFlags.NonPublic);
-                Assert.IsNotNull(fieldInfo);
+                Assert.That(fieldInfo, Is.Not.Null);
                 fieldInfo.SetValue(this, value);
             }
         }

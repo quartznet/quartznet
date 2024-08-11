@@ -136,6 +136,6 @@ public class UpdateTriggerTest
 
         //Assert
         var resultDataParameters = dataParameterCollectionOutputs.Select(x => x as IDataParameter).Where(x => x.ParameterName == "triggerType").FirstOrDefault();
-        Assert.AreEqual("CRON", resultDataParameters.Value);
+        Assert.That(resultDataParameters.Value, Is.EqualTo("CRON"));
     }
 }

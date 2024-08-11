@@ -48,13 +48,13 @@ public class TaskSchedulingThreadPoolTest
             task2Done.Set();
         });
 
-        Assert.IsTrue(WaitHandle.WaitAll(new[] { task1Done, task2Done }, TimeSpan.FromSeconds(1)));
+        Assert.That(WaitHandle.WaitAll(new[] { task1Done, task2Done }, TimeSpan.FromSeconds(1)), Is.True);
 
-        Assert.AreEqual(4, logBook.Count);
-        Assert.AreEqual("START #1", logBook[0]);
-        Assert.AreEqual("END #1", logBook[1]);
-        Assert.AreEqual("START #2", logBook[2]);
-        Assert.AreEqual("END #2", logBook[3]);
+        Assert.That(logBook.Count, Is.EqualTo(4));
+        Assert.That(logBook[0], Is.EqualTo("START #1"));
+        Assert.That(logBook[1], Is.EqualTo("END #1"));
+        Assert.That(logBook[2], Is.EqualTo("START #2"));
+        Assert.That(logBook[3], Is.EqualTo("END #2"));
     }
 
     private class CustomTaskSchedulingThreadPool : TaskSchedulingThreadPool

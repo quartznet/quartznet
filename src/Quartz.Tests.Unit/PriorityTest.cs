@@ -45,6 +45,12 @@ public class PriorityTest
         countdownEvent = new CountdownEvent(2);
     }
 
+    [TearDown]
+    public void TearDown()
+    {
+        countdownEvent.Dispose();
+    }
+
     [Test]
     public async Task TestSameDefaultPriority()
     {
@@ -72,7 +78,7 @@ public class PriorityTest
 
         countdownEvent.Wait();
 
-        Assert.AreEqual("T1T2", result.ToString());
+        Assert.That(result.ToString(), Is.EqualTo("T1T2"));
 
         await sched.Shutdown();
     }
@@ -107,7 +113,7 @@ public class PriorityTest
 
         countdownEvent.Wait();
 
-        Assert.AreEqual("T2T1", result.ToString());
+        Assert.That(result.ToString(), Is.EqualTo("T2T1"));
 
         await sched.Shutdown();
     }

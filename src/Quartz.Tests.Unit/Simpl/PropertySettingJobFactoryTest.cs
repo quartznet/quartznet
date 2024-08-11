@@ -75,19 +75,19 @@ public class PropertySettingJobFactoryTest
         TestObject myObject = new TestObject();
         factory.SetObjectProperties(myObject, jobDataMap);
 
-        Assert.AreEqual(1, myObject.IntValue);
-        Assert.AreEqual(2, myObject.LongValue);
-        Assert.AreEqual(3.0f, myObject.FloatValue);
-        Assert.AreEqual(4.0, myObject.DoubleValue);
-        Assert.IsTrue(myObject.BooleanValue);
-        Assert.AreEqual(5, myObject.ShortValue);
-        Assert.AreEqual('a', myObject.CharValue);
-        Assert.AreEqual((byte) 6, myObject.ByteValue);
-        Assert.AreEqual("S1", myObject.StringValue);
-        Assert.AreEqual(DayOfWeek.Monday, myObject.EnumValue1);
-        Assert.AreEqual(DayOfWeek.Monday, myObject.EnumValue2);
-        Assert.AreEqual(DayOfWeek.Monday, myObject.EnumValue3);
-        Assert.IsTrue(myObject.MapValue.ContainsKey("A"));
+        Assert.That(myObject.IntValue, Is.EqualTo(1));
+        Assert.That(myObject.LongValue, Is.EqualTo(2));
+        Assert.That(myObject.FloatValue, Is.EqualTo(3.0f));
+        Assert.That(myObject.DoubleValue, Is.EqualTo(4.0));
+        Assert.That(myObject.BooleanValue, Is.True);
+        Assert.That(myObject.ShortValue, Is.EqualTo(5));
+        Assert.That(myObject.CharValue, Is.EqualTo('a'));
+        Assert.That(myObject.ByteValue, Is.EqualTo((byte) 6));
+        Assert.That(myObject.StringValue, Is.EqualTo("S1"));
+        Assert.That(myObject.EnumValue1, Is.EqualTo(DayOfWeek.Monday));
+        Assert.That(myObject.EnumValue2, Is.EqualTo(DayOfWeek.Monday));
+        Assert.That(myObject.EnumValue3, Is.EqualTo(DayOfWeek.Monday));
+        Assert.That(myObject.MapValue.ContainsKey("A"), Is.True);
     }
 
     [Test]
@@ -130,7 +130,7 @@ public class PropertySettingJobFactoryTest
         map.Add("A", "B");
         testObject.MapValue = map;
         factory.SetObjectProperties(testObject, jobDataMap);
-        Assert.IsNull(testObject.MapValue);
+        Assert.That(testObject.MapValue, Is.Null);
     }
 
     [Test]
@@ -209,14 +209,14 @@ public class PropertySettingJobFactoryTest
         TestObject myObject = new TestObject();
         factory.SetObjectProperties(myObject, jobDataMap);
 
-        Assert.AreEqual(1, myObject.IntValue);
-        Assert.AreEqual(2L, myObject.LongValue);
-        Assert.AreEqual(3.0f, myObject.FloatValue);
-        Assert.AreEqual(4.0, myObject.DoubleValue);
-        Assert.AreEqual(true, myObject.BooleanValue);
-        Assert.AreEqual(5, myObject.ShortValue);
-        Assert.AreEqual('a', myObject.CharValue);
-        Assert.AreEqual((byte) 6, myObject.ByteValue);
+        Assert.That(myObject.IntValue, Is.EqualTo(1));
+        Assert.That(myObject.LongValue, Is.EqualTo(2L));
+        Assert.That(myObject.FloatValue, Is.EqualTo(3.0f));
+        Assert.That(myObject.DoubleValue, Is.EqualTo(4.0));
+        Assert.That(myObject.BooleanValue, Is.EqualTo(true));
+        Assert.That(myObject.ShortValue, Is.EqualTo(5));
+        Assert.That(myObject.CharValue, Is.EqualTo('a'));
+        Assert.That(myObject.ByteValue, Is.EqualTo((byte) 6));
     }
 
     internal sealed class TestObject

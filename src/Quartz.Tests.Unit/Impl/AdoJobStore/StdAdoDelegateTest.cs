@@ -85,9 +85,7 @@ public class StdAdoDelegateTest
         }
     }
 
-    private class NonSerializableTestClass
-    {
-    }
+    private class NonSerializableTestClass;
 
     [Test]
     public async Task TestSelectBlobTriggerWithNoBlobContent()
@@ -280,14 +278,14 @@ public class StdAdoDelegateTest
             new SimpleTypeLoadHelper(), // Irrelevant, not used actually by method implementation
             CancellationToken.None);
 
-        Assert.IsNotNull(jobDetail);
-        Assert.AreEqual(jobName, jobDetail.Key.Name);
-        Assert.AreEqual(jobGroup, jobDetail.Key.Group);
-        Assert.AreEqual(jobDescription, jobDetail.Description);
-        Assert.AreEqual(typeof(TestJob), jobDetail.JobType.Type);
-        Assert.IsTrue(jobDetail.RequestsRecovery);
-        Assert.IsTrue(jobDetail.Durable);
-        Assert.IsTrue(jobDetail.ConcurrentExecutionDisallowed);
+        Assert.That(jobDetail, Is.Not.Null);
+        Assert.That(jobDetail.Key.Name, Is.EqualTo(jobName));
+        Assert.That(jobDetail.Key.Group, Is.EqualTo(jobGroup));
+        Assert.That(jobDetail.Description, Is.EqualTo(jobDescription));
+        Assert.That(jobDetail.JobType.Type, Is.EqualTo(typeof(TestJob)));
+        Assert.That(jobDetail.RequestsRecovery, Is.True);
+        Assert.That(jobDetail.Durable, Is.True);
+        Assert.That(jobDetail.ConcurrentExecutionDisallowed, Is.True);
 
         var expectedCommandText = "SELECT "
                                   + "JOB_NAME,"
@@ -303,7 +301,7 @@ public class StdAdoDelegateTest
                                   + "WHERE SCHED_NAME = @schedulerName "
                                   + "AND JOB_NAME = @jobName "
                                   + "AND JOB_GROUP = @jobGroup";
-        Assert.AreEqual(expectedCommandText, command.CommandText);
+        Assert.That(command.CommandText, Is.EqualTo(expectedCommandText));
     }
 
     private class TestJob : IJob
@@ -496,6 +494,4 @@ public class StubParameterCollection : DbParameterCollection
     }
 }
 
-internal class TestTriggerPersistenceDelegate : SimpleTriggerPersistenceDelegate
-{
-}
+internal class TestTriggerPersistenceDelegate : SimpleTriggerPersistenceDelegate;

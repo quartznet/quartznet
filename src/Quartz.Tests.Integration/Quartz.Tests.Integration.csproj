@@ -31,6 +31,10 @@
     <PackageReference Include="MySqlConnector" />
     <PackageReference Include="NUnit" />
     <PackageReference Include="Npgsql" />
+    <PackageReference Include="NUnit.Analyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
     <PackageReference Include="Oracle.ManagedDataAccess.Core" />
     <PackageReference Include="System.Data.SQLite.Core" />
     <PackageReference Include="NUnit3TestAdapter" />

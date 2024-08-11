@@ -12,7 +12,7 @@ internal class OrderedDictionaryTest
         var valuesCollection = dictionary.Values;
 
         var valuesArray = valuesCollection.ToArray();
-        Assert.AreSame(Array.Empty<int>(), valuesArray);
+        Assert.That(valuesArray, Is.SameAs(Array.Empty<int>()));
     }
 
     [Test]
@@ -25,9 +25,9 @@ internal class OrderedDictionaryTest
         var valuesCollection = dictionary.Values;
 
         var valuesArray = valuesCollection.ToArray();
-        Assert.IsNotNull(valuesArray);
-        Assert.AreEqual(2, valuesArray.Length);
-        Assert.AreEqual(5, valuesArray[0]);
-        Assert.AreEqual(2, valuesArray[1]);
+        Assert.That(valuesArray, Is.Not.Null);
+        Assert.That(valuesArray.Length, Is.EqualTo(2));
+        Assert.That(valuesArray[0], Is.EqualTo(5));
+        Assert.That(valuesArray[1], Is.EqualTo(2));
     }
 }

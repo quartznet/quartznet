@@ -43,7 +43,7 @@ public class DbProviderTest
     public void TestValidProviderSqlServer()
     {
         DbProvider provider = new DbProvider(TestConstants.DefaultSqlServerProvider, "foo");
-        Assert.IsNotNull(provider.ConnectionString);
-        Assert.IsNotNull(provider.Metadata);
+        Assert.That(provider.ConnectionString, Is.Not.Null);
+        Assert.That(provider.Metadata, Is.Not.Null);
     }
 }

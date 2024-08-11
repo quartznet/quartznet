@@ -72,7 +72,7 @@ public class XMLSchedulingDataProcessorTest
     {
         Stream s = ReadJobXmlFromEmbeddedResource("MinimalConfiguration_20.xml");
         await processor.ProcessStream(s, null);
-        Assert.IsFalse(processor.OverWriteExistingData);
+        Assert.That(processor.OverWriteExistingData, Is.False);
 
         await processor.ScheduleJobs(mockScheduler);
     }
@@ -82,8 +82,8 @@ public class XMLSchedulingDataProcessorTest
     {
         Stream s = ReadJobXmlFromEmbeddedResource("RichConfiguration_20.xml");
         await processor.ProcessStream(s, null);
-        Assert.IsFalse(processor.OverWriteExistingData);
-        Assert.IsTrue(processor.IgnoreDuplicates);
+        Assert.That(processor.OverWriteExistingData, Is.False);
+        Assert.That(processor.IgnoreDuplicates, Is.True);
 
         await processor.ScheduleJobs(mockScheduler);
 
@@ -188,13 +188,13 @@ public class XMLSchedulingDataProcessorTest
 
             // We should still have what we start with.
             var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("DEFAULT"));
-            Assert.AreEqual(1, jobKeys.Count);
+            Assert.That(jobKeys.Count, Is.EqualTo(1));
             var triggerKeys = await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("DEFAULT"));
-            Assert.AreEqual(1, triggerKeys.Count);
+            Assert.That(triggerKeys.Count, Is.EqualTo(1));
 
             job = await scheduler.GetJobDetail(JobKey.Create("job1"));
             string fooValue = job.JobDataMap.GetString("foo");
-            Assert.AreEqual("dont_chg_me", fooValue);
+            Assert.That(fooValue, Is.EqualTo("dont_chg_me"));
         }
         finally
         {
@@ -260,9 +260,9 @@ public class XMLSchedulingDataProcessorTest
             XMLSchedulingDataProcessor processor = new XMLSchedulingDataProcessor(logger, loadHelper, TimeProvider.System);
             await processor.ProcessFileAndScheduleJobs(tempFileName, scheduler);
             var jobKeys = await scheduler.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("DEFAULT"));
-            Assert.AreEqual(2, jobKeys.Count);
+            Assert.That(jobKeys.Count, Is.EqualTo(2));
             var triggerKeys = await scheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.GroupEquals("DEFAULT"));
-            Assert.AreEqual(2, triggerKeys.Count);
+            Assert.That(triggerKeys.Count, Is.EqualTo(2));
         }
         finally
         {
