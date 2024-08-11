@@ -81,20 +81,20 @@ namespace Quartz;
 /// <td align="left">Month</td>
 /// <td align="left"> </td>
 /// <td align="left">1-12 or JAN-DEC</td>
-/// <td align="left"> </td>
+/// <td align="left"></td>
 /// <td align="left">, - /// /</td>
 /// </tr>
 /// <tr>
 /// <td align="left">Day-of-Week</td>
 /// <td align="left"> </td>
 /// <td align="left">1-7 or SUN-SAT</td>
-/// <td align="left"> </td>
+/// <td align="left"></td>
 /// <td align="left">, - /// ? / L #</td>
 /// </tr>
 /// <tr>
 /// <td align="left">Year (Optional)</td>
 /// <td align="left"> </td>
-/// <td align="left">empty, 1970-2199</td>
+/// <td align="left">empty, <see cref="TriggerConstants.EarliestYear"/>- <see cref="TriggerConstants.YearToGiveUpSchedulingAt"/></td>
 /// <td align="left"> </td>
 /// <td align="left">, - /// /</td>
 /// </tr>
@@ -109,7 +109,7 @@ namespace Quartz;
 /// specify something in one of the two fields, but not the other.
 /// </para>
 /// <para>
-/// The '-' character is used to specify ranges For example &quot;10-12&quot; in
+/// The '-' character is used to specify ranges. For example &quot;10-12&quot; in
 /// the hour field means &quot;the hours 10, 11 and 12&quot;.
 /// </para>
 /// <para>
@@ -126,7 +126,7 @@ namespace Quartz;
 /// is a set of numbers that can be turned on or off. For seconds and minutes,
 /// the numbers range from 0 to 59. For hours 0 to 23, for days of the month 1 to
 /// 31, and for months 1 to 12. The &quot;/&quot; character simply helps you turn
-/// on every &quot;nth&quot; value in the given set. Thus &quot;7/6&quot; in the
+/// on every &quot;nth&quot; value in the given set. Thus, &quot;7/6&quot; in the
 /// month field only turns on month &quot;7&quot;, it does NOT mean every 6th
 /// month, please note that subtlety.
 /// </para>
@@ -152,7 +152,7 @@ namespace Quartz;
 /// the month&quot;. So if the 15th is a Saturday, the trigger will fire on
 /// Friday the 14th. If the 15th is a Sunday, the trigger will fire on Monday the
 /// 16th. If the 15th is a Tuesday, then it will fire on Tuesday the 15th.
-/// However if you specify &quot;1W&quot; as the value for day-of-month, and the
+/// However, if you specify &quot;1W&quot; as the value for day-of-month, and the
 /// 1st is a Saturday, the trigger will fire on Monday the 3rd, as it will not
 /// 'jump' over the boundary of a month's days.  The 'W' character can only be
 /// specified when the day-of-month is a single day, not a range or list of days.
@@ -185,7 +185,7 @@ namespace Quartz;
 /// </para>
 /// <para>
 /// The legal characters and the names of months and days of the week are not
-/// case sensitive.
+/// case-sensitive.
 /// </para>
 /// <para>
 /// <b>NOTES:</b>
@@ -193,8 +193,8 @@ namespace Quartz;
 /// <li>Support for specifying both a day-of-week and a day-of-month value is
 /// not complete (you'll need to use the '?' character in one of these fields).
 /// </li>
-/// <li>Overflowing ranges is supported - that is, having a larger number on
-/// the left hand side than the right. You might do 22-2 to catch 10 o'clock
+/// <li>Overflowing ranges are supported - that is, having a larger number on
+/// the left-hand side than the right. You might do 22-2 to catch 10 o'clock
 /// at night until 2 o'clock in the morning, or you might have NOV-FEB. It is
 /// very important to note that overuse of overflowing ranges creates ranges
 /// that don't make sense and no effort has been made to determine which
@@ -376,7 +376,7 @@ public sealed class CronExpression : ISerializable
 
         //TODO: IMPROVE THIS! The following is a BAD solution to this problem. Performance will be very bad here, depending on the cron expression. It is, however A solution.
 
-        //keep getting the next included time until it's farther than one second
+        // Keep getting the next included time until it's farther than one second
         // apart. At that point, lastDate is the last valid fire time. We return
         // the second immediately following it.
         while (difference == 1000)
@@ -1100,7 +1100,7 @@ public sealed class CronExpression : ISerializable
             CronExpressionConstants.DayOfWeek 
                 => (1, 7, "Day-of-Week values must be between 1 and 7"),
             CronExpressionConstants.Year
-                => (1970, TriggerConstants.YearToGiveUpSchedulingAt, "Year values must be between 1970 and " + TriggerConstants.YearToGiveUpSchedulingAt),
+                => (TriggerConstants.EarliestYear, TriggerConstants.YearToGiveUpSchedulingAt, $"Year values must be between {TriggerConstants.EarliestYear} and {TriggerConstants.YearToGiveUpSchedulingAt}"),
             _ => throw new ArgumentOutOfRangeException(nameof(type), "Invalid cron expression type")
         };
     }
@@ -1132,7 +1132,7 @@ public sealed class CronExpression : ISerializable
             CronExpressionConstants.DayOfMonth => (GetStartAt(val, 1), GetStopAt(end, 31)),
             CronExpressionConstants.Month => (GetStartAt(val, 1), GetStopAt(end, 12)),
             CronExpressionConstants.DayOfWeek => (GetStartAt(val, 1), GetStopAt(end, 7)),
-            CronExpressionConstants.Year => (GetStartAt(val, 1970), GetStopAt(end, TriggerConstants.YearToGiveUpSchedulingAt)),
+            CronExpressionConstants.Year => (GetStartAt(val, TriggerConstants.EarliestYear), GetStopAt(end, TriggerConstants.YearToGiveUpSchedulingAt)),
             _ => ThrowHelper.ThrowArgumentException<(int,int)>("Unexpected type encountered")
         };
     }
