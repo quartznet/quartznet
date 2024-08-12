@@ -801,8 +801,6 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
         {
             return SkipDayIfHourDoesNotExist;
         }
-
-        
         
         // Don't skip this day, instead find the closest future valid time by adding minutes in intervals
         // to reach a valid time for the day.
