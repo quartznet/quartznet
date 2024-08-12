@@ -63,8 +63,11 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
         DateTime expectedStartTime = new DateTime(d.Year, d.Month, d.Day, 1, 20, 0);
         DateTime expectedEndTime = new DateTime(d.Year, d.Month, d.Day, 14, 50, 0);
 
-        Assert.That(dailyCalendar.GetTimeRangeStartingTimeUtc(d).DateTime, Is.EqualTo(expectedStartTime));
-        Assert.That(dailyCalendar.GetTimeRangeEndingTimeUtc(d).DateTime, Is.EqualTo(expectedEndTime));
+        Assert.Multiple(() =>
+        {
+            Assert.That(dailyCalendar.GetTimeRangeStartingTimeUtc(d).DateTime, Is.EqualTo(expectedStartTime));
+            Assert.That(dailyCalendar.GetTimeRangeEndingTimeUtc(d).DateTime, Is.EqualTo(expectedEndTime));
+        });
     }
 
     [Test]
@@ -118,17 +121,17 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
         if (timeZoneOffset > TimeSpan.Zero)
         {
             // Trigger must fire between midnight and utc offset if positive offset.
-            fireTimes.Where(t => t.Hour >= 0 && t.Hour <= timeZoneOffset.Hours).Should().NotBeEmpty();
+            fireTimes.Should().Contain(t => t.Hour >= 0 && t.Hour <= timeZoneOffset.Hours);
         }
         else if (timeZoneOffset < TimeSpan.Zero)
         {
             // Trigger must fire between midnight minus utc offset and midnight if negative offset.
-            fireTimes.Where(t => t.Hour >= 24 + timeZoneOffset.Hours && t.Hour <= 23).Should().NotBeEmpty();
+            fireTimes.Should().Contain(t => t.Hour >= 24 + timeZoneOffset.Hours && t.Hour <= 23);
         }
         else
         {
             // Trigger must not fire between midnight and utc offset if offset is UTC (zero)
-            fireTimes.Where(t => t.Hour >= 0 && t.Hour <= timeZoneOffset.Hours).Should().BeEmpty();
+            fireTimes.Should().NotContain(t => t.Hour >= 0 && t.Hour <= timeZoneOffset.Hours);
         }
     }
 
@@ -158,10 +161,13 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
 
     protected override void VerifyMatch(DailyCalendar original, DailyCalendar deserialized)
     {
-        Assert.That(deserialized, Is.Not.Null);
-        Assert.That(deserialized.Description, Is.EqualTo(original.Description));
-        Assert.That(deserialized.InvertTimeRange, Is.EqualTo(original.InvertTimeRange));
-        Assert.That(deserialized.TimeZone, Is.EqualTo(original.TimeZone));
-        Assert.That(deserialized.ToString(), Is.EqualTo(original.ToString()));
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserialized, Is.Not.Null);
+            Assert.That(deserialized.Description, Is.EqualTo(original.Description));
+            Assert.That(deserialized.InvertTimeRange, Is.EqualTo(original.InvertTimeRange));
+            Assert.That(deserialized.TimeZone, Is.EqualTo(original.TimeZone));
+            Assert.That(deserialized.ToString(), Is.EqualTo(original.ToString()));
+        });
     }
 }

@@ -266,6 +266,6 @@ public class JobDataMapTest : SerializationTestSupport<JobDataMap>
         dictionary.Add(SchedulerConstants.ForceJobDataMapDirty, "true");
         var map = new JobDataMap(dictionary);
         map.Dirty.Should().BeTrue();
-        map.ContainsKey(SchedulerConstants.ForceJobDataMapDirty).Should().BeFalse();
+        map.Should().NotContainKey(SchedulerConstants.ForceJobDataMapDirty);
     }
 }

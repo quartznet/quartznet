@@ -33,9 +33,12 @@ public class BaseCalendarTest
         baseCalendar.TimeZone = TimeZoneInfo.GetSystemTimeZones()[3];
         BaseCalendar clone = (BaseCalendar) baseCalendar.Clone();
 
-        Assert.That(clone.Description, Is.EqualTo(baseCalendar.Description));
-        Assert.That(clone.CalendarBase, Is.EqualTo(baseCalendar.CalendarBase));
-        Assert.That(clone.TimeZone, Is.EqualTo(baseCalendar.TimeZone));
+        Assert.Multiple(() =>
+        {
+            Assert.That(clone.Description, Is.EqualTo(baseCalendar.Description));
+            Assert.That(clone.CalendarBase, Is.EqualTo(baseCalendar.CalendarBase));
+            Assert.That(clone.TimeZone, Is.EqualTo(baseCalendar.TimeZone));
+        });
     }
 
 }

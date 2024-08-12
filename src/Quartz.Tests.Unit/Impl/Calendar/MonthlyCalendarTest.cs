@@ -104,9 +104,12 @@ public class MonthlyCalendarTest : SerializationTestSupport<MonthlyCalendar, ICa
 
     protected override void VerifyMatch(MonthlyCalendar original, MonthlyCalendar deserialized)
     {
-        Assert.That(deserialized, Is.Not.Null);
-        Assert.That(deserialized.Description, Is.EqualTo(original.Description));
-        Assert.That(deserialized.DaysExcluded, Is.EqualTo(original.DaysExcluded));
-        Assert.That(deserialized.TimeZone, Is.EqualTo(original.TimeZone));
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserialized, Is.Not.Null);
+            Assert.That(deserialized.Description, Is.EqualTo(original.Description));
+            Assert.That(deserialized.DaysExcluded, Is.EqualTo(original.DaysExcluded));
+            Assert.That(deserialized.TimeZone, Is.EqualTo(original.TimeZone));
+        });
     }
 }

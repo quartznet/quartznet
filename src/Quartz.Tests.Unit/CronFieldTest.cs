@@ -11,7 +11,7 @@ public class CronFieldTest
         field.Should().BeEmpty();
 
         field.Add(1);
-        field.Should().HaveCount(1);
+        field.Should().ContainSingle();
 
         field.Should().Contain(1);
         field.Should().NotContain(2);

@@ -53,9 +53,12 @@ public class DailyTimeIntervalTriggerImplTest
         };
 
         var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
-        Assert.That(fireTimes.Count, Is.EqualTo(48));
-        Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011)));
-        Assert.That(fireTimes[47], Is.EqualTo(DateBuilder.DateOf(10, 24, 0, 16, 1, 2011)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(fireTimes.Count, Is.EqualTo(48));
+            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[47], Is.EqualTo(DateBuilder.DateOf(10, 24, 0, 16, 1, 2011)));
+        });
     }
 
     [Test]
@@ -72,10 +75,13 @@ public class DailyTimeIntervalTriggerImplTest
 
         CronCalendar cronCal = new CronCalendar("* * 9-12 * * ?"); // exclude 9-12
         var fireTimes = TriggerUtils.ComputeFireTimes(trigger, cronCal, 48);
-        Assert.That(fireTimes.Count, Is.EqualTo(48));
-        Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011)));
-        Assert.That(fireTimes[1], Is.EqualTo(DateBuilder.DateOf(13, 0, 0, 1, 1, 2011)));
-        Assert.That(fireTimes[47], Is.EqualTo(DateBuilder.DateOf(23, 0, 0, 4, 1, 2011)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(fireTimes.Count, Is.EqualTo(48));
+            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(8, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[1], Is.EqualTo(DateBuilder.DateOf(13, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[47], Is.EqualTo(DateBuilder.DateOf(23, 0, 0, 4, 1, 2011)));
+        });
     }
 
     [Test]
@@ -130,9 +136,12 @@ public class DailyTimeIntervalTriggerImplTest
         };
 
         var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
-        Assert.That(fireTimes.Count, Is.EqualTo(48));
-        Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(0, 0, 0, 1, 1, 2011)));
-        Assert.That(fireTimes[47], Is.EqualTo(DateBuilder.DateOf(23, 0, 0, 2, 1, 2011)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(fireTimes.Count, Is.EqualTo(48));
+            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(0, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[47], Is.EqualTo(DateBuilder.DateOf(23, 0, 0, 2, 1, 2011)));
+        });
     }
 
     [Test]
@@ -224,9 +233,12 @@ public class DailyTimeIntervalTriggerImplTest
         };
 
         var fireTimes = TriggerUtils.ComputeFireTimes(trigger, null, 48);
-        Assert.That(fireTimes.Count, Is.EqualTo(48));
-        Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(10, 0, 0, 1, 1, 2011)));
-        Assert.That(fireTimes[47], Is.EqualTo(DateBuilder.DateOf(9, 0, 0, 4, 1, 2011)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(fireTimes.Count, Is.EqualTo(48));
+            Assert.That(fireTimes[0], Is.EqualTo(DateBuilder.DateOf(10, 0, 0, 1, 1, 2011)));
+            Assert.That(fireTimes[47], Is.EqualTo(DateBuilder.DateOf(9, 0, 0, 4, 1, 2011)));
+        });
     }
 
     [Test]

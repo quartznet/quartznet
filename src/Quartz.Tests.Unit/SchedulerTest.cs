@@ -188,8 +188,8 @@ public class SchedulerTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(jobGroups.Count, Is.EqualTo(2), "Job group list size expected to be = 2 ");
-            Assert.That(triggerGroups.Count, Is.EqualTo(2), "Trigger group list size expected to be = 2 ");
+            Assert.That(jobGroups, Has.Count.EqualTo(2), "Job group list size expected to be = 2 ");
+            Assert.That(triggerGroups, Has.Count.EqualTo(2), "Trigger group list size expected to be = 2 ");
         });
 
         var jobKeys = await sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals(JobKey.DefaultGroup));
@@ -197,8 +197,8 @@ public class SchedulerTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(jobKeys.Count, Is.EqualTo(1), "Number of jobs expected in default group was 1 ");
-            Assert.That(triggerKeys.Count, Is.EqualTo(1), "Number of triggers expected in default group was 1 ");
+            Assert.That(jobKeys, Has.Count.EqualTo(1), "Number of jobs expected in default group was 1 ");
+            Assert.That(triggerKeys, Has.Count.EqualTo(1), "Number of triggers expected in default group was 1 ");
         });
 
         jobKeys = await sched.GetJobKeys(GroupMatcher<JobKey>.GroupEquals("g1"));
@@ -206,8 +206,8 @@ public class SchedulerTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(jobKeys.Count, Is.EqualTo(2), "Number of jobs expected in 'g1' group was 2 ");
-            Assert.That(triggerKeys.Count, Is.EqualTo(2), "Number of triggers expected in 'g1' group was 2 ");
+            Assert.That(jobKeys, Has.Count.EqualTo(2), "Number of jobs expected in 'g1' group was 2 ");
+            Assert.That(triggerKeys, Has.Count.EqualTo(2), "Number of triggers expected in 'g1' group was 2 ");
         });
 
         TriggerState s = await sched.GetTriggerState(new TriggerKey("t2", "g1"));
@@ -222,7 +222,7 @@ public class SchedulerTest
         Assert.That(s, Is.EqualTo(TriggerState.Normal), "State of trigger t2 expected to be NORMAL ");
 
         var pausedGroups = await sched.GetPausedTriggerGroups();
-        Assert.That(pausedGroups.Count, Is.EqualTo(0), "Size of paused trigger groups list expected to be 0 ");
+        Assert.That(pausedGroups, Is.Empty, "Size of paused trigger groups list expected to be 0 ");
 
         await sched.PauseTriggers(GroupMatcher<TriggerKey>.GroupEquals("g1"));
 
@@ -242,7 +242,7 @@ public class SchedulerTest
         await sched.ScheduleJob(job, trigger);
 
         pausedGroups = await sched.GetPausedTriggerGroups();
-        Assert.That(pausedGroups.Count, Is.EqualTo(1), "Size of paused trigger groups list expected to be 1 ");
+        Assert.That(pausedGroups, Has.Count.EqualTo(1), "Size of paused trigger groups list expected to be 1 ");
 
         s = await sched.GetTriggerState(new TriggerKey("t2", "g1"));
         Assert.That(s, Is.EqualTo(TriggerState.Paused), "State of trigger t2 expected to be PAUSED ");
@@ -261,7 +261,7 @@ public class SchedulerTest
         pausedGroups = await sched.GetPausedTriggerGroups();
         await Assert.MultipleAsync(async () =>
         {
-            Assert.That(pausedGroups.Count, Is.EqualTo(0), "Size of paused trigger groups list expected to be 0 ");
+            Assert.That(pausedGroups, Is.Empty, "Size of paused trigger groups list expected to be 0 ");
             Assert.That(await sched.UnscheduleJob(new TriggerKey("foasldfksajdflk")), Is.False, "Scheduler should have returned 'false' from attempt to unschedule non-existing trigger. ");
             Assert.That(await sched.UnscheduleJob(new TriggerKey("t3", "g1")), Is.True, "Scheduler should have returned 'true' from attempt to unschedule existing trigger. ");
         });
@@ -271,8 +271,8 @@ public class SchedulerTest
 
         await Assert.MultipleAsync(async () =>
         {
-            Assert.That(jobKeys.Count, Is.EqualTo(2), "Number of jobs expected in 'g1' group was 1 "); // job should have been deleted also, because it is non-durable
-            Assert.That(triggerKeys.Count, Is.EqualTo(2), "Number of triggers expected in 'g1' group was 1 ");
+            Assert.That(jobKeys, Has.Count.EqualTo(2), "Number of jobs expected in 'g1' group was 1 "); // job should have been deleted also, because it is non-durable
+            Assert.That(triggerKeys, Has.Count.EqualTo(2), "Number of triggers expected in 'g1' group was 1 ");
             Assert.That(await sched.UnscheduleJob(new TriggerKey("t1")), Is.True, "Scheduler should have returned 'true' from attempt to unschedule existing trigger. ");
         });
 
@@ -281,8 +281,8 @@ public class SchedulerTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(jobKeys.Count, Is.EqualTo(1), "Number of jobs expected in default group was 1 "); // job should have been left in place, because it is non-durable
-            Assert.That(triggerKeys.Count, Is.EqualTo(0), "Number of triggers expected in default group was 0 ");
+            Assert.That(jobKeys, Has.Count.EqualTo(1), "Number of jobs expected in default group was 1 "); // job should have been left in place, because it is non-durable
+            Assert.That(triggerKeys, Is.Empty, "Number of triggers expected in default group was 0 ");
         });
 
         await sched.Shutdown();

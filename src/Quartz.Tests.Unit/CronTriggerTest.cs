@@ -69,12 +69,15 @@ public class CronTriggerTest
         trigger.CronExpressionString = "0 50 5,11,17,23 ? * *";
         trigger.StartTimeUtc = startDate;
 
-        Assert.That(trigger.GetFireTimeAfter(startDate), Is.EqualTo(expectedFire), $"Expected to fire at {expectedFire}");
-        Assert.That(trigger.WillFireOn(expectedFire), Is.True, $"Expected to fire at {expectedFire}");
-        Assert.That(trigger.WillFireOn(expectedFire.AddHours(6)), Is.True, $"Expected to fire at {expectedFire}");
-        Assert.That(trigger.WillFireOn(expectedFire.AddHours(12)), Is.True, $"Expected to fire at {expectedFire}");
-        Assert.That(trigger.WillFireOn(expectedFire.AddHours(18)), Is.True, $"Expected to fire at {expectedFire}");
-        Assert.That(trigger.WillFireOn(expectedFire.AddHours(24)), Is.True, $"Expected to fire at {expectedFire}");
+        Assert.Multiple(() =>
+        {
+            Assert.That(trigger.GetFireTimeAfter(startDate), Is.EqualTo(expectedFire), $"Expected to fire at {expectedFire}");
+            Assert.That(trigger.WillFireOn(expectedFire), Is.True, $"Expected to fire at {expectedFire}");
+            Assert.That(trigger.WillFireOn(expectedFire.AddHours(6)), Is.True, $"Expected to fire at {expectedFire}");
+            Assert.That(trigger.WillFireOn(expectedFire.AddHours(12)), Is.True, $"Expected to fire at {expectedFire}");
+            Assert.That(trigger.WillFireOn(expectedFire.AddHours(18)), Is.True, $"Expected to fire at {expectedFire}");
+            Assert.That(trigger.WillFireOn(expectedFire.AddHours(24)), Is.True, $"Expected to fire at {expectedFire}");
+        });
     }
 
     [Test]

@@ -93,10 +93,10 @@ public class SerializationTest
     public void TestHolidayCalendarDeserialization()
     {
         var calendar = Deserialize<HolidayCalendar>();
-        Assert.That(calendar.ExcludedDates.Count, Is.EqualTo(1));
+        Assert.That(calendar.ExcludedDates, Has.Count.EqualTo(1));
 
         calendar = Deserialize<HolidayCalendar>(23);
-        Assert.That(calendar.ExcludedDates.Count, Is.EqualTo(1));
+        Assert.That(calendar.ExcludedDates, Has.Count.EqualTo(1));
 
         BinaryFormatter formatter = new BinaryFormatter();
         using (var stream = new MemoryStream())
@@ -109,7 +109,7 @@ public class SerializationTest
             stream.Position = 0;
 
             calendar = (HolidayCalendar) formatter.Deserialize(stream);
-            Assert.That(calendar.ExcludedDates.Count, Is.EqualTo(1));
+            Assert.That(calendar.ExcludedDates, Has.Count.EqualTo(1));
         }
     }
 
@@ -119,7 +119,7 @@ public class SerializationTest
         HolidayCalendar holidayCalendar = new HolidayCalendar();
         holidayCalendar.AddExcludedDate(new DateTime(2010, 1, 20));
         HolidayCalendar clone = holidayCalendar.DeepClone();
-        Assert.That(clone.ExcludedDates.Count, Is.EqualTo(1));
+        Assert.That(clone.ExcludedDates, Has.Count.EqualTo(1));
     }
 
     [Test]

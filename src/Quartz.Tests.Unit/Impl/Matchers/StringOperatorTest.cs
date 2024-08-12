@@ -42,17 +42,20 @@ public class StringOperatorTest
 
     private static void Anything_Evaluate(StringOperator op)
     {
-        Assert.That(op.Evaluate(null, null), Is.True);
-        Assert.That(op.Evaluate(null, "Quartz"), Is.True);
-        Assert.That(op.Evaluate("Quartz", null), Is.True);
-        Assert.That(op.Evaluate("Quartz", "Quartz"), Is.True);
-        Assert.That(op.Evaluate("aa", new string('a', 2)), Is.True);
-        Assert.That(op.Evaluate("Quartz", "QuartZ"), Is.True);
-        Assert.That(op.Evaluate("Quartz", "tz"), Is.True);
-        Assert.That(op.Evaluate("Quartz", "tZ"), Is.True);
-        Assert.That(op.Evaluate("Quartz", "ua"), Is.True);
-        Assert.That(op.Evaluate("Quartz", "Qu"), Is.True);
-        Assert.That(op.Evaluate("Quartz", "QU"), Is.True);
+        Assert.Multiple(() =>
+        {
+            Assert.That(op.Evaluate(null, null), Is.True);
+            Assert.That(op.Evaluate(null, "Quartz"), Is.True);
+            Assert.That(op.Evaluate("Quartz", null), Is.True);
+            Assert.That(op.Evaluate("Quartz", "Quartz"), Is.True);
+            Assert.That(op.Evaluate("aa", new string('a', 2)), Is.True);
+            Assert.That(op.Evaluate("Quartz", "QuartZ"), Is.True);
+            Assert.That(op.Evaluate("Quartz", "tz"), Is.True);
+            Assert.That(op.Evaluate("Quartz", "tZ"), Is.True);
+            Assert.That(op.Evaluate("Quartz", "ua"), Is.True);
+            Assert.That(op.Evaluate("Quartz", "Qu"), Is.True);
+            Assert.That(op.Evaluate("Quartz", "QU"), Is.True);
+        });
     }
 
     [Test]

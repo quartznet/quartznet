@@ -137,7 +137,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
 
         // Make sure empty sub-objects are cloned okay
         ITrigger clone = simpleTrigger.Clone();
-        Assert.That(clone.JobDataMap.Count, Is.EqualTo(0));
+        Assert.That(clone.JobDataMap, Is.Empty);
 
         // Make sure non-empty sub-objects are cloned okay
         simpleTrigger.JobDataMap.Put("K1", "V1");
@@ -145,7 +145,7 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
         clone = simpleTrigger.Clone();
         Assert.Multiple(() =>
         {
-            Assert.That(clone.JobDataMap.Count, Is.EqualTo(2));
+            Assert.That(clone.JobDataMap, Has.Count.EqualTo(2));
             Assert.That(clone.JobDataMap["K1"], Is.EqualTo("V1"));
             Assert.That(clone.JobDataMap["K2"], Is.EqualTo("V2"));
         });
@@ -155,8 +155,8 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
         clone.JobDataMap.Remove("K1");
         Assert.Multiple(() =>
         {
-            Assert.That(clone.JobDataMap.Count, Is.EqualTo(1));
-            Assert.That(simpleTrigger.JobDataMap.Count, Is.EqualTo(2));
+            Assert.That(clone.JobDataMap, Has.Count.EqualTo(1));
+            Assert.That(simpleTrigger.JobDataMap, Has.Count.EqualTo(2));
             Assert.That(simpleTrigger.JobDataMap["K1"], Is.EqualTo("V1"));
             Assert.That(simpleTrigger.JobDataMap["K2"], Is.EqualTo("V2"));
         });

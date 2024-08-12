@@ -257,8 +257,11 @@ public class ListenerManagerTest
         }
         catch (ArgumentNullException ex)
         {
-            Assert.That(ex.InnerException, Is.Null);
-            Assert.That(ex.ParamName, Is.EqualTo(nameof(jobListener)));
+            Assert.Multiple(() =>
+            {
+                Assert.That(ex.InnerException, Is.Null);
+                Assert.That(ex.ParamName, Is.EqualTo(nameof(jobListener)));
+            });
         }
     }
 
@@ -562,8 +565,11 @@ public class ListenerManagerTest
         }
         catch (ArgumentNullException ex)
         {
-            Assert.That(ex.InnerException, Is.Null);
-            Assert.That(ex.ParamName, Is.EqualTo(nameof(listenerName)));
+            Assert.Multiple(() =>
+            {
+                Assert.That(ex.InnerException, Is.Null);
+                Assert.That(ex.ParamName, Is.EqualTo(nameof(listenerName)));
+            });
         }
     }
 
@@ -1649,8 +1655,11 @@ public class ListenerManagerTest
 
         _manager.AddTriggerListener(tl1);
 
-        Assert.That(_manager.RemoveTriggerListenerMatcher(tl1.Name, groupMatcher), Is.False);
-        Assert.That(_manager.GetTriggerListenerMatchers(tl1.Name), Is.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(_manager.RemoveTriggerListenerMatcher(tl1.Name, groupMatcher), Is.False);
+            Assert.That(_manager.GetTriggerListenerMatchers(tl1.Name), Is.Null);
+        });
 
         _manager.AddTriggerListenerMatcher(tl1.Name, nameMatcher);
 

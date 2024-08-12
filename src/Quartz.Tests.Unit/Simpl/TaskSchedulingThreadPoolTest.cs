@@ -51,7 +51,7 @@ public class TaskSchedulingThreadPoolTest
         Assert.Multiple(() =>
         {
             Assert.That(WaitHandle.WaitAll([task1Done, task2Done], TimeSpan.FromSeconds(1)), Is.True);
-            Assert.That(logBook.Count, Is.EqualTo(4));
+            Assert.That(logBook, Has.Count.EqualTo(4));
             Assert.That(logBook[0], Is.EqualTo("START #1"));
             Assert.That(logBook[1], Is.EqualTo("END #1"));
             Assert.That(logBook[2], Is.EqualTo("START #2"));

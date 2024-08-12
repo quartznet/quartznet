@@ -41,7 +41,7 @@ public class DirtyFlagMapTest
         var map = Deserialize<DirtyFlagMap<string, int>>("DirtyFlagMap_EmptyAndDirty_V1");
 
         Assert.That(map, Is.Not.Null);
-        Assert.That(map.Count, Is.EqualTo(0));
+        Assert.That(map, Is.Empty);
         Assert.That(map.Dirty, Is.True);
     }
 
@@ -51,7 +51,7 @@ public class DirtyFlagMapTest
         var map = Deserialize<DirtyFlagMap<string, int>>("DirtyFlagMap_EmptyAndNotDirty_V1");
 
         Assert.That(map, Is.Not.Null);
-        Assert.That(map.Count, Is.EqualTo(0));
+        Assert.That(map, Is.Empty);
         Assert.That(map.Dirty, Is.False);
     }
 
@@ -62,7 +62,7 @@ public class DirtyFlagMapTest
         Assert.Multiple(() =>
         {
             Assert.That(map, Is.Not.Null);
-            Assert.That(map.Count, Is.EqualTo(2));
+            Assert.That(map, Has.Count.EqualTo(2));
             Assert.That(map.ContainsKey("A"), Is.True);
             Assert.That(map["A"], Is.EqualTo(2));
             Assert.That(map.ContainsKey("B"), Is.True);
@@ -78,7 +78,7 @@ public class DirtyFlagMapTest
         Assert.Multiple(() =>
         {
             Assert.That(map, Is.Not.Null);
-            Assert.That(map.Count, Is.EqualTo(2));
+            Assert.That(map, Has.Count.EqualTo(2));
             Assert.That(map.ContainsKey("C"), Is.True);
             Assert.That(map["C"], Is.EqualTo(3));
             Assert.That(map.ContainsKey("F"), Is.True);
@@ -98,7 +98,7 @@ public class DirtyFlagMapTest
         Assert.Multiple(() =>
         {
             Assert.That(deserialized, Is.Not.Null);
-            Assert.That(deserialized.Count, Is.EqualTo(0));
+            Assert.That(deserialized, Is.Empty);
             Assert.That(deserialized.Dirty, Is.True);
         });
     }
@@ -112,7 +112,7 @@ public class DirtyFlagMapTest
         Assert.Multiple(() =>
         {
             Assert.That(deserialized, Is.Not.Null);
-            Assert.That(deserialized.Count, Is.EqualTo(0));
+            Assert.That(deserialized, Is.Empty);
             Assert.That(deserialized.Dirty, Is.False);
         });
     }
@@ -128,7 +128,7 @@ public class DirtyFlagMapTest
         Assert.Multiple(() =>
         {
             Assert.That(deserialized, Is.Not.Null);
-            Assert.That(deserialized.Count, Is.EqualTo(2));
+            Assert.That(deserialized, Has.Count.EqualTo(2));
             Assert.That(map.ContainsKey("A"), Is.True);
             Assert.That(map["A"], Is.EqualTo(2));
             Assert.That(map.ContainsKey("B"), Is.True);
@@ -149,7 +149,7 @@ public class DirtyFlagMapTest
         Assert.Multiple(() =>
         {
             Assert.That(map, Is.Not.Null);
-            Assert.That(map.Count, Is.EqualTo(2));
+            Assert.That(map, Has.Count.EqualTo(2));
             Assert.That(map.ContainsKey("C"), Is.True);
             Assert.That(map["C"], Is.EqualTo(3));
             Assert.That(map.ContainsKey("F"), Is.True);

@@ -95,14 +95,17 @@ public class DirectSchedulerFactoryTest
 
         var stdScheduler = (StdScheduler) scheduler;
 
-        Assert.That(stdScheduler.SchedulerName, Is.SameAs(schedulerName));
-        Assert.That(stdScheduler.SchedulerInstanceId, Is.SameAs(schedulerInstanceId));
-        Assert.That(stdScheduler.sched.resources.SchedulerPlugins.Count, Is.EqualTo(0));
-        Assert.That(stdScheduler.sched.resources.ThreadPool, Is.SameAs(_threadPool));
-        Assert.That(stdScheduler.sched.resources.JobStore, Is.SameAs(_jobStore));
-        Assert.That(stdScheduler.sched.resources.IdleWaitTime, Is.EqualTo(TimeSpan.FromSeconds(30)));
-        Assert.That(stdScheduler.sched.resources.MaxBatchSize, Is.EqualTo(1));
-        Assert.That(stdScheduler.sched.resources.BatchTimeWindow, Is.EqualTo(TimeSpan.Zero));
+        Assert.Multiple(() =>
+        {
+            Assert.That(stdScheduler.SchedulerName, Is.SameAs(schedulerName));
+            Assert.That(stdScheduler.SchedulerInstanceId, Is.SameAs(schedulerInstanceId));
+            Assert.That(stdScheduler.sched.resources.SchedulerPlugins, Is.Empty);
+            Assert.That(stdScheduler.sched.resources.ThreadPool, Is.SameAs(_threadPool));
+            Assert.That(stdScheduler.sched.resources.JobStore, Is.SameAs(_jobStore));
+            Assert.That(stdScheduler.sched.resources.IdleWaitTime, Is.EqualTo(TimeSpan.FromSeconds(30)));
+            Assert.That(stdScheduler.sched.resources.MaxBatchSize, Is.EqualTo(1));
+            Assert.That(stdScheduler.sched.resources.BatchTimeWindow, Is.EqualTo(TimeSpan.Zero));
+        });
     }
 
     [Test]

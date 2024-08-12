@@ -100,7 +100,7 @@ public class DisallowConcurrentExecutionJobTest
 
         Assert.Multiple(() =>
         {
-            Assert.That(jobExecDates.Count, Is.EqualTo(2));
+            Assert.That(jobExecDates, Has.Count.EqualTo(2));
             Assert.That((jobExecDates[1] - jobExecDates[0]).TotalMilliseconds, Is.GreaterThanOrEqualTo(jobBlockTime.TotalMilliseconds).Within(5d));
         });
     }
@@ -134,7 +134,10 @@ public class DisallowConcurrentExecutionJobTest
         barrier.WaitOne();
         await scheduler.Shutdown(true);
 
-        Assert.That(jobExecDates.Count, Is.EqualTo(2));
-        Assert.That((jobExecDates[1] - jobExecDates[0]).TotalMilliseconds, Is.GreaterThanOrEqualTo(jobBlockTime.TotalMilliseconds).Within(5));
+        Assert.Multiple(() =>
+        {
+            Assert.That(jobExecDates, Has.Count.EqualTo(2));
+            Assert.That((jobExecDates[1] - jobExecDates[0]).TotalMilliseconds, Is.GreaterThanOrEqualTo(jobBlockTime.TotalMilliseconds).Within(5));
+        });
     }
 }
