@@ -18,6 +18,7 @@
 #endregion
 
 using FluentAssertions;
+using FluentAssertions.Execution;
 
 using Quartz.Spi;
 
@@ -42,6 +43,9 @@ public class DaylightSavingTimeTest
     [Test]
     public void CanComputeNextFireTimeForCalendarAcrossDstAndMinuteOffset_Issue2349()
     {
+        //CST DST begins 10 Mar 2024 02:00
+        //CST DST ends   03 Nov 2024 02:00
+        //CST DST begins 09 Mar 2025 02:00
         var startTime = new DateTimeOffset(2024, 2, 11, 2, 1, 0, TimeSpan.FromHours(-6)); 
         var trigger = TriggerBuilder.Create()
             .ForJob("JobName", "ScheduleName")
@@ -53,14 +57,44 @@ public class DaylightSavingTimeTest
                 .SkipDayIfHourDoesNotExist(false))
             .Build();
 
-        var nextFireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger)trigger, null, 10);
+        var nextFireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger)trigger, null, 50);
         Assert.Multiple(() =>
         {
             nextFireTimes[0].Should().Be(new DateTimeOffset(2024, 2, 11, 2, 1, 0, TimeSpan.FromHours(-6)));
             nextFireTimes[1].Should().Be(new DateTimeOffset(2024, 2, 25, 2, 1, 0, TimeSpan.FromHours(-6)));
             nextFireTimes[2].Should().Be(new DateTimeOffset(2024, 3, 10, 3, 1, 0, TimeSpan.FromHours(-5)));
             nextFireTimes[3].Should().Be(new DateTimeOffset(2024, 3, 24, 2, 1, 0, TimeSpan.FromHours(-5)));
+            // next DST is 9/Mar/2025 on Sunday at 2:00 AM Clocks move forward 1 hour, so 2:01 won't be a valid time
+            nextFireTimes[28].Should().Be(new DateTimeOffset(2025, 3, 9, 3, 1, 0, TimeSpan.FromHours(-5)));
         });
+    }
+    
+    [Test]
+    public void CanComputeNextFireTimeForCalendarAcrossDstAndMinuteOffset_ForTZThatis30MinOffset()
+    {
+        //C.AST DST begins first sunday Oct,  6 Oct 2024 at 2:00 AM clocks move forward 1 hr.
+        //C.AST DST ends to first sunday Apr, 6 Apr 2025 at 3:00 AM clocks move back 1 hr.
+        var startTime = new DateTimeOffset(2024, 9, 22, 2, 1, 0, TimeSpan.FromHours(9.5)); 
+        var trigger = TriggerBuilder.Create()
+            .ForJob("JobName", "ScheduleName")
+            .StartAt(startTime)
+            .WithCalendarIntervalSchedule(x => x
+                .WithInterval(2, IntervalUnit.Week)
+                .InTimeZone(TimeZoneInfo.FindSystemTimeZoneById("Cen. Australia Standard Time"))
+                .PreserveHourOfDayAcrossDaylightSavings(true)
+                .SkipDayIfHourDoesNotExist(false))
+            .Build();
+
+        var nextFireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger)trigger, null, 50);
+        using (new AssertionScope()) 
+        {
+            nextFireTimes[0].Should().Be(new DateTimeOffset(2024, 9, 22, 2, 1, 0, TimeSpan.FromHours(9.5)));
+            nextFireTimes[1].Should().Be(new DateTimeOffset(2024, 10, 6, 3, 1, 0, TimeSpan.FromHours(10.5)));
+            nextFireTimes[2].Should().Be(new DateTimeOffset(2024, 10, 20, 2, 1, 0, TimeSpan.FromHours(10.5)));
+            nextFireTimes[3].Should().Be(new DateTimeOffset(2024, 11, 3, 2, 1, 0, TimeSpan.FromHours(10.5)));
+            // next DST is 5/Oct/2025  at 2:00 AM Clocks move forward 1 hour, so 2:01 won't be a valid time
+            nextFireTimes[27].Should().Be(new DateTimeOffset(2025, 10, 5, 3, 1, 0, TimeSpan.FromHours(10.5)));
+        }
     }
 
     [Test]

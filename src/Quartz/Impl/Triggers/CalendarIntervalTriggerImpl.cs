@@ -802,11 +802,16 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
         {
             return SkipDayIfHourDoesNotExist;
         }
+
+        
+        
         // Don't skip this day, instead find the closest future valid time by adding minutes in intervals
         // to reach a valid time for the day.
         while (TimeZone.IsInvalidTime(newTime.DateTime))
         {
-            newTime = newTime.AddMinutes(TimeZoneAdjustmentIntervalMinutes);
+            TimeSpan timeDifference = toCheck.Offset - newTime.Offset;
+            //newTime = newTime.AddMinutes(TimeZoneAdjustmentIntervalMinutes);
+            newTime = newTime.AddMinutes(timeDifference.TotalMinutes);
         }
 
         // apply proper offset for the adjusted time
