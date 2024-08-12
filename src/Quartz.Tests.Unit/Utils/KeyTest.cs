@@ -6,7 +6,7 @@ using Quartz.Util;
 namespace Quartz.Tests.Unit.Utils;
 
 /// <summary>
-/// Unit tests for Key<T>.
+/// Unit tests for Key&lt;T&gt;
 /// </summary>
 /// <author>Gert Driesen</author>
 [TestFixture]

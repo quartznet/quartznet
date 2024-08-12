@@ -273,6 +273,14 @@ public class DirtyFlagMap<TKey, TValue> : IDictionary<TKey, TValue?>, IDictionar
         set => this[(TKey) key] = (TValue) value!;
     }
 
+    /// <summary>
+    /// Determines whether the <see cref="DirtyFlagMap{TKey, TValue}"/> contains the specified key.
+    /// Essentially this is a wrapper around <see cref="ContainsKey(TKey)"/>.
+    /// </summary>
+    /// <param name="item">The key to locate in the <see cref="DirtyFlagMap{TKey, TValue}"/>.</param>
+    /// <returns>
+    /// <see langword="true"/> if the <see cref="DirtyFlagMap{TKey, TValue}"/> contains the specified key; otherwise, <see langword="false"/>.
+    /// </returns>
     public bool Contains(KeyValuePair<TKey, TValue?> item)
     {
         return Contains(item.Key);
