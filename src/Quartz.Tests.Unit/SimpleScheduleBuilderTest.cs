@@ -1,4 +1,5 @@
 using FluentAssertions;
+using FluentAssertions.Execution;
 
 namespace Quartz.Tests.Unit;
 
@@ -16,8 +17,10 @@ public class SimpleScheduleBuilderTest
         var trigger2 = trigger1
             .GetTriggerBuilder()
             .Build();
-
-        trigger1.MisfireInstruction.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
-        trigger2.MisfireInstruction.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
+        using (new AssertionScope())
+        {
+            trigger1.MisfireInstruction.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
+            trigger2.MisfireInstruction.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
+        }
     }
 }

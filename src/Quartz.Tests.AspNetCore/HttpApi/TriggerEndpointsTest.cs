@@ -1,6 +1,7 @@
 using FakeItEasy;
 
 using FluentAssertions;
+using FluentAssertions.Execution;
 
 using Quartz.HttpClient;
 using Quartz.Impl.Matchers;
@@ -19,10 +20,12 @@ public class TriggerEndpointsTest : WebApiTest
         A.CallTo(() => FakeScheduler.GetTriggerKeys(A<GroupMatcher<TriggerKey>>._, A<CancellationToken>._)).Returns([triggerKeyOne, triggerKeyTwo]);
 
         var triggerKeys = await HttpScheduler.GetTriggerKeys(GroupMatcher<TriggerKey>.AnyGroup());
-
-        triggerKeys.Count.Should().Be(2);
-        triggerKeys.Should().ContainSingle(x => x.Equals(triggerKeyOne));
-        triggerKeys.Should().ContainSingle(x => x.Equals(triggerKeyTwo));
+        using (new AssertionScope())
+        {
+            triggerKeys.Count.Should().Be(2);
+            triggerKeys.Should().ContainSingle(x => x.Equals(triggerKeyOne));
+            triggerKeys.Should().ContainSingle(x => x.Equals(triggerKeyTwo));
+        }
 
         var matchers = new[]
         {

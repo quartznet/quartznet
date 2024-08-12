@@ -20,6 +20,7 @@
 #endregion
 
 using FluentAssertions;
+using FluentAssertions.Execution;
 
 using Quartz.Impl;
 using Quartz.Job;
@@ -91,9 +92,11 @@ public class JobDetailTest
     {
         var type = typeof(GenericJob<string>);
         var job = new JobDetailImpl("name", "group", type, true, true);
-
-        job.JobType.Type.Should().Be(type);
-        job.JobType.FullName.Should().Be(type.AssemblyQualifiedNameWithoutVersion());
+        using (new AssertionScope())
+        {
+            job.JobType.Type.Should().Be(type);
+            job.JobType.FullName.Should().Be(type.AssemblyQualifiedNameWithoutVersion());
+        }
     }
 
     public class GenericJob<T> : IJob

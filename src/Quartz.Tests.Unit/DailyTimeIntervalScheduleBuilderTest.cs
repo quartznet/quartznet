@@ -22,6 +22,7 @@
 using System.Collections.Specialized;
 
 using FluentAssertions;
+using FluentAssertions.Execution;
 
 using Quartz.Impl;
 using Quartz.Impl.Triggers;
@@ -399,8 +400,10 @@ public class DailyTimeIntervalScheduleBuilderTest
         var trigger2 = trigger1
             .GetTriggerBuilder()
             .Build();
-
-        trigger1.MisfireInstruction.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
-        trigger2.MisfireInstruction.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
+        using (new AssertionScope())
+        {
+            trigger1.MisfireInstruction.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
+            trigger2.MisfireInstruction.Should().Be(MisfireInstruction.IgnoreMisfirePolicy);
+        }
     }
 }

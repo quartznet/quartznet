@@ -22,6 +22,7 @@
 using System.Collections;
 using System.Globalization;
 using FluentAssertions;
+using FluentAssertions.Execution;
 
 using Quartz.Simpl;
 
@@ -53,9 +54,12 @@ public class JobDataMapTest : SerializationTestSupport<JobDataMap>
 
     protected override void VerifyMatch(JobDataMap original, JobDataMap deserialized)
     {
-        deserialized.Should().NotBeNull();
-        deserialized.WrappedMap.Should().BeEquivalentTo(original.WrappedMap);
-        deserialized.Dirty.Should().BeFalse("should not be dirty when returning from serialization");
+        using (new AssertionScope())
+        {
+            deserialized.Should().NotBeNull();
+            deserialized.WrappedMap.Should().BeEquivalentTo(original.WrappedMap);
+            deserialized.Dirty.Should().BeFalse("should not be dirty when returning from serialization");
+        }
     }
 
     [Test]
@@ -63,12 +67,16 @@ public class JobDataMapTest : SerializationTestSupport<JobDataMap>
     {
         var map = new JobDataMap();
         map["key"] = Guid.NewGuid();
-        map.TryGetGuid("key", out var g).Should().BeTrue();
-        g.Should().NotBe(Guid.Empty);
+        using (new AssertionScope())
+        {
+            map.TryGetGuid("key", out var g).Should().BeTrue();
+            g.Should().NotBe(Guid.Empty);
 
-        map["key"] = Guid.NewGuid().ToString();
-        map.TryGetGuid("key", out g).Should().BeTrue();
-        g.Should().NotBe(Guid.Empty);
+            map["key"] = Guid.NewGuid().ToString();
+            map.TryGetGuid("key", out g).Should().BeTrue();
+            g.Should().NotBe(Guid.Empty);
+        }
+
     }
 
     [Test]

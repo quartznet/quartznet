@@ -3,6 +3,7 @@ using System.Text.Json;
 using FakeItEasy;
 
 using FluentAssertions;
+using FluentAssertions.Execution;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -25,10 +26,12 @@ public class SchedulerEndpointsTest : WebApiTest
         // This endpoint is not used by HttpScheduler
         using var httpClient = WebApplicationFactory.CreateClient();
         var result = await httpClient.Get<SchedulerHeaderDto[]>("schedulers", new JsonSerializerOptions(JsonSerializerDefaults.Web), CancellationToken.None);
-
-        result.Length.Should().Be(2);
-        result.Should().ContainSingle(x => x.SchedulerInstanceId == TestData.SchedulerInstanceId);
-        result.Should().ContainSingle(x => x.SchedulerInstanceId == "TEST_2_NON_CLUSTERED");
+        using (new AssertionScope())
+        {
+            result.Length.Should().Be(2);
+            result.Should().ContainSingle(x => x.SchedulerInstanceId == TestData.SchedulerInstanceId);
+            result.Should().ContainSingle(x => x.SchedulerInstanceId == "TEST_2_NON_CLUSTERED");
+        }
     }
 
     [Test]

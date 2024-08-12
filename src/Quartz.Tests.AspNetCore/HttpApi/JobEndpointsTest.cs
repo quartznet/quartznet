@@ -1,6 +1,7 @@
 using FakeItEasy;
 
 using FluentAssertions;
+using FluentAssertions.Execution;
 
 using Quartz.HttpClient;
 using Quartz.Impl.Matchers;
@@ -21,9 +22,12 @@ public class JobEndpointsTest : WebApiTest
 
         var jobKeys = await HttpScheduler.GetJobKeys(GroupMatcher<JobKey>.AnyGroup());
 
-        jobKeys.Count.Should().Be(2);
-        jobKeys.Should().ContainSingle(x => x.Equals(jobKeyOne));
-        jobKeys.Should().ContainSingle(x => x.Equals(jobKeyTwo));
+        using (new AssertionScope())
+        {
+            jobKeys.Count.Should().Be(2);
+            jobKeys.Should().ContainSingle(x => x.Equals(jobKeyOne));
+            jobKeys.Should().ContainSingle(x => x.Equals(jobKeyTwo));
+        }
 
         var matchers = new[]
         {
