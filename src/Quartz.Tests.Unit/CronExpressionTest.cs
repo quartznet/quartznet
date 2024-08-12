@@ -894,15 +894,18 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     [Test]
     public void TestInvalidCharactersAfterAsterisk()
     {
-        Assert.That(CronExpression.IsValidExpression("* * * ? * *A&/5:"), Is.False);
-        Assert.That(CronExpression.IsValidExpression("* * * ? *14 "), Is.False);
-        Assert.That(CronExpression.IsValidExpression(" * * ? *A&/5 *"), Is.False);
-        Assert.That(CronExpression.IsValidExpression("* * ? */5 *"), Is.False);
-        Assert.That(CronExpression.IsValidExpression("* * ? */52 *"), Is.False);
+        Assert.Multiple(() =>
+        {
+            Assert.That(CronExpression.IsValidExpression("* * * ? * *A&/5:"), Is.False);
+            Assert.That(CronExpression.IsValidExpression("* * * ? *14 "), Is.False);
+            Assert.That(CronExpression.IsValidExpression(" * * ? *A&/5 *"), Is.False);
+            Assert.That(CronExpression.IsValidExpression("* * ? */5 *"), Is.False);
+            Assert.That(CronExpression.IsValidExpression("* * ? */52 *"), Is.False);
 
-        Assert.That(CronExpression.IsValidExpression("0 0/30 * * * ?"), Is.True);
-        Assert.That(CronExpression.IsValidExpression("0 0/1 * * * ?"), Is.True);
-        Assert.That(CronExpression.IsValidExpression("0 0/30 * * */2 ?"), Is.True);
+            Assert.That(CronExpression.IsValidExpression("0 0/30 * * * ?"), Is.True);
+            Assert.That(CronExpression.IsValidExpression("0 0/1 * * * ?"), Is.True);
+            Assert.That(CronExpression.IsValidExpression("0 0/30 * * */2 ?"), Is.True);
+        });
     }
 
     [Test]

@@ -40,8 +40,11 @@ public class KeyTest
 
         var key = new Key<string>(name);
 
-        Assert.That(key.Name, Is.SameAs(name));
-        Assert.That(key.Group, Is.SameAs(Key<string>.DefaultGroup));
+        Assert.Multiple(() =>
+        {
+            Assert.That(key.Name, Is.SameAs(name));
+            Assert.That(key.Group, Is.SameAs(Key<string>.DefaultGroup));
+        });
     }
 
     [Test]
@@ -418,9 +421,12 @@ public class KeyTest
         formatter.AssemblyFormat = FormatterAssemblyStyle.Simple;
 
         var deserialized = formatter.Deserialize(ms) as Key<string>;
-        Assert.That(deserialized, Is.Not.Null);
-        Assert.That(deserialized.Group, Is.EqualTo(key.Group));
-        Assert.That(deserialized.Name, Is.EqualTo(key.Name));
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserialized, Is.Not.Null);
+            Assert.That(deserialized.Group, Is.EqualTo(key.Group));
+            Assert.That(deserialized.Name, Is.EqualTo(key.Name));
+        });
 #pragma warning restore SYSLIB0050
     }
 

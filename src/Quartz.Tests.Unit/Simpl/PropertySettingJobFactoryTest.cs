@@ -209,14 +209,17 @@ public class PropertySettingJobFactoryTest
         TestObject myObject = new TestObject();
         factory.SetObjectProperties(myObject, jobDataMap);
 
-        Assert.That(myObject.IntValue, Is.EqualTo(1));
-        Assert.That(myObject.LongValue, Is.EqualTo(2L));
-        Assert.That(myObject.FloatValue, Is.EqualTo(3.0f));
-        Assert.That(myObject.DoubleValue, Is.EqualTo(4.0));
-        Assert.That(myObject.BooleanValue, Is.EqualTo(true));
-        Assert.That(myObject.ShortValue, Is.EqualTo(5));
-        Assert.That(myObject.CharValue, Is.EqualTo('a'));
-        Assert.That(myObject.ByteValue, Is.EqualTo((byte) 6));
+        Assert.Multiple(() =>
+        {
+            Assert.That(myObject.IntValue, Is.EqualTo(1));
+            Assert.That(myObject.LongValue, Is.EqualTo(2L));
+            Assert.That(myObject.FloatValue, Is.EqualTo(3.0f));
+            Assert.That(myObject.DoubleValue, Is.EqualTo(4.0));
+            Assert.That(myObject.BooleanValue, Is.EqualTo(true));
+            Assert.That(myObject.ShortValue, Is.EqualTo(5));
+            Assert.That(myObject.CharValue, Is.EqualTo('a'));
+            Assert.That(myObject.ByteValue, Is.EqualTo((byte) 6));
+        });
     }
 
     internal sealed class TestObject

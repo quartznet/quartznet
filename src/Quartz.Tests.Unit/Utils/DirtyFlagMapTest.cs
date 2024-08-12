@@ -289,8 +289,11 @@ public class DirtyFlagMapTest
 
         var actual = dirtyFlagMap["a"];
 
-        Assert.That(dirtyFlagMap.Dirty, Is.False);
-        Assert.That(actual, Is.EqualTo(default(int)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(dirtyFlagMap.Dirty, Is.False);
+            Assert.That(actual, Is.EqualTo(default(int)));
+        });
 
         /*
         try
@@ -708,9 +711,12 @@ public class DirtyFlagMapTest
             // An item with the same key has already been added. Key: c
         }
 
-        Assert.That(dirtyFlagMap.Dirty, Is.False);
-        Assert.That(dirtyFlagMap.ContainsKey("c"), Is.True);
-        Assert.That(dirtyFlagMap["c"], Is.EqualTo("z"));
+        Assert.Multiple(() =>
+        {
+            Assert.That(dirtyFlagMap.Dirty, Is.False);
+            Assert.That(dirtyFlagMap.ContainsKey("c"), Is.True);
+            Assert.That(dirtyFlagMap["c"], Is.EqualTo("z"));
+        });
     }
 
     [Test]
@@ -1302,8 +1308,11 @@ public class DirtyFlagMapTest
 
         var actual = ((IDictionary)dirtyFlagMap)["a"];
 
-        Assert.That(dirtyFlagMap.Dirty, Is.False);
-        Assert.That(actual, Is.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(dirtyFlagMap.Dirty, Is.False);
+            Assert.That(actual, Is.Null);
+        });
     }
 
     [Test]
@@ -1649,8 +1658,11 @@ public class DirtyFlagMapTest
 
         ((IDictionary)dirtyFlagMap).Remove("a");
 
-        Assert.That(dirtyFlagMap.Dirty, Is.True);
-        Assert.That(dirtyFlagMap.ContainsKey("a"), Is.False);
+        Assert.Multiple(() =>
+        {
+            Assert.That(dirtyFlagMap.Dirty, Is.True);
+            Assert.That(dirtyFlagMap.ContainsKey("a"), Is.False);
+        });
     }
 
     [Test]

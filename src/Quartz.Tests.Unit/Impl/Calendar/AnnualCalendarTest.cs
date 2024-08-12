@@ -178,9 +178,12 @@ public class AnnualCalendarTest : SerializationTestSupport<AnnualCalendar, ICale
     /// <inheritdoc />
     protected override void VerifyMatch(AnnualCalendar original, AnnualCalendar deserialized)
     {
-        Assert.That(deserialized, Is.Not.Null);
-        Assert.That(deserialized.Description, Is.EqualTo(original.Description));
-        Assert.That(deserialized.DaysExcluded, Is.EquivalentTo(original.DaysExcluded));
-        Assert.That(deserialized.TimeZone, Is.EqualTo(original.TimeZone));
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserialized, Is.Not.Null);
+            Assert.That(deserialized.Description, Is.EqualTo(original.Description));
+            Assert.That(deserialized.DaysExcluded, Is.EquivalentTo(original.DaysExcluded));
+            Assert.That(deserialized.TimeZone, Is.EqualTo(original.TimeZone));
+        });
     }
 }

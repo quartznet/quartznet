@@ -110,10 +110,13 @@ public class SendMailJobTest
         job.Execute(context);
 
         //Then
-        Assert.That(job.actualSmtpHost, Is.EqualTo("someserver"));
-        Assert.That(job.actualSmtpUserName, Is.EqualTo("user 123"));
-        Assert.That(job.actualSmtpPassword, Is.EqualTo("pass 321"));
-        Assert.That(job.actualSmtpPort, Is.EqualTo(123));
+        Assert.Multiple(() =>
+        {
+            Assert.That(job.actualSmtpHost, Is.EqualTo("someserver"));
+            Assert.That(job.actualSmtpUserName, Is.EqualTo("user 123"));
+            Assert.That(job.actualSmtpPassword, Is.EqualTo("pass 321"));
+            Assert.That(job.actualSmtpPort, Is.EqualTo(123));
+        });
     }
 }
 
@@ -136,18 +139,24 @@ internal sealed class ExpectedMail
 
     public void IsEqualTo(MailMessage actualMail)
     {
-        Assert.That(actualMail.To, Does.Contain(new MailAddress(recipient)), "Recipient equals");
-        Assert.That(actualMail.From, Is.EqualTo(new MailAddress(sender)), "Sender equals");
-        Assert.That(actualMail.Subject, Is.EqualTo(subject), "Subject equals");
-        Assert.That(actualMail.Body, Is.EqualTo(message), "Message equals");
+        Assert.Multiple(() =>
+        {
+            Assert.That(actualMail.To, Does.Contain(new MailAddress(recipient)), "Recipient equals");
+            Assert.That(actualMail.From, Is.EqualTo(new MailAddress(sender)), "Sender equals");
+            Assert.That(actualMail.Subject, Is.EqualTo(subject), "Subject equals");
+            Assert.That(actualMail.Body, Is.EqualTo(message), "Message equals");
+        });
         if (!string.IsNullOrEmpty(ccRecipient))
         {
             Assert.That(actualMail.CC, Does.Contain(new MailAddress(ccRecipient)), "CC equals");
         }
         if (!string.IsNullOrEmpty(replyTo))
         {
-            Assert.That(actualMail.ReplyToList.Count, Is.EqualTo(1));
-            Assert.That(actualMail.ReplyToList[0], Is.EqualTo(new MailAddress(replyTo)));
+            Assert.Multiple(() =>
+            {
+                Assert.That(actualMail.ReplyToList.Count, Is.EqualTo(1));
+                Assert.That(actualMail.ReplyToList[0], Is.EqualTo(new MailAddress(replyTo)));
+            });
         }
     }
 }

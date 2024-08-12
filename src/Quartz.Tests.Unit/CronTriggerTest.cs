@@ -94,8 +94,11 @@ public class CronTriggerTest
     {
         IOperableTrigger trigger = new CronTriggerImpl();
         trigger.StartTimeUtc = new DateTime(1982, 6, 28, 13, 5, 5, 233);
-        Assert.That(trigger.HasMillisecondPrecision, Is.False);
-        Assert.That(trigger.StartTimeUtc.Millisecond, Is.EqualTo(0));
+        Assert.Multiple(() =>
+        {
+            Assert.That(trigger.HasMillisecondPrecision, Is.False);
+            Assert.That(trigger.StartTimeUtc.Millisecond, Is.EqualTo(0));
+        });
     }
 
     [Test]
@@ -105,11 +108,13 @@ public class CronTriggerTest
         trigger.Key = new TriggerKey("test", "testGroup");
         trigger.CronExpressionString = "0 0 12 * * ?";
         ICronTrigger trigger2 = (ICronTrigger) trigger.Clone();
+        Assert.Multiple(() =>
+        {
+            Assert.That(trigger2, Is.EqualTo(trigger), "Cloning failed");
 
-        Assert.That(trigger2, Is.EqualTo(trigger), "Cloning failed");
-
-        // equals() doesn't test the cron expression
-        Assert.That(trigger2.CronExpressionString, Is.EqualTo("0 0 12 * * ?"), "Cloning failed for the cron expression");
+            // equals() doesn't test the cron expression
+            Assert.That(trigger2.CronExpressionString, Is.EqualTo("0 0 12 * * ?"), "Cloning failed for the cron expression");
+        });
     }
 
     // http://jira.opensymphony.com/browse/QUARTZ-558

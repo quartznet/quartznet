@@ -404,8 +404,11 @@ public class QuartzHostedServiceTests
 
         await quartzHostedService.StopAsync(CancellationToken.None);
 
-        Assert.That(schedulerFactory.LastCreatedScheduler.IsStarted, Is.False);
-        Assert.That(schedulerFactory.LastCreatedScheduler.IsShutdown, Is.True);
+        Assert.Multiple(() =>
+        {
+            Assert.That(schedulerFactory.LastCreatedScheduler.IsStarted, Is.False);
+            Assert.That(schedulerFactory.LastCreatedScheduler.IsShutdown, Is.True);
+        });
     }
 
     [Test]

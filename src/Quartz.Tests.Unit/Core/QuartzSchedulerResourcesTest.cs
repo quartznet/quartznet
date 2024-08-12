@@ -17,19 +17,22 @@ public class QuartzSchedulerResourcesTest
     public void DefaultCtor()
     {
         var resources = new QuartzSchedulerResources();
-        Assert.That(resources.BatchTimeWindow, Is.EqualTo(TimeSpan.Zero));
-        Assert.That(resources.InstanceId, Is.Null);
-        Assert.That(resources.InterruptJobsOnShutdown, Is.False);
-        Assert.That(resources.InterruptJobsOnShutdownWithWait, Is.False);
-        Assert.That(resources.JobRunShellFactory, Is.Null);
-        Assert.That(resources.JobStore, Is.Null);
-        Assert.That(resources.MakeSchedulerThreadDaemon, Is.False);
-        Assert.That(resources.MaxBatchSize, Is.EqualTo(1));
-        Assert.That(resources.Name, Is.Null);
-        Assert.That(resources.SchedulerPlugins, Is.Not.Null);
-        Assert.That(resources.SchedulerPlugins, Is.Empty);
-        Assert.That(resources.ThreadName, Is.Null);
-        Assert.That(resources.ThreadPool, Is.Null);
+        Assert.Multiple(() =>
+        {
+            Assert.That(resources.BatchTimeWindow, Is.EqualTo(TimeSpan.Zero));
+            Assert.That(resources.InstanceId, Is.Null);
+            Assert.That(resources.InterruptJobsOnShutdown, Is.False);
+            Assert.That(resources.InterruptJobsOnShutdownWithWait, Is.False);
+            Assert.That(resources.JobRunShellFactory, Is.Null);
+            Assert.That(resources.JobStore, Is.Null);
+            Assert.That(resources.MakeSchedulerThreadDaemon, Is.False);
+            Assert.That(resources.MaxBatchSize, Is.EqualTo(1));
+            Assert.That(resources.Name, Is.Null);
+            Assert.That(resources.SchedulerPlugins, Is.Not.Null);
+            Assert.That(resources.SchedulerPlugins, Is.Empty);
+            Assert.That(resources.ThreadName, Is.Null);
+            Assert.That(resources.ThreadPool, Is.Null);
+        });
     }
 
     [Test]

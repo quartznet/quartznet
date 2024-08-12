@@ -325,8 +325,11 @@ public class SchedulerTest
 
         stopwatch.Stop();
 
-        Assert.That(stopwatch.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(TestJobWithDelay.Delay.TotalMilliseconds).Within(5));
-        Assert.That(completed.WaitOne(0), Is.True);
+        Assert.Multiple(() =>
+        {
+            Assert.That(stopwatch.ElapsedMilliseconds, Is.GreaterThanOrEqualTo(TestJobWithDelay.Delay.TotalMilliseconds).Within(5));
+            Assert.That(completed.WaitOne(0), Is.True);
+        });
     }
 
     [Test]
@@ -364,10 +367,13 @@ public class SchedulerTest
 
         stopwatch.Stop();
 
-        // Shutdown should be fast since we're not waiting for tasks to complete
-        Assert.That(stopwatch.ElapsedMilliseconds, Is.LessThan(TestJobWithDelay.Delay.TotalMilliseconds - 50));
-        // The task should still be executing
-        Assert.That(completed.WaitOne(0), Is.False);
+        Assert.Multiple(() =>
+        {
+            // Shutdown should be fast since we're not waiting for tasks to complete
+            Assert.That(stopwatch.ElapsedMilliseconds, Is.LessThan(TestJobWithDelay.Delay.TotalMilliseconds - 50));
+            // The task should still be executing
+            Assert.That(completed.WaitOne(0), Is.False);
+        });
     }
 
     [Test]
@@ -400,9 +406,12 @@ public class SchedulerTest
             after = (SchedulerException) formatter.Deserialize(stream);
         }
 
-        Assert.That(before.InnerException, Is.Not.Null);
-        Assert.That(after.InnerException, Is.Not.Null);
-        Assert.That(after.ToString(), Is.EqualTo(before.ToString()));
+        Assert.Multiple(() =>
+        {
+            Assert.That(before.InnerException, Is.Not.Null);
+            Assert.That(after.InnerException, Is.Not.Null);
+            Assert.That(after.ToString(), Is.EqualTo(before.ToString()));
+        });
     }
 
     [Test]
@@ -429,9 +438,12 @@ public class SchedulerTest
         await scheduler.ScheduleJob(job, trigger);
 
         trigger = (IOperableTrigger) await scheduler.GetTrigger(trigger.Key);
-        Assert.That(trigger.StartTimeUtc, Is.EqualTo(triggerStartTime));
-        Assert.That(trigger.GetNextFireTimeUtc(), Is.EqualTo(triggerStartTime));
-        Assert.That(trigger.GetPreviousFireTimeUtc(), Is.EqualTo(null));
+        Assert.Multiple(() =>
+        {
+            Assert.That(trigger.StartTimeUtc, Is.EqualTo(triggerStartTime));
+            Assert.That(trigger.GetNextFireTimeUtc(), Is.EqualTo(triggerStartTime));
+            Assert.That(trigger.GetPreviousFireTimeUtc(), Is.EqualTo(null));
+        });
 
         var previousFireTimeUtc = triggerStartTime.AddDays(1);
         trigger.SetPreviousFireTimeUtc(previousFireTimeUtc);
@@ -440,8 +452,11 @@ public class SchedulerTest
         await scheduler.RescheduleJob(trigger.Key, trigger);
 
         trigger = (IOperableTrigger) await scheduler.GetTrigger(trigger.Key);
-        Assert.That(trigger.GetNextFireTimeUtc(), Is.Not.Null);
-        Assert.That(trigger.GetNextFireTimeUtc(), Is.EqualTo(previousFireTimeUtc.AddHours(1)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(trigger.GetNextFireTimeUtc(), Is.Not.Null);
+            Assert.That(trigger.GetNextFireTimeUtc(), Is.EqualTo(previousFireTimeUtc.AddHours(1)));
+        });
 
         await scheduler.Shutdown(true);
     }

@@ -72,11 +72,14 @@ public class RAMJobStoreTest
 
         DateTimeOffset firstFireTime = trigger1.GetNextFireTimeUtc().Value;
 
-        Assert.That((await fJobStore.AcquireNextTriggers(d.AddMilliseconds(10), 1, TimeSpan.Zero)).Count, Is.EqualTo(0));
-        Assert.That((await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 1, TimeSpan.Zero)).First(), Is.EqualTo(trigger2));
-        Assert.That((await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 1, TimeSpan.Zero)).First(), Is.EqualTo(trigger3));
-        Assert.That((await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 1, TimeSpan.Zero)).First(), Is.EqualTo(trigger1));
-        Assert.That((await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 1, TimeSpan.Zero)).Count, Is.EqualTo(0));
+        Assert.Multiple(async () =>
+        {
+            Assert.That((await fJobStore.AcquireNextTriggers(d.AddMilliseconds(10), 1, TimeSpan.Zero)).Count, Is.EqualTo(0));
+            Assert.That((await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 1, TimeSpan.Zero)).First(), Is.EqualTo(trigger2));
+            Assert.That((await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 1, TimeSpan.Zero)).First(), Is.EqualTo(trigger3));
+            Assert.That((await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 1, TimeSpan.Zero)).First(), Is.EqualTo(trigger1));
+            Assert.That((await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 1, TimeSpan.Zero)).Count, Is.EqualTo(0));
+        });
 
         // release trigger3
         await fJobStore.ReleaseAcquiredTrigger(trigger3);
@@ -113,37 +116,48 @@ public class RAMJobStoreTest
         DateTimeOffset firstFireTime = trigger1.GetNextFireTimeUtc().Value;
 
         List<IOperableTrigger> acquiredTriggers = (await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 4, TimeSpan.FromSeconds(1))).ToList();
-        Assert.That(acquiredTriggers.Count, Is.EqualTo(1));
-        Assert.That(acquiredTriggers[0].Key, Is.EqualTo(early.Key));
+        Assert.Multiple(() =>
+        {
+            Assert.That(acquiredTriggers.Count, Is.EqualTo(1));
+            Assert.That(acquiredTriggers[0].Key, Is.EqualTo(early.Key));
+        });
         await fJobStore.ReleaseAcquiredTrigger(early);
 
         acquiredTriggers = (await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 4, TimeSpan.FromMilliseconds(205000))).ToList();
-        Assert.That(acquiredTriggers.Count, Is.EqualTo(2));
-        Assert.That(acquiredTriggers[0].Key, Is.EqualTo(early.Key));
-        Assert.That(acquiredTriggers[1].Key, Is.EqualTo(trigger1.Key));
+        Assert.Multiple(() =>
+        {
+            Assert.That(acquiredTriggers.Count, Is.EqualTo(2));
+            Assert.That(acquiredTriggers[0].Key, Is.EqualTo(early.Key));
+            Assert.That(acquiredTriggers[1].Key, Is.EqualTo(trigger1.Key));
+        });
         await fJobStore.ReleaseAcquiredTrigger(early);
         await fJobStore.ReleaseAcquiredTrigger(trigger1);
 
         await fJobStore.RemoveTrigger(early.Key);
 
         acquiredTriggers = (await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 5, TimeSpan.FromMilliseconds(100000))).ToList();
-        Assert.That(acquiredTriggers.Count, Is.EqualTo(4));
-        Assert.That(acquiredTriggers[0].Key, Is.EqualTo(trigger1.Key));
-        Assert.That(acquiredTriggers[1].Key, Is.EqualTo(trigger2.Key));
-        Assert.That(acquiredTriggers[2].Key, Is.EqualTo(trigger3.Key));
-        Assert.That(acquiredTriggers[3].Key, Is.EqualTo(trigger4.Key));
+        Assert.Multiple(() =>
+        {
+            Assert.That(acquiredTriggers.Count, Is.EqualTo(4));
+            Assert.That(acquiredTriggers[0].Key, Is.EqualTo(trigger1.Key));
+            Assert.That(acquiredTriggers[1].Key, Is.EqualTo(trigger2.Key));
+            Assert.That(acquiredTriggers[2].Key, Is.EqualTo(trigger3.Key));
+            Assert.That(acquiredTriggers[3].Key, Is.EqualTo(trigger4.Key));
+        });
         await fJobStore.ReleaseAcquiredTrigger(trigger1);
         await fJobStore.ReleaseAcquiredTrigger(trigger2);
         await fJobStore.ReleaseAcquiredTrigger(trigger3);
         await fJobStore.ReleaseAcquiredTrigger(trigger4);
 
         acquiredTriggers = (await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 6, TimeSpan.FromMilliseconds(100000))).ToList();
-
-        Assert.That(acquiredTriggers.Count, Is.EqualTo(4));
-        Assert.That(acquiredTriggers[0].Key, Is.EqualTo(trigger1.Key));
-        Assert.That(acquiredTriggers[1].Key, Is.EqualTo(trigger2.Key));
-        Assert.That(acquiredTriggers[2].Key, Is.EqualTo(trigger3.Key));
-        Assert.That(acquiredTriggers[3].Key, Is.EqualTo(trigger4.Key));
+        Assert.Multiple(() =>
+        {
+            Assert.That(acquiredTriggers.Count, Is.EqualTo(4));
+            Assert.That(acquiredTriggers[0].Key, Is.EqualTo(trigger1.Key));
+            Assert.That(acquiredTriggers[1].Key, Is.EqualTo(trigger2.Key));
+            Assert.That(acquiredTriggers[2].Key, Is.EqualTo(trigger3.Key));
+            Assert.That(acquiredTriggers[3].Key, Is.EqualTo(trigger4.Key));
+        });
 
         await fJobStore.ReleaseAcquiredTrigger(trigger1);
         await fJobStore.ReleaseAcquiredTrigger(trigger2);
@@ -151,15 +165,19 @@ public class RAMJobStoreTest
         await fJobStore.ReleaseAcquiredTrigger(trigger4);
 
         acquiredTriggers = (await fJobStore.AcquireNextTriggers(firstFireTime.AddMilliseconds(1), 5, TimeSpan.Zero)).ToList();
+        Assert.Multiple(() =>{
         Assert.That(acquiredTriggers.Count, Is.EqualTo(1));
         Assert.That(acquiredTriggers[0].Key, Is.EqualTo(trigger1.Key));
+        });
 
         await fJobStore.ReleaseAcquiredTrigger(trigger1);
 
         acquiredTriggers = (await fJobStore.AcquireNextTriggers(firstFireTime.AddMilliseconds(250), 5, TimeSpan.FromMilliseconds(19999L))).ToList();
+        Assert.Multiple(() =>{
         Assert.That(acquiredTriggers.Count, Is.EqualTo(2));
         Assert.That(acquiredTriggers[0].Key, Is.EqualTo(trigger1.Key));
         Assert.That(acquiredTriggers[1].Key, Is.EqualTo(trigger2.Key));
+        });
 
         await fJobStore.ReleaseAcquiredTrigger(early);
         await fJobStore.ReleaseAcquiredTrigger(trigger1);
@@ -167,8 +185,10 @@ public class RAMJobStoreTest
         await fJobStore.ReleaseAcquiredTrigger(trigger3);
 
         acquiredTriggers = (await fJobStore.AcquireNextTriggers(firstFireTime.AddMilliseconds(150), 5, TimeSpan.FromMilliseconds(5000L))).ToList();
+        Assert.Multiple(() =>{
         Assert.That(acquiredTriggers.Count, Is.EqualTo(1));
         Assert.That(acquiredTriggers[0].Key, Is.EqualTo(trigger1.Key));
+        });
         await fJobStore.ReleaseAcquiredTrigger(trigger1);
     }
 
@@ -191,8 +211,11 @@ public class RAMJobStoreTest
         Assert.That(trigger, Is.Not.Null);
         await fJobStore.ReleaseAcquiredTrigger(trigger);
         trigger = (await fJobStore.AcquireNextTriggers(trigger.GetNextFireTimeUtc().Value.AddSeconds(10), 1, TimeSpan.FromMilliseconds(1))).First();
-        Assert.That(trigger, Is.Not.Null);
-        Assert.That((await fJobStore.AcquireNextTriggers(trigger.GetNextFireTimeUtc().Value.AddSeconds(10), 1, TimeSpan.FromMilliseconds(1))).Count, Is.EqualTo(0));
+        Assert.Multiple(async () =>
+        {
+            Assert.That(trigger, Is.Not.Null);
+            Assert.That((await fJobStore.AcquireNextTriggers(trigger.GetNextFireTimeUtc().Value.AddSeconds(10), 1, TimeSpan.FromMilliseconds(1))).Count, Is.EqualTo(0));
+        });
     }
 
     [Test]

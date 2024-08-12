@@ -187,8 +187,11 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
     {
         IOperableTrigger trigger = new SimpleTriggerImpl();
         trigger.StartTimeUtc = new DateTimeOffset(1982, 6, 28, 13, 5, 5, 233, TimeSpan.Zero);
-        Assert.That(trigger.HasMillisecondPrecision, Is.True);
-        Assert.That(trigger.StartTimeUtc.Millisecond, Is.EqualTo(233));
+        Assert.Multiple(() =>
+        {
+            Assert.That(trigger.HasMillisecondPrecision, Is.True);
+            Assert.That(trigger.StartTimeUtc.Millisecond, Is.EqualTo(233));
+        });
     }
 
     [Test]

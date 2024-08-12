@@ -124,9 +124,12 @@ public class DailyTimeIntervalScheduleBuilderTest
             .WithIdentity("test")
             .WithDailyTimeIntervalSchedule(x => x.WithIntervalInHours(3))
             .Build();
-        Assert.That(trigger.Key.Name, Is.EqualTo("test"));
-        Assert.That(trigger.Key.Group, Is.EqualTo("DEFAULT"));
-        Assert.That(trigger.RepeatIntervalUnit, Is.EqualTo(IntervalUnit.Hour));
+        Assert.Multiple(() =>
+        {
+            Assert.That(trigger.Key.Name, Is.EqualTo("test"));
+            Assert.That(trigger.Key.Group, Is.EqualTo("DEFAULT"));
+            Assert.That(trigger.RepeatIntervalUnit, Is.EqualTo(IntervalUnit.Hour));
+        });
         //Assert.AreEqual(1, trigger.RepeatInterval);
         var fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, null, 48);
         Assert.That(fireTimes.Count, Is.EqualTo(48));
