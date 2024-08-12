@@ -21,6 +21,7 @@ using FluentAssertions;
 using FluentAssertions.Execution;
 
 using Quartz.Spi;
+using Quartz.Util;
 
 using TimeZoneConverter;
 
@@ -41,6 +42,35 @@ public class DaylightSavingTimeTest
     }
 
     [Test]
+    public void CanComputeNextFireTimeForCalendarAcrossDst_Issue2497()
+    {
+        var tz = TimeZoneUtil.FindTimeZoneById("GMT Standard Time");
+        var startDateTime = new DateTime(2025, 3, 29, 1, 30, 0);
+        var startDto = new DateTimeOffset(startDateTime, TimeZoneUtil.GetUtcOffset(startDateTime, tz));
+        var trigger = TriggerBuilder.Create()
+            .WithIdentity("myTrigger", "mygroup")
+            .StartAt(startDto)
+            .WithCalendarIntervalSchedule(builder =>
+            {
+                builder
+                    .InTimeZone(tz)
+                    .PreserveHourOfDayAcrossDaylightSavings(true)
+                    .SkipDayIfHourDoesNotExist(false)
+                    .WithIntervalInDays(1);
+            })
+            .Build();
+        
+        var nextFireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger)trigger, null, 50);
+
+        using (new AssertionScope())
+        {
+            nextFireTimes[0].Should().Be(new DateTimeOffset(2025, 3, 29, 1, 30, 0, TimeSpan.FromHours(0)));
+            nextFireTimes[1].Should().Be(new DateTimeOffset(2025, 3, 30, 2, 30, 0, TimeSpan.FromHours(1)));
+            nextFireTimes[2].Should().Be(new DateTimeOffset(2025, 3, 31, 1, 30, 0, TimeSpan.FromHours(1)));
+        }
+    }
+
+    [Test]
     public void CanComputeNextFireTimeForCalendarAcrossDstAndMinuteOffset_Issue2349()
     {
         //CST DST begins 10 Mar 2024 02:00
@@ -50,7 +80,7 @@ public class DaylightSavingTimeTest
         var trigger = TriggerBuilder.Create()
             .ForJob("JobName", "ScheduleName")
             .StartAt(startTime)
-            .WithCalendarIntervalSchedule(x => x
+            .WithCalendarIntervalSchedule(builder => builder
                 .WithInterval(2, IntervalUnit.Week)
                 .InTimeZone(TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time"))
                 .PreserveHourOfDayAcrossDaylightSavings(true)
@@ -58,7 +88,7 @@ public class DaylightSavingTimeTest
             .Build();
 
         var nextFireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger)trigger, null, 50);
-        Assert.Multiple(() =>
+        using (new AssertionScope()) 
         {
             nextFireTimes[0].Should().Be(new DateTimeOffset(2024, 2, 11, 2, 1, 0, TimeSpan.FromHours(-6)));
             nextFireTimes[1].Should().Be(new DateTimeOffset(2024, 2, 25, 2, 1, 0, TimeSpan.FromHours(-6)));
@@ -66,7 +96,7 @@ public class DaylightSavingTimeTest
             nextFireTimes[3].Should().Be(new DateTimeOffset(2024, 3, 24, 2, 1, 0, TimeSpan.FromHours(-5)));
             // next DST is 9/Mar/2025 on Sunday at 2:00 AM Clocks move forward 1 hour, so 2:01 won't be a valid time
             nextFireTimes[28].Should().Be(new DateTimeOffset(2025, 3, 9, 3, 1, 0, TimeSpan.FromHours(-5)));
-        });
+        }
     }
     
     [Test]
