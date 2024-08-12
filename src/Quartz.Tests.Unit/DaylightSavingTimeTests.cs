@@ -1,4 +1,5 @@
 #region License
+
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
  *
@@ -15,6 +16,7 @@
  * under the License.
  *
  */
+
 #endregion
 
 using FluentAssertions;
@@ -48,18 +50,16 @@ public class DaylightSavingTimeTest
         var startDateTime = new DateTime(2025, 3, 29, 1, 30, 0);
         var startDto = new DateTimeOffset(startDateTime, TimeZoneUtil.GetUtcOffset(startDateTime, tz));
         var trigger = TriggerBuilder.Create()
-            .WithIdentity("myTrigger", "mygroup")
+            .WithIdentity("trigger", "group")
             .StartAt(startDto)
-            .WithCalendarIntervalSchedule(builder =>
-            {
-                builder
-                    .InTimeZone(tz)
-                    .PreserveHourOfDayAcrossDaylightSavings(true)
-                    .SkipDayIfHourDoesNotExist(false)
-                    .WithIntervalInDays(1);
-            })
+            .WithCalendarIntervalSchedule(builder => builder
+                .WithIntervalInDays(1)
+                .InTimeZone(tz)
+                .PreserveHourOfDayAcrossDaylightSavings(true)
+                .SkipDayIfHourDoesNotExist(false)
+            )
             .Build();
-        
+
         var nextFireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger)trigger, null, 50);
 
         using (new AssertionScope())
@@ -76,7 +76,7 @@ public class DaylightSavingTimeTest
         //CST DST begins 10 Mar 2024 02:00
         //CST DST ends   03 Nov 2024 02:00
         //CST DST begins 09 Mar 2025 02:00
-        var startTime = new DateTimeOffset(2024, 2, 11, 2, 1, 0, TimeSpan.FromHours(-6)); 
+        var startTime = new DateTimeOffset(2024, 2, 11, 2, 1, 0, TimeSpan.FromHours(-6));
         var trigger = TriggerBuilder.Create()
             .ForJob("JobName", "ScheduleName")
             .StartAt(startTime)
@@ -88,7 +88,7 @@ public class DaylightSavingTimeTest
             .Build();
 
         var nextFireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger)trigger, null, 50);
-        using (new AssertionScope()) 
+        using (new AssertionScope())
         {
             nextFireTimes[0].Should().Be(new DateTimeOffset(2024, 2, 11, 2, 1, 0, TimeSpan.FromHours(-6)));
             nextFireTimes[1].Should().Be(new DateTimeOffset(2024, 2, 25, 2, 1, 0, TimeSpan.FromHours(-6)));
@@ -98,13 +98,13 @@ public class DaylightSavingTimeTest
             nextFireTimes[28].Should().Be(new DateTimeOffset(2025, 3, 9, 3, 1, 0, TimeSpan.FromHours(-5)));
         }
     }
-    
+
     [Test]
     public void CanComputeNextFireTimeForCalendarAcrossDstAndMinuteOffset_ForTZThatis30MinOffset()
     {
         //C.AST DST begins first sunday Oct,  6 Oct 2024 at 2:00 AM clocks move forward 1 hr.
         //C.AST DST ends to first sunday Apr, 6 Apr 2025 at 3:00 AM clocks move back 1 hr.
-        var startTime = new DateTimeOffset(2024, 9, 22, 2, 1, 0, TimeSpan.FromHours(9.5)); 
+        var startTime = new DateTimeOffset(2024, 9, 22, 2, 1, 0, TimeSpan.FromHours(9.5));
         var trigger = TriggerBuilder.Create()
             .ForJob("JobName", "ScheduleName")
             .StartAt(startTime)
@@ -116,7 +116,7 @@ public class DaylightSavingTimeTest
             .Build();
 
         var nextFireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger)trigger, null, 50);
-        using (new AssertionScope()) 
+        using (new AssertionScope())
         {
             nextFireTimes[0].Should().Be(new DateTimeOffset(2024, 9, 22, 2, 1, 0, TimeSpan.FromHours(9.5)));
             nextFireTimes[1].Should().Be(new DateTimeOffset(2024, 10, 6, 3, 1, 0, TimeSpan.FromHours(10.5)));
