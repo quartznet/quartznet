@@ -41,9 +41,12 @@ public class QuartzSchedulerTest
     public void TestVersionInfo()
     {
         var versionInfo = typeof(QuartzScheduler).Assembly.GetName().Version;
-        Assert.That(QuartzScheduler.VersionMajor, Is.EqualTo(versionInfo.Major.ToString(CultureInfo.InvariantCulture)));
-        Assert.That(QuartzScheduler.VersionMinor, Is.EqualTo(versionInfo.Minor.ToString(CultureInfo.InvariantCulture)));
-        Assert.That(QuartzScheduler.VersionIteration, Is.EqualTo(versionInfo.Build.ToString(CultureInfo.InvariantCulture)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(QuartzScheduler.VersionMajor, Is.EqualTo(versionInfo.Major.ToString(CultureInfo.InvariantCulture)));
+            Assert.That(QuartzScheduler.VersionMinor, Is.EqualTo(versionInfo.Minor.ToString(CultureInfo.InvariantCulture)));
+            Assert.That(QuartzScheduler.VersionIteration, Is.EqualTo(versionInfo.Build.ToString(CultureInfo.InvariantCulture)));
+        });
     }
 
     [Test]
@@ -148,12 +151,12 @@ public class QuartzSchedulerTest
         var scheduler = CreateQuartzScheduler("A", "B", 5);
 
         executingJobs = scheduler.GetCurrentlyExecutingJobs();
-        Assert.That(executingJobs.Count, Is.EqualTo(0));
+        Assert.That(executingJobs, Is.Empty);
 
         scheduler.Start().GetAwaiter().GetResult();
 
         executingJobs = scheduler.GetCurrentlyExecutingJobs();
-        Assert.That(executingJobs.Count, Is.EqualTo(0));
+        Assert.That(executingJobs, Is.Empty);
 
         ScheduleJobs<DelayedJob>(scheduler, 3, true, false, 1, TimeSpan.FromMilliseconds(1), 1);
         ScheduleJobs<DelayedJob>(scheduler, 1, true, false, 1, TimeSpan.FromMilliseconds(1), 0);
@@ -161,17 +164,17 @@ public class QuartzSchedulerTest
         Thread.Sleep(150);
 
         executingJobs = scheduler.GetCurrentlyExecutingJobs();
-        Assert.That(executingJobs.Count, Is.EqualTo(4));
+        Assert.That(executingJobs, Has.Count.EqualTo(4));
 
         Thread.Sleep(150);
 
         executingJobs = scheduler.GetCurrentlyExecutingJobs();
-        Assert.That(executingJobs.Count, Is.EqualTo(3));
+        Assert.That(executingJobs, Has.Count.EqualTo(3));
 
         Thread.Sleep(300);
 
         executingJobs = scheduler.GetCurrentlyExecutingJobs();
-        Assert.That(executingJobs.Count, Is.EqualTo(0));
+        Assert.That(executingJobs, Is.Empty);
 
         scheduler.Shutdown(true).GetAwaiter().GetResult();
     }

@@ -154,7 +154,7 @@ internal sealed class ExpectedMail
         {
             Assert.Multiple(() =>
             {
-                Assert.That(actualMail.ReplyToList.Count, Is.EqualTo(1));
+                Assert.That(actualMail.ReplyToList, Has.Count.EqualTo(1));
                 Assert.That(actualMail.ReplyToList[0], Is.EqualTo(new MailAddress(replyTo)));
             });
         }

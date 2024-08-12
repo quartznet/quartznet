@@ -45,7 +45,7 @@ public class HolidayCalendarTest : SerializationTestSupport<HolidayCalendar, ICa
     {
         cal.AddExcludedDate(new DateTime(2007, 10, 20, 12, 40, 22));
         cal.RemoveExcludedDate(new DateTime(2007, 10, 20, 2, 0, 0));
-        Assert.That(cal.ExcludedDates.Count, Is.EqualTo(0));
+        Assert.That(cal.ExcludedDates, Is.Empty);
     }
 
     [Test]

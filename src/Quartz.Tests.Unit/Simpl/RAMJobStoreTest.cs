@@ -118,7 +118,7 @@ public class RAMJobStoreTest
         List<IOperableTrigger> acquiredTriggers = (await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 4, TimeSpan.FromSeconds(1))).ToList();
         Assert.Multiple(() =>
         {
-            Assert.That(acquiredTriggers.Count, Is.EqualTo(1));
+            Assert.That(acquiredTriggers, Has.Count.EqualTo(1));
             Assert.That(acquiredTriggers[0].Key, Is.EqualTo(early.Key));
         });
         await fJobStore.ReleaseAcquiredTrigger(early);
@@ -152,7 +152,7 @@ public class RAMJobStoreTest
         acquiredTriggers = (await fJobStore.AcquireNextTriggers(firstFireTime.AddSeconds(10), 6, TimeSpan.FromMilliseconds(100000))).ToList();
         Assert.Multiple(() =>
         {
-            Assert.That(acquiredTriggers.Count, Is.EqualTo(4));
+            Assert.That(acquiredTriggers, Has.Count.EqualTo(4));
             Assert.That(acquiredTriggers[0].Key, Is.EqualTo(trigger1.Key));
             Assert.That(acquiredTriggers[1].Key, Is.EqualTo(trigger2.Key));
             Assert.That(acquiredTriggers[2].Key, Is.EqualTo(trigger3.Key));
@@ -214,7 +214,7 @@ public class RAMJobStoreTest
         Assert.Multiple(async () =>
         {
             Assert.That(trigger, Is.Not.Null);
-            Assert.That((await fJobStore.AcquireNextTriggers(trigger.GetNextFireTimeUtc().Value.AddSeconds(10), 1, TimeSpan.FromMilliseconds(1))).Count, Is.EqualTo(0));
+            Assert.That((await fJobStore.AcquireNextTriggers(trigger.GetNextFireTimeUtc().Value.AddSeconds(10), 1, TimeSpan.FromMilliseconds(1))), Is.Empty);
         });
     }
 
@@ -394,7 +394,7 @@ public class RAMJobStoreTest
             int maxCount = 1;
             TimeSpan timeWindow = TimeSpan.Zero;
             var triggers = await store.AcquireNextTriggers(noLaterThan, maxCount, timeWindow);
-            Assert.That(triggers.Count, Is.EqualTo(1));
+            Assert.That(triggers, Has.Count.EqualTo(1));
             var trigger = triggers.First();
             Assert.That(trigger.Key.Name, Is.EqualTo("job" + i));
 
@@ -435,7 +435,7 @@ public class RAMJobStoreTest
         int maxCount = 7;
         TimeSpan timeWindow = TimeSpan.FromMinutes(8);
         var triggers = (await store.AcquireNextTriggers(noLaterThan, maxCount, timeWindow)).ToList();
-        Assert.That(triggers.Count, Is.EqualTo(7));
+        Assert.That(triggers, Has.Count.EqualTo(7));
         for (int i = 0; i < 7; i++)
         {
             Assert.That(triggers[i].Key.Name, Is.EqualTo("job" + i));

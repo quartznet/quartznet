@@ -52,7 +52,7 @@ public class AnnualCalendarTest : SerializationTestSupport<AnnualCalendar, ICale
         {
             Assert.That(cal.IsTimeIncluded(d.ToUniversalTime()), Is.False, "Time was included when it was supposed not to be");
             Assert.That(cal.IsDayExcluded(d), Is.True, "Day was not excluded when it was supposed to be excluded");
-            Assert.That(cal.DaysExcluded.Count, Is.EqualTo(1));
+            Assert.That(cal.DaysExcluded, Has.Count.EqualTo(1));
             Assert.That(cal.DaysExcluded.First().Day, Is.EqualTo(d.Day));
             Assert.That(cal.DaysExcluded.First().Month, Is.EqualTo(d.Month));
         });

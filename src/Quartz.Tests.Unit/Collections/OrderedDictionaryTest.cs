@@ -28,7 +28,7 @@ internal class OrderedDictionaryTest
         Assert.Multiple(() =>
         {
             Assert.That(valuesArray, Is.Not.Null);
-            Assert.That(valuesArray.Length, Is.EqualTo(2));
+            Assert.That(valuesArray, Has.Length.EqualTo(2));
             Assert.That(valuesArray[0], Is.EqualTo(5));
             Assert.That(valuesArray[1], Is.EqualTo(2));
         });

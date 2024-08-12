@@ -17,7 +17,7 @@ namespace Quartz.Tests.Unit;
 public class JobExecutionAttributesInterfaceInheritanceTest
 {
     private static readonly TimeSpan jobBlockTime = TimeSpan.FromMilliseconds(300);
-    private static readonly List<DateTime> jobExecDates = new();
+    private static readonly List<DateTime> jobExecDates = [];
     private static readonly AutoResetEvent barrier = new(false);
 
     [OneTimeTearDown]

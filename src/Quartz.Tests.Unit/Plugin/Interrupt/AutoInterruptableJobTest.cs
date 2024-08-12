@@ -46,7 +46,7 @@ public class AutoInterruptableJobTest
 
         var executingJobs = await scheduler.GetCurrentlyExecutingJobs();
 
-        Assert.That(executingJobs.Count, Is.EqualTo(1), "Number of executing jobs should be 1");
+        Assert.That(executingJobs, Has.Count.EqualTo(1), "Number of executing jobs should be 1");
 
         await sync.WaitAsync(); // wait for the job to terminate
 

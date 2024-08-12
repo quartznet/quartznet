@@ -156,11 +156,11 @@ public class DirectSchedulerFactoryTest
 
         if (schedulerPluginMap is null)
         {
-            Assert.That(stdScheduler.sched.resources.SchedulerPlugins.Count, Is.EqualTo(0));
+            Assert.That(stdScheduler.sched.resources.SchedulerPlugins, Is.Empty);
         }
         else
         {
-            Assert.That(stdScheduler.sched.resources.SchedulerPlugins.Count, Is.EqualTo(schedulerPluginMap.Count));
+            Assert.That(stdScheduler.sched.resources.SchedulerPlugins, Has.Count.EqualTo(schedulerPluginMap.Count));
             foreach (var plugin in schedulerPluginMap.Values)
             {
                 Assert.That(stdScheduler.sched.resources.SchedulerPlugins.Contains(plugin), Is.True);
@@ -218,11 +218,11 @@ public class DirectSchedulerFactoryTest
 
         if (schedulerPluginMap is null)
         {
-            Assert.That(stdScheduler.sched.resources.SchedulerPlugins.Count, Is.EqualTo(0));
+            Assert.That(stdScheduler.sched.resources.SchedulerPlugins, Is.Empty);
         }
         else
         {
-            Assert.That(stdScheduler.sched.resources.SchedulerPlugins.Count, Is.EqualTo(schedulerPluginMap.Count));
+            Assert.That(stdScheduler.sched.resources.SchedulerPlugins, Has.Count.EqualTo(schedulerPluginMap.Count));
             foreach (var plugin in schedulerPluginMap.Values)
             {
                 Assert.That(stdScheduler.sched.resources.SchedulerPlugins.Contains(plugin), Is.True);
@@ -280,11 +280,11 @@ public class DirectSchedulerFactoryTest
 
         if (schedulerPluginMap is null)
         {
-            Assert.That(stdScheduler.sched.resources.SchedulerPlugins.Count, Is.EqualTo(0));
+            Assert.That(stdScheduler.sched.resources.SchedulerPlugins, Is.Empty);
         }
         else
         {
-            Assert.That(stdScheduler.sched.resources.SchedulerPlugins.Count, Is.EqualTo(schedulerPluginMap.Count));
+            Assert.That(stdScheduler.sched.resources.SchedulerPlugins, Has.Count.EqualTo(schedulerPluginMap.Count));
             foreach (var plugin in schedulerPluginMap.Values)
             {
                 Assert.That(stdScheduler.sched.resources.SchedulerPlugins.Contains(plugin), Is.True);

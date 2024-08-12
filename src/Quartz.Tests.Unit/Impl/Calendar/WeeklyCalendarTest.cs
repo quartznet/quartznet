@@ -100,9 +100,12 @@ public class WeeklyCalendarTest : SerializationTestSupport<WeeklyCalendar, ICale
 
     protected override void VerifyMatch(WeeklyCalendar original, WeeklyCalendar deserialized)
     {
-        Assert.That(deserialized, Is.Not.Null);
-        Assert.That(deserialized.Description, Is.EqualTo(original.Description));
-        Assert.That(deserialized.DaysExcluded, Is.EqualTo(original.DaysExcluded));
-        Assert.That(deserialized.TimeZone, Is.EqualTo(original.TimeZone));
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserialized, Is.Not.Null);
+            Assert.That(deserialized.Description, Is.EqualTo(original.Description));
+            Assert.That(deserialized.DaysExcluded, Is.EqualTo(original.DaysExcluded));
+            Assert.That(deserialized.TimeZone, Is.EqualTo(original.TimeZone));
+        });
     }
 }

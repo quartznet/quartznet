@@ -50,7 +50,7 @@ public class MissSchedulingChangeSignalTest
 
         List<TimeSpan> durationBetweenFireTimesInMillis = CollectDurationBetweenFireTimesJob.Durations;
 
-        Assert.That(durationBetweenFireTimesInMillis.Count, Is.Not.EqualTo(0), "Job was not executed once!");
+        Assert.That(durationBetweenFireTimesInMillis, Is.Not.Empty, "Job was not executed once!");
 
         // Let's check that every call for around 1 second and not between 23 and 30 seconds
         // which would be the case if the scheduling change signal were not checked

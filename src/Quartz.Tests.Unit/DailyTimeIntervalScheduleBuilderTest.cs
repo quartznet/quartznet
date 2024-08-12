@@ -208,7 +208,7 @@ public class DailyTimeIntervalScheduleBuilderTest
             Assert.That(trigger.RepeatInterval, Is.EqualTo(1));
         });
         var fireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger) trigger, null, 48);
-        Assert.That(fireTimes.Count, Is.EqualTo(10));
+        Assert.That(fireTimes, Has.Count.EqualTo(10));
     }
 
     [Test]
@@ -360,14 +360,14 @@ public class DailyTimeIntervalScheduleBuilderTest
         {
             //check trigger 2 DOW
             //this fails because the reference collection only contains MONDAY b/c it was cleared.
-            Assert.That(trigger2.DaysOfWeek.Contains(DayOfWeek.Monday), Is.True);
-            Assert.That(trigger2.DaysOfWeek.Contains(DayOfWeek.Tuesday), Is.True);
-            Assert.That(trigger2.DaysOfWeek.Contains(DayOfWeek.Wednesday), Is.True);
-            Assert.That(trigger2.DaysOfWeek.Contains(DayOfWeek.Thursday), Is.True);
-            Assert.That(trigger2.DaysOfWeek.Contains(DayOfWeek.Friday), Is.True);
+            Assert.That(trigger2.DaysOfWeek, Does.Contain(DayOfWeek.Monday));
+            Assert.That(trigger2.DaysOfWeek, Does.Contain(DayOfWeek.Tuesday));
+            Assert.That(trigger2.DaysOfWeek, Does.Contain(DayOfWeek.Wednesday));
+            Assert.That(trigger2.DaysOfWeek, Does.Contain(DayOfWeek.Thursday));
+            Assert.That(trigger2.DaysOfWeek, Does.Contain(DayOfWeek.Friday));
 
-            Assert.That(trigger2.DaysOfWeek.Contains(DayOfWeek.Saturday), Is.False);
-            Assert.That(trigger2.DaysOfWeek.Contains(DayOfWeek.Sunday), Is.False);
+            Assert.That(trigger2.DaysOfWeek, Does.Not.Contain(DayOfWeek.Saturday));
+            Assert.That(trigger2.DaysOfWeek, Does.Not.Contain(DayOfWeek.Sunday));
         });
     }
 

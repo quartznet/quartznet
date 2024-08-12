@@ -362,7 +362,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
     {
         CronExpression cronExpression = new CronExpression("0 0 12 ? * MON-FRI");
         int[] arrJuneDaysThatShouldFire =
-            { 1, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 18, 19, 20, 22, 21, 25, 26, 27, 28, 29 };
+            [1, 4, 5, 6, 7, 8, 11, 12, 13, 14, 15, 18, 19, 20, 22, 21, 25, 26, 27, 28, 29];
         List<int> juneDays = new List<int>(arrJuneDaysThatShouldFire);
 
         TestCorrectWeekFireDays(cronExpression, juneDays);
@@ -501,7 +501,7 @@ public class CronExpressionTest : SerializationTestSupport<CronExpression>
         }
 
         // check that all fired
-        Assert.That(correctFireDays.Count == 0, Is.True, $"CronExpression did not evaluate true for all expected days (count: {correctFireDays.Count}).");
+        Assert.That(correctFireDays, Is.Empty, $"CronExpression did not evaluate true for all expected days (count: {correctFireDays.Count}).");
     }
 
     [Test]
