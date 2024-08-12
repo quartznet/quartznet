@@ -73,12 +73,14 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
     [Test]
     public void TestStringInvertTimeRange()
     {
-        DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50");
-        dailyCalendar.InvertTimeRange = true;
-        Assert.That(dailyCalendar.ToString().IndexOf("inverted: True") > 0, Is.True);
+        DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50")
+        {
+            InvertTimeRange = true
+        };
+        Assert.That(dailyCalendar.ToString().IndexOf("inverted: True"), Is.GreaterThan(0));
 
         dailyCalendar.InvertTimeRange = false;
-        Assert.That(dailyCalendar.ToString().IndexOf("inverted: False") > 0, Is.True);
+        Assert.That(dailyCalendar.ToString().IndexOf("inverted: False"), Is.GreaterThan(0));
     }
 
     [Test]
@@ -86,9 +88,11 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
     {
         TimeZoneInfo tz = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
 
-        DailyCalendar dailyCalendar = new DailyCalendar("12:00:00", "14:00:00");
-        dailyCalendar.InvertTimeRange = true; //inclusive calendar
-        dailyCalendar.TimeZone = tz;
+        DailyCalendar dailyCalendar = new DailyCalendar("12:00:00", "14:00:00")
+        {
+            InvertTimeRange = true, //inclusive calendar
+            TimeZone = tz
+        };
 
         // 11/2/2012 17:00 (utc) is 11/2/2012 13:00 (est)
         DateTimeOffset timeToCheck = new DateTimeOffset(2012, 11, 2, 17, 0, 0, TimeSpan.FromHours(0));

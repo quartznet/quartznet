@@ -285,7 +285,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
 
         testTime = dailyTrigger.FinalFireTimeUtc;
 
-        Assert.That(endCalendar > testTime, Is.True, "Final fire time not computed correctly for minutely interval.");
+        Assert.That(endCalendar, Is.GreaterThan(testTime), "Final fire time not computed correctly for minutely interval.");
 
         endCalendar = endCalendar.AddMinutes(-3); // back up three more minutes
 
@@ -678,7 +678,7 @@ public class CalendarIntervalTriggerTest : SerializationTestSupport<CalendarInte
         Assert.Multiple(() =>
         {
             Assert.That(fireTimeAfter, Is.Not.EqualTo(fireTime));
-            Assert.That(fireTime > fireTimeAfter, Is.True);
+            Assert.That(fireTime, Is.GreaterThan(fireTimeAfter));
         });
     }
 
