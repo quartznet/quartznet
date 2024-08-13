@@ -94,7 +94,7 @@ public class DaylightSavingTimeTest
             nextFireTimes[1].Should().Be(new DateTimeOffset(2024, 2, 25, 2, 1, 0, TimeSpan.FromHours(-6)));
             nextFireTimes[2].Should().Be(new DateTimeOffset(2024, 3, 10, 3, 1, 0, TimeSpan.FromHours(-5)));
             nextFireTimes[3].Should().Be(new DateTimeOffset(2024, 3, 24, 2, 1, 0, TimeSpan.FromHours(-5)));
-            // next DST is 9/Mar/2025 on Sunday at 2:00 AM Clocks move forward 1 hour, so 2:01 won't be a valid time
+            // The next DST transition is 9/Mar/2025, Sunday, at 2:00AM, clocks move forward 1 hour, so 2:01 won't be a valid time, add 1 hour to the expected time
             nextFireTimes[28].Should().Be(new DateTimeOffset(2025, 3, 9, 3, 1, 0, TimeSpan.FromHours(-5)));
         }
     }
@@ -102,8 +102,8 @@ public class DaylightSavingTimeTest
     [Test]
     public void CanComputeNextFireTimeForCalendarAcrossDstAndMinuteOffset_ForTZThatis30MinOffset()
     {
-        //C.AST DST begins first sunday Oct,  6 Oct 2024 at 2:00 AM clocks move forward 1 hr.
-        //C.AST DST ends to first sunday Apr, 6 Apr 2025 at 3:00 AM clocks move back 1 hr.
+        //C.AST DST begins first Sunday Oct, 6 Oct 2024 at 2:00 AM clocks move forward 1 hr.
+        //C.AST DST ends first Sunday Apr,   6 Apr 2025 at 3:00 AM clocks move back 1 hr.
         var startTime = new DateTimeOffset(2024, 9, 22, 2, 1, 0, TimeSpan.FromHours(9.5));
         var trigger = TriggerBuilder.Create()
             .ForJob("JobName", "ScheduleName")
@@ -119,10 +119,11 @@ public class DaylightSavingTimeTest
         using (new AssertionScope())
         {
             nextFireTimes[0].Should().Be(new DateTimeOffset(2024, 9, 22, 2, 1, 0, TimeSpan.FromHours(9.5)));
-            nextFireTimes[1].Should().Be(new DateTimeOffset(2024, 10, 6, 3, 1, 0, TimeSpan.FromHours(10.5)));
+            // Clock moves forward 1 hour, so 2:01 won't be a valid time
+            nextFireTimes[1].Should().Be(new DateTimeOffset(2024, 10, 6, 3, 1, 0, TimeSpan.FromHours(10.5))); 
             nextFireTimes[2].Should().Be(new DateTimeOffset(2024, 10, 20, 2, 1, 0, TimeSpan.FromHours(10.5)));
             nextFireTimes[3].Should().Be(new DateTimeOffset(2024, 11, 3, 2, 1, 0, TimeSpan.FromHours(10.5)));
-            // next DST is 5/Oct/2025  at 2:00 AM Clocks move forward 1 hour, so 2:01 won't be a valid time
+            // Next DST is 5/Oct/2025  at 2:00 AM Clocks move forward 1 hour, so 2:01 won't be a valid time
             nextFireTimes[27].Should().Be(new DateTimeOffset(2025, 10, 5, 3, 1, 0, TimeSpan.FromHours(10.5)));
         }
     }
@@ -145,12 +146,12 @@ public class DaylightSavingTimeTest
         DateTimeOffset expectedTime = new DateTimeOffset(2016, 3, 13, 3, 30, 0, TimeSpan.FromHours(-7));
 
         // We should definitely have a value
-        Assert.That(fireTime, Is.Not.Null);
+        fireTime.Should().NotBeNull();
 
         // fireTime always is in UTC, but DateTimeOffset comparison normalized to UTC anyway.
         // Conversion here is for clarity of interpreting errors if the test fails.
         DateTimeOffset convertedFireTime = TimeZoneInfo.ConvertTime(fireTime.Value, tz);
-        Assert.That(convertedFireTime, Is.EqualTo(expectedTime));
+        convertedFireTime.Should().Be(expectedTime);
     }
 
     [Test]
@@ -171,12 +172,12 @@ public class DaylightSavingTimeTest
         DateTimeOffset expectedTime = new DateTimeOffset(2016, 11, 6, 1, 30, 0, TimeSpan.FromHours(-7));
 
         // We should definitely have a value
-        Assert.That(fireTime, Is.Not.Null);
+        fireTime.Should().NotBeNull();
 
         // fireTime always is in UTC, but DateTimeOffset comparison normalized to UTC anyway.
         // Conversion here is for clarity of interpreting errors if the test fails.
         DateTimeOffset convertedFireTime = TimeZoneInfo.ConvertTime(fireTime.Value, tz);
-        Assert.That(convertedFireTime, Is.EqualTo(expectedTime));
+        convertedFireTime.Should().Be(expectedTime);
     }
 
     [Test]
@@ -197,11 +198,11 @@ public class DaylightSavingTimeTest
         DateTimeOffset expectedTime = new DateTimeOffset(2016, 11, 7, 1, 30, 0, TimeSpan.FromHours(-8));
 
         // We should definitely have a value
-        Assert.That(fireTime, Is.Not.Null);
+        fireTime.Should().NotBeNull();
 
         // fireTime always is in UTC, but DateTimeOffset comparison normalized to UTC anyway.
         // Conversion here is for clarity of interpreting errors if the test fails.
         DateTimeOffset convertedFireTime = TimeZoneInfo.ConvertTime(fireTime.Value, tz);
-        Assert.That(convertedFireTime, Is.EqualTo(expectedTime));
+        convertedFireTime.Should().Be(expectedTime);
     }
 }
