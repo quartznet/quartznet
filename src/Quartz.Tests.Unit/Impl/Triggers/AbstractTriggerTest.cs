@@ -24,8 +24,11 @@ public class AbstractTriggerTest
 
         AbstractTrigger cloned = trigger.DeepClone();
 
-        Assert.That(cloned.Key, Is.EqualTo(trigger.Key));
-        Assert.That(cloned.JobKey, Is.EqualTo(trigger.JobKey));
+        Assert.Multiple(() =>
+        {
+            Assert.That(cloned.Key, Is.EqualTo(trigger.Key));
+            Assert.That(cloned.JobKey, Is.EqualTo(trigger.JobKey));
+        });
     }
 
     [Serializable]

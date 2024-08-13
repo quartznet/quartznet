@@ -41,9 +41,12 @@ public class QuartzSchedulerTest
     public void TestVersionInfo()
     {
         var versionInfo = typeof(QuartzScheduler).Assembly.GetName().Version;
-        Assert.AreEqual(versionInfo.Major.ToString(CultureInfo.InvariantCulture), QuartzScheduler.VersionMajor);
-        Assert.AreEqual(versionInfo.Minor.ToString(CultureInfo.InvariantCulture), QuartzScheduler.VersionMinor);
-        Assert.AreEqual(versionInfo.Build.ToString(CultureInfo.InvariantCulture), QuartzScheduler.VersionIteration);
+        Assert.Multiple(() =>
+        {
+            Assert.That(QuartzScheduler.VersionMajor, Is.EqualTo(versionInfo.Major.ToString(CultureInfo.InvariantCulture)));
+            Assert.That(QuartzScheduler.VersionMinor, Is.EqualTo(versionInfo.Minor.ToString(CultureInfo.InvariantCulture)));
+            Assert.That(QuartzScheduler.VersionIteration, Is.EqualTo(versionInfo.Build.ToString(CultureInfo.InvariantCulture)));
+        });
     }
 
     [Test]
@@ -76,7 +79,7 @@ public class QuartzSchedulerTest
         }
         catch (SchedulerException ex)
         {
-            Assert.AreEqual(ExpectedError, ex.Message);
+            Assert.That(ex.Message, Is.EqualTo(ExpectedError));
         }
 
         try
@@ -86,7 +89,7 @@ public class QuartzSchedulerTest
         }
         catch (SchedulerException ex)
         {
-            Assert.AreEqual(ExpectedError, ex.Message);
+            Assert.That(ex.Message, Is.EqualTo(ExpectedError));
         }
 
         await sched.Shutdown(false);
@@ -101,9 +104,9 @@ public class QuartzSchedulerTest
 
         IScheduler sched = await sf.GetScheduler();
         await sched.StartDelayed(TimeSpan.FromMilliseconds(100));
-        Assert.IsFalse(sched.IsStarted);
+        Assert.That(sched.IsStarted, Is.False);
         await Task.Delay(2000);
-        Assert.IsTrue(sched.IsStarted);
+        Assert.That(sched.IsStarted, Is.True);
     }
 
     [Test]
@@ -148,12 +151,12 @@ public class QuartzSchedulerTest
         var scheduler = CreateQuartzScheduler("A", "B", 5);
 
         executingJobs = scheduler.GetCurrentlyExecutingJobs();
-        Assert.AreEqual(0, executingJobs.Count);
+        Assert.That(executingJobs, Is.Empty);
 
         scheduler.Start().GetAwaiter().GetResult();
 
         executingJobs = scheduler.GetCurrentlyExecutingJobs();
-        Assert.AreEqual(0, executingJobs.Count);
+        Assert.That(executingJobs, Is.Empty);
 
         ScheduleJobs<DelayedJob>(scheduler, 3, true, false, 1, TimeSpan.FromMilliseconds(1), 1);
         ScheduleJobs<DelayedJob>(scheduler, 1, true, false, 1, TimeSpan.FromMilliseconds(1), 0);
@@ -161,17 +164,17 @@ public class QuartzSchedulerTest
         Thread.Sleep(150);
 
         executingJobs = scheduler.GetCurrentlyExecutingJobs();
-        Assert.AreEqual(4, executingJobs.Count);
+        Assert.That(executingJobs, Has.Count.EqualTo(4));
 
         Thread.Sleep(150);
 
         executingJobs = scheduler.GetCurrentlyExecutingJobs();
-        Assert.AreEqual(3, executingJobs.Count);
+        Assert.That(executingJobs, Has.Count.EqualTo(3));
 
         Thread.Sleep(300);
 
         executingJobs = scheduler.GetCurrentlyExecutingJobs();
-        Assert.AreEqual(0, executingJobs.Count);
+        Assert.That(executingJobs, Is.Empty);
 
         scheduler.Shutdown(true).GetAwaiter().GetResult();
     }
@@ -182,26 +185,26 @@ public class QuartzSchedulerTest
     {
         var scheduler = CreateQuartzScheduler("A", "B", 5);
 
-        Assert.AreEqual(0, scheduler.NumJobsExecuted);
+        Assert.That(scheduler.NumJobsExecuted, Is.EqualTo(0));
 
         scheduler.Start().GetAwaiter().GetResult();
 
-        Assert.AreEqual(0, scheduler.NumJobsExecuted);
+        Assert.That(scheduler.NumJobsExecuted, Is.EqualTo(0));
 
         ScheduleJobs<DelayedJob>(scheduler, 3, true, false, 1, TimeSpan.FromMilliseconds(1), 1);
         ScheduleJobs<DelayedJob>(scheduler, 1, true, false, 1, TimeSpan.FromMilliseconds(1), 0);
 
         Thread.Sleep(150);
 
-        Assert.AreEqual(4, scheduler.NumJobsExecuted);
+        Assert.That(scheduler.NumJobsExecuted, Is.EqualTo(4));
 
         Thread.Sleep(150);
 
-        Assert.AreEqual(7, scheduler.NumJobsExecuted);
+        Assert.That(scheduler.NumJobsExecuted, Is.EqualTo(7));
 
         Thread.Sleep(200);
 
-        Assert.AreEqual(7, scheduler.NumJobsExecuted);
+        Assert.That(scheduler.NumJobsExecuted, Is.EqualTo(7));
 
         scheduler.Shutdown(true).GetAwaiter().GetResult();
     }

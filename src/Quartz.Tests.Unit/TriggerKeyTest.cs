@@ -7,11 +7,14 @@ public class TriggerKeyTest
     [Test]
     public void TriggerKeyShouldBeSerializable()
     {
-        TriggerKey original = new TriggerKey("name", "group");
+        TriggerKey original = new("name", "group");
 
         TriggerKey cloned = original.DeepClone();
 
-        Assert.That(cloned.Name, Is.EqualTo(original.Name));
-        Assert.That(cloned.Group, Is.EqualTo(original.Group));
+        Assert.Multiple(() =>
+        {
+            Assert.That(cloned.Name, Is.EqualTo(original.Name));
+            Assert.That(cloned.Group, Is.EqualTo(original.Group));
+        });
     }
 }

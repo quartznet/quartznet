@@ -53,12 +53,12 @@ public class DaylightSavingTimeTest
         DateTimeOffset expectedTime = new DateTimeOffset(2016, 3, 13, 3, 30, 0, TimeSpan.FromHours(-7));
 
         // We should definitely have a value
-        Assert.NotNull(fireTime);
+        Assert.That(fireTime, Is.Not.Null);
 
         // fireTime always is in UTC, but DateTimeOffset comparison normalized to UTC anyway.
         // Conversion here is for clarity of interpreting errors if the test fails.
         DateTimeOffset convertedFireTime = TimeZoneInfo.ConvertTime(fireTime.Value, tz);
-        Assert.AreEqual(expectedTime, convertedFireTime);
+        Assert.That(convertedFireTime, Is.EqualTo(expectedTime));
     }
 
     [Test]
@@ -79,12 +79,12 @@ public class DaylightSavingTimeTest
         DateTimeOffset expectedTime = new DateTimeOffset(2016, 11, 6, 1, 30, 0, TimeSpan.FromHours(-7));
 
         // We should definitely have a value
-        Assert.NotNull(fireTime);
+        Assert.That(fireTime, Is.Not.Null);
 
         // fireTime always is in UTC, but DateTimeOffset comparison normalized to UTC anyway.
         // Conversion here is for clarity of interpreting errors if the test fails.
         DateTimeOffset convertedFireTime = TimeZoneInfo.ConvertTime(fireTime.Value, tz);
-        Assert.AreEqual(expectedTime, convertedFireTime);
+        Assert.That(convertedFireTime, Is.EqualTo(expectedTime));
     }
 
     [Test]
@@ -105,11 +105,11 @@ public class DaylightSavingTimeTest
         DateTimeOffset expectedTime = new DateTimeOffset(2016, 11, 7, 1, 30, 0, TimeSpan.FromHours(-8));
 
         // We should definitely have a value
-        Assert.NotNull(fireTime);
+        Assert.That(fireTime, Is.Not.Null);
 
         // fireTime always is in UTC, but DateTimeOffset comparison normalized to UTC anyway.
         // Conversion here is for clarity of interpreting errors if the test fails.
         DateTimeOffset convertedFireTime = TimeZoneInfo.ConvertTime(fireTime.Value, tz);
-        Assert.AreEqual(expectedTime, convertedFireTime);
+        Assert.That(convertedFireTime, Is.EqualTo(expectedTime));
     }
 }

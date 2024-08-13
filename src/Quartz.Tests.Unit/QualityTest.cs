@@ -24,7 +24,8 @@ public class QualityTest
             .Select(method =>
                 $"'{method.DeclaringType.Name}.{method.Name}' is an async void method.")
             .ToList();
-        Assert.False(messages.Any(),
+        Assert.That(messages.Any(),
+            Is.False,
             "Async void methods found!" + Environment.NewLine + string.Join(Environment.NewLine, messages));
     }
 }

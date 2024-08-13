@@ -45,7 +45,7 @@ public class HolidayCalendarTest : SerializationTestSupport<HolidayCalendar, ICa
     {
         cal.AddExcludedDate(new DateTime(2007, 10, 20, 12, 40, 22));
         cal.RemoveExcludedDate(new DateTime(2007, 10, 20, 2, 0, 0));
-        Assert.IsTrue(cal.ExcludedDates.Count == 0);
+        Assert.That(cal.ExcludedDates, Is.Empty);
     }
 
     [Test]
@@ -55,7 +55,7 @@ public class HolidayCalendarTest : SerializationTestSupport<HolidayCalendar, ICa
         DateTime excluded = new DateTime(2007, 12, 31);
         cal.AddExcludedDate(excluded);
 
-        Assert.AreEqual(new DateTimeOffset(2008, 1, 1, 0, 0, 0, cal.TimeZone.BaseUtcOffset), cal.GetNextIncludedTimeUtc(excluded));
+        Assert.That(cal.GetNextIncludedTimeUtc(excluded), Is.EqualTo(new DateTimeOffset(2008, 1, 1, 0, 0, 0, cal.TimeZone.BaseUtcOffset)));
     }
 
     /// <summary>
@@ -85,19 +85,25 @@ public class HolidayCalendarTest : SerializationTestSupport<HolidayCalendar, ICa
         // 11/5/2012 12:00:00 AM -04:00  translate into 11/4/2012 11:00:00 PM -05:00 (EST)
         DateTimeOffset date = new DateTimeOffset(2012, 11, 5, 0, 0, 0, TimeSpan.FromHours(-4));
 
-        Assert.IsFalse(c.IsTimeIncluded(date), "date was expected to not be included.");
-        Assert.IsTrue(c.IsTimeIncluded(date.AddDays(1)));
+        Assert.Multiple(() =>
+        {
+            Assert.That(c.IsTimeIncluded(date), Is.False, "date was expected to not be included.");
+            Assert.That(c.IsTimeIncluded(date.AddDays(1)), Is.True);
+        });
 
         DateTimeOffset expectedNextAvailable = new DateTimeOffset(2012, 11, 5, 0, 0, 0, TimeSpan.FromHours(-5));
         DateTimeOffset actualNextAvailable = c.GetNextIncludedTimeUtc(date);
-        Assert.AreEqual(expectedNextAvailable, actualNextAvailable);
+        Assert.That(actualNextAvailable, Is.EqualTo(expectedNextAvailable));
     }
 
     protected override void VerifyMatch(HolidayCalendar original, HolidayCalendar deserialized)
     {
-        Assert.IsNotNull(deserialized);
-        Assert.AreEqual(original.Description, deserialized.Description);
-        Assert.AreEqual(original.ExcludedDates, deserialized.ExcludedDates);
-        Assert.AreEqual(original.TimeZone, deserialized.TimeZone);
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserialized, Is.Not.Null);
+            Assert.That(deserialized.Description, Is.EqualTo(original.Description));
+            Assert.That(deserialized.ExcludedDates, Is.EqualTo(original.ExcludedDates));
+            Assert.That(deserialized.TimeZone, Is.EqualTo(original.TimeZone));
+        });
     }
 }

@@ -41,7 +41,7 @@ public class SimpleInstanceIdGeneratorTest
     public async Task IdShouldNotExceed50Chars()
     {
         string instanceId = await generator.GenerateInstanceId();
-        Assert.That(instanceId.Length, Is.LessThanOrEqualTo(50));
+        Assert.That(instanceId, Has.Length.LessThanOrEqualTo(50));
     }
 
     private class TestInstanceIdGenerator : HostNameBasedIdGenerator

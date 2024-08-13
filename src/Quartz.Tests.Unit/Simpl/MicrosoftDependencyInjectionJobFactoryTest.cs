@@ -1,4 +1,5 @@
 using FluentAssertions;
+using FluentAssertions.Execution;
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
@@ -43,12 +44,14 @@ public class MicrosoftDependencyInjectionJobFactoryTest
         await scheduler.TriggerJob(jobDetail.Key);
 
         await Task.Delay(100);
+        using (new AssertionScope())
+        {
+            TestJob.Executed.Should().BeTrue();
+            TestJob.Disposed.Should().BeTrue();
+            TestJob.TestValue.Should().Be(testValue);
 
-        TestJob.Executed.Should().BeTrue();
-        TestJob.Disposed.Should().BeTrue();
-        TestJob.TestValue.Should().Be(testValue);
-
-        Dependency.Disposed.Should().BeTrue();
+            Dependency.Disposed.Should().BeTrue();
+        }
     }
 
     private class TestJob : IJob, IDisposable

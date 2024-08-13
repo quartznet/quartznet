@@ -48,7 +48,5 @@ public class JobTypeTests
         }
     }
 
-    public sealed class ClassDoesNotImplementIJob
-    {
-    }
+    public sealed class ClassDoesNotImplementIJob;
 }

@@ -52,7 +52,7 @@ public class SendMailJobTest
 
         //Then
         expectedMail.IsEqualTo(job.actualMailSent);
-        Assert.AreEqual("someserver", job.actualSmtpHost);
+        Assert.That(job.actualSmtpHost, Is.EqualTo("someserver"));
     }
 
     [Test]
@@ -81,7 +81,7 @@ public class SendMailJobTest
 
         //Then
         expectedMail.IsEqualTo(job.actualMailSent);
-        Assert.AreEqual("someserver", job.actualSmtpHost);
+        Assert.That(job.actualSmtpHost, Is.EqualTo("someserver"));
     }
 
     [Test]
@@ -110,10 +110,13 @@ public class SendMailJobTest
         job.Execute(context);
 
         //Then
-        Assert.AreEqual("someserver", job.actualSmtpHost);
-        Assert.AreEqual("user 123", job.actualSmtpUserName);
-        Assert.AreEqual("pass 321", job.actualSmtpPassword);
-        Assert.AreEqual(123, job.actualSmtpPort);
+        Assert.Multiple(() =>
+        {
+            Assert.That(job.actualSmtpHost, Is.EqualTo("someserver"));
+            Assert.That(job.actualSmtpUserName, Is.EqualTo("user 123"));
+            Assert.That(job.actualSmtpPassword, Is.EqualTo("pass 321"));
+            Assert.That(job.actualSmtpPort, Is.EqualTo(123));
+        });
     }
 }
 
@@ -136,18 +139,24 @@ internal sealed class ExpectedMail
 
     public void IsEqualTo(MailMessage actualMail)
     {
-        Assert.Contains(new MailAddress(recipient), actualMail.To, "Recipient equals");
-        Assert.AreEqual(new MailAddress(sender), actualMail.From, "Sender equals");
-        Assert.AreEqual(subject, actualMail.Subject, "Subject equals");
-        Assert.AreEqual(message, actualMail.Body, "Message equals");
+        Assert.Multiple(() =>
+        {
+            Assert.That(actualMail.To, Does.Contain(new MailAddress(recipient)), "Recipient equals");
+            Assert.That(actualMail.From, Is.EqualTo(new MailAddress(sender)), "Sender equals");
+            Assert.That(actualMail.Subject, Is.EqualTo(subject), "Subject equals");
+            Assert.That(actualMail.Body, Is.EqualTo(message), "Message equals");
+        });
         if (!string.IsNullOrEmpty(ccRecipient))
         {
-            Assert.Contains(new MailAddress(ccRecipient), actualMail.CC, "CC equals");
+            Assert.That(actualMail.CC, Does.Contain(new MailAddress(ccRecipient)), "CC equals");
         }
         if (!string.IsNullOrEmpty(replyTo))
         {
-            Assert.AreEqual(1, actualMail.ReplyToList.Count);
-            Assert.AreEqual(new MailAddress(replyTo), actualMail.ReplyToList[0]);
+            Assert.Multiple(() =>
+            {
+                Assert.That(actualMail.ReplyToList, Has.Count.EqualTo(1));
+                Assert.That(actualMail.ReplyToList[0], Is.EqualTo(new MailAddress(replyTo)));
+            });
         }
     }
 }

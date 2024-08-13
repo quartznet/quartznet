@@ -11,20 +11,20 @@ public class QuartzHostedServiceTests
 {
     private sealed class MockApplicationLifetime : Lifetime
     {
-        public CancellationTokenSource StartedSource { get; } = new CancellationTokenSource();
-        public CancellationTokenSource StoppingSource { get; } = new CancellationTokenSource();
-        public CancellationToken ApplicationStarted => this.StartedSource.Token;
-        public CancellationToken ApplicationStopping => this.StoppingSource.Token;
+        public CancellationTokenSource StartedSource { get; } = new();
+        public CancellationTokenSource StoppingSource { get; } = new();
+        public CancellationToken ApplicationStarted => StartedSource.Token;
+        public CancellationToken ApplicationStopping => StoppingSource.Token;
         public CancellationToken ApplicationStopped => throw new NotImplementedException();
 
         public void SetStarted()
         {
-            this.StartedSource.Cancel();
+            StartedSource.Cancel();
         }
 
         public void StopApplication()
         {
-            this.StoppingSource.Cancel();
+            StoppingSource.Cancel();
         }
     }
 
@@ -353,13 +353,13 @@ public class QuartzHostedServiceTests
                 StartDelay = withStartDelay ? TimeSpan.FromMinutes(1) : null,
             }));
 
-        Assert.Null(schedulerFactory.LastCreatedScheduler);
+        Assert.That(schedulerFactory.LastCreatedScheduler, Is.Null);
 
         using var startupCts = new CancellationTokenSource();
 
         await quartzHostedService.StartAsync(startupCts.Token);
 
-        Assert.NotNull(schedulerFactory.LastCreatedScheduler);
+        Assert.That(schedulerFactory.LastCreatedScheduler, Is.Not.Null);
 
         await startupCts.CancelAsync().ConfigureAwait(false);
     }
@@ -387,8 +387,8 @@ public class QuartzHostedServiceTests
 
         await quartzHostedService.StartAsync(startupCts.Token);
 
-        Assert.NotNull(schedulerFactory.LastCreatedScheduler);
-        Assert.AreEqual(shouldSchedulerBeStartedImmediately, schedulerFactory.LastCreatedScheduler.IsStarted);
+        Assert.That(schedulerFactory.LastCreatedScheduler, Is.Not.Null);
+        Assert.That(schedulerFactory.LastCreatedScheduler.IsStarted, Is.EqualTo(shouldSchedulerBeStartedImmediately));
 
         appliationLifetime.SetStarted();
 
@@ -398,14 +398,17 @@ public class QuartzHostedServiceTests
                 .ContinueWith(_ => { }, CancellationToken.None, TaskContinuationOptions.None, TaskScheduler.Default); // Wait for the hosted service to respond to the ApplicationStarted token
         }
 
-        Assert.AreEqual(!withStartDelay, schedulerFactory.LastCreatedScheduler.IsStarted);
+        Assert.That(schedulerFactory.LastCreatedScheduler.IsStarted, Is.EqualTo(!withStartDelay));
 
         await startupCts.CancelAsync().ConfigureAwait(false);
 
         await quartzHostedService.StopAsync(CancellationToken.None);
 
-        Assert.False(schedulerFactory.LastCreatedScheduler.IsStarted);
-        Assert.True(schedulerFactory.LastCreatedScheduler.IsShutdown);
+        Assert.Multiple(() =>
+        {
+            Assert.That(schedulerFactory.LastCreatedScheduler.IsStarted, Is.False);
+            Assert.That(schedulerFactory.LastCreatedScheduler.IsShutdown, Is.True);
+        });
     }
 
     [Test]
@@ -435,7 +438,7 @@ public class QuartzHostedServiceTests
 
         await startupTask;
 
-        Assert.AreEqual(shouldSchedulerBeStarted, schedulerFactory.LastCreatedScheduler.IsStarted);
+        Assert.That(schedulerFactory.LastCreatedScheduler.IsStarted, Is.EqualTo(shouldSchedulerBeStarted));
     }
 
     [Test]
@@ -474,10 +477,10 @@ public class QuartzHostedServiceTests
         // Confirm that not only have we stopped, but that we have not started AFTER being stopped
         if (shouldSchedulerBeStarted)
         {
-            Assert.True(schedulerFactory.LastCreatedScheduler.IsShutdown);
+            Assert.That(schedulerFactory.LastCreatedScheduler.IsShutdown, Is.True);
         }
 
-        Assert.False(schedulerFactory.LastCreatedScheduler.IsStarted);
+        Assert.That(schedulerFactory.LastCreatedScheduler.IsStarted, Is.False);
 
         await startupCts.CancelAsync().ConfigureAwait(false);
     }

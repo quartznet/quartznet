@@ -73,46 +73,28 @@ namespace Quartz.Tests.Unit.Simpl
         }
 
         // ReSharper disable once MemberCanBePrivate.Global
-        public interface INestedInterface : IScheduler
-        {
-        }
+        public interface INestedInterface : IScheduler;
     }
 }
 
 namespace SchedulerTypeBuilderTestTypes
 {
-    public interface IMyScheduler : IScheduler
-    {
-    }
+    public interface IMyScheduler : IScheduler;
 
-    public class DummyClass
-    {
-    }
+    public class DummyClass;
 
-    public interface IDummyInterface
-    {
-    }
+    public interface IDummyInterface;
 
-    public interface IGenericInterface<T> : IScheduler
-    {
-    }
+    public interface IGenericInterface<T> : IScheduler;
 
-    public interface IInterfaceWhichImplementMultipleInterfaces : IScheduler, ICalendar
-    {
-    }
+    public interface IInterfaceWhichImplementMultipleInterfaces : IScheduler, ICalendar;
 
-    internal interface INonPublicInterface : IScheduler
-    {
-    }
+    internal interface INonPublicInterface : IScheduler;
 }
 
 namespace SchedulerTypeBuilderTestTypesB
 {
-    public interface IMyScheduler : IScheduler
-    {
-    }
+    public interface IMyScheduler : IScheduler;
 }
 
-public interface IMySchedulerWithoutNameSpace : IScheduler
-{
-}
+public interface IMySchedulerWithoutNameSpace : IScheduler;

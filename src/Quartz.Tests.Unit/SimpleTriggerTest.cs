@@ -62,28 +62,33 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
 
         SimpleTriggerImpl t = new SimpleTriggerImpl("SimpleTrigger", "SimpleGroup",
             "JobName", "JobGroup", StartTime,
-            EndTime, 5, TimeSpan.FromSeconds(1));
-        t.CalendarName = "MyCalendar";
-        t.Description = "SimpleTriggerDesc";
-        t.JobDataMap = jobDataMap;
-        t.MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount;
+            EndTime, 5, TimeSpan.FromSeconds(1))
+        {
+            CalendarName = "MyCalendar",
+            Description = "SimpleTriggerDesc",
+            JobDataMap = jobDataMap,
+            MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNextWithRemainingCount
+        };
 
         return t;
     }
 
     protected override void VerifyMatch(SimpleTriggerImpl original, SimpleTriggerImpl deserialized)
     {
-        Assert.IsNotNull(deserialized);
-        Assert.AreEqual(original.Key, deserialized.Key);
-        Assert.AreEqual(original.JobKey, deserialized.JobKey);
-        Assert.AreEqual(original.StartTimeUtc, deserialized.StartTimeUtc);
-        Assert.AreEqual(original.EndTimeUtc, deserialized.EndTimeUtc);
-        Assert.AreEqual(original.RepeatCount, deserialized.RepeatCount);
-        Assert.AreEqual(original.RepeatInterval, deserialized.RepeatInterval);
-        Assert.AreEqual(original.CalendarName, deserialized.CalendarName);
-        Assert.AreEqual(original.Description, deserialized.Description);
-        Assert.AreEqual(original.JobDataMap, deserialized.JobDataMap);
-        Assert.AreEqual(original.MisfireInstruction, deserialized.MisfireInstruction);
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserialized, Is.Not.Null);
+            Assert.That(deserialized.Key, Is.EqualTo(original.Key));
+            Assert.That(deserialized.JobKey, Is.EqualTo(original.JobKey));
+            Assert.That(deserialized.StartTimeUtc, Is.EqualTo(original.StartTimeUtc));
+            Assert.That(deserialized.EndTimeUtc, Is.EqualTo(original.EndTimeUtc));
+            Assert.That(deserialized.RepeatCount, Is.EqualTo(original.RepeatCount));
+            Assert.That(deserialized.RepeatInterval, Is.EqualTo(original.RepeatInterval));
+            Assert.That(deserialized.CalendarName, Is.EqualTo(original.CalendarName));
+            Assert.That(deserialized.Description, Is.EqualTo(original.Description));
+            Assert.That(deserialized.JobDataMap, Is.EqualTo(original.JobDataMap));
+            Assert.That(deserialized.MisfireInstruction, Is.EqualTo(original.MisfireInstruction));
+        });
     }
 
     [Test]
@@ -93,16 +98,21 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
 
         DateTimeOffset endTime = new DateTimeOffset(2005, 7, 5, 10, 0, 0, TimeSpan.Zero);
 
-        SimpleTriggerImpl simpleTrigger = new SimpleTriggerImpl();
-        simpleTrigger.MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount;
-        simpleTrigger.RepeatCount = 5;
-        simpleTrigger.StartTimeUtc = startTime;
-        simpleTrigger.EndTimeUtc = endTime;
+        SimpleTriggerImpl simpleTrigger = new SimpleTriggerImpl
+        {
+            MisfireInstruction = MisfireInstruction.SimpleTrigger.RescheduleNowWithExistingRepeatCount,
+            RepeatCount = 5,
+            StartTimeUtc = startTime,
+            EndTimeUtc = endTime
+        };
 
         simpleTrigger.UpdateAfterMisfire(null);
-        Assert.AreEqual(startTime, simpleTrigger.StartTimeUtc);
-        Assert.AreEqual(endTime, simpleTrigger.EndTimeUtc.Value);
-        Assert.IsTrue(!simpleTrigger.GetNextFireTimeUtc().HasValue);
+        Assert.Multiple(() =>
+        {
+            Assert.That(simpleTrigger.StartTimeUtc, Is.EqualTo(startTime));
+            Assert.That(simpleTrigger.EndTimeUtc.Value, Is.EqualTo(endTime));
+            Assert.That(!simpleTrigger.GetNextFireTimeUtc().HasValue, Is.True);
+        });
     }
 
     [Test]
@@ -116,9 +126,8 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
         simpleTrigger.RepeatInterval = TimeSpan.FromMilliseconds(10);
         simpleTrigger.RepeatCount = 4;
 
-        DateTimeOffset? fireTimeAfter;
-        fireTimeAfter = simpleTrigger.GetFireTimeAfter(startTime.AddMilliseconds(34));
-        Assert.AreEqual(startTime.AddMilliseconds(40), fireTimeAfter.Value);
+        var fireTimeAfter = simpleTrigger.GetFireTimeAfter(startTime.AddMilliseconds(34));
+        Assert.That(fireTimeAfter.Value, Is.EqualTo(startTime.AddMilliseconds(40)));
     }
 
     [Test]
@@ -128,24 +137,30 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
 
         // Make sure empty sub-objects are cloned okay
         ITrigger clone = simpleTrigger.Clone();
-        Assert.AreEqual(0, clone.JobDataMap.Count);
+        Assert.That(clone.JobDataMap, Is.Empty);
 
         // Make sure non-empty sub-objects are cloned okay
         simpleTrigger.JobDataMap.Put("K1", "V1");
         simpleTrigger.JobDataMap.Put("K2", "V2");
         clone = simpleTrigger.Clone();
-        Assert.AreEqual(2, clone.JobDataMap.Count);
-        Assert.AreEqual("V1", clone.JobDataMap["K1"]);
-        Assert.AreEqual("V2", clone.JobDataMap["K2"]);
+        Assert.Multiple(() =>
+        {
+            Assert.That(clone.JobDataMap, Has.Count.EqualTo(2));
+            Assert.That(clone.JobDataMap["K1"], Is.EqualTo("V1"));
+            Assert.That(clone.JobDataMap["K2"], Is.EqualTo("V2"));
+        });
 
         // Make sure sub-object collections have really been cloned by ensuring
         // their modification does not change the source Trigger
         clone.JobDataMap.Remove("K1");
-        Assert.AreEqual(1, clone.JobDataMap.Count);
-
-        Assert.AreEqual(2, simpleTrigger.JobDataMap.Count);
-        Assert.AreEqual("V1", simpleTrigger.JobDataMap["K1"]);
-        Assert.AreEqual("V2", simpleTrigger.JobDataMap["K2"]);
+        Assert.Multiple(() =>
+        {
+            Assert.That(clone.JobDataMap, Has.Count.EqualTo(1));
+            Assert.That(simpleTrigger.JobDataMap, Has.Count.EqualTo(2));
+            Assert.That(simpleTrigger.JobDataMap["K1"], Is.EqualTo("V1"));
+            Assert.That(simpleTrigger.JobDataMap["K2"], Is.EqualTo("V2"));
+        });
+        
     }
 
     // QRTZNET-73
@@ -153,16 +168,18 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
     public void TestGetFireTimeAfter_WithCalendar()
     {
         DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50");
-        SimpleTriggerImpl simpleTrigger = new SimpleTriggerImpl();
-        simpleTrigger.RepeatInterval = TimeSpan.FromMilliseconds(10);
-        simpleTrigger.RepeatCount = 1;
+        SimpleTriggerImpl simpleTrigger = new SimpleTriggerImpl
+        {
+            RepeatInterval = TimeSpan.FromMilliseconds(10),
+            RepeatCount = 1
+        };
         DateTimeOffset neverFireTime = DateBuilder.EvenMinuteDateBefore(dailyCalendar.GetTimeRangeStartingTimeUtc(DateTime.Now));
         simpleTrigger.StartTimeUtc = neverFireTime;
 
         simpleTrigger.ComputeFirstFireTimeUtc(dailyCalendar);
         DateTimeOffset? fireTimeAfter = simpleTrigger.GetNextFireTimeUtc();
 
-        Assert.IsNull(fireTimeAfter);
+        Assert.That(fireTimeAfter, Is.Null);
     }
 
     [Test]
@@ -170,8 +187,11 @@ public class SimpleTriggerTest : SerializationTestSupport<SimpleTriggerImpl>
     {
         IOperableTrigger trigger = new SimpleTriggerImpl();
         trigger.StartTimeUtc = new DateTimeOffset(1982, 6, 28, 13, 5, 5, 233, TimeSpan.Zero);
-        Assert.IsTrue(trigger.HasMillisecondPrecision);
-        Assert.AreEqual(233, trigger.StartTimeUtc.Millisecond);
+        Assert.Multiple(() =>
+        {
+            Assert.That(trigger.HasMillisecondPrecision, Is.True);
+            Assert.That(trigger.StartTimeUtc.Millisecond, Is.EqualTo(233));
+        });
     }
 
     [Test]

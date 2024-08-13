@@ -7,6 +7,7 @@ using System.Text;
 using System.Text.Json;
 
 using FluentAssertions;
+using FluentAssertions.Execution;
 
 using Microsoft.Extensions.Time.Testing;
 
@@ -179,10 +180,13 @@ public class JsonObjectSerializerTest
 
         CompareSerialization(collection, (deserialized, original) =>
         {
-            original.Count.Should().Be(2);
-            deserialized.Count.Should().Be(2);
-            deserialized["key"].Should().Be(original["key"]);
-            deserialized["key2"].Should().Be(original["key2"]);
+            using (new AssertionScope())
+            {
+                original.Count.Should().Be(2);
+                deserialized.Count.Should().Be(2);
+                deserialized["key"].Should().Be(original["key"]);
+                deserialized["key2"].Should().Be(original["key2"]);
+            }
         });
 
         await VerifyCreatedJson(collection);
@@ -206,15 +210,18 @@ public class JsonObjectSerializerTest
             collection,
             (deserialized, original) =>
             {
-                original.Should().HaveCount(7);
-                deserialized.Should().HaveCount(7);
-                deserialized["key"].Should().Be(original["key"]);
-                deserialized.GetDateTime("key2").Should().Be(original.GetDateTime("key2"));
-                deserialized["key3"].Should().Be(original["key3"]);
-                deserialized["key4"].Should().Be(original["key4"]);
-                deserialized["key5"].Should().Be(original["key5"]);
-                deserialized.GetDateTimeOffset("key6").Should().Be(original.GetDateTimeOffset("key6"));
-                deserialized.GetDateTimeOffset("key7").Should().Be(original.GetDateTimeOffset("key7"));
+                using (new AssertionScope())
+                {
+                    original.Should().HaveCount(7);
+                    deserialized.Should().HaveCount(7);
+                    deserialized["key"].Should().Be(original["key"]);
+                    deserialized.GetDateTime("key2").Should().Be(original.GetDateTime("key2"));
+                    deserialized["key3"].Should().Be(original["key3"]);
+                    deserialized["key4"].Should().Be(original["key4"]);
+                    deserialized["key5"].Should().Be(original["key5"]);
+                    deserialized.GetDateTimeOffset("key6").Should().Be(original.GetDateTimeOffset("key6"));
+                    deserialized.GetDateTimeOffset("key7").Should().Be(original.GetDateTimeOffset("key7"));
+                }
             },
             skipDefaultEqualityCheck: true
         );
@@ -305,8 +312,11 @@ public class JsonObjectSerializerTest
             trigger,
             (deserialized, original) =>
             {
-                original.GetNextFireTimeUtc().Should().Be(deserialized.GetNextFireTimeUtc());
-                original.GetPreviousFireTimeUtc().Should().Be(deserialized.GetPreviousFireTimeUtc());
+                using (new AssertionScope())
+                {
+                    original.GetNextFireTimeUtc().Should().Be(deserialized.GetNextFireTimeUtc());
+                    original.GetPreviousFireTimeUtc().Should().Be(deserialized.GetPreviousFireTimeUtc());
+                }
             }
         );
 
@@ -342,8 +352,11 @@ public class JsonObjectSerializerTest
             trigger,
             (deserialized, original) =>
             {
-                original.GetNextFireTimeUtc().Should().Be(deserialized.GetNextFireTimeUtc());
-                original.GetPreviousFireTimeUtc().Should().Be(deserialized.GetPreviousFireTimeUtc());
+                using (new AssertionScope())
+                {
+                    original.GetNextFireTimeUtc().Should().Be(deserialized.GetNextFireTimeUtc());
+                    original.GetPreviousFireTimeUtc().Should().Be(deserialized.GetPreviousFireTimeUtc());
+                }
             }
         );
 
@@ -382,8 +395,11 @@ public class JsonObjectSerializerTest
             trigger,
             (deserialized, original) =>
             {
-                original.GetNextFireTimeUtc().Should().Be(deserialized.GetNextFireTimeUtc());
-                original.GetPreviousFireTimeUtc().Should().Be(deserialized.GetPreviousFireTimeUtc());
+                using (new AssertionScope())
+                {
+                    original.GetNextFireTimeUtc().Should().Be(deserialized.GetNextFireTimeUtc());
+                    original.GetPreviousFireTimeUtc().Should().Be(deserialized.GetPreviousFireTimeUtc());
+                }
             }
         );
 
@@ -421,8 +437,11 @@ public class JsonObjectSerializerTest
             trigger,
             (deserialized, original) =>
             {
-                original.GetNextFireTimeUtc().Should().Be(deserialized.GetNextFireTimeUtc());
-                original.GetPreviousFireTimeUtc().Should().Be(deserialized.GetPreviousFireTimeUtc());
+                using (new AssertionScope())
+                {
+                    original.GetNextFireTimeUtc().Should().Be(deserialized.GetNextFireTimeUtc());
+                    original.GetPreviousFireTimeUtc().Should().Be(deserialized.GetPreviousFireTimeUtc());
+                }
             }
         );
 
@@ -461,8 +480,11 @@ public class JsonObjectSerializerTest
             trigger,
             (deserialized, original) =>
             {
-                original.GetNextFireTimeUtc().Should().Be(deserialized.GetNextFireTimeUtc());
-                original.GetPreviousFireTimeUtc().Should().Be(deserialized.GetPreviousFireTimeUtc());
+                using (new AssertionScope())
+                {
+                    original.GetNextFireTimeUtc().Should().Be(deserialized.GetNextFireTimeUtc());
+                    original.GetPreviousFireTimeUtc().Should().Be(deserialized.GetPreviousFireTimeUtc());
+                }
             }
         );
 
@@ -634,7 +656,7 @@ public class JsonSerializationTestTrigger : SimpleTriggerImpl
         }
     }
 
-    public sealed class NewtonsoftSerializer : Quartz.Triggers.TriggerSerializer<JsonSerializationTestTrigger>
+    public sealed class NewtonsoftSerializer : Triggers.TriggerSerializer<JsonSerializationTestTrigger>
     {
         public override string TriggerTypeForJson => "TestTrigger";
 

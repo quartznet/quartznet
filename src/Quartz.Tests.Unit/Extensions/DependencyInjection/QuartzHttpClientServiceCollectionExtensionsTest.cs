@@ -128,11 +128,7 @@ namespace Quartz.Tests.Unit.Extensions.DependencyInjection
 
 namespace QuartzHttpClientServiceCollectionExtensionsTestTypes
 {
-    public interface IMyScheduler : IScheduler
-    {
-    }
+    public interface IMyScheduler : IScheduler;
 
-    public interface IMySecondScheduler : IScheduler
-    {
-    }
+    public interface IMySecondScheduler : IScheduler;
 }

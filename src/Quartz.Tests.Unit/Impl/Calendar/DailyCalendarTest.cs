@@ -63,19 +63,24 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
         DateTime expectedStartTime = new DateTime(d.Year, d.Month, d.Day, 1, 20, 0);
         DateTime expectedEndTime = new DateTime(d.Year, d.Month, d.Day, 14, 50, 0);
 
-        Assert.AreEqual(expectedStartTime, dailyCalendar.GetTimeRangeStartingTimeUtc(d).DateTime);
-        Assert.AreEqual(expectedEndTime, dailyCalendar.GetTimeRangeEndingTimeUtc(d).DateTime);
+        Assert.Multiple(() =>
+        {
+            Assert.That(dailyCalendar.GetTimeRangeStartingTimeUtc(d).DateTime, Is.EqualTo(expectedStartTime));
+            Assert.That(dailyCalendar.GetTimeRangeEndingTimeUtc(d).DateTime, Is.EqualTo(expectedEndTime));
+        });
     }
 
     [Test]
     public void TestStringInvertTimeRange()
     {
-        DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50");
-        dailyCalendar.InvertTimeRange = true;
-        Assert.IsTrue(dailyCalendar.ToString().IndexOf("inverted: True") > 0);
+        DailyCalendar dailyCalendar = new DailyCalendar("1:20", "14:50")
+        {
+            InvertTimeRange = true
+        };
+        Assert.That(dailyCalendar.ToString().IndexOf("inverted: True"), Is.GreaterThan(0));
 
         dailyCalendar.InvertTimeRange = false;
-        Assert.IsTrue(dailyCalendar.ToString().IndexOf("inverted: False") > 0);
+        Assert.That(dailyCalendar.ToString().IndexOf("inverted: False"), Is.GreaterThan(0));
     }
 
     [Test]
@@ -83,13 +88,15 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
     {
         TimeZoneInfo tz = TimeZoneUtil.FindTimeZoneById("Eastern Standard Time");
 
-        DailyCalendar dailyCalendar = new DailyCalendar("12:00:00", "14:00:00");
-        dailyCalendar.InvertTimeRange = true; //inclusive calendar
-        dailyCalendar.TimeZone = tz;
+        DailyCalendar dailyCalendar = new DailyCalendar("12:00:00", "14:00:00")
+        {
+            InvertTimeRange = true, //inclusive calendar
+            TimeZone = tz
+        };
 
         // 11/2/2012 17:00 (utc) is 11/2/2012 13:00 (est)
         DateTimeOffset timeToCheck = new DateTimeOffset(2012, 11, 2, 17, 0, 0, TimeSpan.FromHours(0));
-        Assert.IsTrue(dailyCalendar.IsTimeIncluded(timeToCheck));
+        Assert.That(dailyCalendar.IsTimeIncluded(timeToCheck), Is.True);
     }
 
     /// <summary>
@@ -118,17 +125,17 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
         if (timeZoneOffset > TimeSpan.Zero)
         {
             // Trigger must fire between midnight and utc offset if positive offset.
-            fireTimes.Where(t => t.Hour >= 0 && t.Hour <= timeZoneOffset.Hours).Should().NotBeEmpty();
+            fireTimes.Should().Contain(t => t.Hour >= 0 && t.Hour <= timeZoneOffset.Hours);
         }
         else if (timeZoneOffset < TimeSpan.Zero)
         {
             // Trigger must fire between midnight minus utc offset and midnight if negative offset.
-            fireTimes.Where(t => t.Hour >= 24 + timeZoneOffset.Hours && t.Hour <= 23).Should().NotBeEmpty();
+            fireTimes.Should().Contain(t => t.Hour >= 24 + timeZoneOffset.Hours && t.Hour <= 23);
         }
         else
         {
             // Trigger must not fire between midnight and utc offset if offset is UTC (zero)
-            fireTimes.Where(t => t.Hour >= 0 && t.Hour <= timeZoneOffset.Hours).Should().BeEmpty();
+            fireTimes.Should().NotContain(t => t.Hour >= 0 && t.Hour <= timeZoneOffset.Hours);
         }
     }
 
@@ -158,10 +165,13 @@ public class DailyCalendarTest : SerializationTestSupport<DailyCalendar, ICalend
 
     protected override void VerifyMatch(DailyCalendar original, DailyCalendar deserialized)
     {
-        Assert.IsNotNull(deserialized);
-        Assert.AreEqual(original.Description, deserialized.Description);
-        Assert.AreEqual(original.InvertTimeRange, deserialized.InvertTimeRange);
-        Assert.AreEqual(original.TimeZone, deserialized.TimeZone);
-        Assert.AreEqual(original.ToString(), deserialized.ToString());
+        Assert.Multiple(() =>
+        {
+            Assert.That(deserialized, Is.Not.Null);
+            Assert.That(deserialized.Description, Is.EqualTo(original.Description));
+            Assert.That(deserialized.InvertTimeRange, Is.EqualTo(original.InvertTimeRange));
+            Assert.That(deserialized.TimeZone, Is.EqualTo(original.TimeZone));
+            Assert.That(deserialized.ToString(), Is.EqualTo(original.ToString()));
+        });
     }
 }
