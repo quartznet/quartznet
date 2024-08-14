@@ -588,9 +588,30 @@ namespace Quartz.Impl.Triggers
                 afterTimeUtc = SystemTime.UtcNow();
             }
 
-            if (StartTimeUtc > afterTimeUtc.Value)
+            if (EndTimeUtc.HasValue && afterTimeUtc.Value.CompareTo(EndTimeUtc.Value) >= 0)
             {
-                afterTimeUtc = startTimeUtc.AddSeconds(-1);
+                return null;
+            }
+
+            DateTimeOffset? pot = GetTimeAfter(afterTimeUtc.Value);
+            if (EndTimeUtc.HasValue && pot.HasValue && pot.Value > EndTimeUtc.Value)
+            {
+                return null;
+            }
+
+            return pot;
+        }
+        
+        /// <summary>
+        /// Returns the next time at which the <see cref="ITrigger" /> will fire, at or after the given time. If the trigger will not fire at or after the given time, <see langword="null" /> will be returned.
+        /// </summary>
+        /// <param name="afterTimeUtc">The time to check for the next fire time after.</param>
+        /// <returns>The next fire time at or after the given time, or <see langword="null" /> if the trigger will not fire at or after the given time.</returns>
+        public  DateTimeOffset? GetFireTimeAtOrAfter(DateTimeOffset? afterTimeUtc)
+        {
+            if (!afterTimeUtc.HasValue)
+            {
+                afterTimeUtc = SystemTime.UtcNow();
             }
 
             if (EndTimeUtc.HasValue && afterTimeUtc.Value.CompareTo(EndTimeUtc.Value) >= 0)
@@ -598,7 +619,7 @@ namespace Quartz.Impl.Triggers
                 return null;
             }
 
-            DateTimeOffset? pot = GetTimeAfter(afterTimeUtc.Value);
+            var pot = GetTimeAtOrAfter(afterTimeUtc.Value);
             if (EndTimeUtc.HasValue && pot.HasValue && pot.Value > EndTimeUtc.Value)
             {
                 return null;
@@ -887,7 +908,7 @@ namespace Quartz.Impl.Triggers
         /// </returns>
         public override DateTimeOffset? ComputeFirstFireTimeUtc(ICalendar? cal)
         {
-            nextFireTimeUtc = GetFireTimeAfter(startTimeUtc.AddSeconds(-1));
+            nextFireTimeUtc = GetFireTimeAtOrAfter(startTimeUtc);
 
             while (nextFireTimeUtc.HasValue && cal != null && !cal.IsTimeIncluded(nextFireTimeUtc.Value))
             {
@@ -920,6 +941,17 @@ namespace Quartz.Impl.Triggers
         protected DateTimeOffset? GetTimeAfter(DateTimeOffset afterTime)
         {
             return cronEx?.GetTimeAfter(afterTime);
+        }
+        
+        /// <summary>
+        /// Gets the next valid time to fire at or after the given time.
+        /// </summary>
+        /// <param name="afterTime">The time to compute from.</param>
+        /// <returns>The next time to fire at or after the given time, or null if there is no such time.</returns>
+        protected DateTimeOffset? GetTimeAtOrAfter(DateTimeOffset afterTime)
+        {
+            var nextFireTimeAt = cronEx?.GetTimeAfter(afterTime,0);
+            return nextFireTimeAt ?? GetTimeAfter(afterTime);
         }
 
         /// <summary>

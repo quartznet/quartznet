@@ -1617,16 +1617,23 @@ namespace Quartz
             }
         }
 
+        public virtual DateTimeOffset? GetTimeAt(DateTimeOffset afterTimeUtc)
+        {
+            return GetTimeAfter(afterTimeUtc, 0);
+        }
+
         /// <summary>
         /// Gets the next fire time after the given time.
         /// </summary>
         /// <param name="afterTimeUtc">The UTC time to start searching from.</param>
+        /// <param name="afterOffsetInSeconds">Default is 1 second</param>
         /// <returns></returns>
-        public virtual DateTimeOffset? GetTimeAfter(DateTimeOffset afterTimeUtc)
+        public virtual DateTimeOffset? GetTimeAfter(DateTimeOffset afterTimeUtc, int afterOffsetInSeconds = 1)
         {
-            // move ahead one second, since we're computing the time *after* the
+            // move ahead afterOffsetInSeconds, since we're computing the time *after* the
             // given time
-            afterTimeUtc = afterTimeUtc.AddSeconds(1);
+            if (afterOffsetInSeconds != 0)
+                afterTimeUtc = afterTimeUtc.AddSeconds(afterOffsetInSeconds);
 
             // CronTrigger does not deal with milliseconds
             DateTimeOffset d = CreateDateTimeWithoutMillis(afterTimeUtc);
@@ -2142,11 +2149,7 @@ namespace Quartz
         {
             // Java version of Quartz uses lenient calendar
             // so hour 24 creates day increment and zeroes hour
-            int hourToSet = hour;
-            if (hourToSet == 24)
-            {
-                hourToSet = 0;
-            }
+            int hourToSet = hour == 24 ? 0 : hour;
             DateTimeOffset d = new DateTimeOffset(date.Year, date.Month, date.Day, hourToSet, date.Minute, date.Second, date.Millisecond, date.Offset);
             if (hour == 24)
             {
