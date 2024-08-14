@@ -843,10 +843,10 @@ public sealed class CronExpression : ISerializable
         switch (type)
         {
             case CronExpressionConstants.Second or CronExpressionConstants.Minute when incr > 59:
-                ThrowHelper.ThrowFormatException($"Increment > 60 : {incr}");
+                ThrowHelper.ThrowFormatException($"Increment > 59 : {incr}");
                 break;
             case CronExpressionConstants.Hour when incr > 23:
-                ThrowHelper.ThrowFormatException($"Increment > 24 : {incr}");
+                ThrowHelper.ThrowFormatException($"Increment > 23 : {incr}");
                 break;
             case CronExpressionConstants.DayOfMonth when incr > 31:
                 ThrowHelper.ThrowFormatException($"Increment > 31 : {incr}");
