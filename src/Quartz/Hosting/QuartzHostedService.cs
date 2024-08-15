@@ -123,7 +123,7 @@ public class QuartzHostedService : IHostedLifecycleService
         }
     }
 
-    public Task StoppedAsync(CancellationToken cancellationToken)
+    public virtual Task StoppedAsync(CancellationToken cancellationToken)
     {
         return Task.CompletedTask;
     }
