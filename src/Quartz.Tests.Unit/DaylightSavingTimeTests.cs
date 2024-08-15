@@ -128,7 +128,7 @@ namespace Quartz.Tests.Unit
         }
         
         [Test]
-        public void Investigate_InfiniteTriggerDST_To_Issue_2475()
+        public void Can_GetNextFireTime_InDST_To_Issue_2475()
         {
             //DST 
             var tz = TZConvert.GetTimeZoneInfo("Central European Standard Time"); //UTC+1  +2 in DST
@@ -151,6 +151,35 @@ namespace Quartz.Tests.Unit
                 nextFireTimes[0].Should().Be(new DateTimeOffset(2023, 10, 29, 2, 00, 0, TimeSpan.FromHours(2)));
                 nextFireTimes[1].Should().Be(new DateTimeOffset(2023, 10, 29, 2, 01, 0, TimeSpan.FromHours(2)));
                 nextFireTimes[2].Should().Be(new DateTimeOffset(2023, 10, 29, 2, 02, 0, TimeSpan.FromHours(2)));
+            }
+            Console.WriteLine(nextFireTimes[0]);
+        }
+        
+        [Test]
+        [Ignore("Start time is not correct")]
+        public void Can_GetNextFireTime_Transition_To_ST_Issue_2475()
+        {
+            //DST 
+            var tz = TZConvert.GetTimeZoneInfo("Central European Standard Time"); //UTC+1  +2 in DST
+            var startTime = new DateTimeOffset(2023, 10, 29, 2, 0, 0, TimeSpan.FromHours(1));
+
+            tz.IsDaylightSavingTime(startTime).Should().BeFalse();
+            
+            var trigger = TriggerBuilder.Create()
+                .WithIdentity("trigger1", "group1")
+                .WithSchedule(CronScheduleBuilder.CronSchedule("0 0/1 * ? * * *")
+                    .InTimeZone(tz)
+                )
+                .StartAt(startTime)
+                .ForJob("job1", "group1")
+                .Build();
+
+            var nextFireTimes = TriggerUtils.ComputeFireTimes((IOperableTrigger)trigger, null, 20);
+            using (new AssertionScope())
+            {
+                nextFireTimes[0].Should().Be(new DateTimeOffset(2023, 10, 29, 2, 00, 0, TimeSpan.FromHours(1)));
+                nextFireTimes[1].Should().Be(new DateTimeOffset(2023, 10, 29, 2, 01, 0, TimeSpan.FromHours(1)));
+                nextFireTimes[2].Should().Be(new DateTimeOffset(2023, 10, 29, 2, 02, 0, TimeSpan.FromHours(1)));
             }
             Console.WriteLine(nextFireTimes[0]);
         }

@@ -1616,25 +1616,26 @@ namespace Quartz
                 return null;
             }
         }
-
-        public virtual DateTimeOffset? GetTimeAt(DateTimeOffset afterTimeUtc)
-        {
-            return GetTimeAfter(afterTimeUtc, 0);
-        }
-
+        
         /// <summary>
         /// Gets the next fire time after the given time.
         /// </summary>
         /// <param name="afterTimeUtc">The UTC time to start searching from.</param>
-        /// <param name="afterOffsetInSeconds">Default is 1 second</param>
         /// <returns></returns>
-        public virtual DateTimeOffset? GetTimeAfter(DateTimeOffset afterTimeUtc, int afterOffsetInSeconds = 1)
+        public virtual DateTimeOffset? GetTimeAfter(DateTimeOffset afterTimeUtc)
         {
-            // move ahead afterOffsetInSeconds, since we're computing the time *after* the
+            // move ahead one seconds, since we're computing the time *after* the
             // given time
-            if (afterOffsetInSeconds != 0)
-                afterTimeUtc = afterTimeUtc.AddSeconds(afterOffsetInSeconds);
+            return GetNextFireTimeAtOrAfter(afterTimeUtc.AddSeconds(1));
+        }
 
+        /// <summary>
+        /// Gets the next fire time at or after the given time.
+        /// </summary>
+        /// <param name="afterTimeUtc">The UTC time to start searching from.</param>
+        /// <returns></returns>
+        public virtual DateTimeOffset? GetNextFireTimeAtOrAfter(DateTimeOffset afterTimeUtc)
+        {
             // CronTrigger does not deal with milliseconds
             DateTimeOffset d = CreateDateTimeWithoutMillis(afterTimeUtc);
 
