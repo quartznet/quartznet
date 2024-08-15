@@ -1998,7 +1998,7 @@ public sealed class CronExpression : ISerializable
     /// <param name="endTime">The end time.</param>
     /// <returns></returns>
 #pragma warning disable CA1822
-    public DateTimeOffset? GetTimeBefore(DateTimeOffset? endTime)
+    public static DateTimeOffset? GetTimeBefore(DateTimeOffset? endTime)
 #pragma warning restore CA1822
     {
         // TODO: implement
@@ -2011,7 +2011,7 @@ public sealed class CronExpression : ISerializable
     /// </summary>
     /// <returns></returns>
 #pragma warning disable CA1822
-    public DateTimeOffset? GetFinalFireTime()
+    public static DateTimeOffset? GetFinalFireTime()
 #pragma warning restore CA1822
     {
         // TODO: implement QUARTZ-423
