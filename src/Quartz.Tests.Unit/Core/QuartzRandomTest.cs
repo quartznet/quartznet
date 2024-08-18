@@ -8,8 +8,7 @@ public class QuartzRandomTest
     [Test]
     public void TestNextValidatesPositiveRange()
     {
-        var rand = new QuartzRandom();
-        var result = rand.Next(2, 6);
+        var result = QuartzRandom.Next(2, 6);
 
         Assert.That(result, Is.GreaterThanOrEqualTo(2));
         Assert.That(result, Is.LessThanOrEqualTo(6));
@@ -18,8 +17,7 @@ public class QuartzRandomTest
     [Test]
     public void TestNextValidatesNegativeRange()
     {
-        var rand = new QuartzRandom();
-        var result = rand.Next(-6, -2);
+        var result = QuartzRandom.Next(-6, -2);
 
         Assert.That(result, Is.GreaterThanOrEqualTo(-6));
         Assert.That(result, Is.LessThanOrEqualTo(-2));
@@ -28,8 +26,7 @@ public class QuartzRandomTest
     [Test]
     public void TestNextValidatesPositiveNegativeRange()
     {
-        var rand = new QuartzRandom();
-        var result = rand.Next(-6, 6);
+        var result = QuartzRandom.Next(-6, 6);
 
         Assert.That(result, Is.GreaterThanOrEqualTo(-6));
         Assert.That(result, Is.LessThanOrEqualTo(6));
@@ -38,8 +35,7 @@ public class QuartzRandomTest
     [Test]
     public void TestNextDoesntIntegerOverflow()
     {
-        var rand = new QuartzRandom();
-        var result = rand.Next(-1, int.MaxValue);
+        var result = QuartzRandom.Next(-1, int.MaxValue);
 
         Assert.That(result, Is.GreaterThanOrEqualTo(-1));
         Assert.That(result, Is.LessThanOrEqualTo(int.MaxValue));
@@ -48,8 +44,6 @@ public class QuartzRandomTest
     [Test]
     public void TestMinimumGreaterThanMaximum()
     {
-        var rand = new QuartzRandom();
-
-        Assert.Throws<ArgumentOutOfRangeException>(() => rand.Next(3, 2));
+        Assert.Throws<ArgumentOutOfRangeException>(() => QuartzRandom.Next(3, 2));
     }
 }

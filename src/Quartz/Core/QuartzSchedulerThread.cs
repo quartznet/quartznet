@@ -52,8 +52,6 @@ internal sealed class QuartzSchedulerThread
     private bool paused;
     private bool halted;
 
-    private readonly QuartzRandom random = new QuartzRandom();
-
     private CancellationTokenSource cancellationTokenSource = null!;
     private Task task = null!;
 
@@ -63,7 +61,7 @@ internal sealed class QuartzSchedulerThread
     /// <value>The randomized idle wait time.</value>
     private TimeSpan GetRandomizedIdleWaitTime()
     {
-        return qsRsrcs.IdleWaitTime - TimeSpan.FromMilliseconds(random.Next(idleWaitVariableness));
+        return qsRsrcs.IdleWaitTime - TimeSpan.FromMilliseconds(QuartzRandom.Next(idleWaitVariableness));
     }
 
     /// <summary>

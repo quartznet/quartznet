@@ -57,7 +57,6 @@ public sealed class QuartzScheduler
 
     private IJobFactory jobFactory = new PropertySettingJobFactory();
     private readonly ExecutingJobsManager jobMgr;
-    private readonly QuartzRandom random = new QuartzRandom();
     private readonly List<object> holdToPreventGc = new List<object>(5);
     private volatile bool closed;
     private volatile bool shuttingDown;
@@ -865,9 +864,9 @@ public sealed class QuartzScheduler
         return ft;
     }
 
-    private string NewTriggerId()
+    private static string NewTriggerId()
     {
-        long r = NextLong(random);
+        long r = NextLong();
         if (r < 0)
         {
             r = -r;
@@ -878,13 +877,12 @@ public sealed class QuartzScheduler
     /// <summary>
     /// Creates a new positive random number
     /// </summary>
-    /// <param name="random">The last random obtained</param>
     /// <returns>Returns a new positive random number</returns>
-    private static long NextLong(QuartzRandom random)
+    private static long NextLong()
     {
-        long temporaryLong = random.Next();
-        temporaryLong = (temporaryLong << 32) + random.Next();
-        if (random.Next(-1, 1) < 0)
+        long temporaryLong = QuartzRandom.Next();
+        temporaryLong = (temporaryLong << 32) + QuartzRandom.Next();
+        if (QuartzRandom.Next(-1, 1) < 0)
         {
             return -temporaryLong;
         }
