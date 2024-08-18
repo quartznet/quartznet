@@ -6,12 +6,10 @@ internal static class QuartzRandom
 {
     private static double NextDouble()
     {
-        using (var random = RandomNumberGenerator.Create())
-        {
-            byte[] buf = new byte[4];
-            random.GetBytes(buf);
-            return (double) BitConverter.ToUInt32(buf, 0) / uint.MaxValue;
-        }
+        using RandomNumberGenerator random = RandomNumberGenerator.Create();
+        Span<byte> buf = stackalloc byte[4];
+        random.GetBytes(buf);
+        return (double) BitConverter.ToUInt32(buf) / uint.MaxValue;
     }
 
     /// <summary>
