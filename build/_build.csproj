@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <PackageReference Include="Nuke.Components" Version="8.0.0" />
+    <PackageReference Include="Serilog" Version="4.0.1" />
   </ItemGroup>
 
 </Project>
