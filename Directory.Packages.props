@@ -13,7 +13,7 @@
     <PackageVersion Include="FluentAssertions.Analyzers" Version="0.33.0" />
     <PackageVersion Include="log4net" Version="2.0.17" />
     <PackageVersion Include="MELT" Version="0.9.0" />
-    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.7" />
+    <PackageVersion Include="Microsoft.AspNetCore.Mvc.Testing" Version="8.0.8" />
     <PackageVersion Include="Microsoft.CodeAnalysis.BannedApiAnalyzers" Version="3.3.4" />
     <PackageVersion Include="Microsoft.Data.SQLite" Version="8.0.7" />
     <PackageVersion Include="Microsoft.Data.SqlClient" Version="5.2.1" />
