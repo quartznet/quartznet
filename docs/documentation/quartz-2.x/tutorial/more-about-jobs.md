@@ -52,7 +52,7 @@ public class HelloJob : IJob
 Notice that we give the scheduler a IJobDetail instance, and that it refers to the job to be executed by simply
 providing the job's class. Each (and every) time the scheduler executes the job, it creates a new instance of the
 class before calling its Execute(..) method. One of the ramifications of this behavior is the fact that jobs must
-have a no-arguement constructor. Another ramification is that it does not make sense to have data-fields defined
+have a no-argument constructor. Another ramification is that it does not make sense to have data-fields defined
 on the job class - as their values would not be preserved between job executions.
 
 You may now be wanting to ask "how can I provide properties/configuration for a Job instance?" and "how can I
@@ -178,7 +178,7 @@ You can create a single job class, and store many 'instance definitions' of it w
 For example, you can create a class that implements the IJob interface called "SalesReportJob".
 The job might be coded to expect parameters sent to it (via the JobDataMap) to specify the name of the sales person that the sales
 report should be based on. They may then create multiple definitions (JobDetails) of the job, such as "SalesReportForJoe"
-and "SalesReportForMike" which have "joe" and "mike" specified in the corresponding JobDataMaps as input to the respective jobs.
+and "SalesReportForMike" which have "Joe" and "Mike" specified in the corresponding JobDataMaps as input to the respective jobs.
 
 When a trigger fires, the JobDetail (instance definition) it is associated to is loaded,
 and the job class it refers to is instantiated via the JobFactory configured on the Scheduler.

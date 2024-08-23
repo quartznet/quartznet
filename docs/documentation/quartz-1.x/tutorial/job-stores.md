@@ -18,7 +18,7 @@ RAMJobStore is the simplest JobStore to use, it is also the most performant (in 
 RAMJobStore gets its name in the obvious way: it keeps all of its data in RAM. This is why it's lightning-fast,
 and also why it's so simple to configure. The drawback is that when your application ends (or crashes) all of
 the scheduling information is lost - this means RAMJobStore cannot honor the setting of "non-volatility" on jobs and triggers.
-For some applications this is acceptable - or even the desired behavior, but for other applications, this may be disasterous.
+For some applications this is acceptable - or even the desired behavior, but for other applications, this may be disastrous.
 
 To use RAMJobStore (and assuming you're using StdSchedulerFactory) you don't need to do anything special. Default configuration
 of Quartz.NET uses RAMJobStore as job store implementation.
@@ -81,7 +81,7 @@ In this case, we're specifying that Quartz should use the data source name "myDS
 
 One last thing that is needed for the configuration is to set data source connection string information and database provider. Connection
 string is the standard ADO.NET connection which is driver specific. Database provider is an abstraction of database drivers to create
-loose coupling betweeb database drivers and Quartz.
+loose coupling between database drivers and Quartz.
 
 **Setting Data Source's Connection String And Database Provider**
 

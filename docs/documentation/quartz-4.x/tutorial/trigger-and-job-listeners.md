@@ -5,7 +5,7 @@ title: 'Trigger and Job Listeners'
 
 # Trigger and Job Listeners
 
-Listeners are objects that you create to perform actions based on events occuring within the scheduler.
+Listeners are objects that you create to perform actions based on events occurring within the scheduler.
 As you can probably guess, TriggerListeners receive events related to triggers, and JobListeners receive events related to jobs.
 
 Trigger-related events include: trigger firings, trigger mis-firings (discussed in the "Triggers" section of this document),

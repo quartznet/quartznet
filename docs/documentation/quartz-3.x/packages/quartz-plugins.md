@@ -3,7 +3,7 @@
 title : Plugins
 ---
 
-[Quartz.Plugins](https://www.nuget.org/packages/Quartz.Plugins) provides some useful ready-mady plugins for your convenience.
+[Quartz.Plugins](https://www.nuget.org/packages/Quartz.Plugins) provides some useful ready-made plugins for your convenience.
 
 ## Installation
 
@@ -33,7 +33,7 @@ This plugin catches the event of the VM terminating (such as upon a CRTL-C) and 
 
 ### XMLSchedulingDataProcessorPlugin
 
-This plugin loads XML file(s) to add jobs and schedule them with triggers as the scheduler is initialized, and can optionally periodically scan thefile for changes.
+This plugin loads XML file(s) to add jobs and schedule them with triggers as the scheduler is initialized, and can optionally periodically scan the file for changes.
 
 ::: warning
 The periodically scanning of files for changes is not currently supported in a clustered environment.
