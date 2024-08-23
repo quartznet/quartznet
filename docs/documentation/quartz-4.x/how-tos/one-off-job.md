@@ -10,7 +10,7 @@ Misfire Mode: Smart
 
 ## Ahead of Time Job Registration
 
-If you have a static set of jobs, you can register them ahead of time using someting like this.
+If you have a static set of jobs, you can register them ahead of time using something like this.
 If the `durable` flag is `true`, then the job will stay dormant until its triggered.
 
 ```csharp

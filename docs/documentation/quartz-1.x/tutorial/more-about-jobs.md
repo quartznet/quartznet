@@ -54,7 +54,7 @@ Now consider the job class _DumbJob_ defined as such:
 Notice that we 'feed' the scheduler a JobDetail instance, and that it refers to the job to be executed by simply
 providing the job's class. Each (and every) time the scheduler executes the job, it creates a new instance of the
 class before calling its Execute(..) method. One of the ramifications of this behavior is the fact that jobs must
-have a no-arguement constructor. Another ramification is that it does not make sense to have data-members defined
+have a no-argument constructor. Another ramification is that it does not make sense to have data-members defined
 on the job class - as their values would be 'cleared' every time the job executes.
 
 You may now be wanting to ask "how can I provide properties/configuration for a Job instance?" and "how can I
@@ -64,7 +64,7 @@ which is part of the JobDetail object.
 ## JobDataMap
 
 The JobDataMap can be used to hold any number of (serializable) objects which you wish to have made available
-to the job instance when it executes. JobDataMap is an implementation of the IDictionary interface, and has some added convenience methods for storing and retreiving data of primitive types.
+to the job instance when it executes. JobDataMap is an implementation of the IDictionary interface, and has some added convenience methods for storing and retrieving data of primitive types.
 
 Here's some quick snippets of putting data into the JobDataMap prior to adding the job to the scheduler:
 

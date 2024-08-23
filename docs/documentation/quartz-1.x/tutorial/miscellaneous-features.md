@@ -7,7 +7,7 @@ title:  'Lesson 12: Miscellaneous Features of Quartz'
 
 Quartz provides an interface (ISchedulerPlugin) for plugging-in additional functionality.
 
-Plugins that ship with Quartz to provide various utililty capabilities can be found documented in the Quartz.Plugins namespace.
+Plugins that ship with Quartz to provide various utility capabilities can be found documented in the Quartz.Plugins namespace.
 They provide functionality such as auto-scheduling of jobs upon scheduler startup, logging a history of job and trigger events,
 and ensuring that the scheduler shuts down cleanly when the virtual machine exits.
 

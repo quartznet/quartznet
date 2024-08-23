@@ -13,7 +13,7 @@ If you wish to use a file other than these defaults, you must define the system 
 
 Alternatively, you can explicitly initialize the factory by calling one of the `Initialize(xx)` methods before calling `GetScheduler()` on the `StdSchedulerFactory`.
 
-Instances of the specified `IJobStore`, `IThreadPool`, and other SPI types will be created by name, and then any additional properties specified for them in the config file will be set on the instance by calling an equivalent property set method.
+Instances of the specified `IJobStore`, `IThreadPool`, and other SPI types will be created by name, and then any additional properties specified for them in the conFig file will be set on the instance by calling an equivalent property set method.
 For example if the properties file contains the property `quartz.jobStore.myProp = 10` then after the JobStore type has been instantiated, the setter of property `MyProp` will be called on it.
 Type conversion to primitive types (int, long, float, double, boolean, and string) are performed before calling the property’s setter method.
 

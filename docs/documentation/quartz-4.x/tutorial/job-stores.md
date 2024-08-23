@@ -23,7 +23,7 @@ but then you should only work with the Scheduler interface in your code.
 `RAMJobStore` gets its name in the obvious way: it keeps all of its data in RAM. This is why it's lightning-fast,
 and also why it's so simple to configure. The drawback is that when your application ends (or crashes) all of
 the scheduling information is lost - this means RAMJobStore cannot honor the setting of "non-volatility" on jobs and triggers.
-For some applications this is acceptable - or even the desired behavior, but for other applications, this may be disasterous.
+For some applications this is acceptable - or even the desired behavior, but for other applications, this may be disastrous.
 
 **Configuring Quartz to use RAMJobStore**
 

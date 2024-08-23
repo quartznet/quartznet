@@ -33,7 +33,7 @@ Check that you reference the required NuGet packages and that your configuration
 ### Migrating HolidayCalendar binary format
 
 If you have `HolidayCalendar`s stored in database in binary format (just stored with AdoJobStore). You need to first load them with Quartz 2.4 or later 2.x version and then re-store them.
-This will make the serialization use format that is not dependant on precense of C5 library.
+This will make the serialization use format that is not dependent on presence of C5 library.
 
 ### Thread pool changes
 

@@ -5,7 +5,7 @@ title: OpenTracing Integration
 
 [Quartz.OpenTracing](https://www.nuget.org/packages/Quartz.OpenTracing)
 provides integration with [OpenTracing](https://opentracing.io/). You may also consider
-[Quartz.OpenTelemetry.Instrumentation](opentelemetry-integration.md) package which will supercede OpenTracing and OpenCensus
+[Quartz.OpenTelemetry.Instrumentation](opentelemetry-integration.md) package which will supersede OpenTracing and OpenCensus
 when OpenTelemetry project reaches maturity.
 
 ::: tip

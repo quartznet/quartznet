@@ -65,7 +65,7 @@ There are many reasons! Here are a few:
 * Timers have no persistence mechanism.
 * Timers have inflexible scheduling (only able to set start-time & repeat interval, nothing based on dates, time of day, etc.
 * Timers don't utilize a thread-pool (one thread per timer)
-* Timers have no real management schemes - you'd have to write your own mechanism for being able to remember, organize and retreive your tasks by name, etc.
+* Timers have no real management schemes - you'd have to write your own mechanism for being able to remember, organize and retrieve your tasks by name, etc.
 
 ...of course to some simple applications these features may not be important,
 in which case it may then be the right decision not to use Quartz.NET.
@@ -88,7 +88,7 @@ RAMJobStore has a more finite limit on how many Jobs & Triggers can be stored,
 as you're sure to have less RAM than hard-drive space for a database.
 You may also look at the FAQ "How do I improve the performance of AdoJobStore?"
 
-So, the limitting factor of the number of Triggers and Jobs Quartz can "store"
+So, the limiting factor of the number of Triggers and Jobs Quartz can "store"
 and monitor is really the amount of storage space available to the JobStore
 (either the amount of RAM or the amount of disk space).
 
@@ -106,7 +106,7 @@ listeners, unless you really need to. Also be mindful that many
 plug-ins (such as the "history" plugin) are actually listeners.
 
 The actual number of jobs that can be running at any moment in time is
-limitted by the size of the thread pool. If there are five threads in
+limited by the size of the thread pool. If there are five threads in
 the pool, no more than five jobs can run at a time. Be careful of making a
 lot of threads though, as the VM, Operating System, and CPU all have a hard
 time juggling lots of threads, and performance degrades just because of all
@@ -223,15 +223,15 @@ your SimpleTrigger is firing say every 12 hours, before daylight savings
 switches it may be firing at what appears to be 3:00 am and 3:00 pm,
 but after daylight savings 4:00 am and 4:00 pm. This is not a bug
 
-* the trigger has kept firing exacly every N milliseconds, it just that the
+* the trigger has kept firing exactly every N milliseconds, it just that the
 "name" of that time that humans impose on that moment has changed.
 
 CronTrigger allows you to schedule jobs to fire at certain moments with
-respect to a "gregorian calendar". Hence, if you create a trigger to fire
+respect to a "Gregorian calendar". Hence, if you create a trigger to fire
 every day at 10:00 am, before and after daylight savings time switches it
 will continue to do so. However, depending on whether it was the Spring or
 Autumn daylight savings event, for that particular Sunday, the actual time
-interval between the firing of the trigger on Sundary morning at 10:00 am
+interval between the firing of the trigger on Sunday morning at 10:00 am
 since its firing on Saturday morning at 10:00 am will not be 24 hours,
 but will instead be 23 or 25 hours respectively.
 
@@ -247,16 +247,16 @@ day at 2:15 am, then on the day of the beginning of daylight savings time
 the trigger will be skipped, since, 2:15 am never occurs that day. If you
 have a CronTrigger that fires every 15 minutes of every hour of every day,
 then on the day daylight savings time ends you will have an hour of time
-for which no triggerings occur, because when 2:00 am arrives, it will become
+for which no triggers will occur, because when 2:00 am arrives, it will become
 1:00 am again, however all of the firings during the one o'clock hour have
 already occurred, and the trigger's next fire time was set to 2:00 am
 
-* hence for the next hour no triggerings will occur.
+* hence for the next hour no triggering will occur.
 
 In summary, all of this makes perfect sense, and should be easy to remember
 if you keep these two rules in mind:
 
-* SimpleTrigger ALWAYS fires exacly every N seconds,  with no relation to the time of day.
+* SimpleTrigger ALWAYS fires exactly every N seconds,  with no relation to the time of day.
 * CronTrigger ALWAYS fires at a given time of day and then computes its  next time to fire. If that time does not occur on a given day, the  trigger will be skipped. If the time occurs twice in a given day, it only fires once, because after firing on that time the first time, it computes the next time of day to fire on.
 
 # Questions About AdoJobStore
@@ -284,4 +284,4 @@ You should also always prefer the latest version of the library. Quartz.NET 2.0 
 
 By default IIS recycles and stops app pools from time to time. This means that even if you have Application_Start event to start Quartz when web app is being first accessed, the scheduler might get disposed later on due to site inactivity.
 
-If you have a IIS 8 available, you can configure your site to be preloaded and kept running. See [this blog post](https://blogs.msdn.microsoft.com/vijaysk/2012/10/11/iis-8-whats-new-website-settings/) for details.
+If you have a IIS 8 available, you can configure your site to be pre-loaded and kept running. See [this blog post](https://blogs.msdn.microsoft.com/vijaysk/2012/10/11/iis-8-whats-new-website-settings/) for details.

@@ -5,7 +5,7 @@ title: 'Configuration, Resource Usage and SchedulerFactory'
 
 # Configuration, Resource Usage and SchedulerFactory
 
-Quartz is architected in modular way, and therefore to get it running, several components need to be "snapped" together.
+Quartz is designed in modular way, and therefore to get it running, several components need to be "snapped" together.
 Fortunately, some helpers exist for making this happen.
 
 The major components that need to be configured before Quartz can do its work are:

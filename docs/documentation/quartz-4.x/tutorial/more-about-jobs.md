@@ -178,7 +178,7 @@ You can create a single job class, and store many 'instance definitions' of it w
 For example, you can create a class that implements the `IJob` interface called "SalesReportJob".
 The job might be coded to expect parameters sent to it (via the JobDataMap) to specify the name of the sales person that the sales
 report should be based on. They may then create multiple definitions (JobDetails) of the job, such as "SalesReportForJoe"
-and "SalesReportForMike" which have "joe" and "mike" specified in the corresponding JobDataMaps as input to the respective jobs.
+and "SalesReportForMike" which have "Joe" and "Mike" specified in the corresponding JobDataMaps as input to the respective jobs.
 
 When a trigger fires, the JobDetail (instance definition) it is associated to is loaded,
 and the job class it refers to is instantiated via the JobFactory configured on the Scheduler.

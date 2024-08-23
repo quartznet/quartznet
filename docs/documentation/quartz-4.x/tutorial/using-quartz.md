@@ -93,7 +93,7 @@ As you can see, working with Quartz.NET is rather simple. In [Lesson 2](jobs-and
 
 ## Traditional Program.cs
 
-If you are working in a pre-minimal api project, you can use the same old `Program.cs` structure
+If you are working in a pre-minimal API project, you can use the same old `Program.cs` structure
 as well.
 
 ```csharp
