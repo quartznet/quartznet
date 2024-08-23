@@ -110,8 +110,8 @@ Currently following database providers are supported:
 **You can and should use latest version of driver if newer is available, just create an assembly binding redirect**
 
 If your Scheduler is very busy (i.e. nearly always executing the same number of jobs as the size of the thread pool, then you should
-probably set the number of connections in the data source to be the about the size of the thread pool + 1.This is commonly configured
-int the ADO.NET connection string - see your driver implementation for details.
+probably set the number of connections in the data source to be the about the size of the thread pool + 1. This is commonly configured
+in the ADO.NET connection string - see your driver implementation for details.
 
 The "quartz.jobStore.useProperties" config parameter can be set to "true" (defaults to false) in order to instruct AdoJobStore that all values in JobDataMaps will be strings,
 and therefore can be stored as name-value pairs, rather than storing more complex objects in their serialized form in the BLOB column. This is much safer in the long term,
