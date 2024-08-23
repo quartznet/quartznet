@@ -52,7 +52,7 @@ public class HelloJob : IJob
 Notice that we give the scheduler a `IJobDetail` instance, and that it refers to the job to be executed by simply
 providing the job's class. Each (and every) time the scheduler executes the job, it creates a new instance of the
 class before calling its `Execute(..)` method. One of the ramifications of this behavior is the fact that jobs must
-have a no-arguement constructor. Another ramification is that it does not make sense to have data-fields defined
+have a no-argument constructor. Another ramification is that it does not make sense to have data-fields defined
 on the job class - as their values would not be preserved between job executions.
 
 :::tip Dependency Injection
