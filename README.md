@@ -25,8 +25,8 @@ Quartz.NET supports .NET Core/netstandard 2.0 and .NET Framework 4.6.2 and later
 
 ## License
 
-Licensed under the Apache License, Version 2.0 (the "License"); you may not 
-use this file except in compliance with the License. You may obtain a copy 
+Licensed under the Apache License, Version 2.0 (the "License"); you may not
+use this file except in compliance with the License. You may obtain a copy
 of the License [here](http://www.apache.org/licenses/LICENSE-2.0).
 
-For API documentation, please refer to [Quartz.NET site](http://quartznet.sourceforge.net/apidoc/3.0/html/).
+For API documentation, please refer to [Quartz.NET site](https://docs.quartz-scheduler.net/apidoc/3.0/html).
