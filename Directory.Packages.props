@@ -3,7 +3,7 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
   </PropertyGroup>
   <ItemGroup>
-    <PackageVersion Include="AspNetCore.HealthChecks.UI" Version="8.0.1" />
+    <PackageVersion Include="AspNetCore.HealthChecks.UI" Version="8.0.2" />
     <PackageVersion Include="AspNetCore.HealthChecks.UI.Client" Version="8.0.1" />
     <PackageVersion Include="AspNetCore.HealthChecks.UI.InMemory.Storage" Version="8.0.1" />
     <PackageVersion Include="BenchmarkDotNet" Version="0.14.0" />
