@@ -227,6 +227,8 @@ public abstract class AbstractTrigger : IOperableTrigger, IEquatable<AbstractTri
 
     public abstract void SetNextFireTimeUtc(DateTimeOffset? nextFireTime);
 
+    public abstract void SetInitialNextFireTimeUtc(DateTimeOffset? previousFireTime);
+
     public abstract void SetPreviousFireTimeUtc(DateTimeOffset? previousFireTime);
 
     /// <summary>

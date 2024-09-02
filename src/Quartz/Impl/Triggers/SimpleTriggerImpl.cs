@@ -39,6 +39,7 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     public const int RepeatIndefinitely = -1;
 
     private DateTimeOffset? nextFireTimeUtc;
+    private DateTimeOffset? initialNextFireTimeUtc;
     private DateTimeOffset? previousFireTimeUtc;
 
     private int repeatCount;
@@ -640,6 +641,11 @@ public class SimpleTriggerImpl : AbstractTrigger, ISimpleTrigger
     public override void SetNextFireTimeUtc(DateTimeOffset? nextFireTime)
     {
         nextFireTimeUtc = nextFireTime;
+    }
+
+    public override void SetInitialNextFireTimeUtc(DateTimeOffset? fireTime)
+    {
+        initialNextFireTimeUtc = fireTime;
     }
 
     public override void SetPreviousFireTimeUtc(DateTimeOffset? previousFireTime)

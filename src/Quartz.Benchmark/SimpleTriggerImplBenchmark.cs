@@ -326,6 +326,7 @@ public class SimpleTriggerImplBenchmark
         public const int RepeatIndefinitely = -1;
 
         private DateTimeOffset? nextFireTimeUtc; // Making a public property which called GetNextFireTime/SetNextFireTime would make the json attribute unnecessary
+        private DateTimeOffset? initialNextFireTimeUtc; // Making a public property which called GetNextFireTime/SetNextFireTime would make the json attribute unnecessary
         private DateTimeOffset? previousFireTimeUtc; // Making a public property which called GetPreviousFireTime/SetPreviousFireTime would make the json attribute unnecessary
 
         private int repeatCount;
@@ -887,6 +888,11 @@ public class SimpleTriggerImplBenchmark
         public override void SetNextFireTimeUtc(DateTimeOffset? nextFireTime)
         {
             nextFireTimeUtc = nextFireTime;
+        }
+
+        public override void SetInitialNextFireTimeUtc(DateTimeOffset? value)
+        {
+            initialNextFireTimeUtc = value;
         }
 
         public override void SetPreviousFireTimeUtc(DateTimeOffset? previousFireTime)

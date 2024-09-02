@@ -710,7 +710,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                 if (await JobExists(conn, trigger.JobKey, cancellationToken).ConfigureAwait(false))
                 {
                     trigger.ComputeFirstFireTimeUtc(null);
-                    await StoreTrigger(conn, trigger, null, false, StateWaiting, false, true, cancellationToken).ConfigureAwait(false);
+                    await StoreTrigger(conn, trigger, null, false, StateWaiting, false, true, true, cancellationToken).ConfigureAwait(false);
                 }
             }
             Logger.LogInformation("Recovery complete.");
@@ -860,12 +860,12 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
         if (!trig.GetNextFireTimeUtc().HasValue)
         {
-            await StoreTrigger(conn, trig, null, true, StateComplete, forceState, recovering).ConfigureAwait(false);
+            await StoreTrigger(conn, trig, null, true, StateComplete, forceState, recovering, false).ConfigureAwait(false);
             await schedSignaler.NotifySchedulerListenersFinalized(trig).ConfigureAwait(false);
         }
         else
         {
-            await StoreTrigger(conn, trig, null, true, newStateIfNotComplete, forceState, recovering).ConfigureAwait(false);
+            await StoreTrigger(conn, trig, null, true, newStateIfNotComplete, forceState, recovering, false).ConfigureAwait(false);
         }
     }
 
@@ -883,7 +883,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         await ExecuteInLock<object?>(LockOnInsert ? LockTriggerAccess : null, async conn =>
         {
             await StoreJob(conn, job, false, cancellationToken).ConfigureAwait(false);
-            await StoreTrigger(conn, trigger, job, false, StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
+            await StoreTrigger(conn, trigger, job, false, StateWaiting, false, false, true, cancellationToken).ConfigureAwait(false);
             return null;
         }, cancellationToken).ConfigureAwait(false);
     }
@@ -1006,7 +1006,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
     {
         await ExecuteInLock(
             LockOnInsert || replaceExisting ? LockTriggerAccess : null,
-            conn => StoreTrigger(conn, trigger, null, replaceExisting, StateWaiting, false, false, cancellationToken),
+            conn => StoreTrigger(conn, trigger, null, replaceExisting, StateWaiting, false, false, true, cancellationToken),
             cancellationToken).ConfigureAwait(false);
     }
 
@@ -1021,6 +1021,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
         string state,
         bool forceState,
         bool recovering,
+        bool updateInitialNextFireTime,
         CancellationToken cancellationToken = default)
     {
         bool existingTrigger = await TriggerExists(conn, newTrigger.Key, cancellationToken).ConfigureAwait(false);
@@ -1066,7 +1067,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             }
             if (existingTrigger)
             {
-                await Delegate.UpdateTrigger(conn, newTrigger, state, job, cancellationToken).ConfigureAwait(false);
+                await Delegate.UpdateTrigger(conn, newTrigger, state, job, updateInitialNextFireTime, cancellationToken).ConfigureAwait(false);
             }
             else
             {
@@ -1195,7 +1196,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                     await StoreJob(conn, job, replace, cancellationToken).ConfigureAwait(false);
                     foreach (var trigger in triggers)
                     {
-                        await StoreTrigger(conn, (IOperableTrigger) trigger, job, replace, StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
+                        await StoreTrigger(conn, (IOperableTrigger) trigger, job, replace, StateWaiting, false, false, true, cancellationToken).ConfigureAwait(false);
                     }
                 }
             }, cancellationToken).ConfigureAwait(false);
@@ -1399,7 +1400,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
 
             bool removedTrigger = await DeleteTriggerAndChildren(conn, triggerKey, cancellationToken).ConfigureAwait(false);
 
-            await StoreTrigger(conn, newTrigger, job, false, StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
+            await StoreTrigger(conn, newTrigger, job, false, StateWaiting, false, false, true, cancellationToken).ConfigureAwait(false);
 
             return removedTrigger;
         }
@@ -1608,7 +1609,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                     foreach (IOperableTrigger trigger in triggers)
                     {
                         trigger.UpdateWithNewCalendar(calendar, MisfireThreshold);
-                        await StoreTrigger(conn, trigger, null, true, StateWaiting, false, false, cancellationToken).ConfigureAwait(false);
+                        await StoreTrigger(conn, trigger, null, true, StateWaiting, false, false, true, cancellationToken).ConfigureAwait(false);
                     }
                 }
             }
@@ -2952,7 +2953,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
             force = true;
         }
 
-        await StoreTrigger(conn, trigger, job, true, state2, force, false, cancellationToken).ConfigureAwait(false);
+        await StoreTrigger(conn, trigger, job, true, state2, force, false, true, cancellationToken).ConfigureAwait(false);
 
         job.JobDataMap.ClearDirtyFlag();
 
@@ -3424,7 +3425,7 @@ public abstract class JobStoreSupport : AdoConstants, IJobStore
                                 rcvryTrig.JobDataMap = jd;
 
                                 rcvryTrig.ComputeFirstFireTimeUtc(null);
-                                await StoreTrigger(conn, rcvryTrig, null, false, StateWaiting, false, true, cancellationToken).ConfigureAwait(false);
+                                await StoreTrigger(conn, rcvryTrig, null, false, StateWaiting, false, true, true, cancellationToken).ConfigureAwait(false);
                                 recoveredCount++;
                             }
                             else

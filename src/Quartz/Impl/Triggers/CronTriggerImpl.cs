@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -182,6 +182,7 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
     private DateTimeOffset startTimeUtc = DateTimeOffset.MinValue;
     private DateTimeOffset? endTimeUtc;
     private DateTimeOffset? nextFireTimeUtc;
+    private DateTimeOffset? initialNextFireTimeUtc;
     private DateTimeOffset? previousFireTimeUtc;
 
     [NonSerialized] private TimeZoneInfo? timeZone;
@@ -553,6 +554,11 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
         nextFireTimeUtc = fireTime;
     }
 
+    public override void SetInitialNextFireTimeUtc(DateTimeOffset? fireTime)
+    {
+        initialNextFireTimeUtc = fireTime;
+    }
+
     /// <summary>
     /// Sets the previous fire time.
     /// <para>
@@ -922,6 +928,8 @@ public class CronTriggerImpl : AbstractTrigger, ICronTrigger
         {
             nextFireTimeUtc = GetFireTimeAfter(nextFireTimeUtc);
         }
+
+        initialNextFireTimeUtc = nextFireTimeUtc;
 
         return nextFireTimeUtc;
     }

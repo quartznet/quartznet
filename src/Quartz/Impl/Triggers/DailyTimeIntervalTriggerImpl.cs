@@ -1,4 +1,4 @@
-﻿#region License
+#region License
 
 /*
  * All content copyright Marko Lahma, unless otherwise indicated. All rights reserved.
@@ -83,6 +83,7 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
     private DateTimeOffset startTimeUtc;
     private DateTimeOffset? endTimeUtc;
     private DateTimeOffset? nextFireTimeUtc;
+    private DateTimeOffset? initialNextFireTimeUtc;
     private DateTimeOffset? previousFireTimeUtc;
     private int repeatInterval = 1;
     private IntervalUnit repeatIntervalUnit = IntervalUnit.Minute;
@@ -612,6 +613,11 @@ public sealed class DailyTimeIntervalTriggerImpl : AbstractTrigger, IDailyTimeIn
     public override void SetNextFireTimeUtc(DateTimeOffset? value)
     {
         nextFireTimeUtc = value;
+    }
+
+    public override void SetInitialNextFireTimeUtc(DateTimeOffset? fireTime)
+    {
+        initialNextFireTimeUtc = fireTime;
     }
 
     /// <summary>

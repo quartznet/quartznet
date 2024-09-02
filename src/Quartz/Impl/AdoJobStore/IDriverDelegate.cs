@@ -297,6 +297,7 @@ public interface IDriverDelegate
     /// <param name="trigger">The trigger.</param>
     /// <param name="state">The state.</param>
     /// <param name="jobDetail">The job detail.</param>
+    /// <param name="updateInitialNextFireTime">Determine if initial next fire time should be updated or no.</param>
     /// <param name="cancellationToken">The cancellation instruction.</param>
     /// <returns>the number of rows updated</returns>
     ValueTask<int> UpdateTrigger(
@@ -304,6 +305,7 @@ public interface IDriverDelegate
         IOperableTrigger trigger,
         string state,
         IJobDetail jobDetail,
+        bool updateInitialNextFireTime = true,
         CancellationToken cancellationToken = default);
 
     /// <summary>

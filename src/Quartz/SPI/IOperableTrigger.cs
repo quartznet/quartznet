@@ -107,5 +107,7 @@ public interface IOperableTrigger : IMutableTrigger
 
     void SetNextFireTimeUtc(DateTimeOffset? value);
 
+    void SetInitialNextFireTimeUtc(DateTimeOffset? value);
+
     void SetPreviousFireTimeUtc(DateTimeOffset? value);
 }

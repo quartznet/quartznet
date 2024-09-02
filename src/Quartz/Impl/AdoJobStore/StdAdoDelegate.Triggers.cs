@@ -275,7 +275,9 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "triggerJobGroup", trigger.JobKey.Group);
         AddCommandParameter(cmd, "triggerDescription", trigger.Description);
         AddCommandParameter(cmd, "triggerNextFireTime", GetDbDateTimeValue(trigger.GetNextFireTimeUtc()));
+        AddCommandParameter(cmd, "triggerInitialNextFireTime", GetDbDateTimeValue(trigger.GetNextFireTimeUtc()));
         AddCommandParameter(cmd, "triggerPreviousFireTime", GetDbDateTimeValue(trigger.GetPreviousFireTimeUtc()));
+
         AddCommandParameter(cmd, "triggerState", state);
 
         var tDel = FindTriggerPersistenceDelegate(trigger);
@@ -331,6 +333,7 @@ public partial class StdAdoDelegate
         IOperableTrigger trigger,
         string state,
         IJobDetail jobDetail,
+        bool updateInitialNextFireTime = true,
         CancellationToken cancellationToken = default)
     {
         var existingType = await SelectTriggerType(conn, trigger.Key, cancellationToken).ConfigureAwait(false);
@@ -351,6 +354,7 @@ public partial class StdAdoDelegate
         AddCommandParameter(cmd, "triggerDescription", trigger.Description);
         AddCommandParameter(cmd, "triggerNextFireTime", GetDbDateTimeValue(trigger.GetNextFireTimeUtc()));
         AddCommandParameter(cmd, "triggerPreviousFireTime", GetDbDateTimeValue(trigger.GetPreviousFireTimeUtc()));
+        AddCommandParameter(cmd, "trigerInitialNextFireTime", updateInitialNextFireTime ? GetDbDateTimeValue(trigger.GetNextFireTimeUtc()) : DBNull.Value);
 
         AddCommandParameter(cmd, "triggerState", state);
 
@@ -651,6 +655,7 @@ public partial class StdAdoDelegate
         IDictionary? map;
 
         DateTimeOffset? nextFireTimeUtc;
+        DateTimeOffset? initialNextFireTimeUtc;
         DateTimeOffset? previousFireTimeUtc;
         DateTimeOffset startTimeUtc;
         DateTimeOffset? endTimeUtc;
@@ -682,6 +687,7 @@ public partial class StdAdoDelegate
                 map = await ReadMapFromReader(rs, 11).ConfigureAwait(false);
 
                 nextFireTimeUtc = GetDateTimeFromDbValue(rs[ColumnNextFireTime]);
+                initialNextFireTimeUtc = GetDateTimeFromDbValue(rs[ColumnInitialNextFireTime]);
                 previousFireTimeUtc = GetDateTimeFromDbValue(rs[ColumnPreviousFireTime]);
                 startTimeUtc = GetDateTimeFromDbValue(rs[ColumnStartTime]) ?? DateTimeOffset.MinValue;
                 endTimeUtc = GetDateTimeFromDbValue(rs[ColumnEndTime]);
@@ -760,6 +766,7 @@ public partial class StdAdoDelegate
 
             trigger.MisfireInstruction = misFireInstr;
             trigger.SetNextFireTimeUtc(nextFireTimeUtc);
+            trigger.SetInitialNextFireTimeUtc(initialNextFireTimeUtc);
             trigger.SetPreviousFireTimeUtc(previousFireTimeUtc);
 
             SetTriggerStateProperties(trigger, triggerProps);

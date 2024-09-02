@@ -59,6 +59,7 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
     private DateTimeOffset startTime;
     private DateTimeOffset? endTime;
     private DateTimeOffset? nextFireTimeUtc;
+    private DateTimeOffset? initialNextFireTimeUtc;
     private DateTimeOffset? previousFireTimeUtc;
     private int repeatInterval;
     internal TimeZoneInfo? timeZone;
@@ -567,6 +568,11 @@ public sealed class CalendarIntervalTriggerImpl : AbstractTrigger, ICalendarInte
     public override void SetNextFireTimeUtc(DateTimeOffset? value)
     {
         nextFireTimeUtc = value;
+    }
+
+    public override void SetInitialNextFireTimeUtc(DateTimeOffset? fireTime)
+    {
+        initialNextFireTimeUtc = fireTime;
     }
 
     public override void SetPreviousFireTimeUtc(DateTimeOffset? previousFireTimeUtc)

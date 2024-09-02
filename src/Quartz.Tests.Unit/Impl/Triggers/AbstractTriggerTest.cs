@@ -94,6 +94,11 @@ public class AbstractTriggerTest
             throw new NotImplementedException();
         }
 
+        public override void SetInitialNextFireTimeUtc(DateTimeOffset? value)
+        {
+            throw new NotImplementedException();
+        }
+
         public override void SetPreviousFireTimeUtc(DateTimeOffset? previousFireTime)
         {
             throw new NotImplementedException();
