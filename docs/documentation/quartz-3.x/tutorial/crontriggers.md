@@ -95,7 +95,7 @@ Here are a few more examples of expressions and their meanings - you can find ev
 Note that the trigger will NOT fire at 10:00 am, just at 8:00, 8:30, 9:00 and 9:30**
 
 ```text
-    "0 0/30 8-9 5,20 * ?"
+    "0 0/30 8-10 5,20 * ?"
 ```
 
 Note that some scheduling requirements are too complicated to express with a single trigger - such as "every 5 minutes between 9:00 am and 10:00 am,
