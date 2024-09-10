@@ -274,22 +274,22 @@ partial class Build : NukeBuild
             var zipTempDirectory = RootDirectory / "temp" / "package";
             zipTempDirectory.CreateOrCleanDirectory();
 
-            SourceDirectory.CopyToDirectory(
+            SourceDirectory.Copy(
                 zipTempDirectory / "src",
                 excludeDirectory: dir => dir.Name is "Quartz.Web" or "obj" or "bin",
                 excludeFile: file => file.Name.EndsWith(".suo") || file.Name.EndsWith(".user")
             );
 
-            (RootDirectory / "build").CopyToDirectory(zipTempDirectory / "build", excludeDirectory: dir => dir.Name is "obj" or "bin");
+            (RootDirectory / "build").Copy(zipTempDirectory / "build", excludeDirectory: dir => dir.Name is "obj" or "bin");
 
-            (RootDirectory / "database").CopyToDirectory(zipTempDirectory / "database");
+            (RootDirectory / "database").Copy(zipTempDirectory / "database");
 
             var binaries = Solution.Projects
                 .Where(x => x.GetProperty("IsPackable") != "false" || x.Name.Contains("Example") || x.Name == "Quartz.Server");
 
             foreach (var project in binaries)
             {
-                (SourceDirectory / project.Name / "bin" / Configuration).CopyToDirectory(zipTempDirectory / "bin" / Configuration / project.Name);
+                (SourceDirectory / project.Name / "bin" / Configuration).Copy(zipTempDirectory / "bin" / Configuration / project.Name);
             }
             
             var rootFilesToCopy = new []{"README.md","Quartz.sln","quartz.net.snk","license.txt", "changelog.md","build.cmd","build.sh","build.ps1"};
