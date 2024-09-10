@@ -34,6 +34,7 @@ using Nuke.Common.CI.GitHubActions;
     OnPushIncludePaths = ["**/*"],
     OnPushExcludePaths = ["docs/**/*", "package.json", "readme.md"],
     PublishArtifacts = true,
+    PublishCondition = "runner.os == 'Windows'",
     InvokedTargets = [nameof(Compile), nameof(UnitTest), nameof(IntegrationTest), nameof(Pack), nameof(Publish)],
     ImportSecrets = ["NUGET_API_KEY", "FEEDZ_API_KEY"],
     CacheKeyFiles = [])
