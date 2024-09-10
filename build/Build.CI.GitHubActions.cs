@@ -12,7 +12,8 @@ using Nuke.Components;
     PublishArtifacts = false,
     InvokedTargets = [nameof(ICompile.Compile), nameof(UnitTest), nameof(PublishAot)],
     CacheKeyFiles = [],
-    TimeoutMinutes = 10
+    TimeoutMinutes = 10,
+    ConcurrencyCancelInProgress = true
 )]
 [GitHubActions(
     "pr-tests-integration-postgres",
@@ -23,7 +24,8 @@ using Nuke.Components;
     PublishArtifacts = false,
     InvokedTargets = [nameof(ICompile.Compile), nameof(IntegrationTest)],
     CacheKeyFiles = [],
-    TimeoutMinutes = 10
+    TimeoutMinutes = 10,
+    ConcurrencyCancelInProgress = true
 )]
 [GitHubActions(
     "build",

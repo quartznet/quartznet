@@ -36,14 +36,14 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: 'Run: Compile, UnitTest, IntegrationTest, Pack, Publish'
         run: ./build.cmd Compile UnitTest IntegrationTest Pack Publish
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
           FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
       - name: 'Publish: packages'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ runner.os == 'Windows' }}
         with:
           name: packages
@@ -53,14 +53,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: 'Run: Compile, UnitTest, IntegrationTest, Pack, Publish'
         run: ./build.cmd Compile UnitTest IntegrationTest Pack Publish
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
           FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
       - name: 'Publish: packages'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ runner.os == 'Windows' }}
         with:
           name: packages
@@ -70,14 +70,14 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: 'Run: Compile, UnitTest, IntegrationTest, Pack, Publish'
         run: ./build.cmd Compile UnitTest IntegrationTest Pack Publish
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
           FEEDZ_API_KEY: ${{ secrets.FEEDZ_API_KEY }}
       - name: 'Publish: packages'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: ${{ runner.os == 'Windows' }}
         with:
           name: packages

@@ -28,13 +28,17 @@ on:
       - '!package-lock.json'
       - '!readme.md'
 
+concurrency:
+  group: ${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   windows-latest:
     name: windows-latest
     runs-on: windows-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: 'Run: Compile, UnitTest, PublishAot'
         run: ./build.cmd Compile UnitTest PublishAot
   ubuntu-latest:
@@ -42,7 +46,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: 'Run: Compile, UnitTest, PublishAot'
         run: ./build.cmd Compile UnitTest PublishAot
   macos-latest:
@@ -50,6 +54,6 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: 'Run: Compile, UnitTest, PublishAot'
         run: ./build.cmd Compile UnitTest PublishAot
