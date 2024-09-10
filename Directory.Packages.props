@@ -22,7 +22,7 @@
     <PackageVersion Include="Microsoft.Extensions.Http" Version="8.0.0" />
     <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="8.0.0" />
     <PackageVersion Include="Microsoft.Extensions.TimeProvider.Testing" Version="8.9.1" />
-    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.11.0" />
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
     <PackageVersion Include="MySqlConnector" Version="2.3.7" />
     <PackageVersion Include="NLog.Extensions.Logging" Version="5.3.12" />
     <PackageVersion Include="NSwag.AspNetCore" Version="14.1.0" />
