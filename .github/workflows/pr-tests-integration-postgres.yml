@@ -28,12 +28,16 @@ on:
       - '!package-lock.json'
       - '!readme.md'
 
+concurrency:
+  group: ${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
 jobs:
   ubuntu-latest:
     name: ubuntu-latest
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: 'Run: Compile, IntegrationTest'
         run: ./build.cmd Compile IntegrationTest

@@ -19,7 +19,6 @@ using Nuke.Components;
 
 using Serilog;
 
-using static Nuke.Common.IO.FileSystemTasks;
 using static Nuke.Common.Tools.DotNet.DotNetTasks;
 
 [ShutdownDotNetAfterServerBuild]
@@ -203,25 +202,22 @@ partial class Build : NukeBuild, ICompile, IPack
             var zipTempDirectory = RootDirectory / "temp" / "package";
             zipTempDirectory.CreateOrCleanDirectory();
 
-            CopyDirectoryRecursively(
-                source: SourceDirectory,
+            SourceDirectory.CopyToDirectory(
                 target: zipTempDirectory / "src",
                 excludeDirectory: dir => dir.Name is "Quartz.Web" or "obj" or "bin",
-                excludeFile: file => file.Name.EndsWith(".suo") || file.Name.EndsWith(".user"));
+                excludeFile: file => file.Name.EndsWith(".suo") || file.Name.EndsWith(".user")
+            );
 
-            CopyDirectoryRecursively(
-                source: RootDirectory / "build",
-                target: zipTempDirectory / "build",
-                excludeDirectory: dir => dir.Name is "obj" or "bin");
+            (RootDirectory / "build").CopyToDirectory(zipTempDirectory / "build", excludeDirectory: dir => dir.Name is "obj" or "bin");
 
-            CopyDirectoryRecursively(source: RootDirectory / "database", target: zipTempDirectory / "database");
+            (RootDirectory / "database").CopyToDirectory(zipTempDirectory / "database");
 
             var binaries = solution.Projects
                 .Where(x => x.GetProperty("IsPackable") != "false" || x.Name.Contains("Example") || x.Name == "Quartz.Server");
 
             foreach (var project in binaries)
             {
-                CopyDirectoryRecursively(source: ArtifactsDirectory / "bin" / project.Name, target: zipTempDirectory / "bin" / project.Name);
+                (ArtifactsDirectory / "bin" / project.Name).CopyToDirectory(target: zipTempDirectory / "bin" / project.Name);
             }
 
             string[] rootFilesToCopy = [
@@ -238,7 +234,7 @@ partial class Build : NukeBuild, ICompile, IPack
             ];
             foreach (var file in rootFilesToCopy)
             {
-                CopyFileToDirectory(RootDirectory / file, zipTempDirectory);
+                (RootDirectory / file).CopyToDirectory(zipTempDirectory);
             }
 
             var props = File.ReadAllText("Directory.Build.props");
