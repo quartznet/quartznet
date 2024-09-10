@@ -56,7 +56,7 @@ public partial class Build
                 File.WriteAllText(file, contents);
             }
 
-            FileSystemTasks.CopyFile(docDirectory / "html-redirect.php", docsDirectory / Version / "html" / "index.php", FileExistsPolicy.Overwrite);
+            (docDirectory / "html-redirect.php").Copy(docsDirectory / Version / "html" / "index.php", ExistsPolicy.FileOverwrite);
 
             docsDirectory.ZipTo(ArtifactsDirectory / $"apidoc-{Version}.zip", fileMode: FileMode.Create);
         });
