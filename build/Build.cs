@@ -19,7 +19,6 @@ using Nuke.Common.Utilities.Collections;
 
 using Serilog;
 
-using static Nuke.Common.IO.FileSystemTasks;
 using static Nuke.Common.Tools.DotNet.DotNetTasks;
 using static Nuke.Common.Tools.Npm.NpmTasks;
 
@@ -146,7 +145,7 @@ partial class Build : NukeBuild
                 .EnableNoBuild()
                 .SetConfiguration(Configuration)
                 .SetFramework(framework)
-                .SetLoggers(GitHubActions.Instance is not null ? new [] { "GitHubActions" }  : Array.Empty<string>())
+                .SetLoggers(GitHubActions.Instance is not null ? ["GitHubActions"] : [])
                 .CombineWith(testProjects, (_, testProject) => _
                     .SetProjectFile(Solution.GetAllProjects(testProject).First())
                 )
@@ -275,31 +274,28 @@ partial class Build : NukeBuild
             var zipTempDirectory = RootDirectory / "temp" / "package";
             zipTempDirectory.CreateOrCleanDirectory();
 
-            CopyDirectoryRecursively(
-                source: SourceDirectory,
-                target: zipTempDirectory / "src",
+            SourceDirectory.CopyToDirectory(
+                zipTempDirectory / "src",
                 excludeDirectory: dir => dir.Name is "Quartz.Web" or "obj" or "bin",
-                excludeFile: file => file.Name.EndsWith(".suo") || file.Name.EndsWith(".user"));
+                excludeFile: file => file.Name.EndsWith(".suo") || file.Name.EndsWith(".user")
+            );
 
-            CopyDirectoryRecursively(
-                source: RootDirectory / "build",
-                target: zipTempDirectory / "build",
-                excludeDirectory: dir => dir.Name is "obj" or "bin");
+            (RootDirectory / "build").CopyToDirectory(zipTempDirectory / "build", excludeDirectory: dir => dir.Name is "obj" or "bin");
 
-            CopyDirectoryRecursively(source: RootDirectory / "database", target: zipTempDirectory / "database");
+            (RootDirectory / "database").CopyToDirectory(zipTempDirectory / "database");
 
             var binaries = Solution.Projects
                 .Where(x => x.GetProperty("IsPackable") != "false" || x.Name.Contains("Example") || x.Name == "Quartz.Server");
 
             foreach (var project in binaries)
             {
-                CopyDirectoryRecursively(source: SourceDirectory / project.Name / "bin" / Configuration, target: zipTempDirectory / "bin" / Configuration / project.Name);
+                (SourceDirectory / project.Name / "bin" / Configuration).CopyToDirectory(zipTempDirectory / "bin" / Configuration / project.Name);
             }
             
             var rootFilesToCopy = new []{"README.md","Quartz.sln","quartz.net.snk","license.txt", "changelog.md","build.cmd","build.sh","build.ps1"};
             foreach (var file in rootFilesToCopy)
             {
-                CopyFileToDirectory(RootDirectory / file, zipTempDirectory);
+                (RootDirectory / file).CopyToDirectory(zipTempDirectory);
             }
 
             var props = File.ReadAllText(SourceDirectory / "Directory.Build.props");

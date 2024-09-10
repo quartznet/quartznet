@@ -10,7 +10,8 @@ using Nuke.Common.CI.GitHubActions;
     OnPullRequestExcludePaths = ["docs/**/*", "package.json", "readme.md"],
     PublishArtifacts = false,
     InvokedTargets = [nameof(Compile), nameof(UnitTest)],
-    CacheKeyFiles = []),
+    CacheKeyFiles = [],
+    ConcurrencyCancelInProgress = true),
 ]
 [GitHubActions(
     "pr-tests-integration-postgres",
@@ -20,7 +21,8 @@ using Nuke.Common.CI.GitHubActions;
     OnPullRequestExcludePaths = ["docs/**/*", "package.json", "package-lock.json", "readme.md"],
     PublishArtifacts = false,
     InvokedTargets = [nameof(Compile), nameof(IntegrationTest)],
-    CacheKeyFiles = []),
+    CacheKeyFiles = [],
+    ConcurrencyCancelInProgress = true),
 ]
 [GitHubActions(
     "build",
@@ -36,6 +38,4 @@ using Nuke.Common.CI.GitHubActions;
     ImportSecrets = ["NUGET_API_KEY", "FEEDZ_API_KEY"],
     CacheKeyFiles = [])
 ]
-public partial class Build
-{
-}
+public partial class Build;
