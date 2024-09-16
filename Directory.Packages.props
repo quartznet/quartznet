@@ -51,7 +51,7 @@
     <PackageVersion Include="System.Data.SQLite.Core" Version="1.0.118" />
     <PackageVersion Include="TimeZoneConverter" Version="6.1.0" />
     <PackageVersion Include="Topshelf" Version="4.3.0" />
-    <PackageVersion Include="Verify.NUnit" Version="26.4.2" />
+    <PackageVersion Include="Verify.NUnit" Version="26.4.5" />
   </ItemGroup>
   <ItemGroup>
     <GlobalPackageReference Include="GitHubActionsTestLogger" Version="2.4.1" />
