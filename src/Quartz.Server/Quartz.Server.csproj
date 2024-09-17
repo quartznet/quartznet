@@ -14,7 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Quartz\Quartz.csproj" />
+    <ProjectReference Include="..\Quartz.Plugins\Quartz.Plugins.csproj" />
   </ItemGroup>
 
   <ItemGroup>

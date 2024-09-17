@@ -20,11 +20,11 @@ public static class Program
         // change from service account's dir to more logical one
         Directory.SetCurrentDirectory(AppDomain.CurrentDomain.BaseDirectory);
 
-        ILoggerRepository? logRepository = log4net.LogManager.GetRepository(Assembly.GetEntryAssembly());
+        ILoggerRepository logRepository = log4net.LogManager.GetRepository(Assembly.GetEntryAssembly()!);
         XmlConfigurator.Configure(logRepository, new FileInfo("log4net.config"));
         QuartzServer server = QuartzServerFactory.CreateServer();
         await server.Initialize().ConfigureAwait(false);
-        
+
         HostFactory.Run(x =>
         {
             x.RunAsLocalSystem();
