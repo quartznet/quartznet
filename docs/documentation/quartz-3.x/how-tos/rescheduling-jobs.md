@@ -42,6 +42,7 @@ public async Task Execute(IJobExecutionContext context)
     // like getting an HTTP 429 - Too Many requests
     var oldTrigger = context.Trigger;
     var newTrigger = TriggerBuilder.Create()
+        .ForJob(context.JobDetail)
         .WithIdentity($"{oldTrigger.Key.Name}-retry", oldTrigger.Key.Group)
         .StartAt(DateTimeOffset.UtcNow.AddMinutes(5))
         .Build();
