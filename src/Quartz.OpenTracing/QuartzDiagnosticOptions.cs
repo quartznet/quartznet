@@ -1,12 +1,14 @@
 using System;
 using System.Collections.Generic;
 
+using Quartz.Logging;
+
 namespace Quartz.OpenTracing
 {
     public class QuartzDiagnosticOptions
     {
         private string _componentName = "Quartz";
-        private Func<IJobExecutionContext, string> _operationNameResolver = job => $"Job {job.JobDetail.Key.Name}";
+        private Func<IJobDiagnosticData, string> _operationNameResolver = job => $"Job {job.JobDetail.Key.Name}";
 
         /// <summary>
         /// Allows changing the "component" tag of created spans.
@@ -22,12 +24,12 @@ namespace Quartz.OpenTracing
         /// <para/>
         /// If any delegate in the list returns <c>true</c>, the job will be ignored.
         /// </summary>
-        public List<Func<IJobExecutionContext, bool>> IgnorePatterns { get; } = new List<Func<IJobExecutionContext, bool>>();
+        public List<Func<IJobDiagnosticData, bool>> IgnorePatterns { get; } = new List<Func<IJobDiagnosticData, bool>>();
 
         /// <summary>
         /// A delegate that returns the OpenTracing "operation name" for the given job.
         /// </summary>
-        public Func<IJobExecutionContext, string> OperationNameResolver
+        public Func<IJobDiagnosticData, string> OperationNameResolver
         {
             get => _operationNameResolver;
             set => _operationNameResolver = value ?? throw new ArgumentNullException(nameof(OperationNameResolver));

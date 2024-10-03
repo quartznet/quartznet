@@ -78,7 +78,7 @@ namespace Quartz.OpenTracing
         {
             if (eventName == jobExecuteStartEventName)
             {
-                var jobContext = untypedArg as IJobExecutionContext;
+                var jobContext = untypedArg as IJobDiagnosticData;
                 if (jobContext is null)
                     throw new ArgumentException(nameof(untypedArg));
 
@@ -93,8 +93,8 @@ namespace Quartz.OpenTracing
                 tracer.BuildSpan(operationName)
                     .WithTag(Tags.SpanKind, Tags.SpanKindServer)
                     .WithTag(Tags.Component, options.ComponentName)
-                    .WithTag(DiagnosticHeaders.SchedulerName, jobContext.Scheduler.SchedulerName)
-                    .WithTag(DiagnosticHeaders.SchedulerId, jobContext.Scheduler.SchedulerInstanceId)
+                    .WithTag(DiagnosticHeaders.SchedulerName, jobContext.SchedulerName)
+                    .WithTag(DiagnosticHeaders.SchedulerId, jobContext.SchedulerId)
                     .WithTag(DiagnosticHeaders.FireInstanceId, jobContext.FireInstanceId)
                     .WithTag(DiagnosticHeaders.TriggerGroup, jobContext.Trigger.Key.Group)
                     .WithTag(DiagnosticHeaders.TriggerName, jobContext.Trigger.Key.Name)
@@ -123,7 +123,7 @@ namespace Quartz.OpenTracing
             }
         }
 
-        private bool IgnoreEvent(IJobExecutionContext context)
+        private bool IgnoreEvent(IJobDiagnosticData context)
             => options.IgnorePatterns.Any(ignore => ignore(context));
 
         private void SetSpanException(ISpan span, JobExecutionException exception)
