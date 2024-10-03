@@ -20,6 +20,8 @@ namespace Quartz.Logging
             FireInstanceId = context.FireInstanceId;
             Result = context.Result;
             JobRunTime = context.JobRunTime;
+            SchedulerName = context.Scheduler.SchedulerName;
+            SchedulerId = context.Scheduler.SchedulerInstanceId;
         }
 
         /// <summary>
@@ -152,5 +154,15 @@ namespace Quartz.Logging
         /// <see cref="IJobListener" />s and <see cref="ITriggerListener" />s.
         /// </summary>
         public TimeSpan JobRunTime { get; }
+        
+        /// <summary>
+        /// The instance Id of the <see cref="IScheduler" />.
+        /// </summary>
+        public string SchedulerId { get; }
+        
+        /// <summary> 
+        /// The name of the <see cref="IScheduler" />.
+        /// </summary>
+        public string SchedulerName { get; }
     }
 }
