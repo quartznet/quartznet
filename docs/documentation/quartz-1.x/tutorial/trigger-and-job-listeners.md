@@ -57,11 +57,15 @@ need to be re-registered with the scheduler.
 
 __Adding a JobListener to the Scheduler__
 
+```csharp
     scheduler.AddGlobalJobListener(myJobListener);
+```
 
 or
 
+```csharp
     scheduler.AddJobListener(myJobListener);
+```
 
 Listeners are not used by most users of Quartz.NET, but are handy when application requirements create the need
 for the notification of events, without the Job itself explicitly notifying the application.

@@ -15,21 +15,25 @@ System.Text.Json facilities to handle the actual serialization process.
 
 You need to add NuGet package reference to your project which uses Quartz.
 
+```powershell
     Install-Package Quartz.Serialization.SystemTextJson
+```
 
 ## Configuring
 
 **Classic property-based configuration**
+
 ```csharp
 var properties = new NameValueCollection
 {
-	["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
-	["quartz.serializer.type"] = "stj"
+ ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
+ ["quartz.serializer.type"] = "stj"
 };
 ISchedulerFactory schedulerFactory = new StdSchedulerFactory(properties);
 ```
 
 **Configuring using scheduler builder**
+
 ```csharp
 var config = SchedulerBuilder.Create();
 config.UsePersistentStore(store =>
@@ -45,6 +49,7 @@ config.UsePersistentStore(store =>
 });
 ISchedulerFactory schedulerFactory = config.Build();
 ```
+
 ## Migrating from binary serialization
 
 There's now official solution for migration as there can be quirks in every setup, but there's a recipe that can work for you.
@@ -125,6 +130,7 @@ class CustomJsonSerializer : SystemTextJsonObjectSerializer
 ```
 
 **And then configure it to use**
+
 ```csharp
 store.UseSerializer<CustomJsonSerializer>();
 // or
@@ -137,6 +143,7 @@ If you have implemented a custom calendar, you need to implement a `ICalendarSer
 There's a convenience base class `CalendarSerializer` that you can use the get strongly-typed experience.
 
 **Custom calendar and serializer**
+
 ```csharp
 using System;
 using System.Runtime.Serialization;
@@ -191,6 +198,7 @@ public sealed class CustomCalendarSerializer : CalendarSerializer<CustomCalendar
 ```
 
 **Configuring custom calendar serializer**
+
 ```csharp
 var config = SchedulerBuilder.Create();
 config.UsePersistentStore(store =>

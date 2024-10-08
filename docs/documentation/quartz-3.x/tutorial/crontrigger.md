@@ -73,7 +73,7 @@ Here are some full examples:
 | **Expression**             | **Meaning**                                                                                                                         |
 |:---------------------------|:------------------------------------------------------------------------------------------------------------------------------------|
 | `0 0 12 * * ?`             | Fire at 12pm (noon) every day                                                                                                       |
-| `0 15 10 ? * *`            | Fire at 10:15am every day                                                                                                           |
+| `0 15 10 ? * *`            | Fire at 10:dir15am every day                                                                                                           |
 | `0 15 10 * * ?`            | Fire at 10:15am every day                                                                                                           |
 | `0 15 10 * * ? *`          | Fire at 10:15am every day                                                                                                           |
 | `0 15 10 * * ? 2005`       | Fire at 10:15am every day during the year 2005                                                                                      |
@@ -103,6 +103,6 @@ Pay attention to the effects of '?' and '*' in the day-of-week and day-of-month 
 Support for specifying both a day-of-week and a day-of-month value is not complete (you must currently use the '?' character in one of these fields).
 :::
 ::: warning
-Be careful when setting fire times between the hours of the morning when "daylight savings" changes occur in your locale (for US locales, this would typically be the hour before and after 2:00 AM - because the time shift can cause a skip or a repeat depending on whether the time moves back or jumps forward. You may find this Wikipedia entry helpful in determining the specifics to your locale:
+Be careful when setting fire times between the hours of the morning when "daylight savings" changes occur in your locale (for US locales, this would typically be the hour before and after 2:00 AM - because the time shift can cause a skip or a repeat depending on whether the time moves back or jumps forward.) You may find this Wikipedia entry helpful in determining the specifics to your locale:
 [https://secure.wikimedia.org/wikipedia/en/wiki/Daylight_saving_time_around_the_world](https://secure.wikimedia.org/wikipedia/en/wiki/Daylight_saving_time_around_the_world)
 :::

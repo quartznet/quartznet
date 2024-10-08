@@ -47,7 +47,9 @@ and ADO.NET delegate information.
 
 **Configuring Quartz to use JobStoreTx**
 
+```text
     quartz.jobStore.type = Quartz.Impl.AdoJobStore.JobStoreTX, Quartz
+```
 
 Next, you need to select a IDriverDelegate implementation for the JobStore to use.
 The DriverDelegate is responsible for doing any ADO.NET work that may be needed for your specific database.
@@ -64,20 +66,26 @@ Once you've selected your delegate, set its class name as the delegate for AdoJo
 
 **Configuring AdoJobStore to use a DriverDelegate**
 
+```text
     quartz.jobStore.driverDelegateType = Quartz.Impl.AdoJobStore.StdAdoDelegate, Quartz
+```
 
 Next, you need to inform the JobStore what table prefix (discussed above) you are using.
 
 **Configuring AdoJobStore with the Table Prefix**
 
+```text
     quartz.jobStore.tablePrefix = QRTZ_
+```
 
 And finally, you need to set which data source should be used by the JobStore. The named data source must also be defined in your Quartz properties.
 In this case, we're specifying that Quartz should use the data source name "myDS" (that is defined elsewhere in the configuration properties).
 
 **Configuring AdoJobStore with the name of the data source to use**
 
+```text
     quartz.jobStore.dataSource = myDS
+```
 
 One last thing that is needed for the configuration is to set data source connection string information and database provider. Connection
 string is the standard ADO.NET connection which is driver specific. Database provider is an abstraction of database drivers to create
@@ -85,8 +93,10 @@ loose coupling between database drivers and Quartz.
 
 **Setting Data Source's Connection String And Database Provider**
 
+```text
      quartz.dataSource.myDS.connectionString = Server=localhost;Database=quartz;Uid=quartznet;Pwd=quartznet
      quartz.dataSource.myDS.provider = MySql-50
+```
 
 Currently following database providers are supported:
 
@@ -103,7 +113,7 @@ Currently following database providers are supported:
 * Firebird-210 - Firebird ADO.NET 2.0 Provider v. 2.1.0 (.NET 2.0)
 
 If your Scheduler is very busy (i.e. nearly always executing the same number of jobs as the size of the thread pool, then you should
-probably set the number of connections in the data source to be the about the size of the thread pool + 1. This is commonly configured
+probably set the number of connections in the data source to be the about the size of the thread pool + 1.) This is commonly configured
 in the ADO.NET connection string - see your driver implementation for details.
 
 The "quartz.jobStore.useProperties" config parameter can be set to "true" (defaults to false) in order to instruct AdoJobStore that all values in JobDataMaps will be strings,
@@ -112,4 +122,6 @@ as you avoid the class versioning issues that there are with serializing your no
 
 **Configuring AdoJobStore to use strings as JobDataMap values (recommended)**
 
+```text
     quartz.jobStore.useProperties = true
+```

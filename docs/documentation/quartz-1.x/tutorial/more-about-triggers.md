@@ -15,6 +15,7 @@ create a trigger that fires a job every weekday at 9:30 am, but then add a Calen
 
 Calendar's can be any serializable objects that implement the ICalendar interface, which looks like this:
 
+```csharp
     namespace Quartz
     {
         public interface ICalendar
@@ -27,7 +28,8 @@ Calendar's can be any serializable objects that implement the ICalendar interfac
     
             DateTime GetNextIncludedTimeUtc(DateTime timeUtc);
         }
-    } 
+    }
+```
 
 Notice that the parameters to these methods are of the long type. As you may guess, they are timestamps in millisecond format.
 This means that calendars can 'block out' sections of time as narrow as a millisecond. Most likely, you'll be interested in

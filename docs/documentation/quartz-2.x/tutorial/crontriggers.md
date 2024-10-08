@@ -17,13 +17,13 @@ endTime that specifies when the schedule should be discontinued.
 _Cron-Expressions_ are used to configure instances of CronTrigger. Cron-Expressions are strings that are actually made up
 of seven sub-expressions, that describe individual details of the schedule. These sub-expression are separated with white-space, and represent:
 
-* 1. Seconds
-* 2. Minutes
-* 3. Hours
-* 4. Day-of-Month
-* 5. Month
-* 6. Day-of-Week
-* 7. Year (optional field)
+* `1. Seconds`
+* `2. Minutes`
+* `3. Hours`
+* `4. Day-of-Month`
+* `5. Month`
+* `6. Day-of-Week`
+* `7. Year (optional field)`
 
 An example of a complete cron-expression is the string "0 0 12 ? * WED" - which means "every Wednesday at 12:00 pm".
 
@@ -64,20 +64,20 @@ Here are a few more examples of expressions and their meanings - you can find ev
 
 **CronTrigger Example 1 - an expression to create a trigger that simply fires every 5 minutes**
 
-    "0 0/5 * * * ?"
+`0 0/5 * * * ?`
 
 **CronTrigger Example 2 - an expression to create a trigger that fires every 5 minutes, at 10 seconds after the minute (i.e. 10:00:10 am, 10:05:10 am, etc.).**
 
-    "10 0/5 * * * ?"
+`10 0/5 * * * ?`
 
 **CronTrigger Example 3 - an expression to create a trigger that fires at 10:30, 11:30, 12:30, and 13:30, on every Wednesday and Friday.**
 
-    "0 30 10-13 ? * WED,FRI"
+`0 30 10-13 ? * WED,FRI`
 
 **CronTrigger Example 4 - an expression to create a trigger that fires every half hour between the hours of 8 am and 10 am on the 5th and 20th of every month.
 Note that the trigger will NOT fire at 10:00 am, just at 8:00, 8:30, 9:00 and 9:30**
 
-    "0 0/30 8-9 5,20 * ?"
+`0 0/30 8-9 5,20 * ?`
 
 Note that some scheduling requirements are too complicated to express with a single trigger - such as "every 5 minutes between 9:00 am and 10:00 am,
 and every 20 minutes between 1:00 pm and 10:00 pm". The solution in this scenario is to simply create two triggers, and register both of them to run the same job.
@@ -152,7 +152,7 @@ constants (and API documentation has description for their behavior). The instru
 * MisfireInstruction.CronTrigger.DoNothing
 * MisfireInstruction.CronTrigger.FireOnceNow
 
-All triggers have the MisfireInstrution.SmartPolicy instruction available for use, and this instruction is also the default for all trigger types.
+All triggers have the MisfireInstruction.SmartPolicy instruction available for use, and this instruction is also the default for all trigger types.
 The 'smart policy' instruction is interpreted by CronTrigger as MisfireInstruction.CronTrigger.FireOnceNow. The API documentation for the
 CronTrigger.UpdateAfterMisfire() method explains the exact details of this behavior.
 

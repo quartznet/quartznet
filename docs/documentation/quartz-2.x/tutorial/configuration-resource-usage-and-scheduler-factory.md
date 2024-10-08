@@ -59,8 +59,8 @@ configuration - or in other words, you end up hard-coding all of the scheduler's
 
 ## Logging
 
-Quartz.NET uses the <a href="http://netcommon.sourceforge.net/">Common.Logging framework</a> for all of its logging needs.
+Quartz.NET uses the [Common.Logging framework](http://netcommon.sourceforge.net/) for all of its logging needs.
 Quartz does not produce much logging information - generally just some information during initialization, and
 then only messages about serious problems while Jobs are executing. In order to "tune" the logging settings
 (such as the amount of output, and where the output goes), you need to understand the Commmon.Logging framework,
-which is beyond the scope of this document, please refer to <a href="http://netcommon.sourceforge.net/documentation.html">Common.Logging Documentation</a>.
+which is beyond the scope of this document, please refer to [Common.Logging Documentation](http://netcommon.sourceforge.net/documentation.html).

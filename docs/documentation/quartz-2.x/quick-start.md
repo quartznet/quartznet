@@ -34,7 +34,7 @@ Couldn't get any simpler than this. Just fire up Visual Studio (with NuGet insta
 
 or from NuGet Command-Line:
 
-```
+```powershell
 Install-Package Quartz
 ```
 
@@ -121,7 +121,7 @@ However, to keep things simple for our example we take the simple route and conf
 
 Add the following line to the beginning of your Program.cs
 
-```
+```csharp
 Common.Logging.LogManager.Adapter = new Common.Logging.Simple.ConsoleOutLoggerFactoryAdapter { Level = Common.Logging.LogLevel.Info};
 ```
 
@@ -129,7 +129,7 @@ Common.Logging.LogManager.Adapter = new Common.Logging.Simple.ConsoleOutLoggerFa
 
 Now we should get a lot more information when we start the application.
 
-```
+```text
 11.1.2014 14:52:04 [INFO]  Quartz.Impl.StdSchedulerFactory - Quartz.NET properties loaded from configuration file 'c:\ConsoleApplication1\bin\Debug\quartz.config'
 11.1.2014 14:52:04 [INFO]  Quartz.Impl.StdSchedulerFactory - Using default implementation for object serializer
 11.1.2014 14:52:04 [INFO]  Quartz.Impl.StdSchedulerFactory - Using default implementation for ThreadExecutor
