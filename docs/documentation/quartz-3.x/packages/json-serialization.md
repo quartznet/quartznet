@@ -31,10 +31,10 @@ Install-Package Quartz.Serialization.Json
 ```csharp
 var properties = new NameValueCollection
 {
-	["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
-	// "newtonsoft" and "json" are aliases for "Quartz.Simpl.JsonObjectSerializer, Quartz.Serialization.Json"
-	// you should prefer "newtonsoft" as it's more explicit from Quartz 3.10 onwards
-	["quartz.serializer.type"] = "newtonsoft"
+ ["quartz.jobStore.type"] = "Quartz.Impl.AdoJobStore.JobStoreTX, Quartz",
+ // "newtonsoft" and "json" are aliases for "Quartz.Simpl.JsonObjectSerializer, Quartz.Serialization.Json"
+ // you should prefer "newtonsoft" as it's more explicit from Quartz 3.10 onwards
+ ["quartz.serializer.type"] = "newtonsoft"
 };
 ISchedulerFactory schedulerFactory = new StdSchedulerFactory(properties);
 ```

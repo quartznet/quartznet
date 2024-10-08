@@ -22,7 +22,7 @@ The scripts to create these tables for various providers can be found [here](htt
 
 ## Quartz Triggers Table
 
-This table stores the configuration of the `ITrigger` data that is shared across all types. 
+This table stores the configuration of the `ITrigger` data that is shared across all types.
 
 | [Trigger State](https://github.com/quartznet/quartznet/blob/main/src/Quartz/TriggerState.cs) | Description |
 | -- | -- |

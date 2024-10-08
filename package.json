@@ -37,7 +37,7 @@
   },
   "homepage": "https://github.com/quartznet/quartznet",
   "devDependencies": {
-    "markdownlint": "^0.34.0",
-    "markdownlint-cli2": "^0.13.0"
+    "markdownlint": "^0.35.0",
+    "markdownlint-cli2": "^0.14.0"
   }
 }

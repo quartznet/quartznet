@@ -184,6 +184,8 @@ ISchedulerFactory schedulerFactory = config.Build();
 
 #### Using properties
 
+```csharp
     // "stj" is an alias for "Quartz.Simpl.SystemTextJsonObjectSerializer, Quartz"
     // "newtonsoft" is alias for "Quartz.Simpl.JsonObjectSerializer, Quartz.Serialization.Json"
     quartz.serializer.type = stj
+```
