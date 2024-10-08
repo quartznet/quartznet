@@ -73,7 +73,7 @@ Here are some full examples:
 | **Expression**             | **Meaning**                                                                                                                         |
 |:---------------------------|:------------------------------------------------------------------------------------------------------------------------------------|
 | `0 0 12 * * ?`             | Fire at 12pm (noon) every day                                                                                                       |
-| `0 15 10 ? * *`            | Fire at 10:dir15am every day                                                                                                           |
+| `0 15 10 ? * *`            | Fire at 10:15am every day                                                                                                           |
 | `0 15 10 * * ?`            | Fire at 10:15am every day                                                                                                           |
 | `0 15 10 * * ? *`          | Fire at 10:15am every day                                                                                                           |
 | `0 15 10 * * ? 2005`       | Fire at 10:15am every day during the year 2005                                                                                      |
