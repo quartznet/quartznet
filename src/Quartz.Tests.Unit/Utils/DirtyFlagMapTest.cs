@@ -2283,8 +2283,8 @@ public class DirtyFlagMapTest
         Assert.Multiple(() =>
         {
             Assert.That(keys.Count, Is.EqualTo(2));
-            Assert.That(keys, Contains.Value("One"));
-            Assert.That(keys, Contains.Value("Two"));
+            Assert.That(keys, Contains.Item("One"));
+            Assert.That(keys, Contains.Item("Two"));
         });
     }
 
@@ -2302,8 +2302,8 @@ public class DirtyFlagMapTest
         Assert.Multiple(() =>
         {
             Assert.That(values.Count, Is.EqualTo(2));
-            Assert.That(values, Contains.Value("First Value"));
-            Assert.That(values, Contains.Value("Second Value"));
+            Assert.That(values, Contains.Item("First Value"));
+            Assert.That(values, Contains.Item("Second Value"));
         });
     }
 
